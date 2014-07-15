@@ -381,6 +381,50 @@ day3=102</pre></code></div>
             counterpart - <code>function</code>.</p>
 
           <p>The ability to pass functions as arguments is known as higher-order programming.</p>
+
+          <h4>Concurrency</h4>
+          <p>A Slogan program can have several independent activities, each of which executes at its own pace. This is called 
+            <em>concurrency</em>. We introduce concurrency by creating <em>tasks</em>. A task takes a function and runs it 
+            in its own <em>thread</em> of execution. Here is an example:</p>
+
+          <div class="highlight">
+            <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> say_hello<span class="o">(</span><span class="o">)</span> 
+          <span class="o">{</span> showln<span class="o">(</span><span class="s1">"hello"</span><span class="o">)</span><span class="o">;</span>
+            task_sleep<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
+            say_hello<span class="o">(</span><span class="o">)</span> <span class="o">
+          }</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>task<span class="o">(</span>say_hello<span class="o">)</span><span class="o">;</span></code></pre>
+          </div>
+
+      <p>After executing the call to <code>task</code> you will see the message "hello" printed to the console every 5 seconds. This happens
+        in the background and will not interrupt you from typing-in and evaluating other expressions.</p>
+      
+      <h5>Reactive variables</h5>
+      <p>It is possible for two tasks to communicate with each other. <em>Reactive variables</em> are the easiest mechanism available for
+        inter-task communication. A reactive variable is a special variable that has to be initialized and bound in two steps. A task can
+        refer to an initialized reactive variable but it will wait until the variable is bound to a value. That means, another task can
+        "resume" a waiting task by simply binding a reactive variable. A simple example follows:
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> x <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="k">fn</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"start..."</span><span class="o">)</span><span class="o">;</span> 
+                    showln<span class="o">(</span>?x <span class="o">*</span> ?x<span class="o">)</span><span class="o">;</span> 
+                    showln<span class="o">(</span><span class="s1">"...done."</span><span class="o">)</span><span class="o">
+                  }</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">-&gt; <span class="s2">start...</span></span></code></pre>
+        </div>
+
+        <p>A reactive variable is initialized with the special <code>?</code> symbol. The value bound to a reactive variable is 
+          accessed by prefixing the reactive variable identifier with a <code>?</code>. When the new task starts, it will print
+          "start..." and wait for the reactive variable to be bound. Now as you proceed to bind the reactive variable, the task
+          will resume and complete its function:</p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span>?x <span class="o">=</span> <span class="mi">99</span><span class="o">;</span>
+<span class="ge">-&gt; <span class="s2">9801</span>
+<span class="ge">-&gt; <span class="s2">...done.</span></pre></code>
+        </div>
+
     </div>
 </body>
 </html>
