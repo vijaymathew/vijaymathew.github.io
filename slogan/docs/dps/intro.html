@@ -1,4 +1,4 @@
-g<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
 <head>
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
@@ -275,9 +275,9 @@ day3=102</pre></code></div>
 <span class="nc">slogan&gt; </span>attempt<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 2</span>
 <span class="nc">slogan&gt; </span>attempt<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span>
+<span class="ge">=&gt; 1</span>
 <span class="nc">slogan&gt; </span>attempt<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="mi">1/0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; <span class="err">error: Divide by zero</span></span></code></pre>
+<span class="ge">-&gt; <span class="err">error: Divide by zero</span></span></code></pre>
           </div>
 
         <p>Calling <code>attempt(0, 1/0)</code> will generate a "Division by zero" error. With lazy evaluation of arguments, there would 
@@ -285,19 +285,102 @@ day3=102</pre></code></div>
         <p>Normal-order functions can be defined in Slogan using the <code>lazy</code> keyword:</p>
 
         <div class="highlight">
-          <pre><code><span class="nc">slogan&gt; </span><span class="k">lazy</span> attempt<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> attempt<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
           <span class="k">if</span> <span class="o">(</span>a <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="mi">1</span> <span class="k">else</span> b<span class="o">;</span>
 
 <span class="nc">slogan&gt; </span>attempt<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 2</span>
 <span class="nc">slogan&gt; </span>attempt<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span>
+<span class="ge">=&gt; 1</span>
 <span class="nc">slogan&gt; </span>attempt<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="mi">1/0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span></code></pre>
+<span class="ge">=&gt; 1</span></code></pre>
           </div>
 
         <p>An example that exploits lazy evaluation is the definition of a function <code>unless</code>:</p>
 
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> unless<span class="o">(</span>condition<span class="o">,</span> consequent<span class="o">,</span> alternative<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>condition<span class="o">)</span> alternative <span class="k">else</span> consequent<span class="o">;</span></code></pre>
+          </div>
+
+        <p><code>unless</code> makes it possible to write programs such as:</p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> b <span class="o">=</span> <span class="mi">20</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>unless<span class="o">(</span>b <span class="o">==</span> <span class="mi">0</span><span class="o">,</span> a <span class="o">/</span> b<span class="o">,</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"exception: returning 0"</span><span class="o">)</span><span class="o">;</span> 
+                                <span class="mi">0</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 1/2</span>
+<span class="nc">slogan&gt; </span>b <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>unless<span class="o">(</span>b <span class="o">==</span> <span class="mi">0</span><span class="o">,</span> a <span class="o">/</span> b<span class="o">,</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"exception: returning 0"</span><span class="o">)</span><span class="o">;</span> 
+                                <span class="mi">0</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">-&gt; <span class="err">exception: returning 0</span></span>
+<span class="ge">=&gt; 0</span></code></pre>
+        </div>
+
+        <p>The last call to <code>unless</code> won't work if it is an applicative-order function because both the <code>consequent</code> 
+          and the <code>alternative</code> will be evaluated before <code>unless</code> is called. An advantage of normal-order evaluation 
+          is that some functions, such as <code>unless</code>, can do useful computation even if evaluation of some of their arguments 
+          would produce errors or would not terminate.</p>
+
+        <p>If the body of a function is entered before an argument has been evaluated we say that the function is <em>non-strict</em> in 
+          that argument. If the argument is evaluated before the body of the procedure is entered we say that the function is <em>strict</em>
+          in that argument. In a purely applicative-order language, all functions are strict in each argument. In a purely normal-order language, 
+          all functions are non-strict in each argument, and primitive procedures may be either strict or non-strict. Slogan is a strict
+          language by default. But the combination of <code>delay</code>, <code>force</code> and <code>lazy</code>
+          functions give programmers detailed control over the strictness of the functions they define.</p>          
+
+        <h4>Higher-order programming</h4>
+        <p>Consider the following two functions. The first computes the sum of the integers from <code>a</code> to <code>b</code>:</p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_integers<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&gt;</span> b<span class="o">)</span> <span class="mi">0</span> <span class="k">else</span> a <span class="o">+</span> sum_integers<span class="o">(</span>add1<span class="o">(</span>a<span class="o">)</span><span class="o">,</span> b<span class="o">)</span><span class="o">;</span> </code></pre>
+          </div>
+
+        <p>The second computes the sum of the square roots of the integeres in the given range:</p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_sqrts<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&gt;</span> b<span class="o">)</span> <span class="mi">0</span> <span class="k">else</span> sqrt<span class="o">(</span>a<span class="o">)</span> <span class="o">+</span> sum_sqrts<span class="o">(</span>add1<span class="o">(</span>a<span class="o">)</span><span class="o">,</span> b<span class="o">)</span><span class="o">;</span> </code></pre>
+        </div>
+
+        <p>These two functions clearly share a common underlying pattern. They are for the most part identical, differing only 
+          in the name of the function, the function of <code>a</code> used to compute the term to be added, and the function 
+          that provides the next value of <code>a</code>. We could generate each of the functions by filling in slots in the same template:</p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> &lt;name&gt;<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span>
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&gt;</span> b<span class="o">)</span> <span class="mi">0</span> <span class="k">else</span> &lt;term&gt;<span class="o">(</span>a<span class="o">)</span> <span class="o">+</span> &lt;name&gt;<span class="o">(</span>&lt;next&gt;<span class="o">(</span>a<span class="o">)</span><span class="o">,</span> b<span class="o">)</span><span class="o">;</span></code></pre>
+        </div>
+
+        <p>A powerful language will allow us to express the concept of summation itself rather than only functions that calculate
+          particular sums. We can do so readily in Slogan by taking the common template shown above and transforming the "slots" 
+          into formal parameters:</p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum<span class="o">(</span>term<span class="o">,</span> a<span class="o">,</span> next<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&gt;</span> b<span class="o">)</span> <span class="mi">0</span> 
+          <span class="k">else</span> term<span class="o">(</span>a<span class="o">)</span> <span class="o">+</span> sum<span class="o">(</span>term<span class="o">,</span> next<span class="o">(</span>a<span class="o">)</span><span class="o">,</span> next<span class="o">,</span> b<span class="o">)</span><span class="o">;</span></code></pre>
+        </div>
+        
+        <p>Notice that <code>sum</code> takes as its arguments the lower and upper bounds <code>a</code> and <code>b</code> 
+          together with the functions <code>term</code> and <code>next</code>. We can use <code>sum</code> just as we would any function. 
+          For example, we can use it to define <code>sum_integers</code> and <code>sum_sqrts</code>:
+
+          <div class="highlight">
+            <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_integers<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          sum<span class="o">(</span><span class="k">fn</span><span class="o">(</span>x<span class="o">)</span> x<span class="o">,</span> a<span class="o">,</span> add1<span class="o">,</span> b<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> sum_sqrts<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          sum<span class="o">(</span>sqrt<span class="o">,</span> a<span class="o">,</span> add1<span class="o">,</span> b<span class="o">)</span><span class="o">;</span></code></pre>
+          </div>
+
+          <p>The first argument of <code>sum_integers</code> is a literal that represents the "identity" function, i.e, a function that
+            returns its argument as it is. Function literals are used to define anonymous functions that become arguments or return 
+            values of other functions. As you might have already noticed, the keyword <code>fn</code> can be used in place of its longer
+            counterpart - <code>function</code>.</p>
+
+          <p>The ability to pass functions as arguments is known as higher-order programming.</p>
     </div>
 </body>
 </html>
