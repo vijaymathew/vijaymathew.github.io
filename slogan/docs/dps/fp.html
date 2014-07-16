@@ -29,7 +29,144 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Functional Programming Techniques</h3></div>
+    <p>We say an operation is <em>functional</em> if, whenever called with the same input, 
+      it returns the same results independent of any other computation state.
+      A functional operation is:</p>
+
+    <p>
+      <ul>
+        <li>independent - does not depend on any execution state outside of itself.</li>
+        <li>stateless - has no internal execution state that is remembered between calls.</li>
+        <li>deterministic - always gives the same results when given the same arguments. 
+      </ul>
+    </p>
+
+    <p>Functional programming is important because of two properties: </p>
+
+    <p>
+      <ul>
+        <li>Functional programs are compositional. A functional program consists of components that can each 
+          be written, tested, and proved correct independently of other components and of its own past history (previous calls).</li>
+        <li>Reasoning about functional programs is simple. Programs written in the functional style are easier to 
+          reason about than programs written in other styles. Since functional programs compute only values, 
+          simple algebraic and logical reasoning techniques can be used to prove their correctness.</li>
+      </ul>
+    </p>
     
+    <p>These two properties are important both for programming in the large and in the small. 
+      It would be nice if all programs could easily be written in the functional style. 
+      Unfortunately, this is not the case. The functional style is a good fit for certain kinds of programs and a bad fit for others. 
+      This chapter examine the most important functional programming techniques and explain what kinds of programs can and cannot be easily 
+      written in this style.</p>
+
+    <p>The basic technique for writing functional programs is to consider the program as a set of recursive function definitions, 
+      using higher-order programming to simplify the program structure. A recursive function is one whose definition body refers to
+      the function itself, either directly or indirectly. Direct recursion means that the function itself is used in the body. 
+      Indirect recursion means that the function refers to another function that directly or indirectly refers to the original function. 
+      Higher-order programming means that functions can have other functions as arguments and results. This ability underlies all the 
+      techniques for building abstractions that we will encounter in this tutorial. </p>
+
+    <h4>Iterative computation</h4>
+    <p>We will start the our study of functional programming by looking at a very simple kind of program - the iterative computation.
+      Most iterative computations follow this pattern: </p>
+    <p>
+      <ol>
+        <li>Start with an initial state <code>S<sub>0</sub></code>.</li>
+        <li>Transform the state in successive steps until reaching the final state - <code>S<sub>final</sub></code>.</li>
+      </ol>
+    </p>
+
+    <p>This pattern can be expressed as a function:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> iterate<span class="o">(</span>state<span class="o">,</span> is_done<span class="o">,</span> transform<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_done<span class="o">(</span>state<span class="o">)</span><span class="o">)</span> state <span class="k">
+          else</span> iterate<span class="o">(</span>transform<span class="o">(</span>state<span class="o">)</span><span class="o">,</span> is_done<span class="o">,</span> transform<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>The arguments <code>is_done</code> and <code>transform</code> are two problem-dependent functions. <code>iterate</code> first checks
+      if the final state has reached by calling <code>is_done</code>. If <code>is_done</code> returns <code>true</code>, the current state
+      is returned. Otherwise, <code>iterate</code> calls itself with the next state. As this is the last thing that <code>iterate</code> does
+      it is treated as a special case of recursion known as a <em>tail call</em>.  In such situations, the program does not need to 
+      return to the calling function when the called function ends. Therefore, after the tail call, the program does not need to keep 
+      any information about the calling function in the stack. Slogan take advantage of this fact and actually do not use any extra 
+      stack space when doing a tail call. We say that Slogan support <em>proper tail calls</em>. Because of tail calls, there is not
+      limit to the number of times <code>iterate</code> can call itself. This feature makes special looping constructs like <code>for</code>
+      and <code>while</code> appear superfluous.</p>
+
+    <p>Let us see how <code>iterate</code> can stand-in for a traditional <code>for</code> loop:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>iterate<span class="o">(</span><span class="mi">0</span><span class="o">,</span> 
+                <span class="k">fn</span><span class="o">(</span>i<span class="o">)</span> i <span class="o">>=</span> <span class="mi">3</span><span class="o">,</span> 
+                <span class="k">fn</span><span class="o">(</span>i<span class="o">)</span> <span class="o">{</span>showln<span class="o">(</span>i<span class="o">)</span><span class="o">;</span> add1<span class="o">(</span>i<span class="o">)</span><span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 0
+   1
+   2
+   3</span></code></pre>
+    </div>
+      
+    <p>A good example of iterative computation is Newton's method for calculating the square root of a positive real number <code>x</code>. 
+      The idea is to start with a guess of the square root, and to improve this guess iteratively until it is accurate enough.
+      Here is one way of defining Newton's method as an iterative computation:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sqrt<span class="o">(</span>x<span class="o">)</span>
+          <span class="k">let</span> <span class="o">(</span>guess <span class="o">=</span> <span class="mi">1.0</span><span class="o">)</span> 
+           sqrt_iter<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> sqrt_iter<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_good_enough<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span><span class="o">)</span> guess <span class="k">
+          else</span> sqrt_iter<span class="o">(</span>improve<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span><span class="o">,</span> x<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> improve<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span>
+          <span class="o">(</span>guess <span class="o">+</span> x <span class="o">/</span> guess<span class="o">)</span> <span class="o">/</span> <span class="mi">2.0</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> is_good_enough<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span> 
+          abs<span class="o">(</span>x <span class="o">-</span> guess <span class="o">*</span> guess<span class="o">)</span> <span class="o">/</span> x <span class="o">&lt;</span> <span class="mi">0.00001</span><span class="o">;</span></code></pre>
+    </div>
+
+    <h5>Local functions</h5>
+    <p>The <code>sqrt</code> function uses several "helper" functions: <code>sqrt_iter</code>, <code>improve</code> and 
+      <code>is_good_enough</code>. Generally, it is not a good practice to define such helper functions in the global scope. 
+      The basic principle is that a helper function defined only as an aid to define another function should not be visible elsewhere.</p>
+    <p>In the square root example, <code>sqrt_iter</code> is only needed inside <code>sqrt</code>, and <code>improve</code> and
+      <code>good_enough</code> are only needed inside <code>sqrt_iter</code>. There are two basic ways to express this visibility, with
+      somewhat different semantics. The first way is to define the helper functions outside of <code>sqrt</code> in a <code>letrec</code>
+      expression. (<code>letrec</code> is an extension of <code>let</code> that allows a definition to refer recursively to itself and other local 
+      definitions):</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> sqrt <span class="o">=</span> 
+          <span class="k">letrec</span> <span class="o">(</span>improve <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span> <span class="o"> (</span>guess <span class="o">+</span> x <span class="o">/</span> guess<span class="o">)</span> <span class="o">/</span> <span class="mi">2.0</span><span class="o">,</span>
+ 
+                  is_good_enough <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span> abs<span class="o">(</span>x <span class="o">-</span> guess <span class="o">*</span> guess<span class="o">)</span> <span class="o">/</span> x <span class="o">&lt;</span> <span class="mi">0.00001</span><span class="o">,</span> 
+
+                  sqrt_iter <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span> <span class="k"> if</span> <span class="o">(</span>is_good_enough<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span><span class="o">)</span> guess <span class="k">
+                                            else</span> sqrt_iter<span class="o">(</span>improve<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span><span class="o">,</span> x<span class="o">)</span><span class="o">)</span> 
+
+            <span class="k">function</span><span class="o">(</span>x<span class="o">)</span>
+              <span class="k">let</span> <span class="o">(</span>guess <span class="o">=</span> <span class="mi">1.0</span><span class="o">)</span> 
+                sqrt_iter<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p><code>improve</code> and <code>is_good_enough</code> could be defined local to <code>sqrt_iter</code> only. 
+      This would result in two levels of <code>let</code> expressions, which is harder to read. By putting all three helper functions
+      in the same top-level <code>let</code> expression, we have traded visibility for readability. Putting helper functions inside
+      the function that uses then lets them see the arguments of the main function. Therefore, they need fewer arguments. 
+      But each time the main function is invoked, new helper functions are created. All these considerations leads to the following
+    definition of <code>sqrt</code> which tries to balance efficiency with visibility:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sqrt<span class="o">(</span>x<span class="o">)</span> 
+          <span class="k">letrec</span> <span class="o">(</span>improve <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>guess<span class="o">)</span> <span class="o">(</span>guess <span class="o">+</span> x <span class="o">/</span> guess<span class="o">)</span> <span class="o">/</span> <span class="mi">2.0</span><span class="o">,</span> 
+
+                  is_good_enough <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>guess<span class="o">)</span> abs<span class="o">(</span>x <span class="o">-</span> guess <span class="o">*</span> guess<span class="o">)</span> <span class="o">/</span> x <span class="o">&lt;</span> <span class="mi">0.00001</span><span class="o">,</span> 
+
+                  sqrt_iter <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>guess<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>is_good_enough<span class="o">(</span>guess<span class="o">)</span> <span class="o">)</span> guess <span class="k">
+                                        else</span> sqrt_iter<span class="o">(</span>improve<span class="o">(</span>guess<span class="o">)</span><span class="o">)</span><span class="o">,</span> 
+                  guess <span class="o">=</span> <span class="mi">1.0</span><span class="o">)</span> 
+
+            sqrt_iter<span class="o">(</span>guess<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
   </div>
   
 </body>
