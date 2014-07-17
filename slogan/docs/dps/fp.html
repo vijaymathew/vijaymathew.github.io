@@ -200,7 +200,7 @@
 
     <p>This definition gives a computation whose maximum stack size is proportional to the argument <code>n</code>. In the <code>else</code>
       part of the function, it has to build up a chain of deferred multiplications whose length is determined by <code>n</code>. For very
-      alrge numbers, this chain can outgrow the available memory and the function will fail. It is possible to make <code>factorial</code>
+      large numbers, this chain can outgrow the available memory and the function will fail. It is possible to make <code>factorial</code>
       more efficient by introducing an additional argument that keeps track of the result computed so far. This extra argument, known as an
       <em>accumulator</em>, will enable us to rewrite <code>factorial</code> as an iterative computation that will not run out of stack space:</p>
 
@@ -215,7 +215,65 @@
         <span class="o">}</span><span class="o">;</span> </code></pre>
     </div>
 
-    <h5>Recursive data types</h5>
+    <h5>Recursive programming with lists</h5>
+    <p>In programming, recursion occurs in two major ways: in functions and in data types. A function is recursive if its
+      definition has at least one call to itself. A data type is recursive if it is defined in terms of itself. For example,
+      a list is defined in terms of a smaller list. The two forms of recursion are strongly related since recursive functions 
+      can be used to calculate with recursive data types.</p>
+
+    <p>List values are very concise to create and to take apart, yet they are powerful enough to encode any kind of complex data structure. 
+      Because of lists' simple structure, functional programming with them is easy and powerful. This section gives the
+      basic techniques of programming with lists.</p>
+
+    <p>A list is a recursive data structure, i.e., it is defined in terms of a smaller version of itself. To write a function that 
+      calculates on lists we have to follow this recursive structure. The function consists of two parts:</p>
+    <p>
+      <ul>
+        <li>A base case. For small lists (say, of zero, one, or two elements), the function computes the answer directly.</li>
+        <li>A recursive case. For bigger lists, the function computes the result in terms of the results of one or more smaller lists.</li>
+      </ul>
+    </p>
+    
+    <p>Slogan has a built-in function <code>length</code> that returns the number of elements in a list. As a simple example, let us
+      redefine this function following the above technique:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> length<span class="o">(</span>ls<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
+            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
+            <span class="o">[</span>_ tail<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length<span class="o">(</span>tail<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>length<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 4</span>
+<span class="nc">slogan&gt; </span>length<span class="o">(</span><span class="o">[</span>'a'<span class="o">,</span> 'b'<span class="o">,</span> 'c'<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 3</span>
+<span class="nc">slogan&gt; </span>length<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="o">[</span>'a'<span class="o">,</span> 'b'<span class="o">,</span> 'c'<span class="o">]</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 5</span></code></pre>
+    </div>
+
+    <p>Can you define an iterative version of <code>length</code> using an accumulator argument?</p>
+
+    <p>Now let us define an "advanced" version of <code>length</code> that counts the number of elements in nested lists:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> length_n<span class="o">(</span>ls<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
+            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
+            <span class="o">[</span>head tail<span class="o">]</span> <span class="k">where</span> is_list<span class="o">(</span>head<span class="o">)</span><span class="o">:</span> length_n<span class="o">(</span>head<span class="o">)</span> <span class="o">+</span> length_n<span class="o">(</span>tail<span class="o">)</span><span class="o">,</span> 
+            <span class="o">[</span>_ tail<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length_n<span class="o">(</span>tail<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>length_n<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="o">[</span>'a'<span class="o">,</span> 'b'<span class="o">,</span> 'c'<span class="o">]</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 7</span></code></pre>
+      </div>
+
+    <p>The second clause of <code>match</code> contains a <em>guard</em> which is introduced by the keyword <code>where</code>. The
+      clause is executed only of the pattern match succeeds and the expression in the guard evaluates to <code>true</code>. </p>
+
+    <p>Both the <code>length</code> functions that we defined displays a curious property: The recursive structure of the functions 
+      exactly follows the recursive structure of the list data type. This leads us to an important principle in designing functional
+      programs: A function that calculates with a given type almost always has a recursive structure that closely mirrors the type
+      definition.</p>
+
   </div>
   
 </body>
