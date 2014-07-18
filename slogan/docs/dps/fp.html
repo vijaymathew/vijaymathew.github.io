@@ -28,7 +28,7 @@
   </div>
   
   <div id="site" class="site">
-    <div class="title"><h3>Functional Programming Techniques</h3></div>
+    <div class="title"><h3>Basic Functional Programming Techniques</h3></div>
     <p>We say an operation is <em>functional</em> if, whenever called with the same input, 
       it returns the same results independent of any other computation state.
       A functional operation is:</p>
@@ -350,6 +350,70 @@
 <span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">200</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; 110</span></code></pre>
     </div>
+
+    <h5>Genericity</h5>
+    <p>To make a function generic is to let any specific entity (i.e., any operation or value) in the function body become an argument 
+      of the function. We say the entity is abstracted out of the function body. The specific entity is given when the function
+      is called. Each time the function is called another entity can be given. We saw an example of a generic function when we defined
+      <code>iterate</code> earlier in this chapter. It takes two function arguments <code>transform</code> and <code>is_done</code>
+      that influences its behavior each time it is called.</p>
+    <p>Let us look at a second example of a generic function. Consider the function <code>sum_list</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_list<span class="o">(</span>ls<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
+            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
+            <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> x <span class="o">+</span> sum_list<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p>This function has two specific entities: the number zero (<code>0</code>) and the operation plus (<code>+</code>). 
+      The zero is a neutral element for the plus operation. If we abstract out these two entities and give them as arguments,
+      we get a generic function that can be used to "reduce" a list to a single value. Slogan has such a function called <code>fold_right</code>
+      - a function that "folds" a list from right to left to produce a single value. If we use <code>fold_right</code>, we get a much
+      shorter definition of <code>sum_list</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_list<span class="o">(</span>ls<span class="o">)</span> 
+          fold_right<span class="o">(</span>add<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> ls<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>We can use <code>fold_right</code> to define other functions on lists. Here is a function that returns <code>true</code>
+      if there is at least one <code>true</code> in the list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> has_any<span class="o">(</span>ls<span class="o">)</span> 
+          fold_right<span class="o">(</span><span class="k">fn</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> x <span class="o">||</span> y<span class="o">,</span> false<span class="o">,</span> ls<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>has_any<span class="o">(</span><span class="o">[</span>false<span class="o">,</span> true<span class="o">,</span> false<span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>has_any<span class="o">(</span><span class="o">[</span><span class="mi">1 </span><span class="o">==</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">1 </span><span class="o">&lt;</span> <span class="mi">2</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>has_any<span class="o">(</span><span class="o">[</span><span class="mi">1 </span><span class="o">==</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">1 </span><span class="o">&gt;</span> <span class="mi">2</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span></code></pre>
+    </div>
+
+    <h5>Instantiation</h5>
+    <p>An example of instantiation is the "counter" factory that we met in the <a href="intro.html">Introduction</a>. Another example
+      is a function that returns a sorting function. The function <code>make_sort</code> takes a boolean comparison function <code>cf</code>
+      and returns a function that can be used to sort a list which uses <code>cf</code> to order the elements:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_sort<span class="o">(</span>cf<span class="o">)</span> 
+          <span class="k">function</span> <span class="o">(</span>ls<span class="o">)</span> sort<span class="o">(</span>ls<span class="o">,</span> test <span class="o">=</span> cf<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> num_sorter <span class="o">=</span> make_sort<span class="o">(</span>is_number_lt<span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> char_sorter <span class="o">=</span> make_sort<span class="o">(</span>is_char_lt<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>num_sorter<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">34</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [0, 8, 10, 34]</span>
+<span class="nc">slogan&gt; </span>char_sorter<span class="o">(</span><span class="o">[</span>'r'<span class="o">,</span>'w'<span class="o">,</span> 'a'<span class="o">,</span> 'd'<span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt;['a', 'd', 'r', 'w'] </span> </code></pre>
+    </div>
+    
+    <h5>Embedding</h5>
+    <p>Putting function values in data structures has many uses. For example, this can be used to build lazy
+      data structures: data structures that are built incrementally on demand. The idea is to build only a small
+      part of the data structure with functions at the extremities that can be called to
+      build more. We will use embedded functions in creating many abstractions later in this tutorial.</p>
 
   </div>
   
