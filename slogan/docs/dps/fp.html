@@ -241,7 +241,7 @@
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> length<span class="o">(</span>ls<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
             <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
-            <span class="o">[</span>_ tail<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length<span class="o">(</span>tail<span class="o">)</span><span class="o">;</span> 
+            <span class="o">[</span>_ xs<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span> 
 
 <span class="nc">slogan&gt; </span>length<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; 4</span>
@@ -259,8 +259,8 @@
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> length_n<span class="o">(</span>ls<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
             <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
-            <span class="o">[</span>head tail<span class="o">]</span> <span class="k">where</span> is_list<span class="o">(</span>head<span class="o">)</span><span class="o">:</span> length_n<span class="o">(</span>head<span class="o">)</span> <span class="o">+</span> length_n<span class="o">(</span>tail<span class="o">)</span><span class="o">,</span> 
-            <span class="o">[</span>_ tail<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length_n<span class="o">(</span>tail<span class="o">)</span><span class="o">;</span> 
+            <span class="o">[</span>x xs<span class="o">]</span> <span class="k">where</span> is_list<span class="o">(</span>x<span class="o">)</span><span class="o">:</span> length_n<span class="o">(</span>x<span class="o">)</span> <span class="o">+</span> length_n<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> 
+            <span class="o">[</span>_ xs<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length_n<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span> 
 
 <span class="nc">slogan&gt; </span>length_n<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="o">[</span>'a'<span class="o">,</span> 'b'<span class="o">,</span> 'c'<span class="o">]</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 7</span></code></pre>
@@ -272,7 +272,84 @@
     <p>Both the <code>length</code> functions that we defined displays a curious property: The recursive structure of the functions 
       exactly follows the recursive structure of the list data type. This leads us to an important principle in designing functional
       programs: A function that calculates with a given type almost always has a recursive structure that closely mirrors the type
-      definition.</p>
+      definition. But naively following the recursive structure of a data type to define functions can lead to inefficient implementations.
+      This can be made clear with an example. Let us define a function to reverse the elements of a list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reverse<span class="o">(</span>ls<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
+            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="o">[</span><span class="o">]</span><span class="o">,</span> 
+            <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> append<span class="o">(</span>reverse<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> <span class="o">[</span>x<span class="o">]</span><span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>Is this function efficient? Let us do an intuitive analysis of the function. For a list of length <code>n</code> there will 
+      be <code>n</code> recursive calls followed by <code>n</code> calls to <code>append</code>. Each <code>append</code> call will 
+      have a list of length <code>n/2</code> on average. The total execution time is therefore proportional to <code>n * n/2</code>, 
+      namely <code>n<sup>2</sup></code>. This is rather slow. We would expect that reversing a list, which is not exactly a complex 
+      calculation, would take time proportional to the input length and not to its square.</p>
+
+    <p>This function has a second defect: the stack size grows with the input list length, i.e., it defines a recursive computation 
+      that is not iterative. Naively following the recursive definition of reverse has given us a rather inefficient result! Luckily, we can
+      use the accumulator technique that we learned earlier for getting around both these inefficiencies. Here the accumulator contains the 
+      reverse of the part of the list already seen. Updating the accumulator is easy: just put a new list element in front. 
+      The initial state is the empty list <code>[]</code>. This gives the following version of <code>reverse</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reverse<span class="o">(</span>ls<span class="o">)</span> <span class="o">{</span> 
+          <span class="k">function</span> iter_reverse<span class="o">(</span>ls<span class="o">,</span> result<span class="o">)</span> 
+            <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
+              <span class="o">[</span><span class="o">]</span><span class="o">:</span> result<span class="o">,</span> 
+              <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> iter_reverse<span class="o">(</span>xs<span class="o">,</span> <span class="o">[</span>x result<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+          iter_reverse<span class="o">(</span>ls<span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
+     <span class="o">}</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>This version of <code>reverse</code> is both a linear-time and an iterative computation.</p>
+
+    <p>The <code>reverse</code> function comes built-in with Slogan, along with a suite of functions useful for working with lists.
+      These functions will be introduced in later sections.</p>
+
+    <h4>Higher-order programming</h4>
+    <p>Higher-order programming is the collection of programming techniques that become available when a language support functions
+      as first-class values. The term higher order comes from the concept of order of a function. A function all of whose arguments 
+      are not functions is of first order. A language that allows only this kind of functions is called a first-order language. 
+      A function that has at least one first-order function in an argument is of second order, and so forth. A language that allows
+      programming with higher-order functions is called a higher-order language.</p>
+
+    <p>The four basic operations that underlie all the techniques of higher-order programming are:</p>
+    <p>
+      <ol>
+        <li><em>Procedural abstraction</em>: the ability to convert any expression into a function value.</li>
+        <li><em>Generecity</em>: the ability to pass function values as arguments to a function call.</li>
+        <li><em>Instantiation</em>: the ability to return function values as results from a function call.</li>
+        <li><em>Embedding</em>: the ability to put function values in data structures.</li>
+      </ol>
+    </p>
+
+    <h5>Procedural abstraction</h5>
+    <p>We have already introduced procedural abstraction. Any expression <code>expr</code> can be "packaged" into a function by
+      writing it as <code>function() expr</code>. This does not execute <code>expr</code> but creates a function value that can be
+      used to execute <code>expr</code> at some time in the future. Function values allow more than just delaying execution of a statement. 
+      They can have arguments, which allows some of their behavior to be influenced by the call.
+      Along with the expression, the function also packages its "context", making sure that executing <code>expr</code> 
+      always gives the same result. An expression packaged along with its contextual environment is known as a 
+      <em>closure</em>. This is a principle tool for building abstractions and underlies both
+      higher-order programming and object-oriented programming. Following example shows a simple closure in action:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">10</span><span class="o">)</span> 
+                    <span class="k">function</span> <span class="o">(</span><span class="o">)</span> a <span class="o">+</span> <span class="mi">100</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p>The expression <code>a + 10</code> is packaged into a function which is bound to <code>f</code>. 
+      No matter where we call it, <code>f</code> executes the expression in a context where <code>a</code> is bound to <code>10</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 110</span>
+<span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">200</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 110</span></code></pre>
+    </div>
 
   </div>
   
