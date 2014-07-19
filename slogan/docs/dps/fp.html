@@ -369,8 +369,8 @@
     <p>This function has two specific entities: the number zero (<code>0</code>) and the operation plus (<code>+</code>). 
       The zero is a neutral element for the plus operation. If we abstract out these two entities and give them as arguments,
       we get a generic function that can be used to "reduce" a list to a single value. Slogan has such a function called <code>fold_right</code>
-      - a function that "folds" a list from right to left to produce a single value. If we use <code>fold_right</code>, we get a much
-      shorter definition of <code>sum_list</code>:</p>
+      - a function that "folds" a list from right to left to produce a single value. (<code>fold_left</code> is the left-associative version
+      of <code>fold_right</code>). If we use <code>fold_right</code>, we get a much shorter definition of <code>sum_list</code>:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_list<span class="o">(</span>ls<span class="o">)</span> 
@@ -406,7 +406,7 @@
 <span class="nc">slogan&gt; </span>num_sorter<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">34</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; [0, 8, 10, 34]</span>
 <span class="nc">slogan&gt; </span>char_sorter<span class="o">(</span><span class="o">[</span>'r'<span class="o">,</span>'w'<span class="o">,</span> 'a'<span class="o">,</span> 'd'<span class="o">]</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt;['a', 'd', 'r', 'w'] </span> </code></pre>
+<span class="ge">=&gt; ['a', 'd', 'r', 'w'] </span> </code></pre>
     </div>
     
     <h5>Embedding</h5>
@@ -414,6 +414,46 @@
       data structures: data structures that are built incrementally on demand. The idea is to build only a small
       part of the data structure with functions at the extremities that can be called to
       build more. We will use embedded functions in creating many abstractions later in this tutorial.</p>
+
+    <h4>Traversing lists</h4>
+    <p>Higher-order programming is often used together with lists. A common task is to traverse a list and calculate a new list based on 
+      this traversal. A higher-order function that can be used for this task is <code>map</code>, which produces a new list by applying 
+      a function to each element in the old list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>map<span class="o">(</span>sqrt<span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">1.5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [3.1622776601683795, 1.7320508075688772, 1.224744871391589]</span>
+
+<span class="c">// Simple string encryption/decryption:</span>
+<span class="nc">slogan&gt; </span><span class="k">function</span> encrypt_char<span class="o">(</span>c<span class="o">)</span> integer_to_char<span class="o">(</span>char_to_integer<span class="o">(</span>c<span class="o">)</span> <span class="o">+</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">function</span> decrypt_char<span class="o">(</span>c<span class="o">)</span> integer_to_char<span class="o">(</span>char_to_integer<span class="o">(</span>c<span class="o">)</span> <span class="o">-</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">function</span> encrypt_string<span class="o">(</span>s<span class="o">)</span> list_to_string<span class="o">(</span>map<span class="o">(</span>encrypt_char<span class="o">,</span> string_to_list<span class="o">(</span>s<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> decrypt_string<span class="o">(</span>s<span class="o">)</span> list_to_string<span class="o">(</span>map<span class="o">(</span>decrypt_char<span class="o">,</span> string_to_list<span class="o">(</span>s<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>encrypt_string<span class="o">(</span><span class="s1">"hello, world"</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; "khoor/#zruog"</span>
+<span class="nc">slogan&gt; </span>decrypt_string<span class="o">(</span>encrypt_string<span class="o">(</span><span class="s1">"hello, world"</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; "hello, world"</span></code></pre>
+    </div>
+
+    <p>Sometimes we want to apply a function on each element in the list, without producing a result list. 
+      The iterative function <code>for_each</code> enables us to do this. Say, if we want to print the square roots of
+      all numbers in a list, we can do this: </p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>for_each<span class="o">(</span><span class="k">fn</span><span class="o">(</span>x<span class="o">)</span> showln<span class="o">(</span>sqrt<span class="o">(</span>x<span class="o">)</span><span class="o">)</span><span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span><span class="mi">1.5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 3.1622776601683795
+   1.7320508075688772
+   1.224744871391589</code></pre>
+    </div>
+   
+    <p>Another common list traversing operation is <code>filter</code>, which applies a boolean function to each list element and
+      outputs the list of all elements that give <code>true</code>. The following program filters out all odd numbers from a list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>filter<span class="o">(</span>is_odd<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [1, 3, 5]</code></pre>
+    </div>
 
   </div>
   
