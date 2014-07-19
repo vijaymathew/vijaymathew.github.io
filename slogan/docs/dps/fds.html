@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" style="margin-right: 10px">
+        <a href="genindex/" title="General Index"
+           accesskey="I">index</a></li>
+      <li class="right" >
+        <a href="./iww.html" title="Introduction"
+           accesskey="N">next</a> |</li>
+      <li class="right" >
+        <a href="./fp.html" title="toc"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Functional Data Structures</h3></div>
+
+    <p>This chapter describes several techniques for designing functional data structures. These data structures, unlike their
+      counterparts in imperative languages like C, do not depend in crucial ways on assignments, which are discouraged in 
+      functional programming.</p>
+
+    <h4>Queues</h4>
+    <p>Let us start by studying the implementation of a simple data structure - queue. A queue is a sequence of elements with an 
+      <code>insert</code> and a <code>delete</code> operation. The <code>insert</code> operation adds an element to one end of the queue 
+      and the <code>delete</code> operation removes
+      an element from the other end. An additional operation <code>front</code> can also be defined to inspect the element at the end.
+      We say the queue has FIFO (first-in, first-out) behavior. Let us investigate how to program queues in the functional world.</p>
+
+    <p>A naive queue implementation using lists is shown below:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_queue<span class="o">(</span><span class="o">)</span> <span class="o">[</span><span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> insert<span class="o">(</span>q<span class="o">,</span> x<span class="o">)</span> <span class="o">[</span>x q<span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> delete<span class="o">(</span>q<span class="o">)</span> take<span class="o">(</span>q<span class="o">,</span> length<span class="o">(</span>q<span class="o">)</span> <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> front<span class="o">(</span>q<span class="o">)</span> at<span class="o">(</span>q<span class="o">,</span> length<span class="o">(</span>q<span class="o">)</span> <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> q <span class="o">=</span> insert<span class="o">(</span>insert<span class="o">(</span>insert<span class="o">(</span>make_queue<span class="o">(</span><span class="o">)</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>q<span class="o">;</span>
+<span class="ge">=&gt; [10, 20, 30]</span>
+<span class="nc">slogan&gt; </span>front<span class="o">(</span>q<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 30</span>
+<span class="nc">slogan&gt; </span>delete<span class="o">(</span>q<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [10, 20]</span></code></pre>
+    </div>
+    
+    <p>The problem with this implementation is that both <code>delete</code> and <code>front</code> are slow. They take time
+      proportional to the length of the list. Is it possible to define <code>delete</code> and <code>front</code> to be of constant-time,
+      like <code>insert</code>?. In strict functional style, i.e., without assignments, we cannot achieve it. The best we can do is to
+      get <em>amortized</em> constant-time. That is, we can perform any sequence of <code>n</code> <code>insert</code> and <code>delete</code> 
+      operations in some constant time relative to <code>n</code>. Any individual operation might not be constant-time, however.</p>
+
+    <p>Here is the definition of a queue with amortized constant-time <code>insert</code> and <code>delete</code>:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_queue<span class="o">(</span><span class="o">)</span> <span class="o">[</span><span class="o">[</span><span class="o">]</span> <span class="o">[</span><span class="o">]</span><span class="o">]</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> check<span class="o">(</span>q<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>q<span class="o">)</span> 
+            <span class="o">[</span><span class="o">[</span><span class="o">]</span> r<span class="o">]</span><span class="o">:</span> <span class="o">[</span>reverse<span class="o">(</span>r<span class="o">)</span> <span class="o">[</span><span class="o">]</span><span class="o">]</span><span class="o">,</span> 
+            <span class="k">else</span><span class="o">:</span> q<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> insert<span class="o">(</span>q<span class="o">,</span> x<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>q<span class="o">)</span> 
+            <span class="o">[</span>f r<span class="o">]</span><span class="o">:</span> check<span class="o">(</span><span class="o">[</span>f <span class="o">[</span>x r<span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> delete<span class="o">(</span>q<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>q<span class="o">)</span> 
+            <span class="o">[</span>f r<span class="o">]</span><span class="o">:</span> check<span class="o">(</span><span class="o">[</span>tail <span class="o">(</span>f<span class="o">)</span> r<span class="o">]</span><span class="o">)</span><span class="o">;</span>
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> front<span class="o">(</span>q<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>q<span class="o">)</span> 
+            <span class="o">[</span>f r<span class="o">]</span><span class="o">:</span> head<span class="o">(</span>f<span class="o">)</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p>This implementation uses the pair <code>(F R)</code> to represent the queue. 
+      <code>F</code> and <code>R</code> are lists. <code>F</code> represents the
+      front of the queue and <code>R</code> represents the back of the queue in reversed form. 
+      An element is inserted by adding it to the front of <code>R</code> and deleted by removing 
+      it from the front of <code>F</code>. For example, if <code>F=[a b]</code> and <code>R=[d c]</code>,
+      deleting the first element returns <code>a</code> and makes <code>F=[b]</code>. 
+      Inserting the element <code>e</code> makes <code>R=[e d c]</code>. Both operations are constant-time.</p>
+    <p>We move the elements in <code>R</code> to <code>F</code> when <code>F</code> becomes empty. This is is done
+      by the <code>check</code> function which does a list reverse operation on <code>R</code>. The reverse takes time
+      proportional to the length of <code>R</code>. Each element that goes through the queue is passed exactly 
+      once from <code>R</code> to <code>F</code>. Allocating the execution time of <code>reverse</code> to each element 
+      therefore gives a constant time per element, making the queue amortized.</p>
+
+    <h4>Trees</h4>
+    <p></p>
+    
+    <h4>Abstract Data Types</h4>
+    <p></p>
+    
+    <h5>Securing ADTs</h5>
+    <p></p>
+
+  </div>
+</body>
+</html>
