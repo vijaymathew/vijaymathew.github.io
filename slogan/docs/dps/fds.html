@@ -36,8 +36,8 @@
 
     <h4>Queues</h4>
     <p>Let us start by studying the implementation of a simple data structure - queue. A queue is a sequence of elements with an 
-      <code>insert</code> and a <code>delete</code> operation. The <code>insert</code> operation adds an element to one end of the queue 
-      and the <code>delete</code> operation removes
+      <code>enqueue</code> and a <code>dequeue</code> operation. The <code>enqueue</code> operation adds an element to one end of the queue 
+      and the <code>dequeue</code> operation removes
       an element from the other end. An additional operation <code>front</code> can also be defined to inspect the element at the end.
       We say the queue has FIFO (first-in, first-out) behavior. Let us investigate how to program queues in the functional world.</p>
 
@@ -45,26 +45,26 @@
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_queue<span class="o">(</span><span class="o">)</span> <span class="o">[</span><span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">function</span> insert<span class="o">(</span>q<span class="o">,</span> x<span class="o">)</span> <span class="o">[</span>x q<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">function</span> delete<span class="o">(</span>q<span class="o">)</span> take<span class="o">(</span>q<span class="o">,</span> length<span class="o">(</span>q<span class="o">)</span> <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> enqueue<span class="o">(</span>q<span class="o">,</span> x<span class="o">)</span> <span class="o">[</span>x q<span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> dequeue<span class="o">(</span>q<span class="o">)</span> take<span class="o">(</span>q<span class="o">,</span> length<span class="o">(</span>q<span class="o">)</span> <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span><span class="k">function</span> front<span class="o">(</span>q<span class="o">)</span> at<span class="o">(</span>q<span class="o">,</span> length<span class="o">(</span>q<span class="o">)</span> <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
 
-<span class="nc">slogan&gt; </span><span class="k">define</span> q <span class="o">=</span> insert<span class="o">(</span>insert<span class="o">(</span>insert<span class="o">(</span>make_queue<span class="o">(</span><span class="o">)</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> q <span class="o">=</span> enqueue<span class="o">(</span>enqueue<span class="o">(</span>enqueue<span class="o">(</span>make_queue<span class="o">(</span><span class="o">)</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span>q<span class="o">;</span>
 <span class="ge">=&gt; [10, 20, 30]</span>
 <span class="nc">slogan&gt; </span>front<span class="o">(</span>q<span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 30</span>
-<span class="nc">slogan&gt; </span>delete<span class="o">(</span>q<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>dequeue<span class="o">(</span>q<span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; [10, 20]</span></code></pre>
     </div>
     
-    <p>The problem with this implementation is that both <code>delete</code> and <code>front</code> are slow. They take time
-      proportional to the length of the list. Is it possible to define <code>delete</code> and <code>front</code> to be of constant-time,
-      like <code>insert</code>?. In strict functional style, i.e., without assignments, we cannot achieve it. The best we can do is to
-      get <em>amortized</em> constant-time. That is, we can perform any sequence of <code>n</code> <code>insert</code> and <code>delete</code> 
+    <p>The problem with this implementation is that both <code>dequeue</code> and <code>front</code> are slow. They take time
+      proportional to the length of the list. Is it possible to define <code>dequeue</code> and <code>front</code> to be of constant-time,
+      like <code>enqueue</code>?. In strict functional style, i.e., without assignments, we cannot achieve it. The best we can do is to
+      get <em>amortized</em> constant-time. That is, we can perform any sequence of <code>n</code> <code>enqueue</code> and <code>dequeue</code> 
       operations in some constant time relative to <code>n</code>. Any individual operation might not be constant-time, however.</p>
 
-    <p>Here is the definition of a queue with amortized constant-time <code>insert</code> and <code>delete</code>:</p>
+    <p>Here is the definition of a queue with amortized constant-time <code>enqueue</code> and <code>dequeue</code>:</p>
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_queue<span class="o">(</span><span class="o">)</span> <span class="o">[</span><span class="o">[</span><span class="o">]</span> <span class="o">[</span><span class="o">]</span><span class="o">]</span><span class="o">;</span> 
 
@@ -73,11 +73,11 @@
             <span class="o">[</span><span class="o">[</span><span class="o">]</span> r<span class="o">]</span><span class="o">:</span> <span class="o">[</span>reverse<span class="o">(</span>r<span class="o">)</span> <span class="o">[</span><span class="o">]</span><span class="o">]</span><span class="o">,</span> 
             <span class="k">else</span><span class="o">:</span> q<span class="o">;</span> 
 
-<span class="nc">slogan&gt; </span><span class="k">function</span> insert<span class="o">(</span>q<span class="o">,</span> x<span class="o">)</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> enqueue<span class="o">(</span>q<span class="o">,</span> x<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>q<span class="o">)</span> 
             <span class="o">[</span>f r<span class="o">]</span><span class="o">:</span> check<span class="o">(</span><span class="o">[</span>f <span class="o">[</span>x r<span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
 
-<span class="nc">slogan&gt; </span><span class="k">function</span> delete<span class="o">(</span>q<span class="o">)</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> dequeue<span class="o">(</span>q<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>q<span class="o">)</span> 
             <span class="o">[</span>f r<span class="o">]</span><span class="o">:</span> check<span class="o">(</span><span class="o">[</span>tail <span class="o">(</span>f<span class="o">)</span> r<span class="o">]</span><span class="o">)</span><span class="o">;</span>
 
@@ -116,7 +116,7 @@
     <p>In an ordered binary tree each non-leaf node includes a key-value pair. Boolean comparison functions defined on the <code>key</code>
       is used to determine its position in the tree. An equality function defined on the <code>key</code> is used to retrieve the <code>value</code>
       or information associated with the <code>key</code>. A non-leaf node in an ordered binary tree needs to have four components: 
-      a key and its associated value, the left sub-tree and the righ sub-tree. This structure can defined as:</p>
+      a key and its associated value, the left sub-tree and the right sub-tree. This structure can defined as:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> ob_tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left<span class="o">,</span> right<span class="o">)</span><span class="o">;</span> </code></pre>
@@ -192,7 +192,6 @@
 <span class="nc">slogan&gt; </span>lookup<span class="o">(</span><span class="mi">7</span><span class="o">,</span> fifa_rankings<span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; notfound</span></code></pre>
     </div>
-    </p>
 
     <h5>Deleting information</h5>
     <p>Deletion is not as simple as insertion or lookup. We have to make sure that deleting a node will not lead to the remove the 
@@ -224,8 +223,55 @@
             @ <span class="k">where</span> k <span class="o">&lt;</span> key<span class="o">:</span> tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> delete<span class="o">(</span>k<span class="o">,</span> left<span class="o">)</span><span class="o">,</span> right<span class="o">)</span><span class="o">,</span> 
             @ <span class="k">where</span> k <span class="o">&gt;</span> key<span class="o">:</span> tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left<span class="o">,</span> delete<span class="o">(</span>k<span class="o">,</span> right<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
-</p>
     
+    <h5>Traversing trees</h5>
+    <p>Traversing a tree means to perform an operation on its nodes in some well-defined order. There are many ways to traverse a tree. 
+      Many of these are derived from one of two basic traversals, called depth-first and breadth-first traversal. Let us look at these 
+      traversals.</p>
+
+    <p><b>Depth-first</b> is the simplest traversal. For each node, it visits first the node itself, then the leftmost sub-tree, and then 
+      the rightmost sub-tree. The following function implements depth-first traversal. It calls a function <code>f</code> on each node it
+      visits and accumulates the results into a list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> dfs<span class="o">(</span>t<span class="o">,</span> f<span class="o">)</span> <span class="o">{</span> 
+          <span class="k">function</span> dfs_loop<span class="o">(</span>t<span class="o">,</span> f<span class="o">,</span> accum<span class="o">)</span> 
+            <span class="k">match</span> <span class="o">(</span>t<span class="o">)</span> 
+              <span class="o">!</span>leaf<span class="o">:</span> reverse<span class="o">(</span>accum<span class="o">)</span><span class="o">,</span> 
+              ob_tree<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> l<span class="o">,</span> r<span class="o">)</span><span class="o">:</span> dfs_loop<span class="o">(</span>r<span class="o">,</span> f<span class="o">,</span> dfs_loop<span class="o">(</span>l <span class="o">,</span> f<span class="o">,</span> <span class="o">[</span>f<span class="o">(</span>k<span class="o">,</span> v<span class="o">)</span> accum<span class="o">]</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+          dfs_loop<span class="o">(</span>t<span class="o">,</span> f<span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
+        <span class="o">}</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>The following call to <code>dfs</code> collects all keys and values in a tree into a list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>dfs<span class="o">(</span>fifa_rankings<span class="o">,</span> <span class="k">fn</span><span class="o">(</span>k<span class="o">,</span> v<span class="o">)</span> <span class="o">[</span>k v<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [[5 Belgium], [1 Germany], [3 Netherlands], [2 Argentina], [4 Colombia]]</span></code></pre>
+      </div>
+
+    <p><b>Breadth-first</b> is a second basic traversal. It first traverses all nodes at depth 0, then all nodes at depth 1, 
+      and so forth, going one level deeper at a time. At each level, it traverses the nodes from left to right. The depth
+      of a node is the length of the path from the root to the current node, not including the current node. 
+      To implement breadth-first traversal, we need a queue to keep track of all the nodes at a given depth. The implementation
+      given below, called <code>bfs</code>, uses the queue data type we defined in the beginning of this chapter. The next node to visit comes
+      from the head of the queue. The node's two sub-trees are added to the tail of the queue. The traversal will get around to 
+      visiting them when all the other nodes of the queue have been visited, i.e., all the nodes at the current depth.
+      <code>bfs</code> also takes a function that will be called for each node encountered and it returns all the resulting
+      values accumulated into a list.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> bfs<span class="o">(</span>t<span class="o">,</span> f<span class="o">)</span> <span class="o">{</span> 
+          <span class="k">function</span> bfs_loop<span class="o">(</span>f<span class="o">,</span> q<span class="o">,</span> accum<span class="o">)</span> 
+            <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>q<span class="o">)</span><span class="o">)</span> reverse<span class="o">(</span>accum<span class="o">)</span> 
+            <span class="k">else</span> <span class="k">match</span> <span class="o">(</span>front<span class="o">(</span>q<span class="o">)</span><span class="o">)</span> 
+                   <span class="o">!</span>leaf<span class="o">:</span> bfs_loop<span class="o">(</span>f<span class="o">,</span> dequeue<span class="o">(</span>q<span class="o">)</span><span class="o">,</span> accum<span class="o">)</span><span class="o">,</span> 
+                   ob_tree<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> l<span class="o">,</span> r<span class="o">)</span><span class="o">:</span> bfs_loop<span class="o">(</span>f<span class="o">,</span> enqueue<span class="o">(</span>enqueue<span class="o">(</span>dequeue<span class="o">(</span>q<span class="o">)</span><span class="o">,</span> r<span class="o">)</span><span class="o">,</span> l<span class="o">)</span><span class="o">,</span> 
+                                                 <span class="o">[</span>f<span class="o">(</span>k<span class="o">,</span> v<span class="o">)</span> accum<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+
+           bfs_loop<span class="o">(</span>f<span class="o">,</span> enqueue<span class="o">(</span>make_queue<span class="o">(</span><span class="o">)</span><span class="o">,</span> t<span class="o">)</span><span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+
     <h4>Abstract Data Types</h4>
     <p></p>
     
