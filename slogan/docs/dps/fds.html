@@ -110,33 +110,28 @@
     <p>In this section we give the basic algorithms for constructing and traversing trees. We also look at how to insert, lookup and delete information
       in trees. We define these algorithms in the context of a type of binary tree called <em>ordered binary tree</em>.</p>
     
-    <p>We can use lists to represent trees but in this section we will use <em>records</em> to define trees. A record is a way to group together 
+    <p>We can use lists to represent tree nodes but in this section we will use <em>records</em>. A record is a way to group together 
       related values, similar to <code>structs</code> in the C language.</p>
 
     <p>In an ordered binary tree each non-leaf node includes a key-value pair. Boolean comparison functions defined on the <code>key</code>
       is used to determine its position in the tree. An equality function defined on the <code>key</code> is used to retrieve the <code>value</code>
-      or information associated with the <code>key</code>. We can define the layout of an ordered binary tree as:</p>
+      or information associated with the <code>key</code>. A non-leaf node in an ordered binary tree needs to have four components: 
+      a key and its associated value, the left sub-tree and the righ sub-tree. This structure can defined as:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> ob_tree<span class="o">(</span>type <span class="o">=</span> !leaf <span class="k">where</span> type <span class="o">==</span> !leaf || type <span class="o">==</span> !tree<span class="o">,</span> 
-                       key<span class="o">,</span> value<span class="o">,</span> 
-	               left_tree<span class="o">,</span> right_tree<span class="o">)</span><span class="o">;</span> </code></pre>
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> ob_tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left<span class="o">,</span> right<span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
     
-    <p>A node in an ordered binary tree is represented by a record that has five members. The first member <code>type</code> is a symbol that should be
-      either <code>leaf</code> or <code>tree</code>. This invariant is expressed in the <code>where</code> clause of the member declaration.
-      We also set <code>leaf</code> as the default type. When we define a record, a constructor function with the same name as the record is created for us.
+    <p>When we define a record, a constructor function with the same name as the record is created for us.
       Functions for accessing and updating the member values are also automatically defined. </p>
 
-    <p>As all leaf nodes are essentially the same, we can define a global value that can be used wherever a leaf node is needed. We will also
-    define a function that makes defining tree nodes easier:</p>
+    <p>As they carry no additional information, leaf-nodes can be represented by the symbol <code>!leaf</code>.</p> 
+    <p>We will also define a function that makes defining non-leaf nodes easier. As a non-leaf node in itself is a tree, we will
+    call this function <code>tree</code>:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> leaf_node <span class="o">=</span> ob_tree<span class="o">(</span><span class="o">)</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span><span class="k">function</span> tree<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> l<span class="o">=</span> leaf_node<span class="o">,</span> r <span class="o">=</span> leaf_node<span class="o">)</span> 
-          ob_tree<span class="o">(</span>type <span class="o">=</span> <span class="o">!</span>tree<span class="o">,</span> 
-                  key <span class="o">=</span> k<span class="o">,</span> value <span class="o">=</span> v<span class="o">,</span> 
-                  left_tree <span class="o">=</span> l<span class="o">,</span> right_tree <span class="o">=</span> r<span class="o">)</span><span class="o">;</span></code></pre>
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> tree<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> left <span class="o">=</span> <span class="o">!</span>leaf<span class="o">,</span> right <span class="o">=</span> <span class="o">!</span>leaf<span class="o">)</span> 
+          ob_tree<span class="o">(</span>key <span class="o">=</span> k<span class="o">,</span> value <span class="o">=</span> v<span class="o">,</span> left <span class="o">=</span> left<span class="o">,</span> right <span class="o">=</span> right<span class="o">)</span><span class="o">;</span></code></pre>
     </div>
 
     <p>Now we are ready to create and use ordered binary trees:</p>
@@ -156,12 +151,11 @@
     
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> insert<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> t<span class="o">)</span> 
-          <span class="k">if</span> <span class="o">(</span>t <span class="o">==</span> leaf_node<span class="o">)</span> tree<span class="o">(</span>k <span class="o">,</span> v<span class="o">)</span> 
-          <span class="k">else</span> 
-           <span class="k">match</span> <span class="o">(</span>t<span class="o">)</span> 
-             ob_tree<span class="o">(</span>_<span class="o">,</span> key<span class="o">,</span> value<span class="o">,</span> left_tree<span class="o">,</span> right_tree<span class="o">)</span> <span class="k">where</span> k <span class="o">==</span> key<span class="o">:</span> t<span class="o">,</span>
-             @ <span class="k">where</span> k <span class="o">&lt;</span> key<span class="o">:</span> tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> insert<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> left_tree<span class="o">)</span><span class="o">,</span> right_tree<span class="o">)</span><span class="o">,</span> 
-             @ <span class="k">where</span> k <span class="o">&gt;</span> key<span class="o">:</span> tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left_tree<span class="o">,</span> insert<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> right_tree<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
+          <span class="k">match</span> <span class="o">(</span>t<span class="o">)</span> 
+            <span class="o">!</span>leaf: tree(k, v),
+            ob_tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left<span class="o">,</span> right<span class="o">)</span> <span class="k">where</span> k <span class="o">==</span> key<span class="o">:</span> t<span class="o">,</span>
+            @ <span class="k">where</span> k <span class="o">&lt;</span> key<span class="o">:</span> tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> insert<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> left<span class="o">)</span><span class="o">,</span> right<span class="o">)</span><span class="o">,</span> 
+            @ <span class="k">where</span> k <span class="o">&gt;</span> key<span class="o">:</span> tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left<span class="o">,</span> insert<span class="o">(</span>k<span class="o">,</span> v<span class="o">,</span> right<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
     <p>The <code>@</code> symbol is used to repeat the previous pattern.</p>
@@ -172,12 +166,12 @@
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> lookup<span class="o">(</span>k<span class="o">,</span> t<span class="o">)</span> 
-        <span class="k">if</span> <span class="o">(</span>t <span class="o">==</span> leaf_node<span class="o">)</span> <span class="o">!</span>notfound 
-        <span class="k">else</span> 
-         <span class="k">match</span> <span class="o">(</span>t<span class="o">)</span> ob_tree<span class="o">(</span>_<span class="o">,</span> key<span class="o">,</span> value<span class="o">,</span> left_tree<span class="o">,</span> right_tree<span class="o">)</span><span class="o">:</span> 
-           <span class="k">if</span> <span class="o">(</span>k <span class="o">&lt;</span> key<span class="o">)</span> lookup<span class="o">(</span>k<span class="o">,</span> left_tree<span class="o">)</span> 
-           <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>k <span class="o">&gt;</span> key<span class="o">)</span> lookup<span class="o">(</span>k<span class="o">,</span> right_tree<span class="o">)</span> 
-           <span class="k">else</span> <span class="o">[</span><span class="o">!</span>found value<span class="o">]</span><span class="o">;</span></code></pre>
+          <span class="k">match</span> <span class="o">(</span>t<span class="o">)</span> 
+            <span class="o">!</span>leaf: <span class="o">!</span>notfound<span class="o">,</span>
+            ob_tree<span class="o">(</span>key<span class="o">,</span> value<span class="o">,</span> left<span class="o">,</span> right<span class="o">)</span><span class="o">:</span> 
+              <span class="k">if</span> <span class="o">(</span>k <span class="o">&lt;</span> key<span class="o">)</span> lookup<span class="o">(</span>k<span class="o">,</span> left<span class="o">)</span> 
+              <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>k <span class="o">&gt;</span> key<span class="o">)</span> lookup<span class="o">(</span>k<span class="o">,</span> right<span class="o">)</span> 
+              <span class="k">else</span> <span class="o">[</span><span class="o">!</span>found value<span class="o">]</span><span class="o">;</span></code></pre>
     </div>
     
     <p>Let us try out the insert and lookup functions:</p>
