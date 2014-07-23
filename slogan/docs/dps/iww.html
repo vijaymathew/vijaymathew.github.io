@@ -89,7 +89,28 @@
       <p>(Slogan has a built-in function - <code>copy_file</code> - that you can use to copy any type of file.)</p>
 
       <h5>TCP ports</h5>
-      <p></p>
+      <p>We can read files on remote servers using TCP ports. The following example shows how to read a file hosted on a HTTP server:</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">slogan&gt; </span>call_with_port<span class="o">(</span>open_tcp_client_port<span class="o">(</span><span class="s1">"www.google.com"</span> <span class="o">,</span> port_number <span class="o">=</span> <span class="mi">80</span><span class="o">)</span><span class="o">,</span> 
+                       <span class="k">fn</span><span class="o">(</span>p<span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span>port <span class="o">=</span> p<span class="o">,</span> <span class="s1">"GET /search?q=tcp"</span><span class="o">)</span><span class="o">;</span> 
+                               flush_output_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+                               read_all_lines<span class="o">(</span>p<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> </code></pre>
+      </div>
+
+      <p>The function <code>flush_output_port</code> makes sure that the data is flushed out from the TCP client ports buffer and pushed to the
+        server. When you run this code, you should see the first results page returned by Google for the query "tcp".</p>
+
+      <p>We can use TCP ports to write network servers as well. Here is a simple echo server that sends back whatever the client sends it:</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">slogan&gt; </span>call_with_port<span class="o">(</span>open_tcp_server_port<span class="o">(</span><span class="mi">9999</span><span class="o">)</span><span class="o">,</span> 
+                       <span class="k">fn</span><span class="o">(</span>p<span class="o">)</span> <span class="k">let</span> <span class="o">(</span>client <span class="o">=</span> read<span class="o">(</span>p<span class="o">)</span><span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span>port <span class="o">=</span> client<span class="o">,</span> read_line<span class="o">(</span>client<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+                                                      close_port<span class="o">(</span>client<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> </code></pre>
+      </div>
+
+      <p>The <code>read</code> function call accepts a new client connection on the server port. </p>
+      <p>Now you might want to test our echo server by writing a client for it.</p>
 
     <h4>FFI</h4>
 
