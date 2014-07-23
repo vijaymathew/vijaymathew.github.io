@@ -114,10 +114,66 @@
 
     <h4>FFI</h4>
 
+    <p>FFI or the Foreign Function Interface is a set of functions that allows our Slogan programs to call functions in a dynamically loadable
+      C library. (Known as shared libraries in the Unix world). To be callable from Slogan, the C functions must follow certain conventions.
+      Its arguments must be of type <code>___slogan_obj</code>. It has to use type conversion functions defined in <code>slogan.h</code> to
+      convert a <code>___slogan_obj</code> to the appropriate C type. These C types are currently supported: <code>char</code>, <code>bool</code>,
+      <code>short</code>, <code>int</code>, <code>int32</code>, <code>int64</code>, <code>float</code>, <code>double</code> and <code>void</code>
+      pointer. The size of all types except <code>int32</code> and <code>int64</code> are system dependent. The C function can directly return
+      all of these types in addition to <code>___slogan_obj</code>.</p>
+
+    <p>The following C program defines two functions that can be called from Slogan. The first function - <code>add</code> - expects two
+      integers as arguments and returns their sum. The second function - <code>say_hello</code> - expects a string as argument and returns
+      a C string:</p>
+
+    <div class="highlight">
+      <pre><code>// demo_lib.c
+
+#include &lt;stdio.h&gt;
+#include "slogan.h"
+
+int add(___slogan_obj a, ___slogan_obj b)
+{
+  int ia, ib;
+  ___slogan_obj_to_int(a, &ia);
+  ___slogan_obj_to_int(b, &ib);
+  return ia + ib;
+}
+
+char *say_hello(___slogan_obj msg)
+{
+  char *s;
+
+  ___slogan_obj_to_charstring(msg, &s);
+  printf("Slogan says: %s\n", s);
+  return "hi from C";
+}</code></pre></div>
+
+    <p>This program can be compiled into a shared library using the GNU C Compiler using this command: </p>
+    <p><pre><code>gcc -Wall -shared -I$SLOGAN_ROOT/src/include -I$SLOGAN_ROOT/platform/gsc/include -fPIC -o demo_lib.so demo_lib.c</code></pre></p>
+
+    <p>To load the library into slogan, call the <code>ffi_open</code> function with the library file name. This will give you a <em>handle</em>
+      object that you can use to call functions in the library. A group of functions named in the format - <code>ffi_call_RT_N</code> - is used
+      to invoke C functions. <code>RT</code> denotes the return type of the C function and <code>N</code> specifies the number of arguments the
+      function takes. You can release the library handle by calling <code>ffi_close</code>. The following program shows how to load and use
+      our demo_lib shared library:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> clib <span class="o">=</span> ffi_open<span class="o">(</span><span class="s1">"./demo_lib.so"</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>ffi_call_int_2<span class="o">(</span>clib<span class="o">,</span> <span class="s1">"add"</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 30</span>
+<span class="nc">slogan&gt; </span>ffi_call_char_string_1<span class="o">(</span>clib<span class="o">,</span> <span class="s1">"say_hello"</span><span class="o">,</span> <span class="s1">"hi from Slogan"</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; Slogan says: hi from Slogan
+=&gt; hi from C</span>
+<span class="nc">slogan&gt; </span>ffi_close<span class="o">(</span>clib<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
     <h4>Compilation</h4>
+    <p></p>
 
     <h4>Modules</h4>
-    
+    <p></p>
+
   </div>
 </body>
 </html>
