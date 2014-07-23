@@ -168,11 +168,127 @@ char *say_hello(___slogan_obj msg)
 <span class="nc">slogan&gt; </span>ffi_close<span class="o">(</span>clib<span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
-    <h4>Compilation</h4>
-    <p></p>
+    <h4>Modules and Compilation</h4>
+    <p>As a program grows in size, we will need some way to orgnaize it. Writing the program as one big monolithic whole can be confusing. 
+      A better way is to partition the program into logical units, each of which implements a set of operations that
+      are related in some way. Each logical unit has two parts, an interface and an implementation. Only the interface is visible from 
+      outside the logical unit. A logical unit may use others as part of its implementation.</p>
 
-    <h4>Modules</h4>
-    <p></p>
+    <p>Slogan provides a <em>module</em> mechanism to group together related operations into an entity that has an interface
+      and an implementation. The following example shows a dictionary module that can be used to associate a word with some value.
+      The dictionary module exports three operations to the outside world:</p>
+
+    <p><ol><li><code>create</code> - creates a new empty dictionary.</li>
+        <li><code>put</code> - adds a word and its associated value to the dictionary.</li>
+        <li><code>get</code> - retrieves the value associated with a word.</li>
+    </ol></p>
+    
+    <p>Exactly how these operations are implemented is hidden from the world. Someone who uses the dictionary module onle need to
+      know about the functionality provided by the three exported operations. The following implementation of dictionary uses the 
+      built-in <code>hashtable</code> data structure to associate words with values. This time let us write and save the code in a source file
+      called "dict.sn":</p>
+
+    <div class="highlight">
+      <pre><code><span class="c">// file: dict.sn</span>
+<span class="k">module</span> dictionary <span class="k">export </span><span class="o">(</span>create<span class="o">)</span> <span class="o">{</span> 
+  <span class="k">define</span> table <span class="o">=</span> make_hashtable<span class="o">(</span>string_hash<span class="o">,</span> is_string_eq<span class="o">)</span><span class="o">;</span> 
+  <span class="k">module</span> create <span class="k">export </span> <span class="o">(</span>put<span class="o">,</span> get<span class="o">)</span> <span class="o">{</span> 
+    <span class="k">function</span> put<span class="o">(</span>w<span class="o">,</span> v<span class="o">)</span> hashtable_set<span class="o">(</span>table<span class="o">,</span> w<span class="o">,</span> v<span class="o">)</span><span class="o">;</span> 
+    <span class="k">function</span> get<span class="o">(</span>w<span class="o">)</span> hashtable_at<span class="o">(</span>table<span class="o">,</span> w<span class="o">)</span> 
+  <span class="o">}</span><span class="o">;</span> 
+<span class="o">}</span><span class="o">;</span> 
+
+<span class="k">define</span> dict <span class="o">=</span> dictionary<span class="o">();</span></code></pre>
+    </div>
+
+    <p>The dictionary module is defined in two layers. The top layers exports the symbol <code>create</code> which refers to an internal module
+      where the <code>put</code> and <code>get</code> functions are implemented. As you might have already figured out, a module is nothing
+      but a closure. Each time dictionary is called, it returns a closure with a new hashtable and a new instance of the <code>create</code> 
+      module that refers to that hash table.</p>
+    <p>To use the dictionary module, we have to first <em>load</em> the file "dict.sn" into the REPL:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">load</span> <span class="s1">"dict"</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> d <span class="o">=</span> dict<span class="o">.</span>create<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>d<span class="o">.</span>put<span class="o">(</span><span class="s1">"name"</span><span class="o">,</span> <span class="s1">"sam"</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>d<span class="o">.</span>put<span class="o">(</span><span class="s1">"age"</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span>          
+<span class="nc">slogan&gt; </span>showln<span class="o">(</span>d<span class="o">.</span>get<span class="o">(</span><span class="s1">"name"</span><span class="o">)</span><span class="o">,</span> <span class="s1">" is "</span><span class="o">,</span> d<span class="o">.</span>get<span class="o">(</span><span class="s1">"age"</span><span class="o">)</span><span class="o">,</span> <span class="s1">" years old."</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; sam is 2 years old.</span> </code></pre>
+    </div>
+
+    <p>We will write a new module that uses the features exported by dictionary. This is a module that can count the words read from a text 
+      input port:</p>
+
+    <div class="highlight">
+      <pre><code><span class="c">// file: wc.sn </span>
+<span class="k">load</span> <span class="s1">"dict"</span><span class="o">;</span> 
+
+<span class="k">module</span> word_count<span class="o">(</span>port<span class="o">)</span> <span class="k">export</span> <span class="o">(</span>count<span class="o">)</span> <span class="k">locals</span> <span class="o">(</span>words_dict<span class="o">)</span> <span class="o">{</span> 
+  <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> <span class="o">{</span> 
+    <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>words_dict<span class="o">)</span><span class="o">)</span> 
+     words_dict<span class="o">=</span> init_words_dict<span class="o">(</span>string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> dict<span class="o">.</span>create<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+    words_dict<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span> 
+  <span class="o">}</span><span class="o">;</span> 
+
+  <span class="k">function</span> init_words_dict<span class="o">(</span>words<span class="o">,</span> wd<span class="o">)</span> 
+    <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>words<span class="o">)</span><span class="o">)</span> wd 
+    <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span>get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span> 
+           <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span> <span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
+           wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+           init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span>
+         <span class="o">}</span><span class="o">;</span> 
+<span class="o">}</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>The word count program presents a new feature - <code>locals</code> - which are similar to module arguments. Both module arguments and
+      locals are shared by the functions defined in the module. The difference is that, while the users of the module can pass in values
+      for the arguments, locals have to be initialized in the module itself.</p>
+
+    <p>Let us complete this section by writing a script that uses the word_count module to find the number of occurences in a file. 
+      The file to read and the word to count is passed as command line arguments to the script:</p>
+
+    <div class="highlight">
+      <pre><code><span class="c">// file: fwc.sn </span>
+<span class="k">load</span> <span class="s1">"wc"</span> <span class="o">;</span> 
+
+<span class="k">define</span> args <span class="o">=</span> command_line<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="k">define</span> p <span class="o">=</span> open_file_input_port<span class="o">(</span>at<span class="o">(</span>args<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="k">define</span> wc <span class="o">=</span> word_count<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+showln<span class="o">(</span>wc<span class="o">.</span>count<span class="o">(</span>at<span class="o">(</span>args<span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>To use this script, you have to start the Slogan interpreter by passing in the file name to parse and word to find the count of
+      occurences:</p>
+
+    <p><pre><code>slogan file.txt word_to_count</code></pre></p>
+
+    <p>Then from the prompt, load "fwc.sn":</p>
+    
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">load</span> <span class="s1">"fwc"</span><span class="o">;</span> </code></pre>
+    </div>
+    
+    <h5>Compilation</h5>
+    <p>Now that we have developed a substantially large program with two modules and a main script that connects those modules with the
+      outside world, we will look at an important aspect of packaging and distributing software - compilation. So far we have been using
+      the Slogan interpreter. Slogan also has a compiler that can generate machine code for fast execution of programs. We can compile
+      a Slogan script file to platform specific machine code by calling the <code>compile</code> function. 
+
+    <p>Before running the compiler, you have to point the environment variable <code>SLOGAN_ROOT</code> to the folder where you have
+      downloaded the Slogan source code:</p>
+
+    <p><pre><code>$ export SLOGAN_ROOT=/home/me/slogan</code></pre></p>
+
+    <p>Now we are ready to compile our file word count program:</p>
+
+    <div class="platform">
+      <pre><code><span class="nc">slogan&gt; </span>compile<span class="o">(</span><span class="s1">"fwc"</span><span class="o">,</span> exe <span class="o">=</span> true<span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>Now you should have an executable named "fwc" along with two dynamically loadable object files (with extension that starts with "o") for
+      the "dict" and "wc" modules. You can package these binary files and distribute them as a standalone application for your platform.</p>
 
   </div>
 </body>
