@@ -29,14 +29,73 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Interacting with the World</h3></div>
+    <p>Pure functional programming is somewhat detached from the real world where entities have changing state. To connect a functional
+      program to the real world, some non-functional operations are needed. This chapter covers few such operations - input/output on 
+      files and the network, invoking code written in C and compiling Slogan programs into applications
+      run standalone on the host operating system. We also introduce the module system which helps in organizing large programs.</p>
 
     <h4>File and Network IO</h4>
+    <p>A simple way to interface functional programming with the real world is by using files. A file is a sequence of values that is 
+      stored external to the program on a permanent storage medium such as a hard disk. A text file is a file containing a 
+      sequence of characters. Text files are structured as a sequence of lines, each line ending with the newline character.
+      A binary file contains a sequence of bytes that may represent any type of data. The contents of a binary file has to be interpreted
+      by the program reading it. Both text and binary files mark their end with a special object known as the <em>eof</em> (end-of-file)
+      object.</p>
 
-    <h4>Modules</h4>
+    <h5>Reading and writing files</h5>
+    <p>Slogan does all its input and output operations through objects called <em>ports</em>. We read and write files by opening a port on
+      it. A port may be an input port, an output port, or both simultaneously.</p>
+
+    <p>A file is read by first opening an input port on it. This is achieved with the <code>open_input_file</code> function. 
+      On the input file port, we can either call the <code>read_char</code> or 
+      <code>read_byte</code> function to fetch a character or a byte respectively. After using the port, it has to be closed by calling
+      <code>close_port</code>. To read complete text file, we can use the <code>read_all_lines</code> function. To read a complete binary file, 
+      call the <code>read_all_bytes</code> function. It returns a list of all bytes in
+      the file. Now as we have met all the functions required for reading a file, let us actually read in a text file and view its contents:</p>
+
+    <div class="highlight">
+      <pre><code><span class="c">// Assuming that you have a file called "hello.txt" with a couple of lines of text in it:</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> in_file <span class="o">=</span> open_input_file<span class="o">(</span> <span class="s1">"hello.txt"</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>read_all_lines<span class="o">(</span>in_file<span class="o">)</span><span class="o">;</span> 
+<span class="c">// => You will see the contents of "hello.txt" here.</span>
+<span class="nc">slogan&gt; </span>close_port<span class="o">(</span>in_file<span class="o">)</span><span class="o">;</span></code></pre>
+    </div>
+
+      <p>Writing a file is equally easy. You open a file output port with <code>open_output_file</code>, write characters or bytes using the
+        <code>write_char</code> or <code>write_byte</code> functions and then close the port. You can also call the <code>show</code> or
+        <code>showln</code> functions for writing file by passing the port as a keyword argument:</p>
+      
+      <div class="highlight">
+        <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> out_file <span class="o">=</span> open_output_file<span class="o">(</span><span class="s1">"out.txt"</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>showln<span class="o">(</span>port <span class="o">=</span> out_file<span class="o">,</span> <span class="s1">"hello from Slogan"</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>showln<span class="o">(</span>port <span class="o">=</span> out_file<span class="o">,</span> <span class="s1">"2 * 3 = "</span><span class="o">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>            
+<span class="nc">slogan&gt; </span>close_port<span class="o">(</span>out_file<span class="o">)</span><span class="o">;</span></code></pre>
+      </div>
+
+      <p>The call to <code>close_port</code> is important because it makes sure that the operating system resources associated
+        with the port are released after use. Forgetting to close the port will lead to a <em>resource leak</em>.
+        There is a convenience function called <code>call_with_port</code> that can save us from this trouble. It takes a port
+        and a function as arguments. It calls the function by passing it the port. Once the function returns, <code>call_with_port</code>
+        closes the port. It ensures that the port is closed even if the function returns abnormally by raising an exception. Let us see
+        <code>call_with_port</code> by writing a function that makes a copy of a text file:</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> copy<span class="o">(</span>src<span class="o">,</span> dest<span class="o">)</span> 
+          call_with_port<span class="o">(</span>open_input_file<span class="o">(</span>src<span class="o">)</span><span class="o">,</span> 
+             <span class="k">fn</span><span class="o">(</span>in<span class="o">)</span> call_with_port<span class="o">(</span>open_output_file<span class="o">(</span>dest<span class="o">)</span><span class="o">,</span> 
+               <span class="k">fn</span><span class="o">(</span>out<span class="o">)</span> show<span class="o">(</span>port <span class="o">=</span> out<span class="o">,</span> read_all_lines<span class="o">(</span>in<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
+      </div>
+
+      <p>(Slogan has a built-in function - <code>copy_file</code> - that you can use to copy any type of file.)</p>
+
+      <h5>TCP ports</h5>
+      <p></p>
 
     <h4>FFI</h4>
 
     <h4>Compilation</h4>
+
+    <h4>Modules</h4>
     
   </div>
 </body>
