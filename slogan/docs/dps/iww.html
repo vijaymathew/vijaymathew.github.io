@@ -177,9 +177,8 @@ char *say_hello(___slogan_obj msg)
 
     <p>Slogan provides a <em>module</em> mechanism to group together related operations into an entity that has an interface
       and an implementation. The following example shows a dictionary module that can be used to associate a word with some value.
-      The dictionary module exports three operations to the outside world:</p>
+      The dictionary module exports two operations to the outside world:</p>
 
-    <p><ol><li><code>create</code> - creates a new empty dictionary.</li>
         <li><code>put</code> - adds a word and its associated value to the dictionary.</li>
         <li><code>get</code> - retrieves the value associated with a word.</li>
     </ol></p>
@@ -191,27 +190,19 @@ char *say_hello(___slogan_obj msg)
 
     <div class="highlight">
       <pre><code><span class="c">// file: dict.sn</span>
-<span class="k">module</span> dictionary <span class="k">export </span><span class="o">(</span>create<span class="o">)</span> <span class="o">{</span> 
+<span class="k">module</span> dict <span class="k">export</span> <span class="o">(</span>put<span class="o">,</span> get<span class="o">)</span> <span class="o">{</span> 
   <span class="k">define</span> table <span class="o">=</span> make_hashtable<span class="o">(</span>string_hash<span class="o">,</span> is_string_eq<span class="o">)</span><span class="o">;</span> 
-  <span class="k">module</span> create <span class="k">export</span> <span class="o">(</span>put<span class="o">,</span> get<span class="o">)</span> <span class="o">{</span> 
-    <span class="k">function</span> put<span class="o">(</span>w<span class="o">,</span> v<span class="o">)</span> hashtable_set<span class="o">(</span>table<span class="o">,</span> w<span class="o">,</span> v<span class="o">)</span><span class="o">;</span> 
-    <span class="k">function</span> get<span class="o">(</span>w<span class="o">)</span> hashtable_at<span class="o">(</span>table<span class="o">,</span> w<span class="o">)</span> 
-  <span class="o">}</span><span class="o">;</span> 
-<span class="o">}</span><span class="o">;</span> 
-
-<span class="k">define</span> dict <span class="o">=</span> dictionary<span class="o">();</span></code></pre>
+  <span class="k">function</span> put<span class="o">(</span>w<span class="o">,</span> v<span class="o">)</span> hashtable_set<span class="o">(</span>table<span class="o">,</span> w<span class="o">,</span> v<span class="o">)</span><span class="o">;</span> 
+  <span class="k">function</span> get<span class="o">(</span>w<span class="o">)</span> hashtable_at<span class="o">(</span>table<span class="o">,</span> w<span class="o">)</span> 
+<span class="o">}</span><span class="o">;</span></code></pre>
     </div>
 
-    <p>The dictionary module is defined in two layers. The top layers exports the symbol <code>create</code> which refers to an internal module
-      where the <code>put</code> and <code>get</code> functions are implemented. As you might have already figured out, a module is nothing
-      but a closure. Each time dictionary is called, it returns a closure with a new hashtable and a new instance of the <code>create</code> 
-      module that refers to that hash table.</p>
     <p>To use the dictionary module, we have to first <em>load</em> the file "dict.sn" into the REPL:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">load</span> <span class="s1">"dict"</span><span class="o">;</span> 
 
-<span class="nc">slogan&gt; </span><span class="k">define</span> d <span class="o">=</span> dict<span class="o">.</span>create<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> d <span class="o">=</span> dict<span class="o"><span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span>d<span class="o">.</span>put<span class="o">(</span><span class="s1">"name"</span><span class="o">,</span> <span class="s1">"sam"</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span>d<span class="o">.</span>put<span class="o">(</span><span class="s1">"age"</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span>          
 <span class="nc">slogan&gt; </span>showln<span class="o">(</span>d<span class="o">.</span>get<span class="o">(</span><span class="s1">"name"</span><span class="o">)</span><span class="o">,</span> <span class="s1">" is "</span><span class="o">,</span> d<span class="o">.</span>get<span class="o">(</span><span class="s1">"age"</span><span class="o">)</span><span class="o">,</span> <span class="s1">" years old."</span><span class="o">)</span><span class="o">;</span> 
@@ -222,58 +213,57 @@ char *say_hello(___slogan_obj msg)
       input port:</p>
 
     <div class="highlight">
-      <pre><code><span class="c">// file: wc.sn </span>
+      <pre><code><span class="c">// file: word_count.sn </span>
 <span class="k">load</span> <span class="s1">"dict"</span><span class="o">;</span> 
 
-<span class="k">module</span> word_count<span class="o">(</span>port<span class="o">)</span> <span class="k">export</span> <span class="o">(</span>count<span class="o">)</span> <span class="k">locals</span> <span class="o">(</span>words_dict<span class="o">)</span> <span class="o">{</span> 
-  <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> <span class="o">{</span> 
-    <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>words_dict<span class="o">)</span><span class="o">)</span> 
-     words_dict<span class="o">=</span> init_words_dict<span class="o">(</span>string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> dict<span class="o">.</span>create<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-    words_dict<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span> 
-  <span class="o">}</span><span class="o">;</span> 
+<span class="k">module</span> word_count<span class="o">(</span>port<span class="o">)</span> <span class="k">export</span> <span class="o">(</span>count<span class="o">)</span> <span class="o">{</span> 
+  <span class="k">define</span> wd <span class="o">=</span> <span class="k">let</span> init_words_dict <span class="o">(</span>words<span class="o">=</span> string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> wd <span class="o">=</span> dict<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+               <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>words<span class="o">)</span><span class="o">)</span> wd 
+               <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span>get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+                <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span><span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
+                  wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+                  init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
 
-  <span class="k">function</span> init_words_dict<span class="o">(</span>words<span class="o">,</span> wd<span class="o">)</span> 
-    <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>words<span class="o">)</span><span class="o">)</span> wd 
-    <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span>get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
-          <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span> <span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
-            wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-            init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+  <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> wd<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span><span class="o">;</span> 
 <span class="o">}</span><span class="o">;</span> </code></pre>
     </div>
 
-    <p>The word count program presents a new feature - <code>locals</code> - which are similar to module arguments. Both module arguments and
-      locals are shared by the functions defined in the module. The difference is that, while the users of the module can pass in values
-      for the arguments, locals have to be initialized in the module itself.</p>
+     <p>The word_count module presents a new feature called <em>named let</em> which allows a <code>let</code> block to be named and used
+       like a recursive function.</p>
 
     <p>Let us complete this section by writing a script that uses the word_count module to find the number of occurrences in a file. 
       The file to read and the word to count is passed as command line arguments to the script:</p>
 
     <div class="highlight">
-      <pre><code><span class="c">// file: fwc.sn </span>
-<span class="k">load</span> <span class="s1">"wc"</span> <span class="o">;</span> 
+      <pre><code><span class="c">// file: file_word_count.sn </span>
+
+<span class="k">load</span> <span class="s1">"word_count"</span><span class="o">;</span> 
 
 <span class="k">define</span> args <span class="o">=</span> command_line<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="k">define</span> p <span class="o">=</span> open_file_input_port<span class="o">(</span>at<span class="o">(</span>args<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
 <span class="k">define</span> wc <span class="o">=</span> word_count<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
 
-<span class="k">function</span> find_count<span class="o">(</span><span class="o">)</span>
+<span class="k">function</span> find_count<span class="o">(</span><span class="o">)</span> <span class="o">{</span> 
+  show<span class="o">(</span><span class="s1">"Enter word to count: "</span><span class="o">)</span><span class="o">;</span> 
   <span class="k">let</span> <span class="o">(</span>w <span class="o">=</span> read_line<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
-   <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>w <span class="o">==</span> <span class="s1">":q"</span><span class="o">)</span><span class="o">)</span> 
-    <span class="o">{</span> showln<span class="o">(</span>wc<span class="o">.</span>count<span class="o">(</span>w<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-      find_count<span class="o">(</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+   <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>w <span class="o">==</span> <span class="s1">":q"</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span> 
+    showln<span class="o">(</span>wc<span class="o">.</span>count<span class="o">(</span>w<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+    find_count<span class="o">(</span><span class="o">)</span> 
+   <span class="o">}</span><span class="o">;</span> 
+<span class="o">}</span><span class="o">;</span> 
 
 find_count<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> </code></pre>
+close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span>  </code></pre>
     </div>
 
     <p>To use this script, you have to start the Slogan interpreter by passing in the file name to parse:</p>
 
     <p><pre><code>slogan file.txt</code></pre></p>
 
-    <p>Then from the prompt, load "fwc.sn":</p>
+    <p>Then from the prompt, load "file_word_count.sn":</p>
     
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">load</span> <span class="s1">"fwc"</span><span class="o">;</span> </code></pre>
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">load</span> <span class="s1">"file_word_count"</span><span class="o">;</span> </code></pre>
     </div>
     
     <p>The script will wait for you to enter a word and it will report back its number of occurrences in the file. It will continue this loop
@@ -293,11 +283,11 @@ close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</sp
     <p>Now we are ready to compile our file word count program:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>compile<span class="o">(</span><span class="s1">"fwc"</span><span class="o">,</span> exe <span class="o">=</span> true<span class="o">)</span><span class="o">;</span> </code></pre>
+      <pre><code><span class="nc">slogan&gt; </span>compile<span class="o">(</span><span class="s1">"file_word_count"</span><span class="o">,</span> exe <span class="o">=</span> true<span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
-    <p>Now you should have an executable named "fwc" along with two dynamically loadable object files (with extension that starts with "o") for
-      the "dict" and "wc" modules. You can package these binary files and distribute them as a standalone application for your platform.</p>
+    <p>Now you should have an executable named "file_word_count" along with two dynamically loadable object files (with extension that starts with "o") for
+      the "dict" and "word_count" modules. You can package these binary files and distribute them as a standalone application for your platform.</p>
 
   </div>
 </body>
