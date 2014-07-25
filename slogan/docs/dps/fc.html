@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" style="margin-right: 10px">
+        <a href="genindex/" title="General Index"
+           accesskey="I">index</a></li>
+      <li class="right" >
+        <a href="./fc.html" title="Introduction"
+           accesskey="N">next</a> |</li>
+      <li class="right" >
+        <a href="./iww.html" title="toc"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Functional Concurrency</h3></div>
+    <p>Consider a simple concurrent program using reactive variables:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> x <span class="o">=</span> ?<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> y <span class="o">=</span> ?<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>?x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?y <span class="o">=</span> ?x <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?y<span class="o">;</span> 
+<span class="ge">=&gt; 100</span></code></pre>
+    </div>
+    
+    <p>The line <code>"task({ ?y = ?x });"</code> is the concurrent part of the program. It runs the assignment statement in a new task 
+      separate from the main task of the REPL. It is also an example of functional concurrency because for a given value 
+      of <code>x</code> it always leads to the same output despite the order in which <code>x</code> is bound. This is made clear in the 
+      following program:</p>
+    
+    <div class="highlight">
+        <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> x <span class="o">=</span> ?<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> y <span class="o">=</span> ?<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?y <span class="o">=</span> ?x <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?y<span class="o">;</span> 
+<span class="ge">=&gt; 100</span></code></pre>
+    </div>
+
+    <p>Let us write a concurrent version of the <code>map</code> function. Here we will see a more extensive use of reactive variables 
+      for coordination and communication between tasks:</p>
+    
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> cmap<span class="o">(</span>f<span class="o">,</span> xs<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
+            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="o">[</span><span class="o">]</span><span class="o">,</span> 
+            <span class="o">[</span>h t<span class="o">]</span><span class="o">:</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> ?<span class="o">)</span> 
+                    <span class="o">{</span> task<span class="o">(</span><span class="o">{</span> ?x <span class="o">=</span> f<span class="o">(</span>?h<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+                      <span class="o">[</span>?x cmap<span class="o">(</span>f<span class="o">,</span> ?t<span class="o">)</span><span class="o">]</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>The function is called <code>cmap</code> for "concurrent map". It calls the function <code>f</code> for each element in the list 
+      <code>xs</code> in a dedicated task. It also treats the head and tail of <code>xs</code> as reactive variables, allowing it to block
+      and wait for values to be bound by another task that acts as some kind of "value producer". Here is our concurrent map function in
+      action: </p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> ys <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> result <span class="o">=</span> ?<span class="o">;</span>
+
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> cmap<span class="o">(</span>sqrt<span class="o">,</span> ?xs<span class="o">)</span><span class="o">}</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>?xs <span class="o">=</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> ys<span class="o">]</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>We call <code>cmap</code> in a new task and pass it the reactive variable <code>xs</code>. This task will block until <code>xs</code> is
+      bound to the list <code>[10, 20, ys]</code>. This will trigger <code>cmap</code> to compute the square roots of <code>10</code> and 
+      <code>20</code> and then block on <code>ys</code>. To run <code>cmap</code> to completion and view the result, now we have to bind
+      <code>ys</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>?ys <span class="o">=</span> <span class="mi">30</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?result<span class="o">;</span>
+<span class="ge">=&gt; [3.1622776601683795, 4.47213595499958, 5.477225575051661]</span></code></pre>
+    </div>
+
+    <p>The result is the same as what the sequential <code>map</code> function will return. But with the concurrent map function,
+      we are able to generate the output incrementally for an incrementally given input.</p>
+  </div>
+</body>
+</html>
