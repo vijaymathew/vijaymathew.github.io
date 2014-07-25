@@ -95,6 +95,54 @@
 
     <p>The result is the same as what the sequential <code>map</code> function will return. But with the concurrent map function,
       we are able to generate the output incrementally for an incrementally given input.</p>
+
+    <h4>Streams</h4>
+    <p>A stream is a potentially unbounded list of messages, i.e., it is a list whose tail is an unbound reactive variable. 
+      Sending a message is done by extending the stream by one element: bind the tail to a list pair containing the message and a new 
+      unbound tail. Receiving a message is reading a stream element. Streams is a useful tool in programming communicating concurrent
+      tasks in a functional setting. The task generating the messages is called a <em>producer</em> and the task consuming
+      the messages is known as a <em>consumer</em>.</p>
+
+    <h5>Producer/consumer</h5>
+    <p>Here is the most basic producer/consumer function pair we can write:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">,</span> is_done<span class="o">,</span> next<span class="o">)</span> 
+          <span class="k">let</span> loop <span class="o">(</span>n <span class="o">=</span> n<span class="o">,</span> r <span class="o">=</span> xs<span class="o">)</span> 
+           <span class="k">if</span> <span class="o">(</span>is_done<span class="o">(</span>n<span class="o">)</span><span class="o">)</span> ?r <span class="o">=</span> <span class="o">[</span>n<span class="o">]</span> 
+           <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>nr <span class="o">=</span> ?<span class="o">)</span> 
+                 <span class="o">{</span> ?r <span class="o">=</span> <span class="o">[</span>n nr<span class="o">]</span><span class="o">;</span> 
+                   loop<span class="o">(</span>next<span class="o">(</span>n<span class="o">)</span><span class="o">,</span> nr<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> f<span class="o">,</span> a<span class="o">)</span> 
+           <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
+            <span class="o">[</span><span class="o">]</span><span class="o">:</span> a<span class="o">,</span> 
+            <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> consumer<span class="o">(</span>?xr<span class="o">,</span> f<span class="o">,</span> f<span class="o">(</span>a<span class="o">,</span> ?x<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>The producer function generates a stream of values until <code>is_done</code> returns true. Each value starting at <code>n</code> is
+      calculated using the function <code>next</code>. The reactive variable <code>xs</code> is used to maintain the unbound tail of the 
+      stream which a consumer task can use to wait for more values.</p>
+    
+    <p>The consumer function reads from a stream, applies the function <code>f</code> to each element and accumulates a result into 
+      <code>a</code>. The following program shows how to use the producer/consumer pair to write function that finds the sum of numbers
+      read from a stream:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> ?<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> result <span class="o">=</span> ?<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>?xs<span class="o">,</span> add<span class="o">, </span><span class="mi">0</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">150000</span><span class="o">,</span> is_zero<span class="o">,</span> <span class="k">fn</span><span class="o">(</span>n<span class="o">)</span> n <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?result<span class="o">;</span>
+<span class="ge">=&gt; 11250075000</span></code></pre>
+      </div>
+
+    <h5>Demand-driven concurrency</h5>
+    <p>TBD</p>
+
+    <h5>Filtering streams</h5>
+    <p>TBD</p>
+    
   </div>
 </body>
 </html>
