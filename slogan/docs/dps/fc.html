@@ -137,12 +137,47 @@
 <span class="ge">=&gt; 11250075000</span></code></pre>
       </div>
 
-    <h5>Demand-driven concurrency</h5>
+    <h5>Demand-driven flow control</h5>
+    <p>Sometimes the producer will generate more elements than the consumer can process. This can bog down system resources. 
+      One way to solve this problem is to limit the rate at which the producer generates new elements, so that some global 
+      condition is satisfied. This is called <em>flow control</em>. It requires that some information be
+      sent back from the consumer to the producer. The simplest flow control is to let the producer to generate an element only when
+      the consumer demands for it. This is called <em>demand-driven</em> flow control. Here is how to program a demand-driven producer/consumer pair:</p>
+    
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">,</span> next<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>is_empty<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+           <span class="k">match</span> <span class="o">(</span>?xs<span class="o">)</span> 
+            <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> <span class="o">{</span> ?x <span class="o">=</span> n<span class="o">;</span> 
+                      producer<span class="o">(</span>xr<span class="o">,</span> next<span class="o">(</span>n<span class="o">)</span><span class="o">,</span> next<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> f<span class="o">,</span> a<span class="o">,</span> n<span class="o">,</span> is_done<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_done<span class="o">(</span>n<span class="o">)</span><span class="o">)</span> <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">;</span> a <span class="o">}</span> 
+          <span class="k">else</span> <span class="o">{</span> <span class="k">let</span> <span class="o">(</span>xr <span class="o">=</span> ?<span class="o">)</span> 
+                  <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span>? xr<span class="o">]</span><span class="o">;</span> 
+                    <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> head<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span> 
+                     consumer<span class="o">(</span>xr<span class="o">,</span> f<span class="o">,</span> f<span class="o">(</span>?x<span class="o">,</span> a<span class="o">)</span><span class="o">,</span> ?x<span class="o">,</span> is_done<span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">;</span>
+</code></pre>
+    </div>
+
+    <p>The consumer notifies the producer by binding a reactive variable to a pair whose head and tail are also unbound reactive variables.
+      The producer waits for the pair to get bound and sends back the next value in the stream by binding it to the head. The producer terminates
+      when it receives an empty list instead of a pair. As you might have noticed, the <code>is_done</code> function to decide when to stop
+      generating the stream is passed to the consumer because it drives the whole process. We can re-write the previous "sum integer stream" example
+      using the new producer/consumer pair as:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> result <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>xs<span class="o">,</span> add<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>n<span class="o">)</span> n <span class="o">==</span> <span class="mi">150000</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>n<span class="o">)</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?result<span class="o">;</span>
+<span class="ge">=&gt; 11250075000</span></code></pre>
+    </div>
+    
+    <h5>Flow control with bounded buffer</h5>
     <p>TBD</p>
 
-    <h5>Filtering streams</h5>
-    <p>TBD</p>
-    
   </div>
 </body>
 </html>
