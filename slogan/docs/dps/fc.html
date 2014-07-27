@@ -107,34 +107,33 @@
     <p>Here is the most basic producer/consumer function pair we can write:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">,</span> is_done<span class="o">,</span> next<span class="o">)</span> 
-          <span class="k">let</span> loop <span class="o">(</span>n <span class="o">=</span> n<span class="o">,</span> r <span class="o">=</span> xs<span class="o">)</span> 
-           <span class="k">if</span> <span class="o">(</span>is_done<span class="o">(</span>n<span class="o">)</span><span class="o">)</span> ?r <span class="o">=</span> <span class="o">[</span>n<span class="o">]</span> 
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> limit<span class="o">)</span> 
+          <span class="k">let</span> loop<span class="o">(</span>n <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> r <span class="o">=</span> xs<span class="o">)</span> 
+           <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> limit<span class="o">)</span> ?r <span class="o">=</span> <span class="o">[</span><span class="o">]</span> 
            <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>nr <span class="o">=</span> ?<span class="o">)</span> 
                  <span class="o">{</span> ?r <span class="o">=</span> <span class="o">[</span>n nr<span class="o">]</span><span class="o">;</span> 
-                   loop<span class="o">(</span>next<span class="o">(</span>n<span class="o">)</span><span class="o">,</span> nr<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+                   loop<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> nr<span class="o">)</span> <span class="o">}</span> <span class="o">;</span> 
 
-<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> f<span class="o">,</span> a<span class="o">)</span> 
-           <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
-            <span class="o">[</span><span class="o">]</span><span class="o">:</span> a<span class="o">,</span> 
-            <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> consumer<span class="o">(</span>?xr<span class="o">,</span> f<span class="o">,</span> f<span class="o">(</span>a<span class="o">,</span> ?x<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
+<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> a<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
+           <span class="o">[</span><span class="o">]</span><span class="o">:</span> a<span class="o">,</span> 
+           <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> consumer<span class="o">(</span>?xr<span class="o">,</span> ?x <span class="o">+</span> a<span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
-    <p>The producer function generates a stream of values until <code>is_done</code> returns true. Each value starting at <code>n</code> is
-      calculated using the function <code>next</code>. The reactive variable <code>xs</code> is used to maintain the unbound tail of the 
+    <p>The producer function generates a stream of integers until <code>limit</code> is reached. 
+      The reactive variable <code>xs</code> is used to maintain the unbound tail of the 
       stream which a consumer task can use to wait for more values.</p>
     
-    <p>The consumer function reads from a stream, applies the function <code>f</code> to each element and accumulates a result into 
-      <code>a</code>. The following program shows how to use the producer/consumer pair to write function that finds the sum of numbers
-      read from a stream:</p>
+    <p>The consumer function reads from a stream and accumulates the sum of integers read into <code>a</code>. 
+      The following program shows how to use the producer/consumer pair:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> ?<span class="o">;</span> 
 <span class="nc">slogan&gt; </span><span class="k">define</span> result <span class="o">=</span> ?<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>?xs<span class="o">,</span> add<span class="o">, </span><span class="mi">0</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">150000</span><span class="o">,</span> is_zero<span class="o">,</span> <span class="k">fn</span><span class="o">(</span>n<span class="o">)</span> n <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>?xs<span class="o">,</span> <span class="mi">0</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">150000</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span>?result<span class="o">;</span>
-<span class="ge">=&gt; 11250075000</span></code></pre>
+<span class="ge">=&gt; 11249925000</span></code></pre>
       </div>
 
     <h5>Demand-driven flow control</h5>
@@ -142,21 +141,23 @@
       One way to solve this problem is to limit the rate at which the producer generates new elements, so that some global 
       condition is satisfied. This is called <em>flow control</em>. It requires that some information be
       sent back from the consumer to the producer. The simplest flow control is to let the producer to generate an element only when
-      the consumer demands for it. This is called <em>demand-driven</em> flow control. Here is how to program a demand-driven producer/consumer pair:</p>
+      the consumer demands for it. This is called <em>demand-driven</em> flow control. (The previous technique, where the producer generates an element
+      whenever it likes, can be called <em>supply-driven</em>). Here is how to program a demand-driven producer/consumer pair:</p>
     
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">,</span> next<span class="o">)</span> 
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">)</span> 
           <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>is_empty<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
-           <span class="k">match</span> <span class="o">(</span>?xs<span class="o">)</span> 
-            <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> <span class="o">{</span> ?x <span class="o">=</span> n<span class="o">;</span> 
-                      producer<span class="o">(</span>xr<span class="o">,</span> next<span class="o">(</span>n<span class="o">)</span><span class="o">,</span> next<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+           <span class="k">match</span> <span class="o">(</span>?xs<span class="o">)</span>
+            <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> 
+              <span class="o">{</span> ?x <span class="o">=</span> n<span class="o">;</span> 
+                producer<span class="o">(</span>xr<span class="o">,</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
 
-<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> f<span class="o">,</span> a<span class="o">,</span> n<span class="o">,</span> is_done<span class="o">)</span> 
-          <span class="k">if</span> <span class="o">(</span>is_done<span class="o">(</span>n<span class="o">)</span><span class="o">)</span> <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">;</span> a <span class="o">}</span> 
-          <span class="k">else</span> <span class="o">{</span> <span class="k">let</span> <span class="o">(</span>xr <span class="o">=</span> ?<span class="o">)</span> 
-                  <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span>? xr<span class="o">]</span><span class="o">;</span> 
-                    <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> head<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span> 
-                     consumer<span class="o">(</span>xr<span class="o">,</span> f<span class="o">,</span> f<span class="o">(</span>?x<span class="o">,</span> a<span class="o">)</span><span class="o">,</span> ?x<span class="o">,</span> is_done<span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> a<span class="o">,</span> limit<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>xr <span class="o">=</span> ?<span class="o">)</span> 
+           <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span>?xr<span class="o">]</span><span class="o">;</span> 
+             <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> head<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span> 
+              <span class="k">if</span> <span class="o">(</span>?x <span class="o">==</span> limit<span class="o">)</span> <span class="o">{</span> ?xr <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">;</span> a <span class="o">}</span> 
+	      <span class="k">else</span> consumer<span class="o">(</span>xr<span class="o">,</span> ?x <span class="o">+</span> a<span class="o">,</span> limit<span class="o">)</span> <span class="o">}</span> <span class="o">;</span> 
 </code></pre>
     </div>
 
@@ -169,14 +170,23 @@
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> ?<span class="o">;</span>
 <span class="nc">slogan&gt; </span><span class="k">define</span> result <span class="o">=</span> ?<span class="o">;</span>
-<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>xs<span class="o">,</span> add<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>n<span class="o">)</span> n <span class="o">==</span> <span class="mi">150000</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>n<span class="o">)</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> 150000<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span>?result<span class="o">;</span>
-<span class="ge">=&gt; 11250075000</span></code></pre>
+<span class="ge">=&gt; 11249925000</span></code></pre>
     </div>
     
-    <h5>Flow control with bounded buffer</h5>
-    <p>TBD</p>
+    <p>We have seen two techniques for managing stream communication, namely supply-driven and demand-driven. Both techniques have problems. 
+      supply-driven execution leads to an explosion in resource usage. But demand-driven execution also has a serious problem. 
+      It leads to a strong reduction in throughput. By throughput we mean the number of messages that can be sent per unit of time.
+      If the consumer requests a message, then the producer has to calculate it, and meanwhile the consumer waits. If the producer
+      were allowed to get ahead of the consumer, then the consumer would not have to wait.</p>
+
+    <p>An optimum producer/consumer pair can be designed using a bounded buffer. A bounded buffer stores elements up to a maximum number, 
+      say <code>n</code>. The producer is allowed to get ahead of the consumer, but only until the buffer is full. This limits the extra 
+      resource usage to <code>n</code> elements. The consumer can take elements from the buffer immediately without waiting. 
+      This keeps throughput high. When the buffer has less than <code>n</code> elements, the producer is allowed to produce more elements,
+      until the buffer is full.</p>
 
   </div>
 </body>
