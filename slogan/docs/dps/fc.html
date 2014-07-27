@@ -154,7 +154,7 @@
 
 <span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> a<span class="o">,</span> limit<span class="o">)</span> 
           <span class="k">let</span> <span class="o">(</span>xr <span class="o">=</span> ?<span class="o">)</span> 
-           <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span>?xr<span class="o">]</span><span class="o">;</span> 
+           <span class="o">{</span> ?xs <span class="o">=</span> <span class="o">[</span>? xr<span class="o">]</span><span class="o">;</span> 
              <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> head<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span> 
               <span class="k">if</span> <span class="o">(</span>?x <span class="o">==</span> limit<span class="o">)</span> <span class="o">{</span> ?xr <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">;</span> a <span class="o">}</span> 
 	      <span class="k">else</span> consumer<span class="o">(</span>xr<span class="o">,</span> ?x <span class="o">+</span> a<span class="o">,</span> limit<span class="o">)</span> <span class="o">}</span> <span class="o">;</span> 
@@ -176,9 +176,10 @@
 <span class="ge">=&gt; 11249925000</span></code></pre>
     </div>
     
+    <h5>Flow control with bounded buffers</h5>
     <p>We have seen two techniques for managing stream communication, namely supply-driven and demand-driven. Both techniques have problems. 
-      supply-driven execution leads to an explosion in resource usage. But demand-driven execution also has a serious problem. 
-      It leads to a strong reduction in throughput. By throughput we mean the number of messages that can be sent per unit of time.
+      While supply-driven execution leads to an explosion in resource usage, demand-driven execution leads to a strong reduction in throughput. 
+      By throughput we mean the number of messages that can be sent per unit of time.
       If the consumer requests a message, then the producer has to calculate it, and meanwhile the consumer waits. If the producer
       were allowed to get ahead of the consumer, then the consumer would not have to wait.</p>
 
@@ -187,6 +188,37 @@
       resource usage to <code>n</code> elements. The consumer can take elements from the buffer immediately without waiting. 
       This keeps throughput high. When the buffer has less than <code>n</code> elements, the producer is allowed to produce more elements,
       until the buffer is full.</p>
+
+    <p>A simple way to update the producer to make use of a bounded buffer is shown below. The producer call the helper function <code>generate</code>
+      to initialize the buffer. It serves the consumer request from this buffer. When the buffer runs out <code>generate</code> is called again to
+      replenish it: </p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> generate<span class="o">(</span>n<span class="o">,</span> s<span class="o">)</span> 
+	  <span class="k">let</span> loop<span class="o">(</span>n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> s <span class="o">=</span> s <span class="o">,</span>r <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
+           <span class="k">if</span> <span class="o">(</span>s <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> reverse<span class="o">(</span>r<span class="o">)</span>
+           <span class="k">else</span> loop<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">,</span>s <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> <span class="o">[</span>n r<span class="o">]</span><span class="o">)</span><span class="o">;</span>
+ 
+<span class="nc">slogan&gt; </span><span class="k">function</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">,</span> elems<span class="o">,</span> bufsize<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>elems<span class="o">)</span><span class="o">)</span> producer<span class="o">(</span>xs<span class="o">,</span> n<span class="o">,</span> generate<span class="o">(</span>n<span class="o">,</span> bufsize<span class="o">)</span><span class="o">,</span> bufsize<span class="o">)</span>
+          <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>is_empty<span class="o">(</span>?xs<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+           <span class="k">match</span> <span class="o">(</span>?xs<span class="o">)</span> 
+            <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> <span class="o">{</span> ?x <span class="o">=</span> head<span class="o">(</span>elems<span class="o">)</span><span class="o">;</span> 
+ 	              producer<span class="o">(</span>xr<span class="o">,</span> head<span class="o">(</span>elems<span class="o">)</span><span class="o">,</span> tail<span class="o">(</span>elems<span class="o">)</span><span class="o">,</span> bufsize<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+    </div>
+
+    <p>The consumer function remains unchanged. The new producer can be used as:</p>
+
+<div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> result <span class="o">=</span> ?<span class="o">;</span>
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> ?result <span class="o">=</span> consumer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> 150000<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>producer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">, </span><span class="o">[</span><span class="o">]</span><span class="o">, </span>10000<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>?result<span class="o">;</span>
+<span class="ge">=&gt; 11249925000</span></code></pre>
+    </div>
+
+    <p>Can you write a new version of the producer where upon reaching a threshold, the buffer is replenished in the background in a new task?</p>
 
   </div>
 </body>
