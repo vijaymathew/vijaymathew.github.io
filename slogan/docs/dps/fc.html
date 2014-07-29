@@ -17,10 +17,10 @@
         <a href="genindex/" title="General Index"
            accesskey="I">index</a></li>
       <li class="right" >
-        <a href="./fc.html" title="Introduction"
+        <a href="./le.html" title="Lazy Execution"
            accesskey="N">next</a> |</li>
       <li class="right" >
-        <a href="./iww.html" title="toc"
+        <a href="./iww.html" title="Interacting with the World"
            accesskey="P">previous</a> |</li>
       <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
       <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
@@ -221,6 +221,62 @@
     <p>A more complex version of the producer might replenish the buffer in a background task once a threshold is reached.</p>
     <p>The producers and consumers that we programmed in this section all deal with streams of integers. What changes will you make to these functions
       to enable them to work with streams of any type?</p>
+
+    <h4>Detecting task termination</h4>
+    <p>A common requirement that arises while programming with tasks is to detect the termination of a task and make another thread wait
+      on that event. The <code>task_join</code> function can be used to make a task wait until a child-task finishes its execution. The following
+      program shows how to make the main task wait for a new task to join back:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> task<span class="o">(</span><span class="o">{</span> task_sleep<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> showln<span class="o">(</span><span class="s1">"done."</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>task_join<span class="o">(</span>a<span class="o">)</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p>Reactive variables can be used for detecting termination of multiple tasks. The following program shows one way to do it:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>x1 <span class="o">=</span> ?<span class="o">,</span> x2 <span class="o">=</span> ?<span class="o">,</span> x3 <span class="o">=</span> ?<span class="o">)</span> <span class="o">{</span> 
+         task<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"task01 started."</span><span class="o">)</span><span class="o">;</span> task_sleep<span class="o">(</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> ?x1 <span class="o">=</span> true <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+         task<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"task02 started."</span><span class="o">)</span><span class="o">;</span> task_sleep<span class="o">(</span><span class="mi">2</span><span class="o">)</span><span class="o">;</span> ?x2 <span class="o">=</span> ?x1 <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+         task<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"task03 started."</span><span class="o">)</span><span class="o">;</span> task_sleep<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span> ?x3 <span class="o">=</span> ?x2 <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+         ?x 
+        <span class="o">};</span>
+
+<span class="ge">-&gt; task01 started.
+   task02 started.
+   task03 started.
+   true</span></code></pre>
+    </div>
+
+    <p>Each task binds a reactive variable before terminating. The task that follows binds its reactive variable to the value bound by the previous task.
+      This makes sure that each task has to wait for the previous task to finish. The termination of the last task can be detected by waiting for the
+      last reactive variable to be bound. We can abstract this sequence of procedures into a generic function: </p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> barrier<span class="o">(</span>fns<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> ?<span class="o">)</span> 
+	   <span class="o">{</span> ?x <span class="o">=</span> true<span class="o">;</span> 
+             <span class="k">let</span> loop<span class="o">(</span>fns <span class="o">=</span> fns<span class="o">,</span> x <span class="o">=</span> x<span class="o">)</span> 
+              <span class="k">match</span> <span class="o">(</span>fns<span class="o">)</span> 
+               <span class="o">[</span><span class="o">]</span><span class="o">:</span> ?x<span class="o">,</span> 
+               <span class="o">[</span>f fs<span class="o">]</span><span class="o">:</span> <span class="k">let</span> <span class="o">(</span>m <span class="o">=</span> ?<span class="o">)</span> 
+                        <span class="o">{</span> task<span class="o">(</span><span class="o">{</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> ?m <span class="o">=</span> ?x <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+                          loop<span class="o">(</span>fs<span class="o">,</span> m<span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p><code>Barrier</code> takes a list of zero-argument functions, starts each function in its own task, 
+      and terminates after all these tasks terminate. It does termination detection using the same "short-circuiting" technique we used in the 
+      previous example. We can rewrite this example using <code>barrier</code> as:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>barrier<span class="o">(</span><span class="o">[</span><span class="k">fn</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"task01 started."</span><span class="o">)</span><span class="o">;</span> task_sleep<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">}</span><span class="o">,</span> 
+                 <span class="k">fn</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"task02 started."</span><span class="o">)</span><span class="o">;</span> task_sleep<span class="o">(</span><span class="mi">2</span><span class="o">)</span> <span class="o">}</span><span class="o">,</span> 
+                 <span class="k">fn</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"task03 started."</span><span class="o">)</span><span class="o">;</span> task_sleep<span class="o">(</span><span class="mi">5</span><span class="o">)</span> <span class="o">}</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="ge">-&gt; task01 started.
+   task02 started.
+   task03 started.
+   true</span></code></pre>
   </div>
 </body>
 </html>
