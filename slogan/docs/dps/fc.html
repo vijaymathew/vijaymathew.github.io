@@ -17,7 +17,7 @@
         <a href="genindex/" title="General Index"
            accesskey="I">index</a></li>
       <li class="right" >
-        <a href="./le.html" title="Lazy Execution"
+        <a href="./fc.html" title="Message-passing Concurrency"
            accesskey="N">next</a> |</li>
       <li class="right" >
         <a href="./iww.html" title="Interacting with the World"
@@ -222,6 +222,49 @@
     <p>The producers and consumers that we programmed in this section all deal with streams of integers. What changes will you make to these functions
       to enable them to work with streams of any type?</p>
 
+    <h5>Lazy streams</h5>
+        <p>Until now we have evaluated expressions in order, from left to right. This is known as eager evaluation and is the default
+      evaluation strategy. A second evaluation strategy called lazy evaluation is also possible.
+      In lazy evaluation an expression is evaluated only when its value is needed. Consider the following program:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f1<span class="o">(</span>x<span class="o">)</span> delay<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"f1"</span><span class="o">)</span><span class="o">;</span> <span class="mi">1</span> <span class="o">+</span> x <span class="o">*</span> <span class="o">(</span><span class="mi">3</span> <span class="o">+</span> x <span class="o">*</span> <span class="o">(</span><span class="mi">3</span> <span class="o">+</span> x<span class="o">)</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> f2<span class="o">(</span>x<span class="o">)</span> delay<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"f2"</span><span class="o">)</span><span class="o">;</span> <span class="k">let</span> <span class="o">(</span>y <span class="o">=</span> x <span class="o">*</span> x<span class="o">)</span> y <span class="o">*</span> y <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> f3<span class="o">(</span>x<span class="o">)</span> delay<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"f3"</span><span class="o">)</span><span class="o">;</span> x <span class="o">*</span> <span class="mi">1</span> <span class="o">+</span> x <span class="o">*</span> <span class="mi">1</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> f1<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> b <span class="o">=</span> f2<span class="o">(</span><span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> c <span class="o">=</span> f3<span class="o">(</span><span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> d <span class="o">=</span> force<span class="o">(</span>a<span class="o">)</span> <span class="o">+</span> force<span class="o">(</span>b<span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; f1
+   f2</span>
+<span class="nc">slogan&gt; </span>d<span class="o">;</span>
+<span class="ge">=&gt; 161331</span></code></pre>
+    </div>
+
+    <p>The special function <code>delay</code> takes an expression as its argument and returns an object representing a <em>promise</em> 
+      to execute the expression sometime in the future. When the program needs the value of the expression, the promise object is <em>forced</em>
+      to evaluate it. For this we call the <code>force</code> function. As you can see from the previous example, even though a call is made
+      to <code>f3</code>, the expression delayed by it is not executed.</p>
+    
+    <p>We can use lazy evaluation to implement a new version of the demand-driven producer/consume pair:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> generate<span class="o">(</span>n<span class="o">)</span> <span class="o">[</span>n delay<span class="o">(</span>generate<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> consumer<span class="o">(</span>xs<span class="o">,</span> a<span class="o">,</span> limit<span class="o">)</span> 
+    <span class="k">if</span> <span class="o">(</span>limit <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> consumer<span class="o">(</span>force<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">,</span> a <span class="o">+</span> head<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> limit <span class="o">-</span> <span class="mi">1</span><span class="o">)</span> 
+    <span class="k">else</span> a<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> xs <span class="o">=</span> generate<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>consumer<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">150000</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 11249925000</span></code></pre>
+    </div>
+
+    <p>In this example, it is the consumer that decides how many list elements should be
+      generated. The <code>generate</code> call does not need to be put in its own task because there is nothing much for it to do
+      than creating a pair that consists of the first number and a promise to create the next.</p>
+
+
     <h4>Detecting task termination</h4>
     <p>A common requirement that arises while programming with tasks is to detect the termination of a task and make another thread wait
       on that event. The <code>task_join</code> function can be used to make a task wait until a child-task finishes its execution. The following
@@ -278,5 +321,6 @@
    task03 started.
    true</span></code></pre>
   </div>
+
 </body>
 </html>
