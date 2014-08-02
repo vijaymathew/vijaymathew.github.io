@@ -113,7 +113,41 @@
       <p>The <code>read</code> function call accepts a new client connection on the server port. </p>
       <p>Now you might want to test our echo server by writing a client for it.</p>
 
-    <h4>FFI</h4>
+      <h4>Exceptions</h4>
+
+    <p>Unexpected situations like dividing by zero or opening a nonexistent file can happen during program execution. How to handle these
+      <em>exceptional</em> situations? A functional program can do this by adding cumbersome checks throughout the program. A more
+      elegant way is to use an exception-handling mechanism. Slogan has such a mechanism in the form of the <code>try-catch</code> expression pair.
+      The <code>try</code> expression creates an exception-catching context and the <code>catch</code> expression creates an exception handler.
+      These expressions are complemented by the <code>raise</code> and <code>error</code> functions which are used to <em>throw</em> or <em>raise</em>
+      an exception. Any exception raised in the context of a <code>try</code> is handled by the exception handler in <code>catch</code>. Let us look
+      at a simple example of raising and handling an exception:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">try</span> raise<span class="o">(</span><span class="s1">"oops!"</span><span class="o">)</span> 
+        <span class="k">catch</span> <span class="o">(</span>e<span class="o">)</span> showln<span class="o">(</span><span class="s1">"caught the exception: "</span><span class="o">,</span> e<span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; caught the exception: oops!</span></code></pre>
+</div>
+
+    <p>The <code>try</code> expression has an optional <code>finally</code> clause which is always executed, whether or not the an exception is raised.
+      With <code>finally</code> we can guarantee some "cleanup" action happens even if an exception is raised. The following code shows a function
+      which opens a file and reads its entire content. The function handles exception related to file input and also makes sure that the file port
+      is closed before returning:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> read_file<span class="o">(</span>file_name<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>p <span class="o">=</span> false<span class="o">,</span> s <span class="o">=</span> false<span class="o">)</span> 
+           <span class="k">try</span> <span class="o">{</span> p <span class="o">=</span> open_input_file<span class="o">(</span>file_name<span class="o">)</span><span class="o">;</span> 
+                 s <span class="o">=</span> read_all_lines<span class="o">(</span>p<span class="o">)</span> <span class="o">}</span> 
+           <span class="k">catch</span> <span class="o">(</span>e<span class="o">)</span> showln<span class="o">(</span><span class="s1">"exception: "</span><span class="o">,</span> e<span class="o">)</span> 
+           <span class="k">finally</span> <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>p<span class="o">)</span> close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> s <span class="o">}</span><span class="o">;</span> </code></pre></div>
+
+    <p>The <code>finally</code> clause makes sure that the port is always closed and the data read into <code>s</code> is returned as the value of the
+      function. If you call <code>read_file</code> with a file that does not exist, it will catch and report the 
+      <code>no-such-file-or-directory-exception</code>. (Instead of <code>showln</code>, you can call <code>show_exception(e)</code> which will produce
+      a more descriptive output of standard exceptions).</p>
+
+      <h4>FFI</h4>
 
     <p>FFI or the Foreign Function Interface is a set of functions that allows our Slogan programs to call functions in a dynamically loadable
       C library. (Known as shared libraries in the Unix world). To be callable from Slogan, the C functions must follow certain conventions.
