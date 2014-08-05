@@ -17,7 +17,7 @@
         <a href="genindex/" title="General Index"
            accesskey="I">index</a></li>
       <li class="right" >
-        <a href="./mpc.html" title="Message-passing Concurrency"
+        <a href="./pws.html" title="Programming with State"
            accesskey="N">next</a> |</li>
       <li class="right" >
         <a href="./fc.html" title="Interacting with the World"
@@ -82,13 +82,131 @@ function:</p>
   protocol where one party waits for a message to come and then forwards that message to some other party. In this section we study other
   interesting protocols.</p>
 
-<h5>Synchronous RMI</h5>
+<h5>RMI</h5>
 
-<p></p>
+<p>RMI (Remote Method Invocation) allows an object to call the method in another in a different operating system process.
+  The other process could be on the same machine or on another machine connected by network. Here we present RMI in its simplest form.
+  Instead of processes we have Slogan tasks and a "method" is what a task does when it receives a message. In synchronous RMI the client
+  sends a request to the server and waits for the reply. First let us implement the server: </p>
 
-<h5>Asynchronous RMI</h5>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> server<span class="o">(</span><span class="o">)</span> 
+          <span class="o">{</span> <span class="k">match</span> <span class="o">(</span>task_receive<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+             <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> x<span class="o">,</span> y<span class="o">]</span><span class="o">:</span> ?y <span class="o">=</span> x <span class="o">*</span> x <span class="o">+</span> <span class="mi">2.0</span> <span class="o">*</span> x <span class="o">+</span> <span class="mi">2.0</span><span class="o">;</span> 
+            server<span class="o">(</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+</div>
 
-<p></p>
+<p>The server binds the result of its calculation to the reactive variable <code>y</code>. This variable is initialized by the client which then
+  waits on it. The following function defines a client for our synchronous RMI server:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> client<span class="o">(</span>s<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>y1 <span class="o">=</span> ?<span class="o">,</span> y2 <span class="o">=</span> ?<span class="o">)</span> 
+           <span class="o">{</span> task_send<span class="o">(</span>s<span class="o">,</span> <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> <span class="mi">10.0</span><span class="o">,</span> y1<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+             showln<span class="o">(</span>?y1<span class="o">)</span><span class="o">;</span> 
+             task_send<span class="o">(</span>s<span class="o">,</span> <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> <span class="mi">20.0</span><span class="o">,</span> y2<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+             showln<span class="o">(</span>?y2<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+</div>
+  
+<p>The client is started by passing it a reference to its server:<p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>client<span class="o">(</span>task<span class="o">(</span>server<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt 122.
+   442.</code></pre>
+</div>
+
+<p>The RMI server handles one client at a time. This approach is simple to program with and reason about. 
+  We can also allow multiple calls from different clients to be processed concurrently. This is done by starting a new task
+  at the server side to accept and process a client request. The server no longer serves requests sequentially. This is much harder to
+  program with, especially if the server has internal state data. We will examine the problems associated with designing such muti-tasking
+  servers in a later chapter.</p>
+
+<p>Now let us attempt a small variation on the client:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> client<span class="o">(</span>s<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>y1 <span class="o">=</span> ?<span class="o">,</span> y2 <span class="o">=</span> ?<span class="o">)</span> 
+           <span class="o">{</span> task_send<span class="o">(</span>s<span class="o">,</span> <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> <span class="mi">10.0</span><span class="o">,</span> y1<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+             task_send<span class="o">(</span>s<span class="o">,</span> <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> <span class="mi">20.0</span><span class="o">,</span> y2<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+             showln<span class="o">(</span>?y1 <span class="o">+</span> ?y2<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>The updated client sends the second request without waiting for the first reply. This is an example of <em>asynchronous</em> RMI. 
+  Note that no change in the server is required. It still receives messages one by one and executes them sequentially. 
+  Requests are handled by the server in the same order as they are sent and the replies arrive in that order as well. </p>
+
+<h5>RMI with callback</h5>
+<p>In certain cases a server may need additional information from the client for full-filling the original request. In such situations the
+  server does a <em>callback</em> to the client. Let us look at a new version of the previous server function where the server needs an
+  additional parameter called <code>delta</code> which is known only to the client:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> server<span class="o">(</span><span class="o">)</span> 
+          <span class="o">{</span> <span class="k">match</span> <span class="o">(</span>task_receive<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+             <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> client<span class="o">,</span> x<span class="o">,</span> y<span class="o">]</span><span class="o">:</span> 
+               <span class="k">let</span> <span class="o">(</span>d <span class="o">=</span> ?<span class="o">)</span> 
+                <span class="o">{</span> task_send<span class="o">(</span>client<span class="o">,</span> <span class="o">[</span><span class="o">!</span>delta<span class="o">,</span> d<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+                  x <span class="o">=</span> x <span class="o">+</span> ?d<span class="o">;</span> 
+                  ?y <span class="o">=</span> x <span class="o">*</span> x <span class="o">+</span> <span class="mi">2.0</span> <span class="o">*</span> x <span class="o">+</span> <span class="mi">2.0</span><span class="o">;</span> <span class="o">}</span><span class="o">;</span> 
+            server<span class="o">(</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+</div>
+  
+<p>The request contains the reference to the task in which the client is running. Server uses this reference to send a request back to the
+  client to retrieve the delta. Now we should update the client so that it can handle this callback:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> client<span class="o">(</span>s<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>y <span class="o">=</span> ?<span class="o">)</span> 
+           <span class="o">{</span> task_send<span class="o">(</span>s<span class="o">,</span> <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> current_task<span class="o">(</span><span class="o">)</span><span class="o">,</span> <span class="mi">10.0</span><span class="o">,</span> y<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+             <span class="k">match</span> <span class="o">(</span>task_receive<span class="o">(</span><span class="o">)</span><span class="o">)</span> <span class="o">[</span><span class="o">!</span>delta<span class="o">,</span> d<span class="o">]</span><span class="o">:</span> ?d <span class="o">=</span> random_real<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+             showln<span class="o">(</span>?y<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>The client sends the request and immediately waits for the delta request from the server. Once the delta is sent, it again waits for the
+  result to be bound to <code>y</code>. As the delta is a randomly generated real number between 0 and 1, the result will change with each
+  invocation:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>client<span class="o">(</span>task<span class="o">(</span>server<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 122.30518463091119</span>
+<span class="nc">slogan&gt; </span>client<span class="o">(</span>task<span class="o">(</span>server<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 140.05584623432674</span></code></pre>
+</div>
+
+<h5>RMI with function continuation</h5>
+<p>After sending the delta the client has to wait for the server to finish computation. A server doing a complex computation may take an
+  unspecified amount of time to return a result. What if we do not want the client to block on the result? One solution is to move the part
+  of code that uses the result into a task of its own. For instance, the last line of the client function can be modified as: <code>task<span class="o">(</span>showln<span class="o">(</span>?y<span class="o">)</span><span class="o">)</span></code>. Another solution is to use a <em>function 
+    continuation</em>. This involves wrapping up the part of code that uses the result into a function and send that to the 
+  server along with the result. The server, instead of binding the result to a reactive variable, calls this function with the result 
+  as its argument. Here is basic client/server pair using function continuation:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> server<span class="o">(</span><span class="o">)</span> 
+          <span class="o">{</span> <span class="k">match</span> <span class="o">(</span>task_receive<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+             <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> x<span class="o">,</span> cont<span class="o">]</span><span class="o">:</span> cont<span class="o">(</span>x <span class="o">*</span> x <span class="o">+</span> <span class="mi">2.0</span> <span class="o">*</span> x <span class="o">+</span> <span class="mi">2.0</span><span class="o">)</span><span class="o">;</span> 
+            server<span class="o">(</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> client<span class="o">(</span>s<span class="o">,</span> d<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>cont <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>y<span class="o">)</span> showln<span class="o">(</span>y <span class="o">*</span> d<span class="o">)</span><span class="o">)</span> 
+           task_send<span class="o">(</span>s<span class="o">,</span> <span class="o">[</span><span class="o">!</span>calc<span class="o">,</span> <span class="mi">10.0</span><span class="o">,</span> cont<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>client<span class="o">(</span>task<span class="o">(</span>server<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 12200</span></code></pre>
+</div>
+
+<p>In this example, instead of a reactive variable, the client passes a function <code>cont</code> to the server. This function contains a
+  state (<code>d</code>) that is local to each client. Though this function is invoked by the server, it represents the rest of the work
+  that client want to do with the result.</p>
+
+<h5>Error reporting</h5>
+<p>So far we have assumed that everything goes well in the server process and all requests can be given back a valid response. What if the
+  server detects an exception while processing the request? It has to report the error back to the client. One way to do this is to bind
+  a specially tagged object to the result - say in case of an exception the result will be <code>[!error, an_exception_object]</code>. The client
+  can check the special tag <code>!error</code> and handle the exception object as it seems fit. What if a error happens in the server that it
+  is not able to detect? In such a situation, the server task might simple crash. What if nothing wrong happens in the server, but the
+  communication link between the server and client is broken?. These cases will be covered in the chapter on Distributed Computing.</p>
 
 </div>
 </body>

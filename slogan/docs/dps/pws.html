@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" style="margin-right: 10px">
+        <a href="genindex/" title="General Index"
+           accesskey="I">index</a></li>
+      <li class="right" >
+        <a href="./pws.html" title="Object Oriented Programming"
+           accesskey="N">next</a> |</li>
+      <li class="right" >
+        <a href="./mpc.html" title="Message-Passing Concurrency"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Programming with State</h3></div>
+
+<p>The programs that we studied in this tutorial were mostly <em>functional</em>, i.e, they depend only on their inputs or 
+  parameters to effect a computation. A program can also have an internal parameter or <em>state</em> which gives the program a
+  "long-term memory". Without state a program can have only "short-term memory", one that exists during a particular invocation of the program.</p>
+
+<p>This chapter introduces program design with explicit state along its advantages and limitations.</p>
+
+<h4>Defining state</h4>
+<p><em>State</em> can be defined as a sequence of values in time that contains the intermediate results of a desired computation.
+  As per this definition, we can maintain state without any support from the language we are programming in. The state can exist in the
+  programmer's mind. This is known as <em>implicit</em> or <em>declarative</em> state. Consider the following function that sums a list of
+  numbers:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_list<span class="o">(</span>xs<span class="o">,</span> a<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
+           <span class="o">[</span><span class="o">]</span><span class="o">:</span> a<span class="o">,</span> 
+           <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> sum_list<span class="o">(</span>xr<span class="o">,</span> a <span class="o">+</span> x<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>sum_list<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 10</span></code></pre>
+</div>
+
+<p>To calculate the sum of a list, the function has to call itself many times. The example call above, leads to the following
+  sequence of arguments being passed to the recursive calls: </p>
+
+<div class="highlight">
+  <pre><code>[1, 2, 3, 4], 0
+[2, 3, 4], 1
+[3, 4], 3
+[4], 6
+[], 10</code></pre></div>
+
+<p>This sequence is a state. When looked at in this way, <code>sum_list</code> calculates with state. Yet neither the program nor 
+  the language runtime "knows" this. The state is completely in the mind of the programmer.</p>
+
+<p>Sometimes it is useful for a function to have a state that lives across function calls and that is hidden from the callers. 
+  For example, we can extend <code>sum_list</code> to count how many times it is called. We can thread the count across callers
+  by making it an extra parameter to the function. But this will give the function an awkward interface and burden the users by
+  making them keep track of an extension they need not be aware of. To do it without additional arguments
+  we need an <em>explicit state</em>.</p> 
+
+<p>An explicit state in a function is a state whose lifetime extends over more than one function call without being present in the
+  function's arguments.</p>
+
+<p>Let us update the <code>sum_list</code> function with a variable to keep track of the number of times it is called:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> sum_count <span class="o">=</span> false<span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> sum_list <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> <span class="mi">0</span><span class="o">)</span> 
+                           <span class="o">{</span> sum_count <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> count<span class="o">;</span> 
+                             <span class="k">fn</span> <span class="o">(</span>xs<span class="o">,</span> a<span class="o">)</span> 
+                              <span class="o">{</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+                                <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
+                                 <span class="o">[</span><span class="o">]</span><span class="o">:</span> a<span class="o">,</span> 
+                                 <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> sum_list<span class="o">(</span>xr<span class="o">,</span> a <span class="o">+</span> x<span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">;</span></code></pre>
+</div>
+
+<p>In the <code>let</code> expression that initializes <code>count</code>, we create two functions. The first one just returns the current value
+  of <code>count</code>. This function is bound to the name <code>sum_count</code>. The next function is the same as <code>sum_list</code>, 
+  but it also increments <code>count</code> by 1 each time it is called. This function is bound to the symbol <code>sum_list</code>. 
+  Let us try out these functions:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>sum_list<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 10</span>
+<span class="nc">slogan&gt; </span>sum_count<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 5</span>
+</code></pre>
+</div>
+
+<p><code>Count</code> is not visible to code outside the <code>let</code> expression. So it becomes the private explicit state of these
+  two functions. The ability to encapsulate explicit state improves the modularity of data abstractions tremendously.
+  The access to the state is limited according to the operations of the data abstraction. This idea is at the heart of 
+  object-oriented programming.</p>
+
+</div>
+</body>
+</html>
+
+
