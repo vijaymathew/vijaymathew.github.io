@@ -17,7 +17,7 @@
         <a href="genindex/" title="General Index"
            accesskey="I">index</a></li>
       <li class="right" >
-        <a href="./pws.html" title="Object Oriented Programming"
+        <a href="./ssc.html" title="Shared-State Concurrency"
            accesskey="N">next</a> |</li>
       <li class="right" >
         <a href="./mpc.html" title="Message-Passing Concurrency"
@@ -246,6 +246,82 @@
 <span class="ge">=&gt; 10</span></code></pre>
 </div>
 
+<h4>An example: Generating random numbers</h4>
+<p>We have used the random number generators <code>random_integer</code> and <code>random_real</code>. These functions let the
+  computer to "throw dice" and has many useful applications in programs like games and simulations. If we have to implement our
+  own random number generators, how will we do that? A first approach would be to use some source of randomness in the computer 
+  itself - like the thread scheduler or electronic circuits that generate noise. This will give us true randomness but has the
+  problem that they don't have a useful probability distribution.  A second and more serious problem: the randomness cannot be 
+  reproduced except by storing the random numbers and replaying them. It might seem strange to ask for reproducibility from a source of
+  randomness, but it is perfectly reasonable. For example, the randomness might be input to a simulator. 
+  We would like to vary some parameter in the simulator such that any variation in the simulator 
+  depends only on the parameter, and not on any variation in the random numbers.</p>
+
+<p>A better solution is to calculate random numbers. For this we need a good algorithm that can generate a sequence of numbers 
+  that appear to be random and at the same time has string statistical properties and the right distribution.
+  Since a random number generator does a calculation with finite information, it will eventually repeat itself.
+  This brings in the requirement that the period of repetition should be sufficiently long.</p>
+
+<p>A random number generator stores an internal state, with which it calculates the next random number and the next internal state. 
+  The state should be large enough to allow a long period. The random number is initialized with a number called
+  its <em>seed</em>. Initializing it again with the same seed should give the same sequence of random numbers. If we do not 
+  want the same sequence, we can initialize it with information that will never be the same, such as the current date and time.</p>
+
+<p>It turns out that a good simple method is the linear congruential generator. If <code>x</code> is the internal state 
+  and <code>s</code> is the seed, then the internal state is updated as follows:</p>
+
+<p><pre><code>x<sub>0</sub> = s
+x<sub>n</sub> = (ax<sub>n-1</sub> + b) mod m</code></pre></p>
+
+<p>The constants <code>a</code>, <code>b</code> and <code>m</code> have to be carefully chosen so that the generated sequence
+  has the good properties that we discussed earlier. It is easy to implement this generator:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> make_rand <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">333667</span><span class="o">,</span> b <span class="o">=</span> <span class="mi">213453321</span><span class="o">)</span> 
+                            <span class="k">fn</span> <span class="o">(</span>seed<span class="o">,</span> max<span class="o">)</span> 
+                             <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="o">{</span> seed <span class="o">=</span> modulo<span class="o">(</span>a <span class="o">*</span> seed <span class="o">+</span> b<span class="o">,</span> max<span class="o">)</span><span class="o">;</span> seed <span class="o">}</span><span class="o">;</span> </code></pre></div>
+
+<p><code>Make_rand</code> returns a random number generator function that is initialized the the <code>seed</code>. The function makes sure
+  that the numbers generator are within the <code>max</code> limit:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> r <span class="o">=</span> make_rand<span class="o">(</span><span class="mi">15</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>r<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span>
+<span class="nc">slogan&gt; </span>r<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 3</span></code></pre>
+</div>
+
+<h5>A functional random number generator</h5>
+<p>It is possible to implement the random number generator using lazy streams. Instead of using a variable, 
+  the state is stored in a recursive argument of the function calls:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> make_rand <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">333667</span><span class="o">,</span> b <span class="o">=</span> <span class="mi">213453321</span><span class="o">)</span> 
+                            <span class="k">fn</span> <span class="o">(</span>max<span class="o">)</span> 
+                             <span class="k">letrec</span> <span class="o">(</span>r <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>seed<span class="o">)</span> 
+                                          <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> modulo<span class="o">(</span>a <span class="o">*</span> seed <span class="o">+</span> b<span class="o">,</span> max<span class="o">)</span><span class="o">)</span> 
+                                           <span class="o">[</span>x delay<span class="o">(</span>r<span class="o">(</span>x<span class="o">)</span><span class="o">)</span><span class="o">]</span><span class="o">)</span> 
+                              r<span class="o">;</span></code></pre></div>
+
+<p>One difference with the stateful implementation is that the seed argument has moved from the constructor to the random number generator:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> r <span class="o">=</span> make_rand<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> s <span class="o">=</span> r<span class="o">(</span><span class="mi">15</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>s<span class="o">;</span> 
+<span class="ge">=&gt; [6 &lt;promise&gt;]</span>
+<span class="nc">slogan&gt; </span>force<span class="o">(</span>tail<span class="o">(</span>s<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [3 &lt;promise&gt;]</span></code></pre>
+</div>
+
+<h4>Limitations of stateful programming</h4>
+<p>Two major limitations of programming with explicit state are:</p>
+<ol>
+<li><em>Stateful programs are sequential</em>. In contrast, the real world is stateful and parallel. In the <a href="ssc.html">next chapter</a> 
+  we will see how explicit state and concurrency can go together in the same program.</li>
+<li><em>The real world is distributed and explicit state is hard to use well in a distributed system</em>. The <a href="dc.html">chapter 
+  on distributed computing</a> will explore this limitation in detail and offer some alternatives.</li>
+</ol>
 
 </div>
 </body>
