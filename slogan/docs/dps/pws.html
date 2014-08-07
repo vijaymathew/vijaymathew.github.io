@@ -105,6 +105,148 @@
   The access to the state is limited according to the operations of the data abstraction. This idea is at the heart of 
   object-oriented programming.</p>
 
+<h4>State and system design</h4>
+<p>A "system" can be thought of as having two parts: a specification and an implementation. 
+  The specification defines how the system should behave. It is like a "contract" that the system
+  makes with the outside world that interacts with it. We say a system is correct if the actual 
+  behavior of the system is in accord with the contract. If the system behaves differently, then we say it fails.</p>
+
+<p>The specification defines how the rest of the world interacts with the system, as seen from the outside. 
+  The implementation is how the system is constructed, as seen from the inside. To use a system, all we need
+  to know is its specification. This means that it is possible to build a system as a concentric series of layers.
+  One can proceed step by step, building layer upon layer. At each layer, build an implementation that takes 
+  the next lower specification and provides the next higher one. It is not necessary to understand everything at once.
+  This separation of specification and implementation is an important principle is system building and is known as
+  the <em>principle of abstraction</em>.
+
+<p>A system should have the following properties to best support the principle of abstraction:
+  <ul>
+    <li><em>Encapsulation.</em> It should be possible to hide the internals of a part.</li>
+    <li><em>Compositionality.</em> It should be possible to combine parts to make a new part.</li>
+    <li><em>Instantiation/invocation.</em> It should be possible to create many instances of a
+      part based on a single definition. These instances "plug" themselves into their
+      environment (the rest of the system in which they will live) when they are created.</li>
+    </ul>
+<p>Slogan has features that enables you to design systems with these properties.
+  Lexical scoping supports encapsulation and higher-order programming supports 
+  instantiation. The properties do not require state; they can be used in functional programming as well.
+  For example, it is possible to use encapsulation in declarative programs without state. On the other
+  hand, it is also possible to use state without encapsulation, by defining the state
+  globally so all components have free access to it.</p>
+
+<p>Encapsulation and explicit state are most useful when used together. Adding state
+  to functional programming makes reasoning about the program much harder,
+  because the program's behavior depends on the state. For example, a procedure
+  can do a side effect, i.e., it modifies state that is visible to the rest of the program.
+  Side effects make reasoning about the program extremely difficult. Bringing in
+  encapsulation does much to make reasoning tractable again. This is because stateful
+  systems can be designed so that a well-defined property, called an <em>invariant</em>, is
+  always true when viewed from the outside. This makes reasoning about the system
+  independent of reasoning about its environment. This partly gives us back one of
+  the properties that makes functional programming so attractive.</p>
+
+<p>Note that an invariant does not guarantee that the component is making
+  progress toward some goal. This means that even with invariants, programming with 
+  state is not quite as simple as functional programming. A good rule of thumb
+  for complex systems is to keep as many components as possible functional. State
+  should not be spread out over many components. It should be concentrated in
+  just a few carefully selected components.</p>
+
+<h5>Component-based programming</h5>
+<p>The three properties of encapsulation, compositionality, and instantiation define
+  component-based programming. A component specifies a program
+  fragment with an inside and an outside, i.e., with a well-defined interface. The inside
+  is hidden from the outside, except for what the interface permits. Components can
+  be combined to make new components. Components can be instantiated, making
+  a new instance that is linked into its environment. In this tutorial we have already 
+  encountered various forms or components: closures, modules and message-passing tasks.</p>
+<p>In component-based programming, the natural way to extend a component is by
+  using composition: build a new component that contains the original one. The new
+  component offers a new functionality and uses the old component to implement the
+  functionality. Object-Oriented Programming, which we study in detail in the next chapter,
+  adds one more concept to component-based programming - <em>inheritance</em>.</p>
+
+<h5>Stateful functional programming</h5>
+<p>In general, a stateful program is no longer functional, since running the program
+  several times with the same inputs can give different outputs depending on the
+  internal state. It is possible, though, to write stateful programs that behave as if they
+  were functional, i.e., when observed from outside, it always behaves functionally. </p>
+<p>Let us see an interesting example. We define the list <code>reverse</code> function using state:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reverse<span class="o">(</span>xs<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>result <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
+           <span class="k">let</span> loop <span class="o">(</span>xs<span class="o"> = </span>xs<span class="o">)</span> 
+             <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> result 
+             <span class="k">else</span> <span class="o">{</span> result <span class="o">=</span> <span class="o">[</span>head<span class="o">(</span>xs<span class="o">)</span> result<span class="o">]</span><span class="o">;</span> 
+                    loop<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>Since the state is encapsulated inside the function, there is no way to tell the difference between this implementation 
+  and a functional implementation. It is often possible to take a functional program and convert it to a stateful program with the
+  same behavior by replacing the implicit state with an explicit state. Similarly, any stateful implementation can be converted to a 
+  functional implementation as well.</p>
+
+<h4>Stateful Data Structures</h4>
+<p>In the chapter <a href="fds.html">Functional Data Structures</a>, we implemented a function queue. In this section we implement
+  a related data structure - the stack. A stack is a LIFO (Last-In-First-Out) data structure with two operations - <code>push</code> and
+  <code>pop</code>. <code>Push</code> adds and element to the stack and <code>pop</code> removes and returns the last element added.
+  The stack we are going to implement is stateful. It keeps its elements in an array and remembers the index of the last element
+  inserted in a variable. (An array maps integer indexes to objects. Unlike a list, an array is of fixed size and can do faster lookups
+  by the index of the element). A stack instance has to be initialized with a maximum size. An attempt to add elements beyond this size
+  will raise an exception. Here is the complete implementation of stack:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_stack<span class="o">(</span>size<span class="o">)</span> 
+          <span class="k">letseq</span> <span class="o">(</span>elems <span class="o">=</span> make_array<span class="o">(</span>size<span class="o">)</span><span class="o">,</span> 
+                  index <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> 
+                  push <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>elem<span class="o">)</span> 
+                          <span class="k">if</span> <span class="o">(</span>index <span class="o">&gt;=</span> size<span class="o">)</span> error<span class="o">(</span><span class="s1">"stack overflow!"</span><span class="o">)</span> 
+                          <span class="k">else</span> <span class="o">{</span> array_set<span class="o">(</span>elems<span class="o">,</span> index<span class="o">,</span> elem<span class="o">)</span><span class="o">;</span> 
+                                 index <span class="o">=</span> index <span class="o">+</span> <span class="mi">1</span> <span class="o">}</span><span class="o">,</span> 
+                  pop <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> 
+                         <span class="k">if</span> <span class="o">(</span>index <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> error<span class="o">(</span><span class="s1">"stack underflow!"</span><span class="o">)</span> 
+                         <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>elem <span class="o">=</span> array_at<span class="o">(</span>elems<span class="o">,</span> index <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span> 
+                               <span class="o">{</span> index <span class="o">=</span> index <span class="o">-</span> <span class="mi">1</span><span class="o">;</span> 
+                                 elem <span class="o">}</span><span class="o">)</span> 
+           <span class="k">fn</span> <span class="o">(</span>msg<span class="o">)</span> 
+            <span class="k">case</span> <span class="o">(</span>msg<span class="o">)</span> 
+             push<span class="o">:</span> push<span class="o">,</span> 
+             pop<span class="o">:</span> pop<span class="o">,</span> 
+             <span class="k">else</span><span class="o">:</span> error<span class="o">(</span><span class="s1">"invalid message - "</span><span class="o">,</span> msg<span class="o">)</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>The state of a stack consists of the array <code>elems</code> and the integer <code>index</code>. These variables are manipulated by
+  the functions <code>push</code> and <code>pop</code>. (As these functions references the variables defined before them, we have used
+  <code>letseq</code> instead of <code>let</code>). The function <code>make_stack</code> is a <em>constructor</em>. Each time it is called
+  it returns a function that takes a symbolic message as argument. This function is a closure that has references to all the 
+  variables bound in the <code>letseq</code>. It does a case analysis of the symbolic argument and returns an appropriate function to the caller.
+  Let us see how to create and use a stack object:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> s <span class="o">=</span> make_stack<span class="o">(</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>s<span class="o">(</span><span class="o">!</span>push<span class="o">)</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>s<span class="o">(</span><span class="o">!</span>push<span class="o">)</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>s<span class="o">(</span><span class="o">!</span>pop<span class="o">)</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 20</span>
+<span class="nc">slogan&gt; </span>s<span class="o">(</span><span class="o">!</span>pop<span class="o">)</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 10</span></code></pre>
+</div>
+
+<p>We can also use the dot-notation to call functions that accepts a single symbolic argument. This will look more familiar to those who have used
+  languages like Java:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> s <span class="o">=</span> make_stack<span class="o">(</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>s<span class="o">.</span>push<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>s<span class="o">.</span>push<span class="o">(</span><span class="mi">20</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>s<span class="o">.</span>pop<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 20</span>
+<span class="nc">slogan&gt; </span>s<span class="o">.</span>pop<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 10</span></code></pre>
+</div>
+
+
 </div>
 </body>
 </html>
