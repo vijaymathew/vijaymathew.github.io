@@ -30,7 +30,99 @@
   <div id="site" class="site">
     <div class="title"><h3>Shared-State Concurrency</h3></div>
 
-    <p>TBD</p>
+    <p>In the shared-state model, concurrent tasks communicate by accessing and mutating shared variables. Shared-state concurrency is harder 
+  to program than functional concurrency using reactive variables. The difficulty arises out of the fact that the tasks can update or 
+  read the shared state in unpredictable orders. This happens because task scheduling is non-deterministic. It is possible to write algorithms 
+  in this model and prove their correctness by reasoning on all possible read/write interleavings. But for large programs, this technique 
+  rapidly becomes impractical. It is unwieldy and interleavings are easy to overlook.</p>
+
+<p>If shared-state concurrency is difficult to program, why not just stick with functional concurrency?
+  The problem with the functional concurrent model is that tasks must communicate in "lockstep". 
+  Two task communicating with a third task cannot execute independently; they must coordinate with each
+  other. This is a consequence of the fact that functional programs are deterministic.</p>
+<p>We would like to allow two threads to be completely independent and yet communicate with the same third thread. 
+  For example, we would like tasks to independently increment a shared counter. To express this, we have to leave the 
+  realm of pure functional programming. This is because two independent entities communicating with a third introduce an
+  observable non-determinism. A simple way to solve the problem is to add explicit state to the model. 
+  But as we have already seen, reasoning directly with state and concurrency is difficult. 
+  One way to get around this problem is to make all state local to tasks and use only <a href="mpc.html">message-passing</a> for coordination.
+  Another option is to perform <em>atomic actions</em> on shared-state. This is the main topic covered in this chapter.</p> 
+
+<h4>Mutexes</h4>
+<p>A mutex is an object that can be used to prevent a shared resource from being accessed by more than ons task at the same time.
+  A mutex can be in two state - locked or unlocked. An attempt to lock a mutex only succeeds if the mutex is in an unlocked state, 
+  otherwise the current task will wait. The code that is executed within the mutex lock and unlock operations is known as the
+  <em>critical region</em>.</p>
+<p>The following program shows how tasks can use a mutex object to coordinate reads and writes
+  to a shared variable:</p>
+
+<div class="highligt">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> m <span class="o">=</span> mutex<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span><span class="o">)</span> task<span class="o">(</span><span class="o">{</span> mutex_lock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> mutex_unlock<span class="o">(</span>m<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> b<span class="o">(</span><span class="o">)</span> task<span class="o">(</span><span class="o">{</span> mutex_lock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> mutex_unlock<span class="o">(</span>m<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">)</span><span class="o">;</span></code></pre>
+</div>
+
+<p>The program above spawns two tasks that modify the value of <code>count</code>. Both of them lock the mutex <code>m</code> before performing
+  this action. This makes sure that both tasks do not try to write to <code>count</code> at the same time. Not matter which task writes first,
+  <code>count</code> ends up with the value of <code>2</code>. </p>
+
+<p>What happens if one of the tasks raises an exception after locking the mutex but
+  before unlocking it? The second task waiting to lock the mutex will be stuck forever. This situation can be prevented by putting 
+  the critical region in the body of a <code>try</code> and always calling the unlock operation in the <code>finally</code> clause.
+  This idea is so useful that we can express it as a macro:</p>
+
+<div class="highligt">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">macro</span> lock<span class="o">(</span>mtx<span class="o">,</span> expr<span class="o">)</span> 
+         <span class="o">{</span> mutex_lock<span class="o">(</span>mtx<span class="o">)</span><span class="o">;</span>
+           <span class="k">try</span> expr 
+           <span class="k">finally</span> mutex_unlock<span class="o">(</span>mtx<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+
+</p>
+
+<p>A macro is a pure compile-time artifact. When you call a macro, the compiler 
+  <em>expands</em> its body into the call-site. To make this clear, let us re-write the function that updates <code>count</code>
+  to use the new macro:</p>
+
+<div class="highligt">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span><span class="o">)</span> task<span class="o">(</span>lock<span class="o">(</span>m<span class="o">,</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>When it sees the call to <code>lock</code> the compiler runs a <em>macro expander</em> which will replace the expression
+  <code>lock(m, count = count + 1)</code> with the following code:</p>
+<div class="highligt">
+  <pre><code><span class="o">{</span> mutex_lock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span>
+  <span class="k">try</span> count = count + 1 
+  <span class="k">finally</span> mutex_unlock<span class="o">(</span>m<span class="o">)</span> <span class="o">}</span></code></pre>
+</div>
+
+<p>By writing a macro we saved some keystrokes without incurring any runtime overhead.</p>
+
+<h5>Stateful concurrent data structures</h5>
+<p></p>
+
+<h4>Monitors</h4>
+<p></p>
+
+<h4>Transactions</h4>
+<p></p>
+
+<h4>How to choose a concurrency model</h4>
+<p>In this tutorial, we have studied three approaches to concurrent programming - functional, message-passing and shared-state. 
+  How do we decide which approach to use when writing a concurrent program? Here are a few rules of thumb: <p>
+  <ul>
+    <li>If using concurrency does not simplify the architecture of the program, avoid it. Stick with a sequential model.</li>
+    <li>If you absolutely need concurrency, modularize your program in such a way that its concurrency aspects are concentrated in as few
+      places as possible. Most of the time, large parts of the program can be sequential.</li>
+    <li>If your program does not have any observable non-determinism, such as independent 
+      clients interacting with a server, then stick with functional concurrency using reactive variables.</li>
+    <li>If you absolutely need both state and concurrency, then use either the message-passing or the shared-state approach. 
+      The message-passing approach is often the best for programs that consist of autonomous "agents" that communicate with each other. 
+      The shared-state approach is often the best for programs that deal with a global repository of data ("database") that 
+      should be accessed and updated concurrently. Both approaches can be used together for different parts of the same program.</li>
+  </ul>
 
   </div>
 </body>
