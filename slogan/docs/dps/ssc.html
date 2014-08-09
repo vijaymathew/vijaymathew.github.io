@@ -49,7 +49,7 @@
   Another option is to perform <em>atomic actions</em> on shared-state. This is the main topic covered in this chapter.</p> 
 
 <h4>Mutexes</h4>
-<p>A mutex is an object that can be used to prevent a shared resource from being accessed by more than ons task at the same time.
+<p>A mutex is an object that can be used to prevent a shared resource from being accessed by more than one task at the same time.
   A mutex can be in two state - locked or unlocked. An attempt to lock a mutex only succeeds if the mutex is in an unlocked state, 
   otherwise the current task will wait. The code that is executed within the mutex lock and unlock operations is known as the
   <em>critical region</em>.</p>
@@ -100,11 +100,96 @@
 
 <p>By writing a macro we saved some keystrokes without incurring any runtime overhead.</p>
 
-<h5>Stateful concurrent data structures</h5>
-<p></p>
+<h5>Reentrant mutexes</h5>
+<p>The default mutex implementation in Slogan is not reentrant. An attempt to lock a mutex that is locked implies that the 
+  current task waits even if the mutex is owned by the current task. This can lead to a deadlock if no other task unlocks the mutex.
+  The following program demonstrates this behavior:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> m <span class="o">=</span> mutex<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span><span class="s1">"locking..."</span><span class="o">)</span><span class="o">;</span> 
+               mutex_lock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> 
+               showln<span class="o">(</span><span class="s1">"locked."</span><span class="o">)</span><span class="o">;</span> 
+               showln<span class="o">(</span><span class="s1">"locking again..."</span><span class="o">)</span><span class="o">;</span> 
+               mutex_lock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> 
+               showln<span class="o">(</span><span class="s1">"locked again."</span> <span class="o">)</span><span class="o">;</span> 
+               mutex_unlock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> 
+               mutex_unlock<span class="o">(</span>m<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="ge">-&gt; slogan> locking...
+  locked.
+  locking again...</span></code></pre>
+</div>
+
+<p>The task will hang trying to lock the mutex the second time. Sometimes we would want to allow a task to lock the same mutex multiple times.
+  We will implement an extended mutex that has this reentrant behavior:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> rmutex<span class="o">(</span>parent_task<span class="o">,</span> mtx <span class="o">=</span> mutex<span class="o">(</span><span class="o">)</span><span class="o">, </span>lock_count <span class="o">=</span> 0<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> rmutex_lock<span class="o">(</span>rmtx<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>rmutex_parent_task<span class="o">(</span>rmtx<span class="o">)</span> <span class="o">==</span> current_task<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+           <span class="o">{</span> mutex_lock<span class="o">(</span>rmutex_mtx<span class="o">(</span>rmtx<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+             rmutex_set_parent_task<span class="o">(</span>rmtx<span class="o">,</span> current_task<span class="o">(</span><span class="o">)</span><span class="o">)</span> <span class="o">}</span>
+          <span class="k">else </span>rmutex_set_lock_count<span class="o">(</span>rmtx, rmutex_lock_count<span class="o">(</span>rmtx<span class="o">)</span><span class="o"> + </span><span class="n">1</span><span class="o">)</span><span class="o">;</span>
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> rmutex_unlock<span class="o">(</span>rmtx<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>rmutex_parent_task<span class="o">(</span>rmtx<span class="o">)</span> <span class="o">==</span> current_task<span class="o">(</span><span class="o">)</span><span class="o">)</span>
+           <span class="k">if</span> <span class="o">(</span>rmutex_lock_count<span class="o">(</span>rmtx<span class="o">)</span> <span class="o">==</span> <span class="n">0</span><span class="o">)</span>
+            <span class="o">{</span> rmutex_set_parent_task<span class="o">(</span>rmtx<span class="o">,</span> false<span class="o">)</span><span class="o">;</span> 
+              mutex_unlock<span class="o">(</span>rmutex_mtx<span class="o">(</span>rmtx<span class="o">)</span><span class="o">)</span> <span class="o">}</span>
+           <span class="k">else </span>rmutex_set_lock_count<span class="o">(</span>rmtx, rmutex_lock_count<span class="o">(</span>rmtx<span class="o">)</span><span class="o"> - </span><span class="n">1</span><span class="o">)</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>The reentrent-mutex (rmutex) record keeps track of the task that currently holds the lock on its mutex. If that task tries to lock the mutex
+  again, it's just let through. It also maintains the number of times a task has locked a mutex to match the calls to <code>rmutex_unlock</code>.
+</p>
 
 <h4>Monitors</h4>
-<p></p>
+<p>Mutexes are an important tool for building concurrent abstractions in a stateful model, but they are not sufficient. 
+  For example, consider the simple case of a bounded buffer. Consider a task trying to put an element into a full buffer. 
+  What if we want the task to wait until the buffer is not full, and then continue? This cannot be done with just mutexes. 
+  We need a mechanism that allows a task taking elements from the buffer to notify the waiting task that the buffer is no longer full.
+  The same mechanism will allow the task putting elements to notify a task blocked on an empty buffer.</p>
+<p>Monitors gives us such a mechanism by adding a "wait" and "notify" operations to the mutex lock and unlock functions. Calling 
+  <code>mutex_unlock</code> with a monitor as its second argument will add the current task to the list of tasks waiting for the monitor
+  to be notified. The <code>monitor_notify</code> function will notify one other tasks waiting on the monitor and <code>monitor_broadcast</code>
+  will notify all tasks waiting on it.</p>
+
+<p>The following program shows the implementation of a bounded buffer using mutexes and monitors:</p>
+
+<div class="highlight">
+<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_bounded_buffer<span class="o">(</span>size<span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>buf <span class="o">=</span> make_array<span class="o">(</span>size<span class="o">)</span><span class="o">,</span> n <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> mtx <span class="o">=</span> mutex<span class="o">(</span><span class="o">)</span><span class="o">,</span> m <span class="o">=</span> monitor<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+           <span class="k">letrec</span> <span class="o">(</span>put <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> 
+                       <span class="o">{</span> mutex_lock<span class="o">(</span>mtx<span class="o">)</span><span class="o">;</span> 
+                         <span class="k">if</span> <span class="o">(</span>n <span class="o">&gt;=</span> size<span class="o">)</span> <span class="o">{</span> mutex_unlock<span class="o">(</span>mtx<span class="o">,</span> m<span class="o">)</span><span class="o">;</span> put<span class="o">(</span>x<span class="o">)</span><span class="o"> }</span>
+                         <span class="k">else</span> <span class="o">{ </span>array_set<span class="o">(</span>buf<span class="o">,</span> n<span class="o">,</span> x<span class="o">)</span><span class="o">;</span> 
+                                n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
+                                monitor_broadcast<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> 
+                                mutex_unlock<span class="o">(</span>mtx<span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">,</span> 
+                get <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> 
+                       <span class="o">{</span> mutex_lock<span class="o">(</span>mtx<span class="o">)</span><span class="o">;</span> 
+                         <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span> mutex_unlock<span class="o">(</span>mtx<span class="o">,</span> m<span class="o">)</span><span class="o">;</span> get<span class="o">(</span><span class="o">)</span><span class="o"> }</span>
+                         <span class="k">else</span> <span class="o">{ </span>n <span class="o">=</span> n <span class="o">-</span> <span class="mi">1</span><span class="o">;</span> 
+                                <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> array_at<span class="o">(</span>buf<span class="o">,</span> n<span class="o">)</span><span class="o">)</span> 
+                                 <span class="o">{</span> monitor_broadcast<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> 
+                                   mutex_unlock<span class="o">(</span>mtx<span class="o">)</span><span class="o">;</span> 
+                                   x <span class="o">}</span> <span class="o">}</span> <span class="o">}</span><span class="o">)</span> 
+            <span class="k">fn</span> <span class="o">(</span>msg<span class="o">)</span> 
+             <span class="k">case</span> <span class="o">(</span>msg<span class="o">)</span> 
+              put<span class="o">:</span> put<span class="o">,</span> 
+              get<span class="o">:</span> get<span class="o">;</span></code></pre>
+</div>
+<p>Let us try out an instance of the bounded buffer by assigning two tasks to it: one fills up the buffer while the other reads it:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> b <span class="o">=</span> make_bounded_buffer<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> showln<span class="o">(</span>b<span class="o">.</span>get<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> showln<span class="o">(</span>b<span class="o">.</span>get<span class="o">(</span><span class="o">)</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task<span class="o">(</span><span class="o">{</span> b<span class="o">.</span>put<span class="o">(</span><span class="mi">100</span><span class="o">)</span><span class="o">;</span> b<span class="o">.</span>put<span class="o">(</span><span class="mi">200</span><span class="o">)</span><span class="o">;</span> b<span class="o">.</span>put<span class="o">(</span><span class="mi">300</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 100
+   200</span></code></pre>
+</div>
 
 <h4>Transactions</h4>
 <p></p>
