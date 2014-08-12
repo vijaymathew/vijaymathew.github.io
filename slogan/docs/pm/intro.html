@@ -66,6 +66,257 @@
 <p>Comments explaining a particular Slogan expression can be placed in the program. Single line comments starts with a <code>//</code> and 
   multi-line comments are enclosed in <code>/*</code> and <code>*/</code>.</p>
 
+<h4>Evaluating simple expressions</h4>
+<p>Slogan comes with a simple interactive programming environment that eases program development and experimentation.
+  This program that reads each expression you type at the keyboard, evaluates it, and prints its value is known as the
+  <em>read-evaluate-print-loop</em> or the <em>REPL</em>.</p>
+
+<p>With the REPL, you can type an expression at the keyboard and see its value immediately. You can type in functions or even an entire program 
+  consisting of a set of function definitions and test them without leaving the system. But it is more convenient to type in longer
+  programs into a text file, load it into the REPL and test it interactively. A file is loaded with the statement <code>load</code>, 
+  which is passed the name of the file as a string. By preparing your program in a file you have the chance to correct errors without 
+  retyping the program, and you can retain a copy for later use. </p>
+
+<p>The examples in this book follow a regular format. An expression you might type from your keyboard is given first, preceded by
+  the REPL prompt &quot;<code>slogan&gt;</code>&quot;. The value of the expression is given after &quot;<code>=&gt;</code>&quot;, to be read as "evaluates to." 
+  Output produced as the result of a side-effect is identified by &quot;<code>-&gt;</code>&quot;. Let us see two examples. The first is an expression
+that evaluates to the value <code>7</code> and the next is a statement that prints the string <code>"hello!"</code> as a side-effect:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">;</span> 
+<span class="ge">=&gt; 7</span>
+<span class="nc">slogan&gt; </span>showln<span class="o">(</span><span class="s1">"hello!"</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; hello!</span>
+</code></pre>
+</div>
+
+<p>Expressions may span more than one line. Slogan knows it has an expression when it sees a semicolon (<code>;</code>). Let's define a function
+  that spans multiple lines:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reciprocal<span class="o">(</span>n<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="s1">"oops!"</span> 
+          <span class="k">else</span> <span class="mi">1</span> <span class="o">/</span> n<span class="o">;</span> </code></pre>
+</div>
+
+<p>The REPL prompt will change from &quot;<code>slogan&gt;</code>&quot; to &quot;<code>&gt;</code>&quot; for each new line in the
+  expression. The prompt will return to &quot;<code>slogan&gt;</code>&quot; once Slogan has read and evaluated the entire expression.
+  We have omitted the &quot;<code>&gt;</code>&quot; prompt from the examples to keep the code easier to read.</p>
+
+<p>The function we just defined, <code>reciprocal</code>, computes the quantity <code>1/n</code> for any number <code>n =/ 0</code>. 
+  For <code>n == 0</code>, <code>reciprocal</code> returns the string <code>"oops!"</code>. Let us try using this function:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>reciprocal<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt 1/10</span>
+<span class="nc">slogan&gt; </span>reciprocal<span class="o">(</span><span class="mi">1/10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt 10</span>
+<span class="nc">slogan&gt; </span>reciprocal<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt "oops!"</span></code></pre></div>
+
+<p>Let's turn to a discussion of how Slogan evaluates the expressions you type. The rule for evaluating constant objects such as strings 
+  and numbers is simple: the object itself is the value. For example, if you type the string <code>"hello, world"</code> at the REPL, the
+  string is printed back to you. What are the rules for evaluating a function call of the form <code>f(arg1, ..., argn)</code>?. 
+  Here, <code>f</code> is an expression representing a Slogan function, and <code>arg1, ..., argn</code> are expressions representing 
+  its arguments. The rules for finding the value of this expression is:</p>
+
+<ol>
+  <li>Find the value of <code>f</code>.</li>
+  <li>Find the values of <code>arg1</code> ... <code>argn</code>.</li>
+  <li>Apply the value of <code>f</code> to the values of <code>arg1</code> ... <code>argn</code>.
+</ol>
+
+<p>For example, consider the function call <code>reciprocal(10)</code>. The value of <code>reciprocal</code> is the reciprocal function we
+  defined. The value of <code>10</code> is the number <code>10</code>. Applying the reciprocal function to <code>10</code> yields 
+  <code>1/10</code>, so our value is the object <code>1/10</code>.</p>
+
+<h4>Let expressions</h4>
+<p>Suppose you want to assign a name to a value that you use in expressions. For example, we might like the name <code>x</code> to have the value
+  <code>2</code> when we evaluate <code>3 + x</code>. Such names or identifiers bound to a value is known as a <em>variable</em>. We can use
+  a <code>let</code> expression to bind identifiers to values:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">2</span><span class="o">)</span> <span class="mi">3</span> <span class="o">+</span> x<span class="o">;</span> 
+<span class="ge">=&gt; 5</span>
+<span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>y <span class="o">=</span> <span class="mi">3</span><span class="o">)</span> <span class="mi">2</span> <span class="o">+</span> y<span class="o">;</span> 
+<span class="ge">=&gt; 5</span>
+<span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">2</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">3</span><span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span> 
+<span class="ge">=&gt; 5</span></code></pre>
+</div>
+
+<p>The <code>let</code> expression includes a list of variable assignments, followed by an expression known as the <em>body</em>. 
+  The general form of a <code>let</code> expression is
+
+<p><pre><code>let (var = expr, ...) body_expr</code></pre></p>
+
+<p>We refer to variables bound by <code>let</code>as <em>let-bound</em> variables. The variables bound by <code>let</code> are visible 
+  only within the body of the <code>let</code>.</p>
+
+<p>It is possible to nest <code>let</code> expressions:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">4</span><span class="o">,</span> b <span class="o">=</span> <span class="o">-</span><span class="mi">3</span><span class="o">)</span> 
+         <span class="k">let</span> <span class="o">(</span>a_squared <span class="o">=</span> a <span class="o">*</span> a<span class="o">,</span> b_squared <span class="o">=</span> b <span class="o">*</span> b<span class="o">)</span> 
+          a_squared <span class="o">+</span> b_squared<span class="o">;</span>
+<span class="ge">=&gt; 25</span></code></pre>
+</div>
+
+<p>When nested <code>let</code> expressions bind the same variable, only the binding created by the inner <code>let</code> is 
+  visible within its body:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+          <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> x <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> 
+           x <span class="o">+</span> x<span class="o">;</span> 
+<span class="ge">=&gt; 25</span></code></pre>
+</div>
+
+<p>The inner binding for <code>x</code> is said to <em>shadow</em> the outer binding. A let-bound variable is visible everywhere within 
+  the body of its <code>let</code> expression except where it is shadowed. The region where a variable binding is visible is 
+  called its <em>scope</em>. The scope of the first <code>x</code> is the body of the outer <code>let</code> expression minus the body 
+  of the inner <code>let</code> expression, where it is shadowed by the second <code>x</code>. This form of scoping is referred to as 
+  <em>lexical scoping</em>, since the scope of each binding can be determined by a straightforward textual analysis of the program.</p>
+
+<p>Shadowing may be avoided by choosing different names for variables. Although choosing different names can sometimes prevent confusion, 
+  can help prevent the accidental use of an "old" value. For example, in the previous example, it would be impossible for us to mistakenly 
+  refer to the outer <code>x</code> within the body of the inner <code>let</code>.</p>
+
+<h4>Function expressions</h4>
+<p>The general form of a function expression is</p>
+
+<p><pre><code>function (var, ...) body</code></pre></p>
+
+<p>The variables <code>var, ...</code> are the formal parameters of the function, and the expression <code>body</code> is its body. A function
+  is an object just like a number or a string but it does not have a meaningful printed representation. Slogan will print 
+  <code>&lt;function&gt;</code> for all function objects.</p>
+
+<p>The most common operation to perform on a procedure is to apply it to one or more values:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="o">(</span><span class="k">function</span> <span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> x<span class="o">)</span> <span class="o">(</span><span class="mi">3</span> <span class="o">*</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 24</span></code></pre>
+</div>
+
+<p>The function is the value of <code>function (x) x + x</code>, and the only argument is the value of <code>3 * 4</code>, or <code>12</code>. 
+  The argument values, or actual parameters, are bound to the formal parameters within the body of the function expression in the same way 
+  as let-bound variables are bound to their values. In this case, <code>x</code> is bound to <code>12</code>, and the value of 
+  <code>x + x</code> is <code>24</code>. Thus, the result of applying the procedure to the value <code>12</code> is <code>24</code>.</p>
+
+<p>Because functions are objects, we can establish a function as the value of a variable and use the function more than once:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>double <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> x<span class="o">)</span> 
+         <span class="o">[</span>double<span class="o">(</span><span class="mi">3</span> <span class="o">*</span> <span class="mi">4</span><span class="o">)</span><span class="o">,</span> 
+          double<span class="o">(</span><span class="mi">99</span> <span class="o">/</span> <span class="mi">11</span><span class="o">)</span><span class="o">,</span> 
+          double<span class="o">(</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">7</span><span class="o">)</span><span class="o">]</span><span class="o">;</span> 
+<span class="ge">=&gt; [24, 18, -10]</span></code></pre>
+</div>
+
+<p>Here, we bind the identifier <code>double</code> to a function and use this function to double three different values.
+  (As you might have already noticed, we can use the shorter keyword <code>fn</code> instead of the longer keyword <code>function</code>).</p>
+
+<h4>Conditional expressions</h4>
+<p>An <code>if</code> expression allows us to perform a task conditionally. The <code>if</code> expression has the following form:
+  <p><pre><code>if (test) consequent else alternative</code></pre></p>
+  
+<p>The <code>consequent</code> expression is evaluated if <code>test</code> is <code>true</code> and the <code>alternative</code>
+  expression is evaluated if <code>test</code> is <code>false</code>. (All objects except the symbol <code>false</code> is
+  considered to be <code>true</code>). The <code>alternative</code> expression is optional. If <code>test</code> is <code>false</code>
+  and no <code>alternative</code> is provided, <code>if</code> will evaluate to a special value called <code>void</code> which has
+  no printed representation.</p>
+
+<p>The comparison operators <code>==</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code> and <code>&gt;=</code> are used for
+  comparing numbers. They return either <code>true</code> or <code>false</code>. The function <code>not</code> is used to reverse a boolean
+  value:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">if</span> <span class="o">(</span><span class="mi">10</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="o">)</span> <span class="s1">"no"</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">if</span> <span class="o">(</span><span class="mi">10</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="o">)</span> <span class="s1">"no"</span> <span class="k">else</span> <span class="s1">"yes"</span><span class="o">;</span> 
+<span class="ge">=&gt; "yes"</span>
+<span class="nc">slogan&gt; </span><span class="k">if</span> <span class="o">(</span>not<span class="o">(</span><span class="mi">10</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span> <span class="s1">"no"</span> <span class="k">else</span> <span class="s1">"yes"</span><span class="o">;</span> 
+<span class="ge">=&gt; "no"</span></code></pre>
+</div>
+
+<p>The logical operators <code>&amp;&amp;</code> (<code>and</code>) and <code>||</code> (<code>or</code>) are typically used with 
+  boolean values. When they are, they return a boolean value. However, if these operators are used with non-boolean values, they may 
+  return a non-boolean value:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>true <span class="o">&&</span> false<span class="o">;</span>
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>true <span class="o">&&</span> true<span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>true <span class="o">||</span> false<span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>false <span class="o">||</span> false<span class="o">;</span>
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>false <span class="o">||</span> 10<span class="o">;</span>
+<span class="ge">=&gt; 10</span>
+<span class="nc">slogan&gt; </span>1 <span class="o">&&</span> "hi"<span class="o">;</span>
+<span class="ge">=&gt; "hi"</span></code></pre>
+</div>
+
+<p>The functions <code>and</code> and <code>or</code> can be used in place of logical operators. They have the advantage that they can 
+  take an arbitrary number of arguments:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>and<span class="o">(</span>true<span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="mi">80</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 100</span>
+<span class="nc">slogan&gt; </span>and<span class="o">(</span>true<span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="mi">80</span><span class="o">,</span> false<span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>or<span class="o">(</span>true<span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="mi">80</span><span class="o">,</span> false<span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 100</span></code></pre>
+</div>
+
+<p><code>And</code> and <code>or</code> belong to a special class of functions that evaluates their arguments <em>lazily</em>, i.e, arguments
+  are evaluated only if their values are needed. Consider the following example:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>and<span class="o">(</span>true<span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="e">-&gt; error: Divide by zero</span>
+<span class="nc">slogan&gt; </span>and<span class="o">(</span>false<span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; false</span></code></pre>
+</div>
+
+<p>If <code>and</code> was a normal functions, both call will raise the "Divide by zero" error. As it is a lazy function, <code>and</code> will
+  not evaluate the expression <code>1 / 0</code> during the second call as it has already decided that it can only evaluate to <code>false</code>.
+  In a later chapter we will see how to define functions that evaluate their arguments lazily.</p>
+
+<h4>Top-level definitions</h4>
+<p>Top-level variable bindings that are visible to all expressions that follow it are introduced by the <code>define</code>
+  statement. <code>Define</code> has the form:</p>
+<p><pre><code>define var expr</code></pre></p>
+<p>where the identifier <code>var</code> is bound to the value of the expression <code>expr</code>. Let us see some examples:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> x <span class="o">=</span> <span class="mi">10</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>x <span class="o">+</span> y<span class="o">;</span> 
+<span class="ge">=&gt; 30</span>
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> square <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> x <span class="o">*</span> x<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>square<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 100</span></code></pre>
+</div>
+
+<p>There is a shorter syntax for defining top-level functions. The following definition of <code>square</code> is the same as the previous one:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> square<span class="o">(</span>x<span class="o">)</span> x <span class="o">*</span> x<span class="o">;</span> </code></pre>
+</div>
+
+<h5>Assignments</h5>
+<p>Although many programs can be written without them, assignments to top-level variables or let-bound and function-bound variables 
+  are sometimes useful. Assignments do not create new bindings, as with <code>let</code> or <code>function</code>, but rather change 
+  the values of existing bindings. Assignments are performed with the <code>=</code> operator:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a <span class="o">*</span> <span class="mi">10</span><span class="o">;</span> 
+<span class="ge">=&gt; 100</span>
+<span class="nc">slogan&gt; </span>a <span class="o">=</span> <span class="mi">20</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>a <span class="o">*</span> <span class="mi">10</span><span class="o">;</span>
+<span class="ge">=&gt; 20</span></code></pre>
+</div>
+
   </div>
 </body>
 </html>
