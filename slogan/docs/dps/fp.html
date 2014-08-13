@@ -64,7 +64,7 @@
       techniques for building abstractions that we will encounter in this tutorial. </p>
 
     <h4>Iterative computation</h4>
-    <p>We will start the our study of functional programming by looking at a very simple kind of program - the iterative computation.
+    <p>We will start our study of functional programming by looking at a very simple kind of program - the iterative computation.
       Most iterative computations follow this pattern: </p>
     <p>
       <ol>
@@ -84,17 +84,15 @@
       if the final state has reached by calling <code>is_done</code>. If <code>is_done</code> returns <code>true</code>, the current state
       is returned. Otherwise, <code>iterate</code> calls itself with the next state. As this is the last thing that <code>iterate</code> does
       it is treated as a special case of recursion known as a <em>tail call</em>.  In such situations, the program does not need to 
-      return to the calling function when the called function ends. Therefore, after the tail call, the program does not need to keep 
-      any information about the calling function in the stack. Slogan take advantage of this fact and actually do not use any extra 
-      stack space when doing a tail call. We say that Slogan support <em>proper tail calls</em>. Because of tail calls, there is not
+      return to the calling function when the called function ends. Therefore, after the tail call, there is no need for the called function 
+      to keep any information about the calling function in the stack. Slogan take advantage of this fact and actually do not use any extra 
+      stack space when doing a tail call. We say that Slogan support <em>proper tail calls</em>. Because of tail calls, there is no
       limit to the number of times <code>iterate</code> can call itself. This feature makes special looping constructs like <code>for</code>
       and <code>while</code> appear superfluous.</p>
 
     <p>Let us see how <code>iterate</code> can stand-in for a traditional <code>for</code> loop:</p>
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>iterate<span class="o">(</span><span class="mi">0</span><span class="o">,</span> 
-                <span class="k">fn</span><span class="o">(</span>i<span class="o">)</span> i <span class="o">>=</span> <span class="mi">3</span><span class="o">,</span> 
-                <span class="k">fn</span><span class="o">(</span>i<span class="o">)</span> <span class="o">{</span>showln<span class="o">(</span>i<span class="o">)</span><span class="o">;</span> add1<span class="o">(</span>i<span class="o">)</span><span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+      <pre><code><span class="nc">slogan&gt; </span>iterate<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>i<span class="o">)</span> i <span class="o">>=</span> <span class="mi">3</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>i<span class="o">)</span> <span class="o">{</span>showln<span class="o">(</span>i<span class="o">)</span><span class="o">;</span> add1<span class="o">(</span>i<span class="o">)</span><span class="o">}</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">-&gt; 0
    1
    2
@@ -118,7 +116,11 @@
           <span class="o">(</span>guess <span class="o">+</span> x <span class="o">/</span> guess<span class="o">)</span> <span class="o">/</span> <span class="mi">2.0</span><span class="o">;</span> 
 
 <span class="nc">slogan&gt; </span><span class="k">function</span> is_good_enough<span class="o">(</span>guess<span class="o">,</span> x<span class="o">)</span> 
-          abs<span class="o">(</span>x <span class="o">-</span> guess <span class="o">*</span> guess<span class="o">)</span> <span class="o">/</span> x <span class="o">&lt;</span> <span class="mi">0.00001</span><span class="o">;</span></code></pre>
+          abs<span class="o">(</span>x <span class="o">-</span> guess <span class="o">*</span> guess<span class="o">)</span> <span class="o">/</span> x <span class="o">&lt;</span> <span class="mi">0.00001</span><span class="o">;</span>
+
+
+<span class="nc">slogan&gt; </span>sqrt<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 3.162277665175675</span></code></pre>
     </div>
 
     <h5>Local functions</h5>
@@ -129,7 +131,7 @@
       <code>good_enough</code> are only needed inside <code>sqrt_iter</code>. There are two basic ways to express this visibility, with
       somewhat different semantics. The first way is to define the helper functions outside of <code>sqrt</code> in a <code>letrec</code>
       expression. (<code>letrec</code> is an extension of <code>let</code> that allows a definition to refer recursively to itself and other local 
-      definitions):</p>
+      definitions.):</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> sqrt <span class="o">=</span> 
@@ -173,7 +175,8 @@
     </div>
     
     <p>We started this section by defining a generic <code>iterate</code> function. We can use it instead of <code>sqrt_iter</code>
-      by passing it the functions <code>is_good_enough</code> and <code>improve</code>:</p>
+      by passing it the functions <code>is_good_enough</code> and <code>improve</code> to define a newer and shorter version of 
+      <code>sqrt</code>:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sqrt<span class="o">(</span>x<span class="o">)</span> 
@@ -202,14 +205,11 @@
       <em>accumulator</em>, will enable us to rewrite <code>factorial</code> as an iterative computation that will not run out of stack space:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> factorial<span class="o">(</span>n<span class="o">)</span> <span class="o">{</span> 
-
-          <span class="k">function</span> fact_iter<span class="o">(</span>n<span class="o">,</span> a<span class="o">)</span> 
-            <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> a 
-            <span class="k">else</span> fact_iter<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> a <span class="o">*</span> n<span class="o">)</span><span class="o">;</span> 
-
-          fact_iter<span class="o">(</span>n<span class="o">,</span><span class="mi">1</span><span class="o">)</span>
-        <span class="o">}</span><span class="o">;</span> </code></pre>
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> factorial<span class="o">(</span>n<span class="o">)</span> 
+          <span class="k">letrec</span> <span class="o">(</span>fact_iter <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>n <span class="o">,</span> a<span class="o">)</span> 
+                               <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> a
+                               <span class="k">else</span> fact_iter<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">, </span>a <span class="o">*</span> n<span class="o">)</span><span class="o">)</span> 
+           fact_iter<span class="o">(</span>n<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
     <h5>Recursive programming with lists</h5>
@@ -237,8 +237,8 @@
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> length<span class="o">(</span>ls<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
-            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
-            <span class="o">[</span>_ xs<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span> 
+           <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
+           <span class="o">[</span>_ xs<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span> 
 
 <span class="nc">slogan&gt; </span>length<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; 4</span>
@@ -255,16 +255,16 @@
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> length_n<span class="o">(</span>ls<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
-            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
-            <span class="o">[</span>x xs<span class="o">]</span> <span class="k">where</span> is_list<span class="o">(</span>x<span class="o">)</span><span class="o">:</span> length_n<span class="o">(</span>x<span class="o">)</span> <span class="o">+</span> length_n<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> 
-            <span class="o">[</span>_ xs<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length_n<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span> 
+           <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
+           <span class="o">[</span>x xs<span class="o">]</span> <span class="k">where</span> is_list<span class="o">(</span>x<span class="o">)</span><span class="o">:</span> length_n<span class="o">(</span>x<span class="o">)</span> <span class="o">+</span> length_n<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> 
+           <span class="o">[</span>_ xs<span class="o">]</span><span class="o">:</span> <span class="mi">1</span> <span class="o">+</span> length_n<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span> 
 
 <span class="nc">slogan&gt; </span>length_n<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">90</span><span class="o">,</span> <span class="o">[</span>'a'<span class="o">,</span> 'b'<span class="o">,</span> 'c'<span class="o">]</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 7</span></code></pre>
       </div>
 
     <p>The second clause of <code>match</code> contains a <em>guard</em> which is introduced by the keyword <code>where</code>. The
-      clause is executed only of the pattern match succeeds and the expression in the guard evaluates to <code>true</code>. </p>
+      clause is executed only if the pattern match succeeds and the expression in the guard evaluates to <code>true</code>. </p>
 
     <p>Both the <code>length</code> functions that we defined displays a curious property: The recursive structure of the functions 
       exactly follows the recursive structure of the list data type. This leads us to an important principle in designing functional
@@ -275,8 +275,8 @@
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reverse<span class="o">(</span>ls<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
-            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="o">[</span><span class="o">]</span><span class="o">,</span> 
-            <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> append<span class="o">(</span>reverse<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> <span class="o">[</span>x<span class="o">]</span><span class="o">)</span><span class="o">;</span> </code></pre>
+           <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="o">[</span><span class="o">]</span><span class="o">,</span> 
+           <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> append<span class="o">(</span>reverse<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> <span class="o">[</span>x<span class="o">]</span><span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
     <p>Is this function efficient? Let us do an intuitive analysis of the function. For a list of length <code>n</code> there will 
@@ -292,19 +292,18 @@
       The initial state is the empty list <code>[]</code>. This gives the following version of <code>reverse</code>:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reverse<span class="o">(</span>ls<span class="o">)</span> <span class="o">{</span> 
-          <span class="k">function</span> iter_reverse<span class="o">(</span>ls<span class="o">,</span> result<span class="o">)</span> 
-            <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
-              <span class="o">[</span><span class="o">]</span><span class="o">:</span> result<span class="o">,</span> 
-              <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> iter_reverse<span class="o">(</span>xs<span class="o">,</span> <span class="o">[</span>x result<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-          iter_reverse<span class="o">(</span>ls<span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
-     <span class="o">}</span><span class="o">;</span> </code></pre>
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> reverse<span class="o">(</span>ls<span class="o">)</span> 
+          <span class="k">letrec</span> <span class="o">(</span>iter_reverse <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>ls<span class="o">,</span> result<span class="o">)</span> 
+                                  <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
+                                   <span class="o">[</span><span class="o">]</span><span class="o">:</span> result<span class="o">,</span> 
+                                   <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> iter_reverse<span class="o">(</span>xs<span class="o">,</span> <span class="o">[</span>x result<span class="o">]</span><span class="o">)</span><span class="o">)</span> 
+           iter_reverse<span class="o">(</span>ls<span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
     <p>This version of <code>reverse</code> is both a linear-time and an iterative computation.</p>
 
     <p>The <code>reverse</code> function comes built-in with Slogan, along with a suite of functions useful for working with lists.
-      These functions will be introduced in later sections.</p>
+      These functions are documented in the <a href="../pm/index.html">Programmer's Manual</a>.</p>
 
     <h4>Higher-order programming</h4>
     <p>Higher-order programming is the collection of programming techniques that become available when a language support functions
@@ -359,15 +358,15 @@
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_list<span class="o">(</span>ls<span class="o">)</span> 
           <span class="k">match</span> <span class="o">(</span>ls<span class="o">)</span> 
-            <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
-            <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> x <span class="o">+</span> sum_list<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span></code></pre>
+           <span class="o">[</span><span class="o">]</span><span class="o">:</span> <span class="mi">0</span><span class="o">,</span> 
+           <span class="o">[</span>x xs<span class="o">]</span><span class="o">:</span> x <span class="o">+</span> sum_list<span class="o">(</span>xs<span class="o">)</span><span class="o">;</span></code></pre>
     </div>
 
     <p>This function has two specific entities: the number zero (<code>0</code>) and the operation plus (<code>+</code>). 
       The zero is a neutral element for the plus operation. If we abstract out these two entities and give them as arguments,
       we get a generic function that can be used to "reduce" a list to a single value. Slogan has such a function called <code>fold_right</code>
       - a function that "folds" a list from right to left to produce a single value. (<code>fold_left</code> is the left-associative version
-      of <code>fold_right</code>). If we use <code>fold_right</code>, we get a much shorter definition of <code>sum_list</code>:</p>
+      of <code>fold_right</code>). If we use <code>fold_right</code>, we get a concise definition of <code>sum_list</code>:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum_list<span class="o">(</span>ls<span class="o">)</span> 
@@ -405,6 +404,8 @@
 <span class="nc">slogan&gt; </span>char_sorter<span class="o">(</span><span class="o">[</span>'r'<span class="o">,</span>'w'<span class="o">,</span> 'a'<span class="o">,</span> 'd'<span class="o">]</span><span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; ['a', 'd', 'r', 'w'] </span> </code></pre>
     </div>
+<p>(<code>Is_number_lt</code> returns <code>true</code> if the first numeric argument is less than the second numeric argument. 
+  <code>is_char_lt</code> is an equivalent function for comparing characters.)</p>
     
     <h5>Embedding</h5>
     <p>Putting function values in data structures has many uses. For example, this can be used to build lazy
@@ -419,10 +420,13 @@
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span>map<span class="o">(</span>sqrt<span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">1.5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [3.1622776601683795, 1.7320508075688772, 1.224744871391589]</span>
+<span class="ge">=&gt; [3.1622776601683795, 1.7320508075688772, 1.224744871391589]</span></code></span>
+</div>
 
-<span class="c">// Simple string encryption/decryption:</span>
-<span class="nc">slogan&gt; </span><span class="k">function</span> encrypt_char<span class="o">(</span>c<span class="o">)</span> integer_to_char<span class="o">(</span>char_to_integer<span class="o">(</span>c<span class="o">)</span> <span class="o">+</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<p>Here is another example that uses <code>map</code> to perform simple string encryption and decryption:</p>
+
+<div class="highlight">
+<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> encrypt_char<span class="o">(</span>c<span class="o">)</span> integer_to_char<span class="o">(</span>char_to_integer<span class="o">(</span>c<span class="o">)</span> <span class="o">+</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
 <span class="nc">slogan&gt; </span><span class="k">function</span> decrypt_char<span class="o">(</span>c<span class="o">)</span> integer_to_char<span class="o">(</span>char_to_integer<span class="o">(</span>c<span class="o">)</span> <span class="o">-</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
 <span class="nc">slogan&gt; </span><span class="k">function</span> encrypt_string<span class="o">(</span>s<span class="o">)</span> list_to_string<span class="o">(</span>map<span class="o">(</span>encrypt_char<span class="o">,</span> string_to_list<span class="o">(</span>s<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span><span class="k">function</span> decrypt_string<span class="o">(</span>s<span class="o">)</span> list_to_string<span class="o">(</span>map<span class="o">(</span>decrypt_char<span class="o">,</span> string_to_list<span class="o">(</span>s<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
@@ -434,8 +438,8 @@
     </div>
 
     <p>Sometimes we want to apply a function on each element in the list, without producing a result list. 
-      The iterative function <code>for_each</code> enables us to do this. Say, if we want to print the square roots of
-      all numbers in a list, we can do this: </p>
+      The iterative function <code>for_each</code> enables us to do this. Say, we want to print the square roots of
+      all numbers in a list: </p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span>for_each<span class="o">(</span><span class="k">fn</span><span class="o">(</span>x<span class="o">)</span> showln<span class="o">(</span>sqrt<span class="o">(</span>x<span class="o">)</span><span class="o">)</span><span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span><span class="mi">1.5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
