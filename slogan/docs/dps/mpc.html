@@ -32,16 +32,15 @@ messages asynchronously, i.e., without waiting for a reply. It lends itself well
 Since the message-passing entities are independent, if one fails the others can continue executing. In a properly
 designed system, the others reorganize themselves to continue providing a service.</p>
 
-<p>A Slogan task has an associated "mail box" or "message queue" where it can receive messages send by other tasks. Messaging between
+<p>A Slogan task has an associated &quot;mail box&quot; or &quot;message queue&quot; where it can receive messages send by other tasks. Messaging between
 tasks is accomplished by two functions: <code>task_send</code> and <code>task_receive</code>. Let us get familiar with these functions
-by writing a simple "game". There are three players standing in a circle, tossing a ball among themselves. When
-a player catches the ball, he or she picks one of the other two randomly to throw the ball to. The players are represented by tasks.
-Ball catching and throwing takes place through message passing. The ball is "thrown" to a player by sending that task a message in the
+by writing a simple &quot;game&quot;. There are three players standing in a circle, tossing a ball among themselves. When
+a player catches the ball, he or she picks one of the other two randomly to pass-on the ball. The players are represented by tasks.
+Ball catching and throwing takes place through message passing. The ball is &quot;thrown&quot; to a player by sending that task a message in the
 format - <code>[!ball name]</code> - where <code>name</code> is the name of the pitcher task. A name is assigned to each task by
-passing it as an extra argument to the <code>task</code> function. The task that "catches" the ball randomly selects a player and
+passing it as an extra argument to the <code>task</code> function. The task that &quot;catches&quot; the ball randomly selects a player and
 re-throws the ball to it. To prevent the players from furiously throwing balls at each other, we have also introduced a delay of 
-one second between each throws by calling the function <code>task_sleep</code>. Let us put all these game playing logic into a single
-function:</p>
+one second between each throw. Let us put all this into a single function:</p>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> player<span class="o">(</span>others<span class="o">)</span> 
@@ -54,7 +53,7 @@ function:</p>
                 player<span class="o">(</span>others<span class="o">)</span> <span class="o">}</span><span class="o">}</span><span class="o">;</span> </code></pre>
 </div>
 
-<p>A game with three players can be started by started as follows:</p>
+<p>A game with three players can be started as follows:</p>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>p1 <span class="o">=</span> false<span class="o">,</span> p2 <span class="o">=</span> false<span class="o">,</span> p3 <span class="o">=</span> false<span class="o">)</span> 
@@ -83,8 +82,8 @@ function:</p>
 
 <p>RMI (Remote Method Invocation) allows an object to call the method in another in a different operating system process.
   The other process could be on the same machine or on another machine connected by network. Here we present RMI in its simplest form.
-  Instead of processes we have Slogan tasks and a "method" is what a task does when it receives a message. In synchronous RMI the client
-  sends a request to the server and waits for the reply. First let us implement the server: </p>
+  Instead of processes we have Slogan tasks and a "method" is what a task does when it receives a message. In the synchronous version of RMI, 
+  the client sends a request to the server and waits for the reply. First let us implement the server: </p>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> server<span class="o">(</span><span class="o">)</span> 
@@ -116,10 +115,8 @@ function:</p>
 <p>The RMI server handles one client at a time. This approach is simple to program with and reason about. 
   We can also allow multiple calls from different clients to be processed concurrently. This is done by starting a new task
   at the server side to accept and process a client request. The server no longer serves requests sequentially. This is much harder to
-  program with, especially if the server has internal state data. We will examine the problems associated with designing such muti-tasking
-  servers in a later chapter.</p>
-
-<p>Now let us attempt a small variation on the client:</p>
+  program with, especially if the server has internal state data. Without bothering about such complexities, let us attempt a small variation 
+  in the client:</p>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> client<span class="o">(</span>s<span class="o">)</span> 
@@ -193,17 +190,9 @@ function:</p>
 <span class="ge">-&gt; 12200</span></code></pre>
 </div>
 
-<p>In this example, instead of a reactive variable, the client passes a function <code>cont</code> to the server. This function contains a
-  state (<code>d</code>) that is local to each client. Though this function is invoked by the server, it represents the rest of the work
-  that client want to do with the result.</p>
-
-<h5>Error reporting</h5>
-<p>So far we have assumed that everything goes well in the server process and all requests can be given back a valid response. What if the
-  server detects an exception while processing the request? It has to report the error back to the client. One way to do this is to bind
-  a specially tagged object to the result - say in case of an exception the result will be <code>[!error, an_exception_object]</code>. The client
-  can check the special tag <code>!error</code> and handle the exception object as it seems fit. What if a error happens in the server that it
-  is not able to detect? In such a situation, the server task might simple crash. What if nothing wrong happens in the server, but the
-  communication link between the server and client is broken?. These cases will be covered in the chapter on Distributed Computing.</p>
+<p>In this example, instead of a reactive variable, the client passes the function &quot;<code>cont</code>&quot; to the server. This function contains a
+  state &quot;<code>d</code>&quot; that is local to each client. Though this function is invoked by the server, it represents the rest of the work
+  that the client want to do with the result.</p>
 
 </div>
 </body>

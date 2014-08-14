@@ -28,8 +28,8 @@
     <div class="title"><h3>Interacting with the World</h3></div>
     <p>Pure functional programming is somewhat detached from the real world where entities have changing state. To connect a functional
       program to the real world, some non-functional operations are needed. This chapter covers few such operations - input/output on 
-      files and the network, invoking code written in C and compiling Slogan programs into applications
-      run standalone on the host operating system. We also introduce the module system which helps in organizing large programs.</p>
+      files and the network, invoking code written in C and compiling Slogan programs into standalone applications
+      for the host operating system. We also introduce the module system which helps in organizing large programs.</p>
 
     <h4>File and Network IO</h4>
     <p>A simple way to interface functional programming with the real world is by using files. A file is a sequence of values that is 
@@ -46,9 +46,9 @@
     <p>A file is read by first opening an input port on it. This is achieved with the <code>open_input_file</code> function. 
       On the input file port, we can either call the <code>read_char</code> or 
       <code>read_byte</code> function to fetch a character or a byte respectively. After using the port, it has to be closed by calling
-      <code>close_port</code>. To read complete text file, we can use the <code>read_all_lines</code> function. To read a complete binary file, 
-      call the <code>read_all_bytes</code> function. It returns a list of all bytes in
-      the file. Now as we have met all the functions required for reading a file, let us actually read in a text file and view its contents:</p>
+      <code>close_port</code>. To read a complete text file, we can use the <code>read_all_lines</code> function. To read a complete binary file, 
+      call the <code>read_all_bytes</code> function. It will return a list of all bytes in
+      the file. Now let us try to read a text file and display its contents:</p>
 
     <div class="highlight">
       <pre><code><span class="c">// Assuming that you have a file called "hello.txt" with a couple of lines of text in it:</span>
@@ -58,8 +58,8 @@
 <span class="nc">slogan&gt; </span>close_port<span class="o">(</span>in_file<span class="o">)</span><span class="o">;</span></code></pre>
     </div>
 
-      <p>Writing a file is equally easy. You open a file output port with <code>open_output_file</code>, write characters or bytes using the
-        <code>write_char</code> or <code>write_byte</code> functions and then close the port. You can also call the <code>show</code> or
+      <p>Writing a file is also easy. We open a file output port with <code>open_output_file</code>, write characters or bytes using the
+        <code>write_char</code> or <code>write_byte</code> functions and then close the port. We can also call the <code>show</code> or
         <code>showln</code> functions for writing file by passing the port as a keyword argument:</p>
       
       <div class="highlight">
@@ -74,28 +74,28 @@
         There is a convenience function called <code>call_with_port</code> that can save us from this trouble. It takes a port
         and a function as arguments. It calls the function by passing it the port. Once the function returns, <code>call_with_port</code>
         closes the port. It ensures that the port is closed even if the function returns abnormally by raising an exception. Let us see
-        <code>call_with_port</code> by writing a function that makes a copy of a text file:</p>
+        <code>call_with_port</code> in action by writing a function that makes a copy of a text file:</p>
 
       <div class="highlight">
         <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> copy<span class="o">(</span>src<span class="o">,</span> dest<span class="o">)</span> 
           call_with_port<span class="o">(</span>open_input_file<span class="o">(</span>src<span class="o">)</span><span class="o">,</span> 
-            <span class="k">fn</span><span class="o">(</span>in<span class="o">)</span> call_with_port<span class="o">(</span>open_output_file<span class="o">(</span>dest<span class="o">)</span><span class="o">,</span> 
-                     <span class="k">fn</span><span class="o">(</span>out<span class="o">)</span> show<span class="o">(</span>port <span class="o">=</span> out<span class="o">,</span> read_all_lines<span class="o">(</span>in<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
+           <span class="k">fn</span> <span class="o">(</span>in<span class="o">)</span> call_with_port<span class="o">(</span>open_output_file<span class="o">(</span>dest<span class="o">)</span><span class="o">,</span> 
+                    <span class="k">fn</span> <span class="o">(</span>out<span class="o">)</span> show<span class="o">(</span>port <span class="o">=</span> out<span class="o">,</span> read_all_lines<span class="o">(</span>in<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
       </div>
 
       <p>(Slogan has a built-in function - <code>copy_file</code> - that you can use to copy any type of file.)</p>
 
       <h5>TCP ports</h5>
-      <p>We can read files on remote servers using TCP ports. The following example shows how to read a file hosted on a HTTP server:</p>
+      <p>Files on remote network servers can be read using TCP ports. The following example shows how to read a file hosted on a HTTP server:</p>
 
       <div class="highlight">
-        <pre><code><span class="nc">slogan&gt; </span>call_with_port<span class="o">(</span>open_tcp_client_port<span class="o">(</span><span class="s1">"www.google.com"</span> <span class="o">,</span> port_number <span class="o">=</span> <span class="mi">80</span><span class="o">)</span><span class="o">,</span> 
+        <pre><code><span class="nc">slogan&gt; </span>call_with_port<span class="o">(</span>open_tcp_client_port<span class="o">(</span><span class="s1">"www.google.com"</span><span class="o">,</span> port_number <span class="o">=</span> <span class="mi">80</span><span class="o">)</span><span class="o">,</span> 
                        <span class="k">fn</span><span class="o">(</span>p<span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span>port <span class="o">=</span> p<span class="o">,</span> <span class="s1">"GET /search?q=tcp"</span><span class="o">)</span><span class="o">;</span> 
                                flush_output_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
                                read_all_lines<span class="o">(</span>p<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> </code></pre>
       </div>
 
-      <p>The function <code>flush_output_port</code> makes sure that the data is flushed out from the TCP client ports buffer and pushed to the
+      <p>The function <code>flush_output_port</code> makes sure that the request is flushed out from the TCP client ports buffer and pushed to the
         server. When you run this code, you should see the first results page returned by Google for the query "tcp".</p>
 
       <p>We can use TCP ports to write network servers as well. Here is a simple echo server that sends back whatever the client sends it:</p>
@@ -116,9 +116,9 @@
       <em>exceptional</em> situations? A functional program can do this by adding cumbersome checks throughout the program. A more
       elegant way is to use an exception-handling mechanism. Slogan has such a mechanism in the form of the <code>try-catch</code> expression pair.
       The <code>try</code> expression creates an exception-catching context and the <code>catch</code> expression creates an exception handler.
-      These expressions are complemented by the <code>raise</code> and <code>error</code> functions which are used to <em>throw</em> or <em>raise</em>
-      an exception. Any exception raised in the context of a <code>try</code> is handled by the exception handler in <code>catch</code>. Let us look
-      at a simple example of raising and handling an exception:</p>
+      These expressions are complemented by the <code>raise</code> and <code>error</code> functions which are used to <em>raise</em> or 
+      <em>throw</em> an exception. Any exception raised in the context of a <code>try</code> is handled by the exception handler 
+      in <code>catch</code>. Let us look at a simple example of raising and handling an exception:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">try</span> raise<span class="o">(</span><span class="s1">"oops!"</span><span class="o">)</span> 
@@ -126,7 +126,7 @@
 <span class="ge">-&gt; caught the exception: oops!</span></code></pre>
 </div>
 
-    <p>The <code>try</code> expression has an optional <code>finally</code> clause which is always executed, whether or not the an exception is raised.
+    <p>The <code>try</code> expression has an optional <code>finally</code> clause which is always executed, whether or not an exception is raised.
       With <code>finally</code> we can guarantee some "cleanup" action happens even if an exception is raised. The following code shows a function
       which opens a file and reads its entire content. The function handles exception related to file input and also makes sure that the file port
       is closed before returning:</p>
@@ -142,21 +142,24 @@
     <p>The <code>finally</code> clause makes sure that the port is always closed and the data read into <code>s</code> is returned as the value of the
       function. If you call <code>read_file</code> with a file that does not exist, it will catch and report the 
       <code>no-such-file-or-directory-exception</code>. (Instead of <code>showln</code>, you can call <code>show_exception(e)</code> which will produce
-      a more descriptive output of standard exceptions).</p>
+      a more descriptive output of standard exceptions.)</p>
 
       <h4>FFI</h4>
 
-    <p>FFI or the Foreign Function Interface is a set of functions that allows our Slogan programs to call functions in a dynamically loadable
-      C library. (Known as shared libraries in the Unix world). To be callable from Slogan, the C functions must follow certain conventions.
-      Its arguments must be of type <code>___slogan_obj</code>. It has to use type conversion functions defined in <code>slogan.h</code> to
-      convert a <code>___slogan_obj</code> to the appropriate C type. These C types are currently supported: <code>char</code>, <code>bool</code>,
+    <p>FFI or the Foreign Function Interface is a set of functions that allow Slogan programs to call functions in a shared library. 
+      (known as a Dynamic-link Library (DLL) in the Windows world). Shared libraries are usually written in the C programming language.
+      To be callable from Slogan, a C function must follow certain conventions.
+      Its arguments must be of type <code>___slogan_obj</code>. It has to use type conversion functions defined in the header file 
+      &quot;<code>slogan.h</code>&quot; to
+      convert a <code>___slogan_obj</code> to the appropriate C type. The C types currently supported are: <code>char</code>, <code>bool</code>,
       <code>short</code>, <code>int</code>, <code>int32</code>, <code>int64</code>, <code>float</code>, <code>double</code> and <code>void</code>
       pointer. The size of all types except <code>int32</code> and <code>int64</code> are system dependent. The C function can directly return
       all of these types in addition to <code>___slogan_obj</code>.</p>
 
-    <p>The following C program defines two functions that can be called from Slogan. The first function - <code>add</code> - expects two
-      integers as arguments and returns their sum. The second function - <code>say_hello</code> - expects a string as argument and returns
-      a C string:</p>
+    <p>The following C program defines two functions that can be called from Slogan. The first function - &quot;<code>add</code>&quot; - 
+      expects two
+      integers as arguments and return their sum. The second function - &quot;<code>say_hello</code>&quot; - expects a Slogan string as argument 
+      and return a C string:</p>
 
     <div class="highlight">
       <pre><code>// demo_lib.c
@@ -181,10 +184,11 @@ char *say_hello(___slogan_obj msg)
   return "hi from C";
 }</code></pre></div>
 
-    <p>This program can be compiled into a shared library using the GNU C Compiler using this command: </p>
+    <p>The following command shows how to call the GNU C Compiler to convert this code into a shared library. Before running the
+      compiler make sure that you have set the <code>SLOGAN_ROOT</code> environment variable to point to the Slogan source folder. </p>
     <p><pre><code>gcc -Wall -shared -I$SLOGAN_ROOT/src/include -I$SLOGAN_ROOT/platform/gsc/include -fPIC -o demo_lib.so demo_lib.c</code></pre></p>
 
-    <p>To load the library into slogan, call the <code>ffi_open</code> function with the library file name. This will give you a <em>handle</em>
+    <p>To load the library into slogan, call the <code>ffi_open</code> function with the library file name as argument. This will give you a <em>handle</em>
       object that you can use to call functions in the library. A group of functions named in the format - <code>ffi_call_RT_N</code> - is used
       to invoke C functions. <code>RT</code> denotes the return type of the C function and <code>N</code> specifies the number of arguments the
       function takes. You can release the library handle by calling <code>ffi_close</code>. The following program shows how to load and use
@@ -215,7 +219,7 @@ char *say_hello(___slogan_obj msg)
     </ol></p>
     
     <p>Exactly how these operations are implemented is hidden from the world. Someone who uses the dictionary module only need to
-      know about the functionality provided by the three exported operations. The following implementation of dictionary uses the 
+      know about the functionality provided by the two exported operations. The following implementation of dictionary uses the 
       built-in <code>hashtable</code> data structure to associate words with values. This time let us write and save the code in a source file
       called "dict.sn":</p>
     
@@ -247,23 +251,21 @@ char *say_hello(___slogan_obj msg)
       <pre><code><span class="c">// file: word_count.sn </span>
 <span class="k">load</span> <span class="s1">"dict"</span><span class="o">;</span> 
 
-<span class="k">module</span> word_count<span class="o">(</span>port<span class="o">)</span> <span class="k">export</span> <span class="o">(</span>count<span class="o">)</span> <span class="o">{</span> 
-  <span class="k">define</span> wd <span class="o">=</span> <span class="k">let</span> init_words_dict <span class="o">(</span>words<span class="o">=</span> string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> wd <span class="o">=</span> dict<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
-               <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>words<span class="o">)</span><span class="o">)</span> wd 
-               <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span>get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
-                <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span><span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
-                  wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-                  init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+<span class="k">module</span> word_count<span class="o">(</span>port<span class="o">)</span> <span class="k">export</span> <span class="o">(</span>count<span class="o">)</span> 
+  <span class="o">{</span> <span class="k">define</span> wd <span class="o">=</span> <span class="k">let</span> init_words_dict <span class="o">(</span>words<span class="o">=</span> string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> wd <span class="o">=</span> dict<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+                 <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>words<span class="o">)</span><span class="o">)</span> wd 
+                 <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span>get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+                  <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span><span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
+                    wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+                    init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
 
-  <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> wd<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span><span class="o">;</span> 
-<span class="o">}</span><span class="o">;</span> </code></pre>
+    <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> wd<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span><span class="o">;</span> <span class="o">}</span><span class="o">;</span> </code></pre>
     </div>
 
 <p>The word_count module presents a new feature called <em>named let</em> which allows a <code>let</code> block to be named and used
   like a recursive function.</p>
 
-    <p>Let us complete this section by writing a script that uses the word_count module to find the number of occurrences in a file. 
-      The file to read and the word to count is passed as command line arguments to the script:</p>
+    <p>Let us complete this section by writing a script that uses the <code>word_count</code> module to find the number of occurrences of words in a file. The file to read is passed as a command line argument to the script:</p>
 
     <div class="highlight">
       <pre><code><span class="c">// file: file_word_count.sn </span>
@@ -274,14 +276,12 @@ char *say_hello(___slogan_obj msg)
 <span class="k">define</span> p <span class="o">=</span> open_file_input_port<span class="o">(</span>at<span class="o">(</span>args<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
 <span class="k">define</span> wc <span class="o">=</span> word_count<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
 
-<span class="k">function</span> find_count<span class="o">(</span><span class="o">)</span> <span class="o">{</span> 
-  show<span class="o">(</span><span class="s1">"Enter word to count: "</span><span class="o">)</span><span class="o">;</span> 
-  <span class="k">let</span> <span class="o">(</span>w <span class="o">=</span> read_line<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
-   <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>w <span class="o">==</span> <span class="s1">":q"</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span> 
-    showln<span class="o">(</span>wc<span class="o">.</span>count<span class="o">(</span>w<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-    find_count<span class="o">(</span><span class="o">)</span> 
-   <span class="o">}</span><span class="o">;</span> 
-<span class="o">}</span><span class="o">;</span> 
+<span class="k">function</span> find_count<span class="o">(</span><span class="o">)</span> 
+  <span class="o">{</span> show<span class="o">(</span><span class="s1">"Enter word to count: "</span><span class="o">)</span><span class="o">;</span> 
+    <span class="k">let</span> <span class="o">(</span>w <span class="o">=</span> read_line<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+     <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>w <span class="o">==</span> <span class="s1">":q"</span><span class="o">)</span><span class="o">)</span> 
+      <span class="o">{</span> showln<span class="o">(</span>wc<span class="o">.</span>count<span class="o">(</span>w<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+        find_count<span class="o">(</span><span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">;</span> 
 
 find_count<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</span>  </code></pre>
@@ -291,7 +291,7 @@ close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</sp
 
     <p><pre><code>slogan file.txt</code></pre></p>
 
-    <p>Then from the prompt, load "file_word_count.sn":</p>
+    <p>Then from the prompt, load &quot;file_word_count.sn&quot;:</p>
     
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span><span class="k">load</span> <span class="s1">"file_word_count"</span><span class="o">;</span> </code></pre>
@@ -302,23 +302,25 @@ close_port<span class="o">(</span>p<span class="o">)</span><span class="o">;</sp
 
     <h5>Compilation</h5>
     <p>Now that we have developed a substantially large program with two modules and a main script that connects those modules with the
-      outside world, we will look at an important aspect of packaging and distributing software - compilation. So far we have been using
+      outside world, we will look at an important aspect of packaging and distributing software - compilation. </p>
+    <p>So far we have been using
       the Slogan interpreter. Slogan also has a compiler that can generate machine code for fast execution of programs. We can compile
-      a Slogan script file to platform specific machine code by calling the <code>compile</code> function. 
+      a Slogan script file to platform specific machine code by calling the <code>compile</code> function. </p>
 
     <p>Before running the compiler, you have to point the environment variable <code>SLOGAN_ROOT</code> to the folder where you have
       downloaded the Slogan source code:</p>
 
     <p><pre><code>$ export SLOGAN_ROOT=/home/me/slogan</code></pre></p>
 
-    <p>Now we are ready to compile our file word count program:</p>
+    <p>We are all set to compile our &quot;file word count&quot; program:</p>
 
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span>compile<span class="o">(</span><span class="s1">"file_word_count"</span><span class="o">,</span> exe <span class="o">=</span> true<span class="o">)</span><span class="o">;</span> </code></pre>
     </div>
 
-    <p>Now you should have an executable named "file_word_count" along with two dynamically loadable object files (with extension that starts with "o") for
-      the "dict" and "word_count" modules. You can package these binary files and distribute them as a standalone application for your platform.</p>
+    <p>Now you should have an executable named &quot;file_word_count&quot; along with two dynamically loadable object files 
+      (with an extension that starts with an &quot;o&quot;) for the &quot;dict&quot; and &quot;word_count&quot; modules. You can 
+      package these binary files and distribute them as a standalone application for your platform.</p>
 
   </div>
 </body>
