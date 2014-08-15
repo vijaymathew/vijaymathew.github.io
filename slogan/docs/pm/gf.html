@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./gf.html" title=""
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./intro.html" title="Introduction"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Going Further</h3></div>
+    <p>The preceding chapter introduced the most useful primitive syntactic forms and procedures that will get you started in programming
+      Slogan. This chapter introduces a number of additional features and programming techniques that will allow you to write more 
+      sophisticated and efficient programs.</p>
+
+    <h4>Delayed functions and Macors</h4>
+    <p>In the <a href="./intro.html">Introduction</a> we met the functions <code>and</code> and <code>or</code> which are said to
+      evaluate their arguments <em>lazily</em>. Let us try to understand the concept of lazy evaluation by implementing one of these
+      functions ourselves, say <code>and</code>. To avoid confusing with the built-in function, we will call the version we write
+      <code>my_and</code>. Here is our first attempt:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> my_and<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&&</span> b<span class="o">)</span> <span class="k">true</span> 
+          <span class="k">else</span> <span class="k">false</span><span class="o">;</span> </code></pre>
+    </div>
+    <p>One limitation of <code>my_and</code> is that it can accept only two arguments. The built-in <code>and</code> function accepts an
+      arbitrary number of arguments. We will fix this limitation later. But <code>my_and</code> has an even more serious limitation as you
+      can see from the following example:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span>false<span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="err">error: Divide by zero</span></code></pre>
+    </div>
+    <p>All the arguments of <code>my_and</code> is evaluated before the function body is called. This leads to the &quot;Divide by zero&quot; 
+      error. The built-in <code>and</code> function do not have this problem because there is something special in the way it is defined 
+      that delays the evaluation of arguments until they are needed in the function body. In the previous example, there is no need for
+      the function to evaluate the second argument as its return value has already being determined from the first argument. We can add
+      make lazy evaluation of arguments to <code>my_and</code> by adding the keyword <code>lazy</code> to its definition:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> my_and<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&&</span> b<span class="o">)</span> <span class="k">true</span>
+          <span class="k">else</span> <span class="k">false</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p>This definiton of <code>my_and</code> has almost the same behavior as <code>and</code> when called with two arguments:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>and<span class="o">(</span><span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span></code></pre>
+      </div>
+
+    <p>We said &quot;almost the same behavior&quot; because <code>and</code> returns the last argument if all arguments are non-false.
+      <code>My_and</code> will return <code>true</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 2</span>
+<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+    </div>
+    <p>We also need to accept <code>0-n</code> number of arguments, just like the built-in <code>and</code>. 
+      Let us have all these problems fixed in the next version of <code>my_and</code> that we will write:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> my_and args 
+          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> <span class="k">true</span> 
+          <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>length<span class="o">(</span>args<span class="o">)</span> <span class="o">==</span> <span class="mi">1</span><span class="o">)</span> 
+           <span class="k">if</span> <span class="o">(</span>force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">)</span> force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> 
+           <span class="k">else</span> <span class="k">false</span> 
+          <span class="k">else</span> 
+           <span class="k">if</span> <span class="o">(</span>force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">)</span> apply<span class="o">(</span>my_and<span class="o">,</span> tail<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> 
+           <span class="k">else</span> <span class="k">false</span><span class="o">;</span> </code></pre>
+      </div>
+
+    <p>This implementation requires some explanation. First of all the parameter list is just an identifier called <code>args</code>. This is an
+      easy shortcut for making a function accept <code>0-n</code> arguments. All the arguments will be packaged into a list named <code>args</code>
+      and will be passed to the function. If this list is empty, i.e, there are no more arguments to process, the funtion returns 
+      <code>true</code>. If there is only one argument, we check if it is a non-false value. If it is not <code>false</code> we return it
+      otherwise we return <code>false</code>. If there are more than one argument, we check if the first argument if true. If it is not
+      <code>false</code> we recursively call the function until the list is reduced to a single argument. As the delayed arguments
+      are packaged into a list, we have to explicitly call the <code>force</code> function to check their values.</p>
+
+    <p>Now we can use <code>my_and</code> just like we would use the built-in <code>and</code> function:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 1</span>
+<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span></code></pre>
+    </div>
+  </div>
+</body>
+</html>
