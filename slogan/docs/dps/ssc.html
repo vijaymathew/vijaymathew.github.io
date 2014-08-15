@@ -31,7 +31,7 @@
   rapidly becomes impractical. It is unwieldy and interleavings are easy to overlook.</p>
 
 <p>If shared-state concurrency is difficult to program, why not just stick with functional concurrency?
-  The problem with the functional concurrent model is that tasks must communicate in "lockstep". 
+  The problem with the functional concurrent model is that tasks must communicate in &quot;lockstep&quot;. 
   Two task communicating with a third task cannot execute independently; they must coordinate with each
   other. This is a consequence of the fact that functional programs are deterministic.</p>
 <p>We would like to allow two threads to be completely independent and yet communicate with the same third thread. 
@@ -40,17 +40,17 @@
   observable non-determinism. A simple way to solve the problem is to add explicit state to the model. 
   But as we have already seen, reasoning directly with state and concurrency is difficult. 
   One way to get around this problem is to make all state local to tasks and use only <a href="mpc.html">message-passing</a> for coordination.
-  Another option is to perform <em>atomic actions</em> on shared-state. This is the main topic covered in this chapter.</p> 
+  Another option is to perform <em>atomic actions</em> on shared-state. This is the main topic of this chapter.</p> 
 
 <h4>Mutexes</h4>
 <p>A mutex is an object that can be used to prevent a shared resource from being accessed by more than one task at the same time.
-  A mutex can be in two state - locked or unlocked. An attempt to lock a mutex only succeeds if the mutex is in an unlocked state, 
+  A mutex can be in one of two states - locked or unlocked. An attempt to lock a mutex only succeeds if the mutex is in an unlocked state, 
   otherwise the current task will wait. The code that is executed within the mutex lock and unlock operations is known as the
   <em>critical region</em>.</p>
 <p>The following program shows how tasks can use a mutex object to coordinate reads and writes
   to a shared variable:</p>
 
-<div class="highligt">
+<div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> m <span class="o">=</span> mutex<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span><span class="k">define</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
 <span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span><span class="o">)</span> task<span class="o">(</span><span class="o">{</span> mutex_lock<span class="o">(</span>m<span class="o">)</span><span class="o">;</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> mutex_unlock<span class="o">(</span>m<span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
@@ -60,15 +60,15 @@
 </div>
 
 <p>The program above spawns two tasks that modify the value of <code>count</code>. Both of them lock the mutex <code>m</code> before performing
-  this action. This makes sure that both tasks do not try to write to <code>count</code> at the same time. Not matter which task writes first,
-  <code>count</code> ends up with the value of <code>2</code>. </p>
+  this action. This makes sure that both tasks do not try to write to <code>count</code> at the same time. No matter which task writes first,
+  <code>count</code> always ends up with the value of <code>2</code>. </p>
 
 <p>What happens if one of the tasks raises an exception after locking the mutex but
   before unlocking it? The second task waiting to lock the mutex will be stuck forever. This situation can be prevented by putting 
   the critical region in the body of a <code>try</code> and always calling the unlock operation in the <code>finally</code> clause.
   This idea is so useful that we can express it as a macro:</p>
 
-<div class="highligt">
+<div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">macro</span> lock<span class="o">(</span>mtx<span class="o">,</span> expr<span class="o">)</span> 
          <span class="o">{</span> mutex_lock<span class="o">(</span>mtx<span class="o">)</span><span class="o">;</span>
            <span class="k">try</span> expr 
@@ -78,7 +78,7 @@
 
 <p>A macro is a pure compile-time artifact. When you call a macro, the compiler 
   <em>expands</em> its body into the call-site. To make this clear, let us re-write the function that updates <code>count</code>
-  to use the new macro:</p>
+  using the new macro:</p>
 
 <div class="highligt">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span><span class="o">)</span> task<span class="o">(</span>lock<span class="o">(</span>m<span class="o">,</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre>
@@ -96,7 +96,7 @@
 
 <h5>Reentrant mutexes</h5>
 <p>The default mutex implementation in Slogan is not reentrant. An attempt to lock a mutex that is locked implies that the 
-  current task waits even if the mutex is owned by the current task. This can lead to a deadlock if no other task unlocks the mutex.
+  current task waits even if the mutex is owned by it. This can lead to a deadlock if no other task unlocks the mutex.
   The following program demonstrates this behavior:</p>
 
 <div class="highlight">
@@ -142,12 +142,12 @@
 <h4>Monitors</h4>
 <p>Mutexes are an important tool for building concurrent abstractions in a stateful model, but they are not sufficient. 
   For example, consider the simple case of a bounded buffer. Consider a task trying to put an element into a full buffer. 
-  What if we want the task to wait until the buffer is not full, and then continue? This cannot be done with just mutexes. 
+  What if we want the task to wait until the buffer is not full, and then continue? This cannot be done just by using mutexes. 
   We need a mechanism that allows a task taking elements from the buffer to notify the waiting task that the buffer is no longer full.
   The same mechanism will allow the task putting elements to notify a task blocked on an empty buffer.</p>
-<p>Monitors gives us such a mechanism by adding a "wait" and "notify" operations to the mutex lock and unlock functions. Calling 
+<p>Monitors gives us such a mechanism by adding a &quot;wait&quot; and &quot;notify&quot; operations to the mutex lock and unlock functions. Calling 
   <code>mutex_unlock</code> with a monitor as its second argument will add the current task to the list of tasks waiting for the monitor
-  to be notified. The <code>monitor_notify</code> function will notify one other tasks waiting on the monitor and <code>monitor_broadcast</code>
+  to be notified. The <code>monitor_notify</code> function will notify one other task waiting on the monitor and <code>monitor_broadcast</code>
   will notify all tasks waiting on it.</p>
 
 <p>The following program shows the implementation of a bounded buffer using mutexes and monitors:</p>
@@ -195,8 +195,8 @@
     <li>If your program does not have any observable non-determinism, such as independent 
       clients interacting with a server, then stick with functional concurrency using reactive variables.</li>
     <li>If you absolutely need both state and concurrency, then use either the message-passing or the shared-state approach. 
-      The message-passing approach is often the best for programs that consist of autonomous "agents" that communicate with each other. 
-      The shared-state approach is often the best for programs that deal with a global repository of data ("database") that 
+      The message-passing approach is often the best for programs that consist of autonomous &quot;agents&quot; that communicate with each other. 
+      The shared-state approach is often the best for programs that deal with a global repository of data (&quot;database&quot;) that 
       should be accessed and updated concurrently. Both approaches can be used together for different parts of the same program.</li>
   </ul>
 
