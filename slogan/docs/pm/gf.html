@@ -147,10 +147,70 @@
     loop<span class="o">(</span>i <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> f<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
     </div>
 
-    <p>The compiler then proceeds to compile this expanded code. Macros are ideal for small utilities like <code>dotimes</code>. A large
+    <p>This expanded code is what gets compiled into machine instructions. Macros are ideal for small utilities like <code>dotimes</code>. A large
       chunk of code written as a macro can lead to significant code bloat if it is called from many sites in the program. In such cases,
       a lazy function is a better alternative.</p>
 
+    <h4>Recursion</h4>
+    <p>The <code>dotimes</code> macro allows us to repeatedly perform an expression. Another way to achieve this is by writing a function
+      that contains the expression and invoke the function more than once as part of the expression itself. This is called recursion.
+      In simple words, recursion is the application of a function from within that function. At first recursion might seem more difficult
+      than looping constructs like <code>dotimes</code>, but once mastered it provides much more expressive power.<p>
+
+    <p>Perhaps the simplest recursive function that we can define is the following:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> loop_forever<span class="o">(</span><span class="o">)</span> 
+          loop_forever<span class="o">(</span><span class="o">)</span><span class="o">;</span></code></pre></div>
+
+    <p>This function takes no arguments and simply calls itself immediately. If you call this function, it will hang the REPL, because it never
+      returns. (Type <code>Ctr + C</code> to terminate the REPL.)</p>
+
+    <p>For a recursive function to be useful, we must have some way to terminate the  recursion. Most recursive functions should have at 
+      least two basic elements, a <em>base case</em> and a <em>recursion step</em>. The base case terminates the recursion, giving the 
+      value of the function for some base argument. The recursion step gives the value in terms of the value of the function applied to a 
+      different argument. In order for the recursion to terminate, the different argument must be closer to the base argument in some way.</p>
+
+    <p>The canonical example of a recursion is the function to find the length of a list. The base case of this function is the empty list,
+      where the function will return the length as zero. In order to get closer to the empty list, the recursive call should be made by 
+      eliminating the first element of the list. There are two built-in functions that lets us take apart a list: the <code>head</code> function
+      will return the first element and the <code>tail</code> function will return the rest of the elements. A nonempty list is one element 
+      longer than its tail, so the recursion step gives the value as one more than the length of the tail of the list:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> my_length<span class="o">(</span>xs<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> <span class="mi">0</span> 
+          <span class="k">else</span> <span class="mi">1</span> <span class="o">+</span> my_length<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">;</span></code></pre></div>
+
+    <p>(To avoid confusion between the built-in function <code>length</code>, we have called our implementation <code>my_length</code>).</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_length<span class="o">(</span><span class="o">[</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 0</span>
+<span class="nc">slogan&gt; </span>my_length<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">56</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 3</span></code></pre></div>
+
+    <p>Slogan allow you to trace the execution of a function to see how it operates. Type <code>trace(name)</code>, where name is the name of 
+      a function you have defined at top level. A function can be removed from the list of traced functions by calling <code>untrace(name)</code>.
+      Let us try to trace the recursive calls to <code>my_length</code> for the argument  <code>[10, 56, 100]</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>trace<span class="o">(</span>my_length<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>my_length<span class="o">(</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">56</span><span class="o">,</span> <span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 
+| > (my_length '(10 56 100))
+| | > (my_length '(56 100))
+| | | > (my_length '(100))
+| | | | > (my_length '())
+| | | | 0
+| | | 1
+| | 2
+| 3</span>          
+<span class="ge">=&gt; 3</span></code></pre></div>
+<p>The indentation shows the nesting level of the recursion; the vertical lines associate applications visually with their values. 
+  Notice that on each application of length the list gets smaller until it finally reaches the empty list. 
+  The value at the empty list is <code>0</code>, and each outer level adds <code>1</code> to arrive at the final value.</p>
+<p>(<code>Trace</code> displays code translated to Scheme, the intermediate language used by the Slogan compiler. As Scheme is also
+  a high-level language, it is not hard to understand the traced output.)</p>
   </div>
 </body>
 </html>
