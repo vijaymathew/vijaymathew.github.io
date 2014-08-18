@@ -211,6 +211,112 @@
   The value at the empty list is <code>0</code>, and each outer level adds <code>1</code> to arrive at the final value.</p>
 <p>(<code>Trace</code> displays code translated to Scheme, the intermediate language used by the Slogan compiler. As Scheme is also
   a high-level language, it is not hard to understand the traced output.)</p>
+
+<p>So far we have defined recursive functions as top-level definitions. Is it possible to create a local recursive function using <code>let</code>?
+  Let us give it a try by defining a local function that sums a list of integers:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>sum <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>xs<span class="o">)</span> 
+                    <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> <span class="mi">0</span> 
+                    <span class="k">else</span> head<span class="o">(</span>xs<span class="o">)</span> <span class="o">+</span> sum<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+         sum<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="ge">-&gt; </span><span class="err">error: Unbound variable: sum</span></code></pre>
+</div>
+
+<p>This results in the "Unbound variable" error because the variable <code>sum</code> is visible only within the body of the 
+  <code>let</code> expression and not within the function expression whose value is bound to <code>sum</code>. 
+  We can get around this problem by passing the function <code>sum</code> to itself as follows:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>sum <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>sum<span class="o">,</span> xs<span class="o">)</span> 
+                    <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span> <span class="o">)</span> <span class="mi">0</span> 
+                    <span class="k">else</span> head<span class="o">(</span>xs<span class="o">)</span> <span class="o">+</span> sum<span class="o">(</span>sum<span class="o">,</span> tail<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+         sum<span class="o">(</span>sum<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 15</span></code></pre></div>
+
+<p>Luckily, to define local recursive functions we don't have to resort to clever solutions like this. Instead, we can use the <code>letrec</code>
+  expression. The syntax of <code>letrec</code> is similar to <code>let</code>:</p>
+
+<pre><code>letrec (var = expr, ...) body;</code></pre>
+
+<p>Unlike <code>let</code>, the variables <code>var ...</code> are  visible not only within the body of the <code>letrec</code> but also 
+  within <code>expr ...</code>. Thus, we can rewrite the expression above as follows:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">letrec</span> <span class="o">(</span>sum <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>xs<span class="o">)</span> 
+                       <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> <span class="mi">0</span> 
+                       <span class="k">else</span> head<span class="o">(</span>xs<span class="o">)</span> <span class="o">+</span> sum<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+         sum<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 15</span></code></pre></div>
+
+    <p>Using <code>letrec</code> we can define mutually recursive functions like the functions <code>is_even</code> and <code>is_odd</code> 
+      shown below:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">letrec</span> <span class="o">(</span>is_even <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> or<span class="o">(</span>x <span class="o">==</span> <span class="mi">0</span><span class="o">,</span> is_odd<span class="o">(</span>x <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">,</span> 
+                is_odd <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> and<span class="o">(</span>not<span class="o">(</span>x <span class="o">==</span> <span class="mi">0</span><span class="o">)</span><span class="o">,</span> is_even<span class="o">(</span>x <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+         <span class="o">[</span>is_even<span class="o">(</span><span class="mi">20</span><span class="o">)</span><span class="o">,</span> is_odd<span class="o">(</span><span class="mi">20</span><span class="o">)</span><span class="o">]</span><span class="o">;</span> 
+<span class="ge">=&gt; [true, false]</span></code></pre></div>
+
+    <p>In a <code>letrec</code>, the expressions being bound to the variables need not be functions. The only restriction is that it must be 
+      possible to evaluate each expression without evaluating any of the variables. This restriction do not applies to function bodies
+      because they cannot be evaluated until the functions are called in the <code>letrec</code> body. The following <code>letrec</code>
+      expression obeys this restriction:</p>
+    
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">letrec</span> <span class="o">(</span>f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> x <span class="o">+</span> <span class="mi">2</span><span class="o">,</span> 
+                x <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+         f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 3</span></code></pre></div>
+
+<p>The following <code>letrec</code> will raise an exception indicating that <code>x</code> is unbound:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">letrec</span> <span class="o">(</span>y <span class="o">=</span> x <span class="o">+</span> <span class="mi">2</span><span class="o">,</span> 
+                x <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+         y <span class="o">;</span></code></pre></div>
+
+<p>When a recursive function is called in only one place outside the function, it is often clearer to use a <em>named</em> <code>let</code> 
+  expression, which take the following form:</p>
+
+<pre><code>let name (var = expr, ...) body</code></pre>
+
+<p>Named <code>let</code> is similar to unamed <code>let</code> in all respects. In addition, the variable <code>name</code> is bound within 
+  the body to a function that may be called to recur; the arguments to the function become the new values for the variables <code>var ...</code>.
+  Here is simple looping construct made with a named <code>let</code>:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> loop <span class="o">(</span>xs <span class="o">=</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">,</span> sum <span class="o">=</span> <span class="mi">0</span><span class="o">)</span> 
+         <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> sum 
+         <span class="k">else</span> loop<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> sum <span class="o">+</span> head<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 10</span></code></pre>
+</div>
+
+<h5>Tail calls</h5>
+    <p>At this point, readers who are familiar with other languages that provide special iteration constructs, e.g., 
+      <code>while</code> or <code>for</code> loops, might wonder whether similar constructs are required in Slogan. 
+      Such constructs are unnecessary; iteration in Slogan is expressed more clearly and succinctly via recursion. 
+      Recursion is more general and eliminates the need for the variable assignments required by many other languages' iteration constructs, 
+      resulting in code that is more reliable and easier to follow.</p>
+    <p>Some recursion is essentially iteration and executes as such. When a function call is in <em>tail position</em> (see below) with respect 
+      to a function expression, it is considered to be a <em>tail call</em>, and Slogan treats it as a "goto" or jump. 
+      When a procedure tail-calls itself or calls itself indirectly through a series of tail calls, the result is <em>tail recursion</em>. 
+      Because tail calls are treated as jumps, tail recursion can be used for indefinite iteration in place of the more restrictive iteration 
+      constructs provided by other programming languages, without fear of overflowing any sort of recursion stack.</p>
+    <p>A call is in tail position with respect to a function expression if its value is returned directly from the function expression, i.e., 
+      if nothing is left to do after the call but to return from the function expression. For example, a call is in tail position if it is 
+      the last expression in the body of a function expression, the consequent or alternative part of an <code>if</code> expression in 
+      tail position, the last subexpression of an <code>and</code> or <code>or</code> expression in tail position, 
+      the last expression in the body of a 
+      <code>let</code> or <code>letrec</code> in tail position, etc. Each of the calls to <code>f</code> in the expressions below are tail calls, 
+      but the calls to <code>g</code> are not:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> f<span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">if</span> <span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="o">=</span> <span class="mi">4</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> or<span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">,</span> f<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
+
   </div>
 </body>
 </html>
