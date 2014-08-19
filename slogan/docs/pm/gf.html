@@ -317,6 +317,151 @@
 <span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="o">=</span> <span class="mi">4</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> or<span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">,</span> f<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
 
+
+<p>As we have seen earlier, the proper treatment of tail calls avoids the recursion stack from growing too "deep". Consider the following
+  recursive definition of the <code>factorial</code> function:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> factorial<span class="o">(</span>n<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="mi">1</span> 
+          <span class="k">else</span> n <span class="o">*</span> factorial<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> </code></pre>
+  </div>
+
+<p>The recursive call to <code>factorial</code> is not in the tail position. An invocation of this function will lead the stack to grow
+  <code>n</code> steps deep. If <code>n</code> is too large, this might lead to a "stack overflow" error. We can see this growing stack
+  by tracing a call to <code>factorial</code>:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>trace<span class="o">(</span>factorial<span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>factorial<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">-&gt;
+| > (factorial 5)
+| | > (factorial 4)
+| | | > (factorial 3)
+| | | | > (factorial 2)
+| | | | | > (factorial 1)
+| | | | | | > (factorial 0)
+| | | | | | 1
+| | | | | 1
+| | | | 2
+| | | 6
+| | 24
+| 120
+
+=&gt; 120</span></pre></code>
+</div>
+
+<p>The recursive call can be moved to a tail position by adding one more argument to <code>factorial</code> which will act as an 
+  <em>accumulator</em> for the function's result:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> factorial<span class="o">(</span>n<span class="o">,</span> a<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> a 
+          <span class="k">else</span> factorial<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> a <span class="o">*</span> n<span class="o">)</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>Now if we trace <code>factorial</code> again, we will see that the "shape" of recursion has changed. It will now have a stack that always
+  at a single level:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>trace<span class="o">(</span>factorial<span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>factorial<span class="o">(</span><span class="mi">5</span><span class="o">,</span> 1<span class="o">)</span><span class="o">;</span>
+<span class="ge">-&gt;
+| > (factorial 5 1)
+| > (factorial 4 5)
+| > (factorial 3 20)
+| > (factorial 2 60)
+| > (factorial 1 120)
+| > (factorial 0 120)
+| 120
+
+=&gt; 120</span></code></pre>
+</div>
+
+<p>The function has the inconvenience that the caller has to pass the correct initial value of the accumulator. This limitation can be overcome
+  by making the iterative function local by using a named <code>let</code>. The following definition of <code>factorial</code> preserves the
+  original single argument interface of the function while keeping the recursive calls at the tail position:</p>
+
+<div code="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> factorial<span class="o">(</span>n<span class="o">)</span> 
+           <span class="k">let</span> loop<span class="o">(</span>n <span class="o">=</span> n<span class="o">,</span> a <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+            <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> a 
+            <span class="k">else</span> loop<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> a <span class="o">*</span> n<span class="o">)</span><span class="o">;</span> </code></pre>
+ </div>
+
+<h4>Continuations</h4>
+<p>While evaluating an expression, Slogan keeps track of two things: the expression to evaluate and what to do with its value. Consider the
+  expression <code>x &lt; y</code> in the following program:</p>
+
+<pre><code>if (x &lt; y) say_hello() else say_goodbye();</code></pre>
+
+<p>The expression to evaluate is <code>x &lt; y</code> and &quot;what to do with its value&quot; is to make a decision on which of the
+  two functions - <code>say_hello</code> and <code>say_goodbye</code> - to call. The &quot;what to do with the value&quot; is called the
+  <em>continuation</em> of a computation. Thus, at any point during the evaluation of any expression, there is a continuation ready to complete, 
+  or at least continue, the computation from that point.</p>
+
+<p>The continuation of any expression can be captured with the function <code>callcc</code>. 
+  <code>Callcc</code> must be passed a function <code>p</code> of one argument. The current continuation itself is represented as a
+  function <code>k</code>. This is function is passed to <code>p</code>. If <code>k</code> is applied to a value from within <code>p</code>, 
+  it returns the value to the continuation of the <code>callcc</code> application. This value becomes, in essence, the value of the 
+  application of <code>callcc</code>.
+  If <code>p</code> returns without invoking <code>k</code>, the value returned by the procedure becomes the value of the application of 
+  <code>callcc</code>. Consider some simple examples:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> <span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 9</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> k<span class="o">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 9</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> <span class="o">{</span> k<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> k<span class="o">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 12</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> k<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 5</span></code></pre>
+</div>
+
+<p>In the first case, the continuation <code>k</code> is never used allowing <code>callcc</code> to return <code>7</code>. In the second case,
+  the continuation is used but its effect is the same as the previous case. In the third case, the continuation is invoked two times. The first
+  call returns the value <code>10</code> to the continuation of the application of <code>callcc</code> and the second use of the continuation
+  is never reached. The fourth case is similar. Calling the continuation with the value <code>3</code> leads to the addition being ignored.</p>
+
+<p>Continuations can be used to implement advanced control structures. Here is an example of using continuations to implement the 
+  <code>return</code> statement found in most imperative languages: </p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> product<span class="o">(</span>xs<span class="o">)</span> 
+          callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>return<span class="o">)</span> 
+                  <span class="k">let</span> loop <span class="o">(</span>xs <span class="o">=</span> xs<span class="o">,</span> p <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+                   <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> p 
+                   <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>head<span class="o">(</span>xs<span class="o">)</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> return<span class="o">(</span>p<span class="o">)</span>
+                   <span class="k">else</span> loop<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> p <span class="o">*</span> head<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>product<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 120</span>
+<span class="nc">slogan&gt; </span>product<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span></code></pre>
+</div>
+
+<p>The <code>return</code> continuation allows <code>product</code> to exit immediately upon seeing a zero value without performing the
+  remaining multiplications.</p>
+
+<p>Another use of continuations is to implement various forms of multitasking, like the simple coroutine implementation shown below:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span>k<span class="o">)</span> 
+          <span class="o">{</span> showln<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+            callcc<span class="o">(</span>k<span class="o">)</span><span class="o">;</span> 
+            showln<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> b<span class="o">(</span>k<span class="o">)</span> 
+          <span class="o">{</span> showln<span class="o">(</span><span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+            callcc<span class="o">(</span>k<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>a<span class="o">(</span>b<span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 1
+   2
+   3</span></code></pre>
+</div>
+
   </div>
 </body>
 </html>
