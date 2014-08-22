@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./pc.html" title="Program Control"
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./gf.html" title="Moving Ahead"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Program Control</h3></div>
+<p>This chapter introduces the syntactic forms and expressions that serves to control the flow of programs. We start with the most fundamental
+  control operation - function application. We will also cover conditional evaluation, recursion, mapping, continuations, 
+  delayed evaluation, and evaluation of programs constructed at run time.</p>
+
+<h4>Function Application</h4>
+<div class="highlight">
+  <pre><code><span class="nc">syntax:</span> f_expr<span class="o">(</span>a_expr<span class="o">,</span> ...<span class="o">)</span><span class="o">;</span>
+<span class="k">returns: </span>value of applying the value of f_expr to the values of a_expr, ...</code></pre>
+</div>
+
+<p><code>F_expr</code> must evaluate to produce a function object. The argument expressions <code>a_expr, ...</code> is evaluated one-by-one, 
+  sequentially. The order of evaluation is not specified.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>add<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span> <span class="o">+</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 16</span>
+<span class="nc">slogan&gt; </span><span class="o">(</span><span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> x<span class="o">)</span> <span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 20</span></code></pre>
+</div>
+  
+<div class="highlight">
+  <pre><code><span class="nc">function:</span> apply<span class="o">(</span>f_expr<span class="o">,</span> a_expr<span class="o">,</span> ...,</span> a_exprs<span class="o">)</span> 
+<b>returns:</b> the value of applying <code>f_expr</code> to the arguments <code>a_expr, ...</code> and 
+         the elements of the list <code>a_exprs</code>.</code></pre>
+</div>
+
+<p><code>Apply</code> invokes the function <code>f_expr</code>, passing the value of the first <code>a_expr</code> as the first argument, 
+  the value of the second <code>a_expr</code> as the second argument, and so on for each expression in <code>a_expr, ...</code> and 
+  passing the elements of list <code>a_exprs</code> in order as the remaining arguments. Thus, <code>f_expr</code> is called with as many
+  arguments as there are <code>a_expr, ...</code> plus elements of list.</p>
+
+<p><code>Apply</code> is useful when some or all of the arguments to be passed to a function are in a list, since it frees the 
+  programmer from explicitly destructuring the list.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>apply<span class="o">(</span>add<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span>
+<span class="nc">slogan&gt; </span>apply<span class="o">(</span>min<span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="o">[</span><span class="mi">6</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 1</span></code></pre>
+</div>
+
+<h4>Conditionals</h4>
+<div class="highlight">
+  <pre><code><span class="nc">syntax:</span> <span class="k">if</span> <span class="o">(</span>test<span class="o">)</span> consequent <span class="k">else</span> alternative<span class="o">;</span> 
+<span class="nc">syntax:</span> <span class="k">if</span> <span class="o">(</span>test<span class="o">)</span> consequent<span class="o">;</span> 
+<span class="k">returns: </span>the value of <em>consequent</em> if <em>test</em> evaluates to true, 
+         the value of <em>alternative</em> if <em>test</em> evaluates to false.</code></pre>
+</div>
+
+<p><code>Test</code>, <code>consequent</code>, and <code>alternative</code> must be expressions. With the second form that has no <code>else</code>
+  clause, the special value <code>void</code> is returned. <code>Void</code> has no printable representation.</p>
+
+<p>The <code>alternative</code> can be another <code>if</code> expression allowing us to evaluate multiple tests:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>x<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>x <span class="o">&lt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">[</span><span class="o">!</span>minus abs<span class="o">(</span>x<span class="o">)</span><span class="o">]</span>
+          <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>x <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">[</span><span class="o">!</span>plus x<span class="o">]</span>
+          <span class="k">else</span> <span class="o">[</span><span class="o">!</span>zero x<span class="o">]</span><span class="o">;</span>
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [zero 0]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [plus 1]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">-</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [minus 1]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">syntax:</span> <span class="k">case</span> <span class="o">(</span>c_expr<span class="o">)</span> clause1<span class="o">,</span> clause2<span class="o">,</span> ... <span class="o">;</span> 
+<span class="k">returns: </span>value of the clause that matches <em>c_expr</em>.</code></pre>
+</div>
+
+<p>Each clause has the following form</p>
+<pre><code>key: expr</code></pre>
+
+<p>Each <code>key</code> is a datum distinct from the other keys. The last clause may be in the above form or it may be an 
+  <code>else</code> clause of the form</p>
+<pre><code>else: expr</code></pre>
+
+<p><code>C_expr</code> is evaluated and the result is compared against the keys of each clause in order. 
+  (Note that the comparison operation used will not work for composite objects like strings, lists, arrays and records.)
+  If a clause containing a matching key is found, the expression <code>expr</code> is evaluated and its value is returned. </p>
+
+<p>The key can be a list of values, in which case, each element of the list is compared with <code>c_expr</code> for a match:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>x<span class="o">)</span> 
+          <span class="k">case</span> <span class="o">(</span>x<span class="o">)</span> 
+           <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">7</span><span class="o">,</span> <span class="mi">9</span><span class="o">]</span><span class="o">:</span> <span class="o">!</span>odd<span class="o">,</span> 
+           <span class="o">[</span><span class="mi">0</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">6</span><span class="o">,</span> <span class="mi">8</span><span class="o">]</span><span class="o">:</span> <span class="o">!</span>even<span class="o">,</span> 
+           <span class="k">else</span><span class="o">:</span> <span class="o">!</span>out_of_range<span class="o">;</span> </code></pre>
+</div>
+
+<p>If none of the clauses contains a matching key and an <code>else</code> clause is present, the expression <code>expr</code> the 
+  <code>else</code> clause is evaluated and its value is returned.</p>
+
+<p>If none of the clauses contains a matching key and no <code>else</code> clause is present, the <code>void</code> object is returned.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">syntax:</span> <span class="k">match</span> <span class="o">(</span>m_expr<span class="o">)</span> clause1<span class="o">,</span> clause2<span class="o">,</span> ... <span class="o">;</span> 
+<span class="k">returns: </span>value of the clause that matches <em>m_expr</em>.</code></pre>
+</div>
+
+<p><code>Match</code> is an extended version of <code>case</code> that can also have composite objects like strings and lists as
+  keys:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> color_code<span class="o">(</span>c<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>c<span class="o">)</span> 
+           <span class="s1">&quot;red&quot;</span><span class="o">:</span> <span class="o">[</span><span class="mi">255</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">0</span><span class="o">]</span><span class="o">,</span> 
+           <span class="s1">&quot;green&quot;</span><span class="o">:</span> <span class="o">[</span><span class="mi">0</span><span class="o">,</span> <span class="mi">255</span><span class="o">,</span> <span class="mi">0</span><span class="o">]</span><span class="o">,</span> 
+           <span class="s1">&quot;blue&quot;</span><span class="o">:</span> <span class="o">[</span><span class="mi">0</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">255</span><span class="o">]</span><span class="o">,</span> 
+           <span class="k">else</span><span class="o">:</span> <span class="o">!</span>unknown_color<span class="o">;</span></code></pre>
+</div>
+
+<p>The <code>match</code> is more powerful than <code>case</code> because a clause can match patterns and bind variables: </p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>xs<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
+           <span class="o">[</span><span class="mi">2</span><span class="o">,</span> x<span class="o">,</span> y<span class="o">]</span><span class="o">:</span> x <span class="o">+</span> y<span class="o">,</span> 
+           <span class="o">[</span><span class="mi">3</span><span class="o">,</span> x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">:</span> x <span class="o">+</span> y <span class="o">+</span> z<span class="o">;</span> </code></pre>
+</div>
+
+<p>The function <code>f</code> expects its argument to be a list that is in either one of two patterns. If the first element is <code>2</code>,
+  the first clause will bind the variables <code>x</code> and <code>y</code> to the next two elements. If the first element is <code>3</code>,
+  three variables are the second clause will bind three variables. The variables bound by a clause is visible only within the expression
+  of that clause.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">[</span><span class="mi">2</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 30</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 60</span></code></pre>
+</div>
+
+<p>If none of the clauses match and no <code>else</code> is present, <code>match</code> will raise an error:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="err">error: No match found.</span></code></pre>
+</div>
+
+<p>(If we want to ignore a particular element in the key being matched, we can use an underscore (_) instead of a variable name.)</p>
+
+<p>Some confusion can arise in the way symbols are used in <code>case</code> and <code>match</code> expressions. In the following example,
+  the <code>expr</code> is matched against the symbolic constants <code>!hi</code> and <code>!bye</code>:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>msg<span class="o">)</span> 
+          <span class="k">case</span> <span class="o">(</span>msg<span class="o">)</span> 
+           hi<span class="o">:</span> <span class="o">!</span>hello<span class="o">,</span> 
+           bye<span class="o">:</span> <span class="o">!</span>see_you<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">!</span>hi<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hello</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">!</span>bye<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; see_you</span></code></pre>
+</div>
+
+<p>Let us try to re-write the function using <code>match</code>:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>msg<span class="o">)</span> 
+         <span class="k">match</span> <span class="o">(</span>msg<span class="o">)</span> 
+          hi<span class="o">:</span> <span class="o">!</span>hello<span class="o">,</span> 
+          bye<span class="o">:</span> <span class="o">!</span>see_you<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">!</span>hi<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hello</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">!</span>bye<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hello</span></code></pre>
+</div>
+
+<p><code>!hello</code> is returned for both calls because the first clause always wins by binding the argument to the variable <code>hi</code>.
+  We can force <code>match</code> to compare for the symbolic constants by prefixing the keys with a <code>!</code>:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>msg<span class="o">)</span> 
+         <span class="k">match</span> <span class="o">(</span>msg<span class="o">)</span> 
+          <span class="o">!</span>hi<span class="o">:</span> <span class="o">!</span>hello<span class="o">,</span> 
+          <span class="o">!</span>bye<span class="o">:</span> <span class="o">!</span>see_you<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">!</span>hi<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hello</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">!</span>bye<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; see_you</span></code></pre>
+</div>
+
+
+</div>
+</body>
+</html>
