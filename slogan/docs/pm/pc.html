@@ -351,6 +351,175 @@ returns a non-false value.</p>
 <span class="ge">=&gt; true</span></code></pre>
 </div>
 
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>fold_left<span class="o">(</span>f<span class="o">,</span> obj<span class="o">,</span> list1<span class="o">,</span> ...<span class="o">)</span> 
+<b>returns:</b> the value of applying <em>f</em> to <em>obj</em> and the heads of <em>list1 ...</em>.</code></pre>
+</div>
+
+<p>The list arguments should all have the same length. The function <code>f</code> should accept one more argument than the number 
+  of list arguments and return a single value. It should not mutate the list arguments.</p>
+
+<code>Fold_left</code> applies <code>f</code> to <code>obj</code> and the heads of <code>list1 ...</code>, then recurs with the value 
+returned by <code>f</code> in place of <code>obj</code> and the tail of each list.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>fold_left<span class="o">(</span><span class="k">fn </span><span class="o">(</span>a<span class="o">,</span> x<span class="o">)</span> a <span class="o">+</span> x <span class="o">*</span> x<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 55</span>
+<span class="nc">slogan&gt; </span>fold_left<span class="o">(</span><span class="k">fn </span><span class="o">(</span>a<span class="o">,</span> @rest args<span class="o">)</span> append<span class="o">(</span>args<span class="o">,</span> a<span class="o">)</span><span class="o">,</span> 
+                  <span class="o">%</span><span class="o">[</span>question<span class="o">]</span><span class="o">,</span> 
+                  <span class="o">%</span><span class="o">[</span>that<span class="o">,</span> not<span class="o">,</span> to<span class="o">]</span><span class="o">,</span> 
+                  <span class="o">%</span><span class="o">[</span>is<span class="o">,</span> to<span class="o">,</span> be<span class="o">]</span><span class="o">,</span> 
+                  <span class="o">%</span><span class="o">[</span>the<span class="o">,</span> be<span class="o">,</span> or<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [to, be, or, not, to, be, that, is, the, question]</span></code></pre>
+</div>
+
+<code>Fold_left</code> will return <code>obj</code> if the list arguments are empty:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>fold_left<span class="o">(</span><span class="k">fn </span><span class="o">(</span>a<span class="o">,</span> x<span class="o">)</span> a <span class="o">+</span> x <span class="o">*</span> x<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 0</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>fold_right<span class="o">(</span>f<span class="o">,</span> obj<span class="o">,</span> list1<span class="o">,</span> ...<span class="o">)</span> 
+<b>returns:</b> the value of applying <em>f</em> to <em>obj</em> and the tails of <em>list1 ...</em>.</code></pre>
+</div>
+
+<p>The list arguments should all have the same length. The function <code>f</code> should accept one more argument than the number 
+  of list arguments and return a single value. It should not mutate the list arguments.</p>
+
+<p><code>Fold_right</code> returns <code>obj</code> if the list arguments are empty. If they are not empty, <code>fold_right</code> 
+  recurs with the tail of each list replacing the list, then applies <code>f</code> to the heads of <code>list1 ...</code> and the 
+  result returned by the recursion.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>fold_right<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>a<span class="o">,</span> x<span class="o">)</span> x <span class="o">+</span> a <span class="o">*</span> a<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 55</span>
+<span class="nc">slogan&gt; </span>fold_right<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> a<span class="o">)</span> <span class="o">[</span>x <span class="o">[</span>y a<span class="o">]</span><span class="o">]</span><span class="o">,</span> 
+                   <span class="o">%</span><span class="o">[</span>with<span class="o">,</span> aplologies<span class="o">]</span><span class="o">,</span> 
+                   <span class="o">%</span><span class="o">[</span>parting<span class="o">,</span> such<span class="o">,</span> sorrow<span class="o">,</span> go<span class="o">,</span> ya<span class="o">]</span><span class="o">,</span> 
+                   <span class="o">%</span><span class="o">[</span>is<span class="o">,</span> sweet<span class="o">,</span> gotta<span class="o">,</span> see<span class="o">,</span> tomorrow<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [parting, is, such, sweet, sorrow, gotta, go, see, ya, tomorrow, with, aplologies]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>array_map<span class="o">(</span>f<span class="o">,</span> </span> array1<span class="o">,</span> ...<span class="o">)</span> 
+<b>returns:</b> array of results.</code></pre>
+</div>
+
+<p><code>array_map</code> applies <code>f</code> to corresponding elements of <code>array1 ...</code> and returns an array of 
+  the resulting values. The arrays <code>array1 ...</code> must be of the same length, and <code>f</code> should accept as many arguments
+  as there are arrays and return a single value.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>array_map<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> x <span class="o">*</span> y<span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">,</span> <span class="mi">40</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span code="ge">=&gt; #[10, 40, 90, 160]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>array_for_each<span class="o">(</span>f<span class="o">,</span> </span> array1<span class="o">,</span> ...<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p><code>Array_for_each</code> is similar to <code>array_map</code> except that it does not create and return an array of the resulting values.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>same_count <span class="o">=</span> <span class="mi">0</span><span class="o">)</span> 
+    <span class="o">{</span> array_for_each<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>x <span class="o">==</span> y<span class="o">)</span> same_count <span class="o">=</span> same_count <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> 
+    <span class="o">#</span><span class="o">[</span> <span class="mi">1</span> <span class="o">,</span> <span class="mi">2</span> <span class="o">,</span> <span class="mi">3</span> <span class="o">,</span> <span class="mi">4</span> <span class="o">,</span> <span class="mi">5</span> <span class="o">,</span> <span class="mi">6</span> <span class="o">]</span> <span class="o">,</span> <span class="o">#</span> <span class="o">[</span> <span class="mi">2</span> <span class="o">,</span> <span class="mi">3</span> <span class="o">,</span> <span class="mi">3</span> <span class="o">,</span> <span class="mi">4</span> <span class="o">,</span> <span class="mi">7</span> <span class="o">,</span> <span class="mi">6</span> <span class="o">]</span> <span class="o">)</span> <span class="o">;</span> same_count <span class="o">}</span> <span class="o">;</span> 
+<span class="ge">=&gt; 3</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>string_for_each<span class="o">(</span>f<span class="o">,</span> </span> str1<span class="o">,</span> ...<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p><code>String_for_each</code> is similar to <code>fold_each</code> and <code>array_for_each</code> except that the arguments are strings.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>ls <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">{</span> string_for_each<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">)</span> ls <span class="o">=</span> <span class="o">[</span>string<span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">)</span> ls<span class="o">]</span><span class="o">,</span> 
+                           <span class="s1">&quot;abc&quot;</span><span class="o">,</span> <span class="s1">&quot;===&quot;</span><span class="o">,</span> <span class="s1">&quot;123&quot;</span><span class="o">)</span><span class="o">;</span> 
+           reverse<span class="o">(</span>ls<span class="o">)</span> <span class="o">}</span><span class="o">;</span>
+<span class="ge">=&gt; [&quot;a=1&quot;, &quot;b=2&quot;, &quot;c=3&quot;]</span></code></pre>
+</div>
+
+<h4>Continuations</h4>
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>callcc<span class="o">(</span>f<span class="o">)</span> 
+<b>returns:</b> see below.</code></pre>
+</div>
+
+<p>Continuations are procedures that represent the remainder of a computation from a given point in the computation. 
+<code>Callcc</code> obtains its continuation and passes it to <code>f</code>, which should accept one argument. 
+The continuation itself is represented by a function. Each time this function is applied to zero or more values, it returns the 
+values to the continuation of the <code>callcc</code> application. That is, when the continuation function is called, it returns 
+its arguments as the values of the application of <code>callcc</code>.</p>
+
+<p>If <code>f</code> returns normally when passed the continuation function, the values returned by <code>callcc</code> 
+  are the values returned by function.</p>
+
+<p>Continuations allow the implementation of non-local exits, backtracking, co-routines, and multitasking.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>dynamic_wind<span class="o">(</span>in<span class="o">, </span>body<span class="o">, </span>out<span class="o">)</span> 
+<b>returns:</b> result of evaluating <em>body</em>.</code></pre>
+</div>
+
+<p><code>Dynamic_wind</code> is useful for performing tasks that must be performed whenever control enters or leaves <code>body</code>, 
+  either normally or by continuation application.</p>
+<p>The three arguments <code>in</code>, <code>body</code>, and <code>out</code> must be functions that accept zero arguments. 
+  Before applying <code>body</code>, and each time <code>body</code> is entered subsequently by the application of a continuation 
+  created within <code>body</code>, the <code>in</code> function is applied. Upon normal exit from <code>body</code> and each 
+  time <code>body</code> is exited by the application of a continuation created outside <code>body</code>, the <code>out</code> function 
+  is applied. Thus, it is guaranteed that <code>in</code> is invoked at least once. In addition, if <code>body</code> ever returns, 
+  <code>out</code> is invoked at least once.</p>
+
+<h4>Delayed Evaluation</h4>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>delay<span class="o">(</span>expr<span class="o"><span class="o">)</span> 
+<b>returns:</b> a promise.
+<span class="nc">function: </span>force<span class="o">(</span>promise<span class="o"><span class="o">)</span> 
+<b>returns:</b> result of evaluating promise.</code></pre>
+</div>
+
+<p>The first time a promise created by <code>delay</code> is forced (with <code>force</code>), it evaluates <code>expr</code>, 
+  "remembering" the resulting value. Thereafter, each time the promise is forced, it returns the remembered value instead of 
+  reevaluating <code>expr</code>. In other words, the value of <code>expr</code> is <em>memoized</em> by <code>force</code>.</p>
+
+<p><code>Delay</code> and <code>force</code> are typically used only in the absence of side effects, e.g., assignments, 
+  so that the order of evaluation is unimportant.</p>
+
+<p>The benefit of using <code>delay</code> and <code>force</code> is that some amount of computation might be avoided altogether if it 
+  is delayed until absolutely required. Delayed evaluation may be used to construct conceptually infinite lists, or streams. 
+  The <a href="../dps/index.html">tutorial</a> contain detailed examples of using these functions.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>quote<span class="o">(</span>expr<span class="o"><span class="o">)</span> 
+<b>returns:</b> a compiled but un-evaluated form of <em>expr</em>.
+<span class="nc">function: </span>eval<span class="o">(</span>c_expr<span class="o"><span class="o">)</span> 
+<b>returns:</b> the value of evaluating the compiled expression <em>c_expr</em>.</code></pre>
+</div>
+
+<p><code>Quote</code> allows us to create an "evaluable" form of an expression which can be evaluated later with the <code>eval</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>quote<span class="o">(</span><span class="mi">10</span> <span class="o">+</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [+, 10, 20]</span>
+<span class="nc">slogan&gt; </span>eval<span class="o">(</span>quote<span class="o">(</span><span class="mi">10</span> <span class="o">+</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 30</span></code></pre>
+</div>
+
+<p>The <code>%</code> operator can be used instead of <code>quote</code>:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="o">%</span><span class="mi">10</span> <span class="o">+</span> <span class="mi">20</span><span class="o">;</span> 
+<span class="ge">=&gt; [+, 10, 20]</span>
+<span class="nc">slogan&gt; </span>eval<span class="o">(</span><span class="o">%</span><span class="mi">10</span> <span class="o">+</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 30</span></code></pre>
+</div>
+
 </div>
 </body>
 </html>
