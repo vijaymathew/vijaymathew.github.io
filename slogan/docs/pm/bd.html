@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./bd.html" title=""
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./pc.html" title="Program Control"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Built-in Datatypes</h3></div>
+<p>This chapter describes functions on datatypes that comes with Slogan, including lists, numbers, characters, strings, arrays, bytearrays, 
+  bitarrays, symbols, booleans, and hashtables. Before we cover the details of these functions, we will describe generic equivalence functions 
+  for comparing two objects and functions for determining the type of an object. </p>
+
+<h4>Equivalence and Type Predicates</h4>
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_eq<span class="o">(</span>obj1<span class="o">,</span> obj2<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj1</em> and <em>obj2</em> are identical, <em>false</em> otherwise.</code></pre>
+</div>
+
+<p>Two objects are considered identical if they internally reference to the same memory location.</p>
+<p><code>Is_eq</code> cannot be used to compare numbers reliably. Slogan can use different objects internally for representing two
+  big-integers that has the same value.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>is_eq<span class="o">(</span><span class="o">!</span>a<span class="o">,</span> <span class="o">!</span>b<span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>is_eq<span class="o">(</span><span class="o">!</span>a<span class="o">,</span> <span class="o">!</span>a<span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_eq<span class="o">(</span>'a'<span class="o">,</span> 'a'<span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_eq<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_eq<span class="o">(</span><span class="mi">100000000000000000000000000000000000</span><span class="o">,</span> <span class="mi">100000000000000000000000000000000000</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span></code></pre>
+</div>
+
+<p><code>Is_eq</code> is most often used to compare symbols or to check for pointer equivalence of allocated objects like pairs, arrays, and 
+  record instances.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_eqv<span class="o">(</span>obj1<span class="o">,</span> obj2<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj1</em> and <em>obj2</em> are equivalent, <em>false</em> otherwise.</code></pre>
+</div>
+
+<p><code>Is_eqv</code> is similar to <code>is_eq</code> except that it return <code>true</code> for two two numbers that are 
+  considered equal by <code>is_number_eq</code>. There is one exception for this rule though. <code>Is_eqv</code> will return <code>false</code>
+  for <code>is_eqv(+0.0, -0.0)</code>, whereas <code>is_number_eq</code> will return <code>true</code> for this comparison. This provides a
+  way to distinguish between positive and negative zeros.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>is_eqv<span class="o">(</span><span class="mi">100000000000000000000000000000000000</span><span class="o">,</span> <span class="mi">100000000000000000000000000000000000</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_equal<span class="o">(</span>obj1<span class="o">,</span> obj2<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj1</em> and <em>obj2</em> have the same structure and contents, <em>false</em> otherwise.</code></pre>
+</div>
+
+<p>Two objects are equal if each of their constituent parts are equal according to <code>is_eqv</code>. The equals operator (<code>==</code>)
+  has the same behavior as <code>is_equal</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>is_equal<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">]</span> <span class="o">==</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">]</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_equal<span class="o">(</span><span class="s1">&quot;hello&quot;</span><span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_equal<span class="o">(</span><span class="s1">&quot;hello&quot;</span><span class="o">,</span> <span class="s1">&quot;hEllo&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_boolean<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is either <em>true</em> or <em>false</em>, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_empty<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is the empty list [], <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_pair<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a pair, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>is_pair<span class="o">(</span><span class="o">[</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>is_pair<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_pair<span class="o">(</span><span class="o">[</span><span class="mi">1 2</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_pair<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="o">!</span>a<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_number<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a number, <em>false</em> otherwise.
+<span class="nc">function: </span>is_complex<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a complex number, <em>false</em> otherwise.
+<span class="nc">function: </span>is_real<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a real number, <em>false</em> otherwise.
+<span class="nc">function: </span>is_rational<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a rational number, <em>false</em> otherwise.
+<span class="nc">function: </span>is_integer<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is an integer, <em>false</em> otherwise.</code></pre>
+</div>
+
+<p>These predicates form a hierarchy: any integer is rational, any rational is real, any real is complex, and any complex is numeric. </p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_char<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a character, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_string<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a string, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_array<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is an array, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_byte_array<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a byte-array, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>is_byte_array<span class="o">(</span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>is_byte_array<span class="o">(</span><span class="o">#</span>b<span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_bit_array<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a bit-array, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_symbol<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a symbol, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_hashtable<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a hashtable, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_function<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a function, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span><span class="o">)</span> <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="mi">100</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>is_function<span class="o">(</span>f<span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_function<span class="o">(</span>f<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>is_function<span class="o">(</span>f<span class="o">(</span><span class="o">)</span><span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span></code></pre>
+</div>
+
+
+<h4>Lists and Pairs</h4>
+<p>The pair is the most fundamental of datastructure in Slogan. The most common use for pairs is to build lists, which are ordered 
+  sequences of pairs linked one to the next by the tail field. The elements of the list occupy the head fields of the pairs. 
+  The tail of the last pair in a proper list is the empty list, []; the tail of the last pair in an improper list can be anything 
+  other than [].</p>
+
+<p>Pairs can also be used to build other datastructures like trees and simple lookup tables known as <em>association lists</em>.</p>
+
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>pair<span class="o">(</span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<b>returns:</b> a new pair whose head is <em>obj1</em> and tail is <em>obj2</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>pair<span class="o">(</span><span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [3 4]</span>
+<span class="nc">slogan&gt; </span>pair<span class="o">(</span><span class="mi">3</span><span class="o">,</span> pair<span class="o">(</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [3 [4 5]]</span>
+<span class="nc">slogan&gt; </span>pair<span class="o">(</span><span class="mi">3</span><span class="o">,</span> pair<span class="o">(</span><span class="mi">4</span><span class="o">,</span> pair<span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [3, 4, 5]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>head<span class="o">(</span>p<span class="o">)</span> 
+<b>returns:</b> the head of the pair <em>p</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>tail<span class="o">(</span>p<span class="o">)</span> 
+<b>returns:</b> the tail of the pair <em>p</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>set_head<span class="o">(</span>p<span class="o">, </span>obj<span class="o">)</span> 
+<b>returns:</b> <em>void</em>.</code></pre>
+</div>
+
+<p>Changes the head of the pair <code>p</code> to <code>obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>set_tail<span class="o">(</span>p<span class="o">, </span>obj<span class="o">)</span> 
+<b>returns:</b> <em>void</em>.</code></pre>
+</div>
+
+<p>Changes the tail of the pair <code>p</code> to <code>obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>list<span class="o">(</span>obj<span class="o">, </span>...<span class="o">)</span> 
+<b>returns:</b> a list of <em>obj, ...</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>list<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; []</span>
+<span class="nc">slogan&gt; </span>list<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [1, 2, 3]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_list<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> is <em>obj</em> is a proper list, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>length<span class="o">(</span>lst<span class="o">)</span> 
+<b>returns:</b> the number of elements in the list <em>lst</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>at<span class="o">(</span>lst<span class="o">,</span> n<span class="o">)</span> 
+<b>returns:</b> the <em>n</em><sup>th</sup> (zero based) element in the list <em>lst</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>nth_tail<span class="o">(</span>lst<span class="o">,</span> n<span class="o">)</span> 
+<b>returns:</b> the <em>n</em><sup>th</sup> (zero based) tail of the list <em>lst</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>drop<span class="o">(</span>lst<span class="o">,</span> n<span class="o">)</span> 
+<b>returns:</b> a new list with <em>n</em> elements removed from <em>lst</em>.</code></pre>
+</div>
+
+<p>If <code>n</code> is greater than the length of <code>lst</code>, [] is returned. If <code>n</code> is negative, 
+  the elements are dropped from the tail of <code>lst</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>drop<span class="o">(</span><span class="o">%</span><span class="o">[</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">,</span> d<span class="o">,</span> e<span class="o">]</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [d, e]</span>
+<span class="nc">slogan&gt; </span>drop<span class="o">(</span><span class="o">%</span><span class="o">[</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">,</span> d<span class="o">,</span> e<span class="o">]</span><span class="o">,</span> <span class="o">-</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [a, b]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>take<span class="o">(</span>lst<span class="o">,</span> n<span class="o">)</span> 
+<b>returns:</b> a new list with <em>n</em> elements from <em>lst</em>.</code></pre>
+</div>
+
+<p>If <code>n</code> is greater than the length of <code>lst</code>, all elements are returned. 
+  If <code>n</code> is negative, the elements are taken from the tail of <code>lst</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>take<span class="o">(</span><span class="o">%</span><span class="o">[</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">,</span> d<span class="o">,</span> e<span class="o">]</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [a, b, c]</span>
+<span class="nc">slogan&gt; </span>take<span class="o">(</span><span class="o">%</span><span class="o">[</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">,</span> d<span class="o">,</span> e<span class="o">]</span><span class="o">,</span> <span class="o">-</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [c, d, e]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>append<span class="o">(</span><span class="o">)</span>
+<span class="nc">function: </span>append<span class="o">(</span>list1<span class="o">,</span> ...<span class="o">,</span> obj<span class="o">)</span> 
+<b>returns:</b> the concatenation of the lists.</code></pre>
+</div>
+
+<p><code>Append</code> returns a new list consisting of the elements of the first list followed by the elements of the second list, 
+  the elements of the third list, and so on. The new list is made from new pairs for all arguments but the last; the last 
+  (which need not be a list) is merely placed at the end of the new structure.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>append<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; []</span>
+<span class="nc">slogan&gt; </span>append<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [1, 2, 3]</span>
+<span class="nc">slogan&gt; </span>append<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [1 [2 3]]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>reverse<span class="o">(</span>lst<span class="o">)</span>
+<b>returns:</b> a new list with the elements of <em>lst</em> in the reverse order.</code></pre>
+</div>
+
+</div>
+</body>
+</html>
