@@ -29,7 +29,7 @@
     <p>Pure functional programming is somewhat detached from the real world where entities have changing state. To connect a functional
       program to the real world, some non-functional operations are needed. This chapter covers few such operations - input/output on 
       files and the network, invoking code written in C and compiling Slogan programs into standalone applications
-      for the host operating system. We also introduce the module system which helps in organizing large programs.</p>
+      for the host operating system.</p>
 
     <h4>File and Network IO</h4>
     <p>A simple way to interface functional programming with the real world is by using files. A file is a sequence of values that is 
@@ -210,7 +210,7 @@ char *say_hello(___slogan_obj msg)
       are related in some way. Each logical unit has two parts, an interface and an implementation. Only the interface is visible from 
       outside the logical unit. A logical unit may use others as part of its implementation.</p>
 
-    <p>Slogan provides a <em>module</em> mechanism to group together related operations into an entity that has an interface
+    <p>We can use closures to group together related operations into an entity that has an interface
       and an implementation. The following example shows a dictionary module that can be used to associate a word with some value.
       The dictionary module exports two operations to the outside world:</p>
     <p><ol>
@@ -225,11 +225,15 @@ char *say_hello(___slogan_obj msg)
     
     <div class="highlight">
       <pre><code><span class="c">// file: dict.sn</span>
-<span class="k">module</span> dict <span class="k">export</span> <span class="o">(</span>put<span class="o">,</span> get<span class="o">)</span> <span class="o">{</span> 
-  <span class="k">define</span> table <span class="o">=</span> make_hashtable<span class="o">(</span>string_hash<span class="o">,</span> is_string_eq<span class="o">)</span><span class="o">;</span> 
-  <span class="k">function</span> put<span class="o">(</span>w<span class="o">,</span> v<span class="o">)</span> hashtable_set<span class="o">(</span>table<span class="o">,</span> w<span class="o">,</span> v<span class="o">)</span><span class="o">;</span> 
-  <span class="k">function</span> get<span class="o">(</span>w<span class="o">)</span> hashtable_at<span class="o">(</span>table<span class="o">,</span> w<span class="o">)</span> 
-<span class="o">}</span><span class="o">;</span></code></pre>
+<span class="k">function</span> dict<span class="o">(</span><span class="o">)</span> 
+  <span class="o">{</span> <span class="k">define</span> table <span class="o">=</span> make_hashtable<span class="o">(</span>string_hash<span class="o">,</span> is_string_eq<span class="o">)</span><span class="o">;</span> 
+    <span class="k">function</span> put<span class="o">(</span>w<span class="o">,</span> v<span class="o">)</span> hashtable_set<span class="o">(</span>table<span class="o">,</span> w<span class="o">,</span> v<span class="o">)</span><span class="o">;</span> 
+    <span class="k">function</span> get<span class="o">(</span>w<span class="o">)</span> hashtable_at<span class="o">(</span>table<span class="o">,</span> w<span class="o">)</span><span class="o">;</span> 
+
+    <span class="k">fn</span> <span class="o">(</span>message<span class="o">)</span> 
+      <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> 
+       <span class="o">!</span>put<span class="o">:</span> put<span class="o">,</span> 
+       <span class="o">!</span>get<span class="o">:</span> get <span class="o">}</span><span class="o">;</span></code></pre>
     </div>
 
     <p>To use the dictionary module, we have to first <em>load</em> the file "dict.sn" into the REPL:</p>
@@ -251,15 +255,18 @@ char *say_hello(___slogan_obj msg)
       <pre><code><span class="c">// file: word_count.sn </span>
 <span class="k">load</span> <span class="s1">"dict"</span><span class="o">;</span> 
 
-<span class="k">module</span> word_count<span class="o">(</span>port<span class="o">)</span> <span class="k">export</span> <span class="o">(</span>count<span class="o">)</span> 
-  <span class="o">{</span> <span class="k">define</span> wd <span class="o">=</span> <span class="k">let</span> init_words_dict <span class="o">(</span>words<span class="o">=</span> string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> wd <span class="o">=</span> dict<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
+<span class="k">function</span> word_count<span class="o">(</span>port<span class="o">)</span> 
+  <span class="o">{</span> <span class="k">define</span> wd <span class="o">=</span> <span class="k">let</span> init_words_dict <span class="o">(</span>words <span class="o">=</span> string_split<span class="o">(</span>read_all_lines<span class="o">(</span>port<span class="o">)</span><span class="o">)</span><span class="o">,</span> 
+                                     wd <span class="o">=</span> dict<span class="o">(</span><span class="o">)</span><span class="o">)</span> 
                  <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>words<span class="o">)</span><span class="o">)</span> wd 
-                 <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span>get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
-                  <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span><span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
-                    wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-                    init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+                 <span class="k">else</span> <span class="k">let</span> <span class="o">(</span>count <span class="o">=</span> wd<span class="o">.</span> get<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">)</span><span class="o">)</span> 
+                       <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>count<span class="o">)</span><span class="o">)</span> count <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> 
+                         wd<span class="o">.</span>put<span class="o">(</span>head<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+                         init_words_dict<span class="o">(</span>tail<span class="o">(</span>words<span class="o">)</span><span class="o">,</span> wd<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
 
-    <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> wd<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span><span class="o">;</span> <span class="o">}</span><span class="o">;</span> </code></pre>
+    <span class="k">function</span> count<span class="o">(</span>word<span class="o">)</span> wd<span class="o">.</span>get<span class="o">(</span>word<span class="o">)</span><span class="o">;</span> 
+
+    <span class="k">fn</span> <span class="o">(</span>message<span class="o">)</span> <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>count<span class="o">:</span> count <span class="o">}</span><span class="o">;</span></code></pre>
     </div>
 
 <p>The word_count module presents a new feature called <em>named let</em> which allows a <code>let</code> block to be named and used
