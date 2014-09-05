@@ -1094,7 +1094,7 @@ left by <em>mod(int2, end - start)</em> bits, with the bits shifted out of the r
 <b>returns:</b> an external representation of <em>num</em> as a string.</code></pre>
 </div>
 
-<p>The num is expressed in radix <em>radix</em>, which must be an exact integer in the set {2, 8, 10, 16}. 
+<p>The number is expressed in radix <em>radix</em>, which must be an exact integer in the set {2, 8, 10, 16}. 
   If not specified, <em>radix</em> defaults to 10. In any case, no radix specifier appears in the resulting string.</p>
 
 <div class="highlight">
@@ -2288,7 +2288,145 @@ source object <em>rs</em>.</code></pre>
 </div>
 
 <h4>Hashtables</h4>
-<p></p>
+<p>Hashtables represent sets of associations between arbitrary Slogan values. They serve essentially the same purpose as 
+  association lists but are typically much faster when large numbers of associations are involved.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>make_hashtable<span class="o">(</span>hash_f<span class="o">,</span> eq_predicate<span class="o">,</span> @optional size<span class="o">)</span>
+<b>retruns:</b> a new hashtable.</code></pre>
+</div>
+
+<p><code>Hash_f</code> and <code>eq_predicate</code> must be function. If <code>size</code> is provided, it must be a nonnegative exact 
+  integer indicating approximately how many elements the hashtable should initially hold. Hashtables grow as needed, but when the 
+  hashtable grows it generally must rehash all of the existing elements. Providing a nonzero size can help limit the amount of 
+  rehashing that must be done as the table is initially populated.</p>
+
+<p>The new hashtable computes hash values using <code>hash_f</code> and compares keys using <code>eq_predicate</code>, neither of which 
+  should modify the hashtable. <code>Eq_predicate</code> should compare two keys and return <code>false</code> only if the two keys 
+  should be distinguished. <code>Hash_f</code> should accept a key as an argument and return a nonnegative exact integer value that 
+  is the same each time it is called with arguments that <code>eq_predicate</code> does not distinguish.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> h <span class="o">=</span> make_hashtable<span class="o">(</span>string_hash<span class="o">,</span> string_is_eq<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>hashtable_set<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">,</span> <span class="s1">&quot;vijay&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>hashtable_at<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; &quot;vijay&quot;</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>make_eq_hashtable<span class="o">(</span>@optional size<span class="o">)</span>
+<span class="nc">function: </span>make_eqv_hashtable<span class="o">(</span>@optional size<span class="o">)</span>
+<b>retruns:</b> a new hashtable that uses <em>is_eq</em> or <em>is_eqv</em> for comparing keys.</code></pre>
+</div>
+
+<p>An <code>eq_hashtable</code> or a <code>eqv_hashtable</code> employs a hash function based on object addresses. 
+Their hash and equivalence functions are suitable for any Slogan object.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>make_equal_hashtable<span class="o">(</span>@optional size<span class="o">)</span>
+<b>retruns:</b> a new hashtable that uses <em>is_equal</em> for comparing keys.</code></pre>
+</div>
+
+<p>An <code>equal_hashtable</code> uses the built-in <code>equal_hash</code> function which takes into consideration the
+  current structure and contents of a key.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_hashtable<span class="o">(</span>obj<span class="o">)</span>
+<b>retruns:</b> <em>true</em> if <em>obj</em> is a hashtable, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>eq_hash<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>eqv_hash<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>equal_hash<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>string_hash<span class="o">(</span>str<span class="o">)</span>
+<span class="nc">function: </span>string_ci_hash<span class="o">(</span>str<span class="o">)</span>
+<span class="nc">function: </span>symbol_hash<span class="o">(</span>sym<span class="o">)</span>
+<b>retruns:</b> an exact nonnegative integer hash value.</code></pre>
+</div>
+
+<p>These hash function are suitable for use with the appropriate predicate: <code>is_eq</code> for <code>eq_hash</code> and 
+  <code>symbol_hash</code>, <code>is_eqv</code>
+  for <code>eqv_hash</code>, <code>is_equal</code> for <code>equal_hash</code>, <code>string_is_eq</code> for <code>string_hash</code>, 
+  and <code>string_is_ci_eq</code> for <code>string_ci_hash</code>. The hash values returned by <code>equal_hash</code>, <code>string_hash</code>,
+  and <code>string_ci_hash</code> are typically dependent on the current structure and contents of the input values and are thus 
+  unsuitable if keys are modified while they have associations in a hashtable.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_set<span class="o">(</span>ht <span class="o">, </span>key<span class="o">, </span>value<span class="o">)</span>
+<b>retruns:</b> void</code></pre>
+</div>
+
+<p><code>Key</code> should be an appropriate key for the hashtable's hash and equivalence functions. 
+  <code>Value</code> may be any Slogan object. Any existing association that <code>key</code> holds in the hashtable is replaced
+  with <code>obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_at<span class="o">(</span>ht <span class="o">, </span>key<span class="o">, </span>@optional default<span class="o">)</span>
+<b>retruns:</b> the value associated with <em>key</em> in the hashtable <em>ht</em>.</code></pre>
+</div>
+
+<p><code>Key</code> should be an appropriate key for the hashtable's hash and equivalence functions. 
+  <code>Default</code> may be any Slogan object and defaults to <code>false</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_contains<span class="o">(</span>ht <span class="o">, </span>key<span class="o">)</span>
+<b>retruns:</b> <em>true</em> if an association for <em>key</em> exists in the hashtable <em>ht</em>, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_update<span class="o">(</span>ht <span class="o">, </span>key<span class="o">, f<span class="o">, </span>default<span class="o">)</span>
+<b>retruns:</b> void</code></pre>
+</div>
+
+<p><code>Key</code> should be an appropriate key for the hashtable's hash and equivalence functions. <code>Default</code> may be any 
+  Slogan object. The function <code>f</code> should accept one argument, should return one value, and should not modify the hashtable.</p>
+
+<p><code>Hashtable_update</code> applies <code>f</code> to the value associated with <code>key</code> in the hashtable, or to 
+  <code>default</code> if no value is associated with <code>key</code>. If <code>f</code> returns, <code>key</code> is associated with 
+  the value returned by <code>f</code>, replacing the old association, if any.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_size<span class="o">(</span>ht<span class="o">)</span>
+<b>retruns:</b> the number of entries in the hashtable <em>ht</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_copy<span class="o">(</span>ht<span class="o">)</span>
+<b>retruns:</b> a new hashtable containing the same entries as the hashtable <em>ht</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_keys<span class="o">(</span>ht<span class="o">)</span>
+<b>retruns:</b> an array containing the keys of the hashtable <em>ht</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_values<span class="o">(</span>ht<span class="o">)</span>
+<b>retruns:</b> an array containing the values of the hashtable <em>ht</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_entries<span class="o">(</span>ht<span class="o">)</span>
+<b>retruns:</b> a pair that with two arrays: the first one with keys and the second one 
+         with the values of the hashtable <em>ht</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>hashtable_for_each<span class="o">(</span>f<span class="o">, </span>ht<span class="o">)</span>
+<b>retruns:</b> void</code></pre>
+</div>
+
+<p>For each entry in the hashtable <code>ht</code>, calls the function <code>f</code> by passing it the key and value as arguments.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> h <span class="o">=</span> make_eq_hashtable<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>hashtable_set<span class="o">(</span>h<span class="o">,</span> <span class="o">!</span>name<span class="o">,</span> <span class="s1">&quot;nemo&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>hashtable_set<span class="o">(</span>h<span class="o">,</span> <span class="o">!</span>age<span class="o">,</span> <span class="mi">1</span><span class="o">)</span> <span class="o">;</span> 
+<span class="nc">slogan&gt; </span>hashtable_for_each<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">,</span> v<span class="o">)</span> showln<span class="o">(</span>k<span class="o">,</span> <span class="s1">&quot;: &quot;</span><span class="o">,</span> v<span class="o">)</span><span class="o">,</span> h<span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; </span>name: nemo
+   age: 1</code></pre>
+</div>
 
 </div>
 </body>
