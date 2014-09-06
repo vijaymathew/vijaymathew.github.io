@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./io.html" title=""
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./bd.html" title="Built-in Datatypes"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Input and Output</h3></div>
+    <p>All input and output operations are performed through ports. A port is a pointer into a (possibly infinite) stream of data (often a file), 
+      an opening through which programs may draw bytes or characters from the stream or place bytes or characters into the stream. 
+      A port may be an input port, an output port, or both simultaneously.</p>
+
+    <p>There are initially three ports: the current input port, current output port, and current error port, which are textual ports 
+      connected to the process's standard input, standard output, and standard error streams. Several ways to open new ports are provided.</p>
+
+    <p>If one of the input operations is asked to read from a port that has reached the end of a finite stream, it returns a special 
+      <code>eof</code> (end of file) object. The predicate <code>is_eof_object</code> may be used to determine if the value returned 
+      from the input operation is the eof object.</p>
+
+    <p>Ports are either binary or textual. A binary port allows a program to read or write 8-bit unsigned bytes, or "octets," from or 
+      to the underlying stream. A textual port allows a program to read or write characters.</p>
+
+    <p>A port may be buffered for efficiency, to eliminate the overhead of a call into the operating system for each byte or character. 
+      Three standard buffer modes are supported: <code>block</code>, <code>line</code>, and <code>none</code>. With block buffering, 
+      input is drawn from a stream and output is sent to the stream in chunks of some implementation-dependent size. With line buffering, 
+      buffering is performed on a line-by-line basis or on some other implementation-dependent basis. Line buffering is typically distinguished 
+      from block buffering only for textual output ports; there are no line divisions in binary ports, and input is likely to be drawn from a 
+      stream as it becomes available. With buffer-mode none, no buffering is performed, so output is sent immediately to 
+      the stream and input is drawn only as needed.</p>
+
+    <p>The remainder of this chapter covers operations on transcoders, file ports, standard ports, string, bytearray and network ports, 
+      general port operations, input operations, output operations, convenience I/O, filesystem operations, and conversions between 
+      bytearrays and strings. </p>
+
+    <h4>Transcoders</h4>
+    <p>In many cases, the underlying stream is organized as a sequence of bytes, but these bytes should be treated as encodings for characters. 
+      In this case, a textual port may be created with a transcoder to decode bytes to characters (for input) or encode characters to 
+      bytes (for output). A transcoder encapsulates a codec that determines how characters are represented as bytes. 
+      These standard codecs are provided: ISO_8859_1, ASCII, UTF_8, UTF_16, UTF_16LE, UTF_16BE, UCS_2, UCS_2LE, UCS_2BE, 
+      UCS_4, UCS_4LE and UCS_4BE.</p>
+
+    <p>A transcoder also encapsulates an eol style that determines whether and how line endings are recognized. If the eol style is none, no 
+      line endings are recognized. Supported eol styles are:</p>
+
+    <ul>
+      <li><code>lf</code>: line-feed character</li>
+      <li><code>cr</code>: carriage-return character</li>
+      <li><code>crlf</code>: carriage return followed by line feed</li>
+    </ul>
+
+    <p>In addition to the codec and eol style, a transcoder encapsulates just one other piece of information: an error-handling mode 
+      that determines what happens if a decoding or encoding error occurs, i.e., if a sequence of bytes cannot be converted to a character 
+      with the encapsulated codec in the input direction or a character cannot be converted to a sequence of bytes with the encapsulated codec 
+      in the output direction. The error-handling mode is <code>ignore</code>, <code>raise</code>, or <code>replace</code>. 
+      If the error-handling mode is <code>ignore</code>, the offending sequence of bytes or the character is ignored. 
+      If the error-handling mode is <code>raise</code>, an exception with condition type i/o-decoding or i/o-encoding is raised; 
+      in the input direction, the port is positioned beyond the sequence of bytes. If the error-handling mode is <code>replace</code>, 
+      a replacement character or character encoding is produced: in the input direction, the replacement character is <code>U+FFFD</code>, 
+      while in the output direction, the replacement is either the encoding of <code>U+FFFD</code> for unicode codecs or the
+      encoding of the question-mark character ( ? ) for other codecs.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>transcoder<span class="o">(</span>codec<span class="o">,</span> @optional eol_style <span class="o">=</span> <span class="o">!</span>crlf<span class="o">,</span> error_handling_mode <span class="o">=</span> <span class="o">!</span>ignore<span class="o">)</span>
+<b>returns: </b>a transcoder encapsulating <em>codec</em>, <em>eol_style</em>, and <em>error_handling_mode</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>transcoder_codec<span class="o">(</span>transcoder<span class="o">)</span>
+<span class="nc">function: </span>transcoder_eol_style<span class="o">(</span>transcoder<span class="o">)</span>
+<span class="nc">function: </span>transcoder_error_handling_mode<span class="o">(</span>transcoder<span class="o">)</span>
+<b>returns: </b>the codec, eol_style, or error_handling_mode of <em>transcoder</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> t <span class="o">=</span> transcoder<span class="o">(</span><span class="o">!</span>UTF_8<span class="o">,</span> <span class="o">!</span>lf<span class="o">,</span> <span class="o">!</span>raise<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>transcoder_codec<span class="o">(</span>t<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; UTF_8</span>
+<span class="nc">slogan&gt; </span>transcoder_eol_style<span class="o">(</span>t<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; lf</span>
+<span class="nc">slogan&gt; </span>transcoder_error_handling_mode<span class="o">(</span>t<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; raise</span></code></pre>
+</div>
+
+<h4>File Ports</h4>
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_file_input_port<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">, </span>tcoder<span class="o">)</span>
+<b>returns: </b>a new input port for the named file.</code></pre>
+</div>
+
+<p>If present, <code>options</code> must be a list of symbols that control aspects of file operations. The only option that is valid for this function
+  is <code>truncate</code> which controls whether the file will be truncated when it is opened. <code>Bmode</code> is a symbol that controls buffering.
+  By default, buffering is turned off. If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, 
+  and this function returns a textual input port whose transcoder is <code>tcoder</code>. Otherwise, this function returns a binary input port. </p>
+
+  </div>
+</body>
+</html>
