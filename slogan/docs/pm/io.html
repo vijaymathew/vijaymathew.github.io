@@ -112,6 +112,283 @@
   By default, buffering is turned off. If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, 
   and this function returns a textual input port whose transcoder is <code>tcoder</code>. Otherwise, this function returns a binary input port. </p>
 
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_file_output_port<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">,</span> tcoder<span class="o">, </span> permissions = 0o666<span class="o">)</span>
+<b>returns:</b> a new output port for the named file.</code></pre>
+</div>
+
+<p>If present, <code>options</code> must be a list of symbols that control aspects of file operations. The options that are valid for this 
+  function are <code>create</code>, <code>no_create</code>, <code>maybe_create</code>, <code>append</code> and <code>truncate</code>. </p>
+<p>The <code>create</code> option requires that the file does not exist (otherwise an exception is raised) and creates the file when it is opened.
+  The <code>no_create</code> option requires that the file exist (otherwise an exception is raised). 
+  The <code>maybe_create</code> option will create the file if it does not exist. This is the default option.
+  The <code>append</code> option controls whether output will be added to the end of the file. This is useful for writing to log files 
+  that might be open by more than one process. By default appending is turned-off.
+  The <code>truncate</code> option controls whether the file will be truncated when it is opened. This option is turned-on by default when no
+  <code>append</code> option is provided and turned-off when <code>append</code> is not provided.</p>
+<p><code>Bmode</code> is a symbol that controls buffering. By default, buffering is turned off. If <code>tcoder</code> is present and not false, 
+  it must be a transcoder, and this function returns a textual output port whose transcoder is <code>tcoder</code>. Otherwise, this 
+  function returns a binary output port.</p>
+<p>The <code>permissions</code> argument controls the UNIX permissions that will be attached to the file if it is created. The default
+  value of this setting is <code>0o666</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_file_input_output_port<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">,</span> tcoder<span class="o">, </span> permissions = 0o666<span class="o">)</span>
+<b>returns:</b> a new input/output port for the named file.</code></pre>
+</div>
+
+<h5>Standard Ports</h5>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>current_input_port<span class="o">(</span><span class="o">)</span>
+<span class="nc">function: </span>current_output_port<span class="o">(</span><span class="o">)</span>
+<span class="nc">function: </span>current_error_port<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> the current input/output/error ports.</code></pre>
+</div>
+
+<p>These function return ports that are attached to a process's standard input, standard output, and standard error streams. </p>
+
+<h4>String and Byte Array Ports</h4>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_byte_array_input_port<span class="o">(</span>byte_array<span class="o">,</span> @optional tcoder<span class="o">)</span>
+<b>returns:</b> a new input port that draws input from the <em>byte_array</em>.</code></pre>
+</div>
+
+<p><code>Byte_array</code> must be an array of unsigned bytes.
+  If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, and this procedure returns a textual
+  input port whose transcoder is <code>tcoder</code>. Otherwise, this procedure returns a binary input port.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_byte_array_output_port<span class="o">(</span>@optional tcoder<span class="o">)</span>
+<b>returns:</b> a new output port for writing unsigned bytes.</code></pre>
+</div>
+
+<p>If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, and this procedure returns a textual
+  output port whose transcoder is <code>tcoder</code>. Otherwise, this procedure returns a binary output port.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>get_output_bytes<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> an array of bytes written to the byte array output port <em>port</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_string_input_port<span class="o">(</span>str<span class="o">)</span>
+<b>returns:</b> a new input port that draws input from the string <em>str</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_string_output_port<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> a new output port for writing characters.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>get_output_string<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> a string of characters written to the string output port <em>port</em>.</code></pre>
+</div>
+
+<h4>Process Ports</h4>
+<p>The functions described in this section start a new operating system process and create a bidirectional port which allows 
+  communication with that process on its standard input and standard output. </p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_process_port<span class="o">(</span>path<span class="o">, </span>@key direction<span class="o"> = </span><span class="o">!</span>input_output<span class="o">, </span>
+                            arguments<span class="o"> = </span><span class="o">[]</span><span class="o">, </span>environment<span class="o">, </span>
+                            directory<span class="o">, </span>stdin_redirection<span class="o"> = </span>true<span class="o">, </span>stdout_redirection<span class="o"> = </span>true<span class="o">, </span>
+                            stderr_redirection<span class="o">, </span>pseudo_terminal<span class="o">, </span>show_console<span class="o"> = </span>true<span class="o">, </span>
+                            transcoder<span class="o">)</span>
+<b>returns:</b> a port that can be used to communicate with an operating system process.</code></pre>
+</div>
+
+<p>A descritpion of the arguments:</p>
+<ul>
+  <li><code>path</code>: indicates the location of the executable program in the filesystem.</li>
+  <li><code>direction</code>: should be one of the symbols - <code>input_output</code>, <code>input</code> or <code>output</code>. Defaults to <code>input_output</code>.</li>
+  <li><code>arguments</code>: a list of strings. Indicates the string arguments that are passed to the program. 
+    The default value of this setting is the empty list (i.e. no arguments).</li>
+  <li><code>environment</code>: a list of strings. Indicates the set of environment variable bindings that the process receives. 
+    Each element of the list is a string of the form <code>&quot;VAR=VALUE&quot;</code>, where <code>VAR</code> is the name of the 
+    variable and <code>VALUE</code> is its binding. When <code>environment</code> is <code>false</code>, the process inherits the 
+    environment variable bindings of the Slogan program. The default value of this setting is <code>false</code>.</li>
+  <li><code>directory</code>: indicates the current working directory of the process. When <code>directory</code> is <code>false</code>, 
+    the process uses the value of <code>current_directory</code>. The default value of this setting is <code>false</code>.</li>
+  <li><code>stdin_redirection</code>: either <code>true</code> or <code>false</code>. Indicates how the standard input of the process is 
+    redirected. A setting of <code>true</code> will redirect the standard input from the process-port (i.e. what is written to 
+    the process-port will be available on the standard input). A setting of <code>false</code> will leave the standard input as-is, 
+    which typically results in input coming from the console. The default value of this setting is <code>true</code>.</li>
+  <li><code>stdout_redirection</code>: either <code>true</code> or <code>false</code>. Indicates how the standard output of the process 
+    is redirected. A setting of <code>true</code> will redirect the standard output to the process-port (i.e. all output to standard output 
+    can be read from the process-port). A setting of <code>false</code> will leave the standard output as-is, which typically 
+    results in the output going to the console. The default value of this setting is <code>true</code>.</li>
+  <li><code>stderr_redirection</code>: either <code>true</code> or <code>false</code>. Indicates how the standard error of the process 
+    is redirected. A setting of <code>true</code> will redirect the standard error to the process-port (i.e. all output to standard 
+    error can be read from the process-port). A setting of <code>false</code> will leave the standard error as-is, which typically 
+    results in error messages being output to the console. The default value of this setting is <code>false</code>.</li>
+  <li><code>pseudo_terminal</code>: either <code>true</code> or <code>false</code>. This setting applies to UNIX. It indicates what type 
+    of device will be bound to the process' standard input and standard output. A setting of <code>true</code> will use a pseudo-terminal
+    device (this is a device that behaves like a tty device even though there is no real terminal or user directly involved). A setting of 
+    <code>false</code> will use a pair of pipes. The difference is important for programs which behave differently when they are used 
+    interactively, for example shells. The default value of this setting is <code>false</code>.</li>
+  <li><code>show_console</code>: either <code>true</code> or <code>false</code>. It controls whether the process' console window will 
+    be hidden or visible. The default value of this setting is <code>true</code> (i.e. show the console window).</li>
+  <li><code>transcoder</code>: If <code>transcoder</code> is present and not <code>false</code>, 
+    it must be a transcoder, and this function returns a textual port whose transcoder is <code>transcoder</code>.</li>
+</ul>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>process_pid<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> the ID of the process attached to the process port <em>port</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>process_status<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> the exit status of the process attached to the process port <em>port</em>.</code></pre>
+</div>
+
+<h4>TCP Ports</h4>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_tcp_server_port<span class="o">(</span>address<span class="o">, </span>@key port_number<span class="o">, </span>
+                               backlog<span class="o"> = </span><span class="o">128</span><span class="o">, </span>reuse_address<span class="o"> = </span>true<span class="o">, </span>
+                               transcoder<span class="o">)</span>
+<b>returns:</b> a tcp-server-port from which network connections to clients are obtained.</code></pre>
+</div>
+
+<p>A descritpion of the arguments:</p>
+<p><ul>
+  <li><code>address</code>: indicates the internet address of the network interface on which connections requests are accepted, 
+    and possibly the IP port number. A string of the form <code>&quot;INTF:PORT&quot;</code> will be parsed and the value of 
+    <code>INTF</code> will be assigned to <code>address</code> and the integer value of <code>PORT</code> will be assigned 
+    to <code>port_number</code>. This argument can also be a 4 element <code>u8</code> array which contains the 32-bit IPv4 address or 
+    an 8 element <code>u8</code> array which contains the 128-bit IPv6 address.</li>
+  <li><code>port_number</code>: must be an exact integer. Indicates the IP port number assigned to the socket which accepts 
+    connection requests from clients.</li>
+  <li><code>backlog</code>: must be a positive-exact-integer. Indicates the maximum number of connection requests that can be 
+    waiting to be accepted by a call to read (technically it is the value passed as the second argument of the UNIX <code>listen()</code> 
+    function). The default value of this setting is <code>128</code>.</li>
+  <li><code>reuse_address</code>: either <code>true</code> or <code>false</code>. Controls whether it is possible to assign a port number 
+    that is currently active. Note that when a server process terminates, the socket it was using to accept connection requests does 
+    not become inactive immediately. Instead it remains active for a few minutes to ensure clean termination of the connections. 
+    A setting of <code>false</code> will cause an exception to be raised in that case. A setting of <code>true</code> will allow a 
+    port number to be used even if it is active. The default value of this setting is <code>true</code>.</li>
+  <li><code>transcoder</code>: If <code>transcoder</code> is present and not <code>false</code>, 
+    it must be a transcoder, and this function returns a textual port whose transcoder is <code>transcoder</code>.</li>
+</ul></p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>open_tcp_client_port<span class="o">(</span>address<span class="o">, </span>@key port_number<span class="o">, </span>
+                               keep_alive<span class="o">, </span>coalesce<span class="o"> = </span>true<span class="o">, </span>
+                               transcoder<span class="o">)</span>
+<b>returns:</b> a tcp-client-port that represents a connection to a TCP server and allows communication with that server.</code></pre>
+</div>
+
+<p>A descritpion of the arguments:</p>
+<p><ul>
+  <li><code>address</code>: indicates the internet address of the server, 
+    and possibly the IP port number. A string of the form <code>&quot;INTF:PORT&quot;</code> will be parsed and the value of 
+    <code>INTF</code> will be assigned to <code>address</code> and the integer value of <code>PORT</code> will be assigned 
+    to <code>port_number</code>. This argument can also be a 4 element <code>u8</code> array which contains the 32-bit IPv4 address or 
+    an 8 element <code>u8</code> array which contains the 128-bit IPv6 address.</li>
+  <li><code>port_number</code>: must be an exact integer. Indicates the IP port number of the server to connect.</li>
+  <li><code>keep_alive</code>: either <code>true</code> or <code>false</code>. Controls the use of the &quot;keep alive&quot; 
+    option on the connection. The &quotkeep alive&quot; option will periodically send control packets on otherwise idle network 
+    connections to ensure that the server host is active and reachable. The default value of this setting is <code>false</code>.</li>
+  <li><code>coalesce</code>: either <code>true</code> or <code>false</code>. Controls the use of TCP's &quot;Nagle algorithm&quot; 
+    which reduces the number of small packets by delaying their transmission and coalescing them into larger packets. A setting of 
+    <code>true</code> will coalesce small packets into larger ones. A setting of <code>false</code> will transmit packets as soon as possible. 
+    The default value of this setting is <code>true</code>. Note that this setting does not affect the buffering of the port.</li>
+  <li><code>transcoder</code>: If <code>transcoder</code> is present and not <code>false</code>, 
+    it must be a transcoder, and this function returns a textual port whose transcoder is <code>transcoder</code>.</li>
+</ul></p>
+
+<h4>Port Operations</h4>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_port<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>is_output_port<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>is_input_port<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a port, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>close_port<span class="o">(</span>port<span class="o">)</span>
+<span class="nc">function: </span>close_output_port<span class="o">(</span>port<span class="o">)</span>
+<span class="nc">function: </span>close_input_port<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> void.</code></pre>
+</div>
+
+<p>If <code>port</code> is not already closed, these functions closes it, first flushing any buffered bytes or characters to the underlying 
+  stream if the port is an output port. Once a port has been closed, no more input or output operations may be performed on the port. 
+  Because the operating system may place limits on the number of file ports open at one time or restrict access to an open file, it is 
+  good practice to close any file port that will no longer be used for input or output. 
+  Closing a port that has already been closed has no effect.</p>
+<p>Closing a string or byte array port has no effect. As they consume no system resources, string and byte array ports can be safely reclaimed by 
+  the garbage collector.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>port_position<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> the port's current position.</code></pre>
+</div>
+
+<p>A port may allow queries to determine its current position in the underlying stream of bytes or characters. If so, <code>port_position</code> 
+  returns the current position. For binary ports, the position is always an exact nonnegative integer byte displacement from the start of 
+  the byte stream. For textual ports, the representation of a position is unspecified; it may not be an exact nonnegative integer and, 
+  even if it is, it may not represent either a byte or character displacement in the underlying stream. If <code>port_position</code> is 
+  called on a port that does not support it, an exception is raised.</p>
+
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>port_has_port_position<span class="o">(</span>port<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>port</em> allows querying position, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>set_port_position<span class="o">(</span>port<span class="o">, </span>pos<span class="o">, </span>@optional whence<span class="o"> = </span> <span class="o">!</span>beginning<span class="o">)</span>
+<b>returns:</b> the new position on success.</code></pre>
+</div>
+
+<p>A port may allow its current position to be moved directly to a different position in the underlying stream of bytes or characters. 
+  If so, <code>set_port_position</code> changes the current position to <code>pos</code>. For binary ports, the position <code>pos</code>
+  must be an exact nonnegative integer byte displacement from the start of the byte stream. For textual ports, the representation of a 
+  position is unspecified, but <code>pos</code> must be an appropriate position for the textual port. 
+  If <code>set_port_position</code> is called on a port that does not support it, an exception is raised.</p>
+
+<p>The symbolic argument <code>whence</code> can be one of: <code>beginning</code>, <code>current</code> or <code>end</code>.
+  When whence is omitted or is <code>beginning</code>, the position is relative to the beginning of the file.
+  When whence is <code>current</code>, the position <code>pos</code> is relative to the current byte position of the file. 
+  When whence is <code>end</code>, the position <code>pos</code> is relative to the end of the file.</p>
+
+<p>If port is a binary output port and the position is set beyond the current end of the data in the underlying stream, the stream is 
+  not extended until new data is written at that position. If new data is written at that position, the contents of each intervening 
+  position is unspecified. Binary ports created with <code>open_file_output_port</code> and <code>open_file_input_output_port</code> 
+  can always be extended in this manner within the limits of the underlying operating system. In other cases, attempts to set the port 
+  beyond the current end of data in the underlying object may result in an exception.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>call_with_port<span class="o">(</span>port<span class="o">, </span>f<span class="o">)</span>
+<b>returns:</b> the value returned by the function <em>f</em>.</code></pre>
+</div>
+
+<p><code>Call_with_port</code> calls the function <code>f</code> with <code>port</code> as the only argument. If <code>f</code> returns, 
+  <code>call_with_port</code> closes the port and returns the values returned by <code>f</code>. If <code>f</code> raise an exception,
+  <code>call_with_port</code> closes the port and re-throws the exception.</p>
+
+<p><code>Call_with_port</code> does not automatically close the port if a continuation created outside of <code>f</code> is invoked, since 
+  it is possible that another continuation created inside of <code>f</code> will be invoked at a later time, returning control 
+  to <code>f</code>.</p>
+
+<h4>Input Operations</h4>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_eof_object<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is the eof-object, <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>eof_object<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> the eof-object.</code></pre>
+</div>
+
   </div>
 </body>
 </html>
