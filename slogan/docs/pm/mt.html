@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./mt.html" title=""
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./io.html" title="Input and Output"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Multitasking</h3></div>
+
+    <p>Slogan supports the execution of multiple parallel tasks (or threads of execution). These tasks are managed entirely by 
+      Slogan's runtime and are not related to the host operating system's threads. The current implementation of Slogan does not 
+      take advantage of multiprocessors (i.e. at most one thread is running).</p>
+
+    <h5>Memory coherency</h5>
+
+    <p>Read and write operations on the store (such as reading and writing a variable, an element of a array or a string) are not atomic. 
+      It is an error for a task to write a location in the store while some other task reads or writes that same location. It is the 
+      responsibility of the application to avoid write/read and write/write races through appropriate uses of the synchronization primitives.</p>
+
+    <p>Concurrent reads and writes to ports are allowed. It is the responsibility of the implementation to serialize accesses to a given 
+      port using the appropriate synchronization primitives.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>current_task<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> the current task.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>is_task<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a task object, <em>false</em> otherwise.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task<span class="o">(</span>f<span class="o">, </span>@key args<span class="o">, </span>suspended<span class="o">, </span>name<span class="o"> = </span>void<span class="o">, </span>group<span class="o">)</span> 
+<b>returns:</b> a new task.</code></pre>
+      </div>
+
+    <p>The function <code>f</code> is executed in the new task. If <code>args</code> are not provided or is <code>false</code>, 
+      <code>f</code> is treated as a no-argument function. Otherwise the list of objects <code>args</code> is passed to 
+      <code>f</code> when it is called. <code>F</code> should take as many arguments as there are elements in <code>args</code>.
+      If <code>suspended</code> is <code>true</code> the task is created in the suspended state. It has to be started with a call to
+      <code>task_run</code>. <code>Name</code> and <code>group</code> if provided identifies the task's name and the group it belongs to.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>root_task<span class="o">(</span>f<span class="o">, </span>@key args<span class="o">, </span>suspended<span class="o">, </span>name<span class="o"> = </span>void<span class="o">, </span>group<span class="o">, </span>input_port <span class="o">=</span> current_input_port()<span class="o">, </span>output_port <span class="o">=</span> current_output_port()<span class="o">)</span> 
+<b>returns:</b> a new task.</code></pre>
+      </div>
+
+<p>This function is similar to <code>task</code> except the created task does not inherit the dynamic environment from the 
+  current task and the base priority is set to <code>0</code>, the priority boost is set to <code>1.0e-6</code>, and the quantum is set 
+  to <code>0.02</code>. The dynamic environment of the task has the global bindings of the parameter objects, except 
+  <code>current_input_port</code> which is bound to <code>input_port</code>, <code>current_output_port</code> which is bound to 
+  <code>output_port</code>, and <code>current_directory</code> which is bound to the initial current working directory of the 
+  current process. </p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_run<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> the task <em>t</em>.</code></pre>
+      </div>
+
+<p>Makes the task <code>t</code> runnable.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> task<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> showln<span class="o">(</span>x <span class="o">+</span> y<span class="o">)</span><span class="o">,</span> args <span class="o">=</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">]</span><span class="o">,</span> suspended <span class="o">=</span> <span class="k">true</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>task_run<span class="o">(</span>a<span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 30</span></code></pre>
+</div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_yield<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>This function causes the current task to exit the running state as if its quantum had expired.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_sleep<span class="o">(</span>timeout<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>This function causes the current task to wait until the timeout is reached. This blocks the task only if <code>timeout</code> 
+  represents a point in the future. It is an error for <code>timeout</code> to be <code>false</code>.</p>
+
+<p><code>Timeout</code> can be exact integers to indicate seconds or fractional numbers to indicate sub-second timeouts.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_terminate<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>This function causes an abnormal termination of the task <code>t</code>. If the task is not already terminated, all mutexes 
+  owned by it become unlocked/abandoned and a terminated-exception object is stored in the its end-exception field. 
+  If <code>t</code> is the current task, <code>task_terminate</code> does not return. The actual termination of the task 
+  will occur at some point between the calling of <code>task_terminate</code> and a finite time in the future (an explicit 
+  task synchronization is needed to detect termination, see <code>task_join</code>).</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_join<span class="o">(</span>t<span class="o">, </span>@optional timeout<span class="o">, </span>timeout_val<span class="o">)</span> 
+<b>returns:</b> <em>timeout_val</em>.</code></pre>
+      </div>
+
+<p>This function causes the current task to wait until the task <code>t</code> terminates (normally or not) or until the timeout 
+  is reached if timeout is supplied. If the timeout is reached, this function returns <code>timeout_val</code> if it is supplied, 
+  otherwise a join-timeout-exception object is raised. If the task terminated normally, the content of the end-result field is returned, 
+  otherwise the content of the end-exception field is raised.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_name<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> name of the task.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_set_data<span class="o">(</span>t<span class="o">, </span>obj<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>Puts an arbitrary object <code>obj</code> in the task's data field.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_data<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> the arbitrary object in the task's data field.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_set_base_priority<span class="o">(</span>t<span class="o">, </span>p<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>Sets the base priority of the task <code>t</code> to the real number <code>p</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_base_priority<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> the base priority of the task <em>t</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_set_priority_boost<span class="o">(</span>t<span class="o">, </span>p<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>Sets the priority boost of the task <code>t</code> to the non-negative real number <code>p</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_priority_boost<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> the priority boost of the task <em>t</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_base_priority<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> the base priority of the task <em>t</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_set_quantum<span class="o">(</span>t<span class="o">, </span>q<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>Sets the quantum of the task <code>t</code> to the non-negative real number <code>q</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_quantum<span class="o">(</span>t<span class="o">)</span> 
+<b>returns:</b> the quantum of the task <em>t</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_send<span class="o">(</span>t<span class="o">, </span>msg<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>This function adds the message <code>msg</code> at the end of the mailbox of thread <code>t</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_receive<span class="o">(</span>@opional timeout<span class="o">, </span>default<span class="o">)</span>
+<span class="nc">function: </span>task_messages_next<span class="o">(</span>@opional timeout<span class="o">, </span>default<span class="o">)</span> 
+<b>returns:</b> a message from the current task's mailbox.</code></pre>
+      </div>
+
+<p>The <code>task_receive</code> function advances the mailbox cursor of the current task to the next message, removes that message from the mailbox, 
+  rewinds the mailbox cursor, and returns the message. When <code>timeout</code> is not specified, the current task will 
+  wait until a message is available in the mailbox. When <code>timeout</code> is specified and <code>default</code> is not specified, 
+  a mailbox-receive-timeout-exception object is raised if the timeout is reached before a message is available. When <code>timeout</code> 
+  is specified and <code>default</code> is specified, <code>default</code> is returned if the timeout is reached before a message 
+  is available.</p>
+
+<p><code>Task_messages_next</code> behaves like <code>task_receive</code> except that the message remains in the mailbox and 
+  the mailbox cursor is not rewound.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_messages_rewind<span class="o">(</span>@opional remove_last_read<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+      </div>
+
+<p>This function rewind the mailbox cursor of the current task so that the next call to <code>task_messages_next</code> and 
+  <code>task_receive</code> will access the oldest message in the mailbox. Additionally if <code>remove_last_read</code> is <code>true</code> 
+  the message most recently accessed by a call to <code>task_messages_next</code> will be removed from the mailbox. 
+  When <code>task_messages_next</code> has not been called since the last call to <code>task_receive</code> or <code>task_messages_rewind</code>, 
+  a call to <code>task_messages_rewind</code> with <code>remove_last_read</code> set to <code>true</code> only resets the mailbox cursor 
+  (no message is removed).</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_group<span class="o">(</span>@opional name <span class="o">=</span> void<span class="o">, </span>parent<span class="o">)</span>
+<b>returns:</b> a new thread group with name <em>name</em> and parent thread group <em>parent</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>is_task_group<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a task group, <em>false</em> otherwise.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_group_name<span class="o">(</span>tg<span class="o">)</span>
+<b>returns:</b> the name of the task group <em>tg</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_group_parent<span class="o">(</span>tg<span class="o">)</span>
+<b>returns:</b> the parent group of the task group <em>tg</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_group_resume<span class="o">(</span>tg<span class="o">)</span>
+<b>returns:</b> marks all tasks in the group <em>tg</em> as runnable.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_group_suspend<span class="o">(</span>tg<span class="o">)</span>
+<b>returns:</b> marks all tasks in the group <em>tg</em> as not runnable.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>task_group_terminate<span class="o">(</span>tg<span class="o">)</span>
+<b>returns:</b> marks all tasks in the group <em>tg</em> for termination.</code></pre>
+      </div>
+
+    <h5>Mutexes</h5>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex<span class="o">(</span>@opional name <span class="o">=</span> void<span class="o">)</span>
+<b>returns:</b> a new mutex in the unlocked/not-abandoned state.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>is_mutex<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a mutex, <em>false</em> otherwise.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex_name<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b> the name of the mutex <em>m</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex_set_data<span class="o">(</span>m<span class="o">, </span>obj<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>Sets the data field of the mutex to the arbitrary object <code>obj</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex_data<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b> the arbitrary object in the data field of the mutex <em>m</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex_state<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b>  information about the state of the mutex <em>m</em>.</code></pre>
+      </div>
+
+<p>Possible states are:</p>
+<p><ul>
+    <li>task <code>T</code>: the mutex is in the locked/owned state and task <code>T</code> is the owner of the mutex.</li>
+    <li>symbol <code>not_owned</code>: the mutex is in the locked/not-owned state.</li>
+    <li>symbol <code>abandoned</code>: the mutex is in the unlocked/abandoned state.</li>
+    <li>symbol <code>not_abandoned</code>: the mutex is in the unlocked/not-abandoned state.</li>
+  </ul></p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex_lock<span class="o">(</span>m<span class="o">, </span>@optional timeout<span class="o">, </span>task<span class="o">)</span>
+<b>returns:</b> either <em>true</em> or <em>false</em>. (see below for more details).</code></pre>
+      </div>
+
+<p>This function locks the mutex <code>m</code>. If the mutex is currently locked, the current task waits until the mutex is unlocked, 
+  or until the timeout is reached if <code>timeout</code> is supplied. If the timeout is reached, <code>mutex_lock</code> returns 
+  <code>false</code>. Otherwise, the state of the mutex is changed as follows:</p>
+<p><ul>
+    <li>if <code>task</code> is <code>false</code> the mutex becomes locked/not-owned,</li>
+    <li>otherwise, let <code>T</code> be <code>task</code> (or the current task if <code>task</code> is not supplied),
+      <ul><li>if <code>T</code> is terminated the mutex becomes unlocked/abandoned,</li>
+        <li>otherwise mutex becomes locked/owned with <code>T</code> as the owner.</li></ul>
+  </ul></p>
+
+<p>After changing the state of the mutex, an abandoned-mutex-exception object is raised if the mutex was unlocked/abandoned before 
+  the state change, otherwise <code>mutex_lock</code> returns <code>true</code>. It is not an error if the mutex is owned by the current 
+  task (but the current task will have to wait).</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>mutex_unlock<span class="o">(</span>m<span class="o">, </span>@optional monitor<span class="o">, </span>timeout<span class="o">)</span>
+<b>returns:</b> either <em>true</em> or <em>false</em>. (see below for more details).</code></pre>
+      </div>
+
+    <p>This function unlocks the mutex <code>m</code> by making it unlocked/not-abandoned. It is not an error to unlock an 
+      unlocked mutex and a mutex that is owned by any task. If the monitor (or condition-variable) <code>monitor</code> is supplied, the current 
+      task is blocked and added to the monitor before unlocking mutex; the task can unblock at any time but no later than when 
+      an appropriate call to <code>monitor_notify</code> or <code>monitor_broadcast</code> is performed (see below), and no later than 
+      the timeout (if <code>timeout</code> is supplied). If there are tasks waiting to lock this mutex, the scheduler selects a task, 
+      the mutex becomes locked/owned or locked/not-owned, and the task is unblocked. <code>Mutex_unlock</code> returns <code>false</code> 
+      when the timeout is reached, otherwise it returns <code>true</code>.</p>
+
+    <h5>Monitors</h5>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>monitor<span class="o">(</span>@opional name <span class="o">=</span> void<span class="o">)</span>
+<b>returns:</b> a new empty monitor.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>is_monitor<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a monitor object, <em>false</em> otherwise.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>monitor_name<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b> the name of the monitor <em>m</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>monitor_set_data<span class="o">(</span>m<span class="o">, </span>obj<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>Sets the data field of the monitor <em>m</em> to the arbitrary object <code>obj</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>monitor_data<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b> the arbitrary object in the data field of the monitor <em>m</em>.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>monitor_notify<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>This function unblocks a task blocked on the monitor (if there is at least one).</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>monitor_broadcast<span class="o">(</span>m<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>This function unblocks all tasks blocked on the monitor.</p>
+
+    <h4>Reactive Variables</h4>
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>rvar<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> an unbound reactive variable.</code></pre>
+      </div>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>rbind<span class="o">(</span>r<span class="o">, </span>obj<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+      </div>
+    
+    <p>Bind the object <code>obj</code> to the reactive variable <code>r</code>.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">function: </span>rget<span class="o">(</span>r<span class="o">)</span>
+<b>returns:</b> the object bound to the reactive variable <em>r</em>.</code></pre>
+      </div>
+
+    <p>This function will wait till the reactive variable is bound by another task. If there are no other tasks running this function will
+      raise a "Deadlock detected" error.</p>
+
+  </div>
+</body>
+</html>
