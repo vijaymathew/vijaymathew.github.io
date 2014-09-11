@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>The Slogan Programming Language</title>
+    <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+    <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+    <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+    <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+  </head>
+  <body>
+    
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" >
+          <a href="./except.html" title=""
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="./rec.html" title="Records"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+        <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+      </ul>
+    </div>
+    
+    <div id="site" class="site">
+      <div class="title"><h3>Exceptions</h3></div>
+
+      <p>Exceptions provide the means for system and user code to signal, detect, and recover from errors that occur when a program is run.</p>
+      
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>current_exception_handler<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> the current exception handler function.</code></pre>
+</div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>set_current_exception_handler<span class="o">(</span>f<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+</div>
+            
+      <p>Sets the current exception handler function to <code>f</code> which takes a single argument that represents the exception
+        currently being handled. The current exception handler function is not active in the REPL. To test these functions you should
+        compile a script. For example, compile the following scripts, run the executables and see how changing the current exception
+        handler affect the way error is reported:</p>
+
+      <div class="highlight">
+        <pre><code><span class="c">// test1.sn</span>
+<span class="mi">1</span> <span class="o">/</span> <span class="mi">0</span><span class="o">;</span> </code></pre>
+      </div>
+
+      <div class="highlight">
+        <pre><code><span class="c">// test2.sn</span>
+set_current_exception_handler<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>ex<span class="o">)</span> showln<span class="o">(</span><span class="s1">&quot;ERROR CAUGHT!!&quot;</span><span class="o">,</span> ex<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="mi">1</span> <span class="o">/</span> <span class="mi">0</span><span class="o">;</span> </code></pre>
+      </div>
+
+<p>(To compile the scripts to executables, see the reference on the <code>compile</code> function in the 
+  <a href="./si.html">System Interface</a> chapter.)</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">syntax: </span><span class="k">try</span> expr1 
+        <span class="k">catch</span> <span class="o">(</span>exception<span class="o">)</span> expr2 
+        <span class="k">finally</span> expr3 
+<span class="nc">syntax: </span><span class="k">trycc</span> expr1 
+        <span class="k">catch</span> <span class="o">(</span>exception<span class="o">)</span> expr2 
+        <span class="k">finally</span> expr3 </code></pre>
+<b>returns:</b> the value of evaluating the expression <em>expr1</em></code></pre>
+</div>
+
+<p>If <code>expr1</code> raises an exception, this is passed to the <code>catch</code> block as the object <code>exception</code>. 
+  The code in <code>expr2</code> in the <code>catch</code> block can then deal with this object in a suitable manner. The <code>finally</code>
+  clause is optional. If it is provided, <code>expr3</code> will be evaluated even in the case of an exception.</p>
+
+<p><code>Trycc</code> allows the continuation of the <code>raise</code> function to be invoked if <code>expr2</code> returns normally. 
+  It also has the disadvantage that an exception raised in <code>expr2</code> may lead to an infinite loop, if not handled within 
+  <code>expr2</code> itself. In all normal circumstances, <code>try</code> should be preferred over <code>trycc</code>.</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>raise<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+</div>
+
+<p>This function tail-calls the current exception-handler with <code>obj</code> as the sole argument. If the exception-handler returns, 
+  the continuation of the call to <code>raise</code> is invoked. (If called within a <code>try</code> or <code>trycc</code> statement
+  the current exception-handler is the expression in the <code>catch</code> clause.)</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">try</span> <span class="mi">100</span> <span class="o">+</span> raise<span class="o">(</span><span class="o">!</span>oops<span class="o">)</span> 
+        <span class="k">catch</span> <span class="o">(</span>e<span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span>e<span class="o">)</span><span class="o">;</span> <span class="mi">2</span> <span class="o">}</span><span class="o">;</span> 
+<span class="ge">-&gt; oops</span>
+<span class="ge">=&gt; 2</span>
+<span class="nc">slogan&gt; </span><span class="k">trycc</span> <span class="mi">100</span> <span class="o">+</span> raise<span class="o">(</span><span class="o">!</span>oops<span class="o">)</span> 
+        <span class="k">catch</span> <span class="o">(</span>e<span class="o">)</span> <span class="o">{</span> showln<span class="o">(</span>e<span class="o">)</span><span class="o">;</span> <span class="mi">2</span> <span class="o">}</span><span class="o">;</span> 
+<span class="ge">-&gt; oops</span>
+<span class="ge">=&gt; 102</span></code></pre>
+</div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>abort<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+</div>
+
+<p>The function <code>abort</code> calls the current exception-handler with <code>obj</code> as the sole argument. 
+  If the exception-handler returns, the function <code>abort</code> will be tail-called with a noncontinuable-exception object, 
+  whose reason field is <code>obj</code>, as sole argument.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> 
+                <span class="k">try</span> <span class="mi">1</span> <span class="o">+</span> abort<span class="o">(</span><span class="o">!</span>hello<span class="o">)</span> 
+                <span class="k">catch</span> <span class="o">(</span>e<span class="o">)</span> 
+                 <span class="o">{</span> showln<span class="o">(</span>e<span class="o">)</span><span class="o">;</span> 
+                   <span class="k">if</span> <span class="o">(</span>is_noncontinuable_exception<span class="o">(</span>e<span class="o">)</span><span class="o">)</span> 
+                    k<span class="o">(</span>noncontinuable_exception_reason<span class="o">(</span>e<span class="o">)</span><span class="o">)</span>
+                   <span class="k">else</span> <span class="mi">100</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; hello</span>
+<span class="ge">=&gt; 100</span>
+
+<span class="nc">slogan&gt; </span>callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> 
+                <span class="k">trycc</span> <span class="mi">1</span> <span class="o">+</span> abort<span class="o">(</span><span class="o">!</span>hello<span class="o">)</span> 
+                <span class="k">catch</span> <span class="o">(</span>e<span class="o">)</span> 
+                 <span class="o">{</span> showln<span class="o">(</span>e<span class="o">)</span><span class="o">;</span> 
+                   <span class="k">if</span> <span class="o">(</span>is_noncontinuable_exception<span class="o">(</span>e<span class="o">)</span><span class="o">)</span> 
+                    k<span class="o">(</span>noncontinuable_exception_reason<span class="o">(</span>e<span class="o">)</span><span class="o">)</span>
+                   <span class="k">else</span> <span class="mi">100</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">-&gt; hello</span>
+-&gt; #&lt;noncontinuable-exception #3&gt;
+-&gt; hello</span></code></pre>
+</div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>is_noncontinuable_exception<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a noncontinuable-exception object, <em>false</em> otherwise.</code></pre>
+</div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>noncontinuable_exception_reason<span class="o">(</span>e<span class="o">)</span>
+<b>returns:</b> the reason associated with noncontinuable-exception object <em>e</em>.</code></pre>
+</div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>show_exception<span class="o">(</span>e<span class="o">, @optional port<span class="o">)</span>
+<b>returns:</b> void</code></pre>
+</div>
+
+<p>Prints the human-readable representation of the exception object <code>e</code> to the textual output port <code>port</code>.</p>
+
+<h4>Error-Exception Objects</h4>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>error<span class="o">(</span>message<span class="o">, </span>obj1<span class="o">, </span>...<span class="o">)</span>
+<b>returns:</b> unspecified.</code></pre>
+</div>
+
+<p>This function raises an error-exception object whose message field is <code>message</code> and arguments field is the list 
+  of values <code>obj1 ...</code>.</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>is_error<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a error-exception object, <em>false</em> otherwise.</code></pre>
+</div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>error_message<span class="o">(</span>e<span class="o">)</span>
+<span class="nc">function: </span>error_args<span class="o">(</span>e<span class="o">)</span>
+<b>returns:</b> the message or arguments associated with the error-exception object <em>e</em>.</code></pre>
+</div>
+
+    </div>
+  </body>
+</html>
+      

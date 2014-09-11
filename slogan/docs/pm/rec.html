@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>The Slogan Programming Language</title>
+    <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+    <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+    <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+    <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+  </head>
+  <body>
+    
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" >
+          <a href="./except.html" title="Exceptions"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="./si.html" title="System Interface"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+        <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+      </ul>
+    </div>
+    
+    <div id="site" class="site">
+      <div class="title"><h3>Records</h3></div>
+      
+      <p>This chapter describes the means by which the programmer may define new data types called records, each distinct from all other types. 
+        A record type determines the number and names of the fields each instance of the type has. Records are defined via the 
+        <code>record</code> syntactic form:</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">syntax: </span><span class="k">record</span> <em>name</em> <span class="o">(</span>field1 <span class="o">=</span> <em>default_value</em> <span class="k">where</span> <em>pre_condition</em><span class="o">,</span> ...<span class="o">)</span></code></pre>
+      </div>
+      
+      <p><code>Name</code> is the name of the new record and <code>field1 ...</code> are the names of its fields. The <code>where</code> clause,
+        which specifies the pre-conditions that the values assigned to the fields should obey, is optional. The <code>default_value</code> 
+        is also optional and defaults to <code>false</code>.</p>
+
+      <p>The <code>record</code> statement automatically defines the following functions for the new record type:<p>
+
+        <div class="highlight">
+          <pre><code><span class="nc">function: </span><em>name</em><span class="o">(</span>@key <em>field1</em> <span class="o">=</span> value1<span class="o">,</span> ...<span class="o">)</span> 
+<span class="nc">function: </span>make_<em>name</em><span class="o">(</span>value1<span class="o">,</span> value2<span class="o">)</span> 
+<b>returns:</b> a new instance of the record named <em>name</em> with its fields set to the given values.</code></pre>
+</div>
+
+<p>These are the constructor functions for the record named <code>name</code>. The <code>make_<em>name</em></code> function expects
+  all the fields to be specified in the same order as they were declared by the <code>record</code> statement.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>is_<em>name</em><span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is an instance of the record named <em>name</em>, <em>false</em> otherwise.</code></pre>
+</div>
+<div class="highlight">
+  <pre><code><span class="nc">function: </span><em>name</em>_<em>field</em><span class="o">(</span>r<span class="o">)</span> 
+<b>returns:</b> the current value bound to <em>field</em> in the record instance <em>r</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span><em>name</em>_set_<em>field</em><span class="o">(</span>r<span class="o">,</span> value<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p>Binds <code>value</code> to the field named <code>field</code> in the record object <code>r</code>.</p>
+
+<h5>An example</h5>
+<p>This section demonstrates the functions we have discussed so far by defining a simple <code>point</code> record.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> p <span class="o">=</span> point<span class="o">(</span>y <span class="o">=</span> <span class="mi">100</span><span class="o">,</span> x <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> p2 <span class="o">=</span> make_point<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">3.4</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 20</span>
+<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p2<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 1</span>
+<span class="nc">slogan&gt; </span>point_set_y<span class="o">(</span>p2<span class="o">,</span> <span class="mi">5.6</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>point_y<span class="o">(</span>p2<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 5.6</span></code></pre>
+</div>
+
+<p>The <code>point</code> constructor also allows us to leave out fields so that they can take default values:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="mi">12</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 12</span>
+<span class="nc">slogan&gt; </span>point_y<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span></code></pre>
+</div>
+
+<p>A coordinate taking the default value of <code>false</code> does not look right. So let us change the record definition a bit:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+
+<span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="mi">12</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 12</span>
+<span class="nc">slogan&gt; </span>point_y<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 0</span></code></pre>
+</div>
+
+<p>Using the <code>where</code> clause, if can restrict the range of values being assigned to the coordinates:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x <span class="o">=</span> <span class="mi">0</span> <span class="k">where</span> x <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">80</span> <span class="o">&&</span> x <span class="o">&lt;=</span> <span class="mi">80</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">0</span> <span class="k">where</span> y <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&&</span> y <span class="o">&lt;=</span> <span class="mi">80</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="o">-</span><span class="mi">100</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="err">error: Precondition failed: (and (>= x -80) (<= x 80)). -100</span>
+<span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="o">-</span><span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> <span class="nc">slogan&gt; </span>point_set_y<span class="o">(</span>p<span class="o">,</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+<span class="err">error: Precondition failed: (and (>= y 0) (<= y 80)). -1</span>
+<span class="nc">slogan&gt; </span>point_set_y<span class="o">(</span>p<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> </code></pre>
+</div>
+
+<p>Keep in mind that the <code>make_point</code> constructor allows us to bypass the pre-conditions. The following code will not raise an error:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>p <span class="o">=</span> make_point<span class="o">(</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="o">-</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span></code></pre>
+</div>
+
+<h5>Pattern matching records</h5>
+<p>This section shows how to use the <code>match</code> statement to pattern match records through a few simple examples.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">record</span> three_d_point <span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>p<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>p<span class="o">)</span> 
+           point<span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">:</span> showln<span class="o">(</span><span class="s1">&quot;point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">)</span><span class="o">,</span> 
+           three_d_point<span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o">:</span> showln<span class="o">(</span><span class="s1">&quot;3d_point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; point 10:20</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span>three_d_point<span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">,</span> z <span class="o">=</span> <span class="mi">3.4</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 3d_point 10:20:3.4</span></code></pre>
+</div>
+
+<p>The <code>match</code> statement can also have a <code>where</code> clause that can be used to impose more restrictions on how the pattern
+  is matched. For example, if we want to match a <code>point</code> object only if its <code>x</code> is <code>10</code>, we would rewrite
+  the <code>match</code> statement as follows:</p>
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>p<span class="o">)</span> 
+          <span class="k">match</span> <span class="o">(</span>p<span class="o">)</span> 
+           point<span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> <span class="k">where</span> x <span class="o">==</span> <span class="mi">10</span><span class="o">:</span> showln<span class="o">(</span><span class="s1">&quot;point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">)</span><span class="o">,</span> 
+           three_d_point<span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o">:</span> showln<span class="o">(</span><span class="s1">&quot;3d_point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; point 10:20</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">5</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="err">error: No match found.</span></code></pre>
+</div>
+
+<p>The <code>where</code> clause can be used to match any object pattern, not just records:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">[</span>_<span class="o">,</span> b<span class="o">,</span> _<span class="o">]</span> <span class="k">where</span> b <span class="o">&gt;=</span> <span class="mi">10</span><span class="o">:</span> <span class="o">!</span>hi<span class="o">,</span> 
+         <span class="o">[</span>_<span class="o">,</span> b<span class="o">,</span> _<span class="o">]</span> <span class="k">where</span> b <span class="o">&gt;=</span> <span class="mi">1</span><span class="o">:</span> <span class="o">!</span>hello<span class="o">;</span> 
+<span class="ge">=&gt; hello</span>
+
+<span class="nc">slogan&gt; </span><span class="k">match</span><span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">[</span>_<span class="o">,</span> b<span class="o">,</span> _<span class="o">]</span> <span class="k">where</span> b <span class="o">&gt;=</span> <span class="mi">10</span><span class="o">:</span> <span class="o">!</span>hi<span class="o">,</span> 
+         <span class="o">[</span>_<span class="o">,</span> b<span class="o">,</span> _<span class="o">]</span> <span class="k">where</span> b <span class="o">&gt;=</span> <span class="mi">3</span><span class="o">:</span> <span class="o">!</span>hello<span class="o">;</span> 
+<span class="err">error: No match found.</span>
+
+<span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">[</span>_<span class="o">,</span> b<span class="o">,</span> _<span class="o">]</span> <span class="k">where</span> b <span class="o">&gt;=</span> <span class="mi">10</span><span class="o">:</span> <span class="o">!</span>hi<span class="o">,</span> 
+         <span class="o">[</span>_<span class="o">,</span> b<span class="o">,</span> _<span class="o">]</span> <span class="k">where</span> b <span class="o">&gt;=</span> <span class="mi">1</span><span class="o">:</span> <span class="o">!</span>hello<span class="o">;</span> 
+<span class="ge">=&gt; hi</span></code></pre>
+</div>
+
+    </div>
+  </body>
+</html>
