@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>The Slogan Programming Language</title>
+    <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+    <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+    <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+    <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+  </head>
+  <body>
+    
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" >
+          <a href="./except.html" title="Exceptions"
+             accesskey="P">previous</a></li>
+        <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+        <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+      </ul>
+    </div>
+    
+    <div id="site" class="site">
+      <div class="title"><h3>Foreign Function Interface</h3></div>
+
+      <p>The Slogan language offers a mechanism for interfacing Slogan code and C code called the Foreign Function Interface or FFI. 
+        A Slogan program can call C functions exported by a shared-library (or a dynamic link library). A C function to be callable from
+        Slogan should meet the following conditions:</p>
+      <p><ol>
+          <li>all arguments should be one of two types: <code>___slogan_obj</code> or <code>void*</code>.</li>
+          <li>should accept a maximum of 8 arguments.</li>
+          <li>the return type should be one of: <code>void</code>, <code>void*</code>, <code>___slogan_obj</code>, <code>char</code>,
+            <code>char*</code>, <code>int</code>, <code>unsigned int</code>, <code>float</code> or <code>double</code>.</li>
+      </ol></p>
+
+      <p>The C type <code>___slogan_obj</code> represents all Slogan objects (like strings, lists, integers and characters).
+        The header file <code>slogan.h</code> defines the type <code>___slogan_obj</code> along with functions and macros required
+        for converting a <code>___slogan_obj</code> to a C object and vice versa.</p>
+
+      <p>The chapter titled <a href="../dps/iww.html">Interacting with the World</a> in the tutorial gives a practical example on using the
+        FFI.</p>
+
+      <h4>Conversion Macros</h4>
+      <p>This section describes the Marcos defined in <code>slogan.h</code> for converting between <code>___slogan_obj</code> and C types.</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">C macro:</span>___slogan_obj_to_int<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_uint<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_float<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_double<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_nonnull_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span></code></pre>
+      </div>
+
+<p>The ___slogan_obj object <code>s</code> is converted to a C <code>int</code>, <code>unsigned int</code>, <code>float</code>, 
+  <code>double</code> or <code>char*</code> and stored in <code>t</code> which should be the address of a C variable of the 
+  appropriate type.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___int<span class="o">(</span>s<span class="o">)</span>
+<b>returns:</b> a C <code>int</code> that contains the integer value of the Slogan character or 
+         integer (___slogan_obj) <em>s</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___fix<span class="o">(</span>i<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj containing the value of the C integer <em>i</em>.</code></pre>
+</div>
+
+<div class="highlight">
+        <pre><code><span class="nc">C macro:</span>___charstring_to_slogan_obj<span class="o">(</span>c<span class="o">,</span> s<span class="o">)</span>
+<span class="nc">C macro:</span>___nonnullcharstring_to_slogan_obj<span class="o">(</span>c<span class="o">,</span> s<span class="o">)</span></code></pre>
+</div>
+
+<p>Initializes the <code>___slogan_obj</code> <code>s</code> as a Slogan string with the characters from the C string <code>c</code>.
+  <code>___charstring_to_slogan_obj</code> creates a null-terminated string and <code>___nonnullcharstring_to_slogan_obj</code> creates
+  a string object that keeps track of its length. The C string <code>c</code> should always be null terminated.</p>
+
+<p>The following C code shows the appropriate way to use these functions:</p>
+
+<div class="highlight">
+  <pre><code>___slogan_obj hi()
+{
+  ___slogan_obj message;
+  char *s = &quot;hi from C!&quot;;
+  ___nonnullcharstring_to_slogan_obj(s, &message);
+  ___release_slogan_obj(message);
+  return message;
+}</code></pre>
+</div>
+
+<p>The function <code>hi</code> can be invoked from Slogan as shown below, assuming that it has been compiled into a shared library called &quot;test.so&quot;:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> clib <span class="o">=</span> ffi_open<span class="o">(</span><span class="s1">&quot;./test.so&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>ffi_call_obj_0<span class="o">(</span>clib<span class="o">,</span> <span class="s1">&quot;hi&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hi from C!</span>
+<span class="nc">slogan&gt; </span>ffi_close<span class="o">(</span>clib<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___pair<span class="o">(</span>obj1<span class="o">, </span>obj2<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj that represents a Slogan pair with head and tail 
+         pointing to <em>obj1</em> and <em>obj2</em>.</code></pre>
+</div>
+
+<p>Both <code>obj1</code> and <code>obj2</code> must be of types ___slogan_obj.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___head<span class="o">(</span>p<span class="o">)</span>
+<span class="nc">C macro:</span>___tail<span class="o">(</span>p<span class="o">)</span>
+<b>returns:</b> the head or tail objects of the ___slogan_obj <em>p</em> that represents a Slogan pair.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___head<span class="o">(</span>p<span class="o">)</span>
+<span class="nc">C macro:</span>___tail<span class="o">(</span>p<span class="o">)</span>
+<b>returns:</b> the head or tail objects of the ___slogan_obj <em>p</em> that represents a Slogan pair.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C constant:</span>___TRU<span class="o">(</span>p<span class="o">)</span>
+<span class="nc">C constant:</span>___FAL<span class="o">(</span>p<span class="o">)</span>
+<b>returns:</b> the ___slogan_obj that represents the Slogan values <em>true</em> or <em>false</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C constant:</span>___NUL<span class="o">(</span>p<span class="o">)</span>
+<b>returns:</b> the ___slogan_obj that represents the empty list <em>[]</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___is_empty<span class="o">(</span>pair<span class="o">)</span>
+<b>returns:</b> <em>___TRU</em> if <em>pair</em> is the empty list <em>[]</em>, <em>___FAL</em> otherwise.</code></pre>
+</div>
+
+<p>The following C function demonstrates how to receive a list of integers from Slogan and print it:</p>
+
+<div class="highlight">
+  <pre><code>void print_i_list(___slogan_obj a)
+{
+  while (!___is_empty(a)) {
+    ___slogan_obj h = ___head(a);
+    ___slogan_obj t = ___tail(a);
+    int i;
+    ___slogan_obj_to_int(h, &i);
+    printf(&quot;%d\n&quot;, i);
+    a = t;
+  }
+}</code></pre>
+</div>
+
+<p><code>Print_i_list</code> can be invoked from Slogan as:</p>
+
+<div class="highlight">
+<pre><code><span class="nc">slogan&gt; </span>ffi_call_void_1<span class="o">(</span>clib<span class="o">,</span> <span class="s1">&quot;print_i_list&quot;</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="o">-</span><span class="mi">3</span><span class="o">,</span> <span class="mi">99</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; </span>1
+   10
+   -3
+   99</code></pre>
+</div>
+
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___body<span class="o">(</span>array<span class="o">)</span>
+<b>returns:</b> a C array of ___slogan_obj objects that are the elements of the Slogan array <em>array</em>.</code></pre>
+</div>
+
+<p>The following C function prints the first two elements of a Slogan array passed to it. The function expects the first element to be
+  an integer and the second element to be a string.</p>
+
+<div class="highlight">
+  <pre><code>void f(___slogan_obj a)
+{
+  ___slogan_obj *b = ___body(a);
+  int i;
+  char *s;
+  ___slogan_obj_to_int(b[0], &i);
+  ___slogan_obj_to_charstring(b[1], &s);
+  printf(&quot;%d\n%s\n&quot;, i, s);
+}</code></pre>
+</div>
+
+<p>This function can be invoked from Slogan as:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>ffi_call_void_1<span class="o">(</span>clib<span class="o">,</span> <span class="s1">&quot;f&quot;</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">100</span><span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; </span>100
+   hello</code></pre>
+</div>
+
+<h4>Loading and Calling C Functions</h4>
+<p>This section describes the functions that let a Slogan program to load a shared library and call the C functions exported by it.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_open<span class="o">(</span>libname<span class="o">)</span> 
+<b>returns:</b> an object representing a &quot;handle&quot; to the shared library file named <em>libname</em>, <em>false</em> 
+         if the shared library could not be loaded.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_close<span class="o">(</span>lib_handle<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if the shared library represented by <em>lib_handle</em> was successfully unloaded, 
+         <em>false</em> otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_void_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_void_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared library pointed to
+  by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_void_pointer_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a C pointer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return a <code>void*</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_char_string_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a string.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_char_string_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return a <code>char*</code> which is automatically converted to a Slogan string by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_int_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> an integer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_int_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return an <code>int</code> which is automatically converted to a Slogan integer by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_uint_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> an integer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_uint_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return an <code>unsigned int</code> which is automatically converted to a Slogan integer by the Slogan runtime.</p>
+
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_int64_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> an integer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_int64_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return a 64bit <code>int</code> which is automatically converted to a Slogan integer by the Slogan runtime.</p>
+
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_float_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a real number.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_float_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return a <code>float</code> which is automatically converted to a Slogan real number by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_double_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a real number.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_double_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return a <code>double</code> which is automatically converted to a Slogan real number by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_obj_0<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>obj1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> an Slogan object.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_obj_<em>N</em></code> calls the C function named <code>fname</code> exported by the shared 
+  library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments of type <code>___slogan_obj</code> 
+  and return a <code>___slogan_obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_void_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_void_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a C pointer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_void_pointer_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_char_string_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_char_string_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a C pointer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_char_string_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The returned <code>char*</code> string is converted to a Slogan string by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_int_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> an integer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_int_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The returned <code>int</code> is converted to a Slogan integer by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_uint_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_uint_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a positive integer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_uint_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The returned <code>unsigned int</code> is converted to a Slogan integer by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_int64_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_int64_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> an integer.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_int64_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The returned 64bit <code>int</code> is converted to a Slogan integer by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_float_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_float_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a real number.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_float_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The returned <code>float</code> is converted to a Slogan real number by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_double_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_double_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a real number.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_double_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The returned <code>double</code> is converted to a Slogan real number by the Slogan runtime.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>ffi_call_obj_with_void_pointer_1<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_2<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_3<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_4<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_5<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_6<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_7<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">)</span> 
+<span class="nc">function: </span>ffi_call_obj_with_void_pointer_8<span class="o">(</span>lib_handle<span class="o">, </span>fname<span class="o">, </span>ptr1<span class="o">, </span>obj2<span class="o">, </span>obj3<span class="o">, </span>obj4<span class="o">, </span>obj5<span class="o">, </span>obj6<span class="o">, </span>obj7<span class="o">, </span>obj8<span class="o">)</span> 
+<b>returns:</b> a Slogan object.</code></pre>
+</div>
+
+<p>The functions <code>ffi_call_obj_with_void_pointer_<em>N</em></code> calls the C function named <code>fname</code> exported by 
+  the shared library pointed to by <code>lib_handle</code>. The exported C function must accept <code>N</code> arguments. The first
+  argument <code>ptr<em>N</em></code> must be of type <code>void*</code> and the rest of the arguments (<code>obj2</code> - <code>obj8</code>)
+  must be of type <code>___slogan_obj</code>. The function should return a <code>___slogan_obj</code> object.</p>
+
+
+      </div>
+  </body>
+</html>
