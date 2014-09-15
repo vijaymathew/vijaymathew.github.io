@@ -30,7 +30,374 @@
       <p>This chapter presents the functions and facilities that enable Slogan programs to interact with the host operating system.
         We cover topics such as accessing the file system, processing command-line arguments and compiling programs to machine code.</p>
 
-      <p>TBD</p>
+            <h4>Filesystem</h4>
+
+      <h5>Working with Paths</h5>
+
+      <p>A <em>path</em> is a string that denotes a file, for example &quot;src/readme.txt&quot;.</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>current_directory<span class="o">(</span>@optional new_current_directory<span class="o">)</span> 
+<b>returns:</b> the absolute normalized path of the current directory or void.</code></pre>
+      </div>
+
+      <p>Calling this function with one argument sets the directory to <code>new-current-directory</code> and returns void.</p>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>path_expand<span class="o">(</span>path <span class="o">,</span>@optional origin_directory<span class="o">)</span> 
+<b>returns:</b> an expanded path, which is an absolute path when <em>path</em> or <em>origin_directory</em> are absolute paths.</code></pre>
+      </div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>path_normalize<span class="o">(</span>path <span class="o">,</span>@optional allow_relative <span class="o">,</span>origin_directory<span class="o">)</span> 
+<b>returns:</b> the normalized form of <em>path</em>.</code></pre>
+      </div>
+      
+      <p>All components of the paths <code>path</code> and <code>origin_directory</code> must exist, except possibly the last component
+        of <code>path</code>. A normalized path is a path containing no redundant parts and which is consistent with the current 
+        structure of the filesystem. A normalized path of a directory will always end with a path separator (i.e. ‘/’, ‘\’, or ‘:’ depending 
+        on the operating system). The optional <code>allow_relative</code> parameter, which defaults to <code>false</code>, indicates
+        if the path returned can be expressed relatively to <code>origin_directory</code>: a <code>false</code> requests
+        an absolute path, the symbol <code>!shortest</code> requests the shortest of the absolute and relative paths, and any other 
+        value requests the relative path. The shortest path is useful for interaction with the user because short relative paths are 
+        typically easier to read than long absolute paths.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>path_expand<span class="o">(</span><span class="s1">&quot;../f&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; /home/slogan/../f</span>
+<span class="nc">slogan&gt; </span>path_normalize<span class="o">(</span><span class="s1">&quot;../f&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; /home/f</span>
+<span class="nc">slogan&gt; </span>path_normalize<span class="o">(</span><span class="s1">&quot;../f&quot;</span><span class="o">,</span> <span class="o">!</span>shortest<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; ../f</span></code></pre>
+    </div>
+
+      <div class="highlight">
+        <pre><code><span class="nc">function: </span>path_extension<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>path_strip_extension<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>path_directory<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>path_strip_directory<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>path_strip_trailing_directory_separator<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>path_volume<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>path_strip_volume<span class="o">(</span>path<span class="o">)</span> 
+<b>returns:</b> the various parts of <em>path</em>.</code></pre>
+      </div>
+
+      <h5>Filesystem Operations</h5>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>create_directory<span class="o">(</span>path <span class="o">,</span>@optional permissions <span class="o">=</span> 0o777<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>This function creates a directory. The argument <code>path</code> must be a string that indicates the location of the 
+      directory to create in the filesystem. <code>Permissions</code> must be a 12-bit-exact-integer that controls the UNIX permissions 
+      that will be attached to the directory if it is created. The default value of this setting is <code>0o777</code>.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>create_link<span class="o">(</span>source_path <span class="o">,</span>destination_path<span class="o">)</span> 
+<span class="nc">function: </span>create_symbolic_link<span class="o">(</span>source_path <span class="o">,</span>destination_path<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>These functions create a hard or symbolic link between <code>source_path</code> and <code>destination_path</code>.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>rename_file<span class="o">(</span>source_path <span class="o">,</span>destination_path<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>This function renames the file <code>source_path</code> to <code>destination_path</code>.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>copy_file<span class="o">(</span>source_path <span class="o">,</span>destination_path<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+    <p>This function copies the file <code>source_path</code> to <code>destination_path</code>.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>delete_file<span class="o">(</span>path<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+    <p>This function deletes the file <code>path</code> which must be the path to an existing file.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>delete_directory<span class="o">(</span>path<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+    <p>This function deletes the directory <code>path</code> which must be the path to an existing directory.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>list_directory<span class="o">(</span>path <span class="o">,</span>@optional ignore_hidden<span class="o">)</span> 
+<b>returns:</b> a list of files in the directory <em>path</em>.</code></pre>
+      </div>
+    
+    <p>The argument <code>ignore_hidden</code> controls whether hidden-files will be returned. Under UNIX and
+      Mac OS X hidden-files are those that start with a period (such as '.', '..', and '.profile'). A setting of <code>false</code> will enumerate
+      all the files. A setting of <code>true</code> will only enumerate the files that are not hidden. A
+      setting of <code>!dot_and_dot_dot</code> will enumerate all the files except for the '.' and
+      '..' hidden files. The default value of this setting is <code>true</code>.</p>
+
+    <h5>File Information</h5>
+    
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>file_exists<span class="o">(</span>path <span class="o">,</span>@optional chase<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if the file <em>path</em> exists, <em>false</em> otherwise.</code></pre>
+      </div>
+
+    <p>When <code>chase</code> is <code>false</code> (the default), symbolic links will not be chased, in other words
+      if <code>path</code> refers to a symbolic link, <code>file_exists</code> will return <code>true</code> whether or not 
+      it points to an existing file.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>file_info<span class="o">(</span>path <span class="o">,</span>@optional chase<span class="o">)</span> 
+<b>returns:</b> a file-information record.</code></pre>
+      </div>
+
+    <p>A file-information record is returned that contains the file's type, the device number, the inode number, the mode (permission bits), 
+      the number of links, the file's user id, the file's group id, the file's size in bytes, the times
+      of last-access, last-modification and last-change, the attributes, and the creation time.</p>
+
+    <p>When <code>chase</code> is <code>false</code> (the default), symbolic links will not be chased, in other words
+      if <code>path</code> refers to a symbolic link the file-info procedure will return information
+      about the link rather than the file it links to.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>is_file_info<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a file-information object, <em>false</em> otherwise.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>file_info_type<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_device<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_inode<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_mode<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_number_of_links<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_owner<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_group<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_size<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_last_access_time<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_last_modification_time<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_last_change_time<span class="o">(</span>fi<span class="o">)</span> 
+<span class="nc">function: </span>file_info_creation_time<span class="o">(</span>fi<span class="o">)</span>
+ <span class="nc">function: </span>file_info_attributes<span class="o">(</span>fi<span class="o">)</span> 
+<b>returns:</b> the various fields of the file-information record <em>fi</em>.</code></pre>
+      </div>
+    
+    <p>For <code>file_info_type</code>, the returned value is one of the following symbols:</p>
+    <p><ul>
+        <li><code>!regular</code> - regular file</li>
+        <li><code>!directory</code></li>
+        <li><code>!character_special</code> - character special device</li>
+        <li><code>!block_special</code> - block special device</li>
+        <li><code>!fifo</code></li>
+        <li><code>!symbolic_link</code></li>
+        <li><code>!socket</code></li>
+        <li><code>!unknown</code> - file is of an unknown type</li>
+    </ul></p>
+
+    <p>For <code>file_info_last_access_time</code>, <code>file_info_last_modification_time</code>, <code>file_info_last_change_time</code>
+      and <code>file_info_creation_time</code> the return value is a UNIX timestamp. (seconds elapsed since the UNIX epoch).</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>file_type<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_device<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_inode<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_mode<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_number_of_links<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_owner<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_group<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_size<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_last_access_time<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_last_modification_time<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_last_change_time<span class="o">(</span>path<span class="o">)</span> 
+<span class="nc">function: </span>file_creation_time<span class="o">(</span>path<span class="o">)</span>
+ <span class="nc">function: </span>file_attributes<span class="o">(</span>path<span class="o">)</span> 
+<b>returns:</b> the various attributes of the file <em>path</em>.</code></pre>
+      </div>
+    
+    <p>These functions combines a call to <code>file_info</code> with an accessor to one of the file-information object's fields.</p>
+
+    <p>For <code>file_type</code>, the returned value is one of the following symbols:</p>
+    <p><ul>
+        <li><code>!regular</code> - regular file</li>
+        <li><code>!directory</code></li>
+        <li><code>!character_special</code> - character special device</li>
+        <li><code>!block_special</code> - block special device</li>
+        <li><code>!fifo</code></li>
+        <li><code>!symbolic_link</code></li>
+        <li><code>!socket</code></li>
+        <li><code>!unknown</code> - file is of an unknown type</li>
+    </ul></p>
+
+    <p>For <code>file_last_access_time</code>, <code>file_last_modification_time</code>, <code>file_last_change_time</code>
+      and <code>file_creation_time</code> the return value is a UNIX timestamp. (seconds elapsed since the UNIX epoch).</p>
+
+<h4>Host Information</h4>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>host_name<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> the machine's host name as a string.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>host_info<span class="o">(</span>host_name<span class="o">)</span> 
+<b>returns:</b> a host-information record.</code></pre>
+      </div>
+
+    <p>This function accesses the internet host database to get information about the machine whose name is denoted by the string 
+      <code>host_name</code>. The host-information record that is returned will contain the official name of the machine, a list of 
+      aliases (alternative names), and a non-empty list of IP addresses for this machine. An exception is raised when <code>host_name</code>
+      does not appear in the database.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>is_host_info<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a host-information object, <em>false</em> otherwise.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>host_info_name<span class="o">(</span>hi<span class="o">)</span> 
+<span class="nc">function: </span>host_info_aliases<span class="o">(</span>hi<span class="o">)</span> 
+<span class="nc">function: </span>host_info_addresses<span class="o">(</span>hi<span class="o">)</span> 
+<b>returns:</b> the variuos fields of the host-information object <em>hi</em>.</code></pre>
+      </div>
+
+<h4>Process Control</h4>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>shell_command<span class="o">(</span>command<span class="o">)</span> 
+<b>returns:</b> the exit status of the shell.</code></pre>
+      </div>
+
+    <p>This function calls up the shell to execute <code>command</code> which must be a string.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>exit<span class="o">(</span>@optional status <span class="o">=</span> 0<span class="o">)</span> 
+<b>returns:</b> unspecified</code></pre>
+      </div>
+
+    <p>Terminates the current process with the status <code>status</code> which must be an exact integer in the range 0 to 255.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>command_line<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> a list of command-line arguments passed to the current process.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>getenv<span class="o">(</span>name<span class="o">, </span>@optional default<span class="o">)</span> 
+<b>returns:</b> the value of the environment variable <code>name</code> of the current process.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>setenv<span class="o">(</span>name<span class="o">, </span>@optional new_value<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>The function <code>setenv</code> changes the binding of the environment variable <code>name</code> to <code>new_value</code> which 
+      must be a string. If <code>new_value</code> is not specified the binding is removed.</p>
+
+<h4>Compilation</h4>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>compile<span class="o">(</span>script<span class="o">, </span>@key assemble<span class="o">, </span>exe<span class="o">, </span>ld_options<span class="o">, </span>cc_options<span class="o">, </span>output<span class="o">, </span>exception_handler<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>Compiles the file <code>script</code> containing Slogan source code into machine code. If the argument <code>exe</code> is <code>true</code>
+      the file <code>script</code> is compiled to produces a standalone executable. If <code>assemble</code> is <code>true</code>, only
+      a dynamically loadable file of machine instructions is generated. If provided, <code>ld_options</code> must be a string that specifies
+      additional command-line options for the linker. If provided, <code>cc_options</code> must be a string that specifies
+      additional command-line options for the C compiler. The name of the generated file can be customized using <code>output</code>.
+      If provided, <code>exception_handler</code> must be a function that takes a single argument. If compilation raises an exception,
+      this function will be called with the error object as the argument.</p>
+
+<h4>Time</h4>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>now<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> an object that represents the current system time.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>is_time<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if <em>obj</em> is a system time object, <em>false</em> otherwise.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>time_to_seconds<span class="o">(</span>time<span class="o">)</span> 
+<b>returns:</b> a UNIX timestamp representation of the system time object <em>time</em>.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>seconds_to_time<span class="o">(</span>s<span class="o">)</span> 
+<b>returns:</b> a system time object that represents the a UNIX timestamp <em>s</em>.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>time_second<span class="o">(</span>time<span class="o">)</span> 
+<span class="nc">function: </span>time_minute<span class="o">(</span>time<span class="o">)</span> 
+<span class="nc">function: </span>time_hour<span class="o">(</span>time<span class="o">)</span> 
+<span class="nc">function: </span>time_day_of_month<span class="o">(</span>time<span class="o">)</span> 
+<span class="nc">function: </span>time_month<span class="o">(</span>time<span class="o">)</span> 
+<span class="nc">function: </span>time_day_of_week<span class="o">(</span>time<span class="o">)</span> 
+<span class="nc">function: </span>time_day_of_year<span class="o">(</span>time<span class="o">)</span> 
+<b>returns:</b> the various components of the system time object <em>time</em>.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>time_set_second<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<span class="nc">function: </span>time_set_minute<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<span class="nc">function: </span>time_set_hour<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<span class="nc">function: </span>time_set_day_of_month<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<span class="nc">function: </span>time_set_month<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<span class="nc">function: </span>time_set_day_of_week<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<span class="nc">function: </span>time_set_day_of_year<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>Updates a component of the system time object <code>time</code> with <code>new_value</code>.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>time_is_dst<span class="o">(</span>time<span class="o">)</span> 
+<b>returns:</b> <em>true</em> if day light savings is enabled in the system time object <em>time</em>, <em>false</em> otherwise.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>time_set_is_dst<span class="o">(</span>time<span class="o">, </span>new_value<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+      </div>
+
+    <p>Sets the day light savings flag in the system time object <code>time</code>. <code>new_value</code> must be a boolean.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>process_times<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> a three element list containing the cpu time that has been used by the program and the real time 
+         that has elapsed since it was started.</code></pre>
+      </div>
+
+<p>The first element of the result list corresponds to "user" time in seconds, the second element corresponds to "system" time in seconds 
+  and the third element is the elapsed real time in seconds. On operating systems that can't differentiate user and system
+  time, the system time is zero. On operating systems that can't measure cpu time, the user time is equal to the elapsed real time 
+  and the system time is zero.</p>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>real_time<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> the real time that has elapsed since the program was started.</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>cpu_time<span class="o">(</span><span class="o">)</span> 
+<b>returns:</b> the cpu time in seconds that has been used by the program (user time plus system time).</code></pre>
+      </div>
+
+<div class="highlight">
+        <pre><code><span class="nc">function: </span>time<span class="o">(</span>expr<span class="o">)</span> 
+<b>returns:</b> the result of evaluating the expression <em>expr</em>.</code></pre>
+      </div>
+
+    <p>As a side effect it displays a message on the standard output which indicates how long the evaluation
+      took (in real time and cpu time), how much time was spent in the garbage collector, how much memory was allocated 
+      during the evaluation and how many minor and major page faults occurred.</p>
+
 
       </div>
   </body>
