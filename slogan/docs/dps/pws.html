@@ -31,7 +31,7 @@
   parameters to effect a computation. A program can also have an internal parameter or <em>state</em> which gives it a
   &quot;long-term memory&quot;. Without state a program can have only &quot;short-term memory&quot;, one that exists during a particular invocation of the program.</p>
 
-<p>This chapter introduces program design with explicit and tries to figure out its advantages and limitations.</p>
+<p>This chapter introduces program design with explicit state and tries to figure out its advantages and limitations.</p>
 
 <h4>Defining state</h4>
 <p><em>State</em> can be defined as a sequence of values in time that contains the intermediate results of a desired computation.
@@ -81,10 +81,10 @@
                               <span class="o">{</span> count <span class="o">=</span> count <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
                                 <span class="k">match</span> <span class="o">(</span>xs<span class="o">)</span> 
                                  <span class="o">[</span><span class="o">]</span><span class="o">:</span> a<span class="o">,</span> 
-                                 <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> sum_list<span class="o">(</span>xr<span class="o">,</span> a <span class="o">+</span> x<span class="o">)</span> <span class="o">}</span> <span class="o">}</span><span class="o">;</span></code></pre>
+                                 <span class="o">[</span>x xr<span class="o">]</span><span class="o">:</span> sum_list<span class="o">(</span>xr<span class="o">,</span> a <span class="o">+</span> x<span class="o">)</span> <span class="o">}</span><span class="o">}</span><span class="o">;</span></code></pre>
 </div>
 
-<p>In the <code>let</code> expression that initializes <code>count</code>, we create two functions. The first one just returns the current value
+<p>In the <code>let</code> expression that initializes <code>count</code>, we create two functions. The first one returns the current value
   of <code>count</code>. This function is bound to the name <code>sum_count</code>. The next function is the same as <code>sum_list</code>, 
   but it also increments <code>count</code> by 1 each time it is called. This function is bound to the symbol <code>sum_list</code>. 
   Let us try out these functions:</p>
@@ -126,7 +126,7 @@
     </ul>
 <p>Slogan has features that enables you to design systems with these properties.
   Lexical scoping supports encapsulation and higher-order programming supports 
-  instantiation. The properties do not require state; they can be used in functional programming as well.
+  instantiation. These properties do not require state; they can be used in functional programming as well.
   For example, it is possible to use encapsulation in declarative programs without state. On the other
   hand, it is also possible to use state without encapsulation, by defining the state
   globally so all components have free access to it.</p>
@@ -185,7 +185,7 @@
   functional implementation as well.</p>
 
 <h4>Stateful Data Structures</h4>
-<p>In the chapter <a href="fds.html">Functional Data Structures</a>, we implemented a function queue. In this section we implement
+<p>In the chapter <a href="fds.html">Functional Data Structures</a>, we implemented a functional <code>queue</code>. In this section we implement
   a related data structure called the stack. A stack is a LIFO (Last-In-First-Out) data structure with two operations - <code>push</code> and
   <code>pop</code>. <code>Push</code> adds an element to the stack and <code>pop</code> removes and returns the last element added.
   The stack we are going to implement is stateful. It keeps its elements in an array and remembers the index of the last element
@@ -207,10 +207,9 @@
                                <span class="o">{</span> index <span class="o">=</span> index <span class="o">-</span> <span class="mi">1</span><span class="o">;</span> 
                                  elem <span class="o">}</span><span class="o">)</span> 
            <span class="k">fn</span> <span class="o">(</span>msg<span class="o">)</span> 
-            <span class="k">case</span> <span class="o">(</span>msg<span class="o">)</span> 
-             push<span class="o">:</span> push<span class="o">,</span> 
-             pop<span class="o">:</span> pop<span class="o">,</span> 
-             <span class="k">else</span><span class="o">:</span> error<span class="o">(</span><span class="s1">"invalid message - "</span><span class="o">,</span> msg<span class="o">)</span><span class="o">;</span> </code></pre>
+            <span class="k">match</span> <span class="o">(</span>msg<span class="o">)</span> 
+             <span class="o">!</span>push<span class="o">:</span> push<span class="o">,</span> 
+             <span class="o">!</span>pop<span class="o">:</span> pop<span class="o"><span class="o">;</span> </code></pre>
 </div>
 
 <p>The state of a stack consists of the array <code>elems</code> and the integer <code>index</code>. These variables are manipulated by
@@ -259,7 +258,7 @@
   Since a random number generator does a calculation with finite information, it will eventually repeat itself.
   This brings in the requirement that the period of repetition should be sufficiently long.</p>
 
-<p>A random number generator stores an internal state, with which it calculates the next random number and the next internal state. 
+<p>A random number generator stores an internal state with which it calculates the next random number and the next internal state. 
   The state should be large enough to allow a long period. The random number is initialized with a number called
   its <em>seed</em>. Initializing it again with the same seed should give the same sequence of random numbers. If we do not 
   want the same sequence, we can initialize it with information that will never be the same, such as the current date and time.</p>
