@@ -2568,6 +2568,135 @@ Their hash and equivalence functions are suitable for any Slogan object.</p>
    age: 1</code></pre>
 </div>
 
+<h4>Closures</h4>
+
+<p>A closure (also lexical closure or function closure) is a function or reference to a function together with an environment - a table 
+  storing a reference to each of the non-local variables (free variables) of that function. A closure enables a function to access 
+  those non-local variables even when invoked outside its immediate lexical scope.</p>
+
+<p>The following program defines a closure that contains an environment with a binding for an integer variable and a function that
+  increments this variable on each invocation: </p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> counter<span class="o">(</span>n<span class="o">)</span> 
+          <span class="k">fn</span> <span class="o">(</span><span class="o">)</span> 
+           <span class="o">{</span> n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
+             n <span class="o">}</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> counter<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> b <span class="o">=</span> counter<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 1</span>
+<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 11</span></code></pre>
+</div>
+
+<p>Closures can be used to implement <em>Objects</em> that can respond to <em>messages</em> by making the closure function to accept
+  a symbolic argument. Here is a simple example of an object defined this way:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_kid<span class="o">(</span>name<span class="o">,</span> age<span class="o">)</span> 
+         <span class="k">fn</span> <span class="o">(</span>message<span class="o">)</span> 
+           <span class="k">case</span> <span class="o">(</span>message<span class="o">)</span> 
+             name?<span class="o">:</span> name<span class="o">,</span> 
+             age?<span class="o">:</span> age<span class="o">,</span> 
+             <span class="k">else</span><span class="o">:</span> error<span class="o">(</span><span class="s1">&quot;invalid message&quot;</span><span class="o">,</span> message<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> make_kid<span class="o">(</span><span class="s1">&quot;sam&quot;</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> b <span class="o">=</span> make_kid<span class="o">(</span><span class="s1">&quot;susan&quot;</span><span class="o">,</span> <span class="mi">8</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">!</span>name?<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; sam</span>
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">!</span>age?<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 10</span>
+<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">!</span>name?<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; susan</span>
+<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">!</span>age?<span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 8</span></code></pre>
+</div>
+
+<p>We can also use the special <em>dot-notation</em> to pass messages to a closure:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>a<span class="o">.</span>name? 
+<span class="ge">=&gt; sam</span>
+<span class="nc">slogan&gt; </span>b<span class="o">.</span>age? 
+<span class="ge">=&gt; 8</span></code></pre>
+</div>
+
+<p>In addition to local variables, a closure can refer to local functions as well. Consider an updated version of the <code>counter</code>
+  closure that has the ability to reset itself to a specified value:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> counter<span class="o">(</span>n<span class="o">)</span>
+          <span class="o">{</span> <span class="k">function</span> reset<span class="o">(</span>new_n<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>new_n <span class="o">&gt;=</span> <span class="mi">0</span><span class="o">)</span> n <span class="o">=</span> new_n<span class="o">;</span> 
+            <span class="k">fn</span> <span class="o">(</span>@optional message<span class="o">)</span> 
+             <span class="k">case</span> <span class="o">(</span>message<span class="o">)</span> 
+              reset<span class="o">:</span> reset<span class="o">,</span> 
+              <span class="k">else</span><span class="o">:</span> <span class="o">{</span> n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
+                      n <span class="o">}</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> counter<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 11</span>
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 12</span>
+<span class="nc">slogan&gt; </span>a<span class="o">.</span>reset<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 1</span>
+<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 2</span></code></pre>
+</div>
+
+<p>As calls to lazy function are identified only during compilation, lazy functions exported by a closure has to be <em>declared</em> as such
+  before they are called. Otherwise, they will behave as normal functions:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> object<span class="o">(</span><span class="o">)</span> 
+          <span class="o">{</span> <span class="k">function</span> <span class="k">lazy</span> f<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+              <span class="k">if</span> <span class="o">(</span>a <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> a <span class="o">+</span> b 
+              <span class="k">else</span> <span class="k">false</span><span class="o">;</span> 
+            <span class="k">fn</span> <span class="o">(</span>message<span class="o">)</span> 
+              <span class="k">case</span> <span class="o">(</span>message<span class="o">)</span> 
+               add<span class="o">:</span> f <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> object<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a<span class="o">.</span>add<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="o">{</span> println<span class="o">(</span><span class="s1">&quot;hey!&quot;</span><span class="o">)</span><span class="o">;</span> <span class="mi">20</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; hey!</span>
+<span class="ge">=&gt; 30</span>
+<span class="nc">slogan&gt; </span>a<span class="o">.</span>add<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="o">{</span> println<span class="o">(</span><span class="s1">&quot;hey!&quot;</span><span class="o">)</span><span class="o">;</span> <span class="mi">20</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; hey!</span>
+<span class="ge">=&gt; false</span></code></pre>
+</div>
+
+<p>As we can see from the second invocation, the exported function has lost its ability to evaluate its arguments lazily. This can be fixed
+  with the help of the <code>declare_lazy</code> function as shown below:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> a_add <span class="o">=</span> a<span class="o">.</span>add<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>declare_lazy<span class="o">(</span><span class="o">!</span>a_add<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a_add<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="o">{</span> println<span class="o">(</span><span class="s1">&quot;hey!&quot;</span><span class="o">)</span><span class="o">;</span> <span class="mi">20</span><span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>declare_lazy<span class="o">(</span>sym<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p><code>Declare_lazy</code> declares the function identified by the symbol <code>sym</code> as lazy.
+  This is used for lazy functions that are dynamically loaded from a closure or a pre-compiled binary module.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>undeclare_lazy<span class="o">(</span>sym<span class="o">)</span> 
+<b>returns:</b> void</code></pre>
+</div>
+
+<p><code>Undeclare_lazy</code> removes the function identified by the symbol <code>sym</code> from the dynamic list of
+  lazy functions.</p>
+
+<p>Macros, whose definitions and calls are managed completely at compile-time, cannot be exported from a closure. But a closure can
+  define and use macros internally.</p>
+
 </div>
 </body>
 </html>
