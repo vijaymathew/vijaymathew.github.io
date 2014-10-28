@@ -607,7 +607,7 @@
 <span class="nc">slogan&gt; </span>negative_quotient<span class="o">(</span><span class="mi">8</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; -8/3</span>
 <span class="nc">slogan&gt; </span>compose<span class="o">(</span>number_to_string<span class="o">,</span> add<span class="o">)</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;138&quot;</span></coee></pre>
+<span class="ge">=&gt; &quot;138&quot;</span></code></pre>
 </div>
 
 <p>If <code>compose</code> is called with no arguments the <code>identity</code> function (described below) is returned.</p>
@@ -615,6 +615,140 @@
   <div class="highlight">
     <pre><code><span class="nc">function: </span>identity<span class="o">(</span>obj<span class="o">)</span> 
 <b>returns:</b> <em>obj</em>.</code></pre>
+</div>
+
+  <h4>Namespaces</h4>
+  <p>Consider the following Slogan script:</p>
+  <div class="highlight">
+    <pre><code><span class="c">// file: a.sn</span>
+<span class="k">define</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
+<span class="k">function</span> y<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hi from A&quot;</span><span class="o">;</span></code></pre>
+    </div>
+
+<p>We can <code>load</code> this script into the REPL or another script and use both <code>x</code> and <code>y</code> as if they were defined
+  locally. Now imagine that we have another script, say &quot;b.sn&quot;, with its own bindings for <code>x</code> and <code>y</code>:</p>
+
+  <div class="highlight">
+    <pre><code><span class="c">// file: b.sn</span>
+<span class="k">define</span> x <span class="o">=</span> <span class="mi">78</span><span class="o">;</span> 
+<span class="k">define</span> y <span class="o">=</span> <span class="s1">&quot;hi from B&quot;</span><span class="o">;</span></code></pre>
+    </div>
+
+<p>If we load <code>b.sn</code> its definitions of <code>x</code> and <code>y</code> will shadow the definitions imported from <code>a.sn</code>.
+  Namespaces enable us to avoid such name conflicts. The definitions above can be embedded into their own namespaces as shown below:</p>
+
+  <div class="highlight">
+    <pre><code><span class="c">// file: a.sn</span>
+<span class="k">namespace</span> a<span class="o">;</span>
+<span class="k">define</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
+<span class="k">function</span> y<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hi from A&quot;</span><span class="o">;</span>
+<span class="k">namespace<span class="o">;</span></code></pre>
+    </div>
+
+  <div class="highlight">
+    <pre><code><span class="c">// file: b.sn</span>
+<span class="k">namespace</span> b<span class="o">;</span>
+<span class="k">define</span> x <span class="o">=</span> <span class="mi">78</span><span class="o">;</span> 
+<span class="k">define</span> y <span class="o">=</span> <span class="s1">&quot;hi from B&quot;</span><span class="o">;</span>
+<span class="k">namespace<span class="o">;</span></code></pre>
+    </div>
+
+<p>A namespace is introduced with the <code>namespace</code> keyword followed by the namespace name. The <code>namespace</code> keyword
+  when used without a name denotes the end of the previous namespace.</p>
+<p>While in a namespace, the compiler prefixes all variables introduced by the <code>define</code>, <code>function</code> and 
+  <code>namespace</code> statements with a <code>namespace_name_</code> prefix. These variables can be directly accessed by
+  using this prefix:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>a_x<span class="o">;</span> 
+<span class="ge">=&gt; 100</span>
+<span class="nc">slogan&gt; </span>a_y<span class="o">(</span><span class="o">)</span> <span class="o">;</span> 
+<span class="ge">=&gt; hi from A</span>
+<span class="nc">slogan&gt; </span>b_x<span class="o">;</span> 
+<span class="ge">=&gt; 78</span>
+<span class="nc">slogan&gt; </span>b_y<span class="o">;</span> 
+<span class="ge">=&gt; hi from B</span></code></pre>
+</div>
+
+<p>Identifiers introduced by the <code>define</code> and <code>function</code> statements can also be imported from a namespace,
+  thus avoiding the explicit use of the prefix:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">import</span> a<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>x<span class="o">;</span> 
+<span class="ge">=&gt; 100</span>
+<span class="nc">slogan&gt; </span>y<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hi from A</span>
+<span class="nc">slogan&gt; </span><span class="k">import</span> b<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>x<span class="o">;</span> 
+<span class="ge">=&gt; 78</span>
+<span class="nc">slogan&gt; </span>y<span class="o">;</span> 
+<span class="ge">=&gt; hi from B</span></code></pre>
+</div>
+
+<p>Identifiers can be selectively imported by providing a parenthesized list to import:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">import</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> from a<span class="o">;</span></code></pre>
+</div>
+
+<p>The <code>import</code> statement can also accept a <code>with_prefix</code> option that can be used to attach a custom prefix to the
+  imported identifiers:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">import</span> a with_prefix hello<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">import</span> b with_prefix hi<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>hello_x<span class="o">;</span> 
+<span class="ge">=&gt; 100</span>
+<span class="nc">slogan&gt; </span>hello_y<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hi from A</span>
+<span class="nc">slogan&gt; </span>hi_x<span class="o">;</span> 
+<span class="ge">=&gt; 78</span>
+<span class="nc">slogan&gt; </span>hi_y<span class="o">;</span> 
+<span class="ge">=&gt; hi from B</span></code></pre>
+</div>
+
+<p><code>Namespace</code> and <code>import</code> statements are purely compile-time constructs. The Slogan runtime is not aware of
+  namespaces. So to import identifiers based on some runtime check, we need the help of the <code>declare</code> statement. This is shown in
+  the following program:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">declare</span> imported <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>flag<span class="o">)</span> 
+          <span class="o">{</span> <span class="k">if</span> <span class="o">(</span>flag<span class="o">)</span> <span class="k">import</span> a
+            <span class="k">else</span> <span class="k">import</span> b<span class="o">;</span> 
+            println<span class="o">(</span><span class="k">if</span> <span class="o">(</span>flag<span class="o">)</span> y<span class="o">(</span><span class="o">)</span> <span class="k">else</span> y<span class="o">)</span><span class="o">;</span> 
+            x <span class="o">*</span> x <span class="o">}</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="k">true</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt;hi from A</span>
+<span class="ge">=&gt; 10000</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="k">false</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt;hi from B</span>
+<span class="ge">=&gt; 6084</span></code></pre>
+</div>
+
+<p>The <code>declare</code> statement introduces global empty bindings for both <code>x</code> and <code>y</code>. The subsequent 
+  <code>import</code> statements will bind these variables to the values imported from the appropriate namespaces. Note that the 
+  <code>declare</code> statement is not required if the imported variables are used only within the same scope as the <code>import</code>.
+  If we can rewrite the function <code>f</code> as follows, we can avoid the <code>declare</code> statement:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>flag<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>flag<span class="o">)</span> 
+           <span class="o">{</span> <span class="k">import</span> a<span class="o">;</span> 
+             println<span class="o">(</span>y<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+             x <span class="o">*</span> x <span class="o">}</span>
+           <span class="k">else</span> 
+            <span class="o">{</span> <span class="k">import</span> b<span class="o">;</span> 
+            println<span class="o">(</span>y<span class="o">)</span><span class="o">;</span> 
+            x <span class="o">*</span> x <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="k">true</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; hi from A</span>
+<span class="ge">=&gt; 10000</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="k">false</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; hi from B</span>
+<span class="ge">=&gt; 6084</span></code></pre>
 </div>
 
   </div>
