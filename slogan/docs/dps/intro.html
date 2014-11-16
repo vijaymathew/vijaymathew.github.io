@@ -165,14 +165,14 @@
 	</div>
       <p>The notation <code>[100, 100, 102, 103, 101, 101, 100]</code> is a shortcut. A list is actually a chain of links, where each
 	link contains two things: one list element and a reference to the rest of the chain. Lists are always created one element at a time, 
-	starting with the empty list <code>[]</code> and adding links one by one. A new link is written <code>[head tail]</code>, where 
-	<code>head</code> is the new element and <code>tail</code> is the old part of the chain. Note that there is no comma separator between
-	<code>head</code> and <code>tail</code>. This structure is known as a <em>pair</em>. Pairs are the primary building blocks from which
+	starting with the empty list <code>[]</code> (or <code>nil</code>) and adding links one by one. A new link is written <code>head : tail</code>, where 
+	<code>head</code> is the new element and <code>tail</code> is the old part of the chain. 
+        This structure is known as a <em>pair</em>. Pairs are the primary building blocks from which
 	full lists are built. We can build the temperatures list incrementally by gluing together pairs: </p>
 
       <div clas="highlight">
-	<pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> last_week_highs <span class="o">=</span> <span class="o">[</span><span class="mi">100</span> <span class="o">[</span><span class="o">]</span><span class="o">]</span> <span class="o">;</span> 
-<span class="nc">slogan&gt; </span>last_week_highs <span class="o">=</span> <span class="o">[</span><span class="mi">100</span> last_week_highs<span class="o">]</span><span class="o">;</span>
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> last_week_highs <span class="o">=</span> <span class="mi">100</span> <span class="o">:</span> nil<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>last_week_highs <span class="o">=</span> <span class="mi">100</span> <span class="o">:</span> last_week_highs<span class="o">;</span> 
 <span class="c">// ... and so on ... </pre></code>
 	</div>
       <p>As you can see building lists this way is quite tedious. So let us stick to the shortcut notation of comma separated values and let the Slogan 
@@ -191,9 +191,9 @@
 	We use the <code>match</code> expression to extract the head and tail portions of the list:</p>
 
       <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span><span class="k">match</span><span class="o">(</span>last_week_highs<span class="o">)</span>
-          <span class="o">[</span>h t<span class="o">]</span><span class="o">:</span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">"head="</span><span class="o">,</span> h<span class="o">)</span><span class="o">;</span>
-                   showln<span class="o">(</span><span class="s1">"tail="</span><span class="o">,</span> t<span class="o">)</span> <span class="o">}</span><span class="o">;</span></pre></code>
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span>last_week_highs<span class="o">)</span>
+         h <span class="o">:</span> t <span class="o">-></span> <span class="o">{</span> showln<span class="o">(</span><span class="s1">&quot;head=&quot;</span><span class="o">,</span> h<span class="o">)</span><span class="o">;</span> 
+                    showln<span class="o">(</span><span class="s1">&quot;tail=&quot;</span><span class="o">,</span> t<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
 	</div>
 
       <p>This will display:</p>
@@ -205,8 +205,8 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
       <p>Pattern matching can be used to take apart lists in other ways as well. If you want to extract the temperatures of 
         the first three days and ignore the rest, you can use the following pattern: </p>
       <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span><span class="k">match</span><span class="o">(</span>last_week_highs<span class="o">)</span>
-          <span class="o">[</span>t1 <span class="o">[</span>t2 <span class="o">[</span>t3 _<span class="o">]</span><span class="o">]</span><span class="o">]</span><span class="o">:</span> showln<span class="o">(</span><span class="s1">"day1="</span><span class="o">,</span> t1<span class="o">,</span><span class="s1">", day2="</span><span class="o">,</span> t2<span class="o">,</span><span class="s1">", day3="</span><span class="o">,</span> t3<span class="o">)</span><span class="o">;</span>
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span>last_week_highs<span class="o">)</span>
+         t1 <span class="o">:</span> t2 <span class="o">:</span> t3 <span class="o">:</span> _ <span class="o">-></span> showln<span class="o">(</span><span class="s1">&quot;day1=&quot;</span><span class="o">,</span> t1<span class="o">,</span> <span class="s1">&quot;, day2=&quot;</span><span class="o">,</span> t2<span class="o">,</span> <span class="s1">&quot;, day3=&quot;</span><span class="o">,</span> t3<span class="o">)</span><span class="o">;</span> 
 <span class="ge">-&gt; day1=100, day2=100, day3=102</span></pre></code></div>
 
       <h5>Functions over lists</h5>
@@ -299,7 +299,7 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
 
       <div class="highlight">
         <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> ints<span class="o">(</span>n<span class="o">)</span> 
-          <span class="o">[</span>n delay<span class="o">(</span>ints<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">]</span><span class="o">;</span></code></pre>
+          n <span class="o">:</span> delay<span class="o">(</span>ints<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span><span class="o">;</span></code></pre>
         </div>
       
       <p>Calling <code>ints(0)</code> calculates the infinite list <code>[0, 1, 2, 3, 4, 5, ...]</code>. 
@@ -312,7 +312,7 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
         <div class="highlight">
           <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> seq <span class="o">=</span> ints<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
 <span class="nc">slogan&gt; </span>seq<span class="o">;</span>
-<span class="ge">=&gt; [0 &lt;promise&gt;]</span></code></pre>
+<span class="ge">=&gt; 0 : &lt;promise&gt;</span></code></pre>
           </div>
 
         <p>The <code>&lt;promise&gt;</code> annotation means that the returned pair contains <code>0</code>, i.e, the first element of 
@@ -322,10 +322,10 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
         <div class="highlight">
           <pre><code><span class="nc">slogan&gt; </span>seq <span class="o">=</span> force<span class="o">(</span>tail<span class="o">(</span>seq<span class="o">)</span><span class="o">)</span><span class="o">;</span>
 <span class="nc">slogan&gt; </span>seq<span class="o">;</span>
-<span class="ge">=&gt; [1 &lt;promise&gt;]</span>
+<span class="ge">=&gt; 1 : &lt;promise&gt;</span>
 <span class="nc">slogan&gt; </span>seq <span class="o">=</span> force<span class="o">(</span>tail<span class="o">(</span>seq<span class="o">)</span><span class="o">)</span><span class="o">;</span>
 <span class="nc">slogan&gt; </span>seq<span class="o">;</span>
-<span class="ge">=&gt; [2 &lt;promise&gt;]</span></code></pre>
+<span class="ge">=&gt; 2 : &lt;promise&gt;</span></code></pre>
           </div>
 
         <h5>Lazy function arguments</h5>
@@ -519,8 +519,8 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
            <span class="k">function</span> <span class="o">(</span>message<span class="o">)</span>
              <span class="o">{</span> <span class="k">function</span> bump<span class="o">(</span><span class="o">)</span> c <span class="o">=</span> c <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
                <span class="k">function</span> get<span class="o">(</span><span class="o">)</span> c<span class="o">;</span> 
-               <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>bump<span class="o">:</span> bump<span class="o">(</span><span class="o">)</span><span class="o">,
-                              </span> <span class="o">!</span>get<span class="o">:</span> get<span class="o">(</span><span class="o">)</span><span class="o"> }</span><span class="o">;</span> 
+               <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>bump<span class="o"> -&gt;</span> bump<span class="o">(</span><span class="o">)</span><span class="o">,
+                              </span> <span class="o">!</span>get<span class="o"> -&gt;</span> get<span class="o">(</span><span class="o">)</span><span class="o"> }</span><span class="o">;</span> 
 </code></pre>
         </div>
 
@@ -563,8 +563,8 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
           <span class="k">function</span> <span class="o">(</span>message<span class="o">)</span> 
             <span class="o">{</span> <span class="k">function</span> bump<span class="o">(</span><span class="o">)</span> c <span class="o">=</span> c <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
               <span class="k">function</span> get<span class="o">(</span><span class="o">)</span> c<span class="o">;</span> 
-              <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>bump<span class="o">:</span> bump<span class="o">(</span><span class="o">)</span><span class="o">, </span> 
-                              <span class="o">!</span>get<span class="o">:</span> get<span class="o">(</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span></pre></code>
+              <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>bump<span class="o"> -&gt;</span> bump<span class="o">(</span><span class="o">)</span><span class="o">, </span> 
+                              <span class="o">!</span>get<span class="o"> -&gt;</span> get<span class="o">(</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span></pre></code>
         </div>
 
         <p><code>make_counter</code> is what some languages call a <em>class</em>, a function that build and return an object. Functions 
@@ -588,8 +588,8 @@ tail=[100, 102, 103, 101, 101, 100]</span></pre></code>
       <div class="highlight">
         <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_counter<span class="o">(</span>c<span class="o">)</span> 
           <span class="k">function</span><span class="o">(</span>message<span class="o">)</span> 
-            <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>bump<span class="o">:</span> c <span class="o">=</span> c <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> 
-                            <span class="o">!</span>get<span class="o">:</span> c<span class="o">;</span></code></pre>
+            <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> <span class="o">!</span>bump<span class="o"> -&gt;</span> c <span class="o">=</span> c <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> 
+                            <span class="o">!</span>get<span class="o"> -&gt;</span> c<span class="o">;</span></code></pre>
       </div>
 
       <h4>Commenting code</h4>
