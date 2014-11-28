@@ -30,84 +30,8 @@
       Slogan. This chapter introduces a number of additional features and programming techniques that will allow you to write more 
       sophisticated and efficient programs.</p>
 
-    <h4>Delayed functions and Macros</h4>
-    <p>In the <a href="./intro.html">Introduction</a> we met the functions <code>and</code> and <code>or</code> which are said to
-      evaluate their arguments <em>lazily</em>. Let us try to understand the concept of lazy evaluation by implementing one of these
-      functions ourselves, say <code>and</code>. To avoid confusing with the built-in function, we will call the version we write
-      <code>my_and</code>. Here is our first attempt:</p>
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> my_and<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
-          <span class="k">if</span> <span class="o">(</span>a <span class="o">&&</span> b<span class="o">)</span> <span class="k">true</span> 
-          <span class="k">else</span> <span class="k">false</span><span class="o">;</span> </code></pre>
-    </div>
-    <p>One limitation of <code>my_and</code> is that it can accept only two arguments. The built-in <code>and</code> function accepts an
-      arbitrary number of arguments. We will fix this limitation later. But <code>my_and</code> has an even more serious problem as you
-      can see from the following example:</p>
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span>false<span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="err">error: Divide by zero</span></code></pre>
-    </div>
-    <p>All the arguments of <code>my_and</code> is evaluated before the function body is called. This leads to the &quot;Divide by zero&quot; 
-      error. The built-in <code>and</code> function do not have this problem because there is something special in the way it is defined 
-      that delays the evaluation of arguments until they are needed in the function body. In the previous example, there is no need for
-      the function to evaluate the second argument as its return value has already being determined from the first argument. We can add
-      lazy evaluation of arguments to <code>my_and</code> by adding the keyword <code>lazy</code> to its definition:</p>
+    <h4>Macros and Lazy Functions</h4>
 
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> my_and<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
-          <span class="k">if</span> <span class="o">(</span>a <span class="o">&&</span> b<span class="o">)</span> <span class="k">true</span>
-          <span class="k">else</span> <span class="k">false</span><span class="o">;</span></code></pre>
-    </div>
-
-    <p>This definition of <code>my_and</code> has almost the same behavior as <code>and</code> when called with two arguments:</p>
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>and<span class="o">(</span><span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; false</span></code></pre>
-      </div>
-
-    <p>We said &quot;almost the same behavior&quot; because <code>and</code> returns the last argument if all arguments are not false.
-      But <code>my_and</code> will return <code>true</code>:</p>
-
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span>
-<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span></code></pre>
-    </div>
-    <p>We also need to accept <code>0-n</code> number of arguments, just like the built-in <code>and</code>. 
-      Let us have all these problems fixed in the next version of <code>my_and</code>:</p>
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> my_and args 
-          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> <span class="k">true</span> 
-          <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>length<span class="o">(</span>args<span class="o">)</span> <span class="o">==</span> <span class="mi">1</span><span class="o">)</span> 
-           force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> 
-          <span class="k">else</span> 
-           <span class="k">if</span> <span class="o">(</span>force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">)</span> apply<span class="o">(</span>my_and<span class="o">,</span> tail<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> 
-           <span class="k">else</span> <span class="k">false</span><span class="o">;</span> </code></pre>
-      </div>
-
-    <p>This implementation requires some explanation. First of all the parameter list is just an identifier called <code>args</code>. This is a
-      shortcut for making a function accept an arbitrary number of arguments. 
-      When calling the function, all the arguments will be packaged into a single list named <code>args</code>.
-      If this list is empty, i.e, no arguments were specified, the function returns 
-      <code>true</code>. If there is only one argument, its value is returned. 
-      If there are more than one argument, we check if the first argument is true. If it is 
-      <code>true</code> we recursively call the function until the list is reduced to a single argument. As the delayed arguments
-      are packaged into a list, we have to explicitly call the <code>force</code> function to check their values. (The explicit call to  
-      <code>force</code> is not required for lazy functions that take a fixed number of arguments.)</p>
-
-    <p>Now we can use <code>my_and</code> anywhere we would use the built-in <code>and</code> function:</p>
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; false</span></code></pre>
-    </div>
-    <h5>Macros</h5>
     <p>Macros are constructs that are syntactically similar to functions but there is a subtle difference in the way a call to a macro
       is executed. When the compiler sees a function call, it inserts code to evaluate the arguments, push the values to the runtime stack
       and makes the processor jump to the beginning of the function's body. When the compiler sees a macro call, it invokes a program called
@@ -115,7 +39,7 @@
       argument expressions and puts the macro body in-place of the macro call itself. When control returns to the compiler, it sees the 
       macro body instead of the macro call. It is this <em>in-lined</em> macro body that gets compiled to machine code.</p>
     <p>Macros gives us a way to write language extensions that do no incur the runtime cost of a function call. Macros allows us to
-      write syntactic extensions that conditionally evaluate their arguments, similar in effect to lazy functions but with
+      write syntactic extensions that conditionally evaluate their arguments, similar in effect to lazy functions (described below) but with
       better performance. As of now, macros have one limitation: a macro cannot make recursive calls to itself.</p>
     <p>As an example of using macros, let us define a loop abstraction called <code>dotimes</code>. This is a construct that will act as a basic 
       <em>counting loop</em>:</p>
@@ -161,7 +85,7 @@
           apply<span class="o">(</span>add<span class="o">,</span> args<span class="o">)</span> <span class="o">/</span> ~@<span class="o">(</span>length<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
 
     <p>The macro <code>avg</code> returns the average of its arguments. It finds out the number of arguments at compile-time and inserts that
-      value into the compiled code. For example, consider a call to <code>avg</code>:</p>
+      value into the expanded macro body. For example, consider a call to <code>avg</code>:</p>
 
     <div class="highlight">
     <pre><code><span class="nc">slogan&gt; </span>avg<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">34</span><span class="o">)</span><span class="o">;</span>
@@ -175,8 +99,86 @@
     <p>As of now macro parameters cannot have default values and they cannot be defined with these special annotations used in function 
       parameter lists: <code>@optional</code>, <code>@key</code> and <code>@rest</code>.</p>
 
+    <h5>Lazy Functions</h5>
+    <p>In the <a href="./intro.html">Introduction</a> we met the macros <code>and</code> and <code>or</code> which are said to
+      evaluate their arguments on demand or <em>lazily</em>. Is it possible to write functions that behave like macros? 
+      Let us try to understand the concept of lazy evaluation by implementing one of these
+      macros ourselves as a function, say <code>and</code>. To avoid confusing with the built-in macro, we will call the version we write
+      <code>my_and</code>. Here is our first attempt:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> my_and<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&&</span> b<span class="o">)</span> <span class="k">true</span> 
+          <span class="k">else</span> <span class="k">false</span><span class="o">;</span> </code></pre>
+    </div>
+    <p>One limitation of <code>my_and</code> is that it can accept only two arguments. The <code>and</code> macro accepts an
+      arbitrary number of arguments. We will fix this limitation later. But <code>my_and</code> has an even more serious problem as you
+      can see from the following example:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span>false<span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="err">error: Divide by zero</span></code></pre>
+    </div>
+    <p>All the arguments of <code>my_and</code> is evaluated before the function body is called. This leads to the &quot;Divide by zero&quot; 
+      error. The <code>and</code> macro do not have this problem because there is something special in the way it is defined 
+      that delays the evaluation of arguments until they are needed in the function body. In the previous example, there is no need for
+      the function to evaluate the second argument as its return value has already being determined from the first argument. We can make
+      <code>my_and</code> to evaluate its arguments only as needed by adding the keyword <code>lazy</code> to its definition:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> my_and<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>a <span class="o">&&</span> b<span class="o">)</span> <span class="k">true</span>
+          <span class="k">else</span> <span class="k">false</span><span class="o">;</span></code></pre>
+    </div>
+
+    <p>This definition of <code>my_and</code> has almost the same behavior as the <code>and</code> macro when called with two arguments:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; false</span>
+<span class="nc">slogan&gt; </span>and<span class="o">(</span><span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span></code></pre>
+      </div>
+
+    <p>We said &quot;almost the same behavior&quot; because <code>and</code> returns the last argument if all arguments are not false.
+      But <code>my_and</code> will return <code>true</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 2</span>
+<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+    </div>
+    <p>We also need to accept <code>0-n</code> number of arguments, just like the <code>and</code> macro. 
+      Let us have all these problems fixed in the next version of <code>my_and</code>:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> <span class="k">lazy</span> my_and args 
+          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> <span class="k">true</span> 
+          <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>length<span class="o">(</span>args<span class="o">)</span> <span class="o">==</span> <span class="mi">1</span><span class="o">)</span> 
+           force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> 
+          <span class="k">else</span> 
+           <span class="k">if</span> <span class="o">(</span>force<span class="o">(</span>head<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">)</span> apply<span class="o">(</span>my_and<span class="o">,</span> tail<span class="o">(</span>args<span class="o">)</span><span class="o">)</span> 
+           <span class="k">else</span> <span class="k">false</span><span class="o">;</span> </code></pre>
+      </div>
+
+    <p>This implementation requires some explanation. First of all the parameter list is just an identifier called <code>args</code>. This is a
+      shortcut for making a function accept an arbitrary number of arguments. 
+      When calling the function, all the arguments will be packaged into a single list named <code>args</code>.
+      If this list is empty, i.e, no arguments were specified, the function returns 
+      <code>true</code>. If there is only one argument, its value is returned. 
+      If there are more than one argument, we check if the first argument is true. If it is 
+      <code>true</code> we recursively call the function until the list is reduced to a single argument. As the delayed arguments
+      are packaged into a list, we have to explicitly call the <code>force</code> function to check their values. (The explicit call to  
+      <code>force</code> is not required for lazy functions that take a fixed number of arguments.)</p>
+
+    <p>Now we can use <code>my_and</code> anywhere we would use the <code>and</code> macro:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; true</span>
+<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 1</span>
+<span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; false</span></code></pre>
+    </div>
     <h4>Recursion</h4>
-    <p>The <code>dotimes</code> macro allows us to repeatedly perform an expression. Another way to achieve this is by writing a function
+    <p>The <code>dotimes</code> macro allowed us to repeatedly perform an expression. Another way to achieve this is by writing a function
       that contains the expression and invoke the function more than once as part of the expression itself. This is called recursion.
       In simple words, recursion is the application of a function from within that function. At first recursion might seem more difficult
       than looping constructs like <code>dotimes</code>, but once mastered it provides much more expressive power.<p>
@@ -337,8 +339,8 @@
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> f<span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">if</span> <span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="o">=</span> <span class="mi">4</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">if</span> <span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span> <span class="k">else</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">4</span><span class="o">)</span> f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span><span class="k">fn</span> <span class="o">(</span><span class="o">)</span> or<span class="o">(</span>g<span class="o">(</span><span class="o">)</span><span class="o">,</span> f<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
 
 
@@ -408,9 +410,9 @@
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> factorial<span class="o">(</span>n<span class="o">)</span> 
-           <span class="k">let</span> loop<span class="o">(</span>n <span class="o">=</span> n<span class="o">,</span> a <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+           <span class="k">let</span> fact_iter<span class="o">(</span>n <span class="o">=</span> n<span class="o">,</span> a <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
             <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> a 
-            <span class="k">else</span> loop<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> a <span class="o">*</span> n<span class="o">)</span><span class="o">;</span> </code></pre>
+            <span class="k">else</span> fact_iter<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> a <span class="o">*</span> n<span class="o">)</span><span class="o">;</span> </code></pre>
  </div>
 
 <h4>Continuations</h4>
@@ -426,7 +428,7 @@
 
 <p>The continuation of any expression can be captured with the function <code>callcc</code>. 
   <code>Callcc</code> must be passed a function <code>p</code> of one argument. The current continuation itself is represented as a
-  function <code>k</code>. This is function is passed to <code>p</code>. If <code>k</code> is applied to a value from within <code>p</code>, 
+  function <code>k</code>. This function is passed to <code>p</code>. If <code>k</code> is applied to a value from within <code>p</code>, 
   it returns the value to the continuation of the <code>callcc</code> application. This value becomes, in essence, the value of the 
   application of <code>callcc</code>.
   If <code>p</code> returns without invoking <code>k</code>, the value returned by the procedure becomes the value of the application of 
@@ -568,7 +570,7 @@
 <span class="ge">=&gt; [10, 20, [30, 40]]</span></code></pre>
 </div>
 
-<h5>Function Statement</h5>
+<h5>The Function Statement</h5>
 <p>The <code>function</code> (or <code>fn</code>) statement combines the <code>function</code> and <code>define</code> expressions to give
   us a shorter way to create named functions. </p>
 <div class="highlight">
@@ -695,7 +697,7 @@
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span>a_x<span class="o">;</span> 
 <span class="ge">=&gt; 100</span>
-<span class="nc">slogan&gt; </span>a_y<span class="o">(</span><span class="o">)</span> <span class="o">;</span> 
+<span class="nc">slogan&gt; </span>a_y<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; hi from A</span>
 <span class="nc">slogan&gt; </span>b_x<span class="o">;</span> 
 <span class="ge">=&gt; 78</span>
@@ -703,7 +705,7 @@
 <span class="ge">=&gt; hi from B</span></code></pre>
 </div>
 
-<p>Identifiers introduced by the <code>define</code> and <code>function</code> statements can also be imported from a namespace,
+<p>Identifiers introduced by the <code>define</code> and <code>function</code> statements can also be <em>imported</em> from a namespace,
   thus avoiding the explicit use of the prefix:</p>
 
 <div class="highlight">
