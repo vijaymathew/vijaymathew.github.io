@@ -214,7 +214,7 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
   is an object just like a number or a string but it does not have a meaningful printed representation. Slogan will print 
   <code>&lt;function&gt;</code> for all function objects.</p>
 
-<p>The most common operation to perform on a procedure is to apply it to one or more values:</p>
+<p>The most common operation to perform on a function is to apply it to one or more values:</p>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="o">(</span><span class="k">function</span> <span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> x<span class="o">)</span> <span class="o">(</span><span class="mi">3</span> <span class="o">*</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
@@ -224,7 +224,7 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 <p>The function is the value of <code>function (x) x + x</code>, and the only argument is the value of <code>3 * 4</code>, or <code>12</code>. 
   The argument values, or actual parameters, are bound to the formal parameters within the body of the function expression in the same way 
   as let-bound variables are bound to their values. In this case, <code>x</code> is bound to <code>12</code>, and the value of 
-  <code>x + x</code> is <code>24</code>. Thus, the result of applying the procedure to the value <code>12</code> is <code>24</code>.</p>
+  <code>x + x</code> is <code>24</code>. Thus, the result of applying the function to the value <code>12</code> is <code>24</code>.</p>
 
 <p>Because functions are objects, we can establish a function as the value of a variable and use the function more than once:</p>
 
@@ -238,17 +238,6 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 
 <p>Here, we bind the identifier <code>double</code> to a function and use this function to double three different values.
   (As you might have already noticed, we can use the shorter keyword <code>fn</code> instead of the longer keyword <code>function</code>).</p>
-
-<h5>Backquoting Operators</h5>
-<p>The arithmetic, comparison and logical operators are internally mapped to functions. The function object associated with an operator 
-  can accessed by <em>backquoting</em> the operator:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="o">`+`</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 6</span>
-<span class="nc">slogan&gt; </span><span class="o">`&&`</span><span class="o">(</span><span class="o">`<`</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">,</span> <span class="o">`>=`</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span></code></pre>
-</div>
 
 <h4>Conditional expressions</h4>
 <p>An <code>if</code> expression allows us to perform a task conditionally. The <code>if</code> expression has the following form:
@@ -291,7 +280,7 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 <span class="ge">=&gt; "hi"</span></code></pre>
 </div>
 
-<p>The functions <code>and</code> and <code>or</code> can be used in place of the logical operators. They have the advantage that they can 
+<p>The macros <code>and</code> and <code>or</code> can be used in place of the logical operators. They have the advantage that they can 
   take an arbitrary number of arguments:</p>
 
 <div class="highlight">
@@ -303,8 +292,8 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 <span class="ge">=&gt; 100</span></code></pre>
 </div>
 
-<p><code>And</code> and <code>or</code> belong to a special class of functions that evaluates their arguments <em>lazily</em>, i.e, arguments
-  are evaluated only if their values are needed. Consider the following example:</p>
+<p>Though macros are called using the same syntax as functions, macro arguments are evaluated only at the point of their use in the macro body. 
+  This is made clear in following example:</p>
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span>and<span class="o">(</span>true<span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
 <span class="err">-&gt; error: Divide by zero</span>
@@ -312,9 +301,10 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 <span class="ge">-&gt; false</span></code></pre>
 </div>
 
-<p>If <code>and</code> was a normal functions, both call will raise the "Divide by zero" error. As it is a lazy function, <code>and</code> will
+<p>If <code>and</code> was a normal function, both call will raise the "Divide by zero" error. As it is a macro, <code>and</code> will
   not evaluate the expression <code>1/0</code> during the second call as it has already decided that it can only evaluate to <code>false</code>.
-  In a later chapter we will see how to define functions that evaluate their arguments lazily.</p>
+  In a later chapter we will see how to define macros. We will also learn about functions that has the ability to evaluate their 
+  arguments only when needed.</p>
 
 <h4>Top-level definitions</h4>
 <p>Top-level variable bindings that are visible to all expressions that follow it are introduced by the <code>define</code>
@@ -379,19 +369,19 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 <span class="ge">=&gt; 200</span></code></pre>
 </div>
 
-<h5>The comma separator</h5>
+<h4>The comma separator</h4>
     <p>The comma operator (<code>,</code>) is used to separate values in a sequence, both visually and semantically.
       In most scenarios where comma is used as a separator, you can omit it and use whitespace instead. For example,
       all the list and array literals shown below are treated the same by the Slogan interpreter:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span> <span class="o">,</span><span class="mi">2</span> <span class="o">,</span> <span class="mi">3</span><span class="o">]</span> 
+      <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span> <span class="o">,</span><span class="mi">2</span> <span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">;</span>
 <span class="ge">=&gt; [1, 2, 3]</span>
-<span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span> 
+<span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span><span class="o">;</span>
 <span class="ge">=&gt; [1, 2, 3]</span>
-<span class="nc">slogan&gt; </span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span> 
+<span class="nc">slogan&gt; </span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">;</span>
 <span class="ge">=&gt; #[1, 2, 3]</span>
-<span class="nc">slogan&gt; </span><span class="o">#</span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span> 
+<span class="nc">slogan&gt; </span><span class="o">#</span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span><span class="o">;</span>
 <span class="ge">=&gt; #[1, 2, 3]</span></code></pre>
 </div>
           
@@ -406,7 +396,7 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
       the readability and consistency of the code and prevent subtle bugs such as the one shown below:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span> <span class="o">-</span><span class="mi">10</span> <span class="mi">20</span><span class="o">]</span> 
+      <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span> <span class="o">-</span><span class="mi">10</span> <span class="mi">20</span><span class="o">]</span><span class="o">;</span> 
 <span class="ge">=&gt; [-9, 20]</span></code></pre>
       </div>
 
@@ -415,7 +405,7 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
       list. This bug could have been avoided if we used comma separator explicitly:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="o">-</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">]</span> 
+      <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="o">-</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">]</span><span class="o">;</span>
 <span class="ge">=&gt; [1, -10, 20]</span></code></pre>
     </div>
 
@@ -433,6 +423,17 @@ that evaluates to the value <code>7</code> and the next is a statement that prin
 <span class="nc">slogan&gt; </span><span class="o">%</span><span class="o">[</span>this is a list of seven symbols<span class="o">]</span><span class="o">;</span> 
 <span class="ge">=&gt; [this is a list of seven symbols]</span></code></pre>
       </div>
+
+<h4>Backquoting Operators</h4>
+<p>The arithmetic, comparison and logical operators are internally mapped to functions. The function object associated with an operator 
+  can be accessed by <em>backquoting</em> the operator:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="o">`+`</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span>
+<span class="nc">slogan&gt; </span><span class="o">`&&`</span><span class="o">(</span><span class="o">`<`</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">,</span> <span class="o">`>=`</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; true</span></code></pre>
+</div>
  
   </div>
 </body>
