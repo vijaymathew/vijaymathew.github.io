@@ -40,7 +40,8 @@
       macro body instead of the macro call. It is this <em>in-lined</em> macro body that gets compiled to machine code.</p>
     <p>Macros gives us a way to write language extensions that do no incur the runtime cost of a function call. Macros allows us to
       write syntactic extensions that conditionally evaluate their arguments, similar in effect to lazy functions (described below) but with
-      better performance. As of now, macros have one limitation: a macro cannot make recursive calls to itself.</p>
+      better performance. </p>
+
     <p>As an example of using macros, let us define a loop abstraction called <code>dotimes</code>. This is a construct that will act as a basic 
       <em>counting loop</em>:</p>
 
@@ -96,8 +97,10 @@
     <div class="highlight">
       <pre><code><span class="nc">slogan&gt; </span>apply<span class="o">(</span>add<span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">34</span><span class="o">]</span><span class="o">)</span> <span class="o">/</span> <span class="mi">4</span><span class="o">;</span> </code></pre></div>
 
-    <p>As of now macro parameters cannot have default values and they cannot be defined with these special annotations used in function 
-      parameter lists: <code>@optional</code>, <code>@key</code> and <code>@rest</code>.</p>
+    <p>In the current implementation, macros have some limitations: a macro cannot make recursive calls to itself.
+      Macro parameters cannot have default values and they cannot be defined with the special annotations: 
+      <code>@optional</code>, <code>@key</code> and <code>@rest</code>. (The <em>meta-lazy</em> functions described below
+      attempts to overcome these limitations.)</p>
 
     <h5>Lazy Functions</h5>
     <p>In the <a href="./intro.html">Introduction</a> we met the macros <code>and</code> and <code>or</code> which are said to
@@ -177,6 +180,27 @@
 <span class="nc">slogan&gt; </span>my_and<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="k">false</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span>
 <span class="ge">=&gt; false</span></code></pre>
     </div>
+
+    <h5>Meta-Lazy Functions</h5>
+    <p>Meta-lazy functions are lazy functions whose definitions and calls are executed by the compiler. The result of invoking a meta-lazy function is
+      inserted into the generated code, replacing the call to the function. All lazy function names that start with the <code>&quot;~@&quot;</code> 
+      prefix are treated as meta-lazy by the compiler. </p>
+
+    <p>The following program shows a recursive meta-lazy function that computes the factorial of a number. The computation happens at compile-time
+    and the result is inserted into the generated code:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> lazy ~@factorial<span class="o">(</span>n<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="mi">1</span> 
+          <span class="k">else</span> n <span class="o">*</span> ~@factorial<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>~@factorial<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 3628800</span></code></pre>
+</div>
+
+    <p>Meta-lazy functions together with the <code>%</code> (quote) and <code>%%</code> (unquote)
+      operators can be used for conditional code generation.</p>
+
     <h4>Recursion</h4>
     <p>The <code>dotimes</code> macro allowed us to repeatedly perform an expression. Another way to achieve this is by writing a function
       that contains the expression and invoke the function more than once as part of the expression itself. This is called recursion.
