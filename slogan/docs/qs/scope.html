@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./scope.html" title="Functions"
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./basic.html" title="Installation"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h2>Scope and Control</h2></div>
+
+    <p>The <code>let</code> expression introduces local variables:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">34</span> <span class="o">,</span> b <span class="o">=</span> <span class="mi">20</span><span class="o">)</span> a <span class="o">+</span> b<span class="o">;</span> 
+<span class="ge">=&gt; 54</span></code></pre></div>
+
+    <p>Variable bindings in <code>let</code> will shadow global bindings with the same name:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> a <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">34</span><span class="o">,</span> b <span class="o">=</span> <span class="mi">20</span><span class="o">)</span> a <span class="o">+</span> b<span class="o">;</span> 
+<span class="ge">=&gt; 54</span></code></pre></div>
+
+    <p>If a binding expression needs to reference the value of a previous binding, <code>letseq</code> should be used:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">letseq</span> <span class="o">(</span>a <span class="o">=</span> <span class="mi">34</span><span class="o">,</span> b <span class="o">=</span> <span class="mi">20</span> <span class="o">*</span> a<span class="o">)</span> a <span class="o">+</span> b<span class="o">;</span> 
+<span class="ge">=&gt; 714</span></code></pre></div>
+
+    <p><code>letrec</code> must be used to define recursive local functions:</p>
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">letrec</span> <span class="o">(</span>a <span class="o">=</span> <span class="k">function</span><span class="o">(</span>x<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>is_zero<span class="o">(</span>x<span class="o">)</span><span class="o">)</span> b<span class="o">(</span>x<span class="o">)</span> <span class="k">else</span> a<span class="o">(</span>x <span class="o">-</span> <span class="mi">1</span><span class="o">)</span><span class="o">,</span> 
+                b <span class="o">=</span> <span class="k">function</span><span class="o">(</span>y<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>is_zero<span class="o">(</span>y<span class="o">)</span><span class="o">)</span> <span class="o">!</span>ok <span class="k">else</span> <span class="o">!</span>blah<span class="o">)</span> 
+          a<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; ok</span></code></pre></div>
+
+    <p><code>Code-blocks</code> delimited by curly-braces can also be used to limit the scope of variables:<p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="o">{</span> <span class="k">define</span> a <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> 
+          <span class="k">define</span> b <span class="o">=</span> <span class="mi">20</span><span class="o">;</span> 
+          a <span class="o">+</span> b <span class="o">}</span><span class="o">;</span> 
+<span class="ge">=&gt; 30</span></code></pre></div>
+
+      <p>Another use of code-blocks is to group a bunch of expressions together. They are executed sequentially and the value of the last expression is returned.</p>
+
+    <p>The <code>if</code> expression can be used to execute code conditionally. <code>If</code> has three parts - a condition, a consequent and an
+      alternative. If <i>condition</i> is not <code>false</code>, <i>consequent</i> is evaluated otherwise <i>alternative</i> is evaluated. The 
+      <i>alternative</i> part is optional and defaults to a special value called <code>void</code> which have no printed representation.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">if</span> <span class="o">(</span><span class="mi">1</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="o">)</span> <span class="o">!</span>ok<span class="o">;</span> 
+<span class="ge">=&gt; ok</span>
+<span class="nc">slogan&gt; </span><span class="k">if</span> <span class="o">(</span><span class="mi">1</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="o">)</span> <span class="o">!</span>ok<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">if</span> <span class="o">(</span><span class="mi">1</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="o">)</span> <span class="o">!</span>ok <span class="k">else</span> <span class="o">!</span>blah<span class="o">;</span> 
+<span class="ge">=&gt; blah</span></code></pre></div>
+
+    <p>The <code>case</code> expression is used to compare the value of an expression with a number of <i>clauses</i>. The consequent part of the first
+      matching clause is executed. If none of the clauses match <code>case</code> will return <code>void</code>. Optionally an <code>else</code> part
+      can be specified which will act as the default.</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">case</span> <span class="o">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span><span class="o">)</span> 
+         <span class="mi">1</span> <span class="o">-&gt;</span> <span class="o">!</span>one<span class="o">,</span> 
+         <span class="mi">2</span> <span class="o">-&gt;</span> <span class="o">!</span>two<span class="o">,</span> 
+         <span class="mi">3</span> <span class="o">-&gt;</span> <span class="o">!</span>three<span class="o">;</span> 
+<span class="ge">=&gt; three</span>
+<span class="nc">slogan&gt; </span><span class="k">case</span> <span class="o">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">2</span><span class="o">)</span> 
+         <span class="mi">1</span> <span class="o">-&gt;</span> <span class="o">!</span>one<span class="o">,</span> 
+         <span class="mi">2</span> <span class="o">-&gt;</span> <span class="o">!</span>two<span class="o">,</span> 
+         <span class="mi">3</span> <span class="o">-&gt;</span> <span class="o">!</span>three<span class="o">,</span> 
+         <span class="k">else</span> <span class="o">-&gt;</span> <span class="o">!</span>none<span class="o">;</span> 
+<span class="ge">=&gt; none</span></code></pre></div>
+
+    <p>The <code>match</code> expression is similar to <code>case</code> but allow pattern matching and variable bindings using complex clauses:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">[</span><span class="mi">1</span> a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">+</span> b<span class="o">,</span> 
+         <span class="o">[</span><span class="mi">2</span> a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">*</span> b<span class="o">;</span> 
+<span class="ge">=&gt; 5</span>
+<span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span><span class="o">[</span><span class="mi">2</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">[</span><span class="mi">1</span> a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">+</span> b<span class="o">,</span> 
+         <span class="o">[</span><span class="mi">2</span> a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">*</span> b<span class="o">;</span> 
+<span class="ge">=&gt; 6</span>
+<span class="nc">slogan&gt; </span><span class="k">match</span> <span class="o">(</span> <span class="o">[</span><span class="mi">3</span> <span class="mi">2</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span> 
+         <span class="o">[</span><span class="mi">1</span> a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">+</span> b<span class="o">,</span> 
+         <span class="o">[</span><span class="mi">2</span> a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">*</span> b<span class="o">,</span> 
+         <span class="k">else</span> <span class="o">-&gt;</span><span class="o">!</span>none 
+<span class="ge">=&gt; none</span>
+
+<span class="nc">slogan&gt; </span><span class="k">record</span> point<span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">record</span> three_d_point<span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> add<span class="o">(</span>p<span class="o">)</span> 
+         <span class="k">match</span> <span class="o">(</span>p<span class="o">)</span> 
+          point<span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> <span class="o">-&gt;</span> x <span class="o">+</span> y<span class="o">,</span> 
+          three_d_point<span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span> <span class="o">-&gt;</span> x <span class="o">+</span> y <span class="o">+</span> z<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>add<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">20</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">13.43</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 33.43</span>
+<span class="nc">slogan&gt; </span>add<span class="o">(</span>three_d_point<span class="o">(</span>x <span class="o">=</span> <span class="mi">20</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">13.43</span><span class="o">,</span> z <span class="o">=</span> <span class="mi">32.32</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 65.75</span></code></pre></div>
+  </div>
+</body>
+</html>
