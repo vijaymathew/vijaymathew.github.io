@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./scope.html" title="Functions"
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./basic.html" title="Installation"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h2>Functions, Generics, Methods</h2></div>
+    
+    <p>The following function adds <code>2</code> to its argument:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> add_2<span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> <span class="mi">2</span><span class="o">;</span> </code></pre></div>
+
+    <p>You can also use the shorter <code>fn</code> keyword instead of <code>function</code>:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">fn</span> add_2<span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> <span class="mi">2</span><span class="o">;</span></code></pre></div>
+
+    <p>Functions are first-class objects like numbers, strings and lists. That means we can also define a function like this:</p>
+
+    <div class="highlight">
+      <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> add_2 <span class="o">=</span> <span class="k">fn</span><span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> <span class="mi">2</span><span class="o">;</span> </code></pre></div>
+
+    <p>Irrespective of how you define a function, there is just one way to call it:<p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span>add_2<span class="o">(</span><span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span>
+<span class="nc">slogan&gt; </span>add_2<span class="o">(</span><span class="mi">12.32</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 14.32</span></code></pre></div>
+
+      <p>Some or all parameters of a function can be given default values:</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> add_n<span class="o">(</span>x<span class="o">,</span> n<span class="o">=</span> <span class="mi">2</span><span class="o">)</span> x <span class="o">+</span> n<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>add_n<span class="o">(</span><span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span>
+<span class="nc">slogan&gt; </span>add_n<span class="o">(</span><span class="mi">4</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 14</span></code></pre></div>
+
+      <p>Parameters can be "annotated" to make them <code>optional</code>:</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> tax<span class="o">(</span>amount<span class="o">,</span> @optional rate<span class="o">)</span> 
+         <span class="k">if</span> <span class="o">(</span>rate<span class="o">)</span> amount <span class="o">*</span> rate 
+         <span class="k">else</span> amount <span class="o">*</span> <span class="mi">0.025</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>tax<span class="o">(</span><span class="mi">1000.45</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 25.011250000000004</span>
+<span class="nc">slogan&gt; </span>tax<span class="o">(</span><span class="mi">1000.45</span><span class="o">,</span> <span class="mi">0.001</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 1.00045</span></code></pre></div>
+
+      <p>Keyword parameters allows arguments to be named while calling the function:</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> tax<span class="o">(</span>@key amount<span class="o">,</span> rate<span class="o">)</span> amount <span class="o">*</span> rate<span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>tax<span class="o">(</span>rate <span class="o">=</span> <span class="mi">0.001</span><span class="o">,</span> amount <span class="o">=</span> <span class="mi">1000.45</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 1.00045</span></code></pre></div>
+
+      <p>The <code>@rest</code> annotation packs an arbitrary number of arguments into a list and gives that to the function:</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum<span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> @rest nums<span class="o">)</span> 
+         <span class="k">let</span> loop<span class="o">(</span>s <span class="o">=</span> a <span class="o">+</span> b<span class="o">,</span> nums <span class="o">=</span> nums<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>nums<span class="o">)</span><span class="o">)</span> s 
+          <span class="k">else</span> loop<span class="o">(</span>s <span class="o">+</span> head<span class="o">(</span>nums<span class="o">)</span><span class="o">,</span> tail<span class="o">(</span>nums<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>sum<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 3</span>
+<span class="nc">slogan&gt; </span>sum<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 15</span></code></pre></div>
+
+      <p>In the <code>sum</code> function we just defined, the first two arguments are always required. There is a shortcut to define functions where all
+	arguments are optional:</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> sum nums 
+         <span class="k">let</span> loop<span class="o">(</span>s <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> nums <span class="o">=</span> nums<span class="o">)</span> 
+          <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>nums<span class="o">)</span><span class="o">)</span> s 
+          <span class="k">else</span> loop<span class="o">(</span>s <span class="o">+</span> head<span class="o">(</span>nums<span class="o">)</span><span class="o">,</span> tail<span class="o">(</span>nums<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>sum<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 0</span>
+<span class="nc">slogan&gt; </span>sum<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 15</span></code></pre></div>
+
+      <p>Functions can recursively call themselves: </p>
+
+      <div class="highlight">
+	<pre><code>// TODO</code></pre></div>
+
+      <p>Recursion at tail-positions are optimized by Slogan so that they don't grow the call-stack: </p>
+
+      <div class="highlight">
+	<pre><code>// TODO</code></pre></div>
+
+      <p>As functions are first-class objects, they can be passed as arguments to other functions. Let us get familiar with some 
+	built-in functions that accept functional-arguments:</p>
+
+      <div class="highlight">
+	<pre><code>// TODO</code></pre></div>
+
+      <p>Functions can return other functions as results:</p>
+
+      <div class="highlight">
+	<pre><code>// TODO</code></pre></div>
+
+      <p>Methods are similar to functions but allows us to overload the same function for different types of arguments. For example, let us
+	extend the built-in <code>+</code> (addition) function so that it can also be used to concatenate strings. (Operator symbols like 
+	<code>+</code> must be escaped with tick-quotes (`) while using them as function names):</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">method</span> `+` <span class="o">(</span>string<span class="o">,</span> string<span class="o">)</span> <span class="o">(</span>s1<span class="o">,</span> s2<span class="o">)</span> string_append<span class="o">(</span>s1<span class="o">,</span> s2<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="s1">&quot;hello, &quot;</span> <span class="o">+</span> <span class="s1">&quot;world&quot;</span><span class="o">;</span> 
+<span class="ge">=&gt; hello, world</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> <span class="mi">3</span><span class="o">;</span> 
+<span class="ge">=&gt; 5</span></code></pre></div>
+
+      <p>Methods are specialized instances of generics: </p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">declare</span> generic len <span class="o">(</span>obj<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">method</span> len <span class="o">(</span>list<span class="o">)</span> <span class="o">(</span>obj<span class="o">)</span> length<span class="o">(</span>obj<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">method</span> len <span class="o">(</span>string<span class="o">)</span> <span class="o">(</span>obj<span class="o">)</span> string_length<span class="o">(</span>obj<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>len<span class="o">(</span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 4</span>
+<span class="nc">slogan&gt; </span>len<span class="o">(</span><span class="s1">&quot;hello&quot;</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 5</span>
+<span class="nc">slogan&gt; </span>len<span class="o">(</span><span class="o">!</span>hello<span class="o">)</span><span class="o">;</span> 
+<span class="err">error: Method not defined.</span></code></pre></div>
+  </div>
+</body>
+</html>
