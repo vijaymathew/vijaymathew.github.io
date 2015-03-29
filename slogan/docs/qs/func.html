@@ -106,26 +106,84 @@
 <span class="nc">slogan&gt; </span>sum<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 15</span></code></pre></div>
 
-      <p>Functions can recursively call themselves: </p>
+      <p>Functions can recursively call themselves. Here is a definition of Fibonacci numbers:</p>
 
       <div class="highlight">
-	<pre><code>// TODO</code></pre></div>
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> fib<span class="o">(</span>n<span class="o">)</span> 
+         <span class="k">match</span> <span class="o">(</span>n<span class="o">)</span> 
+          <span class="mi">0</span> <span class="o">-&gt;</span> <span class="mi">1</span><span class="o">,</span> 
+          <span class="mi">1</span> <span class="o">-&gt;</span> <span class="mi">1</span><span class="o">,</span> 
+          <span class="k">else</span> <span class="o">-&gt;</span> fib<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">)</span> <span class="o">+</span> fib<span class="o">(</span>n <span class="o">-</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
 
-      <p>Recursion at tail-positions are optimized by Slogan so that they don't grow the call-stack: </p>
+<span class="nc">slogan&gt; </span>fib<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 89</span></code></pre></div>
 
-      <div class="highlight">
-	<pre><code>// TODO</code></pre></div>
-
-      <p>As functions are first-class objects, they can be passed as arguments to other functions. Let us get familiar with some 
-	built-in functions that accept functional-arguments:</p>
-
-      <div class="highlight">
-	<pre><code>// TODO</code></pre></div>
-
-      <p>Functions can return other functions as results:</p>
+      <p>Recursion at tail-positions are optimized by Slogan so that they don't grow the call-stack. The following program shows a properly
+      tail-recursive function for finding the number of elements in a list:</p>
 
       <div class="highlight">
-	<pre><code>// TODO</code></pre></div>
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> len<span class="o">(</span>xs<span class="o">)</span> 
+         <span class="k">letrec</span> <span class="o">(</span>loop <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>xs<span class="o">,</span> c<span class="o">)</span> 
+                         <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> c 
+                         <span class="k">else</span> loop<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> c <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">)</span> 
+          loop<span class="o">(</span>xs<span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>len<span class="o">(</span><span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 5</span></code></pre></div>
+
+      <p>Tail-call optimization makes special forms for iteration like the <code>for</code> and <code>while</code> looping constructs redundant in Slogan.</p>
+
+      <p>As functions are first-class objects, they can be passed as arguments to other functions. <code>Map</code> and <code>fold_right</code>
+	are examples of built-in functions that accept functional-arguments:</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span>map<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>x<span class="o">)</span> x <span class="o">*</span> x<span class="o">,</span> <span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [1, 4, 9, 16, 25]</span>
+<span class="nc">slogan&gt; </span>fold_right<span class="o">(</span>`+`<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 15</span></code></pre></div>
+
+      <p>It is easy to define functions with function parameters:</p>
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> call_fn<span class="o">(</span>f<span class="o">,</span> a<span class="o">,</span> b<span class="o">)</span> f<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>call_fn<span class="o">(</span>`+`<span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 30</span></code></pre></div>
+
+      <p>Here is another example. The function <code>iter</code> defined below calls a function <code>f</code> iteratively <code>n</code> number of
+	times:</p>
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> iter<span class="o">(</span>n<span class="o">,</span> f<span class="o">,</span> x<span class="o">)</span> 
+         <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> x 
+         <span class="k">else</span> f<span class="o">(</span>iter<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> f<span class="o">,</span> x<span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>iter<span class="o">(</span><span class="mi">4</span><span class="o">,</span> <span class="k">fn</span><span class="o">(</span>x<span class="o">)</span> x <span class="o">*</span> x<span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 65536</span></code></pre></div>
+
+      <p>We can re-define the Fibonacci function using <code>iter</code>:</p>
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> fib <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>n<span class="o">)</span> head<span class="o">(</span>iter<span class="o">(</span>n<span class="o">,</span> <span class="k">fn</span> <span class="o">(</span>p<span class="o">)</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> head<span class="o">(</span>p<span class="o">)</span><span class="o">,</span> y <span class="o">=</span> tail<span class="o">(</span>p<span class="o">)</span><span class="o">)</span> x<span class="o">+</span>y <span class="o">:</span> x<span class="o">,</span> 
+                                      <span class="mi">1</span><span class="o">:</span><span class="mi">0</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
+
+      <p>This is more efficient than the earlier one because it computes each Fibonacci number only once.</p>
+
+      <p>Functions can return other functions as results. As an example, consider the function <code>compose</code>. It takes an arbitrary number of
+	functions as arguments and produces a function that calls these functions in sequence. Each function receives the result of the previous
+	function as argument. The functions are applied from right to left.</p>
+
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> square<span class="o">(</span>x<span class="o">)</span> x <span class="o">*</span> x<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> square_twice <span class="o">=</span> compose<span class="o">(</span>square<span class="o">,</span> square<span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>square_twice<span class="o">(</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 81</span></code></pre></div>
+
+      <p>Another interesting function is <code>partial</code> which returns a partially applied version of a function:</p>
+      
+      <div class="highlight">
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> add_3 <span class="o">=</span> partial<span class="o">(</span>`+`<span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>add_3<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 8</span></code></pre></div>
+
 
       <p>Methods are similar to functions but allows us to overload the same function for different types of arguments. For example, let us
 	extend the built-in <code>+</code> (addition) function so that it can also be used to concatenate strings. (Operator symbols like 
