@@ -24,32 +24,163 @@
     <div id="site" class="site">
       <div class="title"><h3>Foreign Function Interface</h3></div>
 
-      <p>The Slogan language offers a mechanism for interfacing Slogan code with C code. This mechanism is called the Foreign Function Interface or FFI. 
-        A Slogan program can call C functions exported by a shared (or dynamic-link) library. A C function to be callable from
-        Slogan should meet the following conditions:</p>
+      <p>The Foreign Function Interface (FFI) is a mechanism for interfacing Slogan with C libraries.
+        Slogan provides two interfaces to communicate with C libraries. First we will discuss the higher-level interface made available through
+        the <code>declare ffi</code> statement.</p>
+
+      <p>The <code>declare ffi</code> statement has the following syntax:</p>
+      <div class="highlight">
+        <pre><code><span class="k">declare</span> <span class="k">ffi</span> library_name list_of_prototypes</code></pre>
+      </div>
+
+      <p>Here library name can be a string or a variable. If it is a string, it should be the full or relative path of the library to be loaded.
+        If the path is relative, the library is first looked up in the local folder and then under the paths specified in the <code>LD_LIBRARY_PATH</code>
+        environment variable. If <code>library_name</code> is a variable it should point to a library object loaded by the <code>ffi_open</code>
+        function. (This function is described later in this document.)</p>
+
+      <p><code>List_of_prototypes</code> contain prototype declarations of functions and structures in the shared library. The Slogan compiler
+        uses these declarations to define functions that act as proxies to access these C objects.</p>
+
+      <p>A function prototype has the following syntax:</p>
+      <div class="highlight">
+        <pre><code>return_type c_function_name list_of_argument_types <span class="k">as</span> proxy_function_name</code></pre>
+      </div>
+
+      <p>The following table lists the types that can be used in a prototype and their equivalent C-types:</p>
+
+      <table>
+        <tr><td><b>Type</b></td><td><b>Equivalent C-type</b></td></tr>
+        <tr><td>uint8</td><td>uint8_t</td></tr>
+        <tr><td>int8</td><td>int8_t</td></tr>
+        <tr><td>uint16</td><td>uint16_t</td></tr>
+        <tr><td>int16</td><td>int16_t</td></tr>
+        <tr><td>uint32</td><td>uint32_t</td></tr>
+        <tr><td>int32</td><td>int32_t</td></tr>
+        <tr><td>uchar</td><td>unsigned char</td></tr>
+        <tr><td>char</td><td>signed char</td></tr>
+        <tr><td>ushort</td><td>unsigned short</td></tr>
+        <tr><td>short</td><td>signed short</td></tr>
+        <tr><td>uint</td><td>unsigned int</td></tr>
+        <tr><td>int</td><td>signed int</td></tr>
+        <tr><td>ulong</td><td>unsigned long</td></tr>
+        <tr><td>long</td><td>signed long</td></tr>
+        <tr><td>uint64</td><td>uint64_t</td></tr>
+        <tr><td>int64</td><td>int64_t</td></tr>
+        <tr><td>float</td><td>float</td></tr>
+        <tr><td>double</td><td>double</td></tr>
+        <tr><td>longdouble</td><td>long double</td></tr>
+        <tr><td>charstring</td><td>char *</td></tr>
+        <tr><td>pointer</td><td>void *</td></tr>
+        <tr><td>void</td><td>void</td></tr>
+      </table>
+
+      <p>Note that the <code>void</code> type can only be used as a return type. It cannot be used as the type of a parameter.</p>
+      <p>The <code>proxy_function_name</code> is optional. If provided, the Slogan function that acts as a proxy
+        will be bound to this name. Otherwise it will be bound to <code>c_function_name</code>.</p>
+
+      <p>As an example, two C functions and their corresponding prototypes are given below:</p>
+
+      <div class="highlight">
+        <pre><code>// sample_c_lib.c
+#include &lt;math.h&gt;
+double square_root(double f) { return sqrt(f); }
+long add_li(int i, long l) { return ((long)i) + l; }</pre></code></div>
+
+          <div class="highlight">
+      <pre><code><span class="k">declare</span> ffi <span class="s1">"sample_c_lib.so"</span> <span class="o">[</span>double square_root <span class="o">[</span>double<span class="o">]</span><span class="k"> as</span> sqrt<span class="o">,</span>
+                               long add_li <span class="o">[</span>int<span class="o">,</span> long<span class="o">]</span><span class="o">]</span></code></pre>
+    </div>
+
+      <p>These prototype declarations mean that the Slogan program can call the C <code>square_root</code> function as <code>sqrt(param)</code> and the
+        <codr>add_li</code> function with the same name.</p>
+
+      <p>A structure prototype has the following syntax:</p>
+      <div class="highlight">
+        <pre><code><span class="k">struct</span> c_struct_name list_of_members</code></pre>
+      </div>
+
+      <p><code>List_of_members</code> is an association list of the types and field names. For example consider the definition of a C struct
+        and its corresponding prototype:</p>
+
+            <div class="highlight">
+        <pre><code>// sample_c_lib.c
+struct point {
+   int x;
+   int y;
+};
+
+struct point make_point(int x, int y)
+{
+   struct point p = {x, y};
+   return p;
+}</pre></code></div>
+            
+          <div class="highlight">
+      <pre><code><span class="k">declare</span> ffi <span class="s1">"sample_c_lib.so"</span> <span class="o">[</span><span class="k">struct</span> point <span class="o">[</span>int<span class="o">:</span>x <span class="o", </span>int<span class="o">:</span>y<span class="o">]</span><span class="o">,</span>
+                               point make_point <span class="o">[</span>int<span class="o">,</span> int<span class="o">]</span><span class="o">]</span></code></pre>
+    </div>
+
+<p>Note that a <code>struct</code> prototype is required only if Slogan has to call C functions that deal with struct instances directly, i.e
+  not through pointers. If all C functions that you need to call deal with pointers to structures, you can get by with function declarations with the
+  <code>pointer</code> type. <code>Struct</code> prototypes are also required if you want to inspect the contents of a pointer to a structure or
+  you want to construct an instance of the structure from Slogan.</p>
+
+<p>The FFI provides a number of functions for accessing and manipulating C structures:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>c_struct_name<span class="o">(</span>s<span class="o">)</span>
+<b>returns: </b>the name of the struct prototype as a symbol.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>c_struct_get<span class="o">(</span>s<span class="o">, </span>m<span class="o">)</span>
+<b>returns: </b>the value of the member named <em>m</em> from the structure <em>s</em>, <em>false</em> if the member is not found.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>c_struct_instance<span class="o">(</span>n<span class="o">, </span>v<span class="o">)</span>
+<b>returns: </b>a new instance of the structure named <em>n</em> with the members initialized to the values of the list <em>v</em>.</code></pre>
+</div>
+
+<p>The values list should be specified in the same order as the members in the struct definition.</p>
+
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>pointer_to_c_struct<span class="o">(</span>n<span class="o">, </span>ptr<span class="o">)</span>
+<b>returns: </b>converts the generic pointer <em>ptr</em> to the structure named <em>n</em>.</code></pre>
+</div>
+
+<p>You can find a detailed sample on using the high-level FFI in the <a href="https://github.com/vijaymathew/slogan/tree/master/example/ffi">example/ffi</a> folder of the source repository.</p>
+
+<h3>Low-level FFI</h3>
+<p>The lower-level FFI gives more control over making C function calls. It also allows C functions to callback into Slogan code.</p>
+<p>A C function to be callable from low-level FFI should meet the following conditions:</p>
       <p><ol>
           <li>all arguments should be one of two types: <code>___slogan_obj</code> or <code>void*</code>.</li>
           <li>should accept a maximum of 8 arguments.</li>
           <li>the return type should be one of: <code>void</code>, <code>void*</code>, <code>___slogan_obj</code>, <code>char</code>,
-            <code>char*</code>, <code>int</code>, <code>unsigned int</code>, <code>float</code> or <code>double</code>.</li>
+            <code>char*</code>, <code>int</code>, <code>unsigned int</code>, <code>long</code>, <code>unsigned long</code>, <code>long long</code>, <code>float</code> or <code>double</code>.</li>
       </ol></p>
 
       <p>The C type <code>___slogan_obj</code> represents all Slogan objects (like strings, lists, integers and characters).
         The header file <code>slogan.h</code> defines the type <code>___slogan_obj</code> along with functions and macros required
         for converting a <code>___slogan_obj</code> to a C object and vice versa.</p>
 
-      <p>There is a <a href="../qs/ffi.html">section</a> in the Quick Start that shows a practical example on FFI.</p>
-
       <h4>Conversion Macros</h4>
-      <p>This section describes the C marcos defined in <code>slogan.h</code> for converting between <code>___slogan_obj</code> and C types.</p>
+      <p>This section describes the C macros defined in <code>slogan.h</code> for converting between <code>___slogan_obj</code> and C types.</p>
 
       <div class="highlight">
         <pre><code><span class="nc">C macro:</span>___slogan_obj_to_int<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
 <span class="nc">C macro:</span>___slogan_obj_to_uint<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_long<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_ulong<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_longlong<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
 <span class="nc">C macro:</span>___slogan_obj_to_float<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
 <span class="nc">C macro:</span>___slogan_obj_to_double<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
 <span class="nc">C macro:</span>___slogan_obj_to_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_nonnull_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span></code></pre>
+<span class="nc">C macro:</span>___slogan_obj_to_nonnull_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+<span class="nc">C macro:</span>___slogan_obj_to_void_pointer<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
+        </code></pre>
       </div>
 
 <p>The ___slogan_obj object <code>s</code> is converted to a C <code>int</code>, <code>unsigned int</code>, <code>float</code>, 
@@ -68,12 +199,46 @@
 </div>
 
 <div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___uint_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj containing the value of the unsigned integer <em>i</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___ulong_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj containing the value of the unsigned long <em>i</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___long_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj representing the long value <em>i</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___longlong_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj representing the long long value <em>i</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___float_to_slogan_obj<span class="o">(</span>f<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj representing the float value <em>f</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___double_to_slogan_obj<span class="o">(</span>d<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj representing the double value <em>d</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">C macro:</span>___void_pointer_to_slogan_obj<span class="o">(</span>p<span class="o">)</span>
+<b>returns:</b> a ___slogan_obj representing the generic pointer <em>p</em>.</code></pre>
+</div>
+
+<div class="highlight">
         <pre><code><span class="nc">C macro:</span>___charstring_to_slogan_obj<span class="o">(</span>c<span class="o">,</span> s<span class="o">)</span>
 <span class="nc">C macro:</span>___nonnullcharstring_to_slogan_obj<span class="o">(</span>c<span class="o">,</span> s<span class="o">)</span></code></pre>
 </div>
 
-<p>Initializes the <code>___slogan_obj</code> <code>s</code> as a Slogan string with the characters from the C string <code>c</code>.
-  <code>___charstring_to_slogan_obj</code> creates a null-terminated string and <code>___nonnullcharstring_to_slogan_obj</code> creates
+<p><code>___charstring_to_slogan_obj</code> initializes the <code>___slogan_obj</code> <code>s</code> as a Slogan string with the characters from the C string <code>c</code>. <code>___charstring_to_slogan_obj</code> creates a null-terminated string and <code>___nonnullcharstring_to_slogan_obj</code> creates
   a string object that keeps track of its length. The C string <code>c</code> should always be null terminated.</p>
 
 <p>The following C code shows the correct way to use these functions:</p>
