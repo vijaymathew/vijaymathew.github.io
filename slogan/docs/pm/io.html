@@ -26,33 +26,33 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Input and Output</h3></div>
-    <p>All input and output operations are performed through objects called <em>ports</em>. A port is a pointer into a (possibly infinite) stream of data (often a file), 
+    <p>All input and output operations are performed through objects called <em>streams</em>. A stream is a pointer into a (possibly infinite) stream of data (often a file), 
       an opening through which programs may draw bytes or characters from the stream or place bytes or characters into the stream. 
-      A port may be an input port, an output port, or both simultaneously.</p>
+      A stream may be an input stream, an output stream, or both simultaneously.</p>
 
-    <p>There are initially three ports: the current input port, current output port, and current error port, which are textual ports 
-      connected to the process's standard input, standard output, and standard error streams. Several ways to open new ports are provided.</p>
+    <p>There are initially three streams: the current input stream, current output stream, and current error stream, which are textual streams 
+      connected to the process's standard input, standard output, and standard error streams. Several ways to open new streams are provided.</p>
 
-    <p>If one of the input operations is asked to read from a port that has reached the end of a finite stream, it returns the <code>eof</code> (end-of-file) object. The predicate <code>is_eof_object</code> may be used to determine if the value returned 
+    <p>If one of the input operations is asked to read from a stream that has reached the end of a finite stream, it returns the <code>eof</code> (end-of-file) object. The predicate <code>is_eof_object</code> may be used to determine if the value returned 
       from the input operation is the eof object.</p>
 
-    <p>Ports are either binary or textual. A binary port allows a program to read or write 8-bit unsigned bytes, or "octets," from or 
-      to the underlying stream. A textual port allows a program to read or write characters.</p>
+    <p>Streams are either binary or textual. A binary stream allows a program to read or write 8-bit unsigned bytes, or "octets," from or 
+      to the underlying stream. A textual stream allows a program to read or write characters.</p>
 
-    <p>A port may be buffered for efficiency, to eliminate the overhead of a call into the operating system for each byte or character. 
+    <p>A stream may be buffered for efficiency, to eliminate the overhead of a call into the operating system for each byte or character. 
       Three standard buffer modes are supported: <code>block</code>, <code>line</code>, and <code>none</code>. With block buffering, 
       input is drawn from a stream and output is sent to the stream in chunks of some implementation-dependent size. With line buffering, 
       buffering is performed on a line-by-line basis or on some other implementation-dependent basis. Line buffering is typically distinguished 
-      from block buffering only for textual output ports; there are no line divisions in binary ports, and input is likely to be drawn from a 
+      from block buffering only for textual output streams; there are no line divisions in binary streams, and input is likely to be drawn from a 
       stream as it becomes available. With buffer-mode <code>none</code>, no buffering is performed, so output is sent immediately to 
       the stream and input is drawn only as needed.</p>
 
-    <p>The remainder of this chapter covers operations on transcoders, file ports, standard ports, string, bytearray and network ports, 
-      and general port operations. </p>
+    <p>The remainder of this chapter covers operations on transcoders, file streams, standard streams, string, bytearray and network streams, 
+      and general stream operations. </p>
 
     <h4>Transcoders</h4>
     <p>In many cases, the underlying stream is organized as a sequence of bytes, but these bytes should be treated as encodings for characters. 
-      In this case, a textual port may be created with a transcoder to decode bytes to characters (for input) or encode characters to 
+      In this case, a textual stream may be created with a transcoder to decode bytes to characters (for input) or encode characters to 
       bytes (for output). A transcoder encapsulates a codec that determines how characters are represented as bytes. 
       These codecs are supported: ISO_8859_1, ASCII, UTF_8, UTF_16, UTF_16LE, UTF_16BE, UCS_2, UCS_2LE, UCS_2BE, 
       UCS_4, UCS_4LE and UCS_4BE.</p>
@@ -72,7 +72,7 @@
       in the output direction. The error-handling mode is <code>ignore</code>, <code>raise</code>, or <code>replace</code>. 
       If the error-handling mode is <code>ignore</code>, the offending sequence of bytes or the character is ignored. 
       If the error-handling mode is <code>raise</code>, an exception with condition type i/o-decoding or i/o-encoding is raised; 
-      in the input direction, the port is positioned beyond the sequence of bytes. If the error-handling mode is <code>replace</code>, 
+      in the input direction, the stream is positioned beyond the sequence of bytes. If the error-handling mode is <code>replace</code>, 
       a replacement character or character encoding is produced: in the input direction, the replacement character is <code>U+FFFD</code>, 
       while in the output direction, the replacement is either the encoding of <code>U+FFFD</code> for unicode codecs or the
       encoding of the question-mark character ( ? ) for other codecs.</p>
@@ -99,20 +99,20 @@
 <span class="ge">=&gt; raise</span></code></pre>
 </div>
 
-<h4>File Ports</h4>
+<h4>File Streams</h4>
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_file_input_port<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">, </span>tcoder<span class="o">)</span>
-<b>returns: </b>a new input port for the named file.</code></pre>
+  <pre><code><span class="nc">function: </span>open_file_input_stream<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">, </span>tcoder<span class="o">)</span>
+<b>returns: </b>a new input stream for the named file.</code></pre>
 </div>
 
 <p>If present, <code>options</code> must be a list of symbols that control aspects of file operations. The only option that is valid for this function
   is <code>truncate</code> which controls whether the file will be truncated when it is opened. <code>Bmode</code> is a symbol that controls buffering.
   By default, buffering is turned off. If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, 
-  and this function returns a textual input port whose transcoder is <code>tcoder</code>. Otherwise, this function returns a binary input port. </p>
+  and this function returns a textual input stream whose transcoder is <code>tcoder</code>. Otherwise, this function returns a binary input stream. </p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_file_output_port<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">,</span> tcoder<span class="o">, </span> permissions = 0o666<span class="o">)</span>
-<b>returns:</b> a new output port for the named file.</code></pre>
+  <pre><code><span class="nc">function: </span>open_file_output_stream<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">,</span> tcoder<span class="o">, </span> permissions = 0o666<span class="o">)</span>
+<b>returns:</b> a new output stream for the named file.</code></pre>
 </div>
 
 <p>If present, <code>options</code> must be a list of symbols that control aspects of file operations. The options that are valid for this 
@@ -125,72 +125,72 @@
   The <code>truncate</code> option controls whether the file will be truncated when it is opened. This option is turned-on by default when no
   <code>append</code> option is provided and turned-off when <code>append</code> is not provided.</p>
 <p><code>Bmode</code> is a symbol that controls buffering. By default, buffering is turned off. If <code>tcoder</code> is present and not false, 
-  it must be a transcoder, and this function returns a textual output port whose transcoder is <code>tcoder</code>. Otherwise, this 
-  function returns a binary output port.</p>
+  it must be a transcoder, and this function returns a textual output stream whose transcoder is <code>tcoder</code>. Otherwise, this 
+  function returns a binary output stream.</p>
 <p>The <code>permissions</code> argument controls the UNIX permissions that will be attached to the file if it is created. The default
   value of this setting is <code>0o666</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_file_input_output_port<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">,</span> tcoder<span class="o">, </span> permissions = 0o666<span class="o">)</span>
-<b>returns:</b> a new input/output port for the named file.</code></pre>
+  <pre><code><span class="nc">function: </span>open_file_input_output_stream<span class="o">(</span>path<span class="o">,</span> @optional options<span class="o">,</span> bmode<span class="o">,</span> tcoder<span class="o">, </span> permissions = 0o666<span class="o">)</span>
+<b>returns:</b> a new input/output stream for the named file.</code></pre>
 </div>
 
-<h5>Standard Ports</h5>
+<h5>Standard Streams</h5>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>current_input_port<span class="o">(</span><span class="o">)</span>
-<span class="nc">function: </span>current_output_port<span class="o">(</span><span class="o">)</span>
-<span class="nc">function: </span>current_error_port<span class="o">(</span><span class="o">)</span>
-<b>returns:</b> the current input/output/error ports.</code></pre>
+  <pre><code><span class="nc">function: </span>current_input_stream<span class="o">(</span><span class="o">)</span>
+<span class="nc">function: </span>current_output_stream<span class="o">(</span><span class="o">)</span>
+<span class="nc">function: </span>current_error_stream<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> the current input/output/error streams.</code></pre>
 </div>
 
-<p>These function return ports that are attached to a process's standard input, standard output, and standard error streams. </p>
+<p>These function return streams that are attached to a process's standard input, standard output, and standard error streams. </p>
 
-<h4>String and Byte Array Ports</h4>
+<h4>String and Byte Array Streams</h4>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_byte_array_input_port<span class="o">(</span>byte_array<span class="o">,</span> @optional tcoder<span class="o">)</span>
-<b>returns:</b> a new input port that draws input from the <em>byte_array</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>open_byte_array_input_stream<span class="o">(</span>byte_array<span class="o">,</span> @optional tcoder<span class="o">)</span>
+<b>returns:</b> a new input stream that draws input from the <em>byte_array</em>.</code></pre>
 </div>
 
 <p><code>Byte_array</code> must be an array of unsigned bytes.
   If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, and this procedure returns a textual
-  input port whose transcoder is <code>tcoder</code>. Otherwise, this procedure returns a binary input port.</p>
+  input stream whose transcoder is <code>tcoder</code>. Otherwise, this procedure returns a binary input stream.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_byte_array_output_port<span class="o">(</span>@optional tcoder<span class="o">)</span>
-<b>returns:</b> a new output port for writing unsigned bytes.</code></pre>
+  <pre><code><span class="nc">function: </span>open_byte_array_output_stream<span class="o">(</span>@optional tcoder<span class="o">)</span>
+<b>returns:</b> a new output stream for writing unsigned bytes.</code></pre>
 </div>
 
 <p>If <code>tcoder</code> is present and not <code>false</code>, it must be a transcoder, and this procedure returns a textual
-  output port whose transcoder is <code>tcoder</code>. Otherwise, this procedure returns a binary output port.</p>
+  output stream whose transcoder is <code>tcoder</code>. Otherwise, this procedure returns a binary output stream.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>get_output_bytes<span class="o">(</span>port<span class="o">)</span>
-<b>returns:</b> an array of bytes written to the byte array output port <em>port</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>get_output_bytes<span class="o">(</span>s<span class="o">)</span>
+<b>returns:</b> an array of bytes written to the byte array output stream <em>s</em>.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_string_input_port<span class="o">(</span>str<span class="o">)</span>
-<b>returns:</b> a new input port that draws input from the string <em>str</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>open_string_input_stream<span class="o">(</span>str<span class="o">)</span>
+<b>returns:</b> a new input stream that draws input from the string <em>str</em>.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_string_output_port<span class="o">(</span><span class="o">)</span>
-<b>returns:</b> a new output port for writing characters.</code></pre>
+  <pre><code><span class="nc">function: </span>open_string_output_stream<span class="o">(</span><span class="o">)</span>
+<b>returns:</b> a new output stream for writing characters.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>get_output_string<span class="o">(</span>port<span class="o">)</span>
-<b>returns:</b> a string of characters written to the string output port <em>port</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>get_output_string<span class="o">(</span>s<span class="o">)</span>
+<b>returns:</b> a string of characters written to the string output stream <em>s</em>.</code></pre>
 </div>
 
-<h4>Process Ports</h4>
-<p>The functions described in this section start a new operating system process and create a bidirectional port which allows 
+<h4>Process Streams</h4>
+<p>The functions described in this section start a new operating system process and create a bidirectional stream which allows 
   communication with that process on its standard input and standard output. </p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_process_port<span class="o">(</span>path<span class="o">, </span>
+  <pre><code><span class="nc">function: </span>open_process_stream<span class="o">(</span>path<span class="o">, </span>
                             @key direction<span class="o"> = </span><span class="o">!</span>input_output<span class="o">, </span>
                             arguments<span class="o"> = </span><span class="o">[]</span><span class="o">, </span>
                             environment<span class="o">, </span>
@@ -201,7 +201,7 @@
                             pseudo_terminal<span class="o">, </span>
                             show_console<span class="o"> = </span>true<span class="o">, </span>
                             transcoder<span class="o">)</span>
-<b>returns:</b> a port that can be used to communicate with an operating system process.</code></pre>
+<b>returns:</b> a stream that can be used to communicate with an operating system process.</code></pre>
 </div>
 
 <p>A descritpion of the arguments:</p>
@@ -217,16 +217,16 @@
   <li><code>directory</code>: indicates the current working directory of the process. When <code>directory</code> is <code>false</code>, 
     the process uses the value of <code>current_directory</code>. The default value of this setting is <code>false</code>.</li>
   <li><code>stdin_redirection</code>: either <code>true</code> or <code>false</code>. Indicates how the standard input of the process is 
-    redirected. A setting of <code>true</code> will redirect the standard input from the process-port (i.e. what is written to 
-    the process-port will be available on the standard input). A setting of <code>false</code> will leave the standard input as-is, 
+    redirected. A setting of <code>true</code> will redirect the standard input from the process-stream (i.e. what is written to 
+    the process-stream will be available on the standard input). A setting of <code>false</code> will leave the standard input as-is, 
     which typically results in input coming from the console. The default value of this setting is <code>true</code>.</li>
   <li><code>stdout_redirection</code>: either <code>true</code> or <code>false</code>. Indicates how the standard output of the process 
-    is redirected. A setting of <code>true</code> will redirect the standard output to the process-port (i.e. all output to standard output 
-    can be read from the process-port). A setting of <code>false</code> will leave the standard output as-is, which typically 
+    is redirected. A setting of <code>true</code> will redirect the standard output to the process-stream (i.e. all output to standard output 
+    can be read from the process-stream). A setting of <code>false</code> will leave the standard output as-is, which typically 
     results in the output going to the console. The default value of this setting is <code>true</code>.</li>
   <li><code>stderr_redirection</code>: either <code>true</code> or <code>false</code>. Indicates how the standard error of the process 
-    is redirected. A setting of <code>true</code> will redirect the standard error to the process-port (i.e. all output to standard 
-    error can be read from the process-port). A setting of <code>false</code> will leave the standard error as-is, which typically 
+    is redirected. A setting of <code>true</code> will redirect the standard error to the process-stream (i.e. all output to standard 
+    error can be read from the process-stream). A setting of <code>false</code> will leave the standard error as-is, which typically 
     results in error messages being output to the console. The default value of this setting is <code>false</code>.</li>
   <li><code>pseudo_terminal</code>: either <code>true</code> or <code>false</code>. This setting applies to UNIX. It indicates what type 
     of device will be bound to the process' standard input and standard output. A setting of <code>true</code> will use a pseudo-terminal
@@ -236,26 +236,26 @@
   <li><code>show_console</code>: either <code>true</code> or <code>false</code>. It controls whether the process' console window will 
     be hidden or visible. The default value of this setting is <code>true</code> (i.e. show the console window).</li>
   <li><code>transcoder</code>: If <code>transcoder</code> is present and not <code>false</code>, 
-    it must be a transcoder object, and this function returns a textual port whose transcoder is <code>transcoder</code>.</li>
+    it must be a transcoder object, and this function returns a textual stream whose transcoder is <code>transcoder</code>.</li>
 </ul>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>process_pid<span class="o">(</span>port<span class="o">)</span>
-<b>returns:</b> the ID of the process attached to the process port <em>port</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>process_pid<span class="o">(</span>s<span class="o">)</span>
+<b>returns:</b> the ID of the process attached to the process stream <em>s</em>.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>process_status<span class="o">(</span>port<span class="o">)</span>
-<b>returns:</b> the exit status of the process attached to the process port <em>port</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>process_status<span class="o">(</span>s<span class="o">)</span>
+<b>returns:</b> the exit status of the process attached to the process stream <em>s</em>.</code></pre>
 </div>
 
-<h4>TCP Ports</h4>
+<h4>TCP Streams</h4>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_tcp_server_port<span class="o">(</span>address<span class="o">, </span>@key port_number<span class="o">, </span>
+  <pre><code><span class="nc">function: </span>open_tcp_server_stream<span class="o">(</span>address<span class="o">, </span>@key port_number<span class="o">, </span>
                                backlog<span class="o"> = </span><span class="o">128</span><span class="o">, </span>reuse_address<span class="o"> = </span>true<span class="o">, </span>
                                transcoder<span class="o">)</span>
-<b>returns:</b> a tcp-server-port from which network connections to clients are obtained.</code></pre>
+<b>returns:</b> a tcp-server-stream from which network connections to clients are obtained.</code></pre>
 </div>
 
 <p>A descritpion of the arguments:</p>
@@ -276,14 +276,14 @@
     A setting of <code>false</code> will cause an exception to be raised in that case. A setting of <code>true</code> will allow a 
     port number to be used even if it is active. The default value of this setting is <code>true</code>.</li>
   <li><code>transcoder</code>: If <code>transcoder</code> is present and not <code>false</code>, 
-    it must be a transcoder object, and this function returns a textual port whose transcoder is <code>transcoder</code>.</li>
+    it must be a transcoder object, and this function returns a textual stream whose transcoder is <code>transcoder</code>.</li>
 </ul></p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>open_tcp_client_port<span class="o">(</span>address<span class="o">, </span>@key port_number<span class="o">, </span>
+  <pre><code><span class="nc">function: </span>open_tcp_client_stream<span class="o">(</span>address<span class="o">, </span>@key port_number<span class="o">, </span>
                                keep_alive<span class="o">, </span>coalesce<span class="o"> = </span>true<span class="o">, </span>
                                transcoder<span class="o">)</span>
-<b>returns:</b> a tcp-client-port that represents a connection to a TCP server and allows 
+<b>returns:</b> a tcp-client-stream that represents a connection to a TCP server and allows 
          communication with that server.</code></pre>
 </div>
 
@@ -301,84 +301,84 @@
   <li><code>coalesce</code>: either <code>true</code> or <code>false</code>. Controls the use of TCP's &quot;Nagle algorithm&quot; 
     which reduces the number of small packets by delaying their transmission and coalescing them into larger packets. A setting of 
     <code>true</code> will coalesce small packets into larger ones. A setting of <code>false</code> will transmit packets as soon as possible. 
-    The default value of this setting is <code>true</code>. Note that this setting does not affect the buffering of the port.</li>
+    The default value of this setting is <code>true</code>. Note that this setting does not affect the buffering of the stream.</li>
   <li><code>transcoder</code>: If <code>transcoder</code> is present and not <code>false</code>, 
-    it must be a transcoder object, and this function returns a textual port whose transcoder is <code>transcoder</code>.</li>
+    it must be a transcoder object, and this function returns a textual stream whose transcoder is <code>transcoder</code>.</li>
 </ul></p>
 
-<h4>Port Operations</h4>
+<h4>Stream Operations</h4>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_port<span class="o">(</span>obj<span class="o">)</span>
-<span class="nc">function: </span>is_output_port<span class="o">(</span>obj<span class="o">)</span>
-<span class="nc">function: </span>is_input_port<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is a port, <em>false</em> otherwise.</code></pre>
+  <pre><code><span class="nc">function: </span>is_stream<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>is_output_stream<span class="o">(</span>obj<span class="o">)</span>
+<span class="nc">function: </span>is_input_stream<span class="o">(</span>obj<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>obj</em> is a stream, <em>false</em> otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>close_port<span class="o">(</span>port<span class="o">)</span>
-<span class="nc">function: </span>close_output_port<span class="o">(</span>port<span class="o">)</span>
-<span class="nc">function: </span>close_input_port<span class="o">(</span>port<span class="o">)</span>
+  <pre><code><span class="nc">function: </span>close_stream<span class="o">(</span>s<span class="o">)</span>
+<span class="nc">function: </span>close_output_stream<span class="o">(</span>s<span class="o">)</span>
+<span class="nc">function: </span>close_input_stream<span class="o">(</span>s<span class="o">)</span>
 <b>returns:</b> void.</code></pre>
 </div>
 
-<p>If <code>port</code> is not already closed, these functions closes it, first flushing any buffered bytes or characters to the underlying 
-  stream if the port is an output port. Once a port has been closed, no more input or output operations may be performed on the port. 
-  Because the operating system may place limits on the number of file ports open at one time or restrict access to an open file, it is 
-  good practice to close any file port that will no longer be used for input or output. 
-  Closing a port that has already been closed has no effect.</p>
-<p>Closing a string or byte array port has no effect. As they consume no system resources, string and byte array ports can be safely reclaimed by 
+<p>If the stream <code>s</code> is not already closed, these functions closes it, first flushing any buffered bytes or characters to the underlying 
+  stream if the stream is an output stream. Once a stream has been closed, no more input or output operations may be performed on the stream. 
+  Because the operating system may place limits on the number of file streams open at one time or restrict access to an open file, it is 
+  good practice to close any file stream that will no longer be used for input or output. 
+  Closing a stream that has already been closed has no effect.</p>
+<p>Closing a string or byte array stream has no effect. As they consume no system resources, string and byte array streams can be safely reclaimed by 
   the garbage collector.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>port_position<span class="o">(</span>port<span class="o">)</span>
-<b>returns:</b> the port's current position.</code></pre>
+  <pre><code><span class="nc">function: </span>stream_position<span class="o">(</span>stream<span class="o">)</span>
+<b>returns:</b> the stream's current position.</code></pre>
 </div>
 
-<p>A port may allow queries to determine its current position in the underlying stream of bytes or characters. If so, <code>port_position</code> 
-  returns the current position. For binary ports, the position is always an exact nonnegative integer byte displacement from the start of 
-  the byte stream. For textual ports, the representation of a position is unspecified; it may not be an exact nonnegative integer and, 
-  even if it is, it may not represent either a byte or character displacement in the underlying stream. If <code>port_position</code> is 
-  called on a port that does not support it, an exception is raised.</p>
+<p>A stream may allow queries to determine its current position in the underlying stream of bytes or characters. If so, <code>stream_position</code> 
+  returns the current position. For binary streams, the position is always an exact nonnegative integer byte displacement from the start of 
+  the byte stream. For textual streams, the representation of a position is unspecified; it may not be an exact nonnegative integer and, 
+  even if it is, it may not represent either a byte or character displacement in the underlying stream. If <code>stream_position</code> is 
+  called on a stream that does not support it, an exception is raised.</p>
 
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>port_has_port_position<span class="o">(</span>port<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>port</em> allows querying position, <em>false</em> otherwise.</code></pre>
+  <pre><code><span class="nc">function: </span>stream_has_position<span class="o">(</span>stream<span class="o">)</span>
+<b>returns:</b> <em>true</em> if <em>stream</em> allows querying position, <em>false</em> otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>set_port_position<span class="o">(</span>port<span class="o">, </span>pos<span class="o">, </span>@optional whence<span class="o"> = </span><span class="o">!</span>beginning<span class="o">)</span>
+  <pre><code><span class="nc">function: </span>set_stream_position<span class="o">(</span>stream<span class="o">, </span>pos<span class="o">, </span>@optional whence<span class="o"> = </span><span class="o">!</span>beginning<span class="o">)</span>
 <b>returns:</b> the new position on success.</code></pre>
 </div>
 
-<p>A port may allow its current position to be moved directly to a different position in the underlying stream of bytes or characters. 
-  If so, <code>set_port_position</code> changes the current position to <code>pos</code>. For binary ports, the position <code>pos</code>
-  must be an exact nonnegative integer byte displacement from the start of the byte stream. For textual ports, the representation of a 
-  position is unspecified, but <code>pos</code> must be an appropriate position for the textual port. 
-  If <code>set_port_position</code> is called on a port that does not support it, an exception is raised.</p>
+<p>A stream may allow its current position to be moved directly to a different position in the underlying stream of bytes or characters. 
+  If so, <code>set_stream_position</code> changes the current position to <code>pos</code>. For binary streams, the position <code>pos</code>
+  must be an exact nonnegative integer byte displacement from the start of the byte stream. For textual streams, the representation of a 
+  position is unspecified, but <code>pos</code> must be an appropriate position for the textual stream. 
+  If <code>set_stream_position</code> is called on a stream that does not support it, an exception is raised.</p>
 
 <p>The symbolic argument <code>whence</code> can be one of: <code>beginning</code>, <code>current</code> or <code>end</code>.
   When whence is omitted or is <code>beginning</code>, the position is relative to the beginning of the file.
   When whence is <code>current</code>, the position <code>pos</code> is relative to the current byte position of the file. 
   When whence is <code>end</code>, the position <code>pos</code> is relative to the end of the file.</p>
 
-<p>If port is a binary output port and the position is set beyond the current end of the data in the underlying stream, the stream is 
+<p>If stream is a binary output stream and the position is set beyond the current end of the data in the underlying stream, the stream is 
   not extended until new data is written at that position. If new data is written at that position, the contents of each intervening 
-  position is unspecified. Binary ports created with <code>open_file_output_port</code> and <code>open_file_input_output_port</code> 
-  can always be extended in this manner within the limits of the underlying operating system. In other cases, attempts to set the port 
+  position is unspecified. Binary streams created with <code>open_file_output_stream</code> and <code>open_file_input_output_stream</code> 
+  can always be extended in this manner within the limits of the underlying operating system. In other cases, attempts to set the stream 
   beyond the current end of data in the underlying object may result in an exception.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>call_with_port<span class="o">(</span>port<span class="o">, </span>f<span class="o">)</span>
+  <pre><code><span class="nc">function: </span>call_with_stream<span class="o">(</span>stream<span class="o">, </span>f<span class="o">)</span>
 <b>returns:</b> the value returned by the function <em>f</em>.</code></pre>
 </div>
 
-<p><code>Call_with_port</code> calls the function <code>f</code> with <code>port</code> as the only argument. If <code>f</code> returns, 
-  <code>call_with_port</code> closes the port and returns the values returned by <code>f</code>. If <code>f</code> raise an exception,
-  <code>call_with_port</code> closes the port and re-throws the exception.</p>
+<p><code>Call_with_stream</code> calls the function <code>f</code> with <code>stream</code> as the only argument. If <code>f</code> returns, 
+  <code>call_with_stream</code> closes the stream and returns the values returned by <code>f</code>. If <code>f</code> raise an exception,
+  <code>call_with_stream</code> closes the stream and re-throws the exception.</p>
 
-<p><code>Call_with_port</code> does not automatically close the port if a continuation created outside of <code>f</code> is invoked, since 
+<p><code>call_with_stream</code> does not automatically close the stream if a continuation created outside of <code>f</code> is invoked, since 
   it is possible that another continuation created inside of <code>f</code> will be invoked at a later time, returning control 
   to <code>f</code>.</p>
 
@@ -395,149 +395,149 @@
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_byte<span class="o">(</span>@optional p<span class="o"> = </span>current_input_port()<span class="o">)</span> 
-<b>returns:</b> the next byte from binary input port <em>p</em>, or the <em>eof</em> object.</code></pre>
+  <pre><code><span class="nc">function: </span>read_byte<span class="o">(</span>@optional p<span class="o"> = </span>current_input_stream()<span class="o">)</span> 
+<b>returns:</b> the next byte from binary input stream <em>p</em>, or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_n_bytes<span class="o">(</span>n<span class="o">, </span>@optional p <span class="o">=</span> current_input_port()<span class="o">)</span> 
-<b>returns:</b> an unsigned byte array containing the next <em>n</em> bytes from binary input port <em>p</em>, 
+  <pre><code><span class="nc">function: </span>read_n_bytes<span class="o">(</span>n<span class="o">, </span>@optional p <span class="o">=</span> current_input_stream()<span class="o">)</span> 
+<b>returns:</b> an unsigned byte array containing the next <em>n</em> bytes from binary input stream <em>p</em>, 
          or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_all_bytes<span class="o">(</span>@optional p <span class="o">=</span> current_input_port()<span class="o">, </span>bufsize<span class="o"> = </span>1024<span class="o">)</span> 
-<b>returns:</b> an unsigned byte array containing all the remaining bytes from binary input port <em>p</em>, 
+  <pre><code><span class="nc">function: </span>read_all_bytes<span class="o">(</span>@optional p <span class="o">=</span> current_input_stream()<span class="o">, </span>bufsize<span class="o"> = </span>1024<span class="o">)</span> 
+<b>returns:</b> an unsigned byte array containing all the remaining bytes from binary input stream <em>p</em>, 
          or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_char<span class="o">(</span>@optional p<span class="o"> = </span>current_input_port()<span class="o">)</span> 
-<b>returns:</b> the next character from textual input port <em>p</em>, or the <em>eof</em> object.</code></pre>
+  <pre><code><span class="nc">function: </span>read_char<span class="o">(</span>@optional p<span class="o"> = </span>current_input_stream()<span class="o">)</span> 
+<b>returns:</b> the next character from textual input stream <em>p</em>, or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>peek_char<span class="o">(</span>@optional p<span class="o"> = </span>current_input_port()<span class="o">)</span> 
-<b>returns:</b> the next character from textual input port <em>p</em> without actually removing it 
+  <pre><code><span class="nc">function: </span>peek_char<span class="o">(</span>@optional p<span class="o"> = </span>current_input_stream()<span class="o">)</span> 
+<b>returns:</b> the next character from textual input stream <em>p</em> without actually removing it 
          from the stream, or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_n_chars<span class="o">(</span>n<span class="o">, </span>@optional p <span class="o">=</span> current_input_port()<span class="o">)</span> 
-<b>returns:</b> a string containing the next <em>n</em> characters from textual input port <em>p</em>, or the <em>eof</em> object.</code></pre>
+  <pre><code><span class="nc">function: </span>read_n_chars<span class="o">(</span>n<span class="o">, </span>@optional p <span class="o">=</span> current_input_stream()<span class="o">)</span> 
+<b>returns:</b> a string containing the next <em>n</em> characters from textual input stream <em>p</em>, or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_all_chars<span class="o">(</span>@optional p <span class="o">=</span> current_input_port()<span class="o">, </span>bufsize<span class="o"> = </span>1024<span class="o">)</span> 
-<b>returns:</b> a string containing all the remaining characters from textual input port <em>p</em>, 
+  <pre><code><span class="nc">function: </span>read_all_chars<span class="o">(</span>@optional p <span class="o">=</span> current_input_stream()<span class="o">, </span>bufsize<span class="o"> = </span>1024<span class="o">)</span> 
+<b>returns:</b> a string containing all the remaining characters from textual input stream <em>p</em>, 
          or the <em>eof</em> object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_line<span class="o">(</span>@optional p <span class="o">=</span> current_input_port()<span class="o">, </span>separator<span class="o"> = </span>'\n'<span class="o">, </span>
+  <pre><code><span class="nc">function: </span>read_line<span class="o">(</span>@optional p <span class="o">=</span> current_input_stream()<span class="o">, </span>separator<span class="o"> = </span>'\n'<span class="o">, </span>
                     include_separator<span class="o">, </span>max_length<span class="o">)</span> 
-<b>returns:</b> a string containing all the characters upto <em>separator</em> from the textual input port <em>p</em>, 
+<b>returns:</b> a string containing all the characters upto <em>separator</em> from the textual input stream <em>p</em>, 
          or the <em>eof</em> object.</code></pre>
 </div>
 
-<p>This function reads characters from the character input-port <code>p</code> until a specific separator or the end-of-file is 
+<p>This function reads characters from the character input-stream <code>p</code> until a specific separator or the end-of-file is 
   encountered and returns a string containing the sequence of characters read. If it is specified, <code>max_length</code> must be a 
   nonnegative exact integer and it places an upper limit on the number of characters that are read.</p>
 
 <p>The separator is included at the end of the string only if it was the last character read and <code>include_separator</code> 
   is <code>true</code>. The separator must be a character or <code>false</code> (in which case all the characters until the end-of-file 
-  are read). If it is not specified, <code>p</code> defaults to the current input-port. If it is not specified, separator defaults 
+  are read). If it is not specified, <code>p</code> defaults to the current input-stream. If it is not specified, separator defaults 
   to <code>'\n'</code>. If it is not specified, <code>include_separator</code> defaults to <code>false</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read_all<span class="o">(</span>@optional p <span class="o">=</span> current_input_port()<span class="o">, </span>reader<span class="o"> = </span>read<span class="o">)</span> 
-<b>returns:</b> a list of values read by <em>reader</em> from the input port <em>p</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>read_all<span class="o">(</span>@optional p <span class="o">=</span> current_input_stream()<span class="o">, </span>reader<span class="o"> = </span>read<span class="o">)</span> 
+<b>returns:</b> a list of values read by <em>reader</em> from the input stream <em>p</em>.</code></pre>
 </div>
 
-<p>This function repeatedly calls the function <code>reader</code> with the port <code>p</code> as the sole argument and 
+<p>This function repeatedly calls the function <code>reader</code> with the stream <code>p</code> as the sole argument and 
   accumulates a list of each value returned up to the end-of-file object. This function returns the accumulated list without 
-  the end-of-file object. If it is not specified, port defaults to the current input-port. If it is not specified, reader defaults to 
+  the end-of-file object. If it is not specified, stream defaults to the current input-stream. If it is not specified, reader defaults to 
   the function <code>read</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>read<span class="o">(</span>@optional p<span class="o"> = </span>current_input_port()<span class="o">)</span> 
-<b>returns:</b> the next Slogan datum from the input port <em>p</em>, or the eof object.</code></pre>
+  <pre><code><span class="nc">function: </span>read<span class="o">(</span>@optional p<span class="o"> = </span>current_input_stream()<span class="o">)</span> 
+<b>returns:</b> the next Slogan datum from the input stream <em>p</em>, or the eof object.</code></pre>
 </div>
 
-<p>The input port should point to a stream of compiled Slogan datums. (To parse and read tokens from Slogan source code, use the tokenizer
+<p>The input stream should point to a stream of compiled Slogan datums. (To parse and read tokens from Slogan source code, use the tokenizer
   functions described later in this chapter.)</p>
 
 <h4>Output Operations</h4>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write_byte<span class="o">(</span>byte<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write_byte<span class="o">(</span>byte<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>Writes <code>byte</code> to the binary output-port <code>p</code>. <code>Byte</code> must be a non-negative integer in the range 
+<p>Writes <code>byte</code> to the binary output-stream <code>p</code>. <code>Byte</code> must be a non-negative integer in the range 
   <code>0 - 255</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write_bytes<span class="o">(</span>bytes<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write_bytes<span class="o">(</span>bytes<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> the number of bytes written.</code></pre>
 </div>
 
-<p>Writes the elements in <code>bytes</code> to the binary output-port <code>p</code>. <code>Bytes</code> must be a 
+<p>Writes the elements in <code>bytes</code> to the binary output-stream <code>p</code>. <code>Bytes</code> must be a 
   byte array (<code>#u8[...]</code>) of unsigned integers in the range <code>0 - 255</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write_n_bytes<span class="o">(</span>bytes<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write_n_bytes<span class="o">(</span>bytes<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> the number of bytes written.</code></pre>
 </div>
 
 <p>Writes the elements in the range <code>start</code> to <code>end</code> from <code>bytes</code> to the binary 
-  output-port <code>p</code>. <code>Bytes</code> must be a byte array (<code>#u8[...]</code>) of unsigned integers in the 
+  output-stream <code>p</code>. <code>Bytes</code> must be a byte array (<code>#u8[...]</code>) of unsigned integers in the 
   range <code>0 - 255</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write_char<span class="o">(</span>char<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write_char<span class="o">(</span>char<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>Writes the character <code>char</code> to the textual output-port <code>p</code>.</p>
+<p>Writes the character <code>char</code> to the textual output-stream <code>p</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write_chars<span class="o">(</span>str<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write_chars<span class="o">(</span>str<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>Writes the characters in the string <code>str</code> to the textual output-port <code>p</code>.</p>
+<p>Writes the characters in the string <code>str</code> to the textual output-stream <code>p</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write_n_chars<span class="o">(</span>str<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write_n_chars<span class="o">(</span>str<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>show<span class="o">(</span>@key port<span class="o"> = </span>current_output_port()<span class="o">, </span>obj1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>showln<span class="o">(</span>@key port<span class="o"> = </span>current_output_port()<span class="o">, </span>obj1<span class="o">, </span>...<span class="o">)</span>
+  <pre><code><span class="nc">function: </span>show<span class="o">(</span>@key stream<span class="o"> = </span>current_output_stream()<span class="o">, </span>obj1<span class="o">, </span>...<span class="o">)</span>
+<span class="nc">function: </span>showln<span class="o">(</span>@key stream<span class="o"> = </span>current_output_stream()<span class="o">, </span>obj1<span class="o">, </span>...<span class="o">)</span>
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>Writes the textual representation of the objects <code>obj1 ...</code> to the output-port <code>port</code>. <code>Showln</code> also
+<p>Writes the textual representation of the objects <code>obj1 ...</code> to the output-stream <code>stream</code>. <code>Showln</code> also
   outputs a line-feed character (newline) after printing the objects.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>newline<span class="o">(</span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>newline<span class="o">(</span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>Outputs a line-feed character (newline) to the textual output-port <code>p</code>.</p>
+<p>Outputs a line-feed character (newline) to the textual output-stream <code>p</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>write<span class="o">(</span>obj<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>write<span class="o">(</span>obj<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>Writes the internal compiled representation of the Slogan object <code>obj</code> to the output-port <code>p</code>.</p>
+<p>Writes the internal compiled representation of the Slogan object <code>obj</code> to the output-stream <code>p</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>display<span class="o">(</span>obj<span class="o">, </span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>display<span class="o">(</span>obj<span class="o">, </span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
@@ -546,20 +546,20 @@
 
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>flush_output_port<span class="o">(</span>@optional p<span class="o"> = </span>current_output_port()<span class="o">)</span> 
+  <pre><code><span class="nc">function: </span>flush_output_stream<span class="o">(</span>@optional p<span class="o"> = </span>current_output_stream()<span class="o">)</span> 
 <b>returns:</b> void</code></pre>
 </div>
 
-<p>This function forces any bytes or characters in the buffer associated with the output-port <code>p</code> to be 
+<p>This function forces any bytes or characters in the buffer associated with the output-stream <code>p</code> to be 
   sent immediately to the underlying stream.</p>
 
 <h4>Tokenizers</h4>
-<p>A stream of characters read from an input port can be split into tokens using a tokenizer. This sections gives a 
+<p>A stream of characters read from an input stream can be split into tokens using a tokenizer. This sections gives a 
   description of functions used for tokenizing an input stream.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>port_tokenizer<span class="o">(</span>delimiters<span class="o">, </span>@optional p<span class="o"> = </span>current_input_port()<span class="o">)</span> 
-<b>returns:</b> a tokenizer on the input port <em>p</em>.</code></pre>
+  <pre><code><span class="nc">function: </span>stream_tokenizer<span class="o">(</span>delimiters<span class="o">, </span>@optional p<span class="o"> = </span>current_input_stream()<span class="o">)</span> 
+<b>returns:</b> a tokenizer on the input stream <em>p</em>.</code></pre>
 </div>
 
 <p>If <code>delimiters</code> is either a character or a list of characters, a tokenizer will be returned that splits the stream at the
