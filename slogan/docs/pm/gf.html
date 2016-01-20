@@ -26,10 +26,174 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Moving Ahead</h3></div>
-    <p>The preceding chapter introduced the most useful primitive syntactic forms and procedures that will get you started in programming
+    <p>The preceding chapter introduced the most useful primitive syntactic forms and functions that will get you started in programming
       Slogan. This chapter introduces a number of additional features and programming techniques that will allow you to write more 
       sophisticated and efficient programs.</p>
 
+<h4>The Function Expression</h4>
+<p>This section gives you the full syntax of the <code>function</code> expression. </p>
+<div class="highlight">
+  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span>
+<span class="k">returns: </span>a function</code></pre>
+</div>
+
+(To save a few keystrokes, the keyword <code>fn</code> can be used instead of the keyword <code>function</code>.)
+
+<p>The variables in <code>params, ...</code> are the formal parameters of the function.</p>
+<p>The body may begin with a sequence of definitions, in which case the bindings created by the definitions are local to the body. 
+  When the function is created, the bindings of all variables occurring free within the body, excluding the formal parameters, are retained 
+  with the function. Subsequently, whenever the function is applied to a sequence of arguments, the formal parameters are bound to the 
+  arguments, the retained bindings are restored, and the body is evaluated.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">)</span> <span class="k">fn</span> <span class="o">(</span>y<span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span>  
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 110</span></code></pre>
+</div>
+
+<h5>Parameter Default Values and Annotations</h5>
+<p>Function parameters can be declared to take default values using the assignment notation. If an argument is missing at the call site, its
+  default value will be automatically plugged-in. An example is shown below:<p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span> 
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 30</span>
+</span> <span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 50</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">30</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; 130</span></code></pre>
+</div>
+
+<p>Parameters that has default values becomes optional during function call. Another way to mark parameters as optional is by using the
+  <code>@optional</code> annotation. All parameters that follow the annotation will be treated as optional. All parameters marked 
+  <code>@optional</code> will have <code>false</code> as default value unless otherwise specified:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @optional y<span class="o">,</span> z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [10, false, false]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [10, 20, 30]</span>
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @optional y<span class="o">,</span> z <span class="o">=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [10, false, 100]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [10, 20, 30]</span></code></pre>
+</div>
+
+<p>All functions defined so far requires the arguments to be passed in the same order as the parameters. The <code>@key</code> annotation
+  allows us to define functions that accept arguments in any order:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @key y<span class="o">,</span> z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [10, false, false]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span> <span class="o">,</span> z <span class="o">=</span> <span class="mi">30</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>  
+<span class="ge">=&gt; [10, 20, 30]</span>
+
+<span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @key y<span class="o">,</span> z <span class="o">=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [10, false, 100]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> z <span class="o">=</span> <span class="mi">30</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>  
+<span class="ge">=&gt; [10, 20, 30]</span></code></pre>
+</div>
+
+<p>The <code>@rest</code> annotation allows us to define functions that take an arbitrary number of arguments. A single variable should follow
+  the <code>@rest</code> annotation. All the additional arguments are collected in a list that is bound to this variable.
+  The following example shows a function that takes two mandatory arguments and <code>n</code> optional arguments:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> @rest z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [10, 20, []]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">,</span> <span class="mi">40</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [10, 20, [30, 40]]</span></code></pre>
+</div>
+
+<h5>The Function Statement</h5>
+<p>The <code>function</code> (or <code>fn</code>) statement combines the <code>function</code> and <code>define</code> expressions to give
+  us a shorter way to create named functions. </p>
+<div class="highlight">
+  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> name <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span>
+<b><span class="nc">syntax:</span> </b><span class="k">function</span> name params body<span class="o">;</span></code></pre>
+</div>
+
+<p>The second syntax defines a function that takes <code>0 - n</code> arguments. All the arguments are packaged into a list (<code>params</code>)
+  and passed to the function. Both functions defined below will appear to the caller as having similar definitions:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>@rest a<span class="o">)</span> a<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">function</span> g a a<span class="o">;</span>
+
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [1, 2, 3]</span>
+<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; []</span>
+<span class="nc">slogan&gt; </span>g<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; [1, 2, 3]</span>
+<span class="nc">slogan&gt; </span>g<span class="o">(</span><span class="o">)</span><span class="o">;</span>
+<span class="ge">=&gt; []</span></code></pre>
+
+  <h5>Functions returning Functions</h5>
+  
+  <div class="highlight">
+    <pre><code><span class="nc">function: </span>compose<span class="o">(</span>f1<span class="o">,</span> <span class="o">.</span><span class="o">.</span><span class="o">.</span><span class="o">)</span> 
+<b>returns:</b> a function that is the composition of the functions <em>f1, ...</em>.</code></pre>
+</div>
+  
+  <p>The returned function takes a variable number of arguments, applies the rightmost of <code>f1, ...</code>s to the arguments, the next
+    function in <code>f1, ...</code> (right-to-left) to the result, etc.</p> 
+
+  <div class="highlight">
+    <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> negative_quotient <span class="o">=</span> compose<span class="o">(</span>sub<span class="o">,</span> div<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>negative_quotient<span class="o">(</span><span class="mi">8</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; -8/3</span>
+<span class="nc">slogan&gt; </span>compose<span class="o">(</span>number_to_string<span class="o">,</span> add<span class="o">)</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; &quot;138&quot;</span></code></pre>
+</div>
+
+<p>If <code>compose</code> is called with no arguments the <code>identity</code> function (described below) is returned.</p>
+
+  <div class="highlight">
+    <pre><code><span class="nc">function: </span>identity<span class="o">(</span>obj<span class="o">)</span> 
+<b>returns:</b> <em>obj</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>mapfn<span class="o">(</span>f<span class="o">)</span> 
+<b>returns:</b> a function that maps the function <em>f</em> to its arguments.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> adder <span class="o">=</span> mapfn<span class="o">(</span>add<span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>adder<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [1, 2, 3]</span>
+<span class="nc">slogan&gt; </span>adder<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; [5, 7, 9]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>partial<span class="o">(</span>f<span class="o">, </span>@rest args)</span> 
+<b>returns:</b> a partially applied function that takes the arguments left out of <em>args</em>.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> mult_3<span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">)</span> a <span class="o">*</span> b <span class="o">*</span> c<span class="o">;</span> 
+<span class="nc">slogan&gt; </span><span class="k">define</span> mult_2_with_9 <span class="o">=</span> partial<span class="o">(</span>mult_3<span class="o">,</span> <span class="mi">9</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>mult_2_with_9<span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 54</span>
+<span class="nc">slogan&gt; </span><span class="k">define</span> mult_with_18 <span class="o">=</span> partial<span class="o">(</span>mult_2_with_9<span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+<span class="nc">slogan&gt; </span>mult_with_18<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 180</span></code></pre></div>
+
+<div class="highlight">
+  <pre><code><span class="nc">function: </span>complement<span class="o">(</span>f<span class="o">)</span> 
+<b>returns:</b> a function that takes the same arguments as the function <em>f</em>,
+         has the same effects, if any, and returns the opposite truth value.</code></pre>
+</div>
+    
     <h4>Macros and Lazy Functions</h4>
 
     <p>Macros are constructs that are syntactically similar to functions but there is a subtle difference in the way a call to a macro
@@ -84,7 +248,7 @@
           apply<span class="o">(</span>add<span class="o">,</span> args<span class="o">)</span> <span class="o">/</span> <span class="o">(</span>length<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
 
     <p>The macro <code>avg</code> returns the average of its arguments. It finds out the number of arguments at compile-time and inserts that
-      value into the expanded macro body. For example, consider a call to <code>avg</code>:</p>
+      value into the expanded macro body:</p>
 
     <div class="highlight">
     <pre><code><span class="nc">slogan&gt; </span>avg<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">34</span><span class="o">)</span><span class="o">;</span>
@@ -96,7 +260,7 @@
       <pre><code><span class="nc">slogan&gt; </span>apply<span class="o">(</span>add<span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">34</span><span class="o">]</span><span class="o">)</span> <span class="o">/</span> <span class="mi">4</span><span class="o">;</span> </code></pre></div>
 
     <p>It is easier to think of macros as functions that get evaluated at compile-time. They can be recursive and can accept parameters annotated with
-      <code>@optional</code>, <code>@key</code> and <code>@rest</code>.</p>
+      <code>@optional</code>, <code>@key</code> and <code>@rest</code>. </p>
 
     <h5>Lazy Functions</h5>
     <p>In the <a href="./intro.html">Introduction</a> we met the macros <code>and</code> and <code>or</code> which are said to
@@ -136,7 +300,7 @@
 <span class="ge">=&gt; false</span></code></pre>
       </div>
 
-    <p>We said &quot;almost the same behavior&quot; because <code>and</code> returns the last argument if all arguments are not false.
+    <p>I said &quot;almost the same behavior&quot; because <code>and</code> returns the last argument if all arguments are not false.
       But <code>my_and</code> will return <code>true</code>:</p>
 
     <div class="highlight">
@@ -235,7 +399,7 @@
 <p>The indentation shows the nesting level of the recursion; the vertical lines associate applications visually with their values. 
   Notice that on each application of length the list gets smaller until it finally reaches the empty list. 
   The value at the empty list is <code>0</code>, and each outer level adds <code>1</code> to arrive at the final value.</p>
-<p>(<code>Trace</code> displays code translated to Scheme, the intermediate language used by the Slogan compiler. As Scheme is also
+<p>(<code>Trace</code> displays code translated to the intermediate language used by the Slogan compiler. As this is also
   a high-level language, it is not hard to understand the traced output.)</p>
 
 <p>So far we have defined recursive functions as top-level definitions. Is it possible to create a local recursive function using <code>let</code>?
@@ -286,7 +450,7 @@
 <span class="ge">=&gt; [true, false]</span></code></pre></div>
 
     <p>In a <code>letrec</code>, the expressions being bound to the variables need not be functions. The only restriction is that it must be 
-      possible to evaluate each expression without evaluating any of the variables. This restriction do not applies to function bodies
+      possible to evaluate each expression without evaluating any of the variables. This restriction do not apply to function bodies
       because they cannot be evaluated until the functions are called in the <code>letrec</code> body. The following <code>letrec</code>
       expression obeys this restriction:</p>
     
@@ -296,7 +460,7 @@
          f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 3</span></code></pre></div>
 
-<p>The following <code>letrec</code> will raise an exception indicating that <code>x</code> is unbound:</p>
+<p>The <code>letrec</code> given below will raise an exception indicating that <code>x</code> is unbound:</p>
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">letrec</span> <span class="o">(</span>y <span class="o">=</span> x <span class="o">+</span> <span class="mi">2</span><span class="o">,</span> 
                 x <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
@@ -415,243 +579,6 @@
             <span class="k">else</span> fact_iter<span class="o">(</span>n <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> a <span class="o">*</span> n<span class="o">)</span><span class="o">;</span> </code></pre>
  </div>
 
-<h4>Continuations</h4>
-<p>While evaluating an expression, Slogan keeps track of two things: the expression to evaluate and what to do with its value. Consider the
-  expression <code>x &lt; y</code> in the following program:</p>
-
-<pre><code>if (x &lt; y) say_hello() else say_goodbye();</code></pre>
-
-<p>The expression to evaluate is <code>x &lt; y</code> and &quot;what to do with its value&quot; is to make a decision on which of the
-  two functions - <code>say_hello</code> and <code>say_goodbye</code> - to call. The &quot;what to do with the value&quot; is called the
-  <em>continuation</em> of a computation. Thus, at any point during the evaluation of any expression, there is a continuation ready to complete, 
-  or at least continue, the computation from that point.</p>
-
-<p>The continuation of any expression can be captured with the function <code>callcc</code>. 
-  <code>Callcc</code> must be passed a function <code>p</code> of one argument. The current continuation itself is represented as a
-  function <code>k</code>. This function is passed to <code>p</code>. If <code>k</code> is applied to a value from within <code>p</code>, 
-  it returns the value to the continuation of the <code>callcc</code> application. This value becomes, in essence, the value of the 
-  application of <code>callcc</code>.
-  If <code>p</code> returns without invoking <code>k</code>, the value returned by the procedure becomes the value of the application of 
-  <code>callcc</code>. Consider some simple examples:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> <span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 9</span>
-<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> k<span class="o">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 9</span>
-<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> <span class="o">{</span> k<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> k<span class="o">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 12</span>
-<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> k<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 5</span></code></pre>
-</div>
-
-<p>In the first case, the continuation <code>k</code> is never used allowing <code>callcc</code> to return <code>7</code>. In the second case,
-  the continuation is used but its effect is the same as the previous case. In the third case, the continuation is invoked two times. The first
-  call returns the value <code>10</code> to the continuation of the application of <code>callcc</code> and the second use of the continuation
-  is never reached. The fourth case is similar. Calling the continuation with the value <code>3</code> leads to the addition being ignored.</p>
-
-<p>Continuations can be used to implement advanced control structures. Here is an example of using continuations to implement the 
-  <code>return</code> statement found in most imperative languages: </p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> product<span class="o">(</span>xs<span class="o">)</span> 
-          callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>return<span class="o">)</span> 
-                  <span class="k">let</span> loop <span class="o">(</span>xs <span class="o">=</span> xs<span class="o">,</span> p <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
-                   <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> p 
-                   <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>head<span class="o">(</span>xs<span class="o">)</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> return<span class="o">(</span>p<span class="o">)</span>
-                   <span class="k">else</span> loop<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> p <span class="o">*</span> head<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-
-<span class="nc">slogan&gt; </span>product<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 120</span>
-<span class="nc">slogan&gt; </span>product<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 6</span></code></pre>
-</div>
-
-<p>The <code>return</code> continuation allows <code>product</code> to exit immediately upon seeing a zero value without performing the
-  remaining multiplications.</p>
-
-<p>Another use of continuations is to implement various forms of multitasking, like the simple coroutine implementation shown below:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span>k<span class="o">)</span> 
-          <span class="o">{</span> showln<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-            callcc<span class="o">(</span>k<span class="o">)</span><span class="o">;</span> 
-            showln<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
-
-<span class="nc">slogan&gt; </span><span class="k">function</span> b<span class="o">(</span>k<span class="o">)</span> 
-          <span class="o">{</span> showln<span class="o">(</span><span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-            callcc<span class="o">(</span>k<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
-
-<span class="nc">slogan&gt; </span>a<span class="o">(</span>b<span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; 1
-   2
-   3</span></code></pre>
-</div>
-
-<h4>The Function Expression</h4>
-<p>This section gives you the full syntax of the <code>function</code> expression. </p>
-<div class="highlight">
-  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span>
-<span class="k">returns: </span>a function</code></pre>
-</div>
-
-(To save a few keystrokes, the keyword <code>fn</code> can be used instead of the keyword <code>function</code>.)
-
-<p>The variables in <code>params, ...</code> are the formal parameters of the function.</p>
-<p>The body may begin with a sequence of definitions, in which case the bindings created by the definitions are local to the body. 
-  When the function is created, the bindings of all variables occurring free within the body, excluding the formal parameters, are retained 
-  with the function. Subsequently, whenever the function is applied to a sequence of arguments, the formal parameters are bound to the 
-  arguments, the retained bindings are restored, and the body is evaluated.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">)</span> <span class="k">fn</span> <span class="o">(</span>y<span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span>  
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 110</span></code></pre>
-</div>
-
-<h5>Parameter Default Values and Annotations</h5>
-<p>Function parameters can be declared to take default values using the assignment notation. If an argument is missing at the call site, its
-  default value will be automatically plugged-in. An example is shown below:<p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 30</span>
-</span> <span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 50</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">30</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 130</span></code></pre>
-</div>
-
-<p>Parameters that has default values becomes optional during function call. Another way to mark parameters as optional is by using the
-  <code>@optional</code> annotation. All parameters that follows the annotation will be treated as optional. All parameters marked 
-  <code>@optional</code> will have <code>false</code> as default value unless otherwise specified:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @optional y<span class="o">,</span> z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, false]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 20, 30]</span>
-
-<span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @optional y<span class="o">,</span> z <span class="o">=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, 100]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 20, 30]</span></code></pre>
-</div>
-
-<p>All the functions defined so far requires the arguments to be passed in the same order as the parameters. The <code>@key</code> annotation
-  allows us to define functions that accept arguments in any order:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @key y<span class="o">,</span> z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, false]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span> <span class="o">,</span> z <span class="o">=</span> <span class="mi">30</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>  
-<span class="ge">=&gt; [10, 20, 30]</span>
-
-<span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> @key y<span class="o">,</span> z <span class="o">=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, 100]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> z <span class="o">=</span> <span class="mi">30</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>  
-<span class="ge">=&gt; [10, 20, 30]</span></code></pre>
-</div>
-
-<p>The <code>@rest</code> annotation allows us to define functions that take an arbitrary number of arguments. A single variable should follow
-  the <code>@rest</code> annotation. All the additional arguments are collected in a list that is bound to this variable.
-  The following example shows a function that takes two mandatory arguments and <code>n</code> optional arguments:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> f <span class="o">=</span> <span class="k">fn</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> @rest z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 20, []]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">,</span> <span class="mi">40</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, 20, [30, 40]]</span></code></pre>
-</div>
-
-<h5>The Function Statement</h5>
-<p>The <code>function</code> (or <code>fn</code>) statement combines the <code>function</code> and <code>define</code> expressions to give
-  us a shorter way to create named functions. </p>
-<div class="highlight">
-  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> name <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span>
-<b><span class="nc">syntax:</span> </b><span class="k">function</span> name params body<span class="o">;</span></code></pre>
-</div>
-
-<p>The second syntax defines a function that takes <code>0 - n</code> arguments. All the arguments are packaged into a list (<code>params</code>)
-  and passed to the function. Both functions defined below will appear to the caller as having similar definitions:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>@rest a<span class="o">)</span> a<span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">function</span> g a a<span class="o">;</span>
-
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [1, 2, 3]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; []</span>
-<span class="nc">slogan&gt; </span>g<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [1, 2, 3]</span>
-<span class="nc">slogan&gt; </span>g<span class="o">(</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; []</span></code></pre>
-
-  <h5>Functions returning Functions</h5>
-  
-  <div class="highlight">
-    <pre><code><span class="nc">function: </span>compose<span class="o">(</span>f1<span class="o">,</span> <span class="o">.</span><span class="o">.</span><span class="o">.</span><span class="o">)</span> 
-<b>returns:</b> a function that is the composition of the functions <em>f1, ...</em>.</code></pre>
-</div>
-  
-  <p>The returned function takes a variable number of arguments, applies the rightmost of <code>f1, ...</code>s to the arguments, the next
-    function in <code>f1, ...</code> (right-to-left) to the result, etc.</p> 
-
-  <div class="highlight">
-    <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> negative_quotient <span class="o">=</span> compose<span class="o">(</span>sub<span class="o">,</span> div<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>negative_quotient<span class="o">(</span><span class="mi">8</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -8/3</span>
-<span class="nc">slogan&gt; </span>compose<span class="o">(</span>number_to_string<span class="o">,</span> add<span class="o">)</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;138&quot;</span></code></pre>
-</div>
-
-<p>If <code>compose</code> is called with no arguments the <code>identity</code> function (described below) is returned.</p>
-
-  <div class="highlight">
-    <pre><code><span class="nc">function: </span>identity<span class="o">(</span>obj<span class="o">)</span> 
-<b>returns:</b> <em>obj</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>mapfn<span class="o">(</span>f<span class="o">)</span> 
-<b>returns:</b> a function that maps the function <em>f</em> to its arguments.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> adder <span class="o">=</span> mapfn<span class="o">(</span>add<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>adder<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [1, 2, 3]</span>
-<span class="nc">slogan&gt; </span>adder<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [5, 7, 9]</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>partial<span class="o">(</span>f<span class="o">, </span>@rest args)</span> 
-<b>returns:</b> a partially applied function that takes the arguments left out of <em>args</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> mult_3<span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">)</span> a <span class="o">*</span> b <span class="o">*</span> c<span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">define</span> mult_2_with_9 <span class="o">=</span> partial<span class="o">(</span>mult_3<span class="o">,</span> <span class="mi">9</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>mult_2_with_9<span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 54</span>
-<span class="nc">slogan&gt; </span><span class="k">define</span> mult_with_18 <span class="o">=</span> partial<span class="o">(</span>mult_2_with_9<span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>mult_with_18<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 180</span></code></pre></div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>complement<span class="o">(</span>f<span class="o">)</span> 
-<b>returns:</b> a function that takes the same arguments as the function <em>f</em>,
-         has the same effects, if any, and returns the opposite truth value.</code></pre>
-</div>
-
 <h4>Generic Methods</h4>
 <p>Slogan supports multiple dispatch or multimethods by which a function can be dynamically dispatched based on the run time (dynamic) type 
   of more than one of its arguments. Functions defined for multiple dispatch are called <em>methods</em>. A method is a specialization of 
@@ -726,8 +653,82 @@
 <span class="nc">slogan&gt; </span>`+`<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; 6</span>
 <span class="nc">slogan&gt; </span>`+`<span class="o">(</span><span class="s1">&quot;a&quot;</span><span class="o">,</span> <span class="s1">&quot;b&quot;</span><span class="o">,</span> <span class="s1">&quot;c&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;abc&quot;</span></code></pre>
-  </div>
+<span class="ge">=&gt; &quot;abc&quot;</span></code></pre></div>
+
+<h4>Continuations</h4>
+<p>While evaluating an expression, Slogan keeps track of two things: the expression to evaluate and what to do with its value. Consider the
+  expression <code>x &lt; y</code> in the following program:</p>
+
+<pre><code>if (x &lt; y) say_hello() else say_goodbye();</code></pre>
+
+<p>The expression to evaluate is <code>x &lt; y</code> and &quot;what to do with its value&quot; is to make a decision on which of the
+  two functions - <code>say_hello</code> and <code>say_goodbye</code> - to call. The &quot;what to do with the value&quot; is called the
+  <em>continuation</em> of a computation. Thus, at any point during the evaluation of any expression, there is a continuation ready to complete, 
+  or at least continue, the computation from that point.</p>
+
+<p>The continuation of any expression can be captured with the function <code>callcc</code>. 
+  <code>Callcc</code> must be passed a function <code>p</code> of one argument. The current continuation itself is represented as a
+  function <code>k</code>. This function is passed to <code>p</code>. If <code>k</code> is applied to a value from within <code>p</code>, 
+  it returns the value to the continuation of the <code>callcc</code> application. This value becomes, in essence, the value of the 
+  application of <code>callcc</code>.
+  If <code>p</code> returns without invoking <code>k</code>, the value returned by the procedure becomes the value of the application of 
+  <code>callcc</code>. Consider some simple examples:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> <span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 9</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> k<span class="o">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 9</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> <span class="o">{</span> k<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> k<span class="o">(</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span> <span class="o">}</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 12</span>
+<span class="nc">slogan&gt; </span><span class="mi">2</span> <span class="o">+</span> callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>k<span class="o">)</span> k<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">+</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 5</span></code></pre>
+</div>
+
+<p>In the first case, the continuation <code>k</code> is never used allowing <code>callcc</code> to return <code>7</code>. In the second case,
+  the continuation is used but its effect is the same as the previous case. In the third case, the continuation is invoked two times. The first
+  call returns the value <code>10</code> to the continuation of the application of <code>callcc</code> and the second use of the continuation
+  is never reached. The fourth case is similar. Calling the continuation with the value <code>3</code> leads to the addition being ignored.</p>
+
+<p>Continuations can be used to implement advanced control structures. Here is an example of using continuations to implement the 
+  <code>return</code> statement found in most imperative languages: </p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> product<span class="o">(</span>xs<span class="o">)</span> 
+          callcc<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>return<span class="o">)</span> 
+                  <span class="k">let</span> loop <span class="o">(</span>xs <span class="o">=</span> xs<span class="o">,</span> p <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> 
+                   <span class="k">if</span> <span class="o">(</span>is_empty<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span> p 
+                   <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>head<span class="o">(</span>xs<span class="o">)</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> return<span class="o">(</span>p<span class="o">)</span>
+                   <span class="k">else</span> loop<span class="o">(</span>tail<span class="o">(</span>xs<span class="o">)</span><span class="o">,</span> p <span class="o">*</span> head<span class="o">(</span>xs<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>product<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 120</span>
+<span class="nc">slogan&gt; </span>product<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; 6</span></code></pre>
+</div>
+
+<p>The <code>return</code> continuation allows <code>product</code> to exit immediately upon seeing a zero value without performing the
+  remaining multiplications.</p>
+
+<p>Another use of continuations is to implement various forms of multitasking, like the simple coroutine implementation shown below:</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> a<span class="o">(</span>k<span class="o">)</span> 
+        <span class="o">{</span> showln<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+          callcc<span class="o">(</span>k<span class="o">)</span><span class="o">;</span> 
+          showln<span class="o">(</span><span class="mi">3</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span><span class="k">function</span> b<span class="o">(</span>k<span class="o">)</span> 
+        <span class="o">{</span> showln<span class="o">(</span><span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
+          callcc<span class="o">(</span>k<span class="o">)</span> <span class="o">}</span><span class="o">;</span> 
+
+<span class="nc">slogan&gt; </span>a<span class="o">(</span>b<span class="o">)</span><span class="o">;</span> 
+<span class="ge">-&gt; 1
+   2
+   3</span></code></pre>
+</div>
+
+
   <h4 id="ns">Namespaces</h4>
   <p>Consider the following Slogan script:</p>
   <div class="highlight">
