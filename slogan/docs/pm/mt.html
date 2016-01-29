@@ -419,7 +419,11 @@
 <b>returns:</b> an object read from the process represented by <em>pinfo</em>.</code></pre>
       </div>
 
-<p>A process can send and receive numbers, symbols, strings, pairs and arrays. Support for other types might be added in future releases.</p>
+<p>A process can send and receive numbers, symbols, strings, pairs and arrays. More complex objects like functions should be explicitly serialized and
+  de-serialized by the processes. The functions <code>object_to_u8array</code> and <code>u8array_to_object</code> can be used for this.</p>
+
+<p><code>Process_receive</code> and <code>process_send</code> performs the best when messages are less than 1Kb in size. This allows the
+  messaging functions to get their job done without allocating memory on the heap.</p>
 
     <div class="highlight">
       <pre><code><span class="nc">function: </span>process_close<span class="o">(</span>pinfo<span class="o">)</span>
@@ -448,14 +452,21 @@
 <b>returns:</b> a function that send messages to the new process.</code></pre>
       </div>
 
+    <p>The argument <code>timeout</code> specifies the number of second or milliseconds <code>spawn</code> should wait for the child process to start and respond.
+  Both <code>send_timeout</code> and  <code>recv_timeout</code> are used by the parent and child processes to control the time they should
+  wait for message sends and receives. <code>recv_default</code> is used internally by the client-callback as the return value
+  for <code>process_receive</code> calls that times-out.</p>
+
 <p><code>Spawn</code> starts a new process and calls the function <code>f</code> in that process. This function is called with the objects received from
   the parent process until it receives the symbol <code>!quit</code>. The return value of <code>spawn</code> is a function that the parent process can
-  call to send objects to the new process. Any value passed to this function, except the symbol <code>!info</code> is send to the child. For the argument
-  <code>!info</code> this function will return the process information object. Passing the symbol <code>!quit</code> will cause this function to
-  terminate the child and close the connection with it.</p>
+  call to send messages to the child process. Any value passed to this function, except the symbol <code>!info</code> is send to the child.
+  For the argument <code>!info</code> this function will return the process information object. Passing the symbol <code>!quit</code> will cause
+  this function to terminate the child and close the connection with it.</p>
 
-<p>The argument <code>timeout</code> specifies the time <code>spawn</code> should wait for the child process to respond. Both <code>send_timeout</code> and
-  <code>recv_timeout</code> are used by the parent and child processes to control the time they should wait for message sends and receives. <code>recv_default</code> is used as the return value for <code>process_receive</code> calls that times-out.</p>
+<p>For all other arguments, the function returned by <code>spawn</code> behave as follows. After sending the message, it will return a function
+  that represent a "future" object. At a later point in time, this "future" can be invoked to get back the reply from the child.
+  This function can be optionally passed two keyword arguments - <code>timeout</code> and <code>default</code> - to prevent the parent from
+  waiting indefinitely for a reply.</p>
 
 <p>Let us conclude this section with an example of <code>spawn</code>:</p>
     
@@ -465,11 +476,15 @@
                             <span class="o">!</span>hi <span class="o">-&gt;</span> <span class="o">!</span>hello<span class="o">,</span>
                             <span class="o">[</span><span class="o">!</span>add a b<span class="o">]</span> <span class="o">-&gt;</span> a <span class="o">+</span> b<span class="o">,</span>
                             _ <span class="o">-&gt;</span> <span class="o">!</span>invalid<span class="o">)</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>p<span class="o">(</span><span class="o">!</span>hi<span class="o">)</span><span class="o">;</span>
+                            
+<span class="nc">slogan&gt; </span><span class="k">define</span> f<span class="o"> = </span>p<span class="o">(</span><span class="o">!</span>hi<span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>f<span class="o">();</span>
 <span class="ge">-&gt; hello</span>
-<span class="nc">slogan&gt; </span>p<span class="o">(</span><span class="o">[</span><span class="o">!</span>add <span class="mi">10</span> <span class="mi">20</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>f <span class="o">=</span> p<span class="o">(</span><span class="o">[</span><span class="o">!</span>add <span class="mi">10</span> <span class="mi">20</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>f<span class="o">();</span>
 <span class="ge">-&gt; 30</span>
-<span class="nc">slogan&gt; </span>p<span class="o">(</span><span class="o">!</span>hey<span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>f <span class="o">=</span> p<span class="o">(</span><span class="o">!</span>hey<span class="o">)</span><span class="o">;</span>
+<span class="nc">slogan&gt; </span>f<span class="o">();</span>
 <span class="ge">-&gt; invalid</span>
 <span class="nc">slogan&gt; </span>p<span class="o">(</span><span class="o">!</span>quit<span class="o">)</span><span class="o">;</span></code></pre></div>
   </div>
