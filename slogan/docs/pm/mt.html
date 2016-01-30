@@ -404,7 +404,8 @@
 <b>returns:</b> an object that contain information about the newly started process.</code></pre>
       </div>
 
-    <p>The <code>process</code> function arranges <em>f</em> to be executed on a new processor core.</code></pre>If <code>timeout</code> is specified, <code>process</code> will raise an error if the spawned process do not respond within that time.</p>
+<p><code>Process</code> arranges the function <em>f</em> to be executed parallely. If <code>timeout</code> is specified,
+  <code>process</code> will raise an error if the spawned process do not respond within that time.</p>
       
     <div class="highlight">
       <pre><code><span class="nc">function: </span>process_send<span class="o">(</span>pinfo<span class="o">, </span>obj<span class="o">, </span>@optional timeout<span class="o">)</span>
@@ -422,40 +423,26 @@
 <p>A process can send and receive numbers, symbols, strings, pairs and arrays. More complex objects like functions should be explicitly serialized and
   de-serialized by the processes. The functions <code>object_to_u8array</code> and <code>u8array_to_object</code> can be used for this.</p>
 
-<p><code>Process_receive</code> and <code>process_send</code> performs the best when messages are less than 1Kb in size. This allows the
-  messaging functions to get their job done without allocating memory on the heap.</p>
-
     <div class="highlight">
       <pre><code><span class="nc">function: </span>process_close<span class="o">(</span>pinfo<span class="o">)</span>
 <b>returns:</b> <em>true</em> if the connection with the process is closed, <em>false</em> otherwise.</code></pre>
       </div>
 
-<p>The <code>process_close</code> function terminates the child process and closes the connection with it.</p>
+<p>Closes the communication channel between the parent and child processes. If called from parent, the child process is terminated.</p>
 
 <p>Here is an example that uses the <code>process</code> function to start a new process and send it a message:</p>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span><span class="k">define</span> p <span class="o">=</span> process<span class="o">(</span><span class="k">fn</span> <span class="o">(</span>cp<span class="o">)</span> showln<span class="o">(</span><span class="s1">"server says: "</span> process_receive<span class="o">(</span>cp<span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
 <span class="nc">slogan&gt; </span>process_send<span class="o">(</span>p<span class="o">,</span> <span class="s1">"hello"</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 7</span>
 <span class="ge">-&gt; server says: hello
 <span class="nc">slogan&gt; </span>process_close<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; true</span></pre></code></div>
 
     <div class="highlight">
-      <pre><code><span class="nc">function: </span>process_terminate<span class="o">(</span>pinfo<span class="o">)</span>
-<b>returns:</b> <em>true</em> if the process is terminated, <em>false</em> otherwise.</code></pre>
-      </div>
-
-    <div class="highlight">
-      <pre><code><span class="nc">function: </span>spawn<span class="o">(</span>f<span class="o">, </span>@optional timeout<span class="o">, </span>send_timeout<span class="o">, </span>recv_timeout<span class="o">, </span>recv_default<span class="o">)</span>
+      <pre><code><span class="nc">function: </span>spawn<span class="o">(</span>f<span class="o">, </span>@optional timeout<span class="o">, </span>default<span class="o">)</span>
 <b>returns:</b> a function that send messages to the new process.</code></pre>
       </div>
-
-    <p>The argument <code>timeout</code> specifies the number of second or milliseconds <code>spawn</code> should wait for the child process to start and respond.
-  Both <code>send_timeout</code> and  <code>recv_timeout</code> are used by the parent and child processes to control the time they should
-  wait for message sends and receives. <code>recv_default</code> is used internally by the client-callback as the return value
-  for <code>process_receive</code> calls that times-out.</p>
 
 <p><code>Spawn</code> starts a new process and calls the function <code>f</code> in that process. This function is called with the objects received from
   the parent process until it receives the symbol <code>!quit</code>. The return value of <code>spawn</code> is a function that the parent process can
@@ -467,6 +454,9 @@
   that represent a "future" object. At a later point in time, this "future" can be invoked to get back the reply from the child.
   This function can be optionally passed two keyword arguments - <code>timeout</code> and <code>default</code> - to prevent the parent from
   waiting indefinitely for a reply.</p>
+
+<p><code>Timeout</code> is used by the parent and child processes to control the time they should
+      wait for message sends and receives. <code>Default</code> is used as the return value for <code>process_receive</code> calls that times-out.</p>
 
 <p>Let us conclude this section with an example of <code>spawn</code>:</p>
     
