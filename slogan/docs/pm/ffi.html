@@ -698,13 +698,14 @@ struct point make_point(int x, int y)
 
 <div class="highlight">
   <pre><code>/* call_fn_test.c */
-#include <stdio.h>
+#include &lt;stdio.h&gt;
 #include "slogan.h"
 
-___slogan_obj call(___slogan_obj f)
+___slogan_obj call(___slogan_obj *args)
 {
   int error = 0;
   ___slogan_obj result;
+  ___slogan_obj f = args[0];
   ___ON_THROW(result = ___call_fn(f, ___pair(___fix(100), ___pair(___fix(200), ___NUL))), error = 1);
   if (error == 1)
     {
@@ -712,6 +713,7 @@ ___slogan_obj call(___slogan_obj f)
       return ___FAL;
     }
   return result;
+}
 }</code></pre></div>
 
 <p>The <code>___ON_THROW</code> macro will set the integer variable <code>error</code> to <code>1</code> if the Slogan function raises an exception.
@@ -719,7 +721,8 @@ Once this is compiled into a shared library, <code>call</code> can be invoked as
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt;</span> <span class="k">define</span> clib = ffi_open<span class="o">(</span>"./call_fn_test.so"<span class="o">);</span>
-<span class="nc">slogan&gt;</span> ffi_call_obj_1<span class="o">(</span>clib, "call", add<span class="o">);</span>
+<span class="nc">slogan&gt;</span> <span class="k">define</span> f = ffi_fn<span class="o">(</span>clib, "call"<span class="o">);</span>      
+<span class="nc">slogan&gt;</span> ffi_call_obj<span class="o">(</span>f, <span class="o">#[</span>add<span class="o">]);</span>
 <span class="ge">=&gt; </span>300</pre></code></div>
 
       </div>
