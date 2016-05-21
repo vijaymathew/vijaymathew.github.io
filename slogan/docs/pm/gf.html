@@ -177,71 +177,6 @@
          has the same effects, if any, and returns the opposite truth value.</code></pre>
 </div>
     
-    <h4>Macros</h4>
-
-    <p>Macros are constructs that are syntactically similar to functions but there is a subtle difference in the way a call to a macro
-      is executed. When the compiler sees a function call, it inserts code to evaluate the arguments, push the values to the runtime stack
-      and makes the processor jump to the beginning of the function's body. When the compiler sees a macro call, it invokes a program called
-      the <em>macro expander</em>. The macro expander makes a copy of the macro body, replaces the parameter references with the actual
-      argument expressions and puts the macro body in-place of the macro call itself. When control returns to the compiler, it sees the 
-      macro body instead of the macro call. It is this <em>in-lined</em> macro body that gets compiled to machine code.</p>
-    <p>Macros gives us a way to write language extensions that do no incur the runtime cost of a function call.</p>
-
-    <p>As an example of using macros, let us define a loop abstraction called <code>dotimes</code>. This is a construct that will act as a basic 
-      <em>counting loop</em>:</p>
-
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">macro</span> dotimes<span class="o">(</span>n<span class="o">,</span> body_fn<span class="o">)</span> 
-          <span class="k"><span class="o">%</span>let</span> loop <span class="o">(</span>i <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> f <span class="o">=</span> <span class="o">%%</span>body_fn<span class="o">)</span> 
-           <span class="k">if</span> <span class="o">(</span>i <span class="o">&lt;</span> <span class="o">%%</span>n<span class="o">)</span> 
-            <span class="o">{</span> f<span class="o">(</span>i<span class="o">)</span><span class="o">;</span> 
-              loop<span class="o">(</span>i <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> f<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
-    </div>
-
-    <p>This macro has two parameters: <code>n</code> must be a positive integer and <code>body_fn</code> must be a function that takes a single
-      argument. <code>Body_fn</code> is called <code>n</code> times with the current count as argument. Here is an example usage:</p>
-
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>dotimes<span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="k">^</span><span class="o">(</span>i<span class="o">)</span> showln<span class="o">(</span>i<span class="o">)</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">-&gt; 0
-   1
-   2
-   3
-   4</span></code></pre>
-      </div>
-
-    <p>The compiler will use the macro expander to replace the call to <code>dotimes</code> with the following code:</p>
-    <div class="highlight">
-      <pre><code><span class="k">let</span> loop <span class="o">(</span>i <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>i<span class="o">)</span> showln<span class="o">(</span>i<span class="o">)</span><span class="o">)</span> 
- <span class="k">if</span> <span class="o">(</span>i <span class="o">&lt;</span> n<span class="o">)</span> 
-  <span class="o">{</span> f<span class="o">(</span>i<span class="o">)</span><span class="o">;</span> 
-    loop<span class="o">(</span>i <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> f<span class="o">)</span> <span class="o">}</span><span class="o">;</span> </code></pre>
-    </div>
-
-    <p>This expanded code is what gets compiled into machine instructions. Macros are ideal for small utilities like <code>dotimes</code>. A large
-      chunk of code written as a macro can lead to significant code bloat if it is called from many sites in the program.</p>
-
-    <p>A macro can take an arbitrary number of arguments if the parameter list is specified as a single identifier with no parenthesis:</p>
-
-    <div class="highlight">
-    <pre><code><span class="nc">slogan&gt; </span><span class="k">macro</span> avg args 
-          apply<span class="o">(</span>add<span class="o">,</span> args<span class="o">)</span> <span class="o">/</span> <span class="o">(</span>length<span class="o">(</span>args<span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
-
-    <p>The macro <code>avg</code> returns the average of its arguments. It finds out the number of arguments at compile-time and inserts that
-      value into the expanded macro body:</p>
-
-    <div class="highlight">
-    <pre><code><span class="nc">slogan&gt; </span>avg<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">34</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 41</span></code></pre></div>
-
-    <p>This call gets expanded into the following code before final compilation:</p>
-
-    <div class="highlight">
-      <pre><code>apply<span class="o">(</span>add<span class="o">,</span> <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">34</span><span class="o">]</span><span class="o">)</span> <span class="o">/</span> <span class="mi">4</span><span class="o">;</span> </code></pre></div>
-
-    <p>It is easier to think of macros as functions that get evaluated at compile-time. They can be recursive and can accept parameters annotated with
-      <code>@optional</code>, <code>@key</code> and <code>@rest</code>. </p>
-
     <h4>Recursion</h4>
     <p>The <code>dotimes</code> macro allowed us to repeatedly perform an expression. Another way to achieve this is by writing a function
       that contains the expression and invoke the function more than once as part of the expression itself. This is called recursion.
@@ -518,17 +453,17 @@
   generic method implementations. The following program shows how to use this feature:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">declare</span> generic join<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> <span class="o">|</span>
-          <span class="o">(</span>list<span class="o">,</span> array<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> array_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span><span class="o">,</span>
-          <span class="o">(</span>list<span class="o">,</span> string<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> string_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span><span class="o">;</span></code></pre></div>
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">declare</span> generic join<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+          <span class="o">|</span> <span class="o">(</span>list<span class="o">,</span> array<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> array_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span>
+          <span class="o">|</span> <span class="o">(</span>list<span class="o">,</span> string<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> string_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span><span class="o">;</span></code></pre></div>
 
 <p>The definitions can have an optional <code>else</code> clause where we can define a method that will be called if all other argument types fail to match:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">declare</span> generic join<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> <span class="o">|</span>
-          <span class="o">(</span>list<span class="o">,</span> array<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> array_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span><span class="o">,</span>
-          <span class="o">(</span>list<span class="o">,</span> string<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> string_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span><span class="o">,</span>
-	  <span class="k">else</span> <span class="o">-&gt;</span> <span class="o">[</span>a<span class="o">,</span> b<span class="o">]</span><span class="o">;</span></code></pre></div>
+  <pre><code><span class="nc">slogan&gt; </span><span class="k">declare</span> generic join<span class="o">(</span>a<span class="o">,</span> b<span class="o">)</span> 
+         <span class="o">|</span> <span class="o">(</span>list<span class="o">,</span> array<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> array_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span>
+         <span class="o">|</span> <span class="o">(</span>list<span class="o">,</span> string<span class="o">)</span> <span class="o">-&gt;</span> append<span class="o">(</span>a<span class="o">,</span> string_to_list<span class="o">(</span>b<span class="o">)</span><span class="o">)</span>
+	 <span class="o">|</span> <span class="k">else</span> <span class="o">-&gt;</span> <span class="o">[</span>a<span class="o">,</span> b<span class="o">]</span><span class="o">;</span></code></pre></div>
 
 <div class="highlight">
   <pre><code><span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
@@ -628,130 +563,6 @@
    3</span></code></pre>
 </div>
 
-
-  <h4 id="ns">Namespaces</h4>
-  <p>Consider the following Slogan script:</p>
-  <div class="highlight">
-    <pre><code><span class="c">// file: a.sn</span>
-<span class="k">let</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
-<span class="k">function</span> y<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hi from A&quot;</span><span class="o">;</span></code></pre>
-    </div>
-
-<p>We can <code>load</code> this script into the REPL or another script and use both <code>x</code> and <code>y</code> as if they were defined
-  locally. Now imagine that we have another script, say &quot;b.sn&quot;, with its own bindings for <code>x</code> and <code>y</code>:</p>
-
-  <div class="highlight">
-    <pre><code><span class="c">// file: b.sn</span>
-<span class="k">let</span> x <span class="o">=</span> <span class="mi">78</span><span class="o">;</span> 
-<span class="k">let</span> y <span class="o">=</span> <span class="s1">&quot;hi from B&quot;</span><span class="o">;</span></code></pre>
-    </div>
-
-<p>If we load <code>b.sn</code> its definitions of <code>x</code> and <code>y</code> will shadow the definitions imported from <code>a.sn</code>.
-  Namespaces enable us to avoid such name conflicts. The definitions above can be embedded into their own namespaces as shown below:</p>
-
-  <div class="highlight">
-    <pre><code><span class="c">// file: a.sn</span>
-<span class="k">namespace</span> a<span class="o">;</span>
-<span class="k">let</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
-<span class="k">function</span> y<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hi from A&quot;</span><span class="o">;</span>
-<span class="k">namespace<span class="o">;</span></code></pre>
-    </div>
-
-  <div class="highlight">
-    <pre><code><span class="c">// file: b.sn</span>
-<span class="k">namespace</span> b<span class="o">;</span>
-<span class="k">let</span> x <span class="o">=</span> <span class="mi">78</span><span class="o">;</span> 
-<span class="k">let</span> y <span class="o">=</span> <span class="s1">&quot;hi from B&quot;</span><span class="o">;</span>
-<span class="k">namespace<span class="o">;</span></code></pre>
-    </div>
-
-<p>A namespace is introduced with the <code>namespace</code> keyword followed by the namespace name. The <code>namespace</code> keyword
-  when used without a name denotes the end of the previous namespace.</p>
-<p>While in a namespace, the compiler prefixes all variables introduced by <code>let</code>, <code>function</code> and 
-  <code>namespace</code> statements with a <code>namespace_name_</code> prefix. These variables can be directly accessed by
-  using this prefix:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>load("a")<span class="o">;</span>
-<span class="nc">slogan&gt; </span>load("b")<span class="o">;</span>
-      
-<span class="nc">slogan&gt; </span>a_x<span class="o">;</span> 
-<span class="ge">=&gt; 100</span>
-<span class="nc">slogan&gt; </span>a_y<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hi from A</span>
-<span class="nc">slogan&gt; </span>b_x<span class="o">;</span> 
-<span class="ge">=&gt; 78</span>
-<span class="nc">slogan&gt; </span>b_y<span class="o">;</span> 
-<span class="ge">=&gt; hi from B</span></code></pre>
-</div>
-
-<p>Identifiers introduced by <code>let</code> and <code>function</code> statements can also be imported from a namespace,
-  thus avoiding the explicit use of the prefix:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">use</span> a<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>x<span class="o">;</span> 
-<span class="ge">=&gt; 100</span>
-<span class="nc">slogan&gt; </span>y<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hi from A</span>
-<span class="nc">slogan&gt; </span><span class="k">use</span> b<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>x<span class="o">;</span> 
-<span class="ge">=&gt; 78</span>
-<span class="nc">slogan&gt; </span>y<span class="o">;</span> 
-<span class="ge">=&gt; hi from B</span></code></pre>
-</div>
-
-<p>Identifiers can be selectively imported by providing a parenthesized list to <code>use</code>:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">use</span> <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> from a<span class="o">;</span></code></pre>
-</div>
-
-<p>The <code>use</code> statement can also accept a custom prefix for identifiers:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">use</span> a as hello<span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">use</span> b as hi<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>hello_x<span class="o">;</span> 
-<span class="ge">=&gt; 100</span>
-<span class="nc">slogan&gt; </span>hello_y<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hi from A</span>
-<span class="nc">slogan&gt; </span>hi_x<span class="o">;</span> 
-<span class="ge">=&gt; 78</span>
-<span class="nc">slogan&gt; </span>hi_y<span class="o">;</span> 
-<span class="ge">=&gt; hi from B</span></code></pre>
-</div>
-
-<p>The following functions can be used to manipulate namespaces during the program's runtime:</p>
-
-  <div class="highlight">
-    <pre><code><span class="nc">function: </span>namespace_names<span class="o">(</span>n<span class="o">)</span> 
-<b>returns:</b> a list of all names exported by the namespace <em>n</em>, which must be a symbol.</code></pre>
-</div>
-
-    <div class="highlight">
-    <pre><code><span class="nc">function: </span>namespace_hide<span class="o">(</span>n<span class="o">, </span>names<span class="o">)</span> 
-<b>returns:</b> hides the given names from the namespace <em>n</em> from imports.</code></pre>
-</div>
-
-    <div class="highlight">
-    <pre><code><span class="nc">function: </span>namespace_unhide<span class="o">(</span>n<span class="o">, </span>names<span class="o">)</span> 
-<b>returns:</b> makes the given names from the namespace <em>n</em> visible to imports.</code></pre>
-</div>
-
-    <div class="highlight">
-    <pre><code><span class="nc">function: </span>namespace_create<span class="o">(</span>n<span class="o">, </span>names<span class="o">)</span> 
-<b>returns:</b> creates the new namespace <em>n</em> with <em>names</em> as its contents.</code></pre>
-    </div>
-
-    <p>The <em>names</em> parameter in all the above functions must be either a symbol or a list of symbols.</p>
-
-        <div class="highlight">
-    <pre><code><span class="nc">function: </span>namespace_delete<span class="o">(</span>n<span class="o">)</span> 
-<b>returns:</b> deletes the namespace <em>n</em>.</code></pre>
-</div>
-
-        <p>(<em>since v0.2</em>) all built-in functions and identifiers are part of the <code>core</code> namespace.</p>
   </div>
 </body>
 </html>

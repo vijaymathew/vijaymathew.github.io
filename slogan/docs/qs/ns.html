@@ -68,63 +68,23 @@
       Object Oriented Programming, you would like to call it an <em>object</em>. A function that creates a closure (in our example, 
       <code>make_counter</code>) takes on the role of a <em>class</em>.
 
-      <h4>Namespaces</h4>
-      <p><em>Namespaces</em> allow to collect definitions into logical groups. They can also be used to avoid name conflicts as shown in the
-      following program:</p>
+      <h4>Modules</h4>
+    <p><em>Modules</em> allow to collect definitions into logical groups. The definitions that are visible outside the module are exported
+      using a list of names similar to a function's parameter list.</p>
 
       <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span><span class="k">namespace</span> a<span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hello from namespace - a&quot;</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">namespace</span><span class="o">;</span> 
+	<pre><code><span class="nc">slogan&gt; </span><span class="k">module</span> a<span class="o">(</span>f<span class="o">, </span> x<span class="o">)</span>
+       <span class="o"> {</span> <span class="k">function</span> f<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hello from module - a&quot;</span><span class="o">;</span> 
+          <span class="k">let</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span><span class="o"> }</span><span class="o">;</span></code></pre></div> 
 
-<span class="nc">slogan&gt; </span><span class="k">namespace</span> b<span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hello from namespace - b&quot;</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> x <span class="o">=</span> <span class="mi">200</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">namespace</span><span class="o">;</span></code></pre></div> 
-
-      <p>Names bound in a namespace are made visible by the <em>use namespace</em> statement:</p>
+      <p>Values exported from a module can be accessed using the `dot` notation:</p>
 
       <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span><span class="k">use</span> a<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hello from namespace - a</span>
-<span class="nc">slogan&gt; </span>x<span class="o">;</span> 
-<span class="ge">=&gt; 100</span>
+	<pre><code><span class="nc">slogan&gt; </span>a.f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
+<span class="ge">=&gt; hello from module - a</span>
+<span class="nc">slogan&gt; </span>a.x<span class="o">;</span> 
+<span class="ge">=&gt; 100</span></code></pre></div>
 
-<span class="nc">slogan&gt; </span><span class="k">use</span> b<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hello from namespace - b</span>
-<span class="nc">slogan&gt; </span>x<span class="o">;</span> 
-<span class="ge">=&gt; 200</span></code></pre></div>
-
-      <p>The <code>use</code> statement has options that allow us to import bindings from both namespaces at the same time without name conflicts.
-	This is explained in the <a href="../pm/gf.html#ns">manual</a>.</p>
-
-      <p>Large programs will spread across multiple source files. A Slogan source file can be imported using the <code>load</code> function.
-	It is customary to save Slogan scripts with the &quot;.sn&quot; extension. But it is better to avoid the extension while passing the
-	script name to <code>load</code>. This allows Slogan to load the compiled object file, if that is available. 
-	A simple program that consists of two scripts is shown below:</p>
-
-      <div class="highlight">
-	<pre><code><span class="c">// file: a.sn</span>
-<span class="k">function</span> say_hello<span class="o">(</span>name<span class="o">)</span> string_append<span class="o">(</span><span class="s1">&quot;hello &quot;</span><span class="o">,</span> name<span class="o">)</span><span class="o">;</span> </code></pre></div>
-
-      <div class="highlight">
-	<pre><code><span class="c">// file: b.sn</span>
-<span class="k">load</span>(<span class="s1">&quot;a&quot;</span>)<span class="o">;</span>	    
-println<span class="o">(</span>say_hello<span class="o">(</span>second<span class="o">(</span>command_line<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> </code></pre></div>
-
-    <p>Now let us compile the source files to create a standalone executable. </p>
-
-      <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span>compile<span class="o">(</span><span class="s1">&quot;a&quot;</span><span class="o">,</span> assemble <span class="o">=</span> <span class="k">true</span><span class="o">)</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>compile<span class="o">(</span><span class="s1">&quot;b&quot;</span><span class="o">,</span> exe <span class="o">=</span> <span class="k">true</span><span class="o">)</span><span class="o">;</span></code></pre></div>
-
-      <p>This will produce the executable binary named &quot;b&quot, which you can run directly from the shell. A sample invocation will look like:<p>
-
-      <p><pre><code>$ ./b vijay
-hello vijay</code></pre></p>
 </div>
 </body>
 </html>
