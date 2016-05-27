@@ -116,8 +116,34 @@
 <p>The <code>function</code> statement combines the <code>function</code> and <code>let</code> expressions to give
   us a shorter way to create named functions. </p>
 <div class="highlight">
-  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> name <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span></code></pre>
+  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> name <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span>
+<b><span class="nc">syntax:</span> </b><span class="k">function</span> name <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> <span class="k">where</span> precondition <span class="o">-&gt;</span> postcondition body<span class="o">;</span></code></pre>
 </div>
+
+<p>A "contract" for the function can be specified using the <code>where</code> clause. <em>Precondition</em> is an expression that should return true for the arguments of the function and <em>postcondition</em> is an expression that should return true for the result of the function. A precondition is a contract that should be satisfied by the callers of the function and a postcondition is a guarantee made by the function regarding its output.</p>
+<p>The variable <code>%</code> gets bound to the result of the function in the postcondition. The postcondition is optional.</p>
+
+<div class="highlight">
+  <pre><code><span class="nc">slogan&gt; </span>function precond(x, y) is_integer(x) && x > 10 && is_integer(y) && y > 0;
+<span class="nc">slogan&gt; </span>function a(x, y) where precond(x, y) -> is_integer(%)
+         if (x == 20) "ok"
+         else x * y;
+<span class="nc">slogan&gt; </span>a(1, 2);
+<span class="err">precondition_failed</span>
+<span class="nc">slogan&gt; </span>a(1, 2);
+<span class="ge">=&gt; 22</span>
+<span class="nc">slogan&gt; </span>a(20, 2);
+<span class="err">precondition_failed</span></code></pre></div>
+
+
+<p>The following functions can be called to disable/enable function contracts dynamically:</p>
+
+  <div class="highlight">
+    <pre><code><span class="nc">function: </span>disable_function_contracts<span class="o">(</span><span class="o">)</span>
+<span class="nc">function: </span>enable_function_contracts<span class="o">(</span><span class="o">)</span>        
+<b>returns:</b> void</code></pre>
+  </div>
+
 
   <h5>Functions returning Functions</h5>
   
@@ -430,7 +456,7 @@
 <span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; [1, 2, 3, 10, 20, 30]</span>
 <span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [1, 2, 3, 'h', 'e', 'l', 'l', 'o']</span>
+<span class="ge">=&gt; [1, 2, 3, !h, !e, !l, !l, !o]</span>
 <span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="mi">43</span><span class="o">)</span><span class="o">;</span> 
 <span class="err">error:  Method not defined.</span></code></pre>
 </div>
@@ -469,7 +495,7 @@
   <pre><code><span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; [1, 2, 3, 10, 20, 30]</span>
 <span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [1, 2, 3, 'h', 'e', 'l', 'l', 'o']</span>
+<span class="ge">=&gt; [1, 2, 3, !h, !e, !l, !l, !o]</span>
 <span class="nc">slogan&gt; </span>join<span class="o">(</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="mi">43</span><span class="o">)</span><span class="o">;</span> 
 <span class="ge">=&gt; [[1, 2, 3], 43]</span></code></pre>
 </div>
