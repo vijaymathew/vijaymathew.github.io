@@ -26,90 +26,96 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Moving Ahead</h3></div>
-    <p>The preceding chapter introduced the most useful primitive syntactic forms and functions that will get you started in programming
-      Slogan. This chapter introduces a number of additional features and programming techniques that will allow you to write more 
+    <p>The preceding chapter introduced some of the most useful syntactic forms in Slogan.
+      This chapter talks about a number of additional features and programming techniques that will allow you to write more 
       sophisticated and efficient programs.</p>
 
 <h4>The Function Expression</h4>
-<p>This section gives you the full syntax of the <code>function</code> expression. </p>
+<p>The full syntax of the <code>function</code> expression is given below. </p>
 <div class="highlight">
-  <pre><code><b><span class="nc">syntax:</span> </b><span class="k">function</span> <span class="o">(</span>params<span class="o">,</span> ...<span class="o">)</span> body<span class="o">;</span>
-<span class="k">returns: </span>a function</code></pre>
+  <pre><code><span class="c">// Returns a function object.</span>
+      
+function(params, ...) body;
+^(params, ...) body;</code></pre>
 </div>
-
-(To save a few keystrokes, the keyword <code>^</code> can be used instead of the keyword <code>function</code>.)
 
 <p>The variables in <code>params, ...</code> are the formal parameters of the function.</p>
 <p>The body may begin with a sequence of definitions, in which case the bindings created by the definitions are local to the body. 
   When the function is created, the bindings of all variables occurring free within the body, excluding the formal parameters, are retained 
-  with the function. Subsequently, whenever the function is applied to a sequence of arguments, the formal parameters are bound to the 
+  within the function. Subsequently, whenever the function is applied to a sequence of arguments, the formal parameters are bound to the 
   arguments, the retained bindings are restored, and the body is evaluated.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">let</span> <span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">)</span> <span class="k">^</span><span class="o">(</span>y<span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span>  
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 110</span></code></pre>
+  <pre><code>let f = let (x = 10) ^(y) x + y;  
+f(100); 
+<span class="c">//=> 110</span></code></pre>
 </div>
 
-<h5>Parameter Default Values and Annotations</h5>
-<p>Function parameters can be declared to take default values using the assignment notation. If an argument is missing at the call site, its
-  default value will be automatically plugged-in. An example is shown below:<p>
+<h5>Parameter default values and annotations</h5>
+    <p>Function parameters can take default values. If an argument is missing at the call site, its default value is automatically plugged-in.
+      An example is shown below:<p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span> x <span class="o">+</span> y<span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 30</span>
-</span> <span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 50</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">30</span><span class="o">,</span> <span class="mi">100</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 130</span></code></pre>
+  <pre><code>let f = ^(x = 10, y = 20) x + y; 
+f();
+<span class="c">//=> 30</span>
+f(30); 
+<span class="c">//=> 50</span>
+
+f(30, 100);
+<span class="c">//=> 130</span></code></pre>
 </div>
 
-<p>Parameters that has default values becomes optional during function call. Another way to mark parameters as optional is by using the
-  <code>@optional</code> annotation. All parameters that follow the annotation will be treated as optional. All parameters marked 
-  <code>@optional</code> will have <code>false</code> as default value unless otherwise specified:</p>
+<p>Parameters that have default values become "optional" during function call. Another way to mark parameters as optional is by using the
+  <code>@optional</code> annotation. All parameters marked <code>@optional</code> will have <code>false</code> as its default value unless
+  otherwise specified.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>x<span class="o">,</span> @optional y<span class="o">,</span> z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, false]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 20, 30]</span>
+  <pre><code>let f = ^(x, @optional y, z) [x, y, z]; 
+f(10);
+<span class="c">//=> [10, false, false]</span>
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>x<span class="o">,</span> @optional y<span class="o">,</span> z <span class="o">=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, 100]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 20, 30]</span></code></pre>
+f(10, 20, 30); 
+<span class="c">//=> [10, 20, 30]</span>
+
+let f = ^(x, @optional y, z = 100) [x, y, z]; 
+f(10);
+<span class="c">//=> [10, false, 100]</span>
+
+f(10, 20, 30); 
+<span class="c">//=> [10, 20, 30]</span></code></pre>
 </div>
 
-<p>All functions defined so far requires the arguments to be passed in the same order as the parameters. The <code>@key</code> annotation
+<p>All functions defined so far require the arguments to be passed in the same order as the parameters. The <code>@key</code> annotation
   allows us to define functions that accept arguments in any order:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>x<span class="o">,</span> @key y<span class="o">,</span> z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, false]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span> <span class="o">,</span> z <span class="o">=</span> <span class="mi">30</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>  
-<span class="ge">=&gt; [10, 20, 30]</span>
+  <pre><code>let f = ^(x, @key y, z) [x, y, z]; 
+f(10);
+<span class="c">//=> [10, false, false]</span>
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>x<span class="o">,</span> @key y<span class="o">,</span> z <span class="o">=</span> <span class="mi">100</span><span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, false, 100]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> z <span class="o">=</span> <span class="mi">30</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span>  
-<span class="ge">=&gt; [10, 20, 30]</span></code></pre>
+f(10 , z = 30, y = 20);  
+<span class="c">//=> [10, 20, 30]</span>
+
+let f = ^(x, @key y, z = 100) [x, y, z]; 
+f(10);
+<span class="c">//=> [10, false, 100]</span>
+
+f(10, z = 30, y = 20);  
+<span class="c">//=> [10, 20, 30]</span></code></pre>
 </div>
 
-<p>The <code>@rest</code> annotation allows us to define functions that take an arbitrary number of arguments. A single variable should follow
+<p>The <code>@rest</code> annotation allows to define functions that take an arbitrary number of arguments. A single variable should follow
   the <code>@rest</code> annotation. All the additional arguments are collected in a list that is bound to this variable.
-  The following example shows a function that takes two mandatory arguments and <code>n</code> optional arguments:</p>
+  The following example show a function that takes two mandatory arguments and <code>n</code> optional arguments:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> <span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> @rest z<span class="o">)</span> <span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 20, []]</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">,</span> <span class="mi">40</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [10, 20, [30, 40]]</span></code></pre>
+  <pre><code>let f = ^(x, y, @rest z) [x, y, z];
+f(10, 20); 
+<span class="c">//=> [10, 20, []]</span>
+      
+f(10, 20, 30, 40);
+<span class="c">//=> [10, 20, [30, 40]]</span></code></pre>
 </div>
 
 <h5>The Function Statement</h5>
