@@ -33,10 +33,10 @@
 <h4>The Function Expression</h4>
 <p>The full syntax of the <code>function</code> expression is given below. </p>
 <div class="highlight">
-  <pre><code><span class="c">// Returns a function object.</span>
-      
-function(params, ...) body;
-^(params, ...) body;</code></pre>
+  <pre><code><b>syntax:</b> function(params, ...) body;
+<b>syntax:</b> ^(params, ...) body;
+
+<b>returns:</b> a function object.</span></code></pre>
 </div>
 
 <p>The variables in <code>params, ...</code> are the formal parameters of the function.</p>
@@ -158,11 +158,9 @@ enable_function_contracts()
   <h5>Functions returning functions</h5>
   
   <div class="highlight">
-    <pre><code>compose(f1, ...)</code></pre>
-</div>
-
-    <div class="highlight">
-    <pre><code>Returns a function that is the composition of the functions f1, ....
+    <pre><code><b>function: </b>compose(f1, ...)
+        
+<b>returns: </b>a function that is the composition of the functions f1, ....
 The returned function takes a variable number of arguments, applies the rightmost of f1, ...s
 to the arguments, the next function in f1, ... (right-to-left) to the result, etc.</code></pre>
     </div>
@@ -180,15 +178,15 @@ compose(number_to_string, add)(10, 20, 8, 100);
 <p>If <code>compose</code> is called with no arguments the <code>identity</code> function (described below) is returned.</p>
 
   <div class="highlight">
-    <pre><code>identity(obj) 
-<span class="c">// returns `obj`, where `obj` is any valid Slogan object.</span></code></pre>
+    <pre><code><b>function: </b>identity(obj)
+        
+<b>returns: </b>`obj`, where `obj` is any valid Slogan object.</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code>mapfn(f)</code></pre></div>
+  <pre><code><b>function: </b>mapfn(f)
 
-<div class="highlight">
-  <pre><code>Returns a function that takes a sequence `xs` as its argument and returns a sequence of the
+<b>returns:</b> a function that takes a sequence `xs` as its argument and returns a sequence of the
 results of applying `f` to each element of `xs.</code></pre>
 </div>
 
@@ -204,11 +202,9 @@ adder([1, 2, 3], [4, 5, 6]);
 </div>
 
 <div class="highlight">
-  <pre><code>partial(f, @rest args)</code></pre>
-</div>
+  <pre><code><b>function: </b>partial(f, @rest args)
 
-<div class="highlight">
-  <pre><code>Returns a function `pf` that applies `f` to `args` and any more arguments passed to `pf`.</code></pre>
+<b>returns:</b> a function `pf` that applies `f` to `args` and any more arguments passed to `pf`.</code></pre>
 </div>
 
 <p>Examples:</p>
@@ -223,11 +219,9 @@ mult_with_18(10);
 <span class="c">//=> 180</span></code></pre></div>
 
 <div class="highlight">
-  <pre><code>complement(f)</pre></code>
-</div>
+  <pre><code><b>function: </b>complement(f)
 
-<div class="highlight">
-  <pre><code>Returns a function that accept the same arguments as the function `f`, has the same effects,
+<b>returns:</b> a function that accept the same arguments as the function `f`, has the same effects,
 if any, and returns the opposite truth value.</code></pre>
 </div>
     
@@ -259,7 +253,7 @@ if any, and returns the opposite truth value.</code></pre>
 
     <p>The <code>letrec</code> expression is used to define local, recursive functions. </p>
 
-<pre><code>letrec (var = expr, ...) body;</code></pre>
+<pre><code><b>syntax:</b> letrec (var = expr, ...) body;</code></pre>
 
 <p>Unlike <code>let</code>, the variables <code>var...</code> are  visible not only within the body of the <code>letrec</code> but also 
   within <code>expr...</code>.</p>
@@ -336,7 +330,7 @@ join([1, 2, 3], 43);
 
 
 <div class="highlight">
-  <pre><code>method name(param:type, ...) body;</code></pre>
+  <pre><code><b>syntax: </b>method name(param:type, ...) body;</code></pre>
 </div>
 
 <p>Types is the name of any built-in or user-defined type that can be mapped to a type checking predicate of the form 
@@ -387,132 +381,6 @@ join([1, 2, 3], 43);
 
 `+`("a", "b", "c"); 
 <span class="c">//=> "abc"</span></code></pre></div>
-
-<h4>Continuations</h4>
-<p>While evaluating an expression, Slogan keeps track of two things: the expression to evaluate and what to do with its value. Consider the
-  expression <code>x &lt; y</code> in the following program:</p>
-
-<pre><code>if (x &lt; y) say_hello() else say_goodbye();</code></pre>
-
-<p>The expression to evaluate is <code>x &lt; y</code> and &quot;what to do with its value&quot; is to make a decision on which of the
-  two functions - <code>say_hello</code> and <code>say_goodbye</code> - to call. The &quot;what to do with the value&quot; is called the
-  <em>continuation</em> of a computation. Thus, at any point during the evaluation of an expression, there is a continuation ready to complete, 
-  or at least continue, the computation from that point.</p>
-
-<p>The continuation of any expression can be captured with the function <code>callcc</code>. 
-  <code>Callcc</code> must be passed a function <code>p</code> of one argument. The current continuation itself is represented as a
-  function <code>k</code>. This function is passed to <code>p</code>. If <code>k</code> is applied to a value from within <code>p</code>, 
-  it returns the value to the continuation of the <code>callcc</code> application. This value becomes, in essence, the value of the 
-  application of <code>callcc</code>.
-  If <code>p</code> returns without invoking <code>k</code>, the value returned by the procedure becomes the value of the application of 
-  <code>callcc</code>. Consider these simple examples:</p>
-
-<div class="highlight">
-  <pre><code>2 + callcc(^(k) 3 + 4); 
-<span class="c">//=> 9</span>
-
-2 + callcc(^(k) k(3 + 4)); 
-<span class="c">//=> 9</span>
-
-2 + callcc(^(k) { k(10); k(3 + 4) }); 
-<span class="c">//=> 12</span>
-
-2 + callcc(^(k) k(3) + 4); 
-<span class="c">//=> 5</span></code></pre>
-</div>
-
-<p>In the first case, the continuation <code>k</code> is never used, allowing <code>callcc</code> to return <code>7</code>. In the second case,
-  the continuation is used but its effect is the same as the previous case. In the third case, the continuation is invoked two times. The first
-  call returns the value <code>10</code> to the continuation of the application of <code>callcc</code> and the second use of the continuation
-  is never reached. The fourth case is similar. Calling the continuation with the value <code>3</code> leads to the addition being ignored.</p>
-
-<p>Continuations can be used to implement advanced control structures. Here is an example of using continuations to implement the 
-  <code>return</code> statement found in most imperative languages: </p>
-
-<div class="highlight">
-  <pre><code>function product(xs) 
-  callcc(^(return) 
-           let loop (xs = xs, p = 1) 
-             if (is_empty(xs)) p 
-             else if (head(xs) == 0) return(p)
-             else loop(tail(xs), p * head(xs))); 
-
-product([1, 2, 3, 4, 5]); 
-<span class="c">//=> 120</span>
-
-product([1, 2, 3, 0, 4, 5]); 
-<span class="c">//=> 6</span></code></pre>
-</div>
-
-<p>The <code>return</code> continuation allows <code>product</code> to exit immediately upon seeing a zero, without performing the
-  remaining multiplications.</p>
-
-<p>Another use of continuations is to implement various forms of multitasking, like the coroutine implementation shown below:</p>
-
-<div class="highlight">
-  <pre><code>function a(k) 
-{ showln(1); 
-  callcc(k); 
-  showln(3) }; 
-
-function b(k) 
-{ showln(2); 
-  callcc(k) }; 
-
-a(b); 
-<span class="c">//-> 1
-     2
-     3</span></code></pre>
-</div>
-
-    <p>Some functions related to continuations and control flow and discussed below.</p>
-    
-<div class="highlight">
-  <pre><code>dynamic_wind(in, body, out)</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code>Returns the result of evaluating `body`. `dynamic_wind` is useful for performing
-tasks that must be performed whenever control enters or leaves `body`, either normally or
-by continuation application. The three arguments - `in`, `body`, and `out` - must
-be functions that accept zero arguments. Before applying `body`, and each time `body`
-is entered subsequently by the application of a continuation created within `body`,
-the `in` function is applied. Upon normal exit from `body` and each 
-time `body` is exited by the application of a continuation created outside `body`,
-the `out` function is applied. Thus, it is guaranteed that `in` is invoked at
-least once. In addition, if `body` ever returns, `out` is invoked at least once.</code></pre>
-</div>
-
-
-<div class="highlight">
-  <pre><code>values(@rest obj)</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code>The function `values` accepts any number of arguments and simply
-passes (returns) the arguments to its continuation.</code></pre></div>
-
-<div class="highlight">
-  <pre><code>call_with_values(producer, consumer)</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code>Returns the value returned by `consumer`.
-
-Both `producer` and `consumer` must be functions. `call_with_values` applies
-`consumer` to the values returned by invoking `producer` without arguments.</code></pre>
-</div>
-
-
-<p>Examples:</p>
-<div class="highlight">
-  <pre><code>call_with_values(^values('a, 'b), ^(x, y) [y, x]);
-<span class="c">//=> [b a]</span>
-
-function a(x, y) values(y, x);
-call_with_values(^a(10, 20), ^(x, y) [x, y]);
-<span class="c">//=> [20, 10]</span></code></pre>
-</div>
 
   </div>
 </body>
