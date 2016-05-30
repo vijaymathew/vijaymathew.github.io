@@ -288,274 +288,257 @@ or true otherwise. If no arguments are present, `and` will return true.</code></
 If no arguments are present, `or` will return false. Otherwise, each expression is
 evaluated until one that returns a non-false value.</code></pre></div>
 
-<h4>Recursion and Iteration</h4>
+<h4>Recursion and iteration</h4>
 
 <div class="highlight">
-  <pre><code><span class="nc">syntax:</span> <span class="k">let</span> name <span class="o">(</span>var <span class="o">=</span> expr<span class="o">,</span> ...<span class="o">)</span> body
-<b>returns:</b> value of the <em>body</em> expression.</code></pre>
+  <pre><code><b>syntax: </b>let name (var = expr, ...) body
+<b>returns: </b>value of `body`.</code></pre>
 </div>
 
-<p>This form of <code>let</code>, called <em>named</em> <code>let</code>, is a general-purpose iteration construct. It is similar to the
+<p>This form of <code>let</code>, known as <em>named</em> <code>let</code>, is a general-purpose iteration construct. It is similar to the
   normal <code>let</code> in binding the local variables and evaluating the body. In addition, the variable <code>name</code> is bound 
   within the body to a function that may be called to recur or iterate; the arguments to the function become the new values of the 
   local variables bound by <code>let</code>.</p>
 
-<p>The function <code>divisors</code> defined below uses named let to compute the nontrivial divisors of a non-negative integer:</p>
+<p>The function <code>divisors</code> defined below use named let to compute the nontrivial divisors of a non-negative integer:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> divisors<span class="o">(</span>n<span class="o">)</span> 
-          <span class="k">let</span> loop <span class="o">(</span>i <span class="o">=</span> <span class="mi">2</span><span class="o">)</span> 
-           <span class="k">if</span> <span class="o">(</span>i <span class="o">&gt;=</span> n<span class="o">)</span> <span class="o">[</span><span class="o">]</span> 
-           <span class="k">else</span> <span class="k">if</span> <span class="o">(</span>is_integer<span class="o">(</span>n <span class="o">/</span> i<span class="o">)</span><span class="o">)</span> i <span class="o">:</span> loop<span class="o">(</span>i <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
-           <span class="k">else</span> loop<span class="o">(</span>i <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+  <pre><code>function divisors(n) 
+  let loop (i = 2) 
+    if (i >= n) [] 
+    else if (is_integer(n / i)) i : loop(i + 1)
+    else loop(i + 1); 
 
-<span class="nc">slogan&gt; </span>divisors<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; []</span>
-<span class="nc">slogan&gt; </span>divisors<span class="o">(</span><span class="mi">32</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; [2, 4, 8, 16]</span></code></pre>
+divisors(5);
+<span class="c">//=> []</span>
+
+divisors(32);
+<span class="c">//=> [2, 4, 8, 16]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>until<span class="o">(</span>p<span class="o">,</span> f<span class="o">,</span> x<span class="o">)</span> 
-<b>returns:</b> final value of applying <em>f</em> to <em>x</em>. (see description below).</code></pre>
-</div>
+  <pre><code><b>function: </b>until(p, f, x) 
 
-<p>Applies the function <code>f</code> to <code>x</code> and compares the result with the predicate <code>p</code>. 
-  If <code>p</code> returns <code>true</code>, the result is returned, otherwise passes the result to a recursive call to <code>until</code>
-  and repeats the cycle.</p>
+<b>returns: </b>final value of applying `f` to `x`. 
+
+Apply the function `f` to `x` and compare the result `r` with the predicate `p`.
+If `p` is true, `r` is returned, otherwise pass `r` to a recursive call to `until`
+and repeat the cycle.
+
+<span class="c">// Example</span>
+until(is_prime, partial(`+`, 1), 1000);
+<span class="c">//=> 1009</span></code></pre>
+</div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>until<span class="o">(</span>is_odd<span class="o">,</span> partial<span class="o">(</span><span class="o">`/`</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">,</span> <span class="mi">400</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 25</span></code></pre>
-</div>
+  <pre><code><b>function:</b> do_times(n, f, @key from = 0, init)
+      
+<b>returns: </b>final value of applying `f`, after calling it `n` times.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>do_times<span class="o">(</span>n<span class="o">,</span> f<span class="o">,</span> @key from<span class="o"> = </span><span class="n">0</span><span class="o">, </span>init<span class="o">)</span> 
-<b>returns:</b> final value of applying <em>f</em>, after calling it <em>n</em> times. (see description below).</code></pre>
-</div>
+The starting value of `n` is specified by the `from` keyword argument.
+`f` take three arguments - the current value of `n`, the value returned by
+the previous call to `f` and a function that can be called to exit from the
+loop prematurely. The initial value of the second argument is specified by
+the `init` keyword argument.
 
-    <p><em>(since v0.5)</em>. Invokes the function <code>f</code> <code>n</code> times. The starting value of <code>n</code> can be specified using the <code>from</code> keyword
-      argument. The function <code>f</code> takes three arguments - the current value of <code>n</code>, the value returned by the previous call to
-      <code>f</code> and a function that can be called to exit from the loop prematurely. The initial value of the second argument can be specified
-      using the <code>init</code> keyword argument.</p>
+<span class="c">// Examples:</span>
+do_times(5, ^(n, p, break) n + p, init = 0); 
+<span class="c">//=> 10</span>
 
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>do_times<span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="k">^</span><span class="o">(</span>n<span class="o">,</span> p<span class="o">,</span> break<span class="o">)</span> n <span class="o">+</span> p<span class="o">,</span> init <span class="o">=</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 10</span>
-<span class="nc">slogan&gt; </span>do_times<span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="k">^</span><span class="o">(</span>n<span class="o">,</span> p<span class="o">,</span> break<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>n <span class="o">==</span> <span class="mi">4</span><span class="o">)</span> break<span class="o">(</span>p<span class="o">)</span> <span class="k">else</span> n <span class="o">+</span> p<span class="o">,</span> init <span class="o">=</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 6</span></code></pre></div>
+do_times(5, ^(n, p, break) if (n == 4) break(p) else n + p, init = 0); 
+<span class="c">//=> 6</span></code></pre></div>
     
 <h5>Mapping and Folding</h5>
-<p>The functions presented in this section allows us to iterate over elements of sequences like lists, strings and arrays.</p>
+<p>The functions presented in this section allow us to iterate over elements of sequences like lists, strings and arrays.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>map<span class="o">(</span>f<span class="o">,</span> list1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> list of results of applying the function <em>f</em> to the corresponding elements of <em>list1, ...</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b> map(f, list1, ...) 
 
-<p>The lists <code>list1, ...</code> must be of the same length. The function <code>f</code> should accept as many arguments as 
-  there are lists, should return a single value, and should not mutate the lists.</p>
+<b>returns: </b>list of results of applying the function `f` to the corresponding elements of `list1, ....`.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>map<span class="o">(</span>abs<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="o">-</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="o">-</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [1, 2, 3, 4, 5]</span>
-<span class="nc">slogan&gt; </span>map<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> x <span class="o">*</span> y<span class="o">,</span> 
-            <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">,</span> 
-            <span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">,</span> <span class="mi">40</span><span class="o">,</span> <span class="mi">50</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [10, 40, 90, 160, 250]</span></code></pre>
-</div>
+The lists `list1, ...` must be of the same length. `f` should accept as many arguments
+as there are lists, should return a single value, and should not mutate the lists.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>for_each<span class="o">(</span>f<span class="o">,</span> list1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> void</code></pre>
-</div>
-
-<p><code>For_each</code> is similar to <code>map</code> except that it does not return a list of results. <code>For_each</code> is useful
-  when we want to perform a side-effect using the elements in the lists.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>same_count <span class="o">=</span> <span class="mi">0</span><span class="o">)</span> 
-         <span class="o">{</span> for_each<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>x <span class="o">==</span> y<span class="o">)</span> same_count <span class="o">=</span> same_count <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> 
-                    <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">,</span> 
-                    <span class="o">[</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">7</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-           same_count <span class="o">}</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span></pre></code>
+<span class="c">// Examples:</span>
+map(abs, [1, -2, 3, -4, 5]); 
+<span class="c">//=> [1, 2, 3, 4, 5]</span>
+      
+map(^(x, y) x * y, [1, 2, 3, 4, 5], [10, 20, 30, 40, 50]); 
+<span class="c">//=> [10, 40, 90, 160, 250]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>for_all<span class="o">(</span>f<span class="o">,</span> list1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if applying <em>f</em> to all the corresponding elements of <em>list1, ...</em> 
-         returns <em>true</em>, <em>false</em> otherwise.</code></pre>
-</div>
+  <pre><code><b>function: </b>for_each(f, list1, ...) 
+<b>returns: </b>void
 
-<p>The lists <code>list1, ...</code> must be of the same length. The function <code>f</code> should accept as many arguments as there 
-  are lists and should not mutate the list arguments. If the lists are empty, <code>for_all</code> returns <code>true</code>.</p>
+`for_each` is similar to `map` except that it does not return a list of results.
+This is useful when we want to perform a side-effect using the elements in the lists.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>for_all<span class="o">(</span>is_symbol<span class="o">,</span> <span class="o">[</span><span class="o">'</span>a<span class="o">,</span> <span class="o">'</span>b<span class="o">,</span> <span class="o">'</span>c<span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>for_all<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span> x <span class="o">+</span> y <span class="o">==</span> z<span class="o">,</span> 
-                <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">,</span> 
-                <span class="o">[</span><span class="mi">1.2</span><span class="o">,</span> <span class="mi">2.3</span><span class="o">,</span> <span class="mi">3.4</span><span class="o">,</span> <span class="mi">4.5</span><span class="o">]</span><span class="o">,</span> 
-                <span class="o">[</span><span class="mi">2.2</span><span class="o">,</span> <span class="mi">4.3</span><span class="o">,</span> <span class="mi">6.5</span><span class="o">,</span> <span class="mi">8.5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span></code></pre>
+<span class="c">// Example:</span>
+let (same_count = 0) 
+{ for_each(^(x, y) if (x == y) same_count = same_count + 1, 
+           [1, 2, 3, 4, 5], [2, 3, 3, 4, 7]); 
+  same_count }; 
+<span class="c">//=> 2</span></pre></code>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>exists<span class="o">(</span>f<span class="o">,</span> list1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> a true value if applying <em>f</em> to the corresponding elements of <em>list1, ...</em> 
-         returns <em>true</em> at least once, otherwise <em>false</em>.</code></pre>
+  <pre><code><b>function: </b>for_all(f, list1, ...) 
+<b>returns: </b>true if applying `f` to all the corresponding elements of
+`list1, ...` returns true, false otherwise.
+
+The lists `list1, ...` must be of the same length. `f` should accept as
+many arguments as there are lists and should not mutate the list arguments.
+
+<span class="c">// Examples:</span>
+for_all(is_symbol, ['a, 'b, 'c]); 
+<span class="c">//=> true</span>
+
+for_all(^(x, y, z) x + y == z, 
+        [1, 2, 3, 4], 
+        [1.2, 2.3, 3.4, 4.5], 
+        [2.2, 4.3, 6.5, 8.5]); 
+<span class="c">//=> false</span></code></pre>
 </div>
 
-<p>The lists <code>list1, ...</code> must be of the same length. The function <code>f</code> should accept as many arguments as there 
-  are lists and should not mutate the list arguments. If the lists are empty, <code>exists</code> returns <code>false</code>.</p>
-
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>exists<span class="o">(</span>is_symbol<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> !a<span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>exists<span class="o">(</span>member<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="o">[</span><span class="mi">3</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">2</span><span class="o">,</span> <span class="mi">1</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [2, 1]</span>
-<span class="nc">slogan&gt; </span>exists<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span> x <span class="o">+</span> y <span class="o">==</span> z<span class="o">,</span> 
-               <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">,</span> 
-               <span class="o">[</span><span class="mi">1.2</span><span class="o">,</span> <span class="mi">2.3</span><span class="o">,</span> <span class="mi">3.4</span><span class="o">,</span> <span class="mi">4.5</span><span class="o">]</span><span class="o">,</span> 
-               <span class="o">[</span><span class="mi">2.2</span><span class="o">,</span> <span class="mi">4.3</span><span class="o">,</span> <span class="mi">6.5</span><span class="o">,</span> <span class="mi">8.5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span></code></pre>
+  <pre><code><b>function: </b>exists(f, list1, ...) 
+<b>returns: </b>a truth value if applying `f` to the corresponding elements of `list1, ...`
+returns true at least once, false otherwise.
+
+`list1, ...` must be of the same length. `f` should accept as many arguments as there are
+lists and should not mutate the list arguments.
+
+<span class="c">// Examples:</span>
+exists(is_symbol, [1, !a, "hello"]);
+<span class="c">//=> false</span>
+
+exists(member, [1, 2, 3], [[3, 2], [2, 1], [1, 3]]); 
+<span class="c">//=> [2, 1]</span>
+
+exists(^(x, y, z) x + y == z, 
+       [1, 2, 3, 4], 
+       [1.2, 2.3, 3.4, 4.5], 
+       [2.2, 4.3, 6.5, 8.5]); 
+<span class="c">//=> true</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>fold_left<span class="o">(</span>f<span class="o">,</span> init<span class="o">,</span> list_of_xs_1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> f(xn,...,f(x2, f(x1, xn, init))...) or <em>init</em> if the lists are empty.</code></pre></div>
+  <pre><code><b>function: </b>fold_left(f, init, lists, ...)
 
-<p>The list arguments should all have the same length. The function <code>f</code> should accept one more argument than the number 
-  of list arguments and return a single value. It should not mutate the list arguments.</p>
+The list arguments should all have the same length. `f` should accept one more argument than
+the number of list arguments and return a single value. It should not mutate the list arguments.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>fold_left<span class="o">(</span><span class="k">^</span><span class="o">(</span>a<span class="o">,</span> x<span class="o">)</span> a <span class="o">+</span> x <span class="o">*</span> x<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 21909</span></code></pre></div>
+`fold_left` returns `init` if the list arguments are empty. If they are not empty,
+`fold_left` applies `f` to `init` and the heads of `lists ...`, then recurs with the
+value returned by `f` in place of `init` and the tails of `lists ...`.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>fold_right<span class="o">(</span>f<span class="o">,</span> init<span class="o">,</span> list_of_xs_1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> f(xn,...,f(x2, f(x1, xn, init))...) or <em>init</em> if the lists are empty.</code></pre></div>
+<span class="c">// Examples:</span>
+fold_left(^(x, init) init + x * x, 0, [1, 2, 3, 4, 5]);
+<span class="c">//=> 55</span>
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>fold_right<span class="o">(</span><span class="k">^</span><span class="o">(</span>a<span class="o">,</span> x<span class="o">)</span> x <span class="o">+</span> a <span class="o">*</span> a<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 55</span></code></pre></div>
+fold_left(cons, [], [1,2,3,4]);
+<span class="c">//=> [4, 3, 2, 1]</span></code></pre></div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>fold<span class="o">(</span>f<span class="o">,</span> init<span class="o">,</span> list_of_xs_1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> f(xn,...,f(x2, f(init, x1, xn))...) or <em>init</em> if the lists are empty.</code></pre></div>
+  <pre><code><b>function: </b>fold_right(f, init, lists, ...)
 
-    <p>This function is the same as <code>fold_left</code> except for the order in which arguments are passed to <code>f</code>.
-      While <code>fold_left</code> passes <code>init</code> as the last argument, <code>fold</code> passes it as the first.</p>
+The list arguments should all have the same length. `f` should accept one more argument than
+the number of list arguments and return a single value. It should not mutate the list arguments.
 
-    <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>fold_left<span class="o">(</span>`-`<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span>
-<span class="nc">slogan&gt; </span>fold<span class="o">(</span>`-`<span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="o">[</span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -10</span></code></pre></div>
+`fold_right` returns `init` if the list arguments are empty. If they are not empty,
+`fold_right` recurs with the tail of each list, then applies `f` to their heads and
+the result returned by the recursion.
+
+<span class="c">// Example:</span>
+fold_right(cons, [], [1,2,3,4]);
+<span class="c">//=> [1, 2, 3, 4]</span></code></pre></div>
+
+<div class="highlight">
+  <pre><code>function: fold(f, init, list_of_xs_1, ...) 
+
+This function is the same as `fold_left` except for the order in which arguments are passed to `f`.
+While `fold_left` passes `init` as the last argument, `fold` passes it as the first.
+
+<span class="c">// Examples:</span>
+fold_left(`-`, 0, [1, 2, 3, 4]); 
+<span class="c">//=> 2</span>
+
+fold(`-`, 0, [1, 2, 3, 4]); 
+<span class="c">//=> -10</span></code></pre></div>
     
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>array_map<span class="o">(</span>f<span class="o">,</span> </span> array1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> array of results.</code></pre>
-</div>
+  <pre><code><b>function: </b>array_map(f,  arrays, ...) 
+<b>returns: </b>array of results.
 
-<p><code>array_map</code> applies <code>f</code> to corresponding elements of <code>array1, ...</code> and returns an array of 
-  the resulting values. The arrays <code>array1, ...</code> must be of the same length, and <code>f</code> should accept as many arguments
-  as there are arrays and return a single value.</p>
+Applies `f` to corresponding elements of `arrays, ...` and return an array of
+the resulting values. `arrays, ...` must be of the same length, and `f` should
+accept as many arguments as there are arrays and return a single value.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>array_map<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> x <span class="o">*</span> y<span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">,</span> <span class="mi">30</span><span class="o">,</span> <span class="mi">40</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span code="ge">=&gt; #[10, 40, 90, 160]</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>array_for_each<span class="o">(</span>f<span class="o">,</span> </span> array1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> void</code></pre>
-</div>
-
-<p><code>Array_for_each</code> is similar to <code>array_map</code> except that it does not create and return an array of the resulting values.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>same_count <span class="o">=</span> <span class="mi">0</span><span class="o">)</span> 
-         <span class="o">{</span> array_for_each<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>x <span class="o">==</span> y<span class="o">)</span> same_count <span class="o">=</span> same_count <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> 
-           <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">7</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-           same_count <span class="o">}</span><span class="o">;</span> 
-<span class="ge">=&gt; 3</span></code></pre>
+<span class="c">// Example:</span>
+array_map(^(x, y) x * y, #[1, 2, 3, 4], #[10, 20, 30, 40]); 
+<span class="c">//=> #[10, 40, 90, 160]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>string_for_each<span class="o">(</span>f<span class="o">,</span> </span> str1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> void</code></pre>
+  <pre><code><b>function: </b>array_for_each(f,  array1, ...) 
+<b>returns: </b>void
+
+Similar to `array_map` except that it does not create and return an array of the resulting values.
+
+<span class="c">// Example:</span>
+let (same_count = 0) 
+{ array_for_each(^(x, y) if (x == y) same_count = same_count + 1, 
+                 #[1, 2, 3, 4, 5, 6],
+                 #[2, 3, 3, 4, 7, 6]); 
+  same_count }; 
+<span class="c">//=> 3</span></code></pre>
 </div>
 
-<p><code>String_for_each</code> is similar to <code>for_each</code> and <code>array_for_each</code> except that the arguments are strings.</p>
-
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> <span class="o">(</span>ls <span class="o">=</span> <span class="o">[</span><span class="o">]</span><span class="o">)</span> 
-         <span class="o">{</span> string_for_each<span class="o">(</span><span class="k">^</span><span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">)</span> ls <span class="o">=</span> string<span class="o">(</span>a<span class="o">,</span> b<span class="o">,</span> c<span class="o">)</span> <span class="o">:</span> ls<span class="o">,</span> 
-                           <span class="s1">&quot;abc&quot;</span><span class="o">,</span> <span class="s1">&quot;===&quot;</span><span class="o">,</span> <span class="s1">&quot;123&quot;</span><span class="o">)</span><span class="o">;</span> 
-           reverse<span class="o">(</span>ls<span class="o">)</span> <span class="o">}</span><span class="o">;</span>
-<span class="ge">=&gt; [&quot;a=1&quot;, &quot;b=2&quot;, &quot;c=3&quot;]</span></code></pre>
-</div>
+  <pre><code><b>function: </b>string_for_each(f,  str1, ...) 
+<b>returns: </b>void
+      
+Similar to `for_each` and `array_for_each` except that the arguments are strings.
 
-<h5>List Comprehensions</h5>
-<p>Slogan provides a notational convenience for constructing lists out of other lists called <em>list comprehensions</em>.
-  Here is a simple example:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span>x <span class="o">*</span> x <span class="o">|</span> x <span class="o">&lt</span><span class="o">-</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">]</span><span class="o">;</span> 
-<span class="ge">=&gt; [1, 4, 9, 16, 25]</span></code></pre>
-</div>
-
-<p>A list comprehension looks like a list literal but consists of three separate parts. The first part is an expression used to construct each
-  element in the result list. Let us call this the <em>output expression</em>. The end of the output expression is marked by a pipe (<code>|</code>). 
-  The next part is a list of variable assignments. In a loop, each element in the list following the <code>&lt;-</code> marker is assigned to 
-  the variable before that. The output expression is evaluated in the context of this variable to generate the next element in the result list.
-  There can be multiple variable assignments separated by comma. The variable assignments can be followed by an optional <code>where</code>
-  clause that can be used to filter the input lists.</p>
-
-<p>Let us look at a few more examples:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="o">[</span>i <span class="o">:</span> j <span class="o">|</span> i <span class="o">&lt;</span><span class="o">-</span> range<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">,</span> j <span class="o">&lt;</span><span class="o">-</span> range<span class="o">(</span>i<span class="o">,</span> <span class="mi">5</span><span class="o">)</span> <span class="k">where</span> is_even<span class="o">(</span>i<span class="o">)</span><span class="o">]</span><span class="o">;</span> 
-<span class="ge">=&gt; [2 : 2, 2 : 3, 2 : 4, 2 : 5, 4 : 4, 4 : 5]</span>
-
-<span class="nc">slogan&gt; </span><span class="k">function</span> triads<span class="o">(</span>n<span class="o">)</span> 
-          <span class="k">let</span> <span class="o">(</span>elems <span class="o">=</span> range<span class="o">(</span><span class="mi">1</span><span class="o">,</span> n<span class="o">)</span><span class="o">)</span> 
-           <span class="o">[</span><span class="o">[</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">]</span> <span class="o">|</span> x <span class="o">&lt;</span><span class="o">-</span> elems<span class="o">,</span> y <span class="o">&lt;</span><span class="o">-</span> elems<span class="o">,</span> z <span class="o">&lt;</span><span class="o">-</span> elems <span class="k">where</span> x <span class="o">*</span> x <span class="o">+</span> y <span class="o">*</span> y <span class="o">==</span> z <span class="o">*</span> z<span class="o">]</span><span class="o">;</span> 
-
-<span class="nc">slogan&gt; </span>triads<span class="o">(</span><span class="mi">15</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [[3, 4, 5], [4, 3, 5], [5, 12, 13], [6, 8, 10], 
-    [8, 6, 10], [9, 12, 15], [12, 5, 13], [12, 9, 15]]</span>
-
-<span class="nc">slogan&gt; </span><span class="k">function</span> concat<span class="o">(</span>xss<span class="o">)</span> <span class="o">[</span>x <span class="o">|</span> xs <span class="o">&lt;</span><span class="o">-</span> xss<span class="o">,</span> x <span class="o">&lt;</span><span class="o">-</span> xs<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>concat<span class="o">(</span><span class="o">[</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">[</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [1, 2, 3, 4, 5, 6]</span></code></pre>
+<span class="c">// Example:</span>
+let (ls = []) 
+{ string_for_each(^(a, b, c) ls = string(a, b, c) : ls, "abc", "===", "123"); 
+  reverse(ls) };
+<span class="c">//=> ["a=1", "b=2", "c=3"]</span></code></pre>
 </div>
 
 <h4>Delayed Evaluation</h4>
 
 <div class="highlight">
-  <pre><code><span class="nc">operator: </span><span class="o">~</span>expr 
-<b>returns:</b> a promise.
-<span class="nc">function: </span>force<span class="o">(</span>promise<span class="o">)</span> 
-<b>returns:</b> result of evaluating promise.</code></pre>
-</div>
+  <pre><code><b>operator: </b>~expr 
+<b>returns: </b>a promise.
+      
+<b>function: </b>force(promise) 
+<b>returns: </b>result of evaluating promise.
 
-<p>The first time a promise created by <code>~</code> (delay) is forced (with <code>force</code>), it evaluates <code>expr</code>, 
-  "remembering" the resulting value. Thereafter, each time the promise is forced, it returns the remembered value instead of 
-  reevaluating <code>expr</code>. In other words, the value of <code>expr</code> is <em>memoized</em> by <code>force</code>.</p>
+The first time a promise created by `~` (delay) is forced (with `force`), it evaluates `expr`,
+"remembering" the resulting value. Thereafter, each time the promise is forced, it returns the
+remembered value instead of re-evaluating `expr`. In other words, the value of `expr`
+is <em>memoized</em> by `force`.
+
+<span class="c">// Example:</span>
+let x = 100000000000;
+let p = ~{showln("long computation...."); x * x};
+force(p);
+<span class="c">//-> long computation....
+//=> 10000000000000000000000</span>
+
+force(p);
+<span class="c">//=> 10000000000000000000000</span></code></pre>
+</div>
 
 <p><code>~</code> and <code>force</code> are typically used only in the absence of side effects, e.g., assignments, 
   so that the order of evaluation is unimportant.</p>
 
 <p>The benefit of using <code>~</code> and <code>force</code> is that some amount of computation might be avoided altogether if it 
-  is delayed until absolutely required. Delayed evaluation may be used to construct conceptually infinite lists, or sequences. </p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>eval<span class="o">(</span>c_expr<span class="o">)</span> 
-<b>returns:</b> the value of evaluating the compiled expression <em>c_expr</em>.</code></pre>
-</div>
+  is delayed until absolutely required. Delayed evaluation may be used to construct conceptually infinite lists, or sequences.
+  (Lazy sequences are discussed in the <a href="./bd.html">next</a> chapter.)</p>
 
 <h4>Continuations</h4>
 <p>While evaluating an expression, Slogan keeps track of two things: the expression to evaluate and what to do with its value. Consider the
@@ -662,13 +645,10 @@ passes (returns) the arguments to its continuation.</code></pre></div>
 
 <b>returns:</b> the value returned by `consumer`. Both `producer` and `consumer` must be functions.
 `call_with_values` applies `consumer` to the values returned by invoking `producer`
-without arguments.</code></pre>
-</div>
+without arguments.
 
-
-<p>Examples:</p>
-<div class="highlight">
-  <pre><code>call_with_values(^values('a, 'b), ^(x, y) [y, x]);
+<span class="c">// Examples:</span>
+call_with_values(^values('a, 'b), ^(x, y) [y, x]);
 <span class="c">//=> [b a]</span>
 
 function a(x, y) values(y, x);
@@ -682,22 +662,24 @@ call_with_values(^a(10, 20), ^(x, y) [x, y]);
   to test if an expression meets a condition and if not to raise an exception.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">assert</span> <span class="mi">1</span> <span class="o"><</span> <span class="mi">2</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">assert</span> <span class="mi">1</span> <span class="o">></span> <span class="mi">2</span><span class="o">;</span> 
-<span class="err">error: assertion_failed line: 1</span></code></pre></div>
+  <pre><code>assert 1 < 2; 
+assert 10 > 20; 
+<span class="c">//-> error: assertion_failed line: 1</span></code></pre></div>
 
-<p>An optional error message can be passed to an assertion:</p>
+<p>`Assert` can be asked to print an alternate error message:</p>
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">assert</span> <span class="mi">1</span> <span class="o">></span> <span class="mi">2</span><span class="o">,</span> <span class="s1">"We have a problem!"</span><span class="o">;</span> 
-<span class="err">error: We have a problem!</span></code></pre></div>
+  <pre><code>assert 1 > 2, "We have a problem!"; 
+<span class="c">//-> error: We have a problem!</span></code></pre></div>
 
-<p>The following functions can be called to disable/enable assertions dynamically:</p>
+<p>The following functions disable/enable assertions dynamically:</p>
 
   <div class="highlight">
-    <pre><code><span class="nc">function: </span>disable_asserts<span class="o">(</span><span class="o">)</span>
-<span class="nc">function: </span>enable_asserts<span class="o">(</span><span class="o">)</span>        
-<b>returns:</b> void</code></pre>
+    <pre><code><b>function: </b>disable_asserts()
+<b>function: </b>enable_asserts()        
+<b>returns: </b>void</code></pre>
   </div>
+
+  <p>When assertions are disabled, failed assertions will all return `true`.</p>
 </div>
 </body>
 </html>
