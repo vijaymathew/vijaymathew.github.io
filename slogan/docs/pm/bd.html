@@ -26,8 +26,9 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Built-in Datatypes</h3></div>
-    <p>This chapter describe functions on various datatypes like <a href="#lists">pairs</a>, <a href="#lists">lists</a>, <a href="#assocs">association lists</a>, numbers, characters, strings, arrays, bytearrays, 
-      bitarrays, symbols, booleans, and hashtables. We will also cover related topics like <a href="#listcomps">list comprehensions</a>, lazy sequences and iterators.</p>
+    <p>This chapter describe functions on various datatypes like <a href="#lists">pairs</a>, <a href="#lists">lists</a>, <a href="#assocs">association lists</a>, <a href="#nums">numbers</a>, characters, strings, arrays, bytearrays, 
+      bitarrays, symbols, booleans, and hashtables. We will also cover related topics like <a href="#listcomps">list comprehensions</a>,
+      <a href="#lseqs">lazy sequences</a> and <a href="#iters">iterators</a>.</p>
 
     <p>But before all that we discuss functions that test two objects for equality.</p>
 
@@ -37,8 +38,8 @@
 <b>returns: </b>true if `obj1` and `obj2` are identical, false otherwise.
       
 Two objects are considered identical if they internally reference to the same memory location.
-`is_eq` can efficiently check for pointer equivalence of symbols and allocated objects like pairs,
-arrays, and record instances. `is_eq` cannot be used to compare numbers reliably.
+is_eq can efficiently check for pointer equivalence of symbols and allocated objects like pairs,
+arrays, and record instances. is_eq cannot be used to compare numbers reliably.
 Slogan may use different objects internally for representing two big-integers that has the
 same value.
 
@@ -64,9 +65,9 @@ is_eq(38492948403840248034824037496494864917349749247947249749327482479,
   <pre><code><b>function: </b>is_eqv(obj1, obj2) 
 <b>returns: </b>true if `obj1` and `obj2` are equivalent, false otherwise.
 
-`is_eqv` is similar to `is_eq` except that it return true for two numbers that are
-considered equal by the predicate `number_is_eq`. There is one exception for this rule though.
-`is_eqv` will return false for `is_eqv(+0.0, -0.0)`, whereas `number_is_eq` will return
+is_eqv is similar to is_eq except that it return true for two numbers that are
+considered equal by the predicate number_is_eq. There is one exception for this rule though.
+is_eqv will return false for `is_eqv(+0.0, -0.0)`, whereas number_is_eq will return
 true. This provides a way to distinguish between positive and negative zeros.
 
 <span class="c">// Example:</span>
@@ -79,8 +80,8 @@ is_eqv(38492948403840248034824037496494864917349749247947249749327482479,
   <pre><code><b>function: </b>is_equal(obj1, obj2) 
 <b>returns: </b>true if `obj1` and `obj2` have the same structure and contents, false otherwise.
 
-Two objects are equal if each of their constituent parts are equal according to `is_eqv`.
-The equals operator (==) have the same behavior as `is_equal` and the not-equals operator (<>)
+Two objects are equal if each of their constituent parts are equal according to is_eqv.
+The equals operator (==) have the same behavior as is_equal and the not-equals operator (<>)
 have the same behavior as `not(is_equal(a, b))`.
 
 <span class="c">// Examples:</span>  
@@ -285,7 +286,7 @@ drop_while(is_positive, [1, 2, 3, -4, 5]);
   <pre><code><b>function: </b>append(list1, ..., obj) 
 <b>returns: </b>the concatenation of the lists.
 
-`append` returns a new list consisting of the elements of the first list followed by
+append returns a new list consisting of the elements of the first list followed by
 the elements of the second list, the elements of the third list, and so on. The new list
 is made from new pairs for all arguments but the last, which need not be a list,
 is merely placed at the end of the new structure.
@@ -312,8 +313,7 @@ append([1, 2], 3);
 <b>function: </b>member(obj, lst) 
 <b>returns: </b>the first tail of `lst` whose head is equivalent to `obj`, or false.
 
-The equivalence test for `memq` is `is_eq`, for `memv` is `is_eqv`, and for `member`
-is `is_equal`.
+The equivalence test for memq is is_eq, for memv is_eqv, and for member is_equal.
 
 <span class="c">// Examples:</span>
 memq(2, [1, 2, 3, 4, 5]);
@@ -358,7 +358,7 @@ memp(is_even, [1, 2, 3, 4, 5]);
 <b>function: </b>remove(obj, lst) 
 <b>returns: </b>a list containing the elements of `lst` with all occurrences of `obj` removed.
 
-The equivalence test for `remq` is `is_eq`, for `remv` is `is_eqv`, and for `remove` is `is_equal`.
+The equivalence test for remq is is_eq, for remv is_eqv, and for remove is_equal.
 
 <span class="c">// Examples:</span>
 remq(1, [1, 2, 1, 3]);
@@ -518,7 +518,7 @@ zip_with(`+`, [1, 2, 3], [4, 5, 6]);
 
 `test` must be a function that take two arguments and return true if its first argument must
 precede its second in the sorted list. Duplicate elements are not removed. The default value of
-`test` is `number_is_lt` which compares two numeric values.
+`test` is number_is_lt which compares two numeric values.
 `type` specifies the sorting algorithm to use. In the current implementation `type` can take
 two values: 'quick for "quicksort" and 'merge for "mergesort".
 
@@ -575,164 +575,198 @@ concat([[1, 2, 3], [4, 5, 6]]);
 
 <a name="assocs"></a>
 <h5>Association lists</h5>
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>assq<span class="o">(</span>obj<span class="o">,</span> lst<span class="o">)</span> 
-<span class="nc">function: </span>assv<span class="o">(</span>obj<span class="o">,</span> lst<span class="o">)</span> 
-<span class="nc">function: </span>assoc<span class="o">(</span>obj<span class="o">,</span> lst<span class="o">)</span> 
-<b>returns:</b> first element of <em>lst</em> whose head is equivalent to <em>obj</em>, or <em>false</em>.</code></pre>
-</div>
 
-<p>The argument <code>lst</code> must be an <em>association list</em>. An association list is a proper list whose 
-  elements are key-value pairs of the form <code>key : value</code>. Associations are useful for storing information 
-  (values) associated with certain objects (keys).</p>
-
-<p>The equivalence test for <code>assq</code> is <code>is_eq</code>, for <code>assv</code> is <code>is_eqv</code>, 
-  and for <code>assoc</code> is <code>is_equal</code>.</p>
+<p>An association list is a proper list whose elements are pairs of the form <code>key:value</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>assq<span class="o">(</span><span class="o">'</span>b<span class="o">,</span> <span class="o">%</span><span class="o">[</span>a <span class="o">:</span> <span class="mi">1</span><span class="o">,</span> b <span class="o">:</span> <span class="mi">2</span><span class="o">,</span> c <span class="o">:</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>  
-<span class="ge">=&gt; b : 2</span>
-<span class="nc">slogan&gt; </span>assoc<span class="o">(</span><span class="s1">&quot;b&quot;</span><span class="o">,</span> <span class="o">%</span><span class="o">[</span><span class="s1">&quot;a&quot;</span> <span class="o">:</span> <span class="mi">1</span><span class="o">,</span> <span class="s1">&quot;b&quot;</span> <span class="o">:</span> <span class="mi">2</span><span class="o">,</span> <span class="s1">&quot;c&quot;</span> <span class="o">:</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; "b" : 2</span></code></pre>
-</div>
+  <pre><code><b>function:</b> assq(obj, lst) 
+<b>function: </b>assv(obj, lst) 
+<b>function: </b>assoc(obj, lst) 
+<b>returns: </b>first element of `lst` whose head is equivalent to `obj`, or false.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>assp<span class="o">(</span>f<span class="o">,</span> lst<span class="o">)</span> 
-<b>returns:</b> the first element in <em>lst</em> for whose head <em>f</em> returns <em>true</em>, or <em>false</em>.</code></pre>
-</div>
+The equivalence test for assq is is_eq, for assv is_eqv, and for assoc is_equal.
 
-<p>The argument <code>lst</code> must be an association list. The function <code>f</code> should accept one argument and return a 
-  single value. It should not modify <code>lst</code>.
+<span class="c">// Examples:</span>
+assq('b, ['a:1, 'b:2, 'c:3]);  
+<span class="c">//=> b:2</span>
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>assp<span class="o">(</span>is_odd<span class="o">,</span> <span class="o">%</span><span class="o">[</span><span class="mi">1</span> <span class="o">:</span> a<span class="o">,</span> <span class="mi">2</span> <span class="o">:</span> b<span class="o">]</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 1 : a</span>
-<span class="nc">slogan&gt; </span>assp<span class="o">(</span>is_even<span class="o">,</span> <span class="o">%</span><span class="o">[</span><span class="mi">1</span> <span class="o">:</span> a<span class="o">,</span> <span class="mi">2</span> <span class="o">:</span> b<span class="o">]</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 2 : b</span></code></pre>
+assoc("b", ["a":1, "b":2, "c":3]); 
+<span class="c">//=> "b":2</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>get<span class="o">(</span>obj<span class="o">,</span> lst<span class="o">, </span>@optional default <span class="o">=</span> <span class="k">false</span><span class="o">)</span> 
-<b>returns:</b> tail of first element of <em>lst</em> whose head is equivalent to <em>obj</em>, or <em>false</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b>assp(f, lst) 
+<b>returns: </b>the first element in `lst` for whose head `f` returns true, or false.
 
-<h5>Lazy Pairs</h5>
-<p>Functions can produce <em>lazy pairs</em> or <em>lazy sequences</em> that behave like infinite lists of values. 
-  Here is a simple function that returns an infinite list of integers: </p>
+The argument `lst` must be an association list. `f` should accept one argument and return
+a single value. It should not modify lst.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> ints<span class="o">(</span>n<span class="o">)</span> 
-          n <span class="o">::</span> ints<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> </code></pre>
-</div>
+<span class="c">// Examples:</span>
+assp(is_odd, [1:'a, 2:'b]);
+<span class="c">// => 1:a</span>
 
-<p>The <code>::</code> operator produces a lazy sequence which is a pair of the form "<code>head : ~(tail)</code>". 
-  Calling <code>ints(0)</code> will produce the infinite list <code>[1, 2, 3, 4 ...]</code>. But this will not lead to an infinite loop because
-  the recursive is wrapped in a <code>~</code> (delay). This makes sure that the function is evaluated only when its result is needed.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>ints<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0 : &lt;promise&gt;</span></code></pre>
-</div>
-
-<p>There is a group of functions that can automatically force the tail of a lazy pair as and when required. Let us try a few of them
-  on the infinite sequence produced by <code>ints(0)</code>:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>first<span class="o">(</span>ints<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span>
-<span class="nc">slogan&gt; </span>third<span class="o">(</span>ints<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span>
-<span class="nc">slogan&gt; </span>nth<span class="o">(</span><span class="mi">100</span><span class="o">,</span> ints<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 100</span></code></pre>
-</div>
-
-<p>All lazy sequence functions are described below:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>first<span class="o">(</span>s<span class="o">)</span>
-<b>returns:</b> the first element of the sequence <em>s</em></pre></code>
+assp(is_even, [1:'a, 2:'b]);
+<span class="c">//=> 2:b</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>rest<span class="o">(</span>s<span class="o">)</span>
-<b>returns:</b> the tail of the sequence <em>s</em></pre></code>
+  <pre><code><b>function: </b>get(obj, lst, default = false) 
+<b>returns: </b>tail of first element of `lst` whose head is equivalent to `obj`, or `default`.
+
+<span class="c">//Examples: </span>
+get(1, [1:2, 3:4]);
+<span class="c">//=> 2</span>
+
+get(5, [1:2, 3:4]);
+<span class="c">//=> false</span>
+
+get(5, [1:2, 3:4], 6);
+<span class="c">//=> 6</span></code></pre>
 </div>
 
-<p><code>First</code> and <code>rest</code> will return <code>false</code> if <code>s</code> is not a valid sequence.</p>
+<a name="lseqs"></a>
+<h5>Lazy pairs</h5>
+
+<p>A lazy pair (also known as a lazy sequence) consists of a value in its head and a "promise" to produce more values in its tail.
+  A lazy pair literal is created by combining the pair and delay operators.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>nth<span class="o">(</span>n <span class="o">, </span>s<span class="o">)</span>
-<b>returns:</b> the <em>n</em><sup>th</sup> element of the sequence <em>s</em></pre></code>
+  <pre><code><b>syntax: </b> obj1:~expr
+<b>retruns: </b>A lazy pair with `obj1` in its head and a promise to evaluate `expr` in its tail.</code></pre>
+  </div>
+
+<p>The functions that work with lazy pairs are described below.</p>
+
+<div class="highlight">
+  <pre><code><b>function: </b>first(s)
+<b>returns: </b>the first element of `s`, false if `s` is not a valid sequence.
+
+<b>function: </b>rest(s)
+<b>returns: </b>the tail of `s`, false if `s` is not a valid sequence.
+
+<span class="c">// Example:</span>
+function ints(n) n:~ints(n + 1); 
+let s = ints(0);
+s;
+<span class="c">//=> 0:&lt;promise&gt;</span>
+
+first(s); 
+<span class="c">//=> 0</span>
+
+s = rest(s);
+first(s); 
+<span class="c">//=> 1</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>nth_tail<span class="o">(</span>n <span class="o">, </span>s<span class="o">)</span>
-<b>returns:</b> the <em>n</em><sup>th</sup> tail of the sequence <em>s</em></pre></code>
+  <pre><code><b>function: </b>nth(n , s)
+<b>returns: </b>the `n`<sup>th</sup> element of `s`, false if `s` is not a valid sequence.
+
+<span class="c">// Example: </span>
+nth(100, s);
+<span class="c">//=> 101</span></pre></code>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>second<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>third<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>fourth<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>fifth<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>sixth<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>seventh<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>eighth<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>ninth<span class="o">(</span>s<span class="o">)</span>
-<span class="nc">function: </span>tenth<span class="o">(</span>s<span class="o">)</span> 
-<b>returns:</b> the second, third, fourth, fifth, sixth, seventh, eighth, ninth, and tenth 
-         elements of the sequence <em>s</em>, respectively.</code></pre>
+  <pre><code><b>function: </b>nth_tail(n , s)
+<b>returns: </b>the `n`<sup>th</sup> tail of the `s`, false if `s` is not a valid sequence.
+
+<span class="c">// Example: </span>
+nth_tail(100, s);
+<span class="c">//=> 101:&lt;promise&gt;</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>accumulate<span class="o">(</span>f<span class="o">, </span>obj<span class="o">, </span>s<span class="o">)</span>
-<b>returns:</b> the value of applying f to obj and the tails of the sequence <em>s</em></pre></code>
+  <pre><code><b>function: </b> second(s)
+<b>function: </b> third(s)
+<b>function: </b> fourth(s)
+<b>function: </b> fifth(s)
+<b>function: </b> sixth(s)
+<b>function: </b> seventh(s)
+<b>function: </b> eighth(s)
+<b>function: </b> ninth(s)
+<b>function: </b> tenth(s) 
+<b>returns: </b>respectively the second, third, fourth, fifth, sixth, seventh, eighth, ninth, and tenth 
+elements of the sequence `s`, false if `s` is not a valid sequence.</code></pre>
 </div>
-
-    <p>All the above functions can also be applied to normal list arguments.
-      In addition to these, the functions <code>map</code>, <code>for_each</code>, <code>take</code>, <code>drop</code>, <code>take_while</code>,
-      <code>drop_while</code> and <code>filter</code> also work with lazy pairs.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>enumerate<span class="o">(</span>start<span class="o">,</span> end<span class="o">, </span>@optional compare_f<span class="o"> = </span>number_is_lteq<span class="o">, </span>next_f <span class="o">=</span> inc<span class="o">)</span>
-<b>returns:</b> a sequence with the values from <em>start</em> to <em>end</em> (both inclusive).</code></pre>
+  <pre><code><b>function: </b>accumulate(f, obj, s)
+<b>returns: </b>the sequence formed by applying `f` to `obj` and the tails of the sequence `s`.
+
+<span class="c">// Example:</span>
+function ints(n) when (n < 10) n:~ints(n+1);
+let s = ints(1);
+s = accumulate(`+`, 0, s);
+<span class="c">//=> 1:&lt;promise&gt;</span>
+second(s);
+<span class="c">//=> 3</span>
+third(s);
+<span class="c">//=> 6</span></code></pre>
 </div>
 
+<div class="highlight">
+  <pre><code><b>function: </b>enumerate(start, end, compare_f = number_is_lteq, next_f = inc)
+<b>returns: </b>a sequence with the values from `start` to `end` (both inclusive by default).
+
+<span class="c">// Example:</span>
+let s = enumerate(1, 5);
+s;
+<span class="c">//=> 1:&lt;promise&gt;</span>
+fourth(s);
+<span class="c">//=> 4</span>
+fifth(s);
+<span class="c">//=> 5</span>
+
+let s = enumerate(1, 5, `<`);
+fifth(s);
+<span class="c">//=> false</span>
+fourth(s);
+<span class="c">//=> 4</span>
+
+let s = enumerate(1, 5, `<`, ^(x) x + 2);
+fourth(s);
+<span class="c">//=> false</span>
+second(s);
+<span class="c">//=> 3</span></code></pre>
+</div>
+
+<a name="iters"></a>
 <h5>Iterators</h5>
-<p>(<em>since v0.3</em>)</p>
-<p>The <code>yield</code> keyword can be used to define <em>generator</em> functions that can behave like a lazy sequence of values.
-  A sequence generated by <code>yield</code> is known as an <em>iterator</em>. Shown below is the definition of a generator of positive integers:</p>
+<p>The <code>yield</code> statement is used to define <em>generator</em> functions that behaves like a lazy sequence of values.
+  A sequence generated by <code>yield</code> is known as an <em>iterator</em>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> ints<span class="o">(</span><span class="o">)</span>
-          <span class="k">let</span> loop <span class="o">(</span>i <span class="o">=</span> <span class="mi">1</span><span class="o">)</span> <span class="o">
-          {</span> <span class="k">yield</span> i <span class="o">;</span>
-            loop <span class="o">(</span>i <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="o">}</span><span class="o">;</span></code></pre></div>
+  <pre><code><span class="c">// Example:</span>
+function ints()
+  let loop (i = 1) 
+  { yield i ;
+    loop (i + 1) };
 
-<p>The idiomatic way to access the elements of an iterator is by calling the <code>first</code> and <code>rest</code> functions.
-  Other sequence functions like <code>map</code> and <code>nth</code> will also work with iterators.</p>
+let iter = ints(); 
+first(iter); 
+<span class="c">//=> 1</span>
+iter = rest(iter); 
+let iter_2 = map(^(x) x + x , iter); 
+first(iter_2); 
+<span class="c">//=> 4</span>
+iter_2 = rest(iter_2); 
+first(iter_2); 
+<span class="c">//=> 6</span></code></pre></div>
 
-  <div class="highlight">
-    <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> iter <span class="o">=</span> ints<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>first<span class="o">(</span>iter<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>iter <span class="o">=</span> rest<span class="o">(</span>iter<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> iter_2 <span class="o">=</span> map<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">)</span> x <span class="o">+</span> x <span class="o">,</span> iter<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>first<span class="o">(</span>iter_2<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 4</span>
-<span class="nc">slogan&gt; </span>iter_2 <span class="o">=</span> rest<span class="o">(</span>iter_2<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>first<span class="o">(</span>iter_2<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 6</span></code></pre></div>
-
-  <p>Remember that moving forward an iterator will destructively change the current position in the iterator object.
+<p>Remember that moving forward an iterator will destructively change the current position in the iterator object.
   A function that generates an iterator should not call itself recursively. Instead use a <code>named let</code>
-  as shown in the <code>ints</code> function.</p>
+  as shown in the example.</p>
 
+<p>Lists, lazy pairs and iterators together form the "sequence" type in Slogan. In addition to the functions defined for lazy pairs
+the following functions are defined to work with all sequences: `map`, `for_each`, `take`, `drop`, `take_while`, `drop_while` and `filter`.</p>
+
+<a name="nums"></a>
 <h4>Numbers</h4>
-<p>Slogan numbers are classified as integers, rational numbers, real numbers, or complex numbers. This classification is hierarchical, 
+<p>Numbers are classified as integers, rational numbers, real numbers, or complex numbers. This classification is hierarchical, 
   in that all integers are rational, all rational numbers are real, and all real numbers are complex.</p>
 
-<p>A Slogan number may also be classified as <em>exact</em> or <em>inexact</em>, depending upon the quality of operations used to derive 
+<p>A number may also be classified as <em>exact</em> or <em>inexact</em>, depending upon the quality of operations used to derive 
   the number and the inputs to these operations. Most operations on numbers are exactness preserving: if given exact operands they 
   return exact values, and if given inexact operands or a combination of exact and inexact operands they return inexact values.</p>
 
@@ -740,7 +774,7 @@ concat([[1, 2, 3], [4, 5, 6]]);
   a ratio is limited only by system storage constraints. Although other representations are possible, inexact numbers are represented by 
   floating-point numbers supported by the host computer's hardware or by system software.</p>
 
-<p>Slogan numbers are written in a straightforward manner not much different from ordinary conventions for writing numbers. An exact 
+<p>Numbers are written in a straightforward manner not much different from ordinary conventions for writing numbers. An exact 
   integer is normally written as a sequence of numerals preceded by an optional sign. For example, <code>3</code>, <code>+19</code>, 
   <code>-100000</code>, and <code>208423089237489374</code> all represent exact integers. Underscores (<code>_</code>) may be added 
   to a numeric constant to increase readability. For example, the integer <code>150000</code> may be written as <code>1_50_000</code> 
@@ -748,7 +782,7 @@ concat([[1, 2, 3], [4, 5, 6]]);
 
 <p>An exact rational number is normally written as two sequences of numerals separated by a slash (<code>/</code>) and preceded by an optional 
   sign. For example, <code>3/4</code>, <code>-6/5</code>, and <code>1/1208203823</code> are all exact rational numbers. A ratio is 
-  reduced immediately to lowest terms when it is read and may in fact reduce to an exact integer.</p>
+  reduced immediately to lowest terms when it is read and may even get reduced to an exact integer.</p>
 
 <p>Inexact real numbers are normally written in either floating-point or scientific notation. Floating-point notation consists of a 
   sequence of numerals followed by a decimal point and another sequence of numerals, all preceded by an optional sign. Scientific notation 
@@ -770,6 +804,8 @@ concat([[1, 2, 3], [4, 5, 6]]);
   <code>21<sub>10</sub></code>, <code>0o72</code> is the octal equivalent of <code>58<sub>10</sub></code>, and <code>0xC7</code> 
   is the hexadecimal equivalent of <code>199<sub>10</sub></code>. 
   Numbers written in floating-point and scientific notations are always written in base 10.</p>
+
+<p>Complex number literals are written using the syntax `R+Ii`, where `R` is the real part and `I` is the imaginary part. E.g: `3+7i`.</p>
 
 <p>If both are present, the exactness prefix must appear before the radix prefix.</p>
 
@@ -794,267 +830,280 @@ any real is complex, and any complex is numeric.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_exact<span class="o">(</span>num<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>num</em> is exact, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function: </b>is_exact(num)
+<b>returns: </b>true if `num` is exact, false otherwise.
+
+<span class="c">// Examples:</span>
+is_exact(1);
+<span class="c">//=> true</span>
+
+is_exact(-15/10);
+<span class="c">//=> true</span>
+
+is_exact(3.01);
+<span class="c">//=> false</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>is_exact<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>is_exact<span class="o">(</span><span class="o">-</span><span class="mi">15</span><span class="o">/</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>is_exact<span class="o">(</span><span class="mi">3.01</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; false</span></code></pre>
+  <pre><code><b>function: </b>is_inexact(num)
+<b>returns: </b>true if `num` is inexact, false otherwise.
+
+<span class="c">// Examples:</span>
+is_inexact(1);
+<span class="c">//=> false</span>
+
+is_inexact(-15/10);
+<span class="c">//=> false</span>
+
+is_inexact(3.01);
+<span class="c">//=> true</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_inexact<span class="o">(</span>num<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>num</em> is inexact, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> number_is_eq(num1, ...) 
+
+<b>function:</b> number_is_lt(num1, ...)
+<b>function:</b> &lt;(num1, ...)      
+
+<b>function:</b> number_is_gt(num1, ...)
+<b>function:</b> &gt;(num1, ...)
+
+<b>function:</b> number_is_lteq(num1, ...)
+<b>function:</b> &lt;=(num1, ...)
+
+<b>function:</b> number_is_gteq(num1, ...)
+<b>function:</b> &gt;=(num1, ...)
+
+<b>returns:</b> true if the relation holds, false otherwise.
+
+number_is_eq return true if its arguments are equal.
+number_is_lt and &lt; return true if their arguments are monotonically increasing, i.e., each
+argument is greater than the preceding ones.
+
+number_is_gt and &gt; return true if their arguments are monotonically decreasing, i.e., each
+argument is less than the preceding ones.
+
+number_is_lteq and &lt;= return true if their arguments are monotonically nondecreasing,
+i.e., each argument is not less than the preceding ones.
+
+number_is_lteq and &gt;= return true if its arguments are monotonically non-increasing.
+
+&lt;, &gt;, &lt;= and &gt;= are commonly used in the infix operator position with two arguments.
+
+<span class="c">// Examples: </span>
+number_is_eq(7, 7); 
+<span class="c">//=> true</span>
+`<=`(1, 2, 3, 3, 4, 5);
+<span class="c">//=> true</span>        
+number_is_lteq(1, 2, 3, 3, 4, 5);
+<span class="c">//=> true</span>
+
+<span class="c">// Numeric comparisions using infix syntax:</span>
+1 < 2;
+<span class="c">//=> true</span>
+2 == 3 - 1;
+<span class="c">//=> true</span>
+2 <> 2 + 1;
+<span class="c">//=> true</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>is_inexact<span class="o">(</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>is_inexact<span class="o">(</span><span class="o">-</span><span class="mi">15</span><span class="o">/</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>is_inexact<span class="o">(</span><span class="mi">3.01</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; true</span></code></pre>
+  <pre><code><b>function: </b>add(num1, ...) 
+<b>function:</b> +(num1, ...)
+<b>returns: </b>the sum of `num1, ...`.
+
+`+` is commonly used as an infix operator with two argumens.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>number_is_eq<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">function: </span>number_is_lt<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">function: </span>number_is_gt<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">function: </span>number_is_lteq<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">function: </span>number_is_gteq<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns: </b><em>true</em> if the relation holds, <em>false</em> otherwise.</code></pre>
-</div>
+  <pre><code><b>function: </b>sub(num1, num2, ...) 
+<b>function:</b> -(num1, num2, ...)
+<b>returns: </b>the difference between `num1` and the sum of `num2, ....`
 
-<p>The predicate <code>number_is_eq</code> returns <code>true</code> if its arguments are equal. 
-  The predicate <code>number_is_lt</code> returns <code>true</code> if its arguments are monotonically increasing, i.e., each 
-  argument is greater than the preceding ones.
-  The predicate <code>number_is_gt</code> returns <code>true</code> if its arguments are monotonically decreasing, i.e., each 
-  argument is less than the preceding ones.
-  The predicate <code>number_is_lteq</code> returns <code>true</code> if its arguments are monotonically nondecreasing, i.e., each 
-  argument is not less than the preceding ones.
-  The predicate <code>number_is_lteq</code> returns <code>true</code> if its arguments are monotonically non-increasing.</p>
+`-` is commonly used as an infix operator with two argumens.
 
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>number_is_eq<span class="o">(</span><span class="mi">7</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>number_is_lteq<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; true</span></code></pre>
+<b>syntax: </b>-num
+<b>returns:</b> the additive inverse of `num`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">operator: </span>num1 <span class="o">&lt;</span> num2 
-<span class="nc">operator: </span>num1 <span class="o">&gt;</span> num2 
-<span class="nc">operator: </span>num1 <span class="o">&lt;=</span> num2 
-<span class="nc">operator: </span>num1 <span class="o">&gt;=</span> num2 
-<b>returns: </b><em>true</em> if the relation holds, <em>false</em> otherwise.</code></pre>
-</div>
+  <pre><code><b>function: </b>mult(num1, ...) 
+<b>function:</b> *(num1, ...)
+<b>returns: </b>the product of `num1, ...`.
 
-<p>The operator <code>&lt;</code> returns <code>true</code> if <code>num1</code> is less than <code>num2</code>.
-The operator <code>&gt;</code> returns <code>true</code> if <code>num1</code> is greater than <code>num2</code>.
-The operator <code>&lt;=</code> returns <code>true</code> if <code>num1</code> is less than or equal to <code>num2</code>.
-The operator <code>&gt;=</code> returns <code>true</code> if <code>num1</code> is  greater than or equal to <code>num2</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>add<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">operator: </span>num1 <span class="o">+</span> num2 
-<b>returns:</b> the sum of the arguments/operands.</code></pre>
+`*` is commonly used as an infix operator with two argumens.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>sub<span class="o">(</span>num1<span class="o">,</span> num2<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> the difference between <em>num1</em> and the sum of <em>num2 ...</em>.</code></pre>
+  <pre><code><b>function: </b>div(num1, num2, ...) 
+<b>function:</b> /(num1, num2, ...)
+<b>returns: </b>the result of dividing `num1` by the product of `num2, ....`.
+
+`/` is commonly used as an infix operator with two argumens.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">operator: </span><span class="o">-</span>num
-<b>returns:</b> the additive inverse of <em>num</em>.</code></pre>
+  <pre><code><b>function: </b>inc(n) 
+<b>returns: </b>the result of adding 1 to `n`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">operator: </span>num1 <span class="o">-</span> num2
-<b>returns:</b> the difference between <em>num1</em> and <em>num2</em>.</code></pre>
+  <pre><code><b>function:</b> dec(n) 
+<b>returns:</b> the result of subtracting 1 from `n`.
+</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>mult<span class="o">(</span>num1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">operator: </span>num1 <span class="o">*</span> num2 
-<b>returns:</b> the product of the arguments/operands.</code></pre>
+  <pre><code><b>function:</b> is_zero(num) 
+<b>returns:</b> true if `num` is zero, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>div<span class="o">(</span>num1<span class="o">,</span> num2<span class="o">,</span> ...<span class="o">)</span> 
-<b>returns:</b> the result of dividing <em>num1</em> by the product of <em>num2 ...</em>.</code></pre>
+  <pre><code><b>function:</b> is_positive(num) 
+<b>returns:</b> true if `num` is greater than zero, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>inc<span class="o">(</span>n<span class="o">)</span> 
-<b>returns:</b> the result of adding <em>1</em> to <em>n</em>.</code></pre>
+  <pre><code><b>function:</b> is_negative(num)
+<b>returns:</b> true if `num` is less than zero, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>dec<span class="o">(</span>n<span class="o">)</span> 
-<b>returns:</b> the result of subtracting <em>1</em> from <em>n</em>.</code></pre>
+  <pre><code><b>function:</b> is_even(num) 
+<b>returns:</b> true if `num` is even, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_zero<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is zero, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> is_odd(num) 
+<b>returns: </b>true if `num` is odd, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_positive<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is greater than zero, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> is_prime(num) 
+<b>returns:</b> true if `num` is a prime number, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_negative<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is less than zero, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> is_finite(num) 
+<b>returns:</b> true if `num` is finite, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_even<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is even, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function: </b>is_infinite(num) 
+<b>returns:</b> true if `num` is infinite, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_odd<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is odd, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> is_nan(num) 
+<b>returns:</b> true if `num` is NaN, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_prime<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is a prime number, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> quotient(int1, int2) 
+<b>returns:</b> the integer quotient of `int1` and `int2`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_finite<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is finite, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> remainder(int1, int2) 
+<b>returns:</b> the integer remainder of `int1` and `int2`. The result has the same sign as `int1`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_infinite<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is infinite, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> modulo(int1, int2) 
+<b>returns:</b> the integer remainder of `int1` and `int2`. The result has the same sign as `int2`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_nan<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>num</em> is a NaN, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function:</b> quo(real1, real2) 
+<b>returns:</b> the real quotient of `real1` and `real2`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>quotient<span class="o">(</span>int1<span class="o">, </span>int2<span class="o">)</span> 
-<b>returns:</b> the integer quotient of <em>int1</em> and <em>int2</em>.</code></pre>
+  <pre><code><b>function:</b> rem(real1, real2) 
+<b>returns:</b> the real remainder of `real1` and `real2`. The result has the same sign as `real1`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>remainder<span class="o">(</span>int1<span class="o">, </span>int2<span class="o">)</span> 
-<b>returns:</b> the integer remainder of <em>int1</em> and <em>int2</em>. The result has the same sign as <em>int1</em>.</code></pre>
+  <pre><code><b>function:</b> mod(real1, real2) 
+<b>returns:</b> the real remainder of `real1` and `real2`. The result has the same sign as `real2`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>modulo<span class="o">(</span>int1<span class="o">, </span>int2<span class="o">)</span> 
-<b>returns:</b> the integer remainder of <em>int1</em> and <em>int2</em>. The result has the same sign as <em>int2</em>.</code></pre>
+  <pre><code><b>function:</b> truncate(real) 
+<b>returns:</b> the integer closest to `real` toward zero.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>quo<span class="o">(</span>real1<span class="o">, </span>real2<span class="o">)</span> 
-<b>returns:</b> the real quotient of <em>real1</em> and <em>real2</em>.</code></pre>
+  <pre><code><b>function:</b> floor(real) 
+<b>returns:</b> the integer closest to `real` toward negative infinity.
+If `real` is infinity or NaN, floor returns `real`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>rem<span class="o">(</span>real1<span class="o">, </span>real2<span class="o">)</span> 
-<b>returns:</b> the real remainder of <em>real1</em> and <em>real2</em>. The result has the same sign as <em>real1</em>.</code></pre>
+  <pre><code><b>function:</b> ceiling(real) 
+<b>returns:</b> the integer closest to `real` toward positive infinity.
+If `real` is infinity or NaN, ceiling returns `real`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>mod<span class="o">(</span>real1<span class="o">, </span>real2<span class="o">)</span> 
-<b>returns:</b> the real remainder of <em>real1</em> and <em>real2</em>. The result has the same sign as <em>real2</em>.</code></pre>
+  <pre><code><b>function: </b>round(real) 
+<b>returns: </b>the integer closest to `real`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>truncate<span class="o">(</span>real<span class="o">)</span> 
-<b>returns:</b> the integer closest to <em>real</em> toward zero.</code></pre>
+  <pre><code><b>function: </b>abs(real) 
+<b>returns: </b>the absolute value of `real`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>floor<span class="o">(</span>real<span class="o">)</span> 
-<b>returns:</b> the integer closest to <em>real</em> toward negative infinity.</code></pre>
-</div>
-<p>If <code>real</code> is an infinity or NaN, <code>floor</code> returns <code>real</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>ceiling<span class="o">(</span>real<span class="o">)</span> 
-<b>returns:</b> the integer closest to <em>real</em> toward positive infinity.</code></pre>
-</div>
-<p>If <code>real</code> is an infinity or NaN, <code>ceiling</code> returns <code>real</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>round<span class="o">(</span>real<span class="o">)</span> 
-<b>returns:</b> the integer closest to <em>real</em>.</code></pre>
+  <pre><code><b>function:</b> max(real1,  ...) 
+<b>returns:</b> the maximum of `real1, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>abs<span class="o">(</span>real<span class="o">)</span> 
-<b>returns:</b> the absolute value of <em>real</em>.</code></pre>
+  <pre><code><b>function:</b> min(real1,  ...) 
+<b>returns:</b> the minimum of `real1, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>max<span class="o">(</span>real1<span class="o">, </span> ...<span class="o">)</span> 
-<b>returns:</b> the maximum of <em>real1 ...</em>.</code></pre>
+  <pre><code><b>function:</b> gcd(int1,  ...) 
+<b>returns:</b> the greatest common divisor of `int1, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>min<span class="o">(</span>real1<span class="o">, </span> ...<span class="o">)</span> 
-<b>returns:</b> the minimum of <em>real1 ...</em>.</code></pre>
+  <pre><code><b>function:</b> lcm(int1,  ...) 
+<b>returns:</b> the least common multiple of `int1, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>gcd<span class="o">(</span>int1<span class="o">, </span> ...<span class="o">)</span> 
-<b>returns:</b> the greatest common divisor of <em>int1 ...</em>.</code></pre>
+  <pre><code><b>function:</b> expt(num1,  num2) 
+<b>returns:</b> `num1` raised to the `num2` power.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>lcm<span class="o">(</span>int1<span class="o">, </span> ...<span class="o">)</span> 
-<b>returns:</b> the least common multiple of <em>int1 ...</em>.</code></pre>
+  <pre><code><b>function:</b> inexact(num) 
+<b>returns:</b> an inexact representation of `num`.
+
+<span class="c">// Examples:</span>
+inexact(3); 
+<span class="c">//=> 3.</span>
+inexact(-1/4); 
+<span class="c">//=> -.25</span>
+inexact(expt(10, 20)); 
+<span class="c">//=> 1e20</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>expt<span class="o">(</span>num1<span class="o">, </span> num2<span class="o">)</span> 
-<b>returns:</b> <em>num1</em> raised to the <em>num2</em> power.</code></pre>
-</div>
+  <pre><code><b>function:</b> exact(num) 
+<b>returns:</b> an exact representation of `num`.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>inexact<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> an inexact representation of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>inexact<span class="o">(</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3.</span>
-<span class="nc">slogan&gt; </span>inexact<span class="o">(</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -.25</span>
-<span class="nc">slogan&gt; </span>inexact<span class="o">(</span>expt<span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1e20</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>exact<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> an exact representation of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>exact<span class="o">(</span><span class="mi">3.0</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 3</span>
-<span class="nc">slogan&gt; </span>exact<span class="o">(</span><span class="o">-</span><span class="mi">.25</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -1/4</span>
-<span class="nc">slogan&gt; </span>exact<span class="o">(</span><span class="mi">1e20</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 100000000000000000000</span></code></pre>
+<span class="c">// Examples:</span>
+exact(3.0);
+<span class="c">//=> 3</span>
+exact(-.25); 
+<span class="c">//=> -1/4</span>
+exact(1e20);
+<span class="c">//=> 100000000000000000000</span></code></pre>
 </div>
 
 <div class="highlight">
