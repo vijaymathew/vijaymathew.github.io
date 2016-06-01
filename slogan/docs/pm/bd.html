@@ -26,9 +26,26 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Built-in Datatypes</h3></div>
-    <p>This chapter describe functions on various datatypes like <a href="#lists">pairs</a>, <a href="#lists">lists</a>, <a href="#assocs">association lists</a>, <a href="#nums">numbers</a>, characters, strings, arrays, bytearrays, 
-      bitarrays, symbols, booleans, and hashtables. We will also cover related topics like <a href="#listcomps">list comprehensions</a>,
-      <a href="#lseqs">lazy sequences</a> and <a href="#iters">iterators</a>.</p>
+
+    <p>This chapter describe functions on various datatypes like, </p>
+    <p>
+      <ul>
+        <li><a href="#lists">Pairs</a></li>
+        <li><a href="#lists">Lists</a></li>
+        <li><a href="#assocs">Association lists</a></li>
+        <li><a href="#nums">Numbers</a></li>
+        <li><a href="#bools">Booleans</a></li>      
+        <li><a href="#chars">Characters</a></li>
+        <li><a href="#strings">Strings</a></li>
+        <li><a href="#symbols">Symbols</a></li>
+        <li><a href="#arrays">Arrays</a></li>
+        <li><a href="#htabs">Hashtables</a></li>
+        <li><a href="#sets">Sets</a></li>
+      </ul>
+    </p>
+    
+    <p>We will also cover related topics like <a href="#listcomps">list comprehensions</a>, <a href="#lseqs">lazy sequences</a>,
+      <a href="#iters">iterators</a> and the <a href="#void">void</a> type.</p>
 
     <p>But before all that we discuss functions that test two objects for equality.</p>
 
@@ -113,8 +130,12 @@ not(is_equal("hello", "hEllo"));
 
 <div class="highlight">
   <pre><code><b>syntax: </b>obj1:obj2
+<b>syntax: </b>obj:
 <b>function: </b>pair(obj1, obj2)
-<b>returns: </b>a new pair whose head is `obj1` and tail is `obj2`.
+<b>returns: </b>a new pair whose head is `obj1` and tail is `obj2`. 
+
+The form `obj:` will return the pair `obj:void`. void is an object that has no printed
+representation. This form is useful for specifying spliced indices into lists and arrays.
 
 <span class="c">// Examples:</span>
 pair(3, 4);
@@ -189,6 +210,41 @@ list(1, 2, 3);
 
 list_of("hello", 3);
 <span class="c">//=> ["hello", "hello", "hello"]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>syntax: </b>lst[index]
+<b>returns: </b>the value at `index` from the list `lst`. if `index` is out-of-range, returns false.
+if `index` is a pair of integers, returns the sublist in that range.
+
+<b>syntax: </b>lst[index] = obj
+<b>returns: </b>a new list with the value at `index` in `lst` replaced with `obj`.  
+
+<span class="c">// Examples:</span>
+let a = [1,2,3,4,5];
+a[1];
+<span class="c">//=> 2</span>
+
+a[1:3];
+<span class="c">//=> [2, 3]</span>
+
+a[10];
+<span class="c">//=> false</span>
+
+a[10:23];
+<span class="c">//=> []</span>
+
+a[1:];
+<span class="c">//=> [2, 3, 4, 5]</span>
+
+a[:1];
+<span class="c">//=> [1]</span>
+
+a[:3];
+<span class="c">//=> [1, 2, 3]</span>
+
+a[3] = 100;
+<span class="c">//=> [1, 2, 3, 100, 5]</span></code></pre>
 </div>
 
 <div class="highlight">
@@ -860,6 +916,40 @@ is_inexact(3.01);
 </div>
 
 <div class="highlight">
+<pre><code><b>function: </b>string_to_number(s, @optional radix)
+<b>returns: </b>the number represented by the string `s`, or false.
+
+The number is interpreted in `radix`, which must be an exact integer in the set {2, 8, 10, 16}.
+If not specified, `radix` defaults to 10. Any radix specifier within the
+string, e.g., 0x, overrides the radix argument.
+
+<span class="c">// Examples:</span>
+string_to_number("3.4e3"); 
+<span class="c">//=> 3400.</span>
+
+string_to_number("0x-2e2", 10); 
+<span class="c">//=> -738</span>
+
+string_to_number("0x-2e2", 16); 
+<span class="c">//=> -738</span></code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function: </b>number_to_string(num, @optional radix)
+<b>returns: </b>an external representation of `num` as a string.
+
+The number is expressed in `radix`, which must be an exact integer in the set {2, 8, 10, 16}.
+If not specified, radix defaults to 10. In any case, no radix specifier appears in the resulting string.
+
+<span class="c">// Examples:</span>
+number_to_string(220/9); 
+<span class="c">//=> "220/9"</span>
+
+number_to_string(220/9, 16); 
+<span class="c">//=> "dc/9"</span></code></pre>
+</div>
+
+<div class="highlight">
   <pre><code><b>function:</b> number_is_eq(num1, ...) 
 
 <b>function:</b> number_is_lt(num1, ...)
@@ -1087,8 +1177,10 @@ If `real` is infinity or NaN, ceiling returns `real`.</code></pre>
 <span class="c">// Examples:</span>
 inexact(3); 
 <span class="c">//=> 3.</span>
+
 inexact(-1/4); 
 <span class="c">//=> -.25</span>
+
 inexact(expt(10, 20)); 
 <span class="c">//=> 1e20</span></code></pre>
 </div>
@@ -1100,331 +1192,328 @@ inexact(expt(10, 20));
 <span class="c">// Examples:</span>
 exact(3.0);
 <span class="c">//=> 3</span>
+
 exact(-.25); 
 <span class="c">//=> -1/4</span>
+
 exact(1e20);
 <span class="c">//=> 100000000000000000000</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>rationalize<span class="o">(</span>real1<span class="o">, </span>real2<span class="o">)</span> 
-<b>returns:</b> the simplest rational number that differs from <em>real1</em> by no more than <em>real2</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>rationalize<span class="o">(</span><span class="mi">3</span><span class="o">/</span><span class="mi">10</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; 1/3</span>
-<span class="nc">slogan&gt; </span>rationalize<span class="o">(</span><span class="mi">.3</span><span class="o">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; .3333333333333333</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>numerator<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the numerator of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>numerator<span class="o">(</span><span class="mi">2</span><span class="o">/</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span>
-<span class="nc">slogan&gt; </span>numerator<span class="o">(</span><span class="o">-</span><span class="mi">2.25</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">=&gt; -9.0</span>
-<span class="nc">slogan&gt; </span>numerator<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 10</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>denominator<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the denominator of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>denominator<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>denominator<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>denominator<span class="o">(</span><span class="mi">2</span><span class="o">/</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3</span>
-<span class="nc">slogan&gt; </span>denominator<span class="o">(</span><span class="o">-</span><span class="mi">2.25</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 4.0</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>rectangular<span class="o">(</span>real1<span class="o">, </span>real2<span class="o">)</span> 
-<b>returns:</b> a complex number with real component <em>real1</em> and imaginary component <em>real2</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>polar<span class="o">(</span>real1<span class="o">, </span>real2<span class="o">)</span> 
-<b>returns:</b> a complex number with magnitude <em>real1</em> and angle <em>real2</em>.</code></pre>
-</div>
-
-<p>As of now, Slogan do not support input of complex literals. You must either call <code>rectangular</code> or <code>polar</code> to create
-  complex numbers.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>rectangular<span class="o">(</span><span class="o">-</span><span class="mi">2</span><span class="o">,</span> <span class="mi">7</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -2+7i</span>
-<span class="nc">slogan&gt; </span>rectangular<span class="o">(</span><span class="mi">2</span><span class="o">/</span><span class="mi">3</span><span class="o">,</span> <span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2/3-1/2i</span>
-
-<span class="nc">slogan&gt; </span>polar<span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span>
-<span class="nc">slogan&gt; </span>polar<span class="o">(</span><span class="mi">2.0</span><span class="o">,</span> <span class="mi">0.0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2.0+0.0i</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>real_part<span class="o">(</span>num<span class="o">)</span> 
-<span class="nc">function: </span>imag_part<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the real/imaginary component of the complex number <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>angle<span class="o">(</span>num<span class="o">)</span> 
-<span class="nc">function: </span>magnitude<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the angle/magnitude part of the complex number <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>sqrt<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the principal square root of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>exp<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> <em>e</em> to the <em>num</em> power.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>log<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the natural logarithm of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>logb<span class="o">(</span>num1<span class="o">, </span>num2<span class="o">)</span> 
-<b>returns:</b> the base-<em>num2</em> logarithm of <em>num1</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>sin<span class="o">(</span>num<span class="o">)</span> 
-<span class="nc">function: </span>cos<span class="o">(</span>num<span class="o">)</span> 
-<span class="nc">function: </span>tan<span class="o">(</span>num<span class="o">)</span> 
-<b>returns:</b> the sine, cosine or tangent of <em>num</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>asin<span class="o">(</span>num<span class="o">)</span> 
-<span class="nc">function: </span>acos<span class="o">(</span>num<span class="o">)</span> 
-<span class="nc">function: </span>atan<span class="o">(</span>num<span class="o">, </span>@optional num1<span class="o">)</span> 
-<b>returns:</b> the arc sine, arc cosine or arc tangent of <em>num</em>.</code></pre>
-</div>
-
-<p>When passed a single complex argument <code>num</code>, <code>atan</code> returns the arc tangent of <code>num</code>. 
-When passed two real arguments, <code>atan</code> is equivalent to <code>^(y x) angle(rectangular(x y))</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bitwise_not<span class="o">(</span>int<span class="o">)</span> 
-<span class="nc">function: </span>bitwise_and<span class="o">(</span>int_a<span class="o">, </span>int_b<span class="o">)</span> 
-<span class="nc">function: </span>bitwise_ior<span class="o">(</span>int_a<span class="o">, </span>int_b<span class="o">)</span> 
-<span class="nc">function: </span>bitwise_xor<span class="o">(</span>int_a<span class="o">, </span>int_b<span class="o">)</span> 
-<b>returns: </b> the bitwise not, and, inclusive or, or exclusive or of <em>int</em>.</code></pre>
-</div>
-
-<p>The inputs are treated as if represented in two's complement, even if they are not represented that way internally.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_not<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -1</span>
-<span class="nc">slogan&gt; </span>bitwise_not<span class="o">(</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -4</span>
-<span class="nc">slogan&gt; </span>bitwise_and<span class="o">(</span><span class="mi">0b01101</span><span class="o">,</span> <span class="mi">0b00111</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 5</span>
-<span class="nc">slogan&gt; </span>bitwise_ior<span class="o">(</span><span class="mi">0b01101</span><span class="o">,</span> <span class="mi">0b00111</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 15</span>
-<span class="nc">slogan&gt; </span>bitwise_xor<span class="o">(</span><span class="mi">0b01101</span><span class="o">,</span> <span class="mi">0b00111</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 10</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bitwise_if<span class="o">(</span>int1<span class="o">, </span>int2<span class="o">, </span>int3<span class="o">)</span>
-<b>returns:</b> the bitwise "if" of its arguments.</code></pre>
-</div>
-
-<p>The inputs are treated as if represented in two's complement, even if they are not represented that way internally.</p>
-
-<p>For each bit set in <em>int1</em>, the corresponding bit of the result is taken from <em>int2</em>, and for each bit not set in <em>int1</em>,
-  the corresponding bit of the result is taken from <em>int3</em>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_if<span class="o">(</span><span class="mi">0b101010</span><span class="o">,</span> <span class="mi">0b111000</span><span class="o">,</span> <span class="mi">0b001100</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 44</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bitwise_bit_count<span class="o">(</span>int<span class="o">)</span>
-<b>returns:</b> the number of bits set in <em>int</em>.</code></pre>
-</div>
-
-<p>For nonnegative inputs, <code>bitwise_bit_count</code> returns the number of bits set in the two's complement representation of 
-  <code>int</code>. For negative inputs, it returns a negative number whose magnitude is one greater than the number of bits not set in 
-  the two's complement representation of <code>int</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_bit_count<span class="o">(</span><span class="mi">0b00000</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span>
-<span class="nc">slogan&gt; </span>bitwise_bit_count<span class="o">(</span><span class="mi">0b00001</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>bitwise_bit_count<span class="o">(</span><span class="mi">0b10101</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3</span>
-<span class="nc">slogan&gt; </span>bitwise_bit_count<span class="o">(</span><span class="o">-</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -1</span>
-<span class="nc">slogan&gt; </span>bitwise_bit_count<span class="o">(</span><span class="o">-</span><span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -2</span>
-<span class="nc">slogan&gt; </span>bitwise_bit_count<span class="o">(</span><span class="o">-</span><span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -3</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bitwise_length<span class="o">(</span>int<span class="o">)</span>
-<b>returns:</b> the number of bits set in <em>int</em>.</code></pre>
-</div>
-
-<p>This function returns the number of bits of the smallest two's complement representation of <code>int</code>, not including the sign 
-  bit for negative numbers. For <code>0 bitwise_length</code> returns <code>0</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_length<span class="o">(</span><span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3</span>
-<span class="nc">slogan&gt; </span>bitwise_length<span class="o">(</span><span class="o">-</span><span class="mi">6</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_first_bit_set<span class="o">(</span>int<span class="o">)</span>
-<b>returns:</b> the index of the least significant bit set in <em>int</em>.</code></pre>
-</div>
-<p>The input is treated as if represented in two's complement, even if it is not represented that way internally.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_first_bit_set<span class="o">(</span><span class="mi">0b00000</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -1</span>
-<span class="nc">slogan&gt; </span>bitwise_first_bit_set<span class="o">(</span><span class="mi">0b00001</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span>
-<span class="nc">slogan&gt; </span>bitwise_first_bit_set<span class="o">(</span><span class="mi">0b01100</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><b>function: </b>is_bit_array(obj) 
-<b>returns: </b>true if `obj` is a bit-array, false otherwise.
+  <pre><code><b>function:</b> rationalize(real1, real2) 
+<b>returns:</b> the simplest rational number that differs from `real1` by no more than `real2`.
 
 <span class="c">// Examples:</span>
-is_bit_array(#b[1, 0, 1, 1]); 
+rationalize(3/10, 1/10);
+<span class="c">//=> 1/3</span>
+
+rationalize(.3, 1/10);
+<span class="c">//=> .3333333333333333</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>numerator(num) 
+<b>returns: </b>the numerator of `num`.
+
+<span class="c">// Examples:</span>
+numerator(2/3); 
+<span class="c">//=> 2</span>
+
+numerator(-2.25);
+<span class="c">//=> -9.0</span>
+
+numerator(10); 
+<span class="c">//=> 10</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> denominator(num) 
+<b>returns:</b> the denominator of `num`.
+
+<span class="c">// Examples:</span>
+denominator(0); 
+<span class="c">//=> 1</span>
+
+denominator(10); 
+<span class="c">//=> 1</span>
+
+denominator(2/3); 
+<span class="c">//=> 3</span>
+
+denominator(-2.25); 
+<span class="c">//=> 4.0</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> rectangular(r, i) 
+<b>returns:</b> a complex number with real component `r` and imaginary component `i`.
+
+<b>function: </b>polar(m, a) 
+<b>returns: </b>a complex number with magnitude `m` and angle `a`.
+
+<span class="c">// Examples:</span>
+rectangular(-2, 7); 
+<span class="c">//=> -2+7i</span>
+
+rectangular(2/3, -1/2); 
+<span class="c">//=> 2/3-1/2i</span>
+
+polar(2, 0); 
+<span class="c">//=> 2</span>
+
+polar(2.0, 0.0); 
+<span class="c">//=> 2.0+0.0i</span></code></pre>
+</div>
+
+<p>Note that complex number literals that contain fractions should be written using inexact numbers. For example,
+the literal that represent `2/3-1/2i` should be written as `2/3-0.5i`.</p>
+
+<div class="highlight">
+  <pre><code><b>function:</b> real_part(num) 
+<b>function:</b> imag_part(num) 
+<b>returns:</b> the real/imaginary component of the complex number `num`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> angle(num) 
+<b>function:</b> magnitude(num) 
+<b>returns:</b> the angle/magnitude part of the complex number `num`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> sqrt(num) 
+<b>returns:</b> the principal square root of `num`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> exp(num) 
+<b>returns:</b> e to the `num` power.
+See <a href="https://en.wikipedia.org/wiki/E_(mathematical_constant)">https://en.wikipedia.org/wiki/E_(mathematical_constant)</a></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> log(num) 
+<b>returns:</b> the natural logarithm of `num`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> logb(num1, num2) 
+<b>returns:</b> the base-`num2` logarithm of `num1`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> sin(num) 
+<b>function:</b> cos(num) 
+<b>function:</b> tan(num) 
+<b>returns:</b> the sine, cosine or tangent of `num`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> asin(num) 
+<b>function:</b> acos(num) 
+<b>function:</b> atan(num, @optional num1) 
+<b>returns:</b> the arc sine, arc cosine or arc tangent of num.
+
+When passed a single complex argument `num`, atan returns the arc tangent of `num`.
+When passed two real arguments, atan is equivalent to `^(y x) angle(rectangular(x y))`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> bnot(int) 
+<b>function:</b> band(int_a, int_b) 
+<b>function:</b> bior(int_a, int_b) 
+<b>function:</b> bxor(int_a, int_b) 
+<b>returns:</b> the bitwise not, and, inclusive or, or exclusive or of `int`, `int_a` and `int_b`.
+
+The inputs are treated as if represented in two's complement, even if they are not
+represented that way internally.
+
+<span class="c">// Examples:</span>
+bnot(0); 
+<span class="c">//=> -1</span>
+
+bnot(3); 
+<span class="c">//=> -4</span>
+
+band(0b01101, 0b00111); 
+<span class="c">//=> 5</span>
+
+bior(0b01101, 0b00111); 
+<span class="c">//=> 15</span>
+
+bxor(0b01101, 0b00111); 
+<span class="c">//=> 10</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> bif(int1, int2, int3)
+<b>returns:</b> the bitwise "if" of its arguments.
+
+The inputs are treated as if represented in two's complement, even if they are not
+represented that way internally.
+For each bit set in `int1`, the corresponding bit of the result is taken from `int2`, and
+for each bit not set in `int1`, the corresponding bit of the result is taken from `int3`.
+
+<span class="c">// Example:</span>
+bif(0b101010, 0b111000, 0b001100); 
+<span class="c">//=> 44</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> bit_count(int)
+<b>returns:</b> the number of bits set in `int`.
+
+For nonnegative inputs, bit_count returns the number of bits set in the two's complement
+representation of `int`. For negative inputs, it returns a negative number whose magnitude
+is one greater than the number of bits not set in the two's complement representation of `int`.
+
+<span class="c">// Examples:</span>
+bit_count(0b00000); 
+<span class="c">// => 0</span>
+
+bit_count(0b00001); 
+<span class="c">// => 1</span>
+
+bit_count(0b10101); 
+<span class="c">// => 3</span>
+
+bit_count(-1); 
+<span class="c">// => -1</span>
+
+bit_count(-2); 
+<span class="c">// => -2</span>
+
+bit_count(-4); 
+<span class="c">// => -3</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function:</b> blength(int)
+<b>returns:</b> the number of bits set in `int`.
+
+This function returns the number of bits of the smallest two's complement representation
+of `int`, not including the sign bit for negative numbers. For 0 blength will return 0.
+
+<span class="c">// Examples:</span>
+blength(4); 
+<span class="c">//=> 3</span>
+blength(-6); 
+<span class="c">//=> 3</span></code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function:</b> first_bit_set(int)
+<b>returns:</b> the index of the least significant bit set in `int`.
+
+The input is treated as if represented in two's complement, even if it is not
+represented that way internally.
+
+<span class="c">// Examples: </span>
+first_bit_set(0b00000); 
+<span class="c">//=> -1</span>
+
+first_bit_set(0b00001); 
+<span class="c">//=> 0</span>
+
+first_bit_set(0b01100); 
+<span class="c">//=> 2</span></code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function:</b> is_bit_set(int, index) 
+<b>returns:</b> true if the bit at `index` of `int` is set, false otherwise.
+    
+The two's complement representation of a nonnegative number conceptually extends to the left
+(toward more significant bits) with an infinite number of zero bits, and the two's complement
+representation of a negative number conceptually extends to the left with an infinite
+number of one bits.
+
+<span class="c">// Examples:</span>
+is_bit_set(0b01011, 0); 
 <span class="c">//=> true</span>
 
-is_bit_array(#u8[1, 0, 1, 1]); 
+is_bit_set(0b01011, 2); 
+<span class="c">//=> false</span>
+
+is_bit_set(-1, 0); 
+<span class="c">//=> true</span>
+
+is_bit_set(-1, 20); 
+<span class="c">//=> true</span>
+
+is_bit_set(-3, 1); 
+<span class="c">//=> false</span>
+
+is_bit_set(0, 5000); 
+<span class="c">//=> false</span>
+
+is_bit_set(-1, 5000); 
+<span class="c">//=> true</span></code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function:</b>is_any_bits_set(int1, int2)
+<b>returns:</b> true if the bitwise and of `int1` and `int2` is different from zero, false otherwise.
+
+<span class="c">// Examples:</span>
+is_any_bits_set(0b0010, 0b1110);
+<span class="c">//=> true</span>
+
+is_any_bits_set(0b0010, 0b1100);
 <span class="c">//=> false</span></code></pre>
 </div>
 
-<p>The two's complement representation of a nonnegative number conceptually extends to the left (toward more significant bits) with an 
-  infinite number of zero bits, and the two's complement representation of a negative number conceptually extends to the left with an 
-  infinite number of one bits. </p>
-
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">0b01011</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">0b01011</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">-1</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">-1</span><span class="o">,</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">-3</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="mi">5000</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>bitwise_is_bit_set<span class="o">(</span><span class="mi">-1</span><span class="o">,</span> <span class="mi">5000</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span></code></pre>
+<pre><code><b>function: </b>is_all_bits_set(int1, int2)
+<b>returns: </b>true if the bitwise and of `int1` and `int2` is equal to `int1`, false otherwise.
+
+<span class="c">// Examples:</span>
+is_all_bits_set(0b0010, 0b0010);
+<span class="c">//=> true</span>
+
+is_all_bits_set(0b0010, 0b0100);
+<span class="c">//=> false</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_is_any_bits_set<span class="o">(</span>int1<span class="o">, </span>int2<span class="o">)</span>
-<b>returns:</b> <em>true</em> if the bitwise and of <em>int1</em> and <em>int2</em> is different from zero, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>copy_bit_field(int1, start, end, int2)
+<b>returns: </b>`int1` with n bits from `start` (inclusive) to `end` (exclusive)
+replaced by the low-order n bits of `int2`. 
+
+<span class="c">// Examples:</span>
+copy_bit_field(0b10000, 0, 3, 0b10101); 
+<span class="c">//=> 21</span>
+
+copy_bit_field(0b10000, 1, 3, 0b10101); 
+<span class="c">//=> 18</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_is_all_bits_set<span class="o">(</span>int1<span class="o">, </span>int2<span class="o">)</span>
-<b>returns:</b> <em>true</em> if the bitwise and of <em>int1</em> and <em>int2</em> is equal to <em>int1</em>, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>bshift(int, n)
+<b>returns: </b>the result of arithmetically shifting `int` by `n` bits.
+
+If `n` is negative, the bits are shifted right. Otherwise, the bits are shifted left.
+
+<span class="c">// Examples:</span>
+bshift(-64, -3); 
+<span class="c">//=> -8</span>
+
+bshift(-64, 3); 
+<span class="c">//=> -512</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_copy_bit_field<span class="o">(</span>int1<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>int2<span class="o">)</span>
-<b>returns:</b> <em>int1</em> with the <em>n</em> bits from <em>start</em> (inclusive) to <em>end</em> (exclusive) replaced by the 
-         low-order <em>n</em> bits of <em>int2</em>. </code></pre>
+<pre><code><b>function: </b>rotate_bit_field(int1, start, end, int2)
+<b>returns: </b>the result of shifting the bits of `int1` from the bit `start` (inclusive)
+through bit `end` (exclusive) left by `mod(int2, end - start)` bits, with the bits shifted out 
+of the range inserted at the bottom end of the range.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_copy_bit_field<span class="o">(</span><span class="mi">0b10000</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">0b10101</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 21</span>
-<span class="nc">slogan&gt; </span>bitwise_copy_bit_field<span class="o">(</span><span class="mi">0b10000</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">0b10101</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 18</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_arithmetic_shift<span class="o">(</span>int<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> the result of arithmetically shifting <em>int</em> by <em>n</em> bits.</code></pre>
-</div>
-
-<p>If <code>n</code> is negative, the bits are shifted right. Otherwise, the bits are shifted left.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bitwise_arithmetic_shift<span class="o">(</span><span class="o">-</span><span class="mi">64</span><span class="o">,</span> <span class="o">-</span><span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -8</span>
-<span class="nc">slogan&gt; </span>bitwise_arithmetic_shift<span class="o">(</span><span class="o">-</span><span class="mi">64</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -512</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_rotate_bit_field<span class="o">(</span>int1<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>int2<span class="o">)</span>
-<b>returns:</b> the result of shifting the bits of <em>int1</em> from bit <em>start</em> (inclusive) through bit 
-         <em>end</em> (exclusive) left by <em>mod(int2, end - start)</em> bits, with the bits shifted out 
-         of the range inserted at the bottom end of the range.</code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>bitwise_reverse_bit_field<span class="o">(</span>int1<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>int2<span class="o">)</span>
-<b>returns:</b> the result of reversing the bits of <em>int1</em> from bit <em>start</em> (inclusive) through 
-         bit <em>end</em> (exclusive).</code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>string_to_number<span class="o">(</span>s<span class="o">, </span>@optional radix<span class="o">)</span>
-<b>returns:</b> the number represented by string, or <em>false</em>.</code></pre>
-</div>
-
-<p>The number is interpreted in radix <em>radix</em>, which must be an exact integer in the set {2, 8, 10, 16}. 
-  If not specified, <em>radix</em> defaults to 10. Any radix specifier within the string, e.g., <em>0x</em>, overrides the radix argument.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>string_to_number<span class="o">(</span><span class="s1">&quot;3.4e3&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3400.</span>
-<span class="nc">slogan&gt; </span>string_to_number<span class="o">(</span><span class="s1">&quot;0x-2e2&quot;</span><span class="o">,</span> <span class="mi">16</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; -738</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>number_to_string<span class="o">(</span>num<span class="o">, </span>@optional radix<span class="o">)</span>
-<b>returns:</b> an external representation of <em>num</em> as a string.</code></pre>
-</div>
-
-<p>The number is expressed in radix <em>radix</em>, which must be an exact integer in the set {2, 8, 10, 16}. 
-  If not specified, <em>radix</em> defaults to 10. In any case, no radix specifier appears in the resulting string.</p>
-
-<div class="highlight">
-<pre><code><span class="nc">slogan&gt; </span>number_to_string<span class="o">(</span><span class="mi">220</span><span class="o">/</span><span class="mi">9</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;220/9&quot;</span>
-<span class="nc">slogan&gt; </span>number_to_string<span class="o">(</span><span class="mi">220</span><span class="o">/</span><span class="mi">9</span><span class="o">,</span> <span class="mi">16</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;dc/9&quot;</span></code></pre>
+<pre><code><b>function: </b>reverse_bit_field(int1, start, end)
+<b>returns: </b>the result of reversing the bits of `int1` from the bit `start` (inclusive) through 
+the bit `end` (exclusive).</code></pre>
 </div>
 
 <h5>Fixnums</h5>
@@ -1437,383 +1526,399 @@ is_bit_array(#u8[1, 0, 1, 1]);
   their generic counterparts.</p>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_fixnum<span class="o">(</span>obj<span class="o">)</span> 
-<b>returns:</b> <em>true</em> is <em>obj</em> is a fixnum, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>least_fixnum() 
+<b>function: </b>greatest_fixnum() 
+<b>returns: </b>the most negative or most positive fixnum supported by the platform.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>is_fixnum<span class="o">(</span>greatest_fixnum<span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>is_fixnum<span class="o">(</span>greatest_fixnum<span class="o">(</span><span class="o">)</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span></code></pre>
+<pre><code><b>function: </b>fixnum_width() 
+<b>returns: </b>the platform dependent fixnum width.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>least_fixnum<span class="o">(</span><span class="o">)</span> 
-<span class="nc">function: </span>greatest_fixnum<span class="o">(</span><span class="o">)</span> 
-<b>returns:</b> the most negative or most positive fixnum supported by the platform.</code></pre>
+<pre><code><b>function: </b>is_fixnum(obj) 
+<b>returns: </b>true is `obj` is a fixnum, false otherwise.
+
+<span class="c">// Examples:</span>
+is_fixnum(greatest_fixnum()); 
+<span class="c">//=> true</span>
+
+is_fixnum(greatest_fixnum() + 1); 
+<span class="c">//=> false</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fixnum_width<span class="o">(</span><span class="o">)</span> 
-<b>returns:</b> the platform dependent fixnum width.</code></pre>
+<pre><code><b>function: </b>fx_is_eq(fx1, ...) 
+<b>function: </b>fx_is_lt(fx1, ...) 
+<b>function: </b>fx_is_gt(fx1, ...) 
+<b>function: </b>fx_is_lteq(fx1, ...) 
+<b>function: </b>fx_is_gteq(fx1, ...) 
+<b>returns: </b>true if the relatiion holds, false otherwise.
+
+fx_is_eq returns true if its arguments are equal.
+fx_is_lt returns true if its arguments are monotonically increasing, i.e., each
+argument is greater than the preceding ones.
+fx_is_gt returns true if its arguments are monotonically decreasing.
+fx_is_lteq returns true if its arguments are monotonically nondecreasing, i.e., each
+argument is not less than the preceding ones.
+fx_is_gteq returns true if its arguments are monotonically non-increasing.
+
+These functions will raise an error if an argument is not a fixnum.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fx_is_eq<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_lt<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_gt<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_lteq<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_gteq<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if the relatiion holds, <em>false</em> otherwise.</code></pre>
-</div>
+  <pre><code><b>function: </b>fxadd(fx1, ...) 
+<b>function: </b>fxsub(fx1, ...) 
+<b>function: </b>fxmult(fx1, ...) 
+<b>function: </b>fxdiv(fx1, fx2) 
+<b>function: </b>fxmod(fx1, fx2) 
+<b>function: </b>fxadd_wrap(fx1, ...) 
+<b>function: </b>fxsub_wrap(fx1, ...) 
+<b>function: </b>fxmult_wrap(fx1, ...)
+<b>returns: </b>the result of performing the arithmetic operation on `fx1, ...` (or `fx1` and `fx2`).
 
-<p>The predicate <code>fx_is_eq</code> returns <code>true</code> if its arguments are equal. The predicate <code>fx_is_lt</code> returns 
-  <code>true</code> if its arguments are monotonically increasing, i.e., each argument is greater than the preceding ones, 
-  while <code>fx_is_gt</code> returns <code>true</code> if its arguments are monotonically decreasing. The predicate <code>fx_is_lteq</code> 
-  returns <code>true</code> if its arguments are monotonically nondecreasing, i.e., each argument is not less than the preceding ones, 
-  while <code>fx_is_gteq</code> returns <code>true</code> if its arguments are monotonically non-increasing.</p>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>fx_is_zero<span class="o">(</span>fx<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_positive<span class="o">(</span>fx<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_negative<span class="o">(</span>fx<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>fx</em> is zero, greater than zero or less than zero, <em>false</em> otherwise.</code></pre>
+When an ordinary fixnum addition, subtraction, or multiplication operation overflows,
+an exception is raised. The functions with the `_wrap` suffix instead return a
+wrapped-around result.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fx_is_even<span class="o">(</span>fx<span class="o">)</span> 
-<span class="nc">function: </span>fx_is_odd<span class="o">(</span>fx<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>fx</em> is even or odd, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>fx_is_zero(fx) 
+<b>function: </b>fx_is_positive(fx) 
+<b>function: </b>fx_is_negative(fx)
+<b>returns: </b>true if `fx` is zero, greater than zero or less than zero, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fxmin<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxmax<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<b>returns:</b> the minimum or maximum of <em>fx1, ...</em></code></pre>
+<pre><code><b>function: </b>fx_is_even(fx) 
+<b>function: </b>fx_is_odd(fx) 
+<b>returns: </b>true if `fx` is even/odd, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fxadd<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxsub<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxmult<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxdiv<span class="o">(</span>fx1<span class="o">, </span>fx2<span class="o">)</span> 
-<span class="nc">function: </span>fxmod<span class="o">(</span>fx1<span class="o">, </span>fx2<span class="o">)</span> 
-<span class="nc">function: </span>fxadd_wrap<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxsub_wrap<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxmult_wrap<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> the result of performing the arithmetic operation on <em>fx1, ...</em> (or <em>fx1</em> and <em>fx2</em>).</code></pre>
-</div>
-  
-<p>When an ordinary fixnum addition, subtraction, or multiplication operation overflows, an exception is raised. The alternative functions
-  with the <code>_wrap</code> suffix instead return a wrapped-around result.</p>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>fxnot<span class="o">(</span>fx<span class="o">)</span> 
-<span class="nc">function: </span>fxand<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxior<span class="o">(</span>fx1<span class="o">, </span>...<span class="o">)</span> 
-<span class="nc">function: </span>fxxor<span class="o">(</span>fx1<span class="o">, </span>fx2<span class="o">)</span> 
-<b>returns:</b> the bitwise not, and, inclusive or or exclusive or of <em>fx1, ...</em> (or <em>fx</em>).</code></pre>
+<pre><code><b>function: </b>fxmin(fx1, ...) 
+<b>function: </b>fxmax(fx1, ...) 
+<b>returns: </b>the minimum/maximum of `fx1, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>fxif<span class="o">(</span>fx1<span class="o">, </span>fx2<span class="o">, </span>fx3<span class="o">)</span> 
-<b>returns:</b> the bitwise &quot;if&quot; of its arguments.</code></pre>
+<pre><code><b>function: </b>fxnot(fx) 
+<b>function: </b>fxand(fx1, ...) 
+<b>function: </b>fxior(fx1, ...) 
+<b>function: </b>fxxor(fx1, fx2) 
+<b>returns: </b>the bitwise not/and/inclusive or/exclusive or of `fx, fx1, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>fxbit_count<span class="o">(</span>fx<span class="o">)</span> 
-<b>returns:</b> the number of bits set in the two's complement representation of <em>fx</em>.</code></pre>
+  <pre><code><b>function: </b>fxif(fx1, fx2, fx3) 
+<b>returns: </b>the bitwise "if" of its arguments.</code></pre>
 </div>
-
-<p>For negative inputs, <code>fxbit_count</code> returns a negative number whose magnitude is one greater than the number 
-  of bits not set in <code>fx</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>fxlength<span class="o">(</span>fx<span class="o">)</span> 
-<b>returns:</b> the number of bits of the smallest two's complement representation of <em>fx</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b>fxbit_count(fx) 
+<b>returns: </b>the number of bits set in the two's complement representation of `fx`.
 
-<p><code>Fxlength</code> do not include the sign bit for negative numbers.</p>
+For negative inputs, fxbit_count returns a negative number whose magnitude is one greater
+than the number of bits not set in `fx`.</code></pre>
+</div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fxfirst_bit_set<span class="o">(</span>fx<span class="o">)</span>
-<b>returns:</b> the index of the least significant bit set in <em>fx</em>.</code></pre>
+  <pre><code><b>function: </b>fxlength(fx) 
+<b>returns: </b>the number of bits of the smallest two's complement representation of `fx`.
+(does not include the sign bit for negative numbers).</code></pre>
 </div>
-<p>If <code>fx</code> is <code>0</code>, <code>fxfirst_bit_set</code> returns <code>-1</code>.</p>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fxbit_is_set<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> <em>true</em> if bit <em>i</em> of <em>fx</em> is set, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function: </b>fxfirst_bit_set(fx)
+<b>returns: </b>the index of the least significant bit set in `fx`. If `fx` is 0, returns -1.</code></pre>
 </div>
-<p><code>i</code> must be nonnegative. It is taken as a zero-based index for the bits in the two's complement representation of <code>fx</code>, 
-  with the sign bit virtually replicated an infinite number of positions to the left.</p>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fxarithmetic_shift<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<span class="nc">function: </span>fxarithmetic_shift_left<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<span class="nc">function: </span>fxarithmetic_shift_right<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<span class="nc">function: </span>fxarithmetic_shift_wrap<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<span class="nc">function: </span>fxarithmetic_shift_left_wrap<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<span class="nc">function: </span>fxarithmetic_shift_right_wrap<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<span class="nc">function: </span>fxlogical_shift_right_wrap<span class="o">(</span>fx<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> <em>fx</em> arithmetically/logically shifted left/right by <em>i</em>.</code></pre>
+  <pre><code><b>function: </b>fxbit_is_set(fx, i)
+<b>returns: </b>true if bit `i` of `fx` is set, false otherwise.
+
+`i` must be nonnegative. It is taken as a zero-based index for the bits in the two's complement
+representation of `fx`, with the sign bit virtually replicated an infinite number of
+positions to the left.</code></pre>
 </div>
-<p><code>i</code> must be nonnegative and less than the value of <code>fixnum_width()</code>. If <code>i</code> is negative, 
-  <code>fxarithmetic_shift</code> returns the result of arithmetically shifting <code>fx</code> right by <code>i</code> bits. 
-  Otherwise, <code>fxarithmetic_shift</code> returns the result of shifting <code>fx</code> left by <code>i</code> bits.</p>
+
+<div class="highlight">
+  <pre><code><b>function: </b>fxshift(fx, i)
+<b>function: </b>fxshift_left(fx, i)
+<b>function: </b>fxshift_right(fx, i)
+<b>function: </b>fxshift_wrap(fx, i)
+<b>function: </b>fxshift_left_wrap(fx, i)
+<b>function: </b>fxshift_right_wrap(fx, i)
+<b>function: </b>fxlshift_right_wrap(fx, i)
+<b>returns: </b>`fx` arithmetically/logically shifted left/right by `i`.
+
+For all functions except fxshift and fxshift_wrap, `i` must be non-negative.
+If `i` is non-negative, it must be less than the value of fixnum_width().
+If `i` is negative, fxshift returns the result of arithmetically shifting `fx` right by `i` bits.
+Otherwise, fxshift returns the result of shifting `fx` left by `i` bits.</code></pre>
+</div>
 
 <h5>Flonums</h5>
 <p>Flonums represent inexact real numbers represented using the IEEE double-precision floating-point representation for flonums.</p>
 <p>Flonum-specific function names begin with the prefix &quot;fl&quot; to set them apart from their generic counterparts.</p>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_flonum<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is a flonum, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>is_flonum(obj)
+<b>returns: </b>true if `obj` is a flonum, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fl_is_eq<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>fl_is_lt<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>fl_is_gt<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>fl_is_lteq<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>fl_is_gteq<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> <em>true</em> if the relation holds, <em>false</em> otherwise.</code></pre>
-</div>
+  <pre><code><b>function: </b>fl_is_eq(fl1, ...)
+<b>function: </b>fl_is_lt(fl1, ...)
+<b>function: </b>fl_is_gt(fl1, ...)
+<b>function: </b>fl_is_lteq(fl1, ...)
+<b>function: </b>fl_is_gteq(fl1, ...)
+<b>returns: </b>true if the relation holds, false otherwise.
 
-<p>The predicate <code>fl_is_eq</code> returns <code>true</code> if its arguments are equal. The predicate <code>fl_is_lt</code> returns 
-  <code>true</code> if its arguments are monotonically increasing, i.e., each argument is greater than the preceding ones, while 
-  <code>fl_is_gt</code> returns <code>true</code> if its arguments are monotonically decreasing. The predicate <code>fl_is_lteq</code> 
-  returns <code>true</code> if its arguments are monotonically nondecreasing, i.e., each argument is not less than the preceding ones, 
-  while <code>fl_is_gteq</code> returns <code>true</code> if its arguments are monotonically non-increasing. When passed only one argument, 
-  each of these predicates returns <code>true</code>.</p>
+fl_is_eq return true if its arguments are equal.
+fl_is_lt return true if its arguments are monotonically increasing, i.e., each
+argument is greater than the preceding ones.
+fl_is_gt return true if its arguments are monotonically decreasing.
+fl_is_lteq return true if its arguments are monotonically nondecreasing, i.e., each
+argument is not less than the preceding ones.
+fl_is_gteq return true if its arguments are monotonically non-increasing.
+When passed only one argument, each of these predicates returns true.
 
-<p>Comparisons involving <code>NaN</code>s always return <code>false</code>.</p>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>fl_is_zero<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fl_is_positive<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fl_is_negative<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>fl</em> is zero, greater than zero or less than zero, <em>false</em> otherwise.</code></pre>
+Comparisons involving NaNs always return false.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fl_is_integer<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>fl</em> is integer, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>fl_is_zero(fl)
+<b>function: </b>fl_is_positive(fl)
+<b>function: </b>fl_is_negative(fl)
+<b>returns: </b>true if fl is zero/greater than zero/less than zero, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fl_is_finite<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fl_is_infinite<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fl_is_nan<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>fl</em> is finite, infinite or NaN, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>fl_is_integer(fl)
+<b>returns: </b>true if `fl` is an integer, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fl_is_even<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fl_is_odd<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>fl</em> is even or odd, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>fl_is_finite(fl)
+<b>function: </b>fl_is_infinite(fl)
+<b>function: </b>fl_is_nan(fl)
+<b>returns: </b>true if `fl` is finite/infinite/NaN, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flmin<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>flmax<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> the minimum or maximum of <em>fl1 ...</em>.</code></pre>
+<pre><code><b>function: </b>fl_is_even(fl)
+<b>function: </b>fl_is_odd(fl)
+<b>returns: </b>true if `fl` is even or odd, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fladd<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>flsub<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>flmult<span class="o">(</span>fl1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>fldiv<span class="o">(</span>fl1<span class="o">, </span>fl2<span class="o">)</span>
-<span class="nc">function: </span>flmod<span class="o">(</span>fl1<span class="o">, </span>fl2<span class="o">)</span>
-<b>returns:</b> the result of the arithmetic operation on <em>fl1 ...</em> or <em>fl1</em> and <em>fl2</em>.</code></pre>
+<pre><code><b>function: </b>flmin(fl1, ...)
+<b>function: </b>flmax(fl1, ...)
+<b>returns: </b>the minimum or maximum of `fl1 ...`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flround<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the integer closest to <em>fl</em>.</code></pre>
+<pre><code><b>function: </b>fladd(fl1, ...)
+<b>function: </b>flsub(fl1, ...)
+<b>function: </b>flmult(fl1, ...)
+<b>function: </b>fldiv(fl1, fl2)
+<b>function: </b>flmod(fl1, fl2)
+<b>returns: </b>the result of the arithmetic operation on `fl1, fl, ...`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fltruncate<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the integer closest to <em>fl</em> towards zero.</code></pre>
+<pre><code><b>function: </b>flround(fl)
+<b>returns: </b>the integer closest to `fl`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flfloor<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the integer closest to <em>fl</em> towards negative infinity.</code></pre>
+<pre><code><b>function: </b>fltruncate(fl)
+<b>returns: </b>the integer closest to `fl` towards zero.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flceiling<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the integer closest to <em>fl</em> towards positive infinity.</code></pre>
+<pre><code><b>function: </b>flfloor(fl)
+<b>returns: </b>the integer closest to `fl` towards negative infinity.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flnumerator<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fldenominator<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the numerator or denominator of <em>fl</em>.</code></pre>
+<pre><code><b>function: </b>flceiling(fl)
+<b>returns: </b>the integer closest to `fl` towards positive infinity.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flabs<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the absolute value of <em>fl</em>.</code></pre>
+<pre><code><b>function: </b>flnumerator(fl)
+<b>function: </b>fldenominator(fl)
+<b>returns: </b>the numerator or denominator of `fl`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flexp<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> <em>e</em> to the <em>fl</em> power.</code></pre>
+<pre><code><b>function: </b>flabs(fl)
+<b>returns: </b>the absolute value of `fl`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fllog<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fllogb<span class="o">(</span>fl<span class="o">, </span>fl_b<span class="o">)</span>
-<b>returns:</b> the natural of base <em>fl_b</em> logarithm of <em>fl</em>.</code></pre>
+<pre><code><b>function: </b>flexp(fl)
+<b>returns: </b>e to the `fl` power.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flsin<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>flcos<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>fltan<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>flasin<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>flacos<span class="o">(</span>fl<span class="o">)</span>
-<span class="nc">function: </span>flatan<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the sine, cosine, tangent, arc sine, arc cosine or arc tangent of <em>fl</em>.</code></pre>
+<pre><code><b>function: </b>fllog(fl)
+<b>function: </b>fllogb(fl, fl_b)
+<b>returns: </b>the natural of base fl_b logarithm of `fl`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flatan<span class="o">(</span>fl1<span class="o">, </span>fl2<span class="o">)</span>
-<b>returns:</b> the arc tangent of <em>fl1 / fl2</em>.</code></pre>
+<pre><code><b>function: </b>flsin(fl)
+<b>function: </b>flcos(fl)
+<b>function: </b>fltan(fl)
+<b>function: </b>flasin(fl)
+<b>function: </b>flacos(fl)
+<b>function: </b>flatan(fl)
+<b>returns: </b>the sine/cosine/tangent/arc sine/arc cosine/arc tangent of `fl`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flsqrt<span class="o">(</span>fl<span class="o">)</span>
-<b>returns:</b> the principle square root of <em>fl</em>.</code></pre>
+<pre><code><b>function: </b>flatan(fl1, fl2)
+<b>returns: </b>the arc tangent of `fl1/fl2`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>flexpt<span class="o">(</span>fl1<span class="o">, </span>fl2<span class="o">)</span>
-<b>returns:</b> <em>fl1</em> raised to the <em>fl2</em> power.</code></pre>
+<pre><code><b>function: </b>flsqrt(fl)
+<b>returns: </b>the principle square root of `fl`.
+</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>fixnum_to_flonum<span class="o">(</span>fx<span class="o">)</span>
-<b>returns:</b> the flonum representation closest to <em>fx</em>.</code></pre>
+<pre><code><b>function: </b>flexpt(fl1, fl2)
+<b>returns: </b>`fl1` raised to the `fl2` power.</code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function: </b>fixnum_to_flonum(fx)
+<b>returns: </b>the flonum representation closest to `fx`.</code></pre>
 </div>
 
 <h5>Special Variables</h5>
 
 <div class="highlight">
-<pre><code><span class="nc">variable: </span>inf
-<b>value:</b> positive infinity (<em>+inf.0</em>).</code></pre>
+<pre><code><b>variable: </b>inf
+<b>value: </b>positive infinity (+inf.0).</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">variable: </span>_inf
-<b>value:</b> negative infinity (<em>-inf.0</em>).</code></pre>
+<pre><code><b>variable: </b>_inf
+<b>value: </b>negative infinity (-inf.0).</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">variable: </span>nan
-<b>value:</b> NaN (<em>+nan.0</em>).</code></pre>
+<pre><code><b>variable: </b>nan
+<b>value: </b>NaN (+nan.0).</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">variable: </span>zero
-<b>value:</b> positive zero (<em>+0.0</em>).</code></pre>
+<pre><code><b>variable: </b>zero
+<b>value: </b>positive zero (+0.0).</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">variable: </span>_zero
-<b>value:</b> negative zero (<em>-0.0</em>).</code></pre>
+<pre><code><b>variable: </b>_zero
+<b>value: </b>negative zero (-0.0).</code></pre>
 </div>
 
 <h5>Pseudo random numbers</h5>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_integer<span class="o">(</span>n<span class="o">)</span>
-<b>returns:</b> a pseudo random exact integer in the range <em>0</em> to <em>n - 1</em>.</code></pre>
+<pre><code><b>function: </b>random_integer(n)
+<b>returns: </b>a pseudo random exact integer in the range 0 to n - 1.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_real<span class="o">(</span><span class="o">)</span>
-<b>returns:</b> a pseudo random inexact real between, but not including, 0 and 1.</code></pre>
+<pre><code><b>function: </b>random_real()
+<b>returns: </b>a pseudo random inexact real between, but not including, 0 and 1.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_byte_array<span class="o">(</span>n<span class="o">)</span>
-<b>returns:</b> a byte array of length <em>n</em> containing pseudo random exact integers in the range 0 to 255.</code></pre>
+<pre><code><b>function: </b>random_byte_array(n)
+<b>returns: </b>a byte array of length `n` containing pseudo random exact integers in the range 0 to 255.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>default_random_source<span class="o">(</span><span class="o">)</span>
-<b>returns:</b> the random source object which is used by the <em>random_integer</em>, <em>random_real</em> and
-         <em>random_byte_array</em> functions.</code></pre>
+<pre><code><b>function:</b> default_random_source()
+<b>returns: </b>the random source object which is used by the random_integer, random_real and
+random_byte_array functions.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_source<span class="o">(</span><span class="o">)</span>
-<b>returns:</b> a new random source object initialized to a predetermined state.</code></pre>
+<pre><code><b>function: </b>random_source()
+<b>returns: </b>a new random source object initialized to a predetermined state.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_random_source<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is a random source object, <em>false</em> otherwise.</code></pre>
+<pre><code><b>function: </b>is_random_source(obj)
+<b>returns: </b>true if `obj` is a random source object, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_source_state<span class="o">(</span>rs<span class="o">)</span>
-<b>returns:</b> an array containing the state of the random source <em>rs</em>.</code></pre>
+<pre><code><b>function: </b>random_source_state(rs)
+<b>returns: </b>an array containing the state of the random source `rs`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_source_set_state<span class="o">(</span>rs<span class="o">, </span>s<span class="o">)</span>
-<b>returns:</b> void</code></pre>
+<pre><code><b>function: </b>random_source_set_state(rs, s)
+<b>returns: </b>void
+
+Sets the state of the random source `rs` to `s` which must be an array returned
+by random_source_state.</code></pre>
 </div>
 
-<p>Sets the state of the random source <code>rs</code> to <code>s</code> which must be an array returned by <code>random_source_state</code>.</p>
-
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_source_randomize<span class="o">(</span>rs<span class="o">)</span>
-<span class="nc">function: </span>random_source_pseudo_randomize<span class="o">(</span>rs<span class="o">, </span>i <span class="o">, </span>j<span class="o">)</span>
-<b>returns:</b> void</code></pre>
+<pre><code><b>function: </b>random_source_randomize(rs)
+<b>function: </b>random_source_pseudo_randomize(rs, i , j)
+<b>returns: </b>void
+
+Change the state of the random source object `rs`. random_source_randomize sets the
+random source object to a state that depends on the current time (which for typical
+uses can be considered to randomly initialize the state).
+random_source_pseudo_randomize sets the random source object to a state that is determined
+only by the current state and the nonnegative exact integers `i` and `j`.</code></pre>
 </div>
 
-<p>These functions change the state of the random source object <code>rs</code>. <code>random_source_randomize</code> sets the 
-  random source object to a state that depends on the current time (which for typical uses can be considered to randomly initialize the state). 
-  <code>Random_source_pseudo_randomize</code> sets the random source object to a state that is determined only by the current state 
-  and the nonnegative exact integers <code>i</code> and <code>j</code>. </p>
-
 <div class="highlight">
-<pre><code><span class="nc">function: </span>random_source_for_integers<span class="o">(</span>rs<span class="o">)</span>
-<span class="nc">function: </span>random_source_for_reals<span class="o">(</span>rs<span class="o">, </span>@optional precision<span class="o">)</span>
-<span class="nc">function: </span>random_source_for_byte_arrays<span class="o">(</span>rs<span class="o">)</span>
-<b>returns:</b> a function for generating pseudo random exact integers, inexact reals or 
-         byte arrays using the random source object <em>rs</em>.</code></pre>
-</div>
+<pre><code><b>function: </b>random_source_for_integers(rs)
+<b>function: </b>random_source_for_reals(rs, @optional precision)
+<b>function: </b>random_source_for_byte_arrays(rs)
+<b>returns: </b>a function for generating pseudo random exact integers, inexact reals or 
+byte arrays using the random source object `rs`.
 
-<p>For <code>random_source_for_reals</code>, the optional parameter <code>precision</code> specifies an upper bound on the 
-  minimum amount by which two generated pseudo-random numbers can be separated.</p>
+For random_source_for_reals, the optional parameter precision specifies an upper bound on the
+minimum amount by which two generated pseudo-random numbers can be separated.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> rs <span class="o">=</span> random_source<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> ri <span class="o">=</span> random_source_for_integers<span class="o">(</span>rs<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> rr <span class="o">=</span> random_source_for_reals<span class="o">(</span>rs<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> ra <span class="o">=</span> random_source_for_byte_arrays<span class="o">(</span>rs<span class="o">)</span><span class="o">;</span> 
+<span class="c">// Example: </span>
+let rs = random_source(); 
+let ri = random_source_for_integers(rs); 
+let rr = random_source_for_reals(rs); 
+let ra = random_source_for_byte_arrays(rs); 
 
-<span class="nc">slogan&gt; </span>ri<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 8</span>
-<span class="nc">slogan&gt; </span>ri<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span>
-<span class="nc">slogan&gt; </span>rr<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; .7342236104231586</span>
-<span class="nc">slogan&gt; </span>rr<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; .8162050798467028</span>
-<span class="nc">slogan&gt; </span>ra<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #b[53, 192, 40, 176, 200, 53, 29, 202, 3, 85]</span>
-<span class="nc">slogan&gt; </span>ra<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #b[134, 119, 240, 127, 113, 8, 182, 120, 138, 103]</span></code></pre>
+ri(10); 
+<span class="c">//=> 8</span>
+
+ri(10); 
+<span class="c">//=> 2</span>
+
+rr(); 
+<span class="c">//=> .7342236104231586</span>
+
+rr(); 
+<span class="c">//=> .8162050798467028</span>
+
+ra(10); 
+<span class="c">//=> #u8[53, 192, 40, 176, 200, 53, 29, 202, 3, 85]</span>
+
+ra(10); 
+<span class="c">//=> #u8[134, 119, 240, 127, 113, 8, 182, 120, 138, 103]</span></code></pre>
 </div>
 
 <h4>Characters</h4>
@@ -2176,8 +2281,9 @@ is_bit_array(#u8[1, 0, 1, 1]);
   <code>read</code> and <code>string_to_symbol</code>. The symbol <code>prefix</code> is the prefix used to generate the new symbol's name. 
   If it is not specified, the prefix defaults to 'g'.</p>
 
+<a name="bools"></a>
 <h4>Booleans</h4>
-<p>While every object except <code>false</code> is counted as true, Slogan provides the dedicated constant <code>true</code> 
+<p>While every object except <code>false</code> is counted as true, Slogan has a dedicated constant <code>true</code> 
   for use when a value of an expression should convey nothing more than that it is true.</p>
 
 <div class="highlight">
@@ -2186,33 +2292,29 @@ is_bit_array(#u8[1, 0, 1, 1]);
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_true<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> true if <em>obj</em> evaluates to the constant <em>true</em> value.</code></pre>
+<pre><code><b>function: </b>is_true(obj)
+<b>returns: </b>true if `obj` evaluates to the constant true value.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_false<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> true if <em>obj</em> evaluates to the constant <em>false</em> value.</code></pre>
+<pre><code><b>function: </b>is_false(obj)
+<b>returns: </b>true if `obj` evaluates to the constant false value.</code></pre>
 </div>
 
+<a name="void"></a>
 <h4>Void</h4>
 
-<div class="highlight">
-<pre><code><span class="nc">function: </span>void<span class="o">(</span><span class="o">)</span>
-<b>returns:</b> the <em>void</em> object.</code></pre>
-</div>
-
-<p>The <code>void</code> object has no printed representation. It is used as a return value for functions called primarily for 
+<p>The <code>void</code> object has no printed representation. It is often used as a return value for functions called only for 
   their side-effects.</p>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_void<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is the <em>void</em> object.</code></pre>
+<pre><code><b>function: </b>void()
+<b>returns: </b>the void object.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>is_object<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is any object other than <em>void</em>.</code></pre>
+<pre><code><b>function: </b>is_void(obj)
+<b>returns: </b>true if `obj` is the void object.</code></pre>
 </div>
 
 <h4>Arrays</h4>
@@ -2593,11 +2695,6 @@ is_s8array(#s8[-1, 2, 3]);
 <p>Bitarray literals have the prefix <code>#b</code>. For example, this is a bitarray literal with 4 bits: <code>#b[1, 0, 1, 1]</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_bit_array<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is a bitarray, <em>false</em> otherwise.</code></pre>
-</div>
-
-<div class="highlight">
   <pre><code><span class="nc">function: </span>bit_array<span class="o">(</span>bit1<span class="o">, </span>...<span class="o">)</span>
 <b>returns:</b> a new bitarray with <em>bit1 ...</em> as elements.</code></pre>
 </div>
@@ -2616,6 +2713,18 @@ is_s8array(#s8[-1, 2, 3]);
 </div>
 
 <p>All the elements are initialized to <code>0</code>.</p>
+
+<div class="highlight">
+  <pre><code><b>function: </b>is_bit_array(obj) 
+<b>returns: </b>true if `obj` is a bit-array, false otherwise.
+
+<span class="c">// Examples:</span>
+is_bit_array(#b[1, 0, 1, 1]); 
+<span class="c">//=> true</span>
+
+is_bit_array(#u8[1, 0, 1, 1]); 
+<span class="c">//=> false</span></code></pre>
+</div>
 
 <div class="highlight">
   <pre><code><span class="nc">function: </span>bit_array_length<span class="o">(</span>arr<span class="o">)</span>
