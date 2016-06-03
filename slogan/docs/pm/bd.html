@@ -34,7 +34,8 @@
         <li><a href="#lists">Lists</a></li>
         <li><a href="#assocs">Association lists</a></li>
         <li><a href="#nums">Numbers</a></li>
-        <li><a href="#bools">Booleans</a></li>      
+        <li><a href="#bools">Booleans</a></li>
+        <li><a href="#void">Void</a></li>
         <li><a href="#chars">Characters</a></li>
         <li><a href="#strings">Strings</a></li>
         <li><a href="#symbols">Symbols</a></li>
@@ -44,8 +45,8 @@
       </ul>
     </p>
     
-    <p>We will also cover related topics like <a href="#listcomps">list comprehensions</a>, <a href="#lseqs">lazy sequences</a>,
-      <a href="#iters">iterators</a>, special arrays like <a href="#bitarrays">bitarrays</a> and the <a href="#void">void</a> type.</p>
+    <p>We will also cover related topics like <a href="#listcomps">list comprehension</a>, <a href="#lseqs">lazy sequences</a>,
+      <a href="#iters">iterators</a>, <a href="#bytearrays">bytearrays</a> and <a href="#bitarrays">bitarrays</a>.</p>
 
     <p>But before all that we discuss functions that test two objects for equality.</p>
 
@@ -215,10 +216,14 @@ list_of("hello", 3);
 <div class="highlight">
   <pre><code><b>syntax: </b>lst[index]
 <b>returns: </b>the value at `index` from the list `lst`. if `index` is out-of-range, returns false.
-if `index` is a pair of integers, returns the sublist in that range.
+if `index` is a pair of integers, returns the sublist in that range.</code></pre></div>
 
-<b>syntax: </b>lst[index] = obj
-<b>returns: </b>a new list with the value at `index` in `lst` replaced with `obj`.  
+<div class="highlight">
+  <pre><code><b>syntax: </b>lst[index] = obj
+<b>returns: </b>void
+
+`lst` is destructively updated by changing the element at `index` to `obj`.
+raises an error if `index` is out of bounds.
 
 <span class="c">// Examples:</span>
 let a = [1,2,3,4,5];
@@ -227,9 +232,6 @@ a[1];
 
 a[1:3];
 <span class="c">//=> [2, 3]</span>
-
-a[10];
-<span class="c">//=> false</span>
 
 a[10:23];
 <span class="c">//=> []</span>
@@ -244,9 +246,33 @@ a[:3];
 <span class="c">//=> [1, 2, 3]</span>
 
 a[3] = 100;
+a;
 <span class="c">//=> [1, 2, 3, 100, 5]</span></code></pre>
 </div>
 
+<div class="highlight">
+  <pre><code><b>function: </b>ref(lst, index, @key value = void, default = false) 
+<b>returns: </b>if `value` is not specified, returns the element at `index`.
+if `index` is out of bounds, return `default`.
+
+If `value` is specified, updates the element at `index` to `value`.
+The update is destructive and returns the updated pair from the list.
+If `index` is out of bounds, raises an error.
+
+<span class="c">// Examples:</span>
+let a = [1,2,3];
+ref(a, 2);
+<span class="c">//=> 3</span>
+ref(a, 3);
+<span class="c">//=> false</span>
+ref(a, 3, default = 'none);
+<span class="c">//=> none</span>
+ref(a, 1, value = 100);
+<span class="c">//-> [100, 3]</span>
+a;
+<span class="c">//=> [1, 100, 3]</span></code></pre>
+</div>
+      
 <div class="highlight">
   <pre><code><b>function: </b>is_empty(obj) 
 <b>returns: </b>true if `obj` is the empty list `[]`, false otherwise.</code></pre>
@@ -593,7 +619,7 @@ list_to_string(sort(string_to_list("hello"), char_is_lt, 'merge));
 </div>
 
 <a name="listcomps"></a>
-<h5>List Comprehensions</h5>
+<h5>List Comprehension</h5>
 <p>A list comprehension is a notational convenience for constructing lists from other lists.</p>
 <p>Example:</p>
 
@@ -1921,6 +1947,42 @@ ra(10);
 <span class="c">//=> #u8[134, 119, 240, 127, 113, 8, 182, 120, 138, 103]</span></code></pre>
 </div>
 
+<a name="bools"></a>
+<h4>Booleans</h4>
+<p>While every object except <code>false</code> is counted as true, Slogan has a dedicated constant <code>true</code> 
+  for use when a value of an expression should convey nothing more than that it is true.</p>
+
+<div class="highlight">
+  <pre><code><b>function: </b>is_boolean(obj) 
+<b>returns: </b>true if `obj` is either true or false, false otherwise.</code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function: </b>is_true(obj)
+<b>returns: </b>true if `obj` evaluates to the constant true value.</code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function: </b>is_false(obj)
+<b>returns: </b>true if `obj` evaluates to the constant false value.</code></pre>
+</div>
+
+<a name="void"></a>
+<h4>Void</h4>
+
+<p>The <code>void</code> object has no printed representation. It is often used as a return value for functions called only for 
+  their side-effects.</p>
+
+<div class="highlight">
+<pre><code><b>function: </b>void()
+<b>returns: </b>the void object.</code></pre>
+</div>
+
+<div class="highlight">
+<pre><code><b>function: </b>is_void(obj)
+<b>returns: </b>true if `obj` is the void object.</code></pre>
+</div>
+
 <a name="chars"></a>
 <h4>Characters</h4>
 <p>Characters are atomic objects representing letters, digits, special symbols such as $ or _, and certain non-graphic control 
@@ -2003,7 +2065,7 @@ char_is_ci_eq(\a, \A);
 
 <a name="strings"></a>
 <h4>Strings</h4>
-<p>Strings are sequences of characters and are often used asr containers for blocks of text. A string is 
+<p>Strings are sequences of characters and are often used as containers for blocks of text. A string is 
   written as a sequence of characters enclosed in double quotes, e.g., <code>&quot;hi there&quot;</code>. A double quote may be introduced into a 
   string by preceding it by a backward slash, e.g., <code>&quot;two \&quot;quotes\&quot; within&quot;</code>. 
   A backward slash may also be included 
@@ -2098,6 +2160,67 @@ s;
 </div>
 
 <div class="highlight">
+  <pre><code><b>syntax: </b>string[index]
+<b>returns: </b>if `index` is an integer, the character at `index`.
+if `index` is a pair of integers, a string that contains the characters in that range.      
+
+if `index` is out of bounds, an error is raised.
+
+<span class="c">// Examples:</span>
+let s = "hello, world";
+s[3];
+<span class="c">//=> \l</span>
+s[1:5];
+<span class="c">//=> "ello"</span>
+s[3:];
+<span class="c">//=> "lo, world"</span>
+slogan> s[:3];
+<span class="c">//=> "hel"</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>syntax: </b>string[index] = char
+<b>returns:</b> void
+
+destructively sets the character at `index` to `char`.
+raises an error if `index` is out of bounds.
+
+<span class="c">// Example:</span>
+s;
+<span class="c">//=> "hello, world"</span>
+s[3] = \L;
+s[2] = \L;
+s;
+<span class="c">//=> "heLLo, world"</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>ref(string, index, @key value = void, default = false) 
+<b>returns: </b>if `value` is not specified, returns the character at `index`.
+if `index` is out of bounds, return `default`.
+
+If `value` is specified, updates the character at `index` to `value`.
+The update is destructive and returns the updated string.
+If `index` is out of bounds, raises an error.
+
+<span class="c">// Examples:</span>
+s;
+<span class="c">//=> "heLLo, world"</span>
+ref(s, 10);
+<span class="c">//=> \l</span>
+ref(s, 11);
+<span class="c">//=> \d</span>
+ref(s, 12);
+<span class="c">//=> false</span>
+ref(s, 12, default = \nul);
+<span class="c">//=> \nul</span>
+ref(s, 10, value=\D);
+<span class="c">//=> "heLLo, worDd"</span>
+s;
+<span class="c">//=> "heLLo, worDd"</span></code></pre>
+  </div>
+
+<div class="highlight">
 <pre><code><b>function: </b>strings_at(strings, n)
 <b>returns: </b>a list of the `n`<sup>th</sup> characters of all strings in the list strings.
 
@@ -2190,7 +2313,8 @@ right or both left and right.</code></pre>
   <pre><code><b>function: </b>string_for_each(f, string1, string2, ...)
 <b>returns: </b>void.
 
-string_for_each is similar to string_map except for the fact that `f` is called for its side-effect.
+string_for_each is similar to string_map except for the fact that `f` is called
+for its side-effect.
 
 <span class="c">// Example:</span>
 let (s = make_string(10), i = 0) 
@@ -2263,10 +2387,11 @@ u8array_to_string(#u8[65, 66, 67]);
 <a name="symbols"></a>
 <h4>Symbols</h4>
 <p>Symbols are used for a variety of purposes as symbolic names in Slogan programs. Strings could be used for most of the same purposes, 
-  but an important characteristic of symbols makes comparisons between symbols much more efficient. This characteristic is that two 
-  symbols with the same name are identical in the sense of <code>is_eq</code>. The reason is that Slogan makes sure that two symbols with
-  the same sequence of characters are always stored in the same location in memory.</p>
-<p>All characters valid in identifiers can be used in symbols. Symbol constants are written by prefixing identifiers with the quote mark (<code>'</code>).</p>
+  but an important characteristic of symbols makes comparisons for equality much more efficient. Two symbols with the same name are
+  identical in the sense of <code>is_eq</code>. This is so because two symbols with the same sequence of characters are always stored
+  in the same location in memory.</p>
+<p>Symbol constants are written by prefixing identifiers with the quote mark (<code>'</code>). All characters valid in identifiers can
+  be used in symbols. Symbols with spaces and special characters are written by enclosing the symbol in tick (<code>`</code>) quotes.</>
 
 <div class="highlight">
   <pre><code><b>function: </b>is_symbol(obj) 
@@ -2274,104 +2399,68 @@ u8array_to_string(#u8[65, 66, 67]);
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>string_to_symbol<span class="o">(</span>string<span class="o">)</span>
-<b>returns:</b> a symbol whose name is <em>string</em>.</code></pre>
+<pre><code><b>function: </b>string_to_symbol(string)
+<b>returns: </b>a symbol whose name is `string`.
+
+<span class="c">// Example:</span>
+is_eq('hello, string_to_symbol("hello")); 
+<span class="c">//=> true</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>is_eq<span class="o">(</span><span class="o">'</span>hello<span class="o">,</span> string_to_symbol<span class="o">(</span><span class="s1">&quot;hello&quot;</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span></code></pre>
+<pre><code><b>function: </b>symbol_to_string(symbol)
+<b>returns: </b>the name of `symbol` as a string.
+
+<span class="c">// Example: </span>
+symbol_to_string('`hello world!`);
+<span class="c">//=> "hello world!"</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>symbol_to_string<span class="o">(</span>symbol<span class="o">)</span>
-<b>returns:</b> the name of <em>symbol</em> as a string.</code></pre>
-</div>
+<pre><code><b>function: </b>gensym(prefix = 'g)
+<b>returns: </b>a new uninterned symbol.
 
-<div class="highlight">
-<pre><code><span class="nc">function: </span>gensym<span class="o">(</span>@optional prefix<span class="o">)</span>
-<b>returns:</b> a new uninterned symbol.</code></pre>
-</div>
+Uninterned symbols are guaranteed to be distinct from the symbols created in
+program source code or generated by functions like `read` and `string_to_symbol`.
+`prefix` is a symbol that will be used as the prefix for the generated symbol.
 
-<p>UN-interned symbols are guaranteed to be distinct from the symbols created in program source code or generated by functions like
-  <code>read</code> and <code>string_to_symbol</code>. The symbol <code>prefix</code> is the prefix used to generate the new symbol's name. 
-  If it is not specified, the prefix defaults to 'g'.</p>
+<span class="c">// Examples:</span>
+gensym();
+<span class="c">//=> g0</span>
+gensym('me);
+<span class="c">//me1</span></code></pre></div>
 
-<a name="bools"></a>
-<h4>Booleans</h4>
-<p>While every object except <code>false</code> is counted as true, Slogan has a dedicated constant <code>true</code> 
-  for use when a value of an expression should convey nothing more than that it is true.</p>
-
-<div class="highlight">
-  <pre><code><b>function: </b>is_boolean(obj) 
-<b>returns: </b>true if `obj` is either true or false, false otherwise.</code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><b>function: </b>is_true(obj)
-<b>returns: </b>true if `obj` evaluates to the constant true value.</code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><b>function: </b>is_false(obj)
-<b>returns: </b>true if `obj` evaluates to the constant false value.</code></pre>
-</div>
-
-<a name="void"></a>
-<h4>Void</h4>
-
-<p>The <code>void</code> object has no printed representation. It is often used as a return value for functions called only for 
-  their side-effects.</p>
-
-<div class="highlight">
-<pre><code><b>function: </b>void()
-<b>returns: </b>the void object.</code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><b>function: </b>is_void(obj)
-<b>returns: </b>true if `obj` is the void object.</code></pre>
-</div>
-
+<a name="arrays"></a>
 <h4>Arrays</h4>
 
-<p>Arrays are more convenient and efficient than lists for some applications. Whereas accessing an arbitrary element in a list requires a 
-  linear traversal of the list up to the selected element, arbitrary array elements are accessed in constant time. The length of an array 
-  is the number of elements it contains. Arrays are indexed by exact nonnegative integers, and the index of the first element of any array 
-  is <code>0</code>. The highest valid index for a given array is one less than its length.</p>
-
-<p>As with lists, the elements of an array can be of any type, and a single array can hold more than one type of object.</p>
-
-<p>An array literal looks similar to a list literal, except for the fact that the opening bracket is preceded by a hash (<code>#</code>).
-  For example, an array consisting of the elements <code>1</code>, <code>2</code>, and <code>3</code> would be written <code>#[1, 2, 3]</code>.</p>
+<p>An array literal looks similar to a list literal, except that the opening bracket is preceded by a hash (<code>#</code>).
+  For example, an array consisting of the elements <code>1</code>, <code>2</code>, and <code>3</code> will be written as <code>#[1, 2, 3]</code>.</p>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array<span class="o">(</span>obj1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> an array of the objects <em>obj1 ...</em>.</code></pre>
+<pre><code><b>function: </b>array(obj1, ...)
+<b>returns: </b>an array of the objects `obj1 ...`.
+
+<span class="c">// Examples:</span>
+array(); 
+<span class="c">//=> #[]</span>
+array(1, 2, 3); 
+<span class="c">//=> #[1, 2, 3]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>array<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[]</span>
-<span class="nc">slogan&gt; </span>array<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[1, 2, 3]</span></code></pre>
-</div>
+<pre><code><b>function: </b>make_array(d, fill = false)
+<b>returns:</b> an array of dimension `d`.
 
-<div class="highlight">
-<pre><code><span class="nc">function: </span>make_array<span class="o">(</span>d<span class="o">, </span>@optional fill<span class="o">)</span>
-<b>returns:</b> an array of dimension <em>d</em>.</code></pre>
-</div>
+`d` can be either an exact nonnegative integer or a list of exact nonnegative integers.
+All the elements of the array is inistalized to the value `fill`.
 
-<p>The dimension <code>d</code> can be either an exact nonnegative integer or a list of exact nonnegative integers. 
-  If <code>fill</code> is supplied, each element of the array is filled with it. <code>Fill</code> defaults to <code>false</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>make_array<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[false, false, false, false, false]</span>
-<span class="nc">slogan&gt; </span>make_array<span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="o">'</span>hello<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[hello, hello, hello, hello, hello]</span>
-<span class="nc">slogan&gt; </span>make_array<span class="o">(</span><span class="o">[</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">'</span>hello<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[#[hello, hello, hello], #[hello, hello, hello]]</span></code></pre>
+<span class="c">// Examples:</span>
+make_array(5); 
+<span class="c">//=> #[false, false, false, false, false]</span>
+make_array(5, 'hello); 
+<span class="c">//=> #[hello, hello, hello, hello, hello]</span>
+make_array([2, 3], 'hello); 
+<span class="c">//=> #[#[hello, hello, hello], #[hello, hello, hello]]</span></code></pre>
 </div>
 
 <div class="highlight">
@@ -2380,173 +2469,210 @@ u8array_to_string(#u8[65, 66, 67]);
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_length<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> the number of elements in the array <em>arr</em>.</code></pre>
+<pre><code><b>function: </b>array_length(array)
+<b>returns: </b>the number of elements in `array`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_at<span class="o">(</span>arr<span class="o">, </span>index<span class="o">)</span>
-<b>returns:</b> the element at the (zero-based) <em>index</em> position of the array <em>arr</em>.</code></pre>
+  <pre><code><b>function:</b> array_at(array, index)
+<b>syntax: </b>array[index]      
+<b>returns:</b> the element at the (zero-based) `index` position of `array`.
+
+array_at and [] will raise an "Out of range" error if `index < 0 or index >= array_length(array)`.
+For array_at, `index` can also be a list of integers that indicates the position inside
+a multi-dimensional array.
+  
+<span class="c">// Examples:</span>
+let a = #[1, 2, "hi", 'abc];
+array_at(a, 3);
+<span class="c">//=> abc</span>
+a[2];
+<span class="c">//=> "hi"</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>arrays_at<span class="o">(</span>arrays<span class="o">, </span>index<span class="o">)</span>
-<b>returns:</b> a list of elements at the (zero-based) <em>index</em> of the arrays in the list <em>arrays</em>.</code></pre>
+  <pre><code><b>function: </b>arrays_at(arrays, index)
+<b>returns: </b>a list of elements at the (zero-based) `index` of the arrays in the list `arrays`.
+
+`index` can also be a list of integers that indicates the position inside a
+multi-dimensional array.
+
+<span class="c">// Example:</span>
+arrays_at([#[1, 2, 3], #['a, 'b, 'c]], 2); 
+<span class="c">//=> [3, c]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>arrays_at<span class="o">(</span><span class="o">[</span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="o">'</span>a<span class="o">,</span> <span class="o">'</span>b<span class="o">,</span> <span class="o">'</span>c<span class="o">]</span><span class="o">]</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; [3, c]</span></code></pre>
+<pre><code><b>function: </b>array_set(array, index, obj)
+returns: void
+<b>syntax: </b>array[index] = obj    
+Sets the element at the (zero-based) index of the array arr to the object obj.
+
+For the functions array_at, arrays_at and array_set, the index argument can also be a
+list of integers that indicates the position inside a multi-dimensional array.
+
+<span class="c">// Examples:</span>
+let a = make_array([2, 3]); 
+a; 
+<span class="c">//=> #[#[false, false, false], #[false, false, false]]</span>
+array_at(a, [1, 2]); 
+<span class="c">//=> false</span>
+array_set(a, [1, 2], "hello"); 
+array_at(a, [1, 2]); 
+<span class="c">//=> hello</span>
+
+a[1][2];
+<span class="c">//=> hello</span>
+a[0][1] = 100;
+a;
+<span class="c">//=> #[#[false, 100, false], #[false, false, "hello"]]</span></code></pre>
+</div>
+
+
+<div class="highlight">
+  <pre><code><b>function: </b>ref(array, index, @key value = void, default = false) 
+<b>returns: </b>if `value` is not specified, returns the element at `index`.
+if `index` is out of bounds, return `default`.
+
+If `value` is specified, updates the element at `index` to `value`.
+The update is destructive and returns the updated array.
+If `index` is out of bounds, raises an error.
+
+<span class="c">// Examples:</span>
+ref(a, 1);
+<span class="c">//=> #[false, false, "hello"]</span>
+ref(a, 2);
+<span class="c">//=> false</span>
+ref(a, 2, default = 100);
+<span class="c">//=> 100</span>
+ref(a, 1, value = [1,2,3]);
+<span class="c">//=> #[#[false, 100, false], [1, 2, 3]]</span>
+a;
+<span class="c">//=> #[#[false, 100, false], [1, 2, 3]]</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_set<span class="o">(</span>arr<span class="o">, </span>index<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
+  <pre><code><b>function: </b>array_fill(array, object)
+<b>returns: </b>void
 
-<p>Sets the element at the (zero-based) <em>index</em> of the array <code>arr</code> to the object <code>obj</code>.</p>
-
-<p>For the functions <code>array_at</code>, <code>arrays_at</code> and <code>array_set</code>, the index argument can also be
-  a list of integers that indicates the position inside a multi-dimensional array:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> make_array<span class="o">(</span><span class="o">[</span><span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">;</span> 
-<span class="ge">=&gt; #[#[false, false, false], #[false, false, false]]</span>
-<span class="nc">slogan&gt; </span>array_at<span class="o">(</span>a<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span>
-<span class="nc">slogan&gt; </span>array_set<span class="o">(</span>a<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>array_at<span class="o">(</span>a<span class="o">,</span> <span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hello</span></code></pre>
+sets all elements of `array` to `object`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_fill<span class="o">(</span>arr<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Sets all elements of the array <code>arr</code> to the object <code>obj</code>.</p>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>array_to_list<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a list with the elements of the array <em>arr</em>.</code></pre>
+<pre><code><b>function: </b>array_to_list(array)
+<b>returns: </b>a list with all the elements of `array`.
+</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>list_to_array<span class="o">(</span>lst<span class="o">)</span>
-<b>returns:</b> an array with the elements of the list <em>lst</em>.</code></pre>
+<pre><code><b>function: </b>list_to_array(list)
+<b>returns: </b>an array with all the elements of `list`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_copy<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a new array with all the elements of the array <em>arr</em>.</code></pre>
+<pre><code><b>function: </b>array_copy(array)
+<b>returns: </b>a new array with all the elements of `array`.</code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_append<span class="o">(</span>arr<span class="o">, </span>@optional a1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> a new array with all the elements of the arrays <em>a1 ...</em> appended to the array <em>arr</em>.</code></pre>
+<pre><code><b>function: </b>array_append(array, @rest a1, ...)
+<b>returns: </b>a new array with all the elements of the arrays `a1 ...` appended to `array`.
+
+<span class="c">// Examples:</span>
+array_append(#[1, 2, 3], #[4, 5, 6], #[100]); 
+<span class="c">//=> #[1, 2, 3, 4, 5, 6, 100]</span>
+array_append(#[1, 2, 3]); 
+<span class="c">//=> #[1, 2, 3]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>array_append<span class="o">(</span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">100</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[1, 2, 3, 4, 5, 6, 100]</span>
-<span class="nc">slogan&gt; </span>array_append<span class="o">(</span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[1, 2, 3]</span></code></pre>
+<pre><code><b>function: </b>array_shrink(array, n)
+<b>returns: </b>void
+
+reduces the size of `array` to `n`.
+
+<span class="c">// Example:</span>
+let a = #['a, 'b, 'c]; 
+array_shrink(a, 1); 
+a; 
+<span class="c">//=> #[a]</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>array_shrink<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
+<pre><code><b>function: </b>subarray(array, start, end)
+<b>returns: </b>a new array with the elements of `array` from `start` (inlusive) to `end` (exclusive).
 
-<p>Reduces the size of the array <code>arr</code> to <code>n</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> <span class="o">#</span><span class="o">[</span><span class="o">'</span>a<span class="o">,</span> <span class="o">'</span>b<span class="o">,</span> <span class="o">'</span>c<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>array_shrink<span class="o">(</span>a<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">;</span> 
-<span class="ge">=&gt; #[a]</span></code></pre>
+<span class="c">// Examples:</span>
+subarray(#[1, 2, 3, 4, 5], 2, 4); 
+<span class="c">//=> #[3, 4]</span>
+subarray(#[1, 2, 3, 4, 5], 2, 5); 
+<span class="c">//=> #[3, 4, 5]</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>subarray<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">)</span>
-<b>returns:</b> a new array with the elements of the array <em>arr</em> from the index <em>start</em> (inlusive) 
-         to <em>end</em> (exclusive).</code></pre>
+<pre><code><b>function: </b>subarray_fill(array, start, end, object)
+<b>returns: </b>void
+
+This function is like array_fill, but fills only a selected part of `array`.
+It sets the elements of `array`, beginning with index `start` (inclusive) and ending
+with index `end` (exclusive) to `object`.
+
+<span class="c">// Examples:</span>
+let a = #[1, 2, 3, 4, 5]; 
+subarray_fill(a, 2, 4, 'x); 
+a; 
+<span class="c">//=> #[1, 2, x, x, 5]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>subarray<span class="o">(</span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">4</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[3, 4]</span>
-<span class="nc">slogan&gt; </span>subarray<span class="o">(</span><span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[3, 4, 5]</span></code></pre>
+<pre><code><b>function: </b>subarray_move(array, start, end, dst_array, dst_start)
+<b>returns: </b>void
+
+Replaces part of the contents of `dst_array` with part of the contents of `array`.
+Copies elements from `array`, beginning with index `start` (inclusive) and ending with
+index `end` (exclusive) to `dst_array` beginning with index `dst_start` (inclusive).
+
+<span class="c">// Example:</span>
+let a = #[1, 2, 3, 4, 5]; 
+let b = #['a, 'b, 'c, 'd, 'e]; 
+subarray_move(a, 3, 5, b, 1); 
+b; 
+<span class="c">//=> #[a, 4, 5, d, e]</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>subarray_fill<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
+<pre><code><b>function: </b>array_map(f , array1, ...)
+<b>returns: </b>an array containing the result of applying the function `f` to
+the elements of `array1, ...`.
 
-<p>This function is like <code>array_fill</code>, but fills a selected part of the given array. It sets the elements of the array 
-  <code>arr</code>, beginning with index <code>start</code> (inclusive) and ending with index <code>end</code> (exclusive) to the object
-  <code>obj</code>. </p>
+The arrays `array1 ...` must be of the same length.
+`f` must accept as many arguments as there are arrays.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>subarray_fill<span class="o">(</span>a<span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="o">'</span>x<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">;</span> 
-<span class="ge">=&gt; #[1, 2, x, x, 5]</span></code></pre>
+<span class="c">// Example:</span>
+array_map(^(x, y) x * y, #[1, 2, 3], #[4, 5, 6]); 
+<span class="c">//=> #[4, 10, 18]</span></code></pre>
 </div>
 
 <div class="highlight">
-<pre><code><span class="nc">function: </span>subarray_move<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>dst_arr<span class="o">, </span>dst_start<span class="o">)</span>
-<b>returns:</b> void</code></pre>
+<pre><code><b>function: </b>array_for_each(f , array1, ...)
+<b>returns: </b>void
+
+Similar to array_map but the `f` is called only for its side-effect.
+
+<span class="c">// Example:</span>
+array_for_each(^(x, y) showln(x * y), #[1, 2, 3], #[4, 5, 6]); 
+<span class="c">//-> 4 
+     10
+     18</span></code></pre>
 </div>
 
-<p>This function replaces part of the contents of the array <code>dst_arr</code> with part of the contents of the array <code>arr</code>. 
-  It copies elements from <code>arr</code>, beginning with index <code>start</code> (inclusive) and ending with index <code>end</code> 
-  (exclusive) to <code>dst_arr</code> beginning with index <code>dst_start</code> (inclusive). </p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> b <span class="o">=</span> <span class="o">#</span><span class="o">[</span><span class="o">'</span>a<span class="o">,</span> <span class="o">'</span>b<span class="o">,</span> <span class="o">'</span>c<span class="o">,</span> <span class="o">'</span>d<span class="o">,</span> <span class="o">'</span>e<span class="o">]</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>subarray_move<span class="o">(</span>a<span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> b<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>b<span class="o">;</span> 
-<span class="ge">=&gt; #[a, 4, 5, d, e]</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>array_map<span class="o">(</span>f <span class="o">, </span>arr1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> an array containing the result of applying the function <em>f</em> to the elements of the 
-         arrays <em>arr1, ...</em> in sequence.</code></pre>
-</div>
-
-<p>The arrays <code>arr1 ...</code> must be of the same length. The function <code>f</code> must accept as many arguments as there are arrays.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>array_map<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> x <span class="o">*</span> y<span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #[4, 10, 18]</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><span class="nc">function: </span>array_for_each<span class="o">(</span>f <span class="o">, </span>arr1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p><code>Array_for_each</code> is similar to <code>array_map</code> but the function <code>f</code> is called for its side-effect.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>array_for_each<span class="o">(</span><span class="k">^</span><span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> showln<span class="o">(</span>x <span class="o">*</span> y<span class="o">)</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span><span class="o">[</span><span class="mi">4</span><span class="o">,</span> <span class="mi">5</span><span class="o">,</span> <span class="mi">6</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; 4 
-   10
-   18</span></code></pre>
-</div>
-
+<a name="bytearrays"></a>
 <h4>Bytearrays</h4>
 <p>Bytearrays are arrays of raw binary data. They are organized as a sequence of exact unsigned or signed 8-bit integers.
-  The length of a bytearray is the number of 8-bit bytes it stores, and indices into a bytearray are always given as byte offsets.</p>
+  The length of a bytearray is the number of 8-bit bytes it store, and indices into a bytearray are always given as byte offsets.</p>
 
 <p>Unsigned bytearray literals are written with the <code>#u8</code> prefix and signed byte arrays are written with the <code>#s8</code> prefix.
-  For example, this is an unsigned bytearray literal: <code>#u8[1, 10, 250]</code> and this is a signed bytearray literal: 
+  For example, this is an unsigned bytearray literal: <code>#u8[1, 10, 250]</code>, and this is a signed bytearray literal: 
   <code>#s8[-10, 90, -100]</code>. An unsigned bytearray can contain integers in the range <code>0 to 255</code> and a 
   signed bytearray can contain integers in the range <code>-128 to 127</code>.</p>
 
@@ -2554,128 +2680,176 @@ u8array_to_string(#u8[65, 66, 67]);
   have the suffix or infix <code>u8</code> and the functions that deal with signed values have the suffix or infix <code>s8</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>is_u8array<span class="o">(</span>obj<span class="o">)</span>
-<span class="nc">function: </span>is_s8array<span class="o">(</span>obj<span class="o">)</span>
-<b>returns:</b> <em>true</em> if <em>obj</em> is array of unsigned or signed values, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function: </b>is_u8array(obj)
+<b>function: </b>is_s8array(obj)
+<b>returns: </b>true if `obj` is an array of unsigned/signed values, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array<span class="o">(</span>ubyte1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>s8array<span class="o">(</span>sbyte1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> an array of the unsigned or signed values.</code></pre>
+  <pre><code><b>function: </b>u8array(ubyte1, ...)
+<b>function: </b>s8array(sbyte1, ...)
+<b>returns: </b>an array of the unsigned/signed values.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>make_u8array<span class="o">(</span>d<span class="o">, </span>@optional fill<span class="o">)</span>
-<span class="nc">function: </span>make_s8array<span class="o">(</span>d<span class="o">, </span>@optional fill<span class="o">)</span>
-<b>returns:</b> an array of unsigned or signed values of size <em>d</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b>make_u8array(d, fill = 0)
+<b>function: </b>make_s8array(d, fill = 0)
+<b>returns: </b>an array of unsigned/signed values of size `d`.
 
-<p>The dimension <code>d</code> should be an unsigned integer. If <code>fill</code> is provided, the array elements are initialized to
-  that value. <code>Fill</code> defaults to <code>0</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_length<span class="o">(</span>arr<span class="o">)</span>
-<span class="nc">function: </span>s8array_length<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> the number of elements in the bytearray <em>arr</em>.</code></pre>
+`d` must be an unsigned integer. If `fill` is provided, the array elements are initialized
+to that value.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_at<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<span class="nc">function: </span>s8array_at<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> the <em>n</em><sup>th</sup> element of the bytearray <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>u8array_length(bytearray)
+<b>function: </b>s8array_length(bytearray)
+<b>returns: </b>the number of elements in `bytearray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_set<span class="o">(</span>arr<span class="o">, </span>n<span class="o">, </span>b<span class="o">)</span>
-<span class="nc">function: </span>s8array_set<span class="o">(</span>arr<span class="o">, </span>n<span class="o">, </span>b<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Sets the <em>n</em><sup>th</sup> element of the bytearray <em>arr</em> to <em>b</em>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_to_list<span class="o">(</span>arr<span class="o">)</span>
-<span class="nc">function: </span>s8array_to_list<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a list with the elements of the bytearray <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>u8array_at(bytearray, n)
+<b>function: </b>s8array_at(bytearray, n)
+<b>returns: </b>the `n`<sup>th</sup> element of `bytearray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>list_to_u8array<span class="o">(</span>lst<span class="o">)</span>
-<span class="nc">function: </span>list_to_s8array<span class="o">(</span>lst<span class="o">)</span>
-<b>returns:</b> a bytearray with the elements of the list <em>lst</em>.</code></pre>
+  <pre><code><b>function: </b>u8array_set(bytearray, n, b)
+<b>function: </b>s8array_set(bytearray, n, b)
+<b>returns: </b>void
+
+Sets the `n`<sup>th</sup> element of `bytearray` to `b`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>object_to_u8array<span class="o">(</span>obj<span class="o">, </span>@optional encoder<span class="o">)</span>
-<b>returns:</b> a bytearray that encodes the object <em>obj</em>.</code></pre>
+  <pre><code><b>syntax: </b>bytearray[index]
+<b>returns: </b>the byte at `index`.
+
+Raises an error if `index` is out of bounds.
+
+<b>syntax: </b>bytearray[index] = b
+<b>returns: </b>void
+
+Destructively sets the byte at `index` to `b`.
+Raises an error is `index` is out of bounds.
+
+<span class="c">// Examples:</span>
+let ub = #u8[1,2,3];
+ub[2];
+<span class="c">//=> 3</span>
+ub[2] = 100;
+ub;
+<span class="c">//=> #u8[1, 2, 100]</span>
+let sb = #s8[-1,-2,-3];
+sb[2];
+<span class="c">//=> -3</span>
+sb[2] = -90;
+sb;
+<span class="c">//=> #s8[-1, -2, -90]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_to_object<span class="o">(</span>arr<span class="o">, </span>@optional decoder<span class="o">)</span>
-<b>returns:</b> an object deserialized from the bytearray <em>arr</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b>ref(bytearray, index, @key value = void, default = false) 
+<b>returns: </b>if `value` is not specified, returns the byte at `index`.
+if `index` is out of bounds, return `default`.
 
-<p>The optional <code>encoder</code> and <code>decoder</code> parameters are single parameter functions which
-  default to the identity function. The encoder function is called during serialization.
-  As the serializer walks through <code>obj</code>, it calls the encoder function on each sub-object
-  that is encountered. Similarly the decoder function is called during
-  deserialization once for each sub-object encountered. These functions can be used to perform transformations on the objects.</p>
+If `value` is specified, updates the byte at `index` to `value`.
+The update is destructive and returns the updated bytearray.
+If `index` is out of bounds, raises an error.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_fill<span class="o">(</span>arr<span class="o">, </span>fill<span class="o">)</span>
-<span class="nc">function: </span>s8array_fill<span class="o">(</span>arr<span class="o">, </span>fill<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Sets all elements in the bytearray <code>arr</code> to <code>fill</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_append<span class="o">(</span>arr<span class="o">, </span>@optional a1<span class="o">, </span>...<span class="o">)</span>
-<span class="nc">function: </span>s8array_append<span class="o">(</span>arr<span class="o">, </span>@optional a1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> a new bytearray created by appending <em>a1 ...</em> to <em>arr</em>.</code></pre>
+<span class="c">// Example:</span>
+ub;
+<span class="c">//=> #u8[1, 2, 100]</span>
+ref(ub, 1);
+<span class="c">//=> 2</span>
+ref(ub, 10);
+<span class="c">//=> false</span>
+ref(ub, 10, default=100);
+<span class="c">//=> 100</span>
+ref(ub, 1, value=20);
+<span class="c">//=> #u8[1, 20, 100]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_copy<span class="o">(</span>arr<span class="o">)</span>
-<span class="nc">function: </span>s8array_copy<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a new bytearray with all the elements of <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>u8array_to_list(bytearray)
+<b>function: </b>s8array_to_list(bytearray)
+<b>returns: </b>a list with all the elements of `bytearray`</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>u8array_shrink<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<span class="nc">function: </span>s8array_shrink<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Reduces the size of the bytearray <code>arr</code> to <code>n</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>subu8array<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">)</span>
-<span class="nc">function: </span>subs8array<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">)</span>
-<b>returns:</b> a new bytearray with the elements of <em>arr</em> from the index 
-         <em>start</em> (inclusive) to <em>end</em> (exclusive).</code></pre>
+  <pre><code><b>function: </b>list_to_u8array(list)
+<b>function: </b>list_to_s8array(list)
+<b>returns: </b>a bytearray with all the elements of `list`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>subu8array_fill<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>fill<span class="o">)</span>
-<span class="nc">function: </span>subs8array_fill<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>fill<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
+  <pre><code><b>function: </b>object_to_u8array(obj, encoder = identity)
+<b>returns: </b>a bytearray that encodes the object `obj`.
+      
+<b>function: </b>u8array_to_object(bytearray, decoder = identity)
+</b>returns: </b>an object deserialized from `bytearray`.
 
-<p>Similar to <code>u8array_fill</code> or <code>s8array_fill</code>, but only the elements from the index <em>start</em> (inclusive) to <em>end</em> (exclusive) are replaced with <code>fill</code>.</p>
+The optional `encoder` and `decoder` parameters are functions that take a single argument.
+`encoder` is called during serialization. As the serializer walks through `obj`,
+it calls `encoder` on each sub-object that is encountered. Similarly `decoder`
+is called during deserialization once for each sub-object encountered.
+The `encoder` and `decoder` are used to perform transformations on the objects.</code></pre>
+</div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>subu8array_move<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>dst_arr<span class="o">, </span>dst_start<span class="o">)</span>
-<span class="nc">function: </span>subs8array_move<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">, </span>dst_arr<span class="o">, </span>dst_start<span class="o">)</span>
-<b>returns:</b> void</code></pre>
+  <pre><code><b>function: </b>u8array_fill(bytearray, fill)
+<b>function: </b>s8array_fill(bytearray, fill)
+<b>returns: </b>void
+
+Sets all elements in `bytearray` to the object `fill`.</code></pre>
 </div>
 
-<p>This function replaces part of the contents of the bytearray <code>dst_arr</code> with part of the contents of the bytearray <code>arr</code>. 
-  It copies elements from <code>arr</code>, beginning with index <code>start</code> (inclusive) and ending with index <code>end</code> 
-  (exclusive) to <code>dst_arr</code> beginning with index <code>dst_start</code> (inclusive).
+<div class="highlight">
+  <pre><code><b>function: </b>u8array_append(bytearray, @rest bytearray_1, ...)
+<b>function: </b>s8array_append(bytearray, @rest bytearray_1, ...)
+<b>returns: </b>a new bytearray created by appending `bytearray_1 ...` to `bytearray`.</code></pre>
+</div>
 
-  <h4>Arrays of other types</h4>
+<div class="highlight">
+  <pre><code><b>function: </b>u8array_copy(bytearray)
+<b>function: </b>s8array_copy(bytearray)
+<b>returns: </b>a new bytearray with all the elements of bytearray.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>u8array_shrink(bytearray, n)
+<b>function: </b>s8array_shrink(bytearray, n)
+<b>returns: </b>void
+
+Reduces the size of `bytearray` to `n`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>subu8array(bytearray, start, end)
+<b>function: </b>subs8array(bytearray, start, end)
+<b>returns: </b>a new bytearray with all the elements of `bytearray` from the index `start` (inclusive)
+to `end` (exclusive).</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>subu8array_fill(bytearray, start, end, fill)
+<b>function: </b>subs8array_fill(bytearray, start, end, fill)
+<b>returns: </b>void
+
+Similar to u8array_fill or s8array_fill, but only the elements from `start` (inclusive) to `end`
+(exclusive) are replaced with `fill`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>subu8array_move(bytearray, start, end, dst_bytearray, dst_start)
+<b>function: </b>subs8array_move(bytearray, start, end, dst_bytearray, dst_start)
+<b>returns: </b>void
+
+Replaces part of the contents of `dst_bytearray` with part of the contents of `bytearray`.
+It copies elements from `bytearray`, beginning with index `start` (inclusive) and ending with
+index `end` (exclusive) to `dst_bytearray` beginning at index `dst_start` (inclusive).</code></pre>
+</div>
+
+  <h4>Arrays of other numeric types</h4>
 <p>Slogan also supports arrays of 16-bit, 32-bit and 64-bit signed/unsigned integers and 32-bit and 64-bit floats. The prefixes assigned to these arrays are:
   <code>#s16</code>, <code>#u16</code>, <code>#s32</code>, <code>#u32</code>,  <code>#s64</code>, <code>#u64</code>,  <code>#f32</code> and <code>#f64</code> respectively. The functions that work with these arrays are also similar to those of bytearrays, just use the appropriate type prefix or infix. For example, the predicate to check if an array is an <code>#f32</code> is <code>is_f32array</code>.</p>
 
@@ -2712,24 +2886,23 @@ is_s8array(#s8[-1, 2, 3]);
 <p>Bitarray literals have the prefix <code>#b</code>. For example, this is a bitarray literal with 4 bits: <code>#b[1, 0, 1, 1]</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array<span class="o">(</span>bit1<span class="o">, </span>...<span class="o">)</span>
-<b>returns:</b> a new bitarray with <em>bit1 ...</em> as elements.</code></pre>
-</div>
+  <pre><code><b>function: </b>bit_array(bit1, ...)
+<b>returns:</b> a new bitarray with `bit1 ...` as elements.
 
-<p>Each of the values <code>bit1 ...</code> should be either <code>0</code> or <code>1</code>. All values other than <code>0</code>
-  will turn the corresponding bit on.</p>
+Each of the values `bit1 ...` should be either 0 or 1.
+(All values other than 0 will turn the corresponding bit on).
+
+<span class="c">// Example:</span>
+bit_array(1, 0, 0, 1, 1); 
+<span class="c">//=> #b[1, 0, 0, 1, 1]</span></code></pre>
+</div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bit_array<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #b[1, 0, 0, 1, 1]</span></code></pre>
-</div>
+  <pre><code><b>function: </b>make_bit_array(n)
+<b>returns: </b>a new bitarray of size `n`.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>make_bit_array<span class="o">(</span>n<span class="o">)</span>
-<b>returns:</b> a new bitarray of size <em>n</em>.</code></pre>
+All the elements are initialized to 0.</code></pre>
 </div>
-
-<p>All the elements are initialized to <code>0</code>.</p>
 
 <div class="highlight">
   <pre><code><b>function: </b>is_bit_array(obj) 
@@ -2744,289 +2917,352 @@ is_bit_array(#u8[1, 0, 1, 1]);
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_length<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> the number of bits in the bitarray <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>bit_array_length(bitarray)
+<b>returns: </b>the number of bits in `bitarray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_set<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
+  <pre><code><b>function: </b>bit_array_set(bitarray, n)
+<b>returns: </b>void
 
-<p>Turns the <code>n</code><sup>th</sup> bit on in the bitarray <code>arr</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_is_set<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> <em>true</em> if the <em>n</em><sup>th</sup> bit is on.</code></pre>
+Turns the `n`<sup>th</sup> bit on in `bitarray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> make_bit_array<span class="o">(</span><span class="mi">5</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>bit_array_set<span class="o">(</span>a<span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>bit_array_is_set<span class="o">(</span>a<span class="o">,</span> <span class="mi">2</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span>
-<span class="nc">slogan&gt; </span>bit_array_is_set<span class="o">(</span>a<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span></code></pre>
+  <pre><code><b>function: </b>bit_array_is_set(bitarray, n)
+<b>returns: </b>true if the `n`<sup>th</sup> bit is on in `bitarray`.
+
+
+<span class="c">// Example: </span>
+let a = make_bit_array(5); 
+bit_array_set(a, 2); 
+bit_array_is_set(a, 2); 
+<span class="c">//=> true</span>
+bit_array_is_set(a, 1); 
+<span class="c">//=> false</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_is_all_set<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> <em>true</em> if all bits are on in <em>arr</em>.</code></pre>
+  <pre><code><b>syntax:</b> bitarray[index]
+<b>returns: </b>true if the bit at `index` is on in `bitarray`.
+
+If `index` is out of bounds, returns false.
+
+<b>syntax: </b>bitarray[index] = b
+<b>returns: </b>void
+
+If `index` is out of bounds, no change will happen to `bitarray`.
+Turns on the bit at `index` if `b` is a truthy, turns it off if `b` is false.
+Note that `0` is a truth value.
+
+<span class="c">// Examples:</span>
+a;
+<span class="c">//=> #b[0, 0, 1, 0, 0]</span>
+a[0] = true;
+a;
+<span class="c">//=> #b[1, 0, 1, 0, 0]</span>
+a[0];
+<span class="c">//=> true</span>
+a[0] = 0;
+a;
+<span class="c">//=> #b[1, 0, 1, 0, 0]</span>
+a[0] = false;
+a;
+<span class="c">//=> #b[0, 0, 1, 0, 0]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_is_any_set<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> <em>true</em> if atleast one bit is on in <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>ref(bitarray, index, @key value = void, default = false) 
+<b>returns: </b>if `value` is not specified, returns the bit at `index`.
+if `index` is out of bounds, return `default`.
+
+If `value` is specified, turn on/off the bit at `index`.
+The update is destructive and returns the updated bitarray.
+If `index` is out of bounds, no change happens to `bitarray`.
+
+<span class="c">// Examples:</span>
+a;
+<span class="c">//=> #b[0, 0, 1, 0, 0]</span>
+ref(a, 3);
+<span class="c">//=> false</span>
+ref(a, 3, default = 100);
+<span class="c">//=> false</span>
+ref(a, 30, default = 100);
+<span class="c">//=> 100</span>
+ref(a, 3, value = 100);
+a;
+<span class="c">//=> #b[0, 0, 1, 1, 0]</span>
+ref(a, 30, value = 100);
+a;
+<span class="c">//=> #b[0, 0, 1, 1, 0]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_clear<span class="o">(</span>arr<span class="o">, </span>n<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Turns the <code>n</code><sup>th</sup> bit off in the bitarray <code>arr</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_set_all<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Turns all bits on in the bitarray <code>arr</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_clear_all<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Turns all bits off in the bitarray <code>arr</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_to_list<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a list of integers corresponding to the bits in the bitarray <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>bit_array_is_all_set(bitarray)
+<b>returns: </b>true if all bits are on in `bitarray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>list_to_bit_array<span class="o">(</span>lst<span class="o">)</span>
-<b>returns:</b> a bitarray initialized from the list of integers <em>lst</em>.</code></pre>
+  <pre><code><b>function: </b>bit_array_is_any_set(bitarray)
+<b>returns: </b>true if atleast one bit is on in `bitarray`.
+</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_to_string<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a string of the characters <em>'1'</em> and <em>'0'</em> corresponding to the bits in the bitarray <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>bit_array_clear(bitarray, n)
+<b>returns:</b> void
+
+Turns the `n`<sup>th</sup> bit off in `bitarray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bit_array_to_string<span class="o">(</span><span class="o">#</span>b<span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">1</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;1011&quot;</span></code></pre>
+  <pre><code><b>function: </b>bit_array_set_all(bitarray)
+<b>returns: </b>void
+
+Turns all bits on in `bitarray`.</code></pre>
+  </div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bit_array_clear_all(bitarray)
+<b>returns: </b>void
+
+Turns all bits off in `bitarray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>string_to_bit_array<span class="o">(</span>str<span class="o">)</span>
-<b>returns:</b> a bitarray initialized from the string <em>str</em>.</code></pre>
-</div>
-
-<p>The string <code>str</code> should only contain the characters <code>'1'</code> and <code>'0'</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>string_to_bit_array<span class="o">(</span><span class="s1">&quot;1011&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #b[1, 0, 1, 1]</span></code></pre>
+  <pre><code><b>function: </b>bit_array_to_list(bitarray)
+<b>returns: </b>a list of integers corresponding to the bits in `bitarray`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code>(<em>since v0.2</em>)
-<span class="nc">function: </span>u8array_to_bit_array<span class="o">(</span>arr<span class="o">)</span>
-<b>returns:</b> a bitarray initialized from the bits in the u8array <em>arr</em>.</code></pre>
+  <pre><code><b>function: </b>list_to_bit_array(lst)
+<b>returns: </b>a bitarray initialized from the list of integers `lst`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_is_eq<span class="o">(</span>arr1<span class="o">, </span>arr2<span class="o">)</span>
-<b>returns:</b> <em>true</em> if the bitarrays <em>arr1</em> and <em>arr2</em> has the same bits set.</code></pre>
+  <pre><code><b>function: </b>bit_array_to_string(bitarray)
+<b>returns: </b>a string of the characters '1' and '0' corresponding to the bits in `bitarray`.
+
+<span class="c">// Example:</span>      
+bit_array_to_string(#b[1, 0, 1, 1]); 
+<span class="c">//=> "1011"</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_array_blit<span class="o">(</span>arr<span class="o">, </span>offset<span class="o">, </span>dest_arr<span class="o">, </span>dest_offset<span class="o">, </span>count<span class="o">)</span>
-<b>returns:</b> the updated bitarray <em>dest_arr</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b>string_to_bit_array(string)
+<b>returns: </b>a bitarray initialized from `string`.
 
-<p>Copies the bit-pattern in <code>arr</code> to <code>dest_arr</code>. <code>Count</code> bits are copied starting at the index 
-  <code>offset</code> in <code>arr</code>. Bits are copied to <code>dest_arr</code> starting at the index <code>dest_offset</code>.</p>
+`string` should only contain the characters '1' and '0'.
 
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>bit_arrays_concat<span class="o">(</span>arrays<span class="o">)</span>
-<b>returns:</b> a new bit array which is the concatenation of the bitarrays in the list <em>arrays</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>bit_arrays_concat<span class="o">(</span><span class="o">[</span><span class="o">#</span>b<span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="mi">1</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span>b<span class="o">[</span><span class="mi">0</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">0</span><span class="o">]</span><span class="o">,</span> <span class="o">#</span>b<span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">1</span><span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; #b[1, 0, 1, 0, 1, 0, 1, 1, 1]</span></code></pre>
+<span class="c">// Example:</span>
+string_to_bit_array("1011"); 
+<span class="c">//=> #b[1, 0, 1, 1]</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>subbitarray<span class="o">(</span>arr<span class="o">, </span>start<span class="o">, </span>end<span class="o">)</span>
-<b>returns:</b> a new bitarray with elements from <em>arr</em> starting at <em>start</em> (inclusive) and ending at <em>end</em>.</code></pre>
+  <pre><code><b>function: </b>u8array_to_bit_array(u8array)
+<b>returns: </b>a bitarray initialized from the bits in `u8array`.</code></pre>
 </div>
 
+<div class="highlight">
+  <pre><code><b>function: </b>bit_array_is_eq(arr1, arr2)
+<b>returns: </b>true if the bitarrays `arr1` and `arr2` has the same bits set.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bit_array_blit(bitarray, offset, dest_bitarray, dest_offset, count)
+<b>returns: </b>the updated bitarray dest_bitarray.
+
+Copies the bit-pattern in `bitarray` to `dest_bitarray`. `count` bits are copied starting
+at `offset` in `bitarray`. Bits are copied to `dest_bitarray` starting at `dest_offset`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bit_arrays_concat(arrays)
+<b>returns: </b>a new bit array which is the concatenation of the bitarrays in the list `arrays`.
+
+<span class="c">// Example:</span>
+bit_arrays_concat([#b[1, 0, 1], #b[0, 1, 0], #b[1, 1, 1]]); 
+<span class="c">//=> #b[1, 0, 1, 0, 1, 0, 1, 1, 1]</span></code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>subbitarray(bitarray, start, end)
+<b>returns: </b>a new bitarray with elements from `bitarray` starting at `start` (inclusive)
+and ending at `end` (exclusive).</code></pre>
+</div>
+
+<a name="htabs"></a>
 <h4>Hashtables</h4>
-<p>Hashtables represent sets of associations between arbitrary Slogan values. They serve essentially the same purpose as 
-  association lists but are typically much faster when large numbers of associations are involved.</p>
+<p>Hashtables represent sets of associations between arbitrary values. They serve essentially the same purpose as 
+  association lists but are typically much faster when large numbers of associations are involved. Hashtable literals are written
+  by enclosing pairs of associations in <code>#{}</code>, for example <code>#{'name:'slogan, 'type:'dynamic}</code>.
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>make_hashtable<span class="o">(</span>hash_f<span class="o">,</span> eq_predicate<span class="o">,</span> @optional size<span class="o">)</span>
-<b>retruns:</b> a new hashtable.</code></pre>
-</div>
+  <pre><code><b>function: </b>make_hashtable(hash_f, eq_predicate, @optional size)
+<b>retruns: </b>a new hashtable.
 
-<p><code>Hash_f</code> and <code>eq_predicate</code> must be functions. If <code>size</code> is provided, it must be a nonnegative exact 
-  integer indicating approximately how many elements the hashtable should initially hold. Hashtables grow as needed, but when the 
-  hashtable grows it generally must rehash all of the existing elements. Providing a nonzero size can help limit the amount of 
-  rehashing that must be done as the table is initially populated.</p>
+`hash_f` and `eq_predicate` must be functions. If `size` is provided, it must be a nonnegative
+exact integer indicating approximately how many elements the hashtable should initially hold.
+Hashtables grow as needed, but when the hashtable grows it generally must rehash all of the
+existing elements. Providing a nonzero size can help limit the amount of rehashing that must
+be done as the table is initially populated.
 
-<p>The new hashtable computes hash values using <code>hash_f</code> and compares keys using <code>eq_predicate</code>, neither of which 
-  should modify the hashtable. <code>Eq_predicate</code> should compare two keys and return <code>false</code> only if the two keys 
-  should be distinguished. <code>Hash_f</code> should accept a key as an argument and return a nonnegative exact integer value that 
-  is the same each time it is called with arguments that <code>eq_predicate</code> does not distinguish.</p>
+The new hashtable computes hash values using `hash_f` and compare keys using `eq_predicate`,
+neither of which should modify the hashtable. `eq_predicate` should compare two keys and return
+false only if the two keys should be distinguished. `hash_f` should accept a key as an
+argument and return a nonnegative exact integer value that is the same each time it is called
+with arguments that `eq_predicate` does not distinguish.
 
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> h <span class="o">=</span> make_hashtable<span class="o">(</span>string_hash<span class="o">,</span> string_is_eq<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>hashtable_set<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">,</span> <span class="s1">&quot;vijay&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>hashtable_at<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;vijay&quot;</span></code></pre>
-</div>
-
-<p>Hashtable literals are written using the <code>#{}</code> syntax. The utility function <code>ref</code> can be used to access and mutate
-  hashtables.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> h <span class="o">=</span> <span class="o">#{</span><span class="s1">&quot;name&quot;</span><span class="o">:</span> <span class="s1">&quot;vijay&quot;</span><span class="o">, </span><span class="s1">&quot;location&quot;</span><span class="o">:</span> <span class="s1">&quot;bangalore&quot;</span><span class="o">}</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>ref<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;vijay&quot;</span>
-<span class="nc">slogan&gt; </span>ref<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">, </span>value <span class="o">=</span> <span class="s1">&quot;mat&quot;</span><span class="o">)</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>ref<span class="o">(</span>h<span class="o">,</span> <span class="s1">&quot;name&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; &quot;mat&quot;</span></code></pre>
+<span class="c">// Example:</span>
+let h = make_hashtable(string_hash, string_is_eq); 
+hashtable_set(h, "name", "mat"); 
+hashtable_at(h, "name"); 
+<span class="c">//=> "mat"</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ref<span class="o">(</span>table<span class="o">, </span>key<span class="o">, </span>@key value<span class="o">, </span>default<span class="o">=</span>false<span class="o">)</span>
-<b>retruns:</b> The value associated with <em>key</em> in <em>table</em>. If no association is found, <em>default</em> is returned.
-         If the keyword argument <em>value</em> is specified, it is used to update the association.</code></pre>
-</div>
+  <pre><code><b>function: </b>make_eq_hashtable(@optional size)
+<b>function: </b>make_eqv_hashtable(@optional size)
+<b>retruns: </b>a new hashtable that uses is_eq/is_eqv for comparing keys.
 
-<p>The <code>ref</code> function also works with arrays, strings and lists. <code>Table</code> will be treated as an association list if <code>key</code>
-  is a non-integer value. All updates performed by <code>ref</code> mutates <code>table</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>make_eq_hashtable<span class="o">(</span>@optional size<span class="o">)</span>
-<span class="nc">function: </span>make_eqv_hashtable<span class="o">(</span>@optional size<span class="o">)</span>
-<b>retruns:</b> a new hashtable that uses <em>is_eq</em> or <em>is_eqv</em> for comparing keys.</code></pre>
-</div>
-
-<p>An <code>eq_hashtable</code> or a <code>eqv_hashtable</code> employs a hash function based on object addresses. 
-Their hash and equivalence functions are suitable for any Slogan object.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>make_equal_hashtable<span class="o">(</span>@optional size<span class="o">)</span>
-<b>retruns:</b> a new hashtable that uses <em>is_equal</em> for comparing keys.</code></pre>
-</div>
-
-<p>An <code>equal_hashtable</code> uses the built-in <code>equal_hash</code> function which takes into consideration the
-  current structure and contents of a key.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>is_hashtable<span class="o">(</span>obj<span class="o">)</span>
-<b>retruns:</b> <em>true</em> if <em>obj</em> is a hashtable, <em>false</em> otherwise.</code></pre>
+An eq_hashtable or a eqv_hashtable employs a hash function based on object addresses.
+Their hash and equivalence functions are suitable for any object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>eq_hash<span class="o">(</span>obj<span class="o">)</span>
-<span class="nc">function: </span>eqv_hash<span class="o">(</span>obj<span class="o">)</span>
-<span class="nc">function: </span>equal_hash<span class="o">(</span>obj<span class="o">)</span>
-<span class="nc">function: </span>string_hash<span class="o">(</span>str<span class="o">)</span>
-<span class="nc">function: </span>string_ci_hash<span class="o">(</span>str<span class="o">)</span>
-<span class="nc">function: </span>symbol_hash<span class="o">(</span>sym<span class="o">)</span>
-<b>retruns:</b> an exact nonnegative integer hash value.</code></pre>
-</div>
-
-<p>These hash function are suitable for use with the appropriate predicate: <code>is_eq</code> for <code>eq_hash</code> and 
-  <code>symbol_hash</code>, <code>is_eqv</code>
-  for <code>eqv_hash</code>, <code>is_equal</code> for <code>equal_hash</code>, <code>string_is_eq</code> for <code>string_hash</code>, 
-  and <code>string_is_ci_eq</code> for <code>string_ci_hash</code>. The hash values returned by <code>equal_hash</code>, <code>string_hash</code>,
-  and <code>string_ci_hash</code> are typically dependent on the current structure and contents of the input values and are thus 
-  unsuitable if keys are modified while they have associations in a hashtable.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_set<span class="o">(</span>ht <span class="o">, </span>key<span class="o">, </span>value<span class="o">)</span>
-<b>retruns:</b> void</code></pre>
-</div>
-
-<p><code>Key</code> should be an appropriate key for the hashtable's hash and equivalence functions. 
-  <code>Value</code> may be any Slogan object. Any existing association that <code>key</code> holds in the hashtable is replaced
-  with <code>obj</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_at<span class="o">(</span>ht <span class="o">, </span>key<span class="o">, </span>@optional default<span class="o">)</span>
-<b>retruns:</b> the value associated with <em>key</em> in the hashtable <em>ht</em>.</code></pre>
-</div>
-
-<p><code>Key</code> should be an appropriate key for the hashtable's hash and equivalence functions. 
-  <code>Default</code> may be any Slogan object and defaults to <code>false</code>.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_contains<span class="o">(</span>ht <span class="o">, </span>key<span class="o">)</span>
-<b>retruns:</b> <em>true</em> if an association for <em>key</em> exists in the hashtable <em>ht</em>, <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function: </b>make_equal_hashtable(@optional size)
+<b>retruns: </b>a new hashtable that uses is_equal for comparing keys.
+      
+An equal_hashtable uses the built-in equal_hash function which takes into
+consideration the current structure and contents of a key.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_update<span class="o">(</span>ht <span class="o">, </span>key<span class="o">, </span>f<span class="o">, </span>default<span class="o">)</span>
-<b>retruns:</b> void</code></pre>
-</div>
-
-<p><code>Key</code> should be an appropriate key for the hashtable's hash and equivalence functions. <code>Default</code> may be any 
-  Slogan object. The function <code>f</code> should accept one argument, should return one value, and should not modify the hashtable.</p>
-
-<p><code>Hashtable_update</code> applies <code>f</code> to the value associated with <code>key</code> in the hashtable, or to 
-  <code>default</code> if no value is associated with <code>key</code>. If <code>f</code> returns, <code>key</code> is associated with 
-  the value returned by <code>f</code>, replacing the old association, if any.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_size<span class="o">(</span>ht<span class="o">)</span>
-<b>retruns:</b> the number of entries in the hashtable <em>ht</em>.</code></pre>
+  <pre><code><b>function: </b>is_hashtable(obj)
+<b>retruns: </b>true if `obj` is a hashtable, false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_copy<span class="o">(</span>ht<span class="o">)</span>
-<b>retruns:</b> a new hashtable containing the same entries as the hashtable <em>ht</em>.</code></pre>
+  <pre><code><b>function: </b>eq_hash(obj)
+<b>function: </b>eqv_hash(obj)
+<b>function: </b>equal_hash(obj)
+<b>function: </b>string_hash(str)
+<b>function: </b>string_ci_hash(str)
+<b>function: </b>symbol_hash(sym)
+<b>retruns: </b>an exact nonnegative integer hash value.
+
+These hash function are suitable for use with the appropriate predicate:
+is_eq for eq_hash and symbol_hash, is_eqv for eqv_hash, is_equal for equal_hash,
+string_is_eq for string_hash, and string_is_ci_eq for string_ci_hash.
+The hash values returned by equal_hash, string_hash, and string_ci_hash are typically
+dependent on the current structure and contents of the input values and are thus unsuitable
+if keys are modified while they have associations in a hashtable.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_keys<span class="o">(</span>ht<span class="o">)</span>
-<b>retruns:</b> an array containing the keys of the hashtable <em>ht</em>.</code></pre>
+  <pre><code><b>function: </b>hashtable_set(hashtable, key, value)
+<b>retruns: </b>void
+
+`key` should be of the appropriate type expected by the hash and equivalence functions.
+`value` may be any object. Any existing association that key holds in the hashtable
+is replaced by `value`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_values<span class="o">(</span>ht<span class="o">)</span>
-<b>retruns:</b> an array containing the values of the hashtable <em>ht</em>.</code></pre>
+  <pre><code><b>function: </b>hashtable_at(hashtable , key, default = false)
+<b>retruns: </b>the value associated with `key` in `hashtable`, `default` if no
+association is found.      
+
+`key` should be of the appropriate type expected by the hash and equivalence functions.
+`default` may be any object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_entries<span class="o">(</span>ht<span class="o">)</span>
-<b>retruns:</b> a pair of two arrays: the first one with the keys and the second one 
-         with the values of the hashtable <em>ht</em>.</code></pre>
+  <pre><code><b>syntax: </b>hashtable[key]
+<b>returns:</b> the value associated with `key` or false.</code></pre>
+
+<div class="highlight">
+  <pre><code><b>syntax: </b>hashtable[key] = value
+<b>returns:</b> void
+        
+Associates `key` with `value` in `hashtable`.
+
+<span class="c">// Example:</span>
+h;
+<span class="c">//=> #{"name": "mat"}</span>
+h["n"];
+<span class="c">//=> false</span>
+h["n"] = 100;
+h;
+<span class="c">//=> #{"n": 100, "name": "mat"}</span>
+h["n"];
+<span class="c">//=> 100</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>hashtable_for_each<span class="o">(</span>f<span class="o">, </span>ht<span class="o">)</span>
-<b>retruns:</b> void</code></pre>
+  <pre><code><b>function: </b>hashtable_contains(hashtable , key)
+<b>retruns: </b>true if an association for `key` exists in `hashtable`, false otherwise.</code></pre>
 </div>
-
-<p>For each entry in the hashtable <code>ht</code>, calls the function <code>f</code> by passing it the key and value as arguments.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> h <span class="o">=</span> make_eq_hashtable<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>hashtable_set<span class="o">(</span>h<span class="o">,</span> <span class="o">'</span>name<span class="o">,</span> <span class="s1">&quot;nemo&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>hashtable_set<span class="o">(</span>h<span class="o">,</span> <span class="o">'</span>age<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>hashtable_for_each<span class="o">(</span><span class="k">^</span><span class="o">(</span>k<span class="o">,</span> v<span class="o">)</span> showln<span class="o">(</span>k<span class="o">,</span> <span class="s1">&quot;: &quot;</span><span class="o">,</span> v<span class="o">)</span><span class="o">,</span> h<span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; </span>name: nemo
-   age: 1</code></pre>
+  <pre><code><b>function: </b>hashtable_update(hashtable , key, f, default)
+<b>retruns: </b>void
+`key` should be of an appropriate type for the hash and equivalence functions.
+`default` may be any object. The function `f` should accept one argument, should
+return one value, and should not modify the hashtable.
+
+hashtable_update applies `f` to the value associated with `key` in the hashtable,
+or to `default` if no value is associated with `key`. If `f` returns, key is
+associated with the value returned by `f`, replacing the old association, if any.</code></pre>
 </div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>hashtable_size(hashtable)
+<b>retruns: </b>the number of entries in `hashtable`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>hashtable_copy(hashtable)
+<b>retruns: </b>a new hashtable containing the same entries as in `hashtable`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>hashtable_keys(hashtable)
+<b>retruns: </b>an array containing all the keys of `hashtable`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>hashtable_values(hashtable)
+<b>retruns: </b>an array containing all the values in `hashtable`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>hashtable_entries(hashtable)
+<b>retruns: </b>a pair of two arrays: the first one with the keys and the second one 
+with the values from `hashtable`.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>hashtable_for_each(f, hashtable)
+<b>retruns: </b>void
+
+For each entry in `hashtable`, calls the function `f` by passing it the key
+and value as arguments.
+
+<span class="c">// Example:</span>
+let h = make_eq_hashtable(); 
+hashtable_set(h, 'name, "nemo"); 
+hashtable_set(h, 'age, 1); 
+hashtable_for_each(^(k, v) println(k, ": ", v), h); 
+<span class="c">//-> name: nemo
+     age: 1</code></pre>
+</div>
+
+<a name="sets"></a>
+<h4>Sets</h4>
+
+<p>TODO</p>
 
 <h4>Closures</h4>
 
