@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us" lang="en-us">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>The Slogan Programming Language</title>
+  <meta name="author" content="Vijay Mathew (Based on the design of Julia Language website)." />
+  <link rel="stylesheet" href="../../css/julia.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/screen.css" type="text/css" media="screen, projection" />
+  <link rel="stylesheet" href="../../css/syntax.css" type="text/css" />
+</head>
+<body>
+
+  <div class="related">
+    <h3>Navigation</h3>
+    <ul>
+      <li class="right" >
+        <a href="./io.html" title="Input and Output"
+           accesskey="N">next</a></li>
+      <li class="right" >
+        <a href="./bd.html" title="Built-in Datatypes"
+           accesskey="P">previous</a> |</li>
+      <li><a href="../../index.html">Slogan</a>&nbsp;/&nbsp;</li>
+      <li><a href="../index.html">Documentation</a>&nbsp;/&nbsp;</li>
+    </ul>
+  </div>
+  
+  <div id="site" class="site">
+    <div class="title"><h3>Modularity</h3></div>
+
+    <p>In this chapter we discuss two related language features that assist us in organizing large programs -
+      <a href="#closures">closures</a> and <a href="#modules">modules</a>.</p>
+
+<a name="closures"></a>
+<h4>Closures</h4>
+
+<p>A closure (also lexical closure or function closure) is a function or reference to a function together with an environment - a table 
+  storing a reference to each of the non-local variables (free variables) of that function. A closure enables a function to access 
+  those non-local variables even when invoked outside its immediate lexical scope.</p>
+
+<p>The following program defines a closure that contain an environment with a binding for an integer variable and a function that
+  increments this variable on each invocation: </p>
+
+<div class="highlight">
+  <pre><code>function counter(n) 
+^{ n = n + 1; 
+   n };
+
+let a = counter(0); 
+let b = counter(10); 
+a(); 
+<span class="c">//=> 1</span>
+b(); 
+<span class="c">//=> 11</span></code></pre>
+</div>
+
+<p>Closures can be used to implement <em>objects</em> that respond to <em>messages</em>. This is achieved by making the closure to accept
+  a symbolic argument. The following program defines an object:</p>
+
+<div class="highlight">
+  <pre><code>function make_kid(name, age) 
+^(message)
+ | 'name? -> name
+ | 'age? -> age;
+
+let a = make_kid("sam", 10); 
+let b = make_kid("susan", 8); 
+a('name?); 
+<span class="c">//=> sam</span>
+a('age?); 
+<span class="c">//=> 10</span>
+b('name?); 
+<span class="c">//=> susan</span>
+b('age?); 
+<span class="c">//=> 8</span></code></pre>
+</div>
+
+<p>We can also use the <em>dot-notation</em> to pass "messages" to a closure:</p>
+
+<div class="highlight">
+  <pre><code>a.name?;
+<span class="c">//=> sam</span>
+b.age?;
+<span class="c">//=> 8</span></code></pre>
+</div>
+
+<p>In addition to local variables, a closure can refer to local functions as well. Consider an updated version of <code>counter</code>
+  that is extended with the ability to reset itself to a specified value:</p>
+
+<div class="highlight">
+  <pre><code>function counter(n)
+{ function reset(new_n) if (new_n >= 0) n = new_n; 
+
+  ^(@optional message) 
+  | 'reset -> reset
+  | _ -> { n = n + 1; 
+           n }}; 
+
+let a = counter(10); 
+a(); 
+<span class="c">//=> 11</span>
+a(); 
+<span class="c">//=> 12</span>
+a.reset(0); 
+a(); 
+<span class="c">//=> 1</span>
+a(); 
+<span class="c">//=> 2</span></code></pre>
+</div>
+
+<a name="modules"></a>
+<h4>Modules</h4>
+
+    <p>A <em>module</em> is a logical grouping of related definitions. Modules are first-class objects - they can be passed as arguments to functions
+      and functions can create and return new modules. </p>
+    <p>A module statement has the following form:</p>
+
+<div class="highlight">
+  <pre><code>module &lt;module_name&gt; (&lt;exported_names&gt;) &lt;module_body&gt;;</code></pre></div>
+    <p><em>Exported_names</em> is a comma separated list of identifiers. These identifiers must refer to top-level definitions in <em>module_body</em>.
+      From outside the module, an exported name is accessed using the notation `<code>module_name.exported_name</code>`.
+      Here is an example module that define three names and export two of them:</p>
+
+<div class="highlight">
+<pre><code>module abc (a, c)
+{ function a(x) sqrt(x);
+  let b = 3.14;
+  function c(y) y * y * b };</code></pre></div>
+
+<p>The functions a and c are accessible from outside the module:</p>
+
+<div class="highlight">
+<pre><code>abc.a(100);
+<span class="c">//=> 10</span>
+abc.c(10);
+<span class="c">//=> 314.</span>
+abc.b;
+<span class="c">//-> error: name_not_found b</span></code></pre></div>
+
+<p>Local bindings may be introduced for module names for easier and faster access to them:</p>
+
+<div class="highlight">
+<pre><code>let a, c = abc.a, abc.c;
+a(100);
+<span class="c">//=> 10</span>
+c(10);
+<span class="c">//=> 314.</span></code></pre></div>
+
+<p>A module may choose to export a definition using a different name. In the following program, the definition of <em>c</em> is exported with
+the more descriptive name <em>area</em>:</p>
+
+<div class="highlight">
+<pre><code>module abc (a, area:c)
+{ function a(x) sqrt(x);
+  let b = 3.14;
+  function c(y) y * y * b };
+
+abc.area(1000);
+<span class="c">//=> 3140000.</span>
+abc.c(10);
+<span class="c">//->error: name_not_found c</span></code></pre></div>
+    
+  </div>
+</body>
+</html>

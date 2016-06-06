@@ -14,7 +14,7 @@
     <h3>Navigation</h3>
     <ul>
       <li class="right" >
-        <a href="./io.html" title="Input and Output"
+        <a href="./mod.html" title="Modularity"
            accesskey="N">next</a></li>
       <li class="right" >
         <a href="./pc.html" title="Program Control"
@@ -3262,152 +3262,129 @@ hashtable_for_each(^(k, v) println(k, ": ", v), h);
 <a name="sets"></a>
 <h4>Sets</h4>
 
-<p>TODO</p>
-
-<h4>Closures</h4>
-
-<p>A closure (also lexical closure or function closure) is a function or reference to a function together with an environment - a table 
-  storing a reference to each of the non-local variables (free variables) of that function. A closure enables a function to access 
-  those non-local variables even when invoked outside its immediate lexical scope.</p>
-
-<p>The following program defines a closure that contains an environment with a binding for an integer variable and a function that
-  increments this variable on each invocation: </p>
+  <p>A set stores an unordered sequence of objects without duplicates. It is an implementation of the mathematical concept of a finite set.
+    Unlike most other collection types, rather than retrieving a specific element from a set, one typically tests a value for membership in a set.
+    A set literal is written by enclosing the objects in a <code>#()</code>. Example: <code>#(1, 2, 3, 4, 5)</code>.</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> counter<span class="o">(</span>n<span class="o">)</span> 
-          <span class="k">^</span><span class="o">(</span><span class="o">)</span> 
-           <span class="o">{</span> n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
-             n <span class="o">}</span><span class="o">;</span>
+  <pre><code><b>function: </b>set(object)
+<b>returns:</b> a set with the elements in `object`
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> counter<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> b <span class="o">=</span> counter<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 11</span></code></pre>
+`object` should be either a set, list, vector, string or a hashtable.
+If `object` is a hashtable, each key-value pair will become an entry in the set
+
+<span class="c">// Examples:</span>
+set(#{1:2, 3:4});
+<span class="c">//=> #(1:2,3:4)</span>
+set("hello, world");
+<span class="c">//=> #(\,,\o,\e,\w,\r,\h,\d,\l,\space)</span>
+set([1,2,3,2,3,4]);
+<span class="c">//=> #(1,2,3,4)</span>
+set(#[1,2,3,2,3,4]);
+<span class="c">//=> #(1,2,3,4)</span>
+set(#(1,2,3,2,3,4));
+<span class="c">//=> #(1,2,3,4)</span></code></pre>
 </div>
 
-<p>Closures can be used to implement <em>Objects</em> that can respond to <em>messages</em> by making the closure to accept
-  a symbolic argument. Here is a simple example of an object defined this way:</p>
-
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_kid<span class="o">(</span>name<span class="o">,</span> age<span class="o">)</span> 
-         <span class="k">^</span><span class="o">(</span>message<span class="o">)</span> 
-           <span class="k">case</span> <span class="o">(</span>message<span class="o">)</span> 
-             name?<span class="o"> -&gt;</span> name
-           <span class="o">|</span> age?<span class="o"> -&gt;</span> age
-           <span class="o">|</span> <span class="k">else</span><span class="o"> -&gt;</span> error<span class="o">(</span><span class="s1">&quot;invalid message&quot;</span><span class="o">,</span> message<span class="o">)</span><span class="o">;</span> 
+  <pre><code><b>function: </b>make_set(obj1, ...)
+<b>returns:</b> a set of `obj1, ...`.
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> make_kid<span class="o">(</span><span class="s1">&quot;sam&quot;</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> b <span class="o">=</span> make_kid<span class="o">(</span><span class="s1">&quot;susan&quot;</span><span class="o">,</span> <span class="mi">8</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">'</span>name?<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; sam</span>
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">'</span>age?<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 10</span>
-<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">'</span>name?<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; susan</span>
-<span class="nc">slogan&gt; </span>b<span class="o">(</span><span class="o">'</span>age?<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 8</span></code></pre>
+<span class="c">// Examples:</span>
+make_set();
+<span class="c">//=> #()</span>
+make_set(1);
+<span class="c">//=> #(1)</span>
+make_set(1,2,3,2,3,4);
+<span class="c">//=> #(1,2,3,4)</span></code></pre>
 </div>
 
-<p>We can also use the special <em>dot-notation</em> to pass messages to a closure:</p>
+<div class="highlight">
+  <pre><code><b>function: </b>is_set(object)
+<b>returns: </b>true if `object` is a set, false otherwise.
+</code></pre></div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>a<span class="o">.</span>name? 
-<span class="ge">=&gt; sam</span>
-<span class="nc">slogan&gt; </span>b<span class="o">.</span>age? 
-<span class="ge">=&gt; 8</span></code></pre>
+  <pre><code><b>function: </b>is_set_member(set, object)
+<b>returns: </b>true if `set` contains `object`, false otherwise.
+
+The comparison predicate used is `is_equal`.
+
+<span class="c">// Examples:</span>
+is_set_member(#(1,2,3), 2);
+<span class="c">//=> true</span>
+is_set_member(#(1,2,3), 4);
+<span class="c">//=> false</span>
+is_set_member(#(1, 2, "hi", 3), "hi");
+<span class="c">//=> true</span></code></pre>
 </div>
 
-<p>In addition to local variables, a closure can refer to local functions as well. Consider an updated version of the <code>counter</code>
-  closure that has the ability to reset itself to a specified value:</p>
+<div class="highlight">
+  <pre><code><b>function: </b>set_difference(set1, ...)
+<b>returns:</b> the first set without the elements of `set1, ...`.
+
+<span class="c">// Examples:</span>
+set_difference(#(1,2,3));
+<span class="c">//=> #(1,2,3)</span>
+set_difference(#(1,2), #(2,3));
+<span class="c">//=> #(1)</span>
+set_difference(#(1,2,3), #(1), #(1,4), #(3));
+<span class="c">//=> #(2)</span>
+set_difference(#('a, 'b, 'c, 'd), set_difference(#('a, 'b, 'c, 'd), #('c, 'e, 'a, 'f, 'd)));
+<span class="c">//=> #(c,d,a)</span></code></pre>
+  </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> counter<span class="o">(</span>n<span class="o">)</span>
-          <span class="o">{</span> <span class="k">function</span> reset<span class="o">(</span>new_n<span class="o">)</span> <span class="k">if</span> <span class="o">(</span>new_n <span class="o">&gt;=</span> <span class="mi">0</span><span class="o">)</span> n <span class="o">=</span> new_n<span class="o">;</span> 
-            <span class="k">^</span><span class="o">(</span>@optional message<span class="o">)</span> 
-             <span class="k">case</span> <span class="o">(</span>message<span class="o">)</span> 
-              reset<span class="o"> -&gt;</span> reset
-             <span class="o">|</span> <span class="k">else</span><span class="o"> -&gt;</span> <span class="o">{</span> n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
-                      n <span class="o">}</span><span class="o">}</span><span class="o">;</span> 
+  <pre><code><b>function: </b>set_intersection(set1, ...)
+<b>returns:</b> a set that is the intersection of `set1, ...`.
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> a <span class="o">=</span> counter<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 11</span>
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 12</span>
-<span class="nc">slogan&gt; </span>a<span class="o">.</span>reset<span class="o">(</span><span class="mi">0</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>a<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 2</span></code></pre>
+<span class="c">// Examples:</span>
+set_intersection(#(1,2));
+<span class="c">//=> #(1,2)</span>
+set_intersection(#(1,2), #(2,3));
+<span class="c">//=> #(2)</span></code></pre>
 </div>
 
-<h4>Modules</h4>
+<div class="highlight">
+  <pre><code><b>function: </b>set_union(set1, ...)
+<b>returns: </b>a set that is the union of `set1, ...`.
 
-<p>A <em>module</em> is a logical grouping of related definitions. A module statement has the following form:</p>
+<span class="c">// Examples:</span>
+set_union(#(1));
+<span class="c">//=> #(1)</span>
+set_union(#(1,2), #(3,4,1));
+<span class="c">//=> #(1,2,3,4)</span></code></pre>
+</div>
 
 <div class="highlight">
-  <pre><code><span class="k">module</span> &lt;module_name&gt; <span class="o">(</span>&lt;exported_names&gt;<span class="o">)</span> &lt;module_body&gt;<span class="o">;</span></code></pre></div>
-<p><em>Exported_names</em> is a comma separated list of definitions in <em>module_body</em> that are made visible outside the module. An exported name is accessed using the notation - <code>module_name.exported_name</code>. Here is an example module that define three names and export two of them:</p>
+  <pre><code><b>function: </b>is_superset(set1, set2)
+<b>returns: </b>true if `set1` is a superset of `set2`.
+
+<span class="c">// Examples:</span>
+is_superset(#(1,2), #(2));
+<span class="c">//=> true</span>
+is_superset(#(1,2), #(2, 1));
+<span class="c">//=> true</span>
+is_superset(#(1,2), #(2, 3));
+<span class="c">//=> false</span></code></pre>
+</div>
 
 <div class="highlight">
-<pre><code><span class="k">module</span> abc <span class="o">(</span>a<span class="o">, </span>c<span class="o">)</span>
-<span class="o">{ </span><span class="k">function</span> a<span class="o">(</span>x<span class="o">)</span> sqrt<span class="o">(</span>x<span class="o">);</span>
-  <span class="k">let</span> b <span class="o">=</span> 3.14<span class="o">;</span>
-  <span class="k">function</span> c<span class="o">(</span>y)</span> y * y * b <span class="o">};</span></code></pre></div>
+  <pre><code><b>function: </b>is_subset(set1, set2)
+<b>returns: </b>true if `set1` is a subset of `set2`.
 
-<p>The functions a and c are accessible from outside the module:</p>
-
-<div class="highlight">
-<pre><code><span class="nc">slogan&gt; </span>abc.a(100);
-<span class="ge">=&gt; 10</span>
-<span class="nc">slogan&gt; </span>abc.c(10);
-<span class="ge">=&gt; 314.</span>
-<span class="nc">slogan&gt; </span>abc.b;
-<span class="e">error: Name not exported by module. b</span></code></pre></div>
-
-<p>Local bindings can be introduced for module names for easier and faster access to them:</p>
-
-<div class="highlight">
-<pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> a, c = abc.a, abc.c;
-<span class="nc">slogan&gt; </span>a(100);
-<span class="ge">=&gt; 10</span>
-<span class="nc">slogan&gt; </span>c(10);
-<span class="ge">=&gt; 314.</span></code></pre></div>
-
-<p>A module can choose to export a definition using a different name. Here the name <em>c</em> is exported with the more descriptive name <em>area</em>:</p>
-
-<div class="highlight">
-<pre><code><span class="k">module</span> abc <span class="o">(</span>a<span class="o">, </span>area<span class="o">:</span>c<span class="o">)</span>
-<span class="o">{ </span><span class="k">function</span> a<span class="o">(</span>x<span class="o">)</span> sqrt<span class="o">(</span>x<span class="o">);</span>
-  <span class="k">let</span> b <span class="o">=</span> 3.14<span class="o">;</span>
-  <span class="k">function</span> c<span class="o">(</span>y)</span> y * y * b <span class="o">};</span></code></pre></div>
-
-
-<div class="highlight">
-<pre><code><span class="nc">slogan&gt; </span>abc.area(1000);
-<span class="ge">=&gt; 3140000.</span>
-<span class="nc">slogan&gt; </span>abc.c(10);
-<span class="e">error: Name not exported by module. c</span></code></pre></div>
-
-<h4>Accessing indexed data</h4>
-<p>(<em>Since v0.9.2</em>)</p>
-<p>The <code>[]</code> notation can be used to access and update data structures that stored indexed values. These data structures include strings, arrays, lists and hashtables.</p>
-
-<div class="highlight">
-<pre><code><span class="nc">slogan&gt; </span>let s = "hello, world";
-<span class="nc">slogan&gt; </span>s[2] = \L;
-<span class="ge">=&gt; </span>"heLlo, world"
-<span class="nc">slogan&gt; </span>s;
-<span class="ge">=&gt; </span>"heLlo, world"
-<span class="nc">slogan&gt; </span>#[1, 2, 3][2] * 10;
-<span class="ge">=&gt; </span>30</code></pre></div>
-
-<p>The <code>[]</code> notation can also be used for accessing sub-sequences of strings, lists and arrays.</p>
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>s[0:3];
-<span class="ge">=&gt; </span>heL</code></pre></div>
+<span class="c">// Examples:</span>
+is_subset(#(1,2), #(2));
+<span class="c">//=> false</span>
+is_subset(#(1,2), #(1,2));
+<span class="c">//=> true</span>
+is_subset(#(1,2,3), #(1,2));
+<span class="c">//=> false</span>
+is_subset(#(3), #(1,2));
+<span class="c">//=> false</span>
+is_subset(#(2), #(1,2));
+true</span></code></pre>
+</div>
 
 </div>
 </body>
