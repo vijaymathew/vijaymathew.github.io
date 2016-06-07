@@ -29,85 +29,86 @@
       <div class="title"><h3>Foreign Function Interface</h3></div>
 
       <p>The Foreign Function Interface (FFI) is a mechanism for interfacing Slogan with C libraries.
-        Slogan provides two interfaces to communicate with C libraries. First we will discuss the higher-level interface made available through
+        Slogan has two interfaces for communicating with C libraries. First we will discuss the higher-level interface made available through
         the <code>declare ffi</code> statement.</p>
 
-      <p>The <code>declare ffi</code> statement has the following syntax:</p>
       <div class="highlight">
-        <pre><code><span class="k">declare</span> <span class="k">ffi</span> library_name list_of_prototypes</code></pre>
-      </div>
+        <pre><code><b>syntax: </b>declare ffi library_name list_of_prototypes
 
-      <p>Here library name can be a string or a variable. If it is a string, it should be the full or relative path of the library to be loaded.
-        If the path is relative, the library is first looked up in the local folder and then under the paths specified in the <code>LD_LIBRARY_PATH</code>
-        environment variable. If <code>library_name</code> is a variable it should point to a library object loaded by the <code>ffi_open</code>
-        function. (This function is described later in this document.)</p>
+`library_name` should be a string or an identifier. If it is a string, it must be the full or
+relative path of the C library to be loaded. If the path is relative, the library is first looked
+up in the local folder and then under the paths specified in the `LD_LIBRARY_PATH`
+environment variable.
+If `library_name` is an identifier it must point to a library object loaded by the
+`ffi_open` function, described later in this chapter.
 
-      <p><code>List_of_prototypes</code> contain prototype declarations of functions and structures in the shared library. The Slogan compiler
-        uses these declarations to define functions that act as proxies to access these C objects.</p>
+`list_of_prototypes contain prototype declarations of functions and structures in the C library.
+The Slogan compiler uses these declarations to define functions that act as proxies to
+access C objects.
 
-      <p>A function prototype has the following syntax:</p>
-      <div class="highlight">
-        <pre><code>return_type c_function_name list_of_argument_types <span class="k">as</span> proxy_function_name</code></pre>
-      </div>
+A function prototype has the following syntax:
 
-      <p>The following table lists the types that can be used in a prototype and their equivalent C-types:</p>
+<b>syntax: </b>return_type c_function_name list_of_argument_types as proxy_function_name
 
-      <table>
-        <tr><td><b>Type</b></td><td><b>Equivalent C-type</b></td></tr>
-        <tr><td>uint8</td><td>uint8_t</td></tr>
-        <tr><td>int8</td><td>int8_t</td></tr>
-        <tr><td>uint16</td><td>uint16_t</td></tr>
-        <tr><td>int16</td><td>int16_t</td></tr>
-        <tr><td>uint32</td><td>uint32_t</td></tr>
-        <tr><td>int32</td><td>int32_t</td></tr>
-        <tr><td>uchar</td><td>unsigned char</td></tr>
-        <tr><td>char</td><td>signed char</td></tr>
-        <tr><td>ushort</td><td>unsigned short</td></tr>
-        <tr><td>short</td><td>signed short</td></tr>
-        <tr><td>uint</td><td>unsigned int</td></tr>
-        <tr><td>int</td><td>signed int</td></tr>
-        <tr><td>ulong</td><td>unsigned long</td></tr>
-        <tr><td>long</td><td>signed long</td></tr>
-        <tr><td>uint64</td><td>uint64_t</td></tr>
-        <tr><td>int64</td><td>int64_t</td></tr>
-        <tr><td>float</td><td>float</td></tr>
-        <tr><td>double</td><td>double</td></tr>
-        <tr><td>longdouble</td><td>long double</td></tr>
-        <tr><td>charstring</td><td>char *</td></tr>
-        <tr><td>pointer</td><td>void *</td></tr>
-        <tr><td>void</td><td>void</td></tr>
-      </table>
+`proxy_function_name` is optional. If provided, the Slogan function that acts as a proxy will be
+bound to this name. Otherwise it will be bound to `c_function_name`.
 
-      <p>Note that the <code>void</code> type can only be used as a return type. It cannot be used as the type of a parameter.</p>
-      <p>The <code>proxy_function_name</code> is optional. If provided, the Slogan function that acts as a proxy
-        will be bound to this name. Otherwise it will be bound to <code>c_function_name</code>.</p>
+The following table list type names that can be used in a prototype and their equivalent C-types:
 
-      <p>As an example, two C functions and their corresponding prototypes are given below:</p>
+Type	    Equivalent C-type
+====        =================
 
-      <div class="highlight">
-        <pre><code>// sample_c_lib.c
+uint8	    uint8_t
+int8	    int8_t
+uint16	    uint16_t
+int16	    int16_t
+uint32	    uint32_t
+int32	    int32_t
+uchar	    unsigned char
+char	    signed char
+ushort	    unsigned short
+short	    signed short
+uint	    unsigned int
+int	    signed int
+ulong	    unsigned long
+long	    signed long
+uint64	    uint64_t
+int64	    int64_t
+float	    float
+double	    double
+longdouble  long double
+charstring  char *
+pointer	    void *
+void	    void
+
+Note that the void type can only be used as a return type. It cannot be used as the
+type of a parameter.
+
+As an example, two C functions and their corresponding prototypes are given below:
+
+<span class="c">// sample_c_lib.c</span>
+
 #include &lt;math.h&gt;
+
 double square_root(double f) { return sqrt(f); }
-long add_li(int i, long l) { return ((long)i) + l; }</pre></code></div>
+long add_li(int i, long l) { return ((long)i) + l; }
+<span class="c">// end of sample_c_lib.c</span>
 
-          <div class="highlight">
-      <pre><code><span class="k">declare</span> ffi <span class="s1">"sample_c_lib.so"</span> <span class="o">[</span>double square_root <span class="o">[</span>double<span class="o">]</span><span class="k"> as</span> sqrt<span class="o">,</span>
-                               long add_li <span class="o">[</span>int<span class="o">,</span> long<span class="o">]</span><span class="o">]</span></code></pre>
-    </div>
+<span class="c">// importing this library from slogan:</span>
+declare ffi "sample_c_lib.so" [double square_root [double] as sqrt,
+                               long add_li [int, long]];
 
-      <p>These prototype declarations mean that the Slogan program can call the C <code>square_root</code> function as <code>sqrt(param)</code> and the
-        <codr>add_li</code> function with the same name.</p>
+This prototype declaration means that the Slogan program can call the C `square_root`
+function as `sqrt(param)` and the `add_li` function with the same name.
 
-      <p>A structure prototype has the following syntax:</p>
-      <div class="highlight">
-        <pre><code><span class="k">struct</span> c_struct_name list_of_members</code></pre>
-      </div>
+A structure prototype has the following syntax:
 
-      <p><code>List_of_members</code> is an association list of the types and field names. For example consider the definition of a C struct
-        and its corresponding prototype:</p>
+<b>syntax: </b>struct c_struct_name list_of_members
 
-            <div class="highlight">
-        <pre><code>// sample_c_lib.c
+`list_of_members` is an association list of the types and field names.
+For example consider the definition of a C struct and its corresponding prototype:
+
+<span class="c">// sample_c_lib.c</span>
 struct point {
    int x;
    int y;
@@ -117,47 +118,93 @@ struct point make_point(int x, int y)
 {
    struct point p = {x, y};
    return p;
-}</pre></code></div>
-            
-          <div class="highlight">
-      <pre><code><span class="k">declare</span> ffi <span class="s1">"sample_c_lib.so"</span> <span class="o">[</span><span class="k">struct</span> point <span class="o">[</span>int<span class="o">:</span>x <span class="o", </span>int<span class="o">:</span>y<span class="o">]</span><span class="o">,</span>
-                               point make_point <span class="o">[</span>int<span class="o">,</span> int<span class="o">]</span><span class="o">]</span></code></pre>
-    </div>
+}
+<span class="c">// end of C code.</span>
 
-<p>Note that a <code>struct</code> prototype is required only if Slogan has to call C functions that deal with struct instances directly, i.e
-  not through pointers. If all C functions that you need to call deal with pointers to structures, you can get by with function declarations with the
-  <code>pointer</code> type. <code>Struct</code> prototypes are also required if you want to inspect the contents of a pointer to a structure or
-  you want to construct an instance of the structure from Slogan.</p>
+<span class="c">// importing the struct in Slogan:</span>
+declare ffi "sample_c_lib.so" [struct point [int:x, int:y],
+                               point make_point [int, int]];
 
-<p>The FFI provides a number of functions for accessing and manipulating C structures:</p>
+Note that a struct prototype is required only if Slogan has to call C functions
+that deal with struct instances directly, i.e not through pointers.
+If all C functions that you need to call deal with pointers to structures,
+you can get by with function declarations with the pointer type.
+Struct prototypes are also required if you want to inspect the contents of a
+pointer to a structure or you want to construct an instance of the structure from Slogan.</code></pre>
+      </div>
+
+<p>The complete example is reproduced below:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>c_struct_name<span class="o">(</span>s<span class="o">)</span>
-<b>returns: </b>the name of the struct prototype as a symbol.</code></pre>
+  <pre><code><span class="c">// sample_c_lib.c</span>
+#include &lt;math.h&gt;
+
+double square_root(double f) { return sqrt(f); }
+long add_li(int i, long l) { return ((long)i) + l; }
+// end of sample_c_lib.c
+
+// sample_c_lib.c
+struct point {
+   int x;
+   int y;
+};
+
+struct point make_point(int x, int y)
+{
+   struct point p = {x, y};
+   return p;
+}
+<span class="c">// end of C code.</span>
+      
+<span class="c">// Compile to a shared library (Linux):</span>
+$ gcc -Wall -shared -fPIC -o sample_c_lib.so sample_c_lib.c
+
+<span class="c">// Compile to a shared library (OS X):</span>
+$ gcc -dynamiclib -Wl,-undefined -Wl,dynamic_lookup -o sample_c_lib.so sample_c_lib.c
+
+<span class="c">// Loading and using the C library from Slogan:</span>
+declare ffi "c_lib.so" [double square_root [double] as sqrt,
+                        long add_li [int, long],
+                        struct point [int:x, int:y],
+                        point make_point [int, int]];
+sqrt(10.3);
+<span class="c">//=> 3.2093613071762426</span>
+add_li(10, 20);
+<span class="c">//=> 30</span>
+let p = make_point(100, 200);
+c_struct_name(p);
+<span class="c">//=> point</span>
+c_struct_get(p, 'x);
+<span class="c">//=> 100</span>
+c_struct_get(p, 'y);
+<span class="c">//=> 200</span></code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>c_struct_get<span class="o">(</span>s<span class="o">, </span>m<span class="o">)</span>
-<b>returns: </b>the value of the member named <em>m</em> from the structure <em>s</em>, <em>false</em> if the member is not found.</code></pre>
+  <pre><code><b>function: </b>c_struct_name(s)
+<b>returns: </b>a symbol which is the name of the C-struct instance `s`.
+</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>c_struct_instance<span class="o">(</span>n<span class="o">, </span>v<span class="o">)</span>
-<b>returns: </b>a new instance of the structure named <em>n</em> with the members initialized to the values of the list <em>v</em>.</code></pre>
+  <pre><code><b>function: </b>c_struct_get(s, m)
+<b>returns: </b>the value of the member `m` from the structure `s`, false if the member is not found.</code></pre>
 </div>
-
-<p>The values list should be specified in the same order as the members in the struct definition.</p>
-
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>pointer_to_c_struct<span class="o">(</span>n<span class="o">, </span>ptr<span class="o">)</span>
-<b>returns: </b>converts the generic pointer <em>ptr</em> to the structure named <em>n</em>.</code></pre>
-</div>
+  <pre><code><b>function: </b>c_struct_instance(n, v)
+<b>returns: </b>a new instance of the structure named `n` with the members initialized to the values of the list `v`.
 
-<p>You can find a detailed sample on using the high-level FFI in the <a href="https://github.com/vijaymathew/slogan/tree/master/example/ffi">example/ffi</a> folder of the source repository.</p>
+The values list should be specified in the same order as the members in the struct definition.</code></prE>
+  </div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>pointer_to_c_struct(n, ptr)
+<b>returns: </b>casts the generic pointer `ptr` to a pointer to the structure named `n`.</code></pre>
+</div>
 
 <h4>Configurable limits</h4>
-<p>The header file <code>src/include/slogan.h</code> defines certain constants that control the number of arguments that can be passed to
+<p>The header file <code>src/include/slogan.h</code> define certain constants that control the number of arguments that can be passed to
   a C function and the number of C-struct proxies that can be defined in Slogan. These definitions are:</p>
 <div class="highlight">
   <pre><code>#define SLOGAN_LIBFFI_ARGC 32
@@ -165,7 +212,7 @@ struct point make_point(int x, int y)
 #define SLOGAN_LIBFFI_STRUCT_SIZE 1024</code></pre></div>
 
 <p>By default the number of arguments and struct proxies are limited at <code>32</code>. A struct can be up to <code>1024</code> bytes in size.
-  These limits can be increased or decreased as per the applications requirement. Slogan should be rebuilt for changes in these limits to take effect.</p>
+  These limits can be increased or decreased as per the applications requirement. Slogan must be rebuilt for these changes to take effect.</p>
 
 <h3>Low-level FFI</h3>
 <p>The lower-level FFI gives more control over making C function calls. It also allows C functions to callback into Slogan code.</p>
@@ -177,159 +224,169 @@ struct point make_point(int x, int y)
 
 <p>Here <code>args</code> is an array of <code>___slogan_obj</code> objects. <code>Argp</code> is a pointer to an arbitrary C object and the <code>return_type</code> is one of: <code>void</code>, <code>void*</code>, <code>___slogan_obj</code>, <code>char</code>, <code>char*</code>, <code>int</code>, <code>unsigned int</code>, <code>long</code>, <code>unsigned long</code>, <code>long long</code>, <code>float</code> or <code>double</code>.</p>
 
-<p>The type <code>___slogan_obj</code> represents all Slogan objects like strings, lists, integers and characters.
-  The header file <code>slogan.h</code> declares the functions and macros required for converting a <code>___slogan_obj</code> to a
+<p>The type <code>___slogan_obj</code> represent all Slogan objects like strings, lists, integers and characters.
+  The header file <code>slogan.h</code> declare functions and macros required for converting a <code>___slogan_obj</code> to a
   C object and vice versa.</p>
 
       <h4>Conversion Macros and Functions</h4>
       <p>This section describes the C macros and functions defined in <code>slogan.h</code> for converting between <code>___slogan_obj</code> and C types.</p>
 
       <div class="highlight">
-        <pre><code><span class="nc">C macro:</span>___slogan_obj_to_char<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_uchar<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_int<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_uint<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_long<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_ulong<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_longlong<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_float<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_double<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_nonnull_charstring<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-<span class="nc">C macro:</span>___slogan_obj_to_void_pointer<span class="o">(</span>s<span class="o">,</span> t<span class="o">)</span>
-        </code></pre>
+        <pre><code><b>C macro:</b> ___slogan_obj_to_char(s, t)
+<b>C macro:</b> ___slogan_obj_to_uchar(s, t)
+<b>C macro:</b> ___slogan_obj_to_int(s, t)
+<b>C macro:</b> ___slogan_obj_to_uint(s, t)
+<b>C macro:</b> ___slogan_obj_to_long(s, t)
+<b>C macro:</b> ___slogan_obj_to_ulong(s, t)
+<b>C macro:</b> ___slogan_obj_to_longlong(s, t)
+<b>C macro:</b> ___slogan_obj_to_float(s, t)
+<b>C macro:</b> ___slogan_obj_to_double(s, t)
+<b>C macro:</b> ___slogan_obj_to_charstring(s, t)
+<b>C macro:</b> ___slogan_obj_to_nonnull_charstring(s, t)
+<b>C macro:</b> ___slogan_obj_to_void_pointer(s, t)
+        
+The ___slogan_obj object `s` is converted to a C int, unsigned int, float, double or
+char* and stored in `t` which should be the address of a C variable of the appropriate type.</code></pre>
       </div>
 
-<p>The ___slogan_obj object <code>s</code> is converted to a C <code>int</code>, <code>unsigned int</code>, <code>float</code>, 
-  <code>double</code> or <code>char*</code> and stored in <code>t</code> which should be the address of a C variable of the 
-  appropriate type.</p>
-
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___int<span class="o">(</span>s<span class="o">)</span>
-<b>returns:</b> a C <code>int</code> that contains the integer value of the Slogan character or 
-         integer (___slogan_obj) <em>s</em>.</code></pre>
+  <pre><code><b>C macro:</b> ___int(s)
+<b>returns: </b>a C int that contain the integer value of the Slogan character or integer
+(___slogan_obj) `s`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C function:</span>___slogan_obj ___fix<span class="o">(</span>int i<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj containing the value of the C integer <em>i</em>.</code></pre>
+  <pre><code><b>C function: </b>___slogan_obj ___fix(int i)
+<b>returns: </b>a ___slogan_obj containing the value of the C integer `i`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___char_to_slogan_obj<span class="o">(</span>c<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj containing the value of the character <em>c</em>.</code></pre>
+  <pre><code><b>C macro: </b>___char_to_slogan_obj(c)
+<b>returns: </b>a ___slogan_obj containing the value of the character `c`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___uchar_to_slogan_obj<span class="o">(</span>c<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj containing the value of the unsigned character <em>c</em>.</code></pre>
+  <pre><code><b>C macro: </b>___uchar_to_slogan_obj(c)
+<b>returns: </b>a ___slogan_obj containing the value of the unsigned character `c`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___uint_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj containing the value of the unsigned integer <em>i</em>.</code></pre>
+  <pre><code><b>C macro: </b>___uint_to_slogan_obj(i)
+<b>returns: </b>a ___slogan_obj containing the value of the unsigned integer `i`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___ulong_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj containing the value of the unsigned long <em>i</em>.</code></pre>
+  <pre><code><b>C macro: </b>___ulong_to_slogan_obj(i)
+<b>returns: </b>a ___slogan_obj containing the value of the unsigned long `i`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___long_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj representing the long value <em>i</em>.</code></pre>
+  <pre><code><b>C macro: </b>___long_to_slogan_obj(i)
+<b>returns: </b>a ___slogan_obj representing the long value `i`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___longlong_to_slogan_obj<span class="o">(</span>i<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj representing the long long value <em>i</em>.</code></pre>
+  <pre><code><b>C macro: </b>___longlong_to_slogan_obj(i)
+<b>returns: </b>a ___slogan_obj representing the long long value `i`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___float_to_slogan_obj<span class="o">(</span>f<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj representing the float value <em>f</em>.</code></pre>
+  <pre><code><b>C macro: </b>___float_to_slogan_obj(f)
+<b>returns: </b>a ___slogan_obj representing the float value `f`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___double_to_slogan_obj<span class="o">(</span>d<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj representing the double value <em>d</em>.</code></pre>
+  <pre><code><b>C macro: </b>___double_to_slogan_obj(d)
+<b>returns: </b>a ___slogan_obj representing the double value `d`.
+</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___void_pointer_to_slogan_obj<span class="o">(</span>p<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj representing the generic pointer <em>p</em>.</code></pre>
+  <pre><code><b>C macro: </b>___void_pointer_to_slogan_obj(p)
+<b>returns: </b>a ___slogan_obj representing the generic pointer `p`.</code></pre>
 </div>
 
 <div class="highlight">
-        <pre><code><span class="nc">C macro:</span>___charstring_to_slogan_obj<span class="o">(</span>c<span class="o">,</span> s<span class="o">)</span>
-<span class="nc">C macro:</span>___nonnullcharstring_to_slogan_obj<span class="o">(</span>c<span class="o">,</span> s<span class="o">)</span></code></pre>
-</div>
+  <pre><code><b>C macro: </b>___charstring_to_slogan_obj(c, s)
+<b>C macro: </b>___nonnullcharstring_to_slogan_obj(c, s)
 
-<p><code>___charstring_to_slogan_obj</code> initializes the <code>___slogan_obj</code> <code>s</code> as a Slogan string with the characters from the C string <code>c</code>. <code>___charstring_to_slogan_obj</code> creates a null-terminated string and <code>___nonnullcharstring_to_slogan_obj</code> creates
-  a string object that keeps track of its length. The C string <code>c</code> should always be null terminated.</p>
+___charstring_to_slogan_obj initializes the ___slogan_obj `s` as a Slogan string with
+the characters from the C string `c`. ___charstring_to_slogan_obj creates a
+null-terminated string and ___nonnullcharstring_to_slogan_obj creates a string object
+that keeps track of its length. The C string `c` should always be null terminated.
 
-<p>The following C code shows the correct way to use these functions:</p>
+The following C code shows the correct way to use these functions:
 
-<div class="highlight">
-  <pre><code>___slogan_obj hi(___slogan_obj *args)
+<span class="c">// test.c</span>
+#include &lt;stdio.h&gt;
+#include "slogan.h"
+  
+___slogan_obj hi(___slogan_obj *args)
 {
   ___slogan_obj message;
-  char *s = &quot;hi from C!&quot;;
+  char *s = "hi from C!";
   char *p;
   ___slogan_obj_to_charstring(args[0], &p);
   printf("Slogan says \"%s\"\n", p);
       
   ___charstring_to_slogan_obj(s, &message);
   return message;
-}</code></pre>
+}
+<span class="c">// end of test.c</span>
+
+This can be compiled to a shared library on Linux using the command:
+$ gcc -Wall -shared -fPIC -I ${SLOGAN_HOME}/src/include/ \
+-I ${SLOGAN_HOME}/platform/gsc/include -o test.so test.c
+
+and on OS X using this command:
+
+$ gcc -dynamiclib -Wl,-undefined -Wl,dynamic_lookup -I \
+${SLOGAN_HOME}/src/include/ -I D${SLOGAN_HOME}./platform/gsc/include -o test.so test.c
+
+The function `hi` can be invoked from Slogan as shown below:
+
+let clib = ffi_open("./test.so");
+let f = ffi_fn(clib, "hi"); 
+ffi_call_obj(f, #["hello from Slogan"]);
+<span class="c">//-> Slogan says "hello from Slogan"</span>
+<span class="c">//=> hi from C!</span>
+ffi_close(clib); 
+<span class="c">//=> true</span></code></pre>
 </div>
 
-<p>The function <code>hi</code> can be invoked from Slogan as shown below, assuming that it has been compiled into a shared library called &quot;test.so&quot;:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> clib <span class="o">=</span> ffi_open<span class="o">(</span><span class="s1">&quot;./test.so&quot;</span><span class="o">)</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span><span class="k">let</span> f <span class="o">=</span> ffi_fn<span class="o">(</span>clib<span class="o">, </span><span class="s1">&quot;hi&quot;</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>ffi_call_obj<span class="o">(</span>f<span class="o">,</span> <span class="o">#[</span><span class="s1">&quot;hello from Slogan&quot;</span><span class="o">]</span><span class="o">)</span><span class="o">;</span>
-<span class="ge">-&gt; Slogan says "hello from Slogan"</span>
-<span class="ge">=&gt; hi from C!</span>
-<span class="nc">slogan&gt; </span>ffi_close<span class="o">(</span>clib<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; true</span></code></pre>
-</div>
+  <pre><code><b>C function: </b>___slogan_obj ___pair(___slogan_obj obj1, ___slogan_obj obj2)
+<b>returns: </b>a ___slogan_obj that represents a Slogan pair with head and tail pointing to
+`obj1` and `obj2`.
 
-<div class="highlight">
-  <pre><code><span class="nc">C function:</span>___slogan_obj ___pair<span class="o">(</span>___slogan_obj obj1<span class="o">, </span>___slogan_obj obj2<span class="o">)</span>
-<b>returns:</b> a ___slogan_obj that represents a Slogan pair with head and tail 
-         pointing to <em>obj1</em> and <em>obj2</em>.</code></pre>
-</div>
-
-<p>Both <code>obj1</code> and <code>obj2</code> must be of types ___slogan_obj.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___head<span class="o">(</span>p<span class="o">)</span>
-<span class="nc">C macro:</span>___tail<span class="o">(</span>p<span class="o">)</span>
-<b>returns:</b> the head or tail objects of the ___slogan_obj <em>p</em> that represents a Slogan pair.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">C constant:</span>___TRU</span>
-<span class="nc">C constant:</span>___FAL</span>
-<b>returns:</b> the ___slogan_obj that represents the Slogan values <em>true</em> or <em>false</em>.</code></pre>
+Both `obj1` and `obj2` must be of types ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C constant:</span>___NUL</span>
-<b>returns:</b> the ___slogan_obj that represents the empty list <em>[]</em>.</code></pre>
+  <pre><code><b>C macro: </b>___head(p)
+<b>C macro: </b>___tail(p)
+<b>returns: </b>the head or tail objects of the ___slogan_obj `p` that represents a Slogan pair.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___is_empty<span class="o">(</span>pair<span class="o">)</span>
-<b>returns:</b> <em>___TRU</em> if <em>pair</em> is the empty list <em>[]</em>, <em>___FAL</em> otherwise.</code></pre>
+  <pre><code><b>C constant: </b>___TRU
+<b>C constant: </b>___FAL
+<b>returns: </b>the ___slogan_obj that represents the Slogan values true or false.</code></pre>
 </div>
 
-<p>The following C function demonstrates how to receive a list of integers from Slogan and print it:</p>
+<div class="highlight">
+  <pre><code><b>C constant: </b>___NUL
+<b>returns: </b>the ___slogan_obj that represents the empty list [].</code></pre>
+</div>
 
 <div class="highlight">
-  <pre><code>void print_i_list(___slogan_obj *args)
+  <pre><code><b>C macro: </b>___is_empty(pair)
+<b>returns: </b>___TRU if pair is the empty list [], ___FAL otherwise.
+
+The following C function demonstrates how to receive a list of integers from Slogan and print it:
+
+void print_i_list(___slogan_obj *args)
 {
   ___slogan_obj a = args[0];
   while (!___is_empty(a)) {
@@ -340,361 +397,356 @@ struct point make_point(int x, int y)
     printf(&quot;%d\n&quot;, i);
     a = t;
   }
-}</code></pre>
+}
+
+`print_i_list` can be invoked from Slogan as shown below:
+
+let f = ffi_fn(clib, "print_i_list");
+ffi_call_void(f, #[[1, 10, -3, 99]]); 
+<span class="c">//-> 1
+     10  
+     -3
+     99</span></code></pre>
 </div>
 
-<p><code>Print_i_list</code> can be invoked from Slogan as:</p>
 
 <div class="highlight">
-<pre><code><span class="nc">slogan&gt; </span>ffi_call_void<span class="o">(</span>pointer_to_print_i_list<span class="o">,</span> <span class="o">#[</span><span class="o">[</span><span class="mi">1</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="o">-</span><span class="mi">3</span><span class="o">,</span> <span class="mi">99</span><span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; </span>1
-   10
-   -3
-   99</code></pre>
-</div>
+  <pre><code><b>C macro: </b>___body(array)
+<b>returns: </b>a C array of ___slogan_obj objects that are the elements of the Slogan array array.
 
+The following C function prints the first two elements of a Slogan array passed to it. The function
+expects the first element to be an integer and the second element to be a string.
 
-<div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___body<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> a C array of ___slogan_obj objects that are the elements of the Slogan array <em>array</em>.</code></pre>
-</div>
-
-<p>The following C function prints the first two elements of a Slogan array passed to it. The function expects the first element to be
-  an integer and the second element to be a string.</p>
-
-<div class="highlight">
-  <pre><code>void f(___slogan_obj *args)
+void f(___slogan_obj *args)
 {
   ___slogan_obj *b = ___body(args[0]);
   int i;
   char *s;
   ___slogan_obj_to_int(b[0], &i);
   ___slogan_obj_to_charstring(b[1], &s);
-  printf(&quot;%d\n%s\n&quot;, i, s);
-}</code></pre>
+  printf("%d\n%s\n", i, s);
+}
+
+This function can be invoked from Slogan as:
+
+f = ffi_fn(clib, "f");
+ffi_call_void(f, #[#[100, "hello"]]); 
+<span class="c">//-> 100
+     hello</span></code></pre>
 </div>
 
-<p>This function can be invoked from Slogan as:</p>
+<p>A bunch of macros and functions are provided for working with arrays:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>ffi_call_void<span class="o">(</span>pointer_to_f<span class="o">,</span> <span class="o">#[</span><span class="o">#</span><span class="o">[</span><span class="mi">100</span><span class="o">,</span> <span class="s1">&quot;hello&quot;</span><span class="o">]</span><span class="o">]</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; </span>100
-   hello</code></pre>
-</div>
-
-<p>A bunch of macros and functions are provided for working with array datastructures:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">C function:</span>___slogan_obj ___alloc_u8array<span class="o">(</span>int size<span class="o">)</span>
-<b>returns:</b> a byte array of length <em>size</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">C function:</span>___slogan_obj ___alloc_array<span class="o">(</span>int size<span class="o">)</span>
-<b>returns:</b> an array of length <em>size</em>.</code></pre>
+  <pre><code><b>C function: </b>___slogan_obj ___alloc_u8array(int size)
+<b>returns: </b>a byte array of length `size`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C function: </b>___slogan_obj ___alloc_array(int size)
+<b>returns: </b>an array of length `size`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
+</div>
+
+<div class="highlight">
+  <pre><code><b>C macro: </b>___array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <p>Equivalent macros are available for arrays of signed/unsigned integers and floats. Similar macros are there to access and manipulate Slogan strings
   as well:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s8array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___s8array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s8array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___s8array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s8array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___s8array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u8array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___u8array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u8array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___u8array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u8array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___u8array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s16array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___s16array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s16array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___s16array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s16array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___s16array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u16array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___u16array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u16array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___u16array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u16array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___u16array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s32array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___s32array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s32array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___s32array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s32array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___s32array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u32array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___u32array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u32array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___u32array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u32array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___u32array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s64array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___s64array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s64array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___s64array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___s64array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___s64array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u64array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___u64array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u64array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___u64array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___u64array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___u64array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___f32array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___f32array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___f32array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___f32array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___f32array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___f32array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___f64array_length<span class="o">(</span>array<span class="o">)</span>
-<b>returns:</b> the number of elements in <em>array</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___f64array_length(array)
+<b>returns: </b>the number of elements in `array` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___f64array_at<span class="o">(</span>array<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the element in <em>array</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___f64array_at(array, i)
+<b>returns: </b>the element in `array` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___f64array_set<span class="o">(</span>array<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the element in <em>array</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___f64array_set(array, i, obj)
+<b>returns: </b>sets the element in `array` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___string_length<span class="o">(</span>s<span class="o">)</span>
-<b>returns:</b> the number of character in the string <em>s</em> as a C integer.</code></pre>
+  <pre><code><b>C macro: </b>___string_length(s)
+<b>returns: </b>the number of characters in the string `s` as a C integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___string_at<span class="o">(</span>s<span class="o">, </span>i<span class="o">)</span>
-<b>returns:</b> the character in <em>s</em> at index <em>i</em> as a ___slogan_obj.</code></pre>
+  <pre><code><b>C macro: </b>___string_at(s, i)
+<b>returns: </b>the character in `s` at index `i` as a ___slogan_obj.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">C macro:</span>___string_set<span class="o">(</span>s<span class="o">, </span>i<span class="o">, </span>obj<span class="o">)</span>
-<b>returns:</b> sets the character in <em>s</em> at index <em>i</em> to the ___slogan_obj <em>obj</em>.</code></pre>
+  <pre><code><b>C macro: </b>___string_set(s, i, obj)
+<b>returns: </b>sets the character in `s` at index `i` to the ___slogan_obj `obj`.</code></pre>
 </div>
 
-<h4>Loading and Calling C Functions</h4>
-<p>This section describes the functions that let a Slogan program load a shared library and call the C functions exported by it.</p>
+<h5>Loading and calling C functions</h5>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_open<span class="o">(</span>libname<span class="o">)</span> 
-<b>returns:</b> an object representing a &quot;handle&quot; to the shared library file named <em>libname</em>, <em>false</em> 
-         if the shared library could not be loaded.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_close<span class="o">(</span>lib_handle<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if the shared library represented by <em>lib_handle</em> was successfully unloaded, 
-         <em>false</em> otherwise.</code></pre>
+  <pre><code><b>function: </b>ffi_open(libname) 
+<b>returns: </b>an object representing a "handle" to the shared library file named `libname`, false 
+if the shared library could not be loaded.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_fn<span class="o">(</span>lib_handle<span class="o">, </span>fnname<span class="o">)</span> 
-<b>returns:</b> returns the address of the function named <em>fnname</em> from the library represented by <em>lib_handle</em>.
-         If the function is not found returns <em>false</em>.</code></pre>
+  <pre><code><b>function: </b>ffi_close(lib_handle) 
+<b>returns: </b>true if the shared library represented by `lib_handle` was successfully unloaded, 
+false otherwise.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_void<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> void</code></pre>
+  <pre><code><b>function: </b>ffi_fn(lib_handle, fnname) 
+<b>returns: </b>returns the address of the function named `fnname` from the library represented
+by `lib_handle`, false if the function is not found.</code></pre>
+</div>
+
+<p>The functions described below are used for calling a C function.
+`fn_pointer` is the function pointer returned by `ffi_fn`.
+`args` must be an array and `argp` must be a pointer to a C object. That means `argp` will almost always
+be a value returned by a previous call to a C function that returned a void*.</p>
+      
+<div class="highlight">
+  <pre><code><b>function: </b>ffi_call_void(fn_pointer, args) 
+<b>returns: </b>void</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> <b>returns:</b> a C pointer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_void_pointer(fn_pointer, args)
+<b>returns: </b>a C pointer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_char_string<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a string.</code></pre>
+  <pre><code><b>function: </b>ffi_call_char_string(fn_pointer, args) 
+<b>returns: </b>a string.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_int<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> an integer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_int(fn_pointer, args) 
+<b>returns: </b>an integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_uint<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> an integer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_uint(fn_pointer, args) 
+<b>returns: </b>an integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_int64<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a 64-bit integer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_int64(fn_pointer, args) 
+<b>returns: </b>a 64-bit integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_float<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
+  <pre><code><b>function: </b>ffi_call_float(fn_pointer, args) 
 <b>returns:</b> a real number.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_double<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a real number.</code></pre>
+  <pre><code><b>function: </b>ffi_call_double(fn_pointer, args) 
+<b>returns: </b>a real number.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_obj<span class="o">(</span>fn_pointer<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> an Slogan object.</code></pre>
+  <pre><code><b>function: </b>ffi_call_obj(fn_pointer, args) 
+<b>returns: </b>an Slogan object.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_void_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> void</code></pre>
+  <pre><code><b>function: </b>ffi_call_void_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>void</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_void_pointer_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a C pointer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_void_pointer_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>a C pointer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_char_string_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a string.</code></pre>
+  <pre><code><b>function: </b>ffi_call_char_string_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>a string.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_int_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> an integer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_int_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>an integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_uint_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> an unsigned integer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_uint_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>an unsigned integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_int64_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a 64-bit integer.</code></pre>
+  <pre><code><b>function: </b>ffi_call_int64_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>a 64-bit integer.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_float_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a real number.</code></pre>
+  <pre><code><b>function: </b>ffi_call_float_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>a real number.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_double_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a real number.</code></pre>
+  <pre><code><b>function: </b>ffi_call_double_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>a real number.</code></pre>
 </div>
 
 <div class="highlight">
-  <pre><code><span class="nc">function: </span>ffi_call_obj_with_void_pointer<span class="o">(</span>fn_pointer<span class="o">, </span>argp<span class="o">, </span>args<span class="o">)</span> 
-<b>returns:</b> a Slogan object.</code></pre>
+  <pre><code><b>function: </b>ffi_call_obj_with_void_pointer(fn_pointer, argp, args) 
+<b>returns: </b>a Slogan object.</code></pre>
 </div>
-
-
-<p>All the <code>ffi_call_***</code> functions call the C function pointed to by <code>fn_pointer</code> by passing it the argument objects
-  <code>args</code> and <code>argp</code>. <code>Args</code> must be an array and <code>argp</code> must be a pointer to a C object. That means
-  <code>argp</code> will almost always be a value returned by a previous call to a C function that returns a <code>void*</code>.</p>
-
 
 <h4>Calling Slogan functions from C</h4>
-<p>The FFI implementation exports the <code>___call_fn</code> function that enables C code to call any function implemented in Slogan. <code>___call_fn</code> takes two arguments - the function object to call and its arguments. The arguments are passed as a single list. <code>___call_fn</code> will return a <code>___slogan_obj</code> which is the return value of the function object. The following example shows how to write a shared library that makes a call back into Slogan:</p>
+<p>The <code>___call_fn</code> function enables C code to call any function implemented in Slogan. <code>___call_fn</code> takes two arguments - the function object to call and its arguments. The arguments are passed as a single list. <code>___call_fn</code> will return a <code>___slogan_obj</code> which is the return value of the Slogan function. The following example show how to write a shared library that makes a call back into Slogan:</p>
 
 <div class="highlight">
   <pre><code>/* call_fn_test.c */
@@ -713,17 +765,17 @@ ___slogan_obj call(___slogan_obj *args)
       return ___FAL;
     }
   return result;
-}
 }</code></pre></div>
 
-<p>The <code>___ON_THROW</code> macro will set the integer variable <code>error</code> to <code>1</code> if the Slogan function raises an exception.
-Once this is compiled into a shared library, <code>call</code> can be invoked as shown below:</p>
+      <p>The <code>___ON_THROW</code> macro will set the integer variable <code>error</code> to <code>1</code> if the Slogan function raised an exception.</p>
+      
+<p>Once the C file is compiled into a shared library, <code>call</code> can be invoked as shown below:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt;</span> <span class="k">let</span> clib = ffi_open<span class="o">(</span>"./call_fn_test.so"<span class="o">);</span>
-<span class="nc">slogan&gt;</span> <span class="k">let</span> f = ffi_fn<span class="o">(</span>clib, "call"<span class="o">);</span>      
-<span class="nc">slogan&gt;</span> ffi_call_obj<span class="o">(</span>f, <span class="o">#[</span>add<span class="o">]);</span>
-<span class="ge">=&gt; </span>300</pre></code></div>
+  <pre><code>let clib = ffi_open("./call_fn_test.so");
+let f = ffi_fn(clib, "call");      
+ffi_call_obj(f, #[add]);
+</span class="c">//=> 300</code></div>
 
       </div>
   </body>

@@ -27,131 +27,118 @@
     <div id="site" class="site">
       <div class="title"><h3>Records</h3></div>
       
-      <p>This chapter describes the means by which the programmer may define new data types called records, each distinct from all other types. 
-        A record type determines the number and names of the fields each instance of the type has. Records are defined via the 
-        <code>record</code> syntactic form:</p>
+      <p>This chapter describe records, a means for defining new, distinct types. A record determines the number and names of the
+        fields each instance of the type has. Records are defined via the <code>record</code> syntactic form which is described below:</p>
 
       <div class="highlight">
-        <pre><code><span class="nc">syntax: </span><span class="k">record</span> <em>name</em> <span class="o">(</span>field1 <span class="o">=</span> <em>default_value</em> <span class="k">where</span> <em>pre_condition</em><span class="o">,</span> ...<span class="o">)</span></code></pre>
+        <pre><code><b>syntax: </b>record name (field1 = default_value where pre_condition, ...)
+
+`name` is the name of the new record and `field1 ...` are the names of its fields.
+The optional where clause specifies the pre-conditions that the values assigned to
+`field1 ...` should satisfy.
+`default_value1 ...`s are also optional and defaults to false.
+
+The record statement will automatically define the following functions:
+
+<b>function: </b>name(@key field1 = value1, ...) 
+<b>function: </b>make_name(value1, value2) 
+<b>returns: </b>a new instance of the record named `name` with its fields set to the given values.
+
+These are the constructor functions for the record.
+The make_name function expects all the fields to be specified in the same order as
+they were defined in the record statement.
+
+<b>function: </b>is_name(obj) 
+<b>returns: </b>true if `obj` is an instance of the record named `name`, false otherwise.
+
+<b>function: </b>name_field(r) 
+<b>returns: </b>the current value bound to `field` in the record instance `r`.
+
+<b>function: </b>name_set_field(r, value) 
+<b>returns: </b>void
+
+Sets `field` in the record object `r` to `value`.
+
+
+<span class="c">// Examples:</span>
+record point (x, y); 
+
+let p = point(y = 100, x = 20); 
+let p2 = make_point(1, 3.4); 
+point_x(p); 
+<span class="c">//=> 20</span>
+point_x(p2); 
+<span class="c">//=> 1</span>
+point_set_y(p2, 5.6); 
+point_y(p2); 
+<span class="c">//=> 5.6</span>
+
+<span class="c">// The point constructor allows us to leave out fields so they take default values:</span>
+p = point(x = 12); 
+point_x(p); 
+<span class="c">//=> 12</span>
+point_y(p); 
+<span class="c">//=> false</span>
+
+<span class="c">// A coordinate taking the default value of false does not look right.
+// So let us change the record definition a bit:</span>
+record point (x = 0, y = 0);
+
+p = point(x = 12); 
+point_x(p); 
+<span class="c">//=> 12</span>
+point_y(p); 
+<span class="c">//=> 0</span>
+
+<span class="c">// The where clause can restrict the range of values being assigned to the coordinates:</span>
+record point (x = 0 where x >= -80 && x <= 80, y = 0 where y >= 0 && y <= 80); 
+
+p = point(x = -100, y = 10); 
+<span class="c">//-> error: precondition_failed</span>
+
+p = point(x = -10, y = 10); 
+point_set_y(p, -1); 
+<span class="c">//-> error: precondition_failed</span>
+point_set_y(p, 1); 
+p;
+<span class="c">//=> #&lt;point #3 x: -10 y: 1&gt;</span>
+  
+<span class="c">//The make_point constructor will bypass all pre-condition checks:</span>
+p = make_point(-100, -10);
+p;
+<span class="c">//=> #&lt;point #4 x: -100 y: -10&gt;</span></code></pre>
       </div>
       
-      <p><code>Name</code> is the name of the new record and <code>field1 ...</code> are the names of its fields. The <code>where</code> clause,
-        which specifies the pre-conditions that the values assigned to the fields should obey, is optional. The <code>default_value</code> 
-        is also optional and defaults to <code>false</code>.</p>
-
-      <p>The <code>record</code> statement automatically defines the following functions for the new record type:<p>
-
-        <div class="highlight">
-          <pre><code><span class="nc">function: </span><em>name</em><span class="o">(</span>@key <em>field1</em> <span class="o">=</span> value1<span class="o">,</span> ...<span class="o">)</span> 
-<span class="nc">function: </span>make_<em>name</em><span class="o">(</span>value1<span class="o">,</span> value2<span class="o">)</span> 
-<b>returns:</b> a new instance of the record named <em>name</em> with its fields set to the given values.</code></pre>
-</div>
-
-<p>These are the constructor functions for the record named <code>name</code>. The <code>make_<em>name</em></code> function expects
-  all the fields to be specified in the same order as they were declared by the <code>record</code> statement.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span>is_<em>name</em><span class="o">(</span>obj<span class="o">)</span> 
-<b>returns:</b> <em>true</em> if <em>obj</em> is an instance of the record named <em>name</em>, <em>false</em> otherwise.</code></pre>
-</div>
-<div class="highlight">
-  <pre><code><span class="nc">function: </span><em>name</em>_<em>field</em><span class="o">(</span>r<span class="o">)</span> 
-<b>returns:</b> the current value bound to <em>field</em> in the record instance <em>r</em>.</code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><span class="nc">function: </span><em>name</em>_set_<em>field</em><span class="o">(</span>r<span class="o">,</span> value<span class="o">)</span> 
-<b>returns:</b> void</code></pre>
-</div>
-
-<p>Binds <code>value</code> to the field named <code>field</code> in the record object <code>r</code>.</p>
-
-<h5>An example</h5>
-<p>This section demonstrates the functions we have discussed so far by defining a simple <code>point</code> record.</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> p <span class="o">=</span> point<span class="o">(</span>y <span class="o">=</span> <span class="mi">100</span><span class="o">,</span> x <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> p2 <span class="o">=</span> make_point<span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">3.4</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 20</span>
-<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p2<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 1</span>
-<span class="nc">slogan&gt; </span>point_set_y<span class="o">(</span>p2<span class="o">,</span> <span class="mi">5.6</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>point_y<span class="o">(</span>p2<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 5.6</span></code></pre>
-</div>
-
-<p>The <code>point</code> constructor also allows us to leave out fields so that they can take default values:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="mi">12</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 12</span>
-<span class="nc">slogan&gt; </span>point_y<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; false</span></code></pre>
-</div>
-
-<p>A coordinate taking the default value of <code>false</code> does not look right. So let us change the record definition a bit:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">0</span><span class="o">)</span><span class="o">;</span>
-
-<span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="mi">12</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>point_x<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 12</span>
-<span class="nc">slogan&gt; </span>point_y<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 0</span></code></pre>
-</div>
-
-<p>Using the <code>where</code> clause, if can restrict the range of values being assigned to the coordinates:</p>
-
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x <span class="o">=</span> <span class="mi">0</span> <span class="k">where</span> x <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">80</span> <span class="o">&&</span> x <span class="o">&lt;=</span> <span class="mi">80</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">0</span> <span class="k">where</span> y <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&&</span> y <span class="o">&lt;=</span> <span class="mi">80</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="o">-</span><span class="mi">100</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="err">error: precondition_failed</span>
-<span class="nc">slogan&gt; </span>p <span class="o">=</span> point<span class="o">(</span>x <span class="o">=</span> <span class="o">-</span><span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>point_set_y<span class="o">(</span>p<span class="o">,</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
-<span class="err">error: precondition_failed</span>
-<span class="nc">slogan&gt; </span>point_set_y<span class="o">(</span>p<span class="o">,</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> </code></pre>
-</div>
-
-<p>Keep in mind that the <code>make_point</code> constructor allows us to bypass the pre-conditions. The following code will not raise an error:</p>
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span>p <span class="o">=</span> make_point<span class="o">(</span><span class="o">-</span><span class="mi">100</span><span class="o">,</span> <span class="o">-</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span></code></pre>
-</div>
-
 <h5>Pattern matching records</h5>
-<p>This section shows how to use the <code>match</code> statement to pattern match records through a few simple examples.</p>
+<p>Examples:</p>
 
 <div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">record</span> point <span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">record</span> three_d_point <span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+  <pre><code>record point (x, y); 
+record three_d_point (x, y, z); 
 
-<span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>p<span class="o">)</span> 
-          <span class="k">match</span> <span class="o">(</span>p<span class="o">)</span> 
-           point<span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span><span class="o"> -&gt;</span> showln<span class="o">(</span><span class="s1">&quot;point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">)</span>
-          <span class="o">|</span> three_d_point<span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o"> -&gt;</span> showln<span class="o">(</span><span class="s1">&quot;3d_point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+function f(p) 
+ | point(x, y) -> println("point ", x, ":", y)
+ | three_d_point(x, y, z) -> println("3d_point ", x, ":", y, ":", z); 
 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; point 10:20</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span>three_d_point<span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">,</span> z <span class="o">=</span> <span class="mi">3.4</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; 3d_point 10:20:3.4</span></code></pre>
+f(point(x = 10, y = 20)); 
+<span class="c">//-> point 10:20</span>
+f(three_d_point(x = 10, y = 20, z = 3.4)); 
+<span class="c">//-> 3d_point 10:20:3.4</span></code></pre>
 </div>
 
 <p>The <code>match</code> statement can also have a <code>where</code> clause that can be used to impose more restrictions on how the pattern
   is matched. For example, if we want to match a <code>point</code> object only if its <code>x</code> is <code>10</code>, we would rewrite
-  the <code>match</code> statement as follows:</p>
-<div class="highlight">
-  <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> f<span class="o">(</span>p<span class="o">)</span> 
-          <span class="k">match</span> <span class="o">(</span>p<span class="o">)</span> 
-           point<span class="o">(</span>x<span class="o">,</span> y<span class="o">)</span> <span class="k">where</span> x <span class="o">==</span> <span class="mi">10</span><span class="o"> -&gt;</span> showln<span class="o">(</span><span class="s1">&quot;point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">)</span>
-          <span class="o">|</span> three_d_point<span class="o">(</span>x<span class="o">,</span> y<span class="o">,</span> z<span class="o">)</span><span class="o"> -&gt;</span> showln<span class="o">(</span><span class="s1">&quot;3d_point &quot;</span><span class="o">,</span> x<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> y<span class="o">,</span> <span class="s1">&quot;:&quot;</span><span class="o">,</span> z<span class="o">)</span><span class="o">;</span> 
+  the <code>match</code> statement as shown below:</p>
 
-<span class="nc">slogan&gt; </span>f<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">10</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; point 10:20</span>
-<span class="nc">slogan&gt; </span>f<span class="o">(</span>point<span class="o">(</span>x <span class="o">=</span> <span class="mi">5</span><span class="o">,</span> y <span class="o">=</span> <span class="mi">20</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="err">error: No match found.</span></code></pre>
+<div class="highlight">
+  <pre><code> function f(p) 
+  | point(x, y) where x == 10 -> println("point ", x, ":", y)
+  | three_d_point(x, y, z) -> println("3d_point ", x, ":", y, ":", z); 
+
+f(point(x = 10, y = 20)); 
+<span class="c">//-> point 10:20</span>
+f(point(x = 5, y = 20)); 
+<span class="c">//-> error: no_match_found</span></code></pre>
 </div>
 
     </div>

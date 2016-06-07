@@ -27,47 +27,43 @@
   <div id="site" class="site">
     <div class="title"><h2>Laziness</h2></div>
 
-    <p>An expression can be lazily evaluated by using the <code>~</code> (delay) operator.
-      <code>~</code> returns a "promise" to execute the expression at a later point in time.
-      The function <code>force</code> is used to evaluate a delayed expression. <code>Force</code>
-      remembers the value of the expression and do not evaluate it again for subsequent calls.</p>
+    <p>The delay operator (<code>~</code>) converts an expression into a "promise" that can be later "forced"
+      to produce a value:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">let</span> p <span class="o">=</span> ~<span class="o"></span><span class="o">{</span> showln<span class="o">(</span><span class="s1">&quot;evaluating 1 + 2 ...&quot;</span><span class="o">)</span><span class="o">;</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">}</span><span class="o"></span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>force<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; evaluating 1 + 2 ...</span>
-<span class="ge">=&gt; 3</span>
-<span class="nc">slogan&gt; </span>force<span class="o">(</span>p<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 3</span></code></pre></div>
+      <pre><code>let p = ~{ showln("evaluating 1 + 2 ..."); 1 + 2 }; 
+force(p); 
+<span class="c">//-> evaluating 1 + 2 ...</span>
+<span class="c">//=> 3</span>
+force(p); 
+<span class="c">//=> 3</span></code></pre></div>
 
-    <p>Argument expressions can be wrapped in function lietarls to delay its evaluation until its value is actually required by the function.
+    <p>Argument expressions can be wrapped in function literals to delay its evaluation until its value is actually required by the function.
       Such "lazy" arguments are useful in defining control structures that conditionally evaluate their arguments:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> unless<span class="o">(</span>condition<span class="o">,</span> body<span class="o">)</span> 
-         <span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>condition<span class="o">)</span><span class="o">)</span> body<span class="o">();</span> 
+      <pre><code>function unless(condition, body) when (not(condition)) body(); 
 
-<span class="nc">slogan&gt; </span>unless<span class="o">(</span><span class="mi">1</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="o">,</span> <span class="k">^</span>showln<span class="o">(</span><span class="s1">&quot;ok&quot;</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>unless<span class="o">(</span><span class="mi">1</span> <span class="o">==</span> <span class="mi">2</span><span class="o">,</span> <span class="k">^</span>showln<span class="o">(</span><span class="s1">&quot;ok&quot;</span><span class="o">)</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">-&gt; ok</span>
-</code></pre></div>
+unless(1 < 2, ^showln("ok")); 
+unless(1 == 2, ^showln("ok")); 
+<span class="c">//-> ok</span></code></pre></div>
 
-    <p>As shown in the above example, the parameter list is optional for function literals.</p>
+    <p>(As you can see in the above example, the parameter list is optional for function literals that take no arguments.)</p>
     <p>A pair can also be lazy, evaluating its tail only when required. The following program shows how to create an infinite sequence of integers using
       lazy pairs:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> ints<span class="o">(</span>n<span class="o">)</span> 
-         n<span class="o">:</span><span class="o">~</span>ints<span class="o">(</span>n <span class="o">+</span> <span class="mi">1</span><span class="o">)</span><span class="o">;</span> 
+      <pre><code>function ints(n) n:~ints(n + 1); 
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> n <span class="o">=</span> ints<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>first<span class="o">(</span>n<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 10</span>
-<span class="nc">slogan&gt; </span>second<span class="o">(</span>n<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 11</span>
-<span class="nc">slogan&gt; </span>nth<span class="o">(</span><span class="mi">34</span><span class="o">,</span> n<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 44</span></code></pre></div>
-      
+let n = ints(10); 
+first(n); 
+<span class="c">//=> 10</span>
+second(n); 
+<span class="c">//=> 11</span>
+nth(34, n); 
+<span class="c">//=> 44</span></code></pre></div>
+
+    <p>Learn more about <a href="../pm/bd.html">lazy sequences</a>.</p>
     </div>
   </body>
 </html>

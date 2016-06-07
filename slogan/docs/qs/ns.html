@@ -32,59 +32,52 @@
       as its own &quot;private state&quot;:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span><span class="k">function</span> make_counter<span class="o">(</span>n<span class="o">)</span> 
-         <span class="k">^</span><span class="o">(</span>message<span class="o">)</span> 
-          <span class="k">match</span> <span class="o">(</span>message<span class="o">)</span> 
-           <span class="o">'</span>inc <span class="o">-&gt;</span> <span class="o">{</span> n <span class="o">=</span> n <span class="o">+</span> <span class="mi">1</span><span class="o">;</span> 
-                     n <span class="o">}</span><span class="o">|</span> 
-           <span class="o">'</span>dec <span class="o">-&gt;</span> <span class="o">{</span> n <span class="o">=</span> n <span class="o">-</span> <span class="mi">1</span><span class="o">;</span> 
-                     n <span class="o">}</span><span class="o">|</span> 
-           <span class="o">'</span>get <span class="o">-&gt;</span> n<span class="o">;</span> 
+      <pre><code>function make_counter(n) 
+  ^(message) 
+  | 'inc -> { n = n + 1; n }
+  | 'dec -> { n = n - 1; n }
+  | 'get -> n; 
 
-<span class="nc">slogan&gt; </span><span class="k">let</span> c1 <span class="o">=</span> make_counter<span class="o">(</span><span class="mi">10</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span><span class="k">let</span> c2 <span class="o">=</span> make_counter<span class="o">(</span><span class="mi">100</span><span class="o">)</span><span class="o">;</span> 
-<span class="nc">slogan&gt; </span>c1<span class="o">(</span><span class="o">'</span>inc<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 11</span>
-<span class="nc">slogan&gt; </span>c1<span class="o">(</span><span class="o">'</span>inc<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 12</span>
-<span class="nc">slogan&gt; </span>c2<span class="o">(</span><span class="o">'</span>inc<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 101</span>
-<span class="nc">slogan&gt; </span>c2<span class="o">(</span><span class="o">'</span>dec<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 100</span>
-<span class="nc">slogan&gt; </span>c1<span class="o">(</span><span class="o">'</span>get<span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; 12</span></code></pre></div>
+let c1 = make_counter(10); 
+let c2 = make_counter(100); 
+c1('inc); 
+<span class="c">//=> 11</span>
+c1('inc); 
+<span class="c">//=> 12</span>
+c2('inc); 
+<span class="c">//=> 101</span>
+c2('dec); 
+<span class="c">//=> 100</span>
+c1('get); 
+<span class="c">//=> 12</span></code></pre></div>
 
-    <p>You can also use the shorter <em>dot-notation</em> for &quot;sending messages&quot; to functions:</p>
+    <p>You can use the shorter <em>dot-notation</em> for &quot;sending messages&quot; to functions:</p>
 
     <div class="highlight">
-      <pre><code><span class="nc">slogan&gt; </span>c2<span class="o">.</span>inc<span class="o">;</span> 
-<span class="ge">=&gt; 101</span>
-<span class="nc">slogan&gt; </span>c2<span class="o">.</span>inc<span class="o">;</span> 
-<span class="ge">=&gt; 102</span>
-<span class="nc">slogan&gt; </span>c2<span class="o">.</span>get<span class="o">;</span> 
-<span class="ge">=&gt; 102</span></code></pre></div>
+      <pre><code>c2.inc; 
+<span class="c">//=> 101</span>
+c2.inc; 
+<span class="c">//=> 102</span>
+c2.get; 
+<span class="c">//=> 102</span></code></pre></div>
 
-    <p>A function bound together with its defining environment is known as a <em>closure</em>. If you are familiar with 
-      Object Oriented Programming, you would like to call it an <em>object</em>. A function that creates a closure (in our example, 
-      <code>make_counter</code>) takes on the role of a <em>class</em>.
-
-      <h4>Modules</h4>
-    <p><em>Modules</em> allow to collect definitions into logical groups. The definitions that are visible outside the module are exported
+    <p><em>Modules</em> collect definitions into logical groups. The definitions that are visible outside the module are exported
       using a list of names similar to a function's parameter list.</p>
 
       <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span><span class="k">module</span> a<span class="o">(</span>f<span class="o">, </span> x<span class="o">)</span>
-       <span class="o"> {</span> <span class="k">function</span> f<span class="o">(</span><span class="o">)</span> <span class="s1">&quot;hello from module - a&quot;</span><span class="o">;</span> 
-          <span class="k">let</span> x <span class="o">=</span> <span class="mi">100</span><span class="o">;</span><span class="o"> }</span><span class="o">;</span></code></pre></div> 
+	<pre><code>module a(f,  x)
+{ function f() "hello from module - a"; 
+  let x = 100; };</code></pre></div> 
 
       <p>Values exported from a module can be accessed using the `dot` notation:</p>
 
       <div class="highlight">
-	<pre><code><span class="nc">slogan&gt; </span>a.f<span class="o">(</span><span class="o">)</span><span class="o">;</span> 
-<span class="ge">=&gt; hello from module - a</span>
-<span class="nc">slogan&gt; </span>a.x<span class="o">;</span> 
-<span class="ge">=&gt; 100</span></code></pre></div>
+	<pre><code>a.f(); 
+<span class="c">//=> hello from module - a</span>
+a.x; 
+<span class="c">//=> 100</span></code></pre></div>
 
+      <p>Learn more about <a href="../pm/mod.html">modular programming</a>.</p>
 </div>
 </body>
 </html>

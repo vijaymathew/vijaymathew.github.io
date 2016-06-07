@@ -26,11 +26,11 @@
 
       <p>Slogan has a built-in package manager that makes it easy to work with packages developed by thrid-party developers.
         Any Slogan project can be converted into a package by adding just two files to its root folder - <em>init.sn</em> and <em>build</em>.
-        <em>Init.sn</em> is a simple Slogan script that is called by the Slogan runtime for loading the package. So it should contain
-        all initialization code for the package. <em>Build</em> should be an executable script that will compile the package. It can also
-        contain code to install any dependencies that package might have. To make these points clear let us look at a simple example.</p>
+        "init.sn" is a simple Slogan script that is called by the Slogan runtime for loading the package. So it should contain
+        all initialization code for the package. "build" should be an executable script that will compile the package. It can also
+        contain code to install any dependencies the package might have.</p>
 
-      <p>We will call our package "simple" and it will have the following directory structure:</p>
+      <p>To make these points clear let us look at an example. We will call our package "simple" and it will have the following directory structure:</p>
 
       <p><pre><code>simple/
         -> init.sn
@@ -43,19 +43,18 @@
           <div class="highlight">
             <pre><code><span class="c">// src/core.sn</span>
 
-<span class="k">function</span> hello<span class="o">(</span><span class="o">)</span> <span class="s1">"hello simple world!"</span><span class="o">;</span>
-</pre></code></div>
+function hello() "hello simple world!";</pre></code></div>
 
-          <p><em>init.sn</em> finds the correct path to <em>core.sn</em> and simply loads it:</p>
+          <p><em>init.sn</em> will find the correct path to <em>core.sn</em> and load it:</p>
 
           <div class="highlight">
             <pre><code><span class="c">// init.sn</span>
                 
-<span class="k">let</span> load_path <span class="o">=</span> string_append<span class="o">(</span>slogan_root<span class="o">(</span><span class="o">)</span><span class="s1"> "/packages/simple"</span><span class="o">)</span><span class="o">;</span>
-<span class="k">if</span> <span class="o">(</span>not<span class="o">(</span>file_exists<span class="o">(</span>load_path<span class="o">)</span><span class="o">)</span><span class="o">)</span> load_path <span class="o">=</span> <span class="s1">"."</span><span class="o">;</span> <span class="c">// dev mode</span>
-<span class="k">link</span>(string_append<span class="o">(</span>load_path<span class="s1"> "/src/core"</span><span class="o">))</span><span class="o">;</span></code></pre></div>
+let load_path = string_append(slogan_root() "/packages/simple");
+if (not(file_exists(load_path))) load_path = "."; // dev mode
+link(string_append(load_path "/src/core"));</code></pre></div>
 
-          <p>The <em>build</em> script is also equally simple - it just compiles <em>init.sn</em> into object code:</p>
+          <p>The <em>build</em> script will compile <em>init.sn</em> into object code:</p>
 
           <p><pre><code>#!/bin/bash
 slogan -c init</code></pre></p>
@@ -65,11 +64,11 @@ slogan -c init</code></pre></p>
           <p>To test the package, first install it using the Slogan package manager:</p>
           <p><pre><code>$ slogan -i "simple,local,/mypackages/simple"</code></pre></p>
 
-          <p>You should replace the path to the <em>/mypackages/simple</em> with an actual path on your machine. Now that the package is installed, you can load and use it from your REPL:</p>
+          <p>You should replace the path to the <em>/mypackages/simple</em> with an actual path on your machine. Now that the package is installed, you can load and use it:</p>
 
-          <div class="highlight"><pre><code><span class="nc">slogan&gt; </span>load_package<span class="o">(</span><span class="s1">"simple"</span><span class="o">)</span><span class="o">;</span>
-<span class="nc">slogan&gt; </span>hello<span class="o">(</span><span class="o">);</span> 
-<span class="ge">=&gt; hello simple world</span></code></pre></div>
+          <div class="highlight"><pre><code>load_package("simple");
+hello(); 
+<span class"c">//=> hello simple world</span></code></pre></div>
 
           <p>A package can be removed from the system by using the <code>-u</code> option of the slogan command:<p>
             <p><pre><code>$ slogan -u simple</code></pre></p>
@@ -77,20 +76,24 @@ slogan -c init</code></pre></p>
             <h4>Package management functions</h4>
 
             <div class="highlight">
-  <pre><code><span class="nc">function: </span>install_package<span class="o">(</span>name<span class="o">, </span>type<span class="o">, </span>url<span class="o">, </span>force<span class="o">)</span>
-<b>returns: </b><em>name</em> if the package is successfully installed.</code></pre>
-</div>
+              <pre><code><b>function: </b>install_package(name, type, url, force)
+<b>returns: </b>`name` if the package is successfully installed.
 
-            <p><code>Install_package</code> installs the package named <code>name</code>. <code>Type</code> must be a symbol and must be one of <code>'local</code>, <code>'git</code> or <code>'remote</code>. If <code>type</code> is <code>'local</code>, <code>url</code> should be the full path to the package directory or the full path of a tar.gz, a tar.bz2 or a .zip file that contains the package. For <code>type</code> <code>'git</code>, <code>url</code> must be the location of the git repository of the package. If <code>type</code> is <code>'remote</code>, <code>url</code> must point to a tar.gz, a tar.bz2 or a .zip package hosted on an HTTP or FTP server.</p>
+Installs the package named `name`. `type` must be a symbol and must be one of 'local, 'git
+or 'remote. If `type` is 'local, url should be the full path to the package directory or
+the full path of a tar.gz, a tar.bz2 or a .zip file that contains the package. For `type`
+'git, url must be the location of the git repository of the package. If `type` is 'remote,
+url must point to a tar.gz, a tar.bz2 or a .zip package hosted on an HTTP or FTP server.</code></pre>
+            </div>
 
             <div class="highlight">
-  <pre><code><span class="nc">function: </span>uninstall_package<span class="o">(</span>name<span class="o">)</span>
-<b>returns: </b><em>name</em> if the package is successfully removed.</code></pre>
+  <pre><code><b>function: </b>uninstall_package(name)
+<b>returns: </b>`name` if the package is successfully removed.</code></pre>
 </div>
 
                         <div class="highlight">
-  <pre><code><span class="nc">function: </span>load_package<span class="o">(</span>name<span class="o">)</span>
-<b>returns: </b><em>name</em> if the package is successfully loaded.</code></pre>
+  <pre><code><b>function: </b>load_package(name)
+<b>returns: </b>`name` if the package is successfully loaded.</code></pre>
 </div>
 
           </div>
