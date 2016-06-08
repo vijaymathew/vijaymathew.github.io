@@ -26,10 +26,10 @@
   
   <div id="site" class="site">
     <div class="title"><h3>Program Control</h3></div>
-<p>This chapter introduces the syntactic forms and expressions that serve to control the flow of programs. We start with the most fundamental
-  control operation - <a href="#fnapp">function application</a>. We also cover <a href="#condeval">conditional evaluation</a>,
+<p>This chapter introduce the syntactic forms and expressions for controlling the flow of programs. We start with the most fundamental
+  control operation - <a href="#fnapp">function application</a>. Then we will discuss <a href="#condeval">conditional evaluation</a>,
   <a href="#recur">recursion and iteration</a>, <a href="#mapping">mapping and folding</a>,
-  <a href="#cont">continuations</a> and <a href="#deleval">delayed evaluation</a>.</p>
+  <a href="#cont">continuations</a>, <a href="#deleval">delayed evaluation</a> and <a href="#asserts">assertions</a>.</p>
 
 <a name="fnapp"></a>
 <h4>Function Application</h4>
@@ -158,7 +158,6 @@ f(4);
           clause1
         | clause2
         | ... ;
-      
 <b>returns: </b>value of the clause that matches `expr`.</code></pre>
 </div>
 
@@ -278,13 +277,11 @@ match ([1, 20, 3])
 
 <div class="highlight">
   <pre><code><b>syntax:</b> and(expr, ...)
-      
 <b>returns: </b>false if one of `expr`s evaluates to false, the value of the last expression 
 or true otherwise. If no arguments are present, `and` will return true.</code></pre></div>
 
 <div class="highlight">
   <pre><code><b>syntax: </b> or(expr, ...) 
-
 <b>returns: </b>the value of the first expression that evaluates to a value other than false. 
 If no arguments are present, `or` will return false. Otherwise, each expression is
 evaluated until one that returns a non-false value.</code></pre></div>
@@ -320,7 +317,6 @@ divisors(32);
 
 <div class="highlight">
   <pre><code><b>function: </b>until(p, f, x) 
-
 <b>returns: </b>final value of applying `f` to `x`. 
 
 Apply the function `f` to `x` and compare the result `r` with the predicate `p`.
@@ -334,7 +330,6 @@ until(is_prime, partial(`+`, 1), 1000);
 
 <div class="highlight">
   <pre><code><b>function:</b> do_times(n, f, @key from = 0, init)
-      
 <b>returns: </b>final value of applying `f`, after calling it `n` times.
 
 The starting value of `n` is specified by the `from` keyword argument.
@@ -350,13 +345,42 @@ do_times(5, ^(n, p, break) n + p, init = 0);
 do_times(5, ^(n, p, break) if (n == 4) break(p) else n + p, init = 0); 
 <span class="c">//=> 6</span></code></pre></div>
 
+<div class="highlight">
+  <pre><code><b>syntax: </b>for (bindings; condition; post_expr) body
+<b>returns:</b> value of the last evaluation of `body`.
+
+`bindings` is a comma-separated list of variables declarations.
+`body` is an expression that will be evaluated as long as `condition` evaluates to true.
+`post_expr` is evaluated after each evaluation of `body` and its value is assigned to the
+first variable in `bindings`.
+
+`bindings`, `condition` and `post_expr` are all optional. `condition` defaults to true and
+`post_expr` defaults to false.
+
+<span class="c">// Examples:</span>
+for (i = 0; i < 3; inc(i)) println(i);
+<span class="c">//-> 0
+     1
+     2</span>
+
+for (i = 0, j = 1; i < 3; {j = inc(j); inc(i)}) println(i*j);
+<span class="c">//-> 0
+     2
+     6</span>
+
+for (i = 0, j = 1; i < 3; {j = inc(j); inc(i)}) i*j;
+<span class="c">//=> 6</span>
+
+let break = callcc(^(k) k);
+for(;;) {showln("hi"); break()};
+<span class="c">//-> "hi"</span></code></pre></div>
+
 <a name="mapping"></a>
 <h5>Mapping and Folding</h5>
 <p>The functions presented in this section allow us to iterate over elements of sequences like lists, strings and arrays.</p>
 
 <div class="highlight">
   <pre><code><b>function: </b> map(f, list1, ...) 
-
 <b>returns: </b>list of results of applying the function `f` to the corresponding elements of `list1, ....`.
 
 The lists `list1, ...` must be of the same length. `f` should accept as many arguments
@@ -626,7 +650,6 @@ a(b);
     
 <div class="highlight">
   <pre><code><b>function: </b>dynamic_wind(in, body, out)
-
 <b>returns:</b> the result of evaluating `body`. `dynamic_wind` is useful for performing
 tasks that must be performed whenever control enters or leaves `body`, either normally or
 by continuation application. The three arguments - `in`, `body`, and `out` - must
@@ -641,13 +664,11 @@ least once. In addition, if `body` ever returns, `out` is invoked at least once.
 
 <div class="highlight">
   <pre><code><b>function:</b> values(@rest obj)
-
 <b>returns:</b> `obj`. The function `values` accepts any number of arguments and simply
 passes (returns) the arguments to its continuation.</code></pre></div>
 
 <div class="highlight">
   <pre><code><b>function: </b>call_with_values(producer, consumer)
-
 <b>returns:</b> the value returned by `consumer`. Both `producer` and `consumer` must be functions.
 `call_with_values` applies `consumer` to the values returned by invoking `producer`
 without arguments.
@@ -661,6 +682,7 @@ call_with_values(^a(10, 20), ^(x, y) [x, y]);
 <span class="c">//=> [20, 10]</span></code></pre>
 </div>
 
+<a name="asserts"></a>
 <h4>Assertions</h4>
 
 <p>The <code>assert</code> statement is a powerful debugging tool. Using the <code>assert</code> statement you can tell the program
