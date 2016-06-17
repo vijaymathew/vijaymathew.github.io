@@ -42,7 +42,23 @@ the case of an exception.
 `trycc` allows the continuation of the `raise` function to be invoked if `expr2`
 return normally. This means that an exception raised in `expr2`, if not handled
 there itself, may lead to an infinite loop. In all normal circumstances,
-try should be preferred over trycc.</code></pre>
+try should be preferred over trycc.
+
+Before handing over `exception` to the catch clause, Slogan will try to parse it into
+a pair of format `tag:params`.
+`tag` is a symbol that identifies the type of error and `params` is an association list 
+that contain the properties of the exception. The following are the built-in error tag symbols:
+
+error, unbound_global, range_error, wrong_number_of_arguments, number_of_arguments_limit,
+not_a_function, unknown_keyword_argument, keyword_expected, wrong_type,
+improper_length_list, divide_by_zero, heap_overflow, stack_overflow,
+system_error, no_such_file_or_directory, unbound_environment_variable,
+scheduler_error, deadlock, abandoned_mutex, join_timeout, started_task,
+terminated_task, uncaught_error, noncontinuable, expression_parsing,
+datum_parsing, cfun_conversion, sfun_conversion, multiple_c_return.
+
+If the exception is already a tagged-pair or not of a built-in exception type,
+it is passed as is to catch.</code></pre>
 </div>
 
 <div class="highlight">
@@ -91,7 +107,7 @@ callcc(^(k) trycc 1 + abort('hello)
                k(noncontinuable_exception_reason(e))
               else 100 });
 <span class="c">//-> hello</span>
-<span class="c">//-> #&lt;noncontinuable-exception #3&gt;</span>
+<span class="c">//-> [noncontinuable, reason:hello]</span>
 <span class="c">//-> hello</span></code></pre>
 </div>
 
