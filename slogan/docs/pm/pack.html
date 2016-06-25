@@ -24,11 +24,12 @@
     <div id="site" class="site">
       <div class="title"><h3>Packages</h3></div>
 
-      <p>Slogan has a built-in package manager that makes it easy to work with packages developed by thrid-party developers.
+      <p>Slogan has a built-in package manager that makes it easy to work with packages developed by third-party developers.
         Any Slogan project can be converted into a package by adding just two files to its root folder - <em>init.sn</em> and <em>build</em>.
         "init.sn" is a simple Slogan script that is called by the Slogan runtime for loading the package. So it should contain
         all initialization code for the package. "build" should be an executable script that will compile the package. It can also
-        contain code to install any dependencies the package might have.</p>
+        contain code to install any dependencies the package might have. The package manager also requires a file named <em>core.sn</em> in the
+        package's <em>src</em> folder. This should contain the entry-point code for the package itself.</p>
 
       <p>To make these points clear let us look at an example. We will call our package "simple" and it will have the following directory structure:</p>
 
@@ -38,21 +39,18 @@
         -> src/
         --> core.sn</code></pre></p>
 
-          <p>The file <code>src/core.sn</code> implements all the functionality provided by the package:</p>
+          <p>In our example, <em>src/core.sn</em> implements the entire functionality of the package:</p>
 
           <div class="highlight">
             <pre><code><span class="c">// src/core.sn</span>
 
 function hello() "hello simple world!";</pre></code></div>
 
-          <p><em>init.sn</em> will find the correct path to <em>core.sn</em> and load it:</p>
+          <p><em>init.sn</em> contain a single call to the <code>init_package</code> function which will find the correct path to <em>core.sn</em> and load it:</p>
 
           <div class="highlight">
             <pre><code><span class="c">// init.sn</span>
-                
-let load_path = string_append(slogan_root() "/packages/simple");
-if (not(file_exists(load_path))) load_path = "."; // dev mode
-link(string_append(load_path "/src/core"));</code></pre></div>
+init_package("simple");</code></pre></div>
 
           <p>The <em>build</em> script will compile <em>init.sn</em> into object code:</p>
 
@@ -86,6 +84,13 @@ the full path of a tar.gz, a tar.bz2 or a .zip file that contains the package. F
 url must point to a tar.gz, a tar.bz2 or a .zip package hosted on an HTTP or FTP server.</code></pre>
             </div>
 
+            <div class="highlight">
+            <pre><code><b>function: </b>init_package(name)
+<b>returns: </b>the name of the machine compiled `core` file of the package.
+
+links in the `core` file of the package named `name`.
+            </div>
+            
             <div class="highlight">
   <pre><code><b>function: </b>uninstall_package(name)
 <b>returns: </b>`name` if the package is successfully removed.</code></pre>
