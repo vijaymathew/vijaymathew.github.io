@@ -102,6 +102,9 @@ Two objects are equal if each of their constituent parts are equal according to 
 The equals operator (==) have the same behavior as is_equal and the not-equals operator (<>)
 have the same behavior as `not(is_equal(a, b))`.
 
+`is_equal` is a generic function by default and can be overridden for custom datatypes without an
+explicit `declare generic`.
+  
 <span class="c">// Examples:</span>  
 is_equal([1, 2, [3, 4]], [1, 2, [3, 4]]); 
 <span class="c">//=> true</span>
@@ -121,6 +124,38 @@ not(is_equal("hello", "hEllo"));
 "hello" <> "hEllo";
 <span class="c">//=> true</span></code></pre>
 </div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>compare(obj1, obj2) 
+<b>returns: </b><em>see description below.</em>
+
+If `obj1` is less than `obj2`, returns -1.
+If `obj1` is greater than `obj2`, returns 1.
+If `obj1` is equal to `obj2`, returns 1.
+
+For sequence objects like strings and lists, a <em>lexicographical</em> comparison is done.
+First the first two items are compared, and if they differ this determines the outcome of
+the comparison; if they are equal, the next two items are compared, and so on, until either
+sequence is exhausted. For strings, character comparison is used, for lists and arrays
+`compare` is called recursively for each element and for numeric arrays number comparison
+operators are used.
+
+`compare` is a generic function by default and can be overridden for custom datatypes without
+an explicit `declare generic`.
+
+<span class="c">// Example:</span>
+record point(x, y);
+let p1 = point(x = 10, y = 20);
+let p2 = point(x = 20, y = 30);
+p1 < p2;
+<span class="c">//-> error: compare_not_supported #<point #2 x: 10 y: 20> #<point #3 x: 20 y: 30> </span>
+
+function pointc(p1) ^(msg) | 'compare -> ^(p2) compare(point_x(p1), point_x(p2));
+let pc1 = pointc(p1);
+pc1 < p2;
+<span class="c">//=> true</span>
+pc1 > p2;
+<span class="c">//=> false</span></code></pre></div>
 
 <a name="lists"></a>
 <h4>Pairs and lists</h4>
@@ -2136,9 +2171,11 @@ make_string(5, \y);
 
 <div class="highlight">
   <pre><code><b>function: </b>string_at(string, n)
-<b>returns: </b>the `n`<sup>th</sup> character of `string`.
+<b>returns: </b>the `n`<sup>th</sup> element of `string`.
 
 `n` must be an exact nonnegative integer less than the length of `string`.
+Note the returned value is the n<sup>th</sup> byte in `string`, not the n<sup>th</th> character,
+because the UTF-8 encoding of a non-ASCII code point requires two or more bytes.
 
 <span class="c">// Example:</span>
 string_at("hello", 1); 
@@ -2147,12 +2184,11 @@ string_at("hello", 1);
 
 
 <div class="highlight">
-<pre><code><b>function: </b>string_set(string, n, char)
+<pre><code><b>function: </b>string_set(string, n, b)
 <b>returns: </b>void
 
-Changes the `n`<sup>th</sup> element of `string` to `char`.
+Changes the `n`<sup>th</sup> byte of `string` to `b`.
 `n` must be an exact nonnegative integer less than the length of `string`.
-
 
 <span class="c">// Example:</span>
 let s = "hello"; 
@@ -2163,8 +2199,8 @@ s;
 
 <div class="highlight">
   <pre><code><b>syntax: </b>string[index]
-<b>returns: </b>if `index` is an integer, the character at `index`.
-if `index` is a pair of integers, a string that contains the characters in that range.      
+<b>returns: </b>if `index` is an integer, the byte at `index`.
+if `index` is a pair of integers, a string that contains the bytes in that range.      
 
 if `index` is out of bounds, an error is raised.
 
@@ -2181,11 +2217,10 @@ slogan> s[:3];
 </div>
 
 <div class="highlight">
-  <pre><code><b>syntax: </b>string[index] = char
+  <pre><code><b>syntax: </b>string[index] = b
 <b>returns:</b> void
 
-destructively sets the character at `index` to `char`.
-raises an error if `index` is out of bounds.
+destructively sets the byte at `index` to `b`, raises an error if `index` is out of bounds.
 
 <span class="c">// Example:</span>
 s;
@@ -2198,10 +2233,10 @@ s;
 
 <div class="highlight">
   <pre><code><b>function: </b>ref(string, index, @key value = void, default = false) 
-<b>returns: </b>if `value` is not specified, returns the character at `index`.
+<b>returns: </b>if `value` is not specified, returns the byte at `index`.
 if `index` is out of bounds, return `default`.
 
-If `value` is specified, updates the character at `index` to `value`.
+If `value` is specified, updates the byte at `index` to `value`.
 The update is destructive and returns the updated string.
 If `index` is out of bounds, raises an error.
 
@@ -2224,19 +2259,13 @@ s;
 
 <div class="highlight">
 <pre><code><b>function: </b>strings_at(strings, n)
-<b>returns: </b>a list of the `n`<sup>th</sup> characters of all strings in the list strings.
+<b>returns: </b>a list of the `n`<sup>th</sup> bytes of all strings in the list strings.
 
 `n` must be an exact nonnegative integer less than the length of all `strings`.
 
 <span class="c">// Example:</span>
 strings_at(["hello", "icon"], 0); 
 <span class="c">//=> [\h, \i]</span></code></pre>
-</div>
-
-<div class="highlight">
-<pre><code><b>function: </b>string_index_of(string, char)
-<b>returns: </b>the index where `char` appears for the first time in `string`,
--1 if `char` is not in `string`.</code></pre>
 </div>
 
 <div class="highlight">
@@ -2385,6 +2414,13 @@ string_to_u8array("hello");
 <span class="c">//=> #u8[104, 101, 108, 108, 111]</span>
 u8array_to_string(#u8[65, 66, 67]);
 <span class="c">//=> "ABC"</span></code></pre></div>
+
+<div class="highlight">
+<pre><code><b>function: </b>to_string(obj)
+<b>returns:</b> a string representation of the generic object `obj`.
+
+`to_string` is a generic function by default and can be overridden for
+custom datatypes without an explicit `declare generic`.</code></pre></div>
 
 <a name="symbols"></a>
 <h4>Symbols</h4>

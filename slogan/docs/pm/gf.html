@@ -298,87 +298,26 @@ letrec (is_even = ^(x) or(x == 0, is_odd(x - 1)),
 </div>
 
 <a name="generics"></a>
-<h4>Generic Methods</h4>
-<p>Slogan support multiple dispatch or multimethods by which a function can be dynamically dispatched based on the run time (dynamic) type 
-  of more than one of its arguments. Functions defined for multiple dispatch are called <em>methods</em>. A method is a specialization of 
-  a generic function, which is introduced with the <code>declare</code> statement. The following example shows how to implement a generic
-  function that can be used to join two objects of different types together to form a list:</p>
+<h4>Generic functions</h4>
+<p>A generic function is dispatched on the runtime type of its first argument. As Slogan do not have the notion of interfaces and classes,
+  generics are implemented inside closures. The following example shows the implementation if a generic function called <code>concat</code>
+that works on both lists and strings:</p>
 
-<div class="highlight">
-  <pre><code>declare generic join(a, b); 
+      <div class="highlight">
+	<pre><code>function concat(a, b);
+declare generic concat;
 
-method join(a:list, b:array) append(a, array_to_list(b)); 
-method join(a:list, b:string) append(a, string_to_list(b)); 
+function listc(a) ^(msg) | 'concat -> ^(b) append(a, b);
+function stringc(a) ^(msg) | 'concat -> ^(b) string_append(a, b);
+            
+concat(listc([1, 2, 3]), [4, 5, 6]);
+<span class="c">//=> [1, 2, 3, 4, 5, 6]</span>
+concat(stringc("hello "), "world");
+<span class="c">//=> "hello world"</span></code></pre></div>
 
-join([1, 2, 3], #[10, 20, 30]); 
-<span class="c">//=> [1, 2, 3, 10, 20, 30]</span>
-
-join([1, 2, 3], "hello"); 
-<span class="c">=> [1, 2, 3, \h, \e, \l, \l, \o]</span>
-
-join([1, 2, 3], 43); 
-<span class="c">//-> error: method_not_defined</span></code></pre>
-</div>
-
-<p>The generic method <code>join</code> was defined for combinations of a list with an array or a string. The last invocation raised as 
-  error because <code>join</code> was not defined for the combination of a list and an integer.</p>
-
-<p>The syntax of the <code>method</code> statement is summarized as follows:</p>
-
-
-<div class="highlight">
-  <pre><code><b>syntax: </b>method name(param:type, ...) body;</code></pre>
-</div>
-
-<p>Types is the name of any built-in or user-defined type that can be mapped to a type checking predicate of the form 
-  <code>is_<em>type_name</em></code>. For example, the type name <code>list</code> is mapped to the predicate <code>is_list</code>
-  and the type name <code>string</code> is mapped to the predicate <code>is_string</code>.</p>
-
-<p>The <code>declare generic</code> statement provides an extension that allows for shorter definitions of the
-  generic method implementations. The following program shows how to use this feature:</p>
-
-<div class="highlight">
-  <pre><code>declare generic join(a, b) 
-  | (list, array) -> append(a, array_to_list(b))
-  | (list, string) -> append(a, string_to_list(b));</code></pre></div>
-
-<p>The definitions can have an optional <code>else</code> clause where we define a method that will be called if all other argument types fail to match:</p>
-
-<div class="highlight">
-  <pre><code>declare generic join(a, b) 
-  | (list, array) -> append(a, array_to_list(b))
-  | (list, string) -> append(a, string_to_list(b))
-  | else -> [a, b];
-
-join([1, 2, 3], #[10, 20, 30]); 
-<span class="c">//=> [1, 2, 3, 10, 20, 30]</span>
-
-join([1, 2, 3], "hello"); 
-<span class="c">//=> [1, 2, 3, \h, \e, \l, \l, \o]</span>
-
-join([1, 2, 3], 43); 
-<span class="c">//=> [[1, 2, 3], 43]</span></code></pre>
-</div>
-
-<p>Generic methods are used to override the built-in operators as well. As an example, let us override the addition operator (<code>+</code>) to
-  work with strings. We use the <code>@rest</code> annotation to maintain the ability of <code>+</code> to take
-  an arbitrary number of arguments.</p>
-
-<div class="highlight">
-  <pre><code>method `+`(a:string, @rest b:string) apply(string_append, a, b);
+<p>There are three built-in generic functions in Slogan: <code>is_equal</code>, <code>compare</code> and <code>to_string</code>.
+  Any closure can override these functions without an explicit <code>declare generic</code>.
       
-"hello" + " world";
-<span class="c">//=> "hello world"</span>
-
-1 + 2; 
-<span class="c">//=> 3</span>
-
-`+`(1, 2, 3); 
-<span class="c">//=> 6</span>
-
-`+`("a", "b", "c"); 
-<span class="c">//=> "abc"</span></code></pre></div>
-
   </div>
 </body>
 </html>
