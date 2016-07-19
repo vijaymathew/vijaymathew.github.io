@@ -2358,13 +2358,36 @@ let (s = make_string(10), i = 0)
 </div>
 
 <div class="highlight">
-<pre><code><b>function: </b>string_split(string, @optional f, include_empty)
+<pre><code><b>function: </b>string_split(string, @optional delim = \space, include_empty = false)
 <b>returns: </b>a list of strings that contain the parts of `string`.
 
-Each character in `string` is send to the function `f`. If `f` returns true for a character,
-`string` is split at that point and that part is added to the result list.
-`f` defaults to `char_is_whitespace`. If `include_empty` is true empty parts are
-also included in the result.
+`delim` can be a character, a list of characters or a predicate that accepts a character as its
+sole argument. If `include_empty` is true empty parts are also included in the result.
+
+If `delim` is a character, `string` is split at each position where `delim` occurs.
+
+<span class="c">// Examples:</span>
+string_split("hello, world");
+<span class="c">//=> ["hello,", "world"]</span>
+string_split("hello, world", \,);
+<span class="c">//=> ["hello", " world"]</span>
+string_split("hello,, world", \,);
+<span class="c">//=> ["hello", " world"]</span>
+string_split("hello,, world", \,, true);
+<span class="c">//=> ["hello", "", "  world"]</span>
+
+If `delim` is a list of characters, `string` is split at each position where one of those
+characters occur.
+
+<span class="c">// Examples:</span>
+string_split("1;2.3,4.5;6", [\;, \., \,]);
+<span class="c">//=> ["1", "2", "3", "4", "5", "6"]</span>
+string_split("1;2.3,4.5;6", [\;, \,]);
+<span class="c">//=> ["1", "2.3", "4.5", "6"]</span>
+
+If `delim` is a function, each character in `string` is send to `delim`.
+If `delim` returns true for a character, `string` is split at that point and that part is
+added to the result list.
 
 <span class="c">// Examples:</span>
 string_split("hello world"); 
