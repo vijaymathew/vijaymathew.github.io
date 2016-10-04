@@ -573,6 +573,8 @@ let p = spawn(^(message)
 let f = p('hi);
 f();
 <span class="c">//-> hello</span>
+p.hi();
+<span class="c">//-> hello</span>
 f = p(['add, 10, 20]);
 f();
 <span class="c">//-> 30</span>
@@ -580,7 +582,44 @@ f = p('hey);
 f();
 <span class="c">//-> invalid</span>
 p('quit); <span class="c">// or `p.quit`</span>
-<span class="c">//=> true</span></code></pre></div>
+<span class="c">//=> true</span>
+
+Note that the function returned by message passing abstracts a simple request-reply protocol.
+The function must be invoked and the reply read before sending the next message. The function
+should not be shared between tasks.</code></pre></div>
+
+    <div class="highlight">
+      <pre><code><b>function: </b>act(f, cb, @optional timeout, default)
+<b>returns: </b>a function that send messages to the new process.
+
+Starts a new process and calls the function `f` in that process. This function is
+called with the objects received from the parent process until it receives the symbol 'quit.
+The return value of `act` is a function that the parent process can call to send messages
+to the child process. Any value passed to this function, except the symbol 'info is send
+to the child. For the argument 'info this function will return the process information object.
+Passing the symbol 'quit will cause this function to terminate the child and close the
+connection with it.
+
+For all other arguments, the function returned by `act` behave as follows. After sending
+the message, it will arrange an independent task to receive back the response. The function
+`cb` is called by this task with the response as argument. 
+
+`timeout` is used by the parent and child processes to control the time they should wait for
+message sends and receives.
+`default` is used as the return value for process_receive calls that times-out.
+
+<span class="c">// Example:</span>
+let x = ?;
+let p = act(^(message) | [x, y] -> x + y,
+            ^(message) | result -> ?r = result);
+p([10, 20]);
+?r;
+<span class="c">//=> 30</span>
+r = ?;
+p([10, 200]);
+?r;
+<span class="c">//=> 210</span>
+p.quit;</code></pre></div>    
   </div>
 </body>
 </html>
