@@ -19,21 +19,21 @@
       tutorial we will encounter a couple of simple "laws" that help us identify computations begging to be parallelized.
       We will also see how to deal with failing processes.</p>
 
-    <p>Let us start by solving an easy but useful problem. We will first tackle it using traditional sequential programming techniques.
-      Then we will identify a "hot spot" in the code that can take advantage of parallelism. Because of the very high-level support
-      for parallel programming in Slogan, we need to make only small changes to the sequential code to make it run on multiple-cores.</p>
+    <p>Let us solve an easy but useful problem. We will first tackle it using traditional sequential programming techniques.
+      Then we will identify a "hot spot" in the program that can benefit from parallelism. Because of the very high-level support
+      for parallel programming in Slogan, only small changes are required to make the sequential code run on multiple-cores.</p>
 
-    <p>The problem is this: parse a corpus (a collection of text documents) into individual words and report the most frequent
-      <code>N</code> words in each document. For example, if the corpus contain one document called "hamlet.txt" with the content
+    <p>The problem we are about to solve is this: parse a corpus (a collection of text documents) into individual words and report the <code>N</code> most frequent
+      words in each document. For example, if the corpus contain one document called "hamlet.txt" with the content
       "to be or not to be" and our program is requested to print the three most frequent words in the corpus, then the output will be:</p>
 
     <div class="highlight">
       <pre><code><span class="c">hamlet.txt: [to: 2, be: 2, not: 1]</span></code></pre></div>
 
-    <p>One line of output will be printed for each document in the corpus.</p>
+    <p>One line will be printed for each document in the corpus.</p>
                                                                       
-      <p>We treat certain words common to all documents as "stop words" so that the final report will highlight only those words that
-      are characteristic to the documents under consideration. We also try to filter out characters commonly used as punctuation.</p>
+    <p>We treat certain common words as "stop words" so the final report will be able to highlight the
+      characteristic nature of each document under consideration. We also try to filter out characters normally used as punctuation.</p>
 
     <div class="highlight">
       <pre><code><span class="k">let</span> stop_words = ["the", "by", "you", "we", "to", "of", "in", "was", "a",
@@ -65,7 +65,7 @@
      count_table }</code></pre>
     </div>
 
-    <p>The two functions that follows will read all the documents in a corpus and
+    <p>The two functions shown below will read all the documents in a corpus and
       construct a table that maps file names to word counts.</p>
 
     <div class="highlight">
@@ -104,6 +104,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
                     <p>On the machine I am testing, the call to <code>show_most_frequent_words</code> produced the following output:</p>
                     <div class="highlight">
                       <pre><code><span class="c">//-> 31.93878698348999 secs</span>
+
 <span class="c">//-> ./corpus/war&peace.txt: [pierre:1950, prince:1923, natásha:1206, man:1169, andrew:1136, himself:1012, time:923, princess:915, face:891, french:874, some:843, know:841, old:832, eyes:820, men:783, rostóv:772, room:769, thought:764, like:741, well:733]</span>
 <span class="c">//-> ./corpus/mobydick.txt: [whale:1221, like:648, some:620, man:527, ship:511, ahab:511, old:452, sea:452, over:414, head:344, time:337, long:334, boat:329, captain:329, great:306, two:298, seemed:282, white:282, last:281, see:274]</span>
 <span class="c">//-> ./corpus/kjbible.txt: [unto:8997, lord:7964, god:4472, man:2735, israel:2575, king:2548, son:2392, hath:2264, people:2146, 10:2119, 11:2101, came:2093, house:2024, come:1972, 12:1968, 13:1905, 14:1866, children:1821, 15:1794, also:1771]</span>
@@ -112,8 +113,8 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
     <p>The program took more than 30 seconds to execute. Its performance might be improved by changing <code>word_count</code> to use a custom tokenizer
       instead of the built-in <code>string_split</code> function, or I can simply take advantage of the multiple cores on my machine! What if I split the
       corpus into two and process each half simultaneously and then merge the results back? This looks practical in our case. In fact, we can split the
-      corpus into as many pieces as there are processors on our machine. One parent process can take care of merging the results. This is easy
-      because the order in which the results are merged does not affect the final result.</p>
+      corpus into as many pieces as there are processors on our machine. A master process can take care of merging the results. This is easy
+      because the order in which the hashtables are merged does not affect the final result.</p>
 
 <p>A new process is started by one of the three library functions - <code>process</code>, <code>act</code>, and <code>react</code>.
   In this tutorial we concentrate only on <code>act</code>,
@@ -132,7 +133,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 <p>Once it receive the message `start`, the process will start tokenizing the files. The result of calling the sequential function
   <code>count_words_in_files</code> is returned to the parent process.</p>
 
-    <p>A new version of <code>count_words_in_files</code> takes advantage of <code>par_counter</code>:</p>
+    <p>The new <code>parellel_count_words_in_files</code> function takes advantage of <code>par_counter</code>:</p>
 
     <div class="highlight">
       <pre><code><span class="k">function</span> parallel_count_words_in_files(file_names)
@@ -143,11 +144,11 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
           ct02 = pcount(timeout = 25, default = #{}))
    { pc.quit; merge_tables(ct01, ct02) }</code></pre></div>
 
-    <p><code>Parallel_count_words_in_files</code> first splits the input list into two. Then it calls <code>par_counter</code> to
+    <p>The function first splits the input list into two. Then it calls <code>par_counter</code> to
       start a new process and sends it the first half of the list. This is followed by the `start` message and
       the new process starts to tokenize the first two files. Then <code>parallel_count_words_in_files</code> proceed to
       tokenize the second half of the list. After that it waits for the child process to return. If the child process fails to
-      return within the specified timeout of 25 seconds, an empty hashtable is treated as the default value.
+      return within the specified timeout seconds, an empty hashtable will be used as the default value.
       As it has no more work to do, the child process is asked to quit. The two tables are merged to produce the final result.</p>
 
     <p>The definitions of the utility functions <code>split</code> and <code>merge_tables</code> are shown below:</p>
@@ -175,16 +176,17 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
      of <code>parallel_count_words_in_files</code> based on this idea and see how it performs:</p>
 
    <div class="highlight">
-     <pre><code><span class="k">function</span> parallel_count_words_in_files_even_faster(file_names)
+     <pre><code><span class="k">function</span> parallel_count_words_in_files_2(file_names)
   <span class="k">letseq</span> (pcs = map(^(fn) par_counter([fn]), file_names),
           pcounts = map(^(pc) pc.start, pcs),
           to_secs = 15,
           ct = first(pcounts)(timeout = to_secs, default = #{}))
-  { for_each(^(pcount) merge_tables(ct, pcount(timeout = to_secs, default = #{})), rest(pcounts))
+  { for_each(^(pcount) merge_tables(ct, pcount(timeout = to_secs, default = #{})),
+              rest(pcounts))
     for_each(^(pc) pc.quit, pcs)
     ct }
 
-  show_most_frequent_words(corpus, 20, parallel_count_words_in_files_even_faster)
+  show_most_frequent_words(corpus, 20, parallel_count_words_in_files_2)
   <span class="c">//-> 13.480767965316772 secs</span></code></pre></div>
 
 <p>The time required for processing the largest document is approximately 14 seconds and that is what the whole program is taking now to
@@ -192,9 +194,9 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 
     <p>Not all computations may lend so easily to parallelization. We were able to tokenize the corpus parallely because the order in
       which the final hashtables were merged back does not matter. If that was not the case, we would have to do more house keeping to make
-      sure of a sequential and ordered merge. Sometimes, enforcing of such order is enough to take away all the advantages of parallelism.</p>
+      sure of a sequential and ordered merge. Sometimes, enforcing an order is enough to take away all the advantages of parallelism.</p>
 
-    <p>Those who are found of abstract algebra may realize that the hashtables under the merge operation is a <a href="https://en.wikipedia.org/wiki/Monoid">monoid</a>. The following code snippet show how the two laws of "associativity" and "identity element" is satisfied when the binary function
+    <p>Those who are found of abstract algebra may realize that the hashtables under merge operation is a <a href="https://en.wikipedia.org/wiki/Monoid">monoid</a>. The following code snippet show how the two laws of "associativity" and "identity element" is satisfied when the binary function
       <code>merge_tables</code> is invoked:</p>
 
     <div class="highlight">
@@ -211,7 +213,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 <span class="k">assert</span> merge_tables(c, id) == c && merge_tables(id, c) == c</code></pre></div>
       
 <p>This means we are free to merge in any order we want and still get back a valid final result and we can safely
-  use the identity element (<code>#{}</code>) as the default intermediate result. Monoids and parallel machines are friends!</p>
+  use the identity element (<code>#{}</code>) as the default intermediate result. Monoids and parallel machines are good company!</p>
 
     <p>A few comments on inter-process communication: In our code we return the entire result to the parent process.
       This is OK for a small corpus, few megabytes in size. If we are dealing with much larger data sets, it is better to return just a
