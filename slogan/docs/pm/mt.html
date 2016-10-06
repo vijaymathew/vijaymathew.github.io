@@ -500,7 +500,7 @@ The `?r` syntax has the same semantics as `rget` with no `timeout` and `default`
     <a name="par"></a>
     <h4>Parallel programming</h4>
     <p>Slogan supports multi-core parallel programming with an API based on a simple message-passing model</a>.
-      A function can be executed on a separate processor core by calling it within the <code>process</code> or <code>spawn</code> functions.
+      A function can be executed on a separate processor core by calling it within the <code>process</code> or <code>act</code> functions.
       The main program interacts with the spawned function using message passing.</p>
 
     <div class="highlight">
@@ -543,18 +543,18 @@ process_close(p);
 <span class="c">//=> true</span></code></pre></div>
           
     <div class="highlight">
-      <pre><code><b>function: </b>spawn(f, @optional timeout, default)
+      <pre><code><b>function: </b>act(f, @optional timeout, default)
 <b>returns: </b>a function that send messages to the new process.
 
 Starts a new process and calls the function `f` in that process. This function is
 called with the objects received from the parent process until it receives the symbol 'quit.
-The return value of spawn is a function that the parent process can call to send messages
+The return value of `act` is a function that the parent process can call to send messages
 to the child process. Any value passed to this function, except the symbol 'info is send
 to the child. For the argument 'info this function will return the process information object.
 Passing the symbol 'quit will cause this function to terminate the child and close the
 connection with it.
 
-For all other arguments, the function returned by spawn behave as follows. After sending
+For all other arguments, the function returned by `act` behave as follows. After sending
 the message, it will return a function that represent a "future" object. At a later point
 in time, this "future" can be invoked to get back the reply from the child. This function
 can be optionally passed two keyword arguments - `timeout` and `default` - to prevent the
@@ -565,10 +565,10 @@ message sends and receives.
 `default` is used as the return value for process_receive calls that times-out.
 
 <span class="c">// Example:</span>
-let p = spawn(^(message)
-              | 'hi -> 'hello
-              | ['add, a, b] -> a + b
-              | _ -> 'invalid);
+let p = act(^(message)
+            | 'hi -> 'hello
+            | ['add, a, b] -> a + b
+            | _ -> 'invalid);
                             
 let f = p('hi);
 f();
@@ -589,18 +589,18 @@ The function must be invoked and the reply read before sending the next message.
 should not be shared between tasks.</code></pre></div>
 
     <div class="highlight">
-      <pre><code><b>function: </b>act(f, cb, @optional timeout, default)
+      <pre><code><b>function: </b>react(f, cb, @optional timeout, default)
 <b>returns: </b>a function that send messages to the new process.
 
 Starts a new process and calls the function `f` in that process. This function is
 called with the objects received from the parent process until it receives the symbol 'quit.
-The return value of `act` is a function that the parent process can call to send messages
+The return value of `react` is a function that the parent process can call to send messages
 to the child process. Any value passed to this function, except the symbol 'info is send
 to the child. For the argument 'info this function will return the process information object.
 Passing the symbol 'quit will cause this function to terminate the child and close the
 connection with it.
 
-For all other arguments, the function returned by `act` behave as follows. After sending
+For all other arguments, the function returned by `react` behave as follows. After sending
 the message, it will arrange an independent task to receive back the response. The function
 `cb` is called by this task with the response as argument. 
 
@@ -610,8 +610,8 @@ message sends and receives.
 
 <span class="c">// Example:</span>
 let x = ?;
-let p = act(^(message) | [x, y] -> x + y,
-            ^(message) | result -> ?r = result);
+let p = react(^(message) | [x, y] -> x + y,
+              ^(message) | result -> ?r = result);
 p([10, 20]);
 ?r;
 <span class="c">//=> 30</span>
