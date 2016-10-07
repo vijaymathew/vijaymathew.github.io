@@ -25,12 +25,12 @@
 
     <p>The problem we are about to solve is this: parse a corpus (a collection of text documents) into individual words and report the <code>N</code> most frequent
       words in each document. For example, if the corpus contain one document called "hamlet.txt" with the content
-      "to be or not to be" and our program is requested to print the three most frequent words in the corpus, then the output will be:</p>
+      "to be or not to be" and our program is requested to print the three most frequent words in the corpus, the output will be:</p>
 
     <div class="highlight">
       <pre><code><span class="c">hamlet.txt: [to: 2, be: 2, not: 1]</span></code></pre></div>
 
-    <p>One line will be printed for each document in the corpus.</p>
+    <p>One line will be printed for each document.</p>
                                                                       
     <p>We treat certain common words as "stop words" so the final report will be able to highlight the
       characteristic nature of each document under consideration. We also try to filter out characters normally used as punctuation.</p>
@@ -50,8 +50,8 @@
 
 <span class="k">let</span> delims = [\space, \newline, \,, \;, \:, \., \_, \-, \{, \}, \(, \), \[, \], \', \&quot;, \?, \!]</code></pre></div>
 
-    <p>We need a function for splitting an input string into words. This function should return a hashtable with words mapped to its
-    number of occurrences in the string.</p>
+    <p>The <code>word_count</code> function splits an input string into words and return a hashtable with each word mapped to the
+    number of times it appears in the string.</p>
 
     <div class="highlight">
       <pre><code><span class="k">function</span> word_count(str)
@@ -66,7 +66,7 @@
     </div>
 
     <p>The two functions shown below will read all the documents in a corpus and
-      construct a table that maps file names to word counts.</p>
+      construct a table that maps individual files to their word counts.</p>
 
     <div class="highlight">
       <pre><code><span class="k">function</span> count_words_in_file(file_name)
@@ -83,7 +83,7 @@
   { for_each(^(fn, c) count_tables[fn] = c, file_names, counts)
     count_tables }</code></pre></div>
 
-    <p>It's time to test our code on a corpus of four reasonably large documents:</p>
+    <p>It's time to test our code on a corpus of four large documents:</p>
 
     <div class="highlight">
       <pre><code><span class="c">// files in the corpus were downloaded from Project Gutenberg (https://www.gutenberg.org/)</span>
@@ -112,11 +112,11 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 
     <p>The program took more than 30 seconds to execute. Its performance might be improved by changing <code>word_count</code> to use a custom tokenizer
       instead of the built-in <code>string_split</code> function, or I can simply take advantage of the multiple cores on my machine! What if I split the
-      corpus into two and process each half simultaneously and then merge the results back? This looks practical in our case. In fact, we can split the
-      corpus into as many pieces as there are processors on our machine. A master process can take care of merging the results. This is easy
+      corpus into two and process each half simultaneously and then merge the results back? This looks practical in our case. In fact, I can split the
+      corpus into as many pieces as there are processors on my machine. A master process can take care of merging the results. This is easy
       because the order in which the hashtables are merged does not affect the final result.</p>
 
-<p>A new process is started by one of the three library functions - <code>process</code>, <code>act</code>, and <code>react</code>.
+<p>A new process is started by one of the three library functions - <code><a href="../pm/mt.html#process">process</a></code>, <code><a href="../pm/mt.html#act">act</a></code>, and <code><a href="../pm/mt.html#react">react</a></code>.
   In this tutorial we concentrate only on <code>act</code>,
       which takes a function as argument and returns a function. The returned function acts as a proxy for the new process. Arguments passed to this
       function are forwarded to the new process as "messages". The function that was passed to <code>act</code> can respond to these messages
@@ -130,7 +130,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
       <pre><code><span class="k">function</span> par_counter(file_names)
   act(^(message) | 'start -> count_words_in_files(file_names))</code></pre></div>
 
-<p>Once it receive the message `start`, the process will start tokenizing the files. The result of calling the sequential function
+<p>On the receipt of the `start` message, the process will start tokenizing the files. The result of calling the sequential function
   <code>count_words_in_files</code> is returned to the parent process.</p>
 
     <p>The new <code>parellel_count_words_in_files</code> function takes advantage of <code>par_counter</code>:</p>
@@ -144,7 +144,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
           ct02 = pcount(timeout = 25, default = #{}))
    { pc.quit; merge_tables(ct01, ct02) }</code></pre></div>
 
-    <p>The function first splits the input list into two. Then it calls <code>par_counter</code> to
+    <p>This function first splits the input list into two. Then it calls <code>par_counter</code> to
       start a new process and sends it the first half of the list. This is followed by the `start` message and
       the new process starts to tokenize the first two files. Then <code>parallel_count_words_in_files</code> proceed to
       tokenize the second half of the list. After that it waits for the child process to return. If the child process fails to
@@ -163,7 +163,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 { hashtable_for_each(^(k, v) t01[k] = v, t02)
   t01 }</code></pre></div>
 
-    <p>Did our initial attempt at parallelism improve the running time of the program? Let's find out:</p>
+    <p>Did our initial attempt at parallelism really improve the running time of the program? Let's find out:</p>
     <div class="highlight">
       <pre><code>show_most_frequent_words(corpus, 20, parallel_count_words_in_files)
 <span class="c">//-> 22.461962938308716 secs</code></pre></div>
@@ -213,7 +213,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 <span class="k">assert</span> merge_tables(c, id) == c && merge_tables(id, c) == c</code></pre></div>
       
 <p>This means we are free to merge in any order we want and still get back a valid final result and we can safely
-  use the identity element (<code>#{}</code>) as the default intermediate result. Monoids and parallel machines are good company!</p>
+  use the identity element (<code>#{}</code>) as the default intermediate result. Monoids and parallel machines are in good company!</p>
 
     <p>A few comments on inter-process communication: In our code we return the entire result to the parent process.
       This is OK for a small corpus, few megabytes in size. If we are dealing with much larger data sets, it is better to return just a
@@ -222,7 +222,7 @@ show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
 
     <p>How to detect and deal with errors in parallel programming? One simple strategy is to do a timeout and return a default value,
       as we did in <code>parallel_count_words_in_files</code>. What if there is no reasonable default value? We can ask the child process to quit
-      and restart the computation. If there is no response even after a restart, the program might decide to log an error or raise a
+      and restart the computation. If there is no response even after a restart, the program may decide to log an error or raise a
       notification. In a concurrent environment, it is better to fail early and loudly so some other process that is better at fixing problems can
       take over.</p>
   </div>
