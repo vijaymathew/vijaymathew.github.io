@@ -44,7 +44,8 @@
       characteristic nature of each document under consideration. We also try to filter out characters normally used as punctuation.</p>
 
     <div class="highlight">
-      <pre><code><span class="k">let</span> stop_words = ["the", "by", "you", "we", "to", "of", "in", "was", "a",
+      <pre><code><span class="c">// Not the prefect list of stop words, just good enough for our example!</span>
+<span class="k">let</span> stop_words = ["the", "by", "you", "we", "to", "of", "in", "was", "a",
                   "an", "is", "and", "are", "has", "have", "had", "he", "his", "her",
                   "she", "when", "how", "why", "what", "that", "then", "now", "i", "be",
                   "it", "as", "with", "for", "but", "on", "my", "him", "so", "were", 
@@ -54,7 +55,9 @@
                   "up", "down", "who", "one", "went", "go", "do", "done", "did", "more", 
                   "after", "upon", "into", "other", "these", "ye", "its", "such", "though",
                   "those", "than", "still", "about", "here", "thou", "thy", "thee",
-                  "most", "must", "may", "which", "could", "before", "yet"]
+                  "most", "must", "may", "which", "could", "before", "yet", "let", "soon",
+                  "some", "day", "every", "every", "know", "well", "might", "also", "shalt",
+                  "am", "never", "miss", "see", "seemed", "like", "over", "own"]
 
 <span class="k">let</span> delims = [\space, \newline, \,, \;, \:, \., \_, \-, \{, \}, \(, \), \[, \], \', \&quot;, \?, \!]</code></pre></div>
 
@@ -65,9 +68,11 @@
       <pre><code><span class="k">function</span> word_count(str)
   <span class="k">letseq</span> (count_table = #{},
           add_word_count =
-           ^(word) <span class="k">when</span> (string_length(word) > 1
-                         && not(member(word, stop_words)))
-             count_table[word] = inc(hashtable_at(count_table, word, 0)))
+          ^(word)
+           <span class="k">when</span> (string_length(word) > 1
+                 && not(member(word, stop_words))
+                 && not(char_is_numeric(string_at(word, 0))))
+            count_table[word] = inc(hashtable_at(count_table, word, 0)))
    { for_each(^(w) add_word_count(string_trim(w)),
                    string_split(string_downcase(str), delims))
      count_table }</code></pre>
@@ -94,7 +99,7 @@
     <p>It's time to test our code on a corpus of four large documents:</p>
 
     <div class="highlight">
-      <pre><code><span class="c">// files in the corpus were downloaded from Project Gutenberg (https://www.gutenberg.org/)</span>
+      <pre><code><span class="c">// Files in the corpus were downloaded from Project Gutenberg (https://www.gutenberg.org/)</span>
 <span class="k">let</span> corpus = ["./corpus/war&peace.txt", "./corpus/mobydick.txt",
               "./corpus/kjbible.txt", "./corpus/pride&prejudice.txt"]
 
@@ -111,12 +116,12 @@
 show_most_frequent_words(corpus, 20, count_words_in_files)</code></pre></div>
                     <p>On the machine I am testing, the call to <code>show_most_frequent_words</code> produced the following output:</p>
                     <div class="highlight">
-                      <pre><code><span class="c">//-> 31.93878698348999 secs</span>
+                      <pre><code><span class="c">31.93878698348999 secs</span>
 
-<span class="c">//-> ./corpus/war&peace.txt: [pierre:1950, prince:1923, natásha:1206, man:1169, andrew:1136, himself:1012, time:923, princess:915, face:891, french:874, some:843, know:841, old:832, eyes:820, men:783, rostóv:772, room:769, thought:764, like:741, well:733]</span>
-<span class="c">//-> ./corpus/mobydick.txt: [whale:1221, like:648, some:620, man:527, ship:511, ahab:511, old:452, sea:452, over:414, head:344, time:337, long:334, boat:329, captain:329, great:306, two:298, seemed:282, white:282, last:281, see:274]</span>
-<span class="c">//-> ./corpus/kjbible.txt: [unto:8997, lord:7964, god:4472, man:2735, israel:2575, king:2548, son:2392, hath:2264, people:2146, 10:2119, 11:2101, came:2093, house:2024, come:1972, 12:1968, 13:1905, 14:1866, children:1821, 15:1794, also:1771]</span>
-<span class="c">//-> ./corpus/pride&prejudice.txt: [elizabeth:634, darcy:418, am:326, bennet:324, bingley:307, jane:294, every:285, miss:283, know:238, herself:227, well:226, never:221, soon:218, sister:218, think:211, some:210, time:204, good:203, might:200, wickham:194]</span></code></pre></div>
+<span class="c">./corpus/war&peace.txt: [pierre:1950, prince:1923, natásha:1206, man:1169, andrew:1136, himself:1012, time:923, princess:915, face:891, french:874, old:832, eyes:820, men:783, rostóv:772, room:769, thought:764, chapter:732, count:719, began:714, moscow:711]
+./corpus/mobydick.txt: [whale:1221, man:527, ship:511, ahab:511, old:452, sea:452, head:344, time:337, long:334, boat:329, captain:329, great:306, two:298, white:282, last:281, way:271, whales:268, again:261, stubb:257, queequeg:252]
+./corpus/kjbible.txt: [unto:8997, lord:7964, god:4472, man:2735, israel:2575, king:2548, son:2392, hath:2264, people:2146, came:2093, house:2024, come:1972, children:1821, land:1718, men:1677, against:1668, hand:1466, us:1452, saying:1445, made:1405]
+./corpus/pride&prejudice.txt: [elizabeth:634, darcy:418, bennet:324, bingley:307, jane:294, herself:227, sister:218, think:211, time:204, good:203, wickham:194, lady:190, little:189, collins:179, without:178, nothing:177, again:177, being:176, lydia:171, make:170]</span></code></pre></div>
 
     <p>The program took more than 30 seconds to execute. Its performance might be improved by changing <code>word_count</code> to use a custom tokenizer
       instead of the built-in <code>string_split</code> function, or I can simply take advantage of the multiple cores on my machine! What if I split the
