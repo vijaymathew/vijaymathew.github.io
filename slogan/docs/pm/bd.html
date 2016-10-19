@@ -286,29 +286,6 @@ a;
 </div>
 
 <div class="highlight">
-  <pre><code><b>function: </b>ref(lst, index, @key value = void, default = false) 
-<b>returns: </b>if `value` is not specified, returns the element at `index`.
-if `index` is out of bounds, return `default`.
-
-If `value` is specified, updates the element at `index` to `value`.
-The update is destructive and returns the updated pair from the list.
-If `index` is out of bounds, raises an error.
-
-<span class="c">// Examples:</span>
-let a = [1,2,3];
-ref(a, 2);
-<span class="c">//=> 3</span>
-ref(a, 3);
-<span class="c">//=> false</span>
-ref(a, 3, default = 'none);
-<span class="c">//=> none</span>
-ref(a, 1, value = 100);
-<span class="c">//-> [100, 3]</span>
-a;
-<span class="c">//=> [1, 100, 3]</span></code></pre>
-</div>
-      
-<div class="highlight">
   <pre><code><b>function: </b>is_empty(obj) 
 <b>returns: </b>true if `obj` is the empty list `[]`, false otherwise.</code></pre>
 </div>
@@ -787,7 +764,28 @@ first(s);
 
 s = rest(s);
 first(s); 
-<span class="c">//=> 1</span></code></pre>
+<span class="c">//=> 1</span>
+
+Both `first` and `rest` are generic functions recognized at the language level.
+Any user-defined object can override them, as shown in the following program.
+
+<span class="c">// Example:</span>
+function make_bag(xs)
+  let (len = array_length(xs))
+    ^(msg)
+    | 'first -> when (len > 0) array_at(xs, 0)
+    | 'rest -> when (len > 1) make_bag(subarray(xs, 1, len))
+    | 'count -> len
+
+let b = make_bag(#[10, 20, 30])
+first(b)  
+<span class="c">//=> 10</span>
+first(rest(b))
+<span class="c">//=> 20</span>
+nth(2, b)
+<span class="c">//=> 30</span>
+count(b)
+<span class="c">//=> 3</span></code></pre>
 </div>
 
 <div class="highlight">
@@ -2246,32 +2244,6 @@ s;
 </div>
 
 <div class="highlight">
-  <pre><code><b>function: </b>ref(string, index, @key value = void, default = false) 
-<b>returns: </b>if `value` is not specified, returns the byte at `index`.
-if `index` is out of bounds, return `default`.
-
-If `value` is specified, updates the byte at `index` to `value`.
-The update is destructive and returns the updated string.
-If `index` is out of bounds, raises an error.
-
-<span class="c">// Examples:</span>
-s;
-<span class="c">//=> "heLLo, world"</span>
-ref(s, 10);
-<span class="c">//=> \l</span>
-ref(s, 11);
-<span class="c">//=> \d</span>
-ref(s, 12);
-<span class="c">//=> false</span>
-ref(s, 12, default = \nul);
-<span class="c">//=> \nul</span>
-ref(s, 10, value=\D);
-<span class="c">//=> "heLLo, worDd"</span>
-s;
-<span class="c">//=> "heLLo, worDd"</span></code></pre>
-  </div>
-
-<div class="highlight">
 <pre><code><b>function: </b>strings_at(strings, n)
 <b>returns: </b>a list of the `n`<sup>th</sup> bytes of all strings in the list strings.
 
@@ -2618,29 +2590,6 @@ a;
 <span class="c">//=> #[#[false, 100, false], #[false, false, "hello"]]</span></code></pre>
 </div>
 
-
-<div class="highlight">
-  <pre><code><b>function: </b>ref(array, index, @key value = void, default = false) 
-<b>returns: </b>if `value` is not specified, returns the element at `index`.
-if `index` is out of bounds, return `default`.
-
-If `value` is specified, updates the element at `index` to `value`.
-The update is destructive and returns the updated array.
-If `index` is out of bounds, raises an error.
-
-<span class="c">// Examples:</span>
-ref(a, 1);
-<span class="c">//=> #[false, false, "hello"]</span>
-ref(a, 2);
-<span class="c">//=> false</span>
-ref(a, 2, default = 100);
-<span class="c">//=> 100</span>
-ref(a, 1, value = [1,2,3]);
-<span class="c">//=> #[#[false, 100, false], [1, 2, 3]]</span>
-a;
-<span class="c">//=> #[#[false, 100, false], [1, 2, 3]]</span></code></pre>
-</div>
-
 <div class="highlight">
   <pre><code><b>function: </b>array_fill(array, object)
 <b>returns: </b>void
@@ -2836,28 +2785,6 @@ sb[2];
 sb[2] = -90;
 sb;
 <span class="c">//=> #s8[-1, -2, -90]</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><b>function: </b>ref(bytearray, index, @key value = void, default = false) 
-<b>returns: </b>if `value` is not specified, returns the byte at `index`.
-if `index` is out of bounds, return `default`.
-
-If `value` is specified, updates the byte at `index` to `value`.
-The update is destructive and returns the updated bytearray.
-If `index` is out of bounds, raises an error.
-
-<span class="c">// Example:</span>
-ub;
-<span class="c">//=> #u8[1, 2, 100]</span>
-ref(ub, 1);
-<span class="c">//=> 2</span>
-ref(ub, 10);
-<span class="c">//=> false</span>
-ref(ub, 10, default=100);
-<span class="c">//=> 100</span>
-ref(ub, 1, value=20);
-<span class="c">//=> #u8[1, 20, 100]</span></code></pre>
 </div>
 
 <div class="highlight">
@@ -3065,32 +2992,6 @@ a;
 a[0] = false;
 a;
 <span class="c">//=> #b[0, 0, 1, 0, 0]</span></code></pre>
-</div>
-
-<div class="highlight">
-  <pre><code><b>function: </b>ref(bitarray, index, @key value = void, default = false) 
-<b>returns: </b>if `value` is not specified, returns the bit at `index`.
-if `index` is out of bounds, return `default`.
-
-If `value` is specified, turn on/off the bit at `index`.
-The update is destructive and returns the updated bitarray.
-If `index` is out of bounds, no change happens to `bitarray`.
-
-<span class="c">// Examples:</span>
-a;
-<span class="c">//=> #b[0, 0, 1, 0, 0]</span>
-ref(a, 3);
-<span class="c">//=> false</span>
-ref(a, 3, default = 100);
-<span class="c">//=> false</span>
-ref(a, 30, default = 100);
-<span class="c">//=> 100</span>
-ref(a, 3, value = 100);
-a;
-<span class="c">//=> #b[0, 0, 1, 1, 0]</span>
-ref(a, 30, value = 100);
-a;
-<span class="c">//=> #b[0, 0, 1, 1, 0]</span></code></pre>
 </div>
 
 <div class="highlight">
@@ -3491,6 +3392,55 @@ true</span></code></pre>
 <div class="highlight">
   <pre><code><b>function: </b>set_to_list(set)
 <b>returns: </b>a list with all the elements of the set.</code></pre></div>
+
+<h4>Generic accessors and mutators</h4>
+<div class="highlight">
+  <pre><code><b>function: </b>ref(object, index, @optional default = false) 
+<b>returns: </b>returns the element at `index`. if `index` is out of bounds, return `default`.
+
+<b>function: </b>ref_set(object, index, value) 
+<b>returns: </b>void
+
+`Ref_set` sets the element at `index` to value.
+`Ref` and `ref_set` are generic functions that can be overriden by a user-defined object.
+Strings, lists, arrays and hashtables implement them by default. Any object that
+implement these functions automatically gets to work with the `[]` syntax.
+
+<span class="c">// Examples:</span>
+s;
+<span class="c">//=> "heLLo, world"</span>
+ref(s, 10);
+<span class="c">//=> \l</span>
+s[11];
+<span class="c">//=> \d</span>
+ref(#{"one":1, "two":2}, "three");
+<span class="c">//=> false</span>
+ref(#{"one":1, "two":2}, "one");
+<span class="c">//=> 1</span>
+
+function make_bag(xs)
+  let (len = array_length(xs)
+       bag_ref = ^(index) xs[index]
+       bag_ref_set = ^(index, value) xs[index] = value)
+    ^(msg)
+    | 'first -> when (len > 0) array_at(xs, 0)
+    | 'rest -> when (len > 1) make_bag(subarray(xs, 1, len))
+    | 'count -> len
+    | 'ref -> bag_ref
+    | 'ref_set -> bag_ref_set;
+
+let b = make_bag(#[10, 20, 30]);
+b[0];
+<span class="c">//=> 10</span>
+b[1] = 100;
+b[1];
+<span class="c">//=> 100</span>
+ref(b, 2);
+<span class="c">//=> 30</span>
+ref_set(b, 2, 200);
+b[2];
+<span class="c">//=> 200</span></code></pre>
+  </div>
 
 </div>
 </body>
