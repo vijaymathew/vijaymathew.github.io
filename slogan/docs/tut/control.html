@@ -57,19 +57,21 @@ do_while(^{showln(i); i=i+1}, ^i<3)
      1
      2</code></pre></div>
 
-<h4>Continuations</h4>
+<h4>Advanced flow control with continuations</h4>
 <p>A continuation represents a particular point in a program's execution. Slogan allows capturing the active continuation with the <code>callcc</code>
   function. <code>Callcc</code> is passed a function which is called with the current continuation as its sole argument. The current continuation
   itself is represented as a single-parameter function. Invoking this function causes the program control to return to the point where <code>callcc</code>
   was called. The argument passed to the continuation function will become the return value of <code>callcc</code>.</p>
-<p>Slogan uses continuations to implement some advanced control structures like generators. A simple control structure that can be implemented with
+<p>Slogan use continuations to implement some of its advanced features like <a href="../pm/bd.html#iters">iterators</a> or generators. A simple control structure that can be implemented with
   continuations is the <code>return</code> statement found in most imperative programming languages: </p>
 
 <div class="highlight">
-  <pre><code><span class="k">function</span> f(n)
+  <pre><code><span class="c">// This is a contrived example, but the pattern
+// can be used to implement non-local exit from a function.</span>
+<span class="k">function</span> f(n)
   callcc(^(return)
-    <span class="k">if</span> (is_prime(n)) return(n)
-    <span class="k">else</span> f(n+1))
+  { <span class="k">when</span> (is_prime(n)) return(n)
+    f(n+1) })
 
 <span class="c">// Usage:</span>
 f(10)
@@ -77,40 +79,29 @@ f(10)
 f(1034)
 <span class="c">//=> 1039</span></code></pre></div>
 
-<p>Next is a more advanced example. Let us see how to use continuations to implement threads for cooperative multitasking.</p>
+<p>The next example shows how to use continuations to implement threads for cooperative multitasking.</p>
 
 <div class="highlight">
-  <pre><code><span class="k">let</span> queue = []
+  <pre><code><span class="k">let</span> threads = []
 
-<span class="k">function</span> enqueue(x) queue = append(queue, [x])
+<span class="k">function</span> thread(thunk) threads = append(threads, [thunk])
 
-<span class="k">function</span> dequeue()
-  let (x = head(queue))
-  { queue = tail(queue)
-    x }
+<span class="k">function</span> thread_start()
+  <span class="k">let</span> (p = head(threads))
+  { threads = tail(threads)
+    p() }
 
-<span class="k">function</span> thread(f) callcc(^(k) { enqueue(k); f() })
-
-<span class="k">function</span> thread_yield() callcc(^(k) { enqueue(k); dequeue()() })
-
-<span class="k">function</span> thread_exit()
-  if (is_empty(queue)) exit()
-  else dequeue()()
+<span class="k">function</span> thread_yield()
+  callcc(^(k) { thread(^k(false)); thread_start() })
 
 <span class="c">// Usage:</span>
-<span class="k">function</span> do_print(str)
-  ^<span class="k">let</span> loop(n = 0)
-   { showln(str, " ", n)
-     thread_yield()
-     loop(n+1) }
+thread(^let loop(i = 0) { thread_yield(); showln("Thread A ", i); loop(i+1) })
+thread(^let loop(i = 0) { thread_yield(); showln("Thread B ", i); loop(i+1) })
+thread_start()
 
-thread(do_print("This is thread A"))
-thread(do_print("This is thread B"))
-thread_exit()
-
-<span class="c">//-> This is thread A 0
-     This is thread B 0
-     This is thread A 1
+<span class="c">//-> Thread A 0
+     Thread B 0
+     Thread A 1
      ...</code></pre></div>
 
 

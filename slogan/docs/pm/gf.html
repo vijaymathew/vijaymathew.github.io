@@ -28,8 +28,8 @@
     <div class="title"><h3>Moving Ahead</h3></div>
     <p>The preceding chapter introduced some of the most useful syntactic forms in Slogan.
       This chapter talks about a number of additional features and programming techniques that will allow you to write more 
-      sophisticated and efficient programs. These features are: <a href="#funcs">functions</a>, <a href="#recur">recursion</a> and
-    <a href="#generics">generics</a>.</p>
+      sophisticated and efficient programs. These features are: <a href="#funcs">functions</a>, <a href="#recur">recursion</a>,
+    <a href="#generics">generics</a> and <a href="#mmethods">multimethods</a>.</p>
 
     <a name="funcs"></a>
 <h4>The Function Expression</h4>
@@ -319,7 +319,48 @@ concat(stringc("hello "), "world");
   <code>first</code>, <code>rest</code>, <code>count</code>, <code>ref</code> and <code>ref_set</code>.
   Any closure can override these functions without an explicit <code>declare generic</code>. These functions are documented in detail in
   the <a href="./bd.html">next chapter</a>.</p>
+
+<a name="mmethods"></a>
+<h4>Multimethods</h4>
+<p>A multimethod is dispatched on the runtime type of all its arguments. The following program show one of the classic problems solved
+  by mutiple dispatch:</p>
+
+<div class="highlight">
+  <pre><code>function collide_with(x, y) false
+
+record asteroid()
+record spaceship()
       
+function collide_with(x:asteroid, y:asteroid) 'asteroid:'asteroid
+function collide_with(x:asteroid, y:spaceship) 'asteroid:'spaceship
+function collide_with(x:spaceship, y:asteroid) 'spaceship:'asteroid
+function collide_with(x:spaceship, y:spaceship) 'spaceship:'spaceship
+
+let a = asteroid()
+let s = spaceship()
+
+collide_with(a, a)
+<span class="c">//=> asteroid:asteroid</span>
+collide_with(s, s)
+<span class="c">//=> spaceship:spaceship</span>
+collide_with(s, a)
+<span class="c">//=> spaceship:asteroid</span>
+collide_with(a, s)
+<span class="c">//=> asteroid:spaceship</span></code></pre></div>
+
+<p>Multimethods can be used to override one of the built-in operators as demonstrated below:</p>
+
+<div class="highlight">
+  <pre><code>function `+`(a, b) add(a, b)
+function `+`(a:string, b:string) string_append(a, b)
+function `+`(a:list, b:list) append(a, b)
+
+1 + 2
+<span class="c">//=> 3</span>
+"hello " + "world"
+<span class="c">//=> "hello world"</span>
+[1,2,3] + [4,5]
+<span class="c">//=> [1, 2, 3, 4, 5]</span></code></pre></div>
   </div>
 </body>
 </html>
