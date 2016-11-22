@@ -30,7 +30,7 @@
 | pattern_2 -> result_2          
 | ...</code></pre></div>
 
-    <p>If <code>value</code> does not match any of the listed patterns, a <code>no_match_found</code> error will be raised.</p>
+    <p>If <code>value</code> does not match any of the listed patterns, a <code>no_match_found</code> error is raised.</p>
     
     <p>Let us begin our exploration of pattern matching with the help of a few simple examples. Later we will see how this facility can lead to
       the clean and concise specification of a non-trivial algorithm.</p>
@@ -44,11 +44,11 @@
     [] -> 0        
   | head:tail -> 1 + length(tail)</code></pre></div>
 
-    <p>Our definition of <code>length</code> does a pattern destructuring of its argument. If the pattern matches an empty list, <code>0</code> is returned.
+    <p>Our definition of <code>length</code> does a pattern destructuring on its argument. If the pattern matches an empty list, <code>0</code> is returned.
       If the pattern matches a head and a tail pair, the length is <code>1</code> added to the length of tail.</p>
 
     <p>We can write this function more compactly, by eliminating the explicit declaration of <code>match</code>. We also do not need to
-      bind the <code>head</code> variable, because we don't use it. This can be replaced by the <code>`-`</code> wildcard character.</p>
+      bind the <code>head</code> variable because we don't use it. This can be replaced by the <code>`-`</code> wildcard character.</p>
 
     <div class="highlight">
       <pre><code><span class="k">function</span> length(xs)
@@ -67,23 +67,27 @@ factorial(10)
 <span class="c">//=> 3628800</span>
 factorial(3)
 <span class="c">//=> 6</span>
-          
+
+<span class="c">// Evaluate arithmetic expressions in the
+// format #{operation: [expr1, expr2]}, where `operation`
+// is one of the four symbols - 'add, 'sub, 'mul and 'div.
+// An expression can also be a numeric literal.</span>  
 <span class="k">function</span> calculator(expr)
 | #{'add: [e1, e2]}    -> calculator(e1) + calculator(e2)
 | #{'sub: [e1, e2]}    -> calculator(e1) - calculator(e2)
-| #{'mult: [e1, e2]}   -> calculator(e1) * calculator(e2)
+| #{'mul: [e1, e2]}   -> calculator(e1) * calculator(e2)
 | #{'div: [e1, e2]}    -> calculator(e1) / calculator(e2)
 | e <span class="k">where</span> is_number(e) -> e
 
-calculator(#{'add: [#{'mult: [10, 20]}, 500]})
+calculator(#{'add: [#{'mul: [10, 20]}, 500]})
 <span class="c">//=> 700</span>
 calculator(#{'sub: [100, 20]})
 <span class="c">//=> 80</span>
-calculator(#{'sub: [100, "ok"]});
+calculator(#{'sub: [100, "ok"]})
 <span class="c">//-> error: no_match_found</span></code></pre></div>
 
     <p>The <code>calculator</code> function makes use of the <code>where</code> guard in the last pattern to make sure that
-      the value that gets bound to the variable <code>e</code> is a number.</p>
+      the value that gets bound to the variable is a number.</p>
 
     <p>In addition to the built-in data structures, user defined records can also be destructured:</p>
 
@@ -135,7 +139,7 @@ f(#(10, 20))
     
     <p>Now that we have covered the basics, let us write some code that exploits the true expressive power of pattern matching!
       We are going to implement a data structure that is often flagged as "advanced". This is the red-black tree - one of the most popular
-      balanced binary trees.</p>
+      of all balanced binary trees.</p>
 
     <p>In a red-black tree every node is colored either red or black and it satisfies the following two balance invariants:</p>
     <p><ol>
@@ -158,8 +162,7 @@ f(#(10, 20))
 | _ -> [color, t, z, d]</code></pre></div>
 
     <p>The complete code for the red-black tree is shown below. It is implemented as
-      a module with a simple public interface of two functions for getting and putting data. The data inserted
-      into the tree must be a key-value pair.<p>
+      a module with a simple public interface of two functions for inserting and fetching key-value data.<p>
 
     <div class="highlight">
       <pre><code><span class="k">module</span> red_black_tree(get, put)
@@ -180,7 +183,7 @@ f(#(10, 20))
       -> ['r,['b,a,x,b],y,['b,c,z,d]]
   | _ -> [color, t, z, d]
 
-  <span class="k">function</span> put(x, s = 'empty)
+  <span class="k">function</span> insert(x, s)
   { <span class="k">function</span> ins(rs)
     | 'empty -> ['r,'empty,x,'empty]
     | [color,a,y,b] ->
@@ -189,20 +192,24 @@ f(#(10, 20))
         <span class="k">if</span> (kx < ky) balance(color, ins(a), y, b)
         <span class="k">else if</span> (ky < kx) balance(color, a, y, ins(b))
         <span class="k">else</span> s;
-     <span class="k">match</span>(ins(s)) [_,a,y,b] -> ['b,a,y,b] }}
+      <span class="k">match</span>(ins(s)) [_,a,y,b] -> ['b,a,y,b] }
 
+  <span class="k">function</span> put(key, value, s = 'empty) insert(key:value, s) }
+          
 <span class="c">// Usage:</span>
 <span class="k">let</span> rbt = red_black_tree
-<span class="k">let</span> t = rbt.put(1:'abc)
-t = rbt.put(10:'def, t)
-t = rbt.put(23:'ghi, t)
-rbt.get(1, t)
+<span class="k">let</span> t = rbt.put(0, 'abc)
+for_each(^(i) t = rbt.put(i, i*100, t), range(1, 1000))
+
+rbt.get(0, t)
 <span class="c">//=> abc</span>
-rbt.get(10, t)
-<span class="c">//=> def</span>
+rbt.get(125, t)
+<span class="c">//=> 12500</span>
 rbt.get(23, t)
-<span class="c">//=> ghi</span>
-rbt.get(24, t)
+<span class="c">//=> 2300</span>
+rbt.get(997, t)
+<span class="c">//=> 99700</span>
+rbt.get(1322, t)
 <span class="c">//=> false</span></code></pre></div>
 
 <p>(For a detailed description of a red-black tree structure similar to the one presented here, please see the book "Purely functional data structures" by Chris Okasaki.)</p>
