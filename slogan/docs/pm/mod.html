@@ -28,7 +28,7 @@
     <div class="title"><h3>Modularity</h3></div>
 
     <p>Two related language features assist us in designing and organizing large programs -
-      <a href="#closures">closures</a> and <a href="#modules">modules</a>.</p>
+      <a href="#closures">closures</a>, <a href="#modules">modules</a> and <a href="#namespaces">namespaces</a>.</p>
 
 <a name="closures"></a>
 <h4>Closures</h4>
@@ -187,6 +187,66 @@ m.g(2);
 <span class="c">//-> error: name_not_found</span>
 m.h(2);
 <span class="c">//=> 2</span></code></pre></div>
+
+<a name="namespaces"></a>
+<h4>Namespaces</h4>
+
+  <p>A namespace group definitions under a common name prefix. The following program shows a namespace with two definitions - a function
+    named <code>f</code> and a variable named <code>g</code>.</p>
+
+  <div class="highlight">
+    <pre><code>namespace abc
+{ function f(x) x*2
+  let g = 100 }</code></pre></class>
+
+<p>All top-level definitions in a namespace can be accessed by prefixing the definition by <code>namespace_name::</code>. Namespaces also satisfy
+  the interface for hashtables for accessing values. So their members can be destructured and accessed by <code>let</code> statements and <code>letseq</code>
+  expressions.</p>
+
+  <div class="highlight">
+    <pre><code>abc::f(10)
+<span class="c">//=> 20</span>
+abc::g
+<span class="c">//=> 100</span>
+
+<span class="c">// bind namespace variable to globals:</span>
+let #{f, g} = abc
+f(100)
+<span class="c">//=> 200</span>
+g * 20
+<span class="c">//=> 2000</span>
+
+<span class="c">// bind namespace variable and rename them:</span>
+let #{'f:ff, 'g:gg} = abc
+ff(100)
+<span class="c">//=> 200</span>
+gg * 20
+<span class="c">//=> 2000</span>
+
+<span class="c">// a less preferred way to access namespace members:</span>
+abc['f](10)
+<span class="c">//=> 20</span></code></pre></div>
+
+<p>Namespace and modules offer similar functionality but their internal representations and access mechanisms are different.
+  Which one to prefer is largely a matter of personal taste. Large collections of definitions are normally grouped under a namespace.
+  Modules are ideal for interacting with a smaller, well-defined interface. Note that a namespace can define and export a module and a module
+  can export a namespace. Examples of both are shown below:</p>
+
+<div class="highlight">
+  <pre><code>namespace n
+{ module m(a)
+   function a() 'hello }
+
+(n::m).a()
+<span class="c">//=> hello</span>
+
+module m (xyz)
+  namespace xyz
+  { function b() 'hi }
+
+m.xyz::b();
+<span class="c">//=> hi</span></code></pre></div>
+
   </div>
 </body>
 </html>
