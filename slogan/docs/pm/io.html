@@ -642,6 +642,76 @@ Note that if the stream's timeout value has not changed the `f` will be called a
 `f` defaults to a function that always return false.</code></pre>
 </div>
 
+<a name="bit_streams"></a>
+<h4>Bit streams</h4>
+<p>Bit streams are for reading and writing data at bit-level. As a simple example of bit encoded data,
+  consider 16-bit color values. In 16-bit color, the red and blue components are encoded using 5-bits each,
+  while the green component takes up 6-bit. The following program reads and writes 16-bit encoded color
+  values: </p>
+
+<div class="highlight">
+  <pre><code>function encode_color(rgb)
+  letseq (out = byte_array_writer(),
+          encoder = bits_writer(out))
+  { write_bits(encoder, rgb['red], 5)
+    write_bits(encoder, rgb['green], 6)
+    write_bits(encoder, rgb['blue], 5)
+    bits_writer_flush(encoder)
+    get_output_bytes(out) }
+
+function decode_color(color)
+  letseq (in = byte_array_reader(color),
+          decoder = bits_reader(in),
+          r = read_bits(decoder, 5),
+          g = read_bits(decoder, 6),
+          b = read_bits(decoder, 5))
+      #{'red: r, 'green: g, 'blue: b}
+
+decode_color(encode_color(#{'red: 12, 'green: 51, 'blue: 20}))
+<span class="c">//=> #{'red: 12, 'green: 51, 'blue: 20}</span></code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bits_reader(r)
+<b>returns: </b>a bits reader that read bits from the stream reader `r`.</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>read_bit(br)
+<b>returns: </b>true if the next bit in the bits_reader `br` is 1, false otherwise.</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>read_bits(br, n)
+<b>returns: </b>an integer packed with the next `n` bits from the bits_reader `br`.
+
+`n` must be in the range 1-31</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bits_reader_align(br)
+<b>returns: </b>void.
+
+Align the bits_reader `br` to the next byte in the input.</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bits_writer(w)
+<b>returns: </b>a bits writer that write bits to the writer stream `w`.</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>write_bit(bw, b)
+<b>returns: </b>void
+
+Write the bit `b` to the bits_writer `bw`.</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>write_bits(bw, i, n)
+<b>returns: </b>void
+
+Write `n` bits from the integer `i` to the bits_writer `bw`.</code></pre></div>
+
+<div class="highlight">
+  <pre><code><b>function: </b>bits_writer_flush(bw)
+<b>returns: </b>void
+
+Flush the bits in the bits_writer `bw` to the underlying stream writer.</code></pre></div>
+
     <a name="tokens"></a>
 <h4>Tokenizers</h4>
 <p>A stream of characters read from an input stream can be split into tokens using a tokenizer. This sections gives a 
