@@ -585,6 +585,82 @@ df()
 
     <h2>8.7 Parallel Programming</h2>
 
+    <p>Slogan tasks are really light-weight because multiple tasks will share a single hardware processor. There is no way the user can make sure
+      that a newly started task will execute on a dedicated processor. To execute some code on a separate processor, a new set of functions are required.
+      These are the <a href="ref/process.html">process</a>, <a href="ref/act.html">act</a> and <a href="ref/react.html">react</a> functions. These
+      functions are designed around a simple message passing model.</p>
+
+    <p>The simplest parallel abstraction to use is the <code>react</code> function. <code>React</code> takes two functions as arguments. If the
+      machine running the program has multiple processors, the first function is executed in parallel on a separate hardware processor. When the
+      computation is done, the second function is called with the result as argument. The interesting point is that, the second function is invoked
+      in the process that called <code>react</code>. This way a program can execute a part of its computation on a dedicated processor and get back the
+      result without going through the hassles of inter-process communication.</p>
+
+    <p>The process started by <code>react</code> will run as long as the parent process wants it to run. It can also execute its function
+      multiple times. This is made possible by the return value of <code>react</code>, which is a single argument function. When the parent process
+      invokes this function, the function in the child process is called with the same argument.</p>
+
+    <p>The following program shows how to use <code>react</code> to run time consuming computations on a processor dedicated for that purpose.
+      The parent process has prepared a reactive variable to get back the result from the child process. This is possible because the
+      callback function that receives the result of the computation is called in a new task.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> r = <span class="pw">?</span>
+<span class="kw">let</span> p = react(<span class="kw">^</span>(x) { task_sleep(random_integer(x)); random_real() },
+              <span class="kw">^</span>(result) <span class="pw">?</span>r = result)
+      </code></pre>
+    </div>
+
+    <p>The first function passed to <code>react</code> will be executed on a new processor when the parent process calls <code>p</code> with
+      some value. This is passed to the function running on the child. It just sleeps for some random number of seconds (to pretend that it
+      is doing some long computation!) and then return a real value. When the result is ready, the second function is called with that value
+      in the parent process. The parent should have already prepared the reactive variable to receive the result.</p>
+
+    <div class="prog">
+      <pre><code>
+p(10)
+<span class="pw">?</span>r <span class="comment">// will wait for about 10 seconds</span>
+<span class="comment">// .2876463473845367</span>
+
+r = <span class="pw">?</span>
+p(5)
+<span class="pw">?</span>r <span class="comment">// will wait for about 5 seconds</span>
+<span class="comment">// .8162050798467028</span>
+      </code></pre>
+    </div>
+
+    <p>Once we are done with all the parallel computations, we must shutdown the child process by sending it the
+      <code><span class="sym">'quit</span></code> message. This is necessary to release all the system resources held by the process and
+      the communication channels used by it.</p>
+
+    <div class="prog">
+      <pre><code>
+p(<code><span class="sym">'quit</span></code>) <span class="comment">// or `p.quit`</span>
+      </code></pre>
+    </div>
+
+    <p>The parent process we have now is ready to wait for an unspecified time before the child gets back with a response. What if it expects the
+      child to give back a response within a specific time-limit? <code>React</code> can accept optional keyword arguments which allows us to
+      specify the child process's timeout and a default value to return in case of a timeout. With these options, we can rewrite the
+      example as shown below:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> r = <span class="pw">?</span>
+<span class="kw">let</span> p = react(<span class="kw">^</span>(x) { task_sleep(random_integer(x)); random_real() },
+              <span class="kw">^</span>(result) <span class="pw">?</span>r = result,
+              child_timeout = 2, default_val = .1)
+
+p(10)
+<span class="pw">?</span>r
+<span class="comment">// .1</span>
+p.quit
+      </code></pre>
+    </div>
+
+    <p>Once a child process has timed-out, the best thing you can do is to quit and restart it.</p>
+
     <hr></hr>
 
     <div class="note">
