@@ -305,10 +305,36 @@ f(20)
       </code></pre>
     </div>
 
-    <p>As a <code><span class="kw">let</span></code> expression is internally just a function definition and invokation, we can implement local
-      "loops" by naming the <code><span class="kw">let</span></code> and calling it from its own body. The name given to the
-      <code><span class="kw">let</span></code> expression can be any valid variable identifier, though <code>loop</code> and <code>iter</code>
-      are the most commonly used ones.</p>
+    <p>The value expressions in the bindings list of a <code><span class="kw">let</span></code> can refer to variables defined
+      earlier:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> (x = 10, y = x + 2) [y, x]
+<span class="comment">// [12, 10]</span>
+      </code></pre>
+    </div>
+
+    <p>The <code><span class="kw">let</span></code> expression can also be used to destructure lists, arrays and hashtables.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> f() [1, 2, 3]
+<span class="kw">function</span> g() #{<span class="sym">'a</span>:1, <span class="sym">'b</span>:2}
+
+<span class="kw">let</span> ([a, b, c] = f()) a + b + c
+<span class="comment">// 6</span>
+<span class="kw">let</span> (#{<span class="sym">'a</span>:x, <span class="sym">'b</span>:y} = g()) [x,y]
+<span class="comment">// [1, 2]</span>
+
+<span class="comment">// Values that are not required can be ommitted by using the `_` placeholder:</span>
+<span class="kw">let</span> ([a, _, c] = f()) a + c
+<span class="comment">// 4</span>
+      </code></pre>
+    </div>
+
+    <p>A <code><span class="kw">let</span></code> expression can be assigned an optional name. This makes it easy to define local
+      recursive functions that behave like looping constructs:</p>
 
     <div class="prog">
       <pre><code>
@@ -324,35 +350,22 @@ f(20)
       </code></pre>
     </div>
 
-    <p>The value expressions in the bindings list of a <code><span class="kw">let</span></code> is not allowed to refer to variables defined
-      earlier. For that the <code><span class="kw">letseq</span></code> expression must be used.</p>
+    <p>There is a variation of <code><span class="kw">let</span></code> known as <code><span class="kw">letfn</span></code>, where
+      value expressions are not allowed to refer to preceding variables in the bindings list.</p>
 
     <div class="prog">
       <pre><code>
-<span class="kw">letseq</span> (x = 10, y = x + 2) [y, x]
-<span class="comment">// [12, 10]</span>
+<span class="kw">letfn (a = 10, b = a + 2) [a, b]</span>
+<span class="comment">//&gt; error: Unbound variable: a</span>
+<span class="kw">let</span> x = 100
+<span class="kw">letfn</span> (x = 20, y = x + 10) [x, y]
+<span class="comment">// [20, 110]</span>
+<span class="kw">let</span> (x = 20, y = x + 10) [x, y]
+<span class="comment">// [20, 30]</span>
       </code></pre>
     </div>
 
-    <p><code><span class="kw">Letseq</span></code> can destructure lists, arrays and hashtables.</p>
-
-    <div class="prog">
-      <pre><code>
-<span class="kw">function</span> f() [1, 2, 3]
-<span class="kw">function</span> g() #{<span class="sym">'a</span>:1, <span class="sym">'b</span>:2}
-
-<span class="kw">letseq</span> ([a, b, c] = f()) a + b + c
-<span class="comment">// 6</span>
-<span class="kw">letseq</span> (#{<span class="sym">'a</span>:x, <span class="sym">'b</span>:y} = g()) [x,y]
-<span class="comment">// [1, 2]</span>
-
-<span class="comment">// Values that are not required can be ommitted by using the `_` placeholder:</span>
-<span class="kw">letseq</span> ([a, _, c] = f()) a + c
-<span class="comment">// 4</span>
-      </code></pre>
-    </div>
-
-    <p>For defining mutually recursive local functions, the <code><span class="kw">letrec</span></code> expression must be used. The following
+    <p>For defining mutually recursive local functions, the <code><span class="kw">letrec</span></code> expression is used. The following
       program defines two local functions to check eveness and oddity of numbers. They call each other to get their work done:</p>
 
     <div class="prog">
@@ -364,9 +377,10 @@ f(20)
       </code></pre>
     </div>
 
-    <p>The basic <code><span class="kw">let</span></code> expression has the most optimized implementation in Slogan because it is translated
-      to a simple function definition and invocation. <code><span class="kw">Letseq</span></code> may get translated to multiple function definitions
-      and invocations and <code><span class="kw">letrec</span></code> does (harmless) state mutations behind the scene.</p>
+    <p>The basic <code><span class="kw">letfn</span></code> expression has the most optimized implementation in Slogan because it is translated
+      to a simple function definition and invocation. A <code><span class="kw">let</span></code> expression may get translated to multiple
+      <code><span class="kw">letfn</span></code> expressions depending on the number of back references.
+      The <code><span class="kw">letrec</span></code> expression will do (harmless) state mutations behind the scene.</p>
 
     <h2>6.3 Functions as Return Values</h2>
 
@@ -420,11 +434,11 @@ make_combiner(<span class="str">"hello, "</span>)(<span class="str">"world"</spa
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> make_combiner(x)
-  <span class="kw">let</span>(f = <span class="kw">if</span> (is_number(x)) `+`
-          <span class="kw">else if</span> (is_string(x)) string_append
-          <span class="kw">else if</span> (is_list(x)) append
-          <span class="kw">else if</span> (is_char(x)) string
-          <span class="kw">else</span> error(<span class="str">"type unsupported"</span>))
+  <span class="kw">let</span> (f = <span class="kw">if</span> (is_number(x)) `+`
+           <span class="kw">else if</span> (is_string(x)) string_append
+           <span class="kw">else if</span> (is_list(x)) append
+           <span class="kw">else if</span> (is_char(x)) string
+           <span class="kw">else</span> error(<span class="str">"type unsupported"</span>))
     partial(f, x)
       </code></pre>
     </div>
