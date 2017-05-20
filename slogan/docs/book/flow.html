@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./style.css" type="text/css" />
+    <title>The Slogan Handbook - Advanced Flow Control</title>
+  </head>
+
+  <body>
+    <h1 class="chapter">10</h1>
+    <h1 class="title">Advanced Flow Control</h1>
+
+    <p>We have already familiar with some features of Slogan that allow us to control and redirect how the program flows.
+      One of the basic control flow expressions are <code><span class="kw">if</span></code> and <code><span class="kw">when</span></code>, both
+      of which allow the program to decide to execute which path in a program based on some conditions. We also have recursion and the imperative
+      <code><span class="kw">for</span></code> loop construct that enable a program to return to a previous position and run from there again.
+      But the conditional expressions are the most fundamental because they are essential for implementing recursive and iterative programs</p>
+
+    <p>Conditional expressions are also fundamental because they enable the implementation of a basic error handling mechanism. For example, this
+      is how we may implement a (hypothetical) function that tries to open a file:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> open_file(file_name)
+  <span class="kw">if</span> (<a href="ref/file_exists.html">file_exists</a>(file_name))
+    open_and_return_a_handle_to_the_file(file_name)
+  <span class="kw">else</span> false
+      </code></pre>
+    </div>
+
+    <p>The callers of this function should handle a case where the file is missing using an <code><span class="prog">if</span></code> expression:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> (f = open_file(<span class="str">"some_file"</span>))
+  <span class="kw">if</span> (f) do_something_to_the_file(f)
+  <span class="kw">else</span> <a href="ref/showln.html">showln</a>(<span class="str">"failed to open file"</span>)
+      </code></pre>
+    </div>
+
+    <p>This is the declarative way to deal with exceptional situations like trying to open a nonexistent file, dividing by zero etc.
+      But it is cubersome and error prone to add checks throughout the program. An elegant alternative is to add an exception-handling
+      mechanism to the language. In the first section of this chapter, we will learn about exception-handling in Slogan.</p>
+
+    <p>We will also learn how to program in a paradigm called <em>nondeterministic computing</em>.
+      The key idea here is that expressions in a nondeterministic language can have more than one possible value. For instance, an-element-of
+      might return any element of the given list. Our nondeterministic program evaluator will work by automatically choosing a possible value
+      and keeping track of the choice. If a subsequent requirement is not met, the evaluator will try a different choice, and it will keep
+      trying new choices until the evaluation succeeds, or until we run out of choices.</p>
+    <p>Nondeterministic computing has important applications
+      in fields like <a href="https://en.wikipedia.org/wiki/Artificial_intelligence" target="_blank">artificial intelligence</a> and
+      <a href="http://wiki.c2.com/?RelationalProgrammingLanguage" target="_blank">relational programming</a>. The underlying mechanism that
+      enable us to add nondeterminism to our programs can also be used to build advanced control flow mechanisms like
+      <a href="https://en.wikipedia.org/wiki/Coroutine" target="_blank">coroutines</a>. The ability to build custom control flow abstractions is not
+      found in many high-level languages. This chapter will introduce you to this powerful feature.</p>
+    
+    <h2>10.1 Exceptions</h2>
+
+    <p>When an expression cannot be evaluated correctly, we often speak of "raising an error". But what should this statement exactly do? It should,
+      in a controlled way, transfer execution to another part of the program that knows how to deal with the error, without crashing the running
+      program. This part of the program that specializes in dealing with errors is known as the <em>exception handler</em>. While an error is thrown,
+      a value descirbing the error is also passed to the exception handler.</p>
+
+    <p>Slogan's exception handling mechanism is designed around the <em>error confinement</em> principal which states that the error in a
+      <em>component</em> should be catchable at the component boundary. Outside the component, the error is either invisible or reported in a nice way.
+      That means raising an error will cause the program control to "jump" from inside the component to its boundary.
+      <a name="01-back"></a>This is a single operation, able to exit from arbitrarily many levels of nested context<a href="#01"><sup>1</sup></a>.
+
+    <p>In Slogan, the function <code><a href="ref/raise.html">raise</a></code> is the basic mechanism for raising exceptions. The
+      <code><span class="kw">try</span>-<span class="kw">catch</span></code> expression is the basic mechanism for handling raised exceptions.
+      This expression has the following general syntax:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">try</span>
+  expr
+<span class="kw">catch</span> (err)
+  handle_err_expr
+      </code></pre>
+    </div>
+
+    <p>The expression <code>expr</code> can raise an error by calling <code>raise()</code> with an arbitrary object as argument. This object
+      represents the error condition and is passed as argument to <code><span class="pw">catch</span></code>. The <code>handle_err_expr</code>
+      is an expression that should decide what to do about the error object.</p>
+
+    <p>The following program, which implements a simple <a href="https://en.wikipedia.org/wiki/Stack_(abstract_data_type)" target="_blank">stack
+        data type</a>. The stack is implemented on top of an array, the size of which is specified when the stak is created. An attempt to push
+      more items than the stack can hold will be blocked by raising an error. Similarly, an attempt to remove an item from an empty stack will also
+      lead to an error.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> make_stack(size)
+  <span class="kw">let</span> (elems = make_array(size),
+       index = 0)
+  { <span class="kw">function</span> push(e)
+      <span class="kw">if</span> (index >= size)
+        raise(<span class="str">"too many elements"</span>)
+      <span class="kw">else</span>
+      { elems[index] = e
+        index = index + 1 }
+
+    <span class="comment">// Return the top element.</span>
+    <span class="kw">function</span> top()
+      <span class="kw">if</span> (index == 0)
+        raise(<span class="str">"empty stack"</span>)
+      <span class="kw">else</span> elems[index - 1]
+
+    <span class="comment">// Remove and return the top element.</span>
+    <span class="kw">function</span> pop()
+      <span class="kw">if</span> (index == 0)
+        raise(<span class="str">"empty stack"</span>)
+      <span class="kw">else let</span> (e = elems[index - 1])
+      { index = index - 1
+        e }
+
+    <span class="kw">^</span>(message)
+    | <span class="sym">'push</span> -> push
+    | <span class="sym">'top</span> -> top
+    | <span class="sym">'pop</span> -> pop
+    | _ -> raise(<span class="str">"invalid message"</span>) }
+      </code></pre>
+    </div>
+
+    <p>Any attempt to violate the invariants on a stack object will be blocked by the raising errors:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> s = make_stack(3)
+s.push(10)
+s.push(23)
+s.top()
+<span class="comment">// 23</span>
+s.pop()
+<span class="comment">// 23</span>
+s.pop()
+<span class="comment">// 10</span>
+s.pop()
+<span class="comment">//&gt; error: This object was raised: "empty stack"</span>
+        </code><pre>
+    </div>
+
+    <p>Using exception handlers, we can contain and deal with such exceptions in a cleaner way. The following function implements a "safer"
+      alternative to <code>pop</code> a stack. It handles the error by logging it to the console and returning a default value to the caller:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> safe_pop(stack, <span class="pw">@optional</span> default)
+  <span class="kw">try</span>
+    stack.pop()
+  <span class="kw">catch</span> (err)
+  { showln(<span class="str">"stack error: "</span>, err)
+    default }
+
+safe_pop(s)
+<span class="comment">//&gt; stack error: empty stack
+// false</span>
+
+safe_pop(s, 10)
+<span class="comment">//&gt; stack error: empty stack
+// 10</span>
+
+s.push(100)
+safe_pop(s)
+<span class="comment">// 100</span>
+      </code></pre>
+    </div>
+
+    <p>Code that handles exceptions may not get enough information about the error, if that has been thrown by a call to <code>raise(obj)</code>.
+      The argument to <code>raise</code> can be an arbitrary object, it may not even be a string. So the exception handler should know how to
+      interpret the error object beforehand to do proper error logging and handling. The function <code><a href="ref/error.html">error</a></code>
+      can help make life easier for code that has to process information anout errors.</p>
+
+    <p>Instead of raising an arbitrary object, the <code>error</code> function always raises an object of type <code>error-exception</code> record
+      which has a message field and a list of "argument" fields which can contain additional information about the error.</p>
+
+    <h3>10.1.1 Performing Cleanup</h3>
+
+    <p>A <code><span class="kw">try</span></code> expression can specify a <code><span class="kw">finally</span></code> clause which is always
+      executed, whether or not the expression raises an exception. This is useful when dealing with entities that are managed external to
+      the language runtime. With <code><span class="kw">finally</span></code>, we can guarantee that some "cleanup" action gets performed
+      on the entity, whether or not an exception occurs. An example of such an external entity is the <em>handle</em> to an open file, which is
+      a limited resource managed by the operating system on which the program runs. The program must make sure it returns this handle back to the
+      operating system by closing the file handle, whether or not an exception was raised while using (reading/writing) it.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> f = <span class="pw">false</span>          
+<span class="kw">try</span>
+  { f = <a href="ref/file_reader.html">file_reader</a>(<span class="str">"abc.txt"</span>)
+    <a href="ref/read_all_chars.html">read_all_chars</a>(f) }
+<span class="kw">catch</span> (err)
+  showln(<span class="str">"failed to read file - "</span>, err)
+<span class="kw">finally</span>
+  <span class="kw">when</span> (f)
+  { showln(<span class="str">"closing file..."</span>)
+    <a href="ref/close_reader.html">close_reader</a>(f) }
+      </code></pre>
+    </div>
+
+    <p>If you want the exception to be handled in an outer layer, you can omit the <code><span class="kw">catch</span></code> clause. This will cause the
+      exception to be re-raised, after the <code><span class="kw">finally</span></code> clause is executed.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">let</span> f = <span class="pw">false</span>          
+<span class="kw">try</span>
+  { f = file_reader(<span class="str">"abc.txt"</span>)
+    read_all_chars(f) }
+<span class="kw">finally</span>
+  <span class="kw">when</span> (f)
+  { showln(<span class="str">"closing file..."</span>)
+    close_reader(f) }
+      </code></pre>
+    </div>
+
+    <p>Mixing file operations and exception handling leads to code that is markedly imperative. Slogan provide abstractions that let us express
+      input/output operations in a declarative style. This will be covered in the <a href="io.html">next chapter</a>.</p>
+    
+    <h2>10.2 Continuations</h2>
+
+    <hr></hr>
+
+    <div class="note">
+      <p>
+        <sup><a name="01"></a><a href="#01-back">1</a></sup>In our case, "components" are mostly functions and "nested contexts" are
+        created by function calls.
+      </p>
+    </div>
+    
+  </body>
+</html>
