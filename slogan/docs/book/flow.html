@@ -41,18 +41,6 @@
     <p>This is the declarative way to deal with exceptional situations like trying to open a nonexistent file, dividing by zero etc.
       But it is cubersome and error prone to add checks throughout the program. An elegant alternative is to add an exception-handling
       mechanism to the language. In the first section of this chapter, we will learn about exception-handling in Slogan.</p>
-
-    <p>We will also learn how to program in a paradigm called <em>nondeterministic computing</em>.
-      The key idea here is that expressions in a nondeterministic language can have more than one possible value. For instance, an-element-of
-      might return any element of the given list. Our nondeterministic program evaluator will work by automatically choosing a possible value
-      and keeping track of the choice. If a subsequent requirement is not met, the evaluator will try a different choice, and it will keep
-      trying new choices until the evaluation succeeds, or until we run out of choices.</p>
-    <p>Nondeterministic computing has important applications
-      in fields like <a href="https://en.wikipedia.org/wiki/Artificial_intelligence" target="_blank">artificial intelligence</a> and
-      <a href="http://wiki.c2.com/?RelationalProgrammingLanguage" target="_blank">relational programming</a>. The underlying mechanism that
-      enable us to add nondeterminism to our programs can also be used to build advanced control flow mechanisms like
-      <a href="https://en.wikipedia.org/wiki/Coroutine" target="_blank">coroutines</a>. The ability to build custom control flow abstractions is not
-      found in many high-level languages. This chapter will introduce you to this powerful feature.</p>
     
     <h2>10.1 Exceptions</h2>
 
@@ -217,13 +205,133 @@ safe_pop(s)
     <p>Mixing file operations and exception handling leads to code that is markedly imperative. Slogan provide abstractions that let us express
       input/output operations in a declarative style. This will be covered in the <a href="io.html">next chapter</a>.</p>
     
-    <h2>10.2 Nondeterministic Computations</h2>
+    <h2>10.2 Abstracting Control Flow</h2>
+
+    <p>So far in this book we have discussed quite a few programming constructs that can control how the program flows - the
+      <code><span class="kw">if</span></code> and <code><span class="kw">when</span></code> expressions, the
+      <code><span class="kw">try</span>-<span class="kw">catch</span></code> expression, the <code><span class="kw">yield</span></code>
+      statement, the imperative <code><span class="kw">for</span></code> loop and so on. You might have encountered some or all of these
+      in other languages as well. Programming language designers will bake into the language those control structures they feel are the only ones
+      users of their languages ever need. When people talk about a language being "extensible" what they mean is that the language allows some
+      them to define new data abstractions, like adding new types of classes of objects to the programs they write. Can a language be extensible
+      in the sense that users can add new control structures to the language? This is the question we are dealing with in this section.</p>
+
+    <p>A language with higher-order functions already allows a user to define functions that behave like built-in control structures. For example,
+      the following program defines a function that behaves like the <code>while</code> loop found in imperative programming languages:</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> while(cond, body)
+  <span class="kw">when</span> (cond())
+  { body()
+    while(cond, body) }
+      </code></pre>
+    </div>
+
+    <p><code>While()</code> take two functions as arguments. The first one return <code><span class="pw">true</span></code> as long as a
+      particular condition holds. The second function is called if the condition holds and <code>while</code> is called again recursively,
+      creating the effect of a loop. Here is an example usage of our new looping construct:<p>
+
+      <div class="prog">
+        <pre><code>
+<span class="kw">let</span> i = 0
+while (<span class="kw">^</span>() i < 5,
+       <span class="kw">^</span>() { showln(i); i = i + 1 })
+<span class="comment">//&gt; 0
+    1
+    2
+    3
+    4</span>
+        </code></pre>
+      </div>
+
+    <p>"Functional" control structures like this have two immediate problems. First is that, they do not introduce new "syntax" to the language.
+      Invoking them are basically just function calls and building their function arguments can be verbose at times. The construct might be cleaner
+      and easier to use if users are allowed to type something like:</p>
+
+    <div class="prog">
+      <pre><code>
+while (i &lt; 5)
+{ showln(i)
+  i = i + 1 }
+      </code></pre>
+    </div>
+
+    <p>The second problem is that a function is not allowed to return to and execute code in an arbitrary position in the program. This flexibility is
+      required for implementing constructs like <code><span class="kw">try-catch</span></code> and <code><span class="kw">yield</span></code>. Slogan
+      exposes the ability to completely control the execution order of instructions as a first-class language entity. This allow users to build control
+      strcutures that have the same power as those come built-in with the language.</p>
 
     <h3>10.2.1 Continuations</h3>
 
-    <h3>10.2.2 Functions that Backtrack</h3>
+    <p>During the evaluation of an expression, Slogan needs to keep track of two things - (1) what to evaluate and (2) what to do with the value.
+      Consider the evaluation of <code>is_empty(x)</code> within the expression below.</p>
 
-    <h3>10.2.3 Solving a Logic Puzzle</h3>
+    <div class="prog">
+      <pre><code>
+<span class="kw">if</span> (is_empty(x))
+  <span class="sym">'empty</span>
+<span class="kw">else</span>
+  head(x)
+      </code></pre>
+    </div>
+
+    <p>Slogan has to first evaluate <code>is_empty(x)</code> and, based on the result, evaluate either <code>'empty</code> or <code>head(x)</code>.
+      "What to evaluate?" is <code>is_empty(x)</code> and "what to do with the value?" is to choose between <code>'empty</code> and
+      <code>head(x)</code> to evaluate next. The "what to do with the value?" is the <em>continuation</em> of the computation.</p>
+
+    <p>Slogan allows the continuation of any expression to be captured with the function <code><a href="ref/callcc.html">callcc</a></code> (for
+      <code>call_with_current_contiunuation</code>). <code>Callcc</code> must be passed a function <code>f</code> of one argument.
+      <code>Callcc</code> constructs a concrete representation of the current continuation and passes it to <code>f</code>. The continuation
+      itself is represented by a function <code>k</code>. Each time <code>k</code> is applied to a value, it returns the value to the
+      continuation of the <code>callcc</code> application. This value becomes, in essence, the value of the application of <code>callcc</code>.</p>
+
+    <p>If <code>f</code> returns without invoking <code>k</code>, the value returned by the function becomes the value of the application
+      of <code>callcc</code>.</p>
+
+    <p>Let us consider a few simple examples.</p>
+
+    <div class="prog">
+      <pre><code>
+callcc(<span class="kw">^</span>(k) 5 * 4)
+<span class="comment">// 20</span>
+callcc(<span class="kw">^</span>(k) 5 * k(4))
+<span class="comment">// 4</span>
+2 + callcc(<span class="kw">^</span>(k) 5 * k(4))
+<span class="comment">// 6</span>
+      </code></pre>
+    </div>
+
+    <p>In the first example, the continuation is captured and bound to <code>k</code>, which is never used. So the value is simply the product
+      of <code>5</code> and <code>4</code>. In the second, the continuation is invoked before the multiplication, so the value is the
+      value passed to the continuation, <code>4</code>. In the third, the continuation includes the addition by <code>2</code>; thus, the value
+      is the value passed to the continuation, <code>4</code>, plus <code>2</code>.</p>
+
+    <p>Here is a less trivial example, showing the use of <code>callcc</code> to provide a nonlocal exit from a recursion.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> product(xs)
+  callcc(
+    <span class="kw">^</span>(return)
+     <span class="kw">let</span> loop(xs = xs)
+       <span class="kw">if</span> (is_empty(xs)) 1
+       <span class="kw">else if</span> (is_zero(head(xs))) return(0)
+       <span class="kw">else</span> head(xs) * loop(tail(xs)))
+
+product([1, 2, 3, 4, 5])
+<span class="comment">// 120</span>
+product([1,2,3,0,4,5])
+<span class="comment">// 0</span>
+      </code></pre>
+    </div>
+
+    <p>The nonlocal exit allows <code>product</code> to return immediately, without performing the pending multiplications,
+      when a zero value is detected.</p>
+
+    <p>In the <a href="syntax.html">chapter</a> on designing new languages, we will complete our journey into building new control abstractions.
+      There we will implement a whole new sub-language in Slogan that will enable us to write
+      <a href="https://en.wikipedia.org/wiki/Nondeterministic_programming" target="_blank">nondeterministic programs</a>.</p>
 
     <hr></hr>
 
