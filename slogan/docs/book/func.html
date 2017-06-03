@@ -10,17 +10,25 @@
     <h1 class="chapter">6</h1>
     <h1 class="title">Functional Abstractions</h1>
 
-    <p>A powerful programming language will have the ability to build abstractions by assigning names to common patterns and
-      then to work in terms of the abstractions directly. We already saw how functions provide this ability. Sometimes the same
-      programming pattern will be used with a number of different functions. That means, functions should be able to accept other
-      functions as arguments or return functions as values. <a name="01-back"></a>Functions that manipulate functions are known as
-      <em>higher-order functions</em><sup><a href="#01">1</a></sup>. This chapter looks at the various abstractions that can be built
-      with higher-order functions.</p>
+    <p>A powerful programming language will have the ability to build abstractions by assigning names to common patterns. This rises the level at which
+      problems are solved, by working with abstractions directly. In Slogan, functions are the primary means of abstraction.</p>
+
+    <p>Sometimes the same programming pattern will be used with a number of different functions. If such <em>patterns</em> are identified and
+      captured as functions, they can be applied in many different contexts. To be useful, the pattern-capturing function must be
+      configurable for a specific context. This customization can be expressed as another function which becomes an argument to the
+      pattern-capturing function. That means, a function must have the same properties of data objects like strings, numbers and lists.
+      This includes a literal representation in code and an associated value that can be referenced through variables.
+      In other words, functions should be treated as <em>first-class</em> values by the language.</p>
+
+    <p><a name="01-back"></a>Once functions have first-class status, they can become arguments or return values of other
+      functions<sup><a href="#01">1</a></sup>, they can be stored and passed around in data structures and so on. First-class functions open a vast
+      new world of possibilities before us. In this chapter, we will explore some powerful abstractions that first-class functions enable
+      us to build.</p>
 
     <h2>6.1 Functions as Arguments</h2>
 
-    <p>Imagine you are developing a payroll application. Your manager wants your application to return the names of all employees whose
-      salaries are above a given threshold. Employee names and salaries are stored as pairs in a list.</p>
+    <p>Imagine you are developing a payroll application. Your manager wants the application to report the names of all employees whose
+      salaries are above a given threshold. Employee names and salaries are stored as pairs in a <a href="ref/list.html">list</a>:</p>
 
     <div class="prog">
       <pre><code>
@@ -28,9 +36,9 @@
       </code></pre>
     </div>
 
-    <p>You are planning to write a function that will walk that list, add all employees that satisfy the condition to a
-      another list that will be returned when the input list runs out of entries. Your plan can be realized by a recursive
-      function that does pattern match on the salaries list.</p>
+    <p>You are planning to write a function that will walk this list and add all employees that satisfy the condition to a
+      new result list. This result list will be returned when the salaries list runs out of entries. This plan can be realized by a recursive
+      function that pattern match on the salaries list.</p>
 
     <div class="prog">
       <pre><code>
@@ -43,7 +51,7 @@
       </code></pre>
     </div>
 
-    <p>The salary filter function can be used as shown below:</p>
+    <p>The salary filter function can be used as,</p>
 
     <div class="prog">
       <pre><code>
@@ -54,34 +62,34 @@ filter_by_salary_above(1000, salaries, [])
       </code></pre>
     </div>
 
-    <p>Now what if your manager wants a new report that shows all employees with salaries below a given threshold? You set out to write a
-      new filter function for that. If you attempt to implement this function, you will find that it will differ from the
+    <p>Your manager is happy with the result, but now he also want a new function to report all employees with salaries <em>below</em> a given threshold!
+      You set out to write a new filter function for that. If you attempt to implement this function, you will find that it will differ from the
       <code>filter_by_salary_above</code> function only at the condition check in the second clause of the <code><span class="kw">match</span></code>.
-      The rest of the code follows the same pattern. In fact, after writing a few more such "list-fitering" functions you will want to write a
-      generic function that can filter a list based on any condition. That <em>condition</em> will be captured as a functional argument to
-      the filter. Slogan comes pre-packaged with such a filter function and this is how would use it:</p>
-
+      The rest of the code follows the same pattern. In fact, after writing a few more such "list-filtering" functions you will want to write a
+      generic function that can filter a list based on any condition. That <em>condition</em> will be captured as a functional argument.
+      Slogan comes prepackaged with such a function that can filter out elements from a list by passing them through a predicate.</p>
+      
     <div class="prog">
       <pre><code>
 <span class="comment">// filter all odd numbers in a list</span>
-filter(is_odd, [1, 2, 3, 4, 5])
+<a href="ref/filter.html">filter</a>(<a href="ref/is_odd.html">is_odd</a>, [1, 2, 3, 4, 5])
 <span class="comment">// [1, 3, 5]</span>
 
 <span class="comment">// filter all names that start with \a</span>
 <span class="kw">function</span> starts_with_a(name)
-  char_is_eq(name[0], \a)
+  <a href="ref/char_is_eq.html">char_is_eq</a>(name[0], \a)
 
 filter(starts_with_a, [<span class="str">"annie"</span>, <span class="str">"joe"</span>, <span class="str">"bob"</span>, <span class="str">"agatha"</span>, <span class="str">"mary"</span>])
 <span class="comment">// ["annie", "agatha"]</span>
       </code></pre>
     </div>
 
-    <p>You can use <code>filter</code> to define your salary reporting functions, without repeating the same pattern of code:</p>
+    <p>You can use <code>filter</code> to define your salary reporting functions and avoid duplicating the filtering logic.</p>
 
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> salaries_above(threshold, salaries)
-{ <span class="kw">function</span> check_above(entry) tail(entry) &gt; threshold
+{ <span class="kw">function</span> check_above(entry) <a href="ref/tail.html">tail</a>(entry) &gt; threshold
   filter(check_above, salaries) }
 
 <span class="kw">function</span> salaries_below(threshold, salaries)
@@ -97,16 +105,16 @@ salaries_below(1500, salaries)
 
     <p>The new reporting functions are shorter and sweeter. One problem you may have noticed is that they now report both the employee name
       and salary, while the manager wants only the names. We will figure out an elegant and general method to process the filtered list further
-      to extract only the parts we want them from. But before that, let us look at ways to make the reporting functions even shorter and thus
-      making them easier to understand and maintain.</p>
+      to extract only the information we want. But before that, let us look at ways to make the reporting functions even shorter.</p>
 
     <h3>6.1.1 Function Literals</h3>
 
-    <p>While reading the code of <code>salaries_above</code> and <code>salaries_below</code> you may have felt it a bit awkward to
-      define short throw-away functions like <code>check_above</code> and <code>check_below</code>. To pass a string or integer value
-      to a function as its argument, we don't have to specially define and name them. We can just type-in their literal representations.
-      In fact, there is nothing special about functions either. You can have <em>function literals</em> in your program just by omitting its name.
-      The following code snippet shows how to define and use function literals:</p>
+    <p>The <code>salaries_above</code> and <code>salaries_below</code> define two predicates locally and pass them as arguments to <code>filter</code>.
+      These are the <code>check_above</code> and <code>check_below</code> functions. To be forced to define and name short functions used only once is an
+      inconvenience.</p>
+
+    <p>Fortunately, we don't have to live with this inconvenience because functions are first-class values in Slogan. They can be expressed as
+      literals in code. It is quite easy to define a <em>function literal</em> &ndash; just omit the name. Here are some examples:<p>
 
     <div class="prog">
       <pre><code>
@@ -122,8 +130,8 @@ f(20, 30)
       </code></pre>
     </div>
 
-    <p>Function literals are so ubiquitous in Slogan programs that the shorter <code><span class="kw">^</span></code> operator is provided to
-      define them So all of the above functions can also be defined as:</p>
+    <p>Function literals are so ubiquitous in Slogan programs that the <code><span class="kw">^</span></code> operator is provided to
+      define them. So the preceding examples can be rewritten as,</p>
 
     <div class="prog">
       <pre><code>
@@ -139,7 +147,7 @@ f(20, 30)
       </code></pre>
     </div>
 
-    <p>This leads to the following new definitions of the salary reporting functions:</p>
+    <p>This leads to the following single-line definitions of the salary reporting functions:</p>
 
     <div class="prog">
       <pre><code>
@@ -153,25 +161,26 @@ f(20, 30)
 
     <h3>6.1.2 Doing Something to Everything</h3>
 
-    <p>Now let us tackle the next problem, i.e extacting only the required portion of the filtered salaries. For instance, the manager
-      wants to see only the names of the employees and not their salaries. While the finance manager may need only the salaries, so that
+    <p>Now let us tackle the next problem, i.e extracting only the required portion of the filtered salaries. For instance, the manager
+      wants to see only the names of the employees and not their salaries. But the finance manager may need only the salaries, so that
       he can ask a query like "the average salary above a particular threshold."</p>
 
     <p>Basically, this problem can be generalized as - "do something to every element in a sequence, and return a new sequence of the results".
-      This pattern is captured by the <code>map</code> function which accepts a function and an arbitrary number of sequences as arguments.
-      The function represents the <em>something</em> that should be done to each element in the sequence. It must take as many arguments as
-      there are sequences.</p>
+      This pattern is captured by the <code><a href="ref/map.html">map</a></code> function which accepts a function and an arbitrary number
+      of lists as arguments. The function represents the <em>something</em> that should be done to each element in the lists.
+      It must take as many arguments as there are lists.</p>
 
     <div class="prog">
       <pre><code>
-map(sqrt, [2, 10, 20])
+map(<a href="ref/sqrt.html">sqrt</a>, [2, 10, 20])
 <span class="comment">// [1.4142135623730951, 3.1622776601683795, 4.47213595499958]</span>
 map(<span class="kw">^</span>(x, y) x + y, [1, 2, 3, 4, 5], [10, 20, 30, 40, 50])
 <span class="comment">// [11, 22, 33, 44, 55]</span>
       </code></pre>
     </div>
 
-    <p>Extracting parts from the employees list is easy. Just <code>map</code> the <code>head</code> and <code>tail</code> functions on this list.</p>
+    <p>Extracting parts from the employees list is easy. Just <code>map</code> the <code><a href="ref/head.html">head</a></code> and
+      <code><a href="ref/tail.html">tail</a></code> functions on this list.</p>
 
     <div class="prog">
       <pre><code>
@@ -189,10 +198,11 @@ map(salary, salaries_above(1500, salaries))
     <h3>6.1.3 Folding</h3>
 
     <p>As we saw earlier, an accountant may not be interested in the names but the salaries of the employees. Once he get the list of salaries
-      that satisfy some condition, he may want to extract some statistical information from them, like finding their average. For this the
+      that satisfy a condition, he may want to extract some statistical information from them, like finding their average. For this the
       salaries has to be first reduced to a single value by summing all of them. Then this sum has to be divided by the number of salaries.
-      How will you sum the numbers in a list? One solution is to use the higher-order function <code>fold</code> which takes a two-argument
-      function, and initial value and a list as arguments. Each element in the list is combined to the value to produce a final result.</p>
+      How will you sum the numbers in a list? One solution is to use the higher-order function <code><a href="ref/fold.html">fold</a></code>
+      which takes a two-argument function, an initial value and a list as arguments. Each element in the list is combined to the
+      value to produce a final result.</p>
 
     <div class="prog">
       <pre><code>
@@ -216,7 +226,7 @@ fold(`+`, 0, s) / length(s)
 
     <div class="prog">
       <pre><code>
-apply(add, [1, 2, 3, 4, 5])
+apply(<a href="ref/add.html">add</a>, [1, 2, 3, 4, 5])
 <span class="comment">// 15</span>
       </code></pre>
     </div>
@@ -235,7 +245,7 @@ apply(add, 1, 2, [3, 4, 5])
 
     <div class="prog">
       <pre><code>
-<span class="kw">function</span> find_min_max(xs) apply(min, xs):apply(max, xs)
+<span class="kw">function</span> find_min_max(xs) apply(<a href="ref/min.html">min</a>, xs):apply(<a href="ref/max.html">max</a>, xs)
 
 find_min_max([10, 20, 1, 4, -8, 100])
 <span class="comment">// -8:100</span>
@@ -244,10 +254,8 @@ find_min_max([10, 20, 1, 4, -8, 100])
 
     <h2>6.2 Local Definitions</h2>
 
-    <p>We often need local variables in functions, in addition to the formal parameters. We used the <code><span class="kw">let</span></code>
-      statement for declaring local variables. One problem with such variables is that they will be visible to all expressions that follows,
-      even if they don't need those variables. Another, a more serious problem is that the variables introduced by <code><span class="kw">let</span></code>
-      statement may accidently replace variables defined earlier.</p>
+    <p>We often need variables that are limited in scope, visible only to a particular part of the program.
+      To understand the importance of local definitions, consider the following code snippet:</p>
 
     <div class="prog">
       <pre><code>
@@ -255,17 +263,22 @@ find_min_max([10, 20, 1, 4, -8, 100])
 <span class="kw">function</span> f(y) x * y
 f(20)
 <span class="comment">// 2000</span>
+
 <span class="kw">let</span> x = 2
 x  + 20
 <span class="comment">// 22</span>
+
+<span class="comment">// with the original definition of `x` lost,
+// `f` will return an unexpected result!</span>
 f(20)
 <span class="comment">// 40</span>
       </code></pre>
     </div>
 
-    <p>We need a way to introduce the second <code>x</code> in such a way that it is visible only to the computation that needs it.
+    <p>The second binding of <code>x</code> "overwrote" its original definition. Any code that depended on this definition is broken now.
+      We need a way to introduce the second binding of <code>x</code> in such a way that it is visible only to the computation that need it.
       (i.e, the expression <code>x + 20</code>). We could specify an anonymous function for binding such "local" variables. Let us
-      rewrite the above program using this idea:</p>
+      rewrite the example program using this idea:</p>
 
     <div class="prog">
       <pre><code>
@@ -273,15 +286,17 @@ f(20)
 <span class="kw">function</span> f(y) x * y
 f(20)
 <span class="comment">// 2000</span>
+
 (<span class="kw">^</span>(x) x + 20)(2)
 <span class="comment">// 22</span>
+
 f(20)
 <span class="comment">// 2000</span>
       </code></pre>
     </div>
 
-    <p>This pattern is so useful that Slogan provide the <code><span class="kw">let</span></code> expression to make it easier to express.
-      The <code><span class="kw">let</span></code> expression has the following syntax:</p>
+    <p>This pattern is so useful that Slogan provide the <code><span class="kw">let</span></code> expression as a concise way to introduce
+      multiple local variables. The <code><span class="kw">let</span></code> expression has the following syntax:</p>
 
     <div class="prog">
       <pre><code>
@@ -289,8 +304,9 @@ f(20)
       </code></pre>
     </div>
 
-    <p>The bindings introduced by the <code><span class="kw">let</span></code> expression is visible only to its <em>body</em>. Now our
-      example program can be written as:</p>
+    <p>The bindings introduced by the <code><span class="kw">let</span></code> expression is visible only within the <em>body</em> expression.</p>
+
+    <p>Our example program can be written using the <code><span class="kw">let</span></code> expression as,</p>
 
     <div class="prog">
       <pre><code>
@@ -298,8 +314,10 @@ f(20)
 <span class="kw">function</span> f(y) x * y
 f(20)
 <span class="comment">// 2000</span>
+
 <span class="kw">let</span> (x = 2) x + 20
 <span class="comment">// 22</span>
+
 f(20)
 <span class="comment">// 2000</span>
       </code></pre>
@@ -315,7 +333,7 @@ f(20)
       </code></pre>
     </div>
 
-    <p>The <code><span class="kw">let</span></code> expression can also be used to destructure lists, arrays and hashtables.</p>
+    <p>The <code><span class="kw">let</span></code> expression can also be used to destructure lists, arrays and hash tables.</p>
 
     <div class="prog">
       <pre><code>
@@ -327,7 +345,7 @@ f(20)
 <span class="kw">let</span> (#{<span class="sym">'a</span>:x, <span class="sym">'b</span>:y} = g()) [x,y]
 <span class="comment">// [1, 2]</span>
 
-<span class="comment">// Values that are not required can be ommitted by using the `_` placeholder:</span>
+<span class="comment">// values that are not required can be ommitted by using the `_` wildcard variable:</span>
 <span class="kw">let</span> ([a, _, c] = f()) a + c
 <span class="comment">// 4</span>
       </code></pre>
@@ -340,7 +358,8 @@ f(20)
       <pre><code>
 <span class="kw">let</span> loop (x = 0)
   <span class="kw">when</span> (x &lt; 5)
-  { showln(x); loop(x + 1) }
+  { <A href="ref/showln.html">showln</a>(x)
+    loop(x + 1) }
 
 <span class="comment">//> 0
     1
@@ -355,18 +374,20 @@ f(20)
 
     <div class="prog">
       <pre><code>
-<span class="kw">letfn (a = 10, b = a + 2) [a, b]</span>
+<span class="kw">letfn</span> (a = 10, b = a + 2) [a, b]
 <span class="comment">//&gt; error: Unbound variable: a</span>
+
 <span class="kw">let</span> x = 100
 <span class="kw">letfn</span> (x = 20, y = x + 10) [x, y]
 <span class="comment">// [20, 110]</span>
+
 <span class="kw">let</span> (x = 20, y = x + 10) [x, y]
 <span class="comment">// [20, 30]</span>
       </code></pre>
     </div>
 
     <p>For defining mutually recursive local functions, the <code><span class="kw">letrec</span></code> expression is used. The following
-      program defines two local functions to check eveness and oddity of numbers. They call each other to get their work done:</p>
+      program defines two local functions to check evenness and oddity of numbers. They call each other to get their work done:</p>
 
     <div class="prog">
       <pre><code>
@@ -379,37 +400,41 @@ f(20)
 
     <p>The basic <code><span class="kw">letfn</span></code> expression has the most optimized implementation in Slogan because it is translated
       to a simple function definition and invocation. A <code><span class="kw">let</span></code> expression may get translated to multiple
-      <code><span class="kw">letfn</span></code> expressions depending on the number of back references.
-      The <code><span class="kw">letrec</span></code> expression will do (harmless) state mutations behind the scene.</p>
+      <code><span class="kw">letfn</span></code> expressions.
+      The <code><span class="kw">letrec</span></code> expression may do state mutations behind the scene.</p>
 
     <h2>6.3 Functions as Return Values</h2>
 
     <p>Earlier in this chapter we saw how the ability to pass functions as arguments significantly improves the expressiveness of the programs we
-      could write. Even more expressive power is achieved once we start functions whose return values themselves are functions. Let us first look
-      at a very simple example. The following function checks the type ot its argument and return a function that can be used to combine two values
+      could write. Even more expressive power is achieved once we have functions whose return values themselves are functions. Let us start with a
+      simple example. The following function checks the type of its argument and return a function that can be used to combine two values
       of that type:</p>
 
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> combiner(x)
-  <span class="kw">if</span> (is_number(x)) `+`
-  <span class="kw">else if</span> (is_string(x)) string_append
-  <span class="kw">else if</span> (is_list(x)) append
-  <span class="kw">else if</span> (is_char(x)) string
-  <span class="kw">else</span> error(<span class="str">"type unsupported"</span>)
+  <span class="kw">if</span> (<a href="ref/is_number.html">is_number</a>(x)) `<a href="ref/add.html">+</a>`
+  <span class="kw">else if</span> (<a href="ref/is_string.html">is_string</a>(x)) <a href="ref/string_append.html">string_append</a>
+  <span class="kw">else if</span> (<a href="ref/is_list.html">is_list</a>(x)) <a href="ref/append.html">append</a>
+  <span class="kw">else if</span> (<a href="ref/is_char.html">is_char</a>(x)) <a href="ref/string.html">string</a>
+  <span class="kw">else</span> <a href="ref/error.html">error</a>(<span class="str">"type unsupported"</span>)
 
 <span class="comment">// Usage:</span>
-combiner(\x)(\x, \y)
+<span class="kw">let</span> char_comb = combiner(\x)  
+char_comb(\x, \y)
 <span class="comment">// xy</span>
-combiner(2)(2, 3)
+
+<span class="kw">let</span> num_comb = combiner(2)
+num_comb(3, 2)
 <span class="comment">// 5</span>
+
 combiner([1,2])([1,2], [3,4,5])
 <span class="comment">// [1, 2, 3, 4, 5] </span>
     </code></pre></div>
 
-    <p>It's a bit awkward to pass in an object twice in an expression that calls <code>combiner</code> - once to type-check it and then to combine
-      it with another value. It would be conveninet for callers if the function returned already knows about its first argument. This is accomplished
-      by the next function, called <code>make_combiner</code>:</p>
+    <p>It's a bit awkward to pass an object twice in an expression that calls <code>combiner</code> - once to type-check it and then to combine
+      it with another value. It would be convenient for callers if the function returned already knows about its first argument. This is accomplished
+      by the next function, <code>make_combiner</code>:</p>
 
     <div class="prog">
       <pre><code>
@@ -422,14 +447,19 @@ combiner([1,2])([1,2], [3,4,5])
 
 make_combiner(\a)(\b)
 <span class="comment">// ab</span>
-make_combiner(<span class="str">"hello, "</span>)(<span class="str">"world"</span>)
+
+<span class="kw">let</span> hello_comb = make_combiner(<span class="str">"hello, "</span>)
+hello_comb(<span class="str">"world"</span>)
 <span class="comment">// hello, world</span>
+hello_comb(<span class="str">"how are you?"</span>)
+<span class="comment">// hello, how are you?</span>
       </code></pre>
     </div>
 
-    <p>Instead of explicitly creating a function object for each type, you may also use the built-in function <code>partial</code>, which
+    <p>Instead of explicitly creating a function object for each type, you may also use the built-in function
+      <code><a href="ref/partial.html">partial</a></code>, which
       returns a new version of a function partially applied to its first few arguments. This is how the next version of <code>make_combiner</code>
-      is defined:</p>
+      is defined.</p>
 
     <div class="prog">
       <pre><code>
@@ -440,23 +470,28 @@ make_combiner(<span class="str">"hello, "</span>)(<span class="str">"world"</spa
            <span class="kw">else if</span> (is_char(x)) string
            <span class="kw">else</span> error(<span class="str">"type unsupported"</span>))
     partial(f, x)
+
+make_combiner(10)(2, 3)
+<span class="comment">// 15</span>
+make_combiner(\a)(\b, \c, \d)
+<span class="comment">// abcd</span>
       </code></pre>
     </div>
 
-    <p>You may have noticed the function returned by <code>make_combiner</code> getting a permanent reference to <code>make_combiner</code>'s argument -
-      the variable <code>x</code>. This is because functions always gets a reference to the lexical environemnt they were defined in and can freely
-      refer to the variables defined there. The combination of a function object along with its lexical environemnt is known as a
+    <p>You may have noticed the function returned by <code>make_combiner</code> getting a permanent reference to <code>make_combiner</code>'s argument,
+      i.e, the variable <code>x</code>. This is because functions get a reference to the <em>lexical environment</em> they are defined in and can freely
+      refer to the variables defined there. The combination of a function along with its lexical environment is known as a
       <a href="https://en.wikipedia.org/wiki/Closure_(computer_programming)" target="_blank"><em>closure</em></a> and
       can be used to model complex structures out of pure functions. This technique is discussed later in this chapter.</p>
 
     <h3>6.3.1 Function Builders</h3>
 
-    <p>We saw how to use <code>partial</code> that accepts a function and some of its arguments and return a new function that expects the rest
-      of the arguments. Slogan also have other "function-building functions". Some of these are illustrated here.</p>
+    <p>We saw how to use <code>partial</code> to create a partially applied version of a function.
+      Slogan also have other "function-building functions". Some of these are illustrated here.</p>
 
-    <p>The first function that we encounter is <code>compose</code>. It takes one or more functions and returns a new function in which all of them
-      are applied in succession. Each function, except the last, must take exactly one argument. The last function can take an arbitrary number of
-      arguments.</p>
+    <p>Let us consider a function builder known as <code><a href="ref/compose.html">compose</a></code>. It takes one or more functions and returns a
+      new function in which all of them are applied in succession. Each function, except the last, must take exactly one argument.
+      The last function can take an arbitrary number of arguments.</p>
 
     <div class="prog">
       <pre><code>
@@ -469,7 +504,8 @@ sqrt(10 + 20 + 30)
       </code></pre>
     </div>
 
-    <p>Another useful function builder is <code>complement</code> which takes a predicate and returns the opposite predicate.</p>
+    <p>Another useful function builder is <code><a href="ref/complement.html">complement</a></code> which takes a predicate and returns
+      the opposite predicate.</p>
 
     <div class="prog">
       <pre><code>
@@ -480,30 +516,30 @@ map(complement(is_odd), [1, 2, 3, 4, 5])
 
     <h2>6.4 Functions as Objects</h2>
 
-    <p>As closures can eternally refer to the environment in which the were defined, they can be used to emulate objects with internal state.
+    <p>As closures can eternally refer to the environment in which they were defined, they can be used to emulate objects with internal state.
       By making the closure to return a function that accepts a symbolic constant, we can define objects that respond to <em>messages</em>.
-      This style of program organization, where all computation takes place through <em>message-passing</em> is the central idea of
+      This style of program organization, where all computation takes place through <em>message-passing</em> is the central idea behind
       <a href="http://lists.squeakfoundation.org/pipermail/squeak-dev/1998-October/017019.html" target="_blank">Object Oriented Programming</a>.</p>
 
     <p>The following program defines a simple object that represents a bank account. A bank account object is constructed with a positive
-      initial balance. <a name="02-back"></a>It can respond to two new messages - <code>balance</code>, which returns the current balance
+      initial balance. <a name="02-back"></a>It can respond to two new messages &ndash; <code>balance</code>, which returns the current balance
       and <code>withdraw</code>, which returns a new object with the updated balance.<sup><a href="#02">2</a></sup></p>
 
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> make_bank_account(balance)
-  <span class="kw">if</span> (balance <= 0)
+  <span class="kw">if</span> (balance &lt;= 0)
     error(<span class="str">"invalid balance"</span>)
   <span class="kw">else</span>
   { <span class="kw">function</span> withdraw(amount)
-      <span class="kw">if</span> (amount >= balance)
+      <span class="kw">if</span> (amount &gt;= balance)
         error(<span class="str">"not enough balance"</span>)
       <span class="kw">else</span>
         make_bank_account(balance - amount)
 
     <span class="kw">^</span>(message)
-    | 'balance -> balance
-    | 'withdraw -> withdraw }
+    | 'balance -&gt; balance
+    | 'withdraw -&gt; withdraw }
       </code></pre>
     </div>
 
@@ -539,28 +575,29 @@ b3.withdraw(100).balance
 
     <h3>6.4.1 Pre-Conditions and Post-Conditions</h3>
 
-    <p><code>Make_bank_account</code> its internal <code>withdraw</code> function both expect its argument to meet certain specifications.
+    <p><code>Make_bank_account</code> and its internal <code>withdraw</code> function both expect their argument to meet certain specifications.
       This expectation is expressed in the <code><span class="kw">if</span></code> condition at the top of the function definitions. There is
       another way to clearly express a function's specifications as <em>pre</em> and <em>post</em> conditions. The pre-condition specifies the
-      restrictions on the functions arguments and the post-condition must be satisfied by the function's return value. These conditions are
-      specified outside the body of the function using the special <code><span class="pw">where</span></code> clause. Thus it is possible
-      to separate the function's specification from its implementation. It also makes easy for external tools to extract a function's specification.</p>
+      restrictions on the function's arguments and the post-condition must be satisfied by the function's return value. These conditions are
+      specified outside the body of the function using the <code><span class="pw">where</span></code> clause. Thus it is possible
+      to separate the function's specification from its implementation. This also plays easy with external tools that may have to extract
+      a function's specification.</p>
 
     <p>Let us rewrite the <code>make_bank_account</code> function by separating out the specifications.</p>
 
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> make_bank_account(balance)
-  <span class="pw">where</span> is_number(balance) && balance > 0
-        -> is_function(%)
+  <span class="pw">where</span> is_number(balance) && balance &gt; 0
+        -&gt; is_function(%)
 { <span class="kw">function</span> withdraw(amount)
-    <span class="pw">where</span> amount < balance
-          -> is_function(%)
+    <span class="pw">where</span> amount &lt; balance
+          -&gt; is_function(%)
     make_bank_account(balance - amount)
 
     <span class="kw">^</span>(message)
-    | <span class="sym">'balance</span> -> balance
-    | <span class="sym">'withdraw</span> -> withdraw }
+    | <span class="sym">'balance</span> -&gt; balance
+    | <span class="sym">'withdraw</span> -&gt; withdraw }
       </code></pre>
     </div>
 
@@ -568,10 +605,13 @@ b3.withdraw(100).balance
       <code>-&gt;</code> is the specification for the return value. The variable <code>%</code> is automatically bound to the return value.
       The specification for the return value is optional.</p>
 
-    <p>If you make a call that violates the contract, for e.g: <code>make_bank_account(0)</code>, a <code>pre-condition failed</code> error will
-      be raised.</p>
+    <p>If you make a call that violates the contract for the parameters, for e.g: <code>make_bank_account(0)</code>,
+      a <code>pre-condition failed</code> error will
+      be raised. If one of the functions return a value that don't meet the specification for its return value, a <code>post-condition failed</code>
+      error will be raised.</p>
 
-    <p>You can call the <code>disable_function_contracts()</code> and <code>enable_function_contracts()</code> functions to dynamically control
+    <p>You can call the <code><a href="ref/disable_function_contracts.html">disable_function_contracts</a>()</code>
+      and <code><a href="ref/enable_function_contracts.html">enable_function_contracts</a>()</code> functions to dynamically control
       if the pre/post conditions are checked on function call.</p>
 
     <h3>6.4.1 Multiple Representations</h3>
@@ -585,27 +625,27 @@ b3.withdraw(100).balance
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> make_bank_account_with_od(balance, od_limit)
-  <span class="pw">where</span> is_number(balance) && balance > od_limit
-        -> is_function(%)
+  <span class="pw">where</span> is_number(balance) && balance &gt; od_limit
+        -&gt; is_function(%)
 
 { <span class="kw">function</span> check_balance(wd_amount)
      <span class="kw">let</span> (b = balance - wd_amount)
-       b > od_limit
+       b &gt; od_limit
 
   <span class="kw">function</span> withdraw(amount)
     <span class="pw">where</span> check_balance(amount)
-          -> is_function(%)
+          -&gt; is_function(%)
     make_bank_account_with_od(balance - amount, od_limit)
 
   <span class="kw">^</span>(message)
-   | <span class="sym">'balance</span> -> balance
-   | <span class="sym">'withdraw</span> -> withdraw }
+   | <span class="sym">'balance</span> -&gt; balance
+   | <span class="sym">'withdraw</span> -&gt; withdraw }
       </code></pre>
     </div>
 
-    <p>Now we have two implementations of the "bank account protocol" in our system. They can co-exist in the same program and respond to the
+    <p>Now we have two implementations of the "bank account protocol" in our system. They can coexist in the same program and respond to the
       same set of messages. But their behavior is different. The user need not worry about the internal implementation details of each
-      type of account. He interacts with them using the published protocol and can expect the objects to respond in the appropriate manner.</p>
+      type of account. He interacts with them using the published message protocol and can expect the objects to respond in an appropriate manner.</p>
 
     <div class="prog">
       <pre><code>
@@ -624,9 +664,9 @@ acc01.withdraw(1070).balance
 <span class="comment">//> error: precondition_failed, withdraw, (lt-compare amount balance)</span>
 acc02.withdraw(1070).balance
 <span class="comment">// -70</span>
-acc02.withdraw(1000).balance
-<span class="comment">// 0</span>
-acc02.withdraw(1500).balance
+acc02.withdraw(1400).balance
+<span class="comment">// -400</span>
+acc02.withdraw(1400).balance
 <span class="comment">//> error: precondition_failed, withdraw, (check_balance amount)</span>
       </code></pre>
     </div>
@@ -635,12 +675,12 @@ acc02.withdraw(1500).balance
 
     <p>Slogan allows you to vary a functions behavior based on the type of its arguments. Consider the simple example of a function that
       returns a greeting message. If its argument is a string, it should return "hello, &lt;string&gt;". If the argument is an integer, it should
-      return "hi, &lt;integer_in_binary&gt;". The first behavior is the default. It is quite trivial to implement it:</p>
+      return "hi, &lt;integer_in_binary&gt;". The first behavior is the default. It is quite trivial to implement this:</p>
 
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> greet(name)
-  string_append(<span class="str">"hello "</span>, name)
+  <a href="ref/string_append.html">string_append</a>(<span class="str">"hello "</span>, name)
       </code></pre>
     </div>
 
@@ -649,13 +689,15 @@ acc02.withdraw(1500).balance
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> greet(n:integer)
-  string_append(<span class="str">"hi "</span>, number_to_string(n, 2))
+  string_append(<span class="str">"hi "</span>, <a href="ref/number_to_string.html">number_to_string</a>(n, 2))
       </code></pre>
     </div>
 
     <p>A function is overloaded by specifying a type for one or more of its parameters. A type is basically an identifier that is complemented
-      by a predicate. In our example, the type <code>integer</code> is complemented by the predicate <code>is_integer</code>. We are ready to
-      use the overloaded <code>greet</code> function:</p>
+      by a predicate. In our example, the type <code>integer</code> is complemented by the predicate
+      <code><a href="ref/is_integer.html">is_integer</a></code>.</p>
+
+    <p>We are ready to see the <code>greet</code> function in action!</p>
 
     <div class="prog">
       <pre><code>
@@ -688,7 +730,7 @@ greet(123)
       </code></pre>
     </div>
 
-    <p>The game is now able to handle all collision scenarios with just a single function call!</p>
+    <p>The game is now able to handle all collision scenarios with just a single function call:</p>
 
     <div class="prog">
       <pre><code>
@@ -710,19 +752,21 @@ collide_with(spaceship(), spaceship())
       fast mechanism for dynamically dispatching on the type of only the first argument.</p>
 
     <p>A good example for a generic function is one that concatenates two aggregate objects of the same type.
-      We shall call this function <code>concat</code>. Its declarion is shown below:</p>
+      We shall call this function <code>concat</code>. Its declaration is shown below:</p>
 
     <div class="prog">
       <pre><code>
-<span class="kw">function</span> concat(a, b)
+<span class="kw">function</span> concat(a, b);
 <span class="kw">declare</span> <span class="pw">generic</span> concat
       </code></pre>
     </div>
 
+    <p>Take care to end the function definition of <code>concat</code> with a semicolon (<code>;</code>) because it has no default implementation.</p>
+
     <a name="03-back"></a>
     <p>The <code><span class="kw">declare</span> <span class="pw">generic</span></code> statement specifically instructs the compiler to
-      emit special dispatching code when it sees a call to <code>concat</code>.<sup><a href="#03">3</a></sup>Right now, this function has no
-      behavior. New object definitions can now start adding their own implementations of <code>concat</code>. The following code listing shows
+      emit special dispatching code when it sees a call to <code>concat</code>.<sup><a href="#03">3</a></sup> Right now, this function has no
+      behavior. New object definitions can start adding their own implementations of <code>concat</code>. The following code listing shows
       two implementation of <code>concat</code>, one for concatenating lists and the other for concatenating strings. Note that the implementations
       must respond to the <code><span class="sym">'concat</span></code> message with a function that knows how to concatenate two objects of
       a particular aggregate.</p>
@@ -751,34 +795,36 @@ concat(stringc(<span class="str">"hello "</span>), <span class="str">"world"</sp
     </div>
 
     <p>Some of the basic operators in Slogan are built on top of generics. For example, the equals (<code>==</code>) and other comparison
-      operators are implemented on top of the generics <code>is_equal</code> and <code>compare</code>. Objects that implement these generics
-      automatically gets added to the list of types handled by these operators. Another useful generic is <code>to_string</code> which can be used
+      operators are implemented on top of the generics <code><a href="ref/is_equal.html">is_equal</a></code>
+      and <code><a href="ref/compare.html">compare</a></code>. Objects that implement these generics
+      automatically gets added to the list of types handled by these operators. Another useful generic is
+      <code><a href="ref/to_string.html">to_string</a></code> which can be used
       to get a string representation of any object. Let us implement these generics for an object that represents
-      a point in the Caretesian plane and see how to extend the behavior of the language.</p>
+      a point in the Cartesian plane and see how to extend the behavior of the language.</p>
 
     <div class="prog">
       <pre><code>
 <span class="kw">function</span> point(x, y)
 { <span class="kw">function</span> cmp(p)
     <span class="kw">if</span> (p.x == x && p.y == y) 0
-    <span class="kw">else if</span> (x < p.x && y < p.y) -1
+    <span class="kw">else if</span> (x &lt; p.x && y &lt; p.y) -1
     <span class="kw">else</span> 1
 
   <span class="kw">^</span>(message)
-  | <span class="sym">'x</span> -> x
-  | <span class="sym">'y</span> -> y
-  | <span class="sym">'is_equal</span> -> <span class="kw">^</span>(p) x == p.x && y == p.y
-  | <span class="sym">'compare</span> -> cmp
-  | <span class="sym">'to_string</span> -> <span class="kw">^</span>() string_append(number_to_string(x), <span class="str">"@"</span>, number_to_string(y)) }
+  | <span class="sym">'x</span> -&gt; x
+  | <span class="sym">'y</span> -&gt; y
+  | <span class="sym">'is_equal</span> -&gt; <span class="kw">^</span>(p) x == p.x && y == p.y
+  | <span class="sym">'compare</span> -&gt; cmp
+  | <span class="sym">'to_string</span> -&gt; <span class="kw">^</span>() string_append(number_to_string(x), <span class="str">"@"</span>, number_to_string(y)) }
       </code></pre>
     </div>
 
     <p>A bit of explanation is required for the implementation of <code>compare</code>. If two objects are deemed to have the same value,
       <code>compare</code> must return <code>0</code>. If the first value is less than the second, return <code>-1</code> and if it is greater
-      return <code>1</code>. For adding explict support for the <code>==</code> and <code>&lt;&gt;</code> operators, overriding the <code>is_equal</code>
+      return <code>1</code>. For adding explicit support for the <code>==</code> and <code>&lt;&gt;</code> operators, overriding the <code>is_equal</code>
       generic is required.</p>
 
-    <p>Let's see how <code>point</code> objects integrate with the rest of the language now:</p>
+    <p>Let's see how <code>point</code> objects integrate with the rest of the language:</p>
 
     <div class="prog">
       <pre><code>
@@ -796,12 +842,12 @@ p1 >= p2
 <span class="comment">// false</span>
 p1 >= point(10, 20)
 <span class="comment">// true</span>
-map(to_string, sort([p1, point(1, 2), p2]))
+<a href="ref/map.html">map</a>(to_string, <a href="ref/sort.html">sort</a>([p1, point(1, 2), p2]))
 <span class="comment">// [1@2, 10@20, 30@40]</span>
       </code></pre>
     </div>
 
-    <p>We will encounter more generics when we start defining our own sequences and other aggregates in later chapters.</p>
+    <p>Later in this book, we will encounter more generics as we start defining our own aggregate types.</p>
 
     <h2>6.6 Optional, Rest and Keyword Arguments</h2>
 
@@ -835,8 +881,8 @@ f(1, 12)
     </div>
 
     <p><em>Keyword</em> arguments are more flexible than optional arguments because they allow us to specify the arguments by name and not by
-      position. We have already used functions with keyword arguments as constructirs for records. Let us define our own function that accepts
-      ketword arguments:</p>
+      position. We have already used functions with keyword arguments as constructors for records. These were auto-generated by the compiler.
+      If you want a function to accept keyword arguments, this is how you would define it:</p>
 
     <div class="prog">
       <pre><code>
@@ -849,7 +895,7 @@ make_point(y = 20, x = 10)
       </code></pre>
     </div>
 
-    <p>Keyword parameters can also accept default values:</p>
+    <p>Keyword parameters can have default values:</p>
 
     <div class="prog">
       <pre><code>
@@ -864,7 +910,7 @@ make_point(x = 100, y = 200)
 
     <p>A function can also be specified to accept an arbitrary number of arguments. This is done by marking the last parameter as
       <code><span class="pw">rest</span></code>. All the additional arguments passed to the function will be packaged into a list
-      and bound to this parameter.</p>
+      that will be bound to this parameter.</p>
 
     <div class="prog">
       <pre><code>
@@ -878,10 +924,10 @@ g(1, 2, 3, 4, 5)
     </div>
 
     <p>In an earlier section, we learned about function-building functions. As an example of functions that take an arbitrary number of arguments,
-      let us define two generic function builders. The function builders we are going to define are called <code>disjoin</code>
-      and <code>conjoin</code>. Both take one or more predicates as arguments: <code>disjoin</code> returns a predicate that returns
-      <code><span class="pw">true</span></code> when any of the predicates return <code><span class="pw">true</code>, and <code>conjoin</code>
-      returns a predicate that returns <code><span class="pw">true</span></code> when all of the predicates return
+      let us define two generic function builders. These are the <code>disjoin</code>
+      and <code>conjoin</code> functions. Both take one or more predicates as arguments: <code>disjoin</code> returns a predicate that returns
+      <code><span class="pw">true</span></code> when <em>any</em> of the predicates return <code><span class="pw">true</code>, and <code>conjoin</code>
+      returns a predicate that returns <code><span class="pw">true</span></code> when <em>all</em> of the predicates return
       <code><span class="pw">true</span></code>. The definitions of these functions follow:</p>
 
     <div class="prog">
@@ -902,7 +948,7 @@ g(1, 2, 3, 4, 5)
 
     <div class="prog">
       <pre><code>
-<span class="kw">let</span> d = disjoin(<span class="kw">^</span>(a, b) a < b,
+<span class="kw">let</span> d = disjoin(<span class="kw">^</span>(a, b) a &lt; b,
                 <span class="kw">^</span>(a, b) a == 10 && b == 20)
 d(10, 20)
 <span class="comment">// true</span>
@@ -911,7 +957,7 @@ d(10, 30)
 d(100, 30)
 <span class="comment">// false</span>
 
-<span class="kw">let</span> c = conjoin(<span class="kw">^</span>(a, b) a < b,
+<span class="kw">let</span> c = conjoin(<span class="kw">^</span>(a, b) a &lt; b,
                 <span class="kw">^</span>(a, b) a == 10 && b == 20)
 c(10, 20)
 <span class="comment">// true</span>
@@ -923,23 +969,28 @@ c(10, 30)
     <hr></hr>
 
     <div class="note">
-      <p><sup><a name="01"></a><a href="#01-back">1</a></sup>The name comes from the concept of order of a function.
+      <p><sup><a name="01"></a><a href="#01-back">1</a></sup>Functions that manipulate functions are known as <em>higher-order functions</em>.
+        The name comes from the concept of order of a function.
         A function that take no function arguments is of first-order, a function that takes at-least one first-order function
         as argument is of second-order and so on. Higher-order programming simply means functions can be of any order.</p>
     </div>
 
     <div class="note">
-      <p><sup><a name="02"></a><a href="#02-back">2</a></sup>We will introduce the idea of assigning new values to variables in a later chapter.
-        Once we have understood the implications of assignment and mutating-state, we will write a new version of the back account object
-        which can keep track of its own changing balance.</p>
+      <p><sup><a name="02"></a><a href="#02-back">2</a></sup>We will introduce the idea of assigning new values to variables in the
+        <a href="state.html">next</a> chapter. Once we have understood the implications of assignment and state-mutations,
+        we will write a new version of the back account object which can keep track of its own changing balance.</p>
     </div>
 
     <div class="note">
       <p><sup><a name="03"></a><a href="#03-back">3</a></sup>The <code><span class="kw">declare</span></code> statement is used to give
         specific directives to the Slogan compiler. One of course, is to ask it treat a function as <code><span class="pw">generic</span></code>.
         You can also use this statement to add new syntactic forms to the language. Another use is for importing the prototypes of C functions
-        that can be called from a Slogan program. These topics will be covered in future chapters.</p>
+        that can be called from a Slogan program. These topics will be covered in later chapters.</p>
     </div>
 
+    <hr></hr>
+    <p align="center">
+      <a href="state.html">Next</a> | <a href="cdt.html">Previous</a> | <a href="index.html">Contents</a>
+    </p>
   </body>
 </html>
