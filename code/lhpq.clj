@@ -75,8 +75,8 @@
   ;; or an empty sequence if no items remain.
   (more [this] (if-let [n (next this)] n '()))
 
-  ;;  construct a new sequence with the item prepended to this seq.
-  (cons [_ xs] (LeftistHeapPriorityQueue. (pq-insert-all xs pq)))
+  ;; return a new sequence with `x` prepended, called via the global `conj`.
+  (cons [_ x] (LeftistHeapPriorityQueue. (pq-insert x pq)))
 
   clojure.lang.Seqable
   (seq [this] (when (.next this) this)))
@@ -89,4 +89,4 @@
 
 (defmethod print-method LeftistHeapPriorityQueue
   [tree ^java.io.Writer w]
-  (.write w (str "#LeftistHeapPriorityQueue:" (.first tree))))
+  (.write w (str "#lhpq<" (.first tree) " ...>")))
