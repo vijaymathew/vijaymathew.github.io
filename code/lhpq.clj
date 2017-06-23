@@ -17,12 +17,12 @@
     (first h)))
 
 (defn make-node
-  [x a b]
-  (let [ra (node-rank a)
-        rb (node-rank b)]
+  [obj subtree-a subtree-b]
+  (let [ra (node-rank subtree-a)
+        rb (node-rank subtree-b)]
     (if (>= ra rb)
-      [(inc rb) x a b]
-      [(inc ra) x b a])))
+      [(inc rb) obj subtree-a subtree-b]
+      [(inc ra) obj subtree-b subtree-a])))
 
 (defn heap-merge
   [h1 h2]
@@ -36,26 +36,26 @@
               (make-node y a2 (heap-merge h1 b2))))))
 
 (defn pq-insert
-  [x h]
-  (heap-merge [1 x empty-heap empty-heap] h))
+  [obj h]
+  (heap-merge [1 obj empty-heap empty-heap] h))
 
 (defn pq-find-min
   [h]
   (when-not (empty-heap? h)
-    (let [[_ x _ _] h] x)))
+    (let [[_ obj _ _] h] obj)))
 
 (defn pq-delete-min
   [h]
   (if (empty-heap? h)
     h
-    (let [[_ x a b] h]
-      (heap-merge a b))))
+    (let [[_ obj left right] h]
+      (heap-merge left right))))
 
 (defn pq-insert-all
   "Insert all elements from the sequence `xs` into the
    priority queue `pq`."
-  [xs pq]
-  (loop [xs xs, pq pq]
+  [objs pq]
+  (loop [xs objs, pq pq]
     (if (seq xs)
       (recur (rest xs) (pq-insert (first xs) pq))
       pq)))
@@ -73,17 +73,17 @@
 
   ;; return the sequence with the first item removed,
   ;; or an empty sequence if no items remain.
-  (more [this] (if-let [n (next this)] n '()))
+  (more [this] (or (next this) '()))
 
-  ;; return a new sequence with `x` prepended, called via the global `conj`.
-  (cons [_ x] (LeftistHeapPriorityQueue. (pq-insert x pq)))
+  ;; return a new sequence with `obj` prefixed, called via the global `conj`.
+  (cons [_ obj] (LeftistHeapPriorityQueue. (pq-insert obj pq)))
 
   clojure.lang.Seqable
   (seq [this] (when (.next this) this)))
 
 (defn priority-queue
-  ([xs]
-   (LeftistHeapPriorityQueue. (pq-insert-all xs empty-heap)))
+  ([objs]
+   (LeftistHeapPriorityQueue. (pq-insert-all objs empty-heap)))
   ([]
    (priority-queue [])))
 
