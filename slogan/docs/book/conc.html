@@ -283,10 +283,53 @@ account.balance
       Each task may proceed to do other stuff concurrently after setting the reactive variable to <code><span class="pw">true</span></code>
       and unblocking the next task in queue.</p>
 
-    <h3>8.2.3 Limitations</h3>
-    <p>Only two operations are permitted on a reactive variable, once it is initialized. You can bind a new value to it and you can query its current value.
-      A reactive variable should not be re-initialized.</p>
-    
+    <h3>8.2.3 Getting out of Time</h3>
+
+    <p>Reactive variables can help us design concurrent programs that exist completely outside the dimension of time. In other words, a concurrent
+      program can be written in such a way that it is not constrained by how time flows within or outside the system. To make this clear, let us consider
+      the example of a solver for the simple equation <code>z = x + y</code>. Imagine the solver as a creature moving around in space with three sensors
+      attached to it. Each of the sensors can detect the values for <code>x</code>, <code>y</code> and <code>z</code> transmitted by other creatures
+      that float around the solver. Each creature exists in its own parallel world and the solver cannot predict in advance which sensor will be activated
+      and in what order. But as soon as it has enough values, it should be able to solve the equation and bring itself into a consistent state.</p>
+
+    <p>We can express the solver as a function that tries to find the value of all variables in the equation with whatever information it has at any
+      point in time. Once it has solved the equation for a given set of values, it displays its current state and goes back to solve for the next couple of values
+      detected by the sensors. Each sensor is represented by a reactive variable.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">function</span> solver()
+{ <span class="comment">// Each variable is solved in its own task because the
+  // solver do not know in which order the sensors gets activated.</span>
+  <span class="pw">!?</span>z = <span class="pw">?</span>x + <span class="pw">?</span>y
+  <span class="pw">!?</span>x = <span class="pw">?</span>z - <span class="pw">?</span>y
+  <span class="pw">!?</span>y = <span class="pw">?</span>z - <span class="pw">?</span>x
+
+  flush_sensors()
+  solver() }
+
+<span class="comment">// Display the values of all variables and reset
+// the sensors.</span>    
+<span class="kw">function</span> flush_sensors()
+{ showln(#{<span class="sym">'x</span>:<span class="pw">?</span>x, <span class="sym">'y</span>:<span class="pw">?</span>y, <span class="sym">'z</span>:<span class="pw">?</span>z})
+  x = <span class="pw">?</span>
+  y = <span class="pw">?</span>
+  z = <span class="pw">?</span> }
+
+<span class="comment">// Initialize the sensors and start the solver.</span>
+<span class="kw">let</span> x, y, z = <span class="pw">?</span>, <span class="pw">?</span>, <span class="pw">?</span>
+<span class="pw">!</span>solver()
+
+<span class="comment">// Now the sensors will start detecting values in random order and trigger the solver:</span>
+?x = 100
+?y = 40
+<span class="comment">//&gt; #{x:100, y:40, z:140}</span>
+?y = 50
+?z = 60
+<span class="comment">//&gt; #{x:10, y:50, z:60}</span>
+      </code></pre>
+    </div>
+
     <h2>8.3 Message-Passing Concurrency</h2>
 
     <p>Message passing is a programming style in which a program consists of independent entities that interact by sending each other
