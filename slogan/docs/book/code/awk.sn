@@ -1,0 +1,34 @@
+let args = rest(command_line())
+
+if (is_empty(args))
+  error("expected script name as command-line argument")
+else
+  call_with_stream(file_reader(first(args)),
+    ^(s)
+     let (tokenizer = stream_tokenizer(false, s))
+       eval(slogan(tokenizer)))
+
+args = rest(args)
+
+let input = current_reader()
+when (not(is_empty(args)))
+  input = file_reader(first(args))
+
+function parse_token(token)
+  let (c = string_at(token, 0))
+    if (char_is_numeric(c) || c == \.)
+      try string_to_number(token)
+      catch (_) token
+    else if (token == "true") true
+    else if (token == "false") false
+    else token
+    
+function handle_lines()
+  let (line = read_line(input))
+    when (not(is_eof_object(line)))
+    { apply(action, map(parse_token, string_split(line)))
+      handle_lines() }
+
+handle_lines()
+
+
