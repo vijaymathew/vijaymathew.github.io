@@ -407,6 +407,68 @@ f(20)
       <code><span class="kw">letfn</span></code> expressions.
       The <code><span class="kw">letrec</span></code> expression may do state mutations behind the scene.</p>
 
+    <h3>6.2.1 Variable Hoisting</h3>
+
+    <p>Slogan process variable declarations before any code is executed within a given context.
+      Because of this, the Slogan compiler will move all variables declared by the <code><span class="kw">let</span></code> and
+      <code><span class="kw">function</span></code> statements to the top of the context in which they appear. This is known as
+      variable "hoisting". The hoisted variables are all initialized to <code><span class="pw">false</span></code>.
+      It you are not careful, variable hoisting can lead to subtle bugs as the one shown below:</p>
+
+<div class="prog">
+  <pre><code>
+<span class="kw">let</span> x = 1
+
+<span class="kw">function</span> f() {
+  showln(x)
+  <span class="kw">let</span> x = 2
+}
+
+f()
+<span class="comment">//-> false</span>
+  </pre></code>
+</div>
+
+    <p>The function prints <code><span class="pw">false</span></code> because the compiler has hoisted the local declaration of <code>x</code> and
+      rewrote the function as follows:</p>
+<div class="prog">
+  <pre><code>
+<span class="kw">function</span> f() {
+  <span class="kw">let</span> x = false
+  showln(x)
+  x = 2
+}</pre></code>
+</div>
+
+    <p>The recommended style in Slogan is to put all <code><span class="kw">let</span></code> and <code><span class="kw">function</span></code>
+      statements at the top of the enclosing context itself, as shown below:</p>
+
+<div class="prog">
+  <pre><code>
+<span class="kw">function</span> f() {
+  <span class="kw">let</span> x = 2
+  showln(x)
+}
+
+f()
+<span class="comment">//-> 2</span>
+  </pre></code>
+</div>
+
+    <p>An even better style is to avoid statements that declare local variables. Instead use the various <code><span class="kw">let</span></code>
+      expressions to declare local variables at the narrowest possible scope. We may rewrite the example function in this style now:</p>
+
+<div class="prog">
+  <pre><code>
+<span class="kw">function</span> f()
+  <span class="kw">let</span> (x = 2)
+    showln(x)
+
+f()
+<span class="comment">//-> 2</span>
+  </pre></code>
+</div>
+
     <h2>6.3 Functions as Return Values</h2>
 
     <p>Earlier in this chapter we saw how the ability to pass functions as arguments significantly improves the expressiveness of the programs we
