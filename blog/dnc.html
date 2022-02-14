@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="dynamic_native_code : *scratch*" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Dynamic native code</title>
+  </head>
+
+  <body>
+  <div class="container">
+    <h1>Dynamic native code</h1>
+  </div>
+    <div class="container">
+      <section class="main_content">
+
+        <p>A program can generate native code in-memory and directly run it on chip. This is often done by virtual machines. A block of bytecode is translated to native code and run at full speed. Language runtime implementers call this Just-In-Time compilation (JIT).</p>
+
+        <p>It is also possible to map a high-level function declaration to an implementation in a native code library. A call to this function is redirected to the native function. The virtual machine takes care of type conversions on arguments and return values. This facility is known as Native Interface or Foreign Function Interface (FFI).</p>
+
+        <p>Dynamic native code execution is best explored with the help of a simple Virtual Machine.</p>
+
+          <h2>The Pretentious Virtual Machine (PVM)</h2>
+
+        <p>The source code of PVM is available for <a href="./code/pvm.tar.gz">download</a>. It should build on all Unix like environments (GNU/Linux, Cygwin etc). PVM implements only those features that are necessary to get basic JIT and FFI to work. It pretends to do many other things - compiling functions defined in a Python like language, executing statements typed at a REPL and so on.</p>
+
+        <p>PVM has only one primitive data type - int. An int value is internally represented using a data structure called bigit1. A bigit is capable of representing integers in a system independent way, in any base. The default base is binary. Some functions used for manipulating bigits are:</p>
+
+        <pre><code>bigit native_int_to_bigit (int i); 
+int bigit_to_native_int (const bigit *b);
+bigit bigit_successor (const bigit *b);
+        </code></pre>
+
+        <p>PVM uses bigit_successor to implement its ADD opcode. The MOV opcode is used to copy values from a memory location to one of PVM's three registers - R1, R2, and RD. R1 and R2 are used to hold arguments to function calls. Any return value is copied to R1. RD is connected to the hardware's display device. A value moved to RD will immediately appear on the console. Integer values are printed in the following format:</p>
+
+        <pre><code>(bigit_representation)#native_integer_representation
+        </code></pre>
+
+        <p>For example, if PVM is configured to store integers in base 2 and the host OS represents integers in base 10, number 5 will be printed as:</p>
+
+        <pre><code>( 1 0 1 )#5
+        </code></pre>
+
+        <p>On start-up, PVM will compile and intern a function called print_sum. This function is used to demonstrate how operations implemented in bytecode could be compiled to machine code dynamically. The function is compiled to the following bytecode sequence:</p>
+
+        <pre><code>ADD R1 R2     ;the two arguments must be already on the registers.
+MOV RD R1     ;ADD left the result on R1. To print it just MOV it to RD.
+        </code></pre>
+
+        <p>PVM has a look-up-table where it maps an integer function identifier with the function's bytecode. As print_sum is the first function that got compiled, its ID is 0. After compiling the function, PVM will display a REPL (or prompt) where the user can interact with the language environment. The REPL will also report the time it took to execute a statement. A REPL session follows:</p>
+
+        <pre><code>$ ./pvm
+
+def print_sum a b: 
+print (a + b)
+
+compiling...
+
+&gt; print_sum 3 2
+     ( 1 0 1 )#5
+     0.000000 secs
+&gt; print_sum 100 900
+     ( 0 0 0 1 0 1 1 1 1 1 )#1000
+     0.000000 secs
+&gt; print_sum 100 100000
+     ( 0 0 1 0 0 0 0 0 1 1 1 0 0 0 0 1 1 )#100100
+     0.380000 secs
+&gt; print_sum 100 1000000
+     ( 0 0 1 0 0 1 0 1 0 1 0 0 0 0 1 0 1 1 1 1 )#1000100
+     3.810000 secs
+&gt; print_sum 1 1000089 
+     ( 0 1 0 1 1 0 0 1 0 1 0 0 0 0 1 0 1 1 1 1 )#1000090
+     3.770000 secs
+</code></pre>
+
+        <p>A call to print_sum (say with arguments 10 and 2) is compiled to the following opcodes:</p>
+
+        <pre><code>MOV R1 bigit#10 
+MOV R2 bigit#2  
+CALL 0         ;0 is the ID of print_sum.
+        </code></pre>
+
+        <h2>Just-In-Time Compilation</h2>
+
+        <p>Adding large numbers take considerable time with the high-level opcode implementation of print_sum. A significant performance improvement can be achieved by dynamically translating the ADD operation to machine code. PVM will do this, if it has the jit flag turned on:</p>
+
+        <pre><code>$ ./pvm -jit
+In JIT mode the VM will run x86 instructions directly on hardware.
+Proceed only if you are running this program on a compatible chip.
+
+Continue? (yes/no) yes
+
+def print_sum a b: 
+    print (a + b)
+
+compiling...
+
+&gt; print_sum 3 2
+     ( 1 0 1 )#5
+     0.000000 secs
+&gt; print_sum 100 900
+     ( 0 0 0 1 0 1 1 1 1 1 )#1000
+     0.000000 secs
+&gt; print_sum 100 10000
+     Just-In-Time compiling ...
+     ( 0 0 1 0 1 1 1 0 1 1 1 0 0 1 )#10100
+     0.000000 secs
+&gt; print_sum 100 1000000
+     ( 0 0 1 0 0 1 0 1 0 1 0 0 0 0 1 0 1 1 1 1 )#1000100
+     0.000000 secs
+&gt; print_sum 1 1000089
+     ( 0 1 0 1 1 0 0 1 0 1 0 0 0 0 1 0 1 1 1 1 )#1000090
+     0.000000 secs
+       </code></pre>
+
+        <p>PVM noticed that print_sum is being used frequently and decided to JIT the portion of bytecode that is consuming most of the execution time. So the addition part was translated to the following x86 instructions:</p>
+
+        <pre><code>mov    0xc(%ebp),%eax
+add    0x8(%ebp),%eax
+pop    %ebp
+        </code></pre>
+
+        <p>These instructions were then stored in the native instructions buffer of print_sum. The instructions to print the result were left as they were in the opcode buffer. (In fact, a few more "scaffolding" machine instructions are involved. See the implementation of generate_native_code_for_sample_fn() in vm.c).</p>
+
+        <p>The actual invocation of the optimized print_sum function takes place by masquerading the machine code buffer as a C function:</p>
+
+        <pre><code>typedef int (*fptr)(int a, int b);
+fptr f = (fptr) fn-&gt;native_code;
+vm-&gt;R1 = native_int_to_bigit (f (bigit_to_int (&amp;vm-&gt;R1), 
+bigit_to_int (&amp;vm-&gt;R2)));
+        </code></pre>
+
+        <p>As the last step, any remaining opcode in the opcode buffer is executed as usual. (See run_fn() in vm.c).</p>
+
+        <p>JIT compiling print_sum was rather easy for PVM because it has intimate knowledge about the operation and the values involved. What about a language where users will be creating new types and defining custom operations on them? The only primitive data type that PVM has is the bigit. Its registers are essentially variables of type bigit. A VM that support user-defined types, might have a generic primitive type called object:</p>
+
+        <pre><code>/* C like pseudo-code. */
+
+/* A 'class' in OOP parlance. */ 
+typedef struct metaobject_
+{   
+     size_t type;
+     int num_vars;
+     int num_functions;
+     function *functions;
+     /* ... */
+} metaobject;
+
+/* An instance of a class. */
+typedef struct object_
+{
+     metaobject *metaobj;
+     size_t Id;
+     void *member_values;
+     /* ... */
+} object;
+        </code></pre>
+
+<p>Bigits (and all other types) are just special cases of object:</p>
+
+        <pre><code>/* C like pseudo-code. */
+
+metaobject bigit_meta;
+bigit_meta.type = BIGIT;
+bigit_meta.num_vars = 1;
+bigit_meta.num_functions = some_n;
+bigit_meta.functions = malloc (sizeof (function) * some_n);
+bigit_meta.functions[0] = &amp;to_native_int;
+bigit_meta.functions[1] = &amp;from_native_int;
+bigit_meta.functions[2] = &amp;add;
+ </code></pre>
+
+        <p>A statement like 10 + 2 will cause the VM to initialize the following structures:</p>
+
+        <pre><code>/* C like pseudo-code. */
+
+object ten;
+ten.metaobj = &amp;bigit_meta;
+ten.member_values = malloc (sizeof (bigit));
+ten.member_values[0] = &amp;(bigit#10);
+
+object two;
+two.metaobj = &amp;bigit_meta;
+two.member_values = malloc (sizeof (bigit));
+two.member_values[0] = &amp;(bigit#2);
+        </code></pre>
+
+        <p>The statement itself is compiled to the following opcodes:</p>
+
+        <pre><code>MOV  R1 ten
+CALL two[0][3][2] ;call `add` function of `two`. for simplicity, using C array 
+                  ;indexing notation to access struct members.
+        </code></pre>
+
+        <p>If the statement is 10 + 2 + 5, the opcodes will be:</p>
+
+        <pre><code>MOV  R1 &amp;ten
+CALL two[0][3][2]   ;leaves 12 on R1
+CALL five[0][3][2]  ;leaves 17 on R1
+        </code></pre>
+
+        <p>JIT compiling now involves generating machine code that access members of the object structure. The driver function can have the signature:</p>
+
+        <pre><code>typedef object* (*fptr)(object *a, object *b);
+        </code></pre>
+
+        <p>For example, on a stack machine the opcode sequence to add two numbers could be JIT compiled to:</p>
+
+        <pre><code>push b
+call b[0][3][0] ;calls the `to_native_int` function on `b`. this will leave the native 
+                ;int representation of `b` on the stack. 
+push a          ;do the same `a`.
+call a[0][3][0]
+add             ;leaves the sum on the stack.
+call a[0][3][1] ;pushes an `object` that is the `bigit` representation of the sum on
+                ;the stack.
+        </code></pre>
+
+        <p>If the functions at the specified index do not contain native code, they might also be JIT compiled. Well, that was the rough sketch of a possible solution.</p>
+
+        <h2>Foreign Function Interface</h2>
+
+ <p>Following is a session that demonstrates the PVM FFI:</p>
+<pre><code>$ ./pvm
+
+&gt;load ./libmathlib
+    0.016000 secs
+&gt;native sqr
+    0.000000 secs
+&gt;sqr 2
+    ( 0 0 1 )#4
+    0.000000 secs
+&gt;sqr 10
+    ( 0 0 1 0 0 1 1 )#100
+    0.000000 secs</pre></code>
+
+The load command loads a native library into the VM address space with the help of system calls. On a Unix-like operating system, this require two steps:
+        </blockquote>
+
+        <ol>
+          <li>Append the '.so' extension to the library name.</li>
+          <li>Make a call to dlopen and store the library handle in the VM object:
+            <code>/* lib_name is "mathlib". */
+              add_suffix (lib_name, ".so"); /* lib_name is now "libmathlib.so". */
+              vm-&gt;dlib = dlopen (lib_name, RTLD_LAZY);
+            </code>
+            (If the virtual machine is running on Windows, the library name will be suffixed with '.dll' and a call to the system function LoadLibrary is made.).</li>
+        </ol><p>The native keyword is similar to def in that it interns a new function object in the VM. A special bit in this object is turned on to identify it as a function implemented in a native library. When the sqr function is called from the REPL, the integer argument is moved to R1 and a call is made to the native function with an object representing the VM as its argument. So the native function should have the following signature:</p>
+
+        <pre><code>void native_fn (pvm *);
+        </code></pre>
+
+        <p>The dynamic call on Unix systems require the following code:</p>
+
+        <pre><code>typedef void (*native_fnptr)(pvm *);
+native_fnptr fptr = (native_fnptr) dlsym (vm-&gt;dlib, fnname);
+fptr (vm);
+        </code></pre>
+
+        <p>This is probably the fastest way to call a native function as no type conversions are involved. The down side is that the library implementer should be familiar with the VM data structures and related functions. This is evident from the the implementation of sqr in mathlib.c:</p>
+
+        <pre><code>#include "vm.h"
+void
+sqr (pvm *vm)
+{
+    int a = bigit_to_native_int (&amp;vm-&gt;R1);
+    bigit res = native_int_to_bigit (a * a);
+    vm_mov (vm, &amp;vm-&gt;R1, &amp;res);
+    /* also print it */
+    vm_mov (vm, &amp;vm-&gt;RD, &amp;vm-&gt;R1);
+}
+        </code></pre>
+
+        <p>Is it possible to implement the sqr function using native types and still call it using FFI? Yes. Here is a "pure C" version of sqr:</p>
+
+        <pre><code>int
+sqr (int x)
+{
+  return (x * x);
+}
+        </code></pre>
+
+        <p>The syntax of the native command should be extended to include more information like the function's arity, types of arguments, return type etc. Here is one possible way sqr could be declared in the high-level language of PVM:</p>
+
+        <pre><code>native sqr (int) returns int
+        </code></pre>
+
+        <p>Now as PVM understands the full signature of the native function, it can take care of all type conversions:</p>
+
+        <pre><code>/* Pointer to a function that takes n number of arguments. */
+typedef void (*native_fnptr)(); 
+
+int x = bigit_to_native_int (&amp;vm-&gt;R1); /* bigit is unmarshaled to native int. */
+native_fnptr fptr = (native_fnptr) dlsym (vm-&gt;dlib, fnname); /* fnname = "sqr" */
+bigit r = native_int_to_bigit (fptr (x)); /* result is marshaled back to bigit. */
+        </code></pre>
+      </section>
+    </div>
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+	<div class="container"><a href="./index.html">./index</a></div>
+      </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../stylesheets/w3.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+  <link rel="stylesheet" href="../stylesheets/font-awesome.min.css">
+  <link rel="stylesheet" href="../stylesheets/style.css">
+  <link rel="stylesheet" href="./style.css">
+  <title>Vijay Mathew / Blog / A Heap for Proletarians</title>
+  </head>
+
+  <body>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-content" style="max-width:1100px">
+
+      <!-- Header -->
+      <header class="w3-panel w3-center w3-opacity" style="padding:50px 16px">
+	<h1 class="w3-xlarge">A Heap for Proletarians</h1>
+
+	<div class="w3-bar w3-border">
+	  <a href="./index.html" class="w3-bar-item w3-button">home</a>
+	  <a href="mailto:mathew.vijay@gmail.com" class="w3-bar-item w3-button w3-hide-small">email</a>
+	</div>
+      </header>
+
+      <p class="published">2017-June-22</p>
+
+      <p>Hash tables and arrays typically support efficient access to arbitrary elements.
+      What if we need efficient access to elements based on some priority? Say for example, we need to fetch
+      the <em>minimum</em> element in O(1) time. The data type that provide this kind of access is known as a priority queue.
+      Priority queues are typically implemented as
+      <em><a href="https://en.wikipedia.org/wiki/Heap_(data_structure)" target="_blank" rel="noopener">heap-ordered trees</a>, </em>
+      in which the element at each node has higher "priority" than the elements at its children. Under this invariant,
+      the element with the top priority will always be at the root of the tree. The priority of each node will be determined by a predicate,
+      like one of the comparison operators.</p>
+
+    <p>In this post we take a detailed look at the implementation of a
+      <a href="https://en.wikipedia.org/wiki/Purely_functional_programming" target="_blank" rel="noopener">purely functional</a>
+      priority queue using a variant of the heap data structure known as the
+      <a href="https://en.wikipedia.org/wiki/Leftist_tree" target="_blank" rel="noopener"><em>leftist</em></a> heap.
+      We will do the implementation in two steps. First, a core set of Clojure functions that manipulate a leftist heap is implemented.
+      Then we will wrap these functions into an object that can be recognized by the built-in sequence functions &ndash;
+      <em>first, rest</em> and <em>conj</em>.</p>
+    
+    <h2>The Leftist Heap</h2>
+
+    <p>In a leftist heap, each node has an associated <em>s-value</em> or <em>rank </em>which is the node's distance to the nearest<em> leaf</em>
+      (an empty-node)<em>. </em>The leftist heap also maintains the invariant that the right subtree of each node has the lowest rank.
+      In other words, the left subtree of a node will be at least as large as the right subtree. It is usually taller than the right subtree,
+      giving the heap its name. As a consequence, the right subtree will always have the shortest path to an empty node.</p>
+
+    <p>The right subtree of a leftist heap is stored in sorted order. This means two leftist heaps can be merged by
+      simply <a href="https://en.wikipedia.org/wiki/Merge_algorithm" target="_blank" rel="noopener">merging</a> their right
+      subtrees and then swapping the nodes along this path as necessary to restore the leftist property.</p>
+
+    <p>Merging leftist heaps has worst-case O(log n) complexity and this is what makes this data structure interesting.
+      The merge operation we just described can be expressed in Clojure as,</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> heap-merge
+  [h1 h2]
+  (<span class="kw">cond</span>
+    (empty-heap? h1) h2
+    (empty-heap? h2) h1
+    <span class="pw">:else</span> (<span class="kw">let</span> [[_ x a1 b1] h1
+                [_ y a2 b2] h2]
+            (<span class="kw">if</span> (&lt;= x y)
+              (make-node x a1 (heap-merge b1 h2))
+              (make-node y a2 (heap-merge h1 b2))))))
+      </code></pre>
+    </div>
+
+    <p><code>Heap-merge</code> makes use of a few helper functions. The <code>make-node</code> function encodes a
+      single node as the list <code>[rank, node-value, left-subtree, right-subtree]</code>. It also calculates the rank of
+      the node and swaps the left and right subtrees as needed.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> make-node
+  [obj subtree-a subtree-b]
+  (<span class="kw">let</span> [ra (node-rank subtree-a)
+        rb (node-rank subtree-b)]
+    (<span class="kw">if</span> (&gt;= ra rb)
+      [(inc rb) obj subtree-a subtree-b]
+      [(inc ra) obj subtree-b subtree-a])))
+      </code></pre>
+    </div>
+
+    <p>The <code>node-rank</code> function returns the rank associated with a node:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> node-rank
+  [h]
+  (<span class="kw">if</span> (empty-heap? h)
+    0
+    (first h)))
+      </code></pre>
+    </div>
+
+    <p>An empty heap is represented by the keyword <code><span class="pw">:E</span></code>.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> empty-heap <span class="pw">:E</span>)
+
+(<span class="kw">defn</span> empty-heap?
+  [h]
+  (= h empty-heap))
+      </code></pre>
+    </div>
+
+    <p>With the efficient merge function in place, we may proceed to implement the interface of the priority queue.
+      This consists of three functions – <code>pq-insert</code>, <code>pq-find-min</code> and <code>pq-delete-min</code>.</p>
+
+    <p><code>Pq-insert</code> creates a single-node tree with the new element and merges it with an existing heap:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> pq-insert
+  [obj h]
+  (heap-merge [1 obj empty-heap empty-heap] h))
+      </code></pre>
+    </div>
+
+    <p><code>Pq-find-min</code> return the root of the heap:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> pq-find-min
+  [h]
+  (<span class="kw">when-not</span> (empty-heap? h)
+    (<span class="kw">let</span> [[_ obj _ _] h] obj)))
+      </code></pre>
+    </div>
+
+    <p><code>Pq-delete-min</code> will discard the root and return a new heap constructed by merging the two subtrees:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> pq-delete-min
+  [h]
+  (<span class="kw">if</span> (empty-heap? h)
+    h
+    (<span class="kw">let</span> [[_ obj left right] h]
+      (heap-merge left right))))
+      </code></pre>
+    </div>
+
+    <p>As <code>pq-insert</code> and <code>pq-delete-min</code> basically does a merge, both of them run in O(log n) time.
+      <code>Pq-find-min</code> runs in O(1) time.</p>
+
+    <p>With these core functions in place, we are ready to use the leftist-heap priority queue!</p>
+
+    <div class="prog">
+      <pre><code>
+clojure> (<span class="kw">def</span> pq (pq-insert 231
+                   (pq-insert 154
+                    (pq-insert 900 empty-heap))))
+clojure> (pq-find-min pq)
+<span class="comment">;; 154</span>
+clojure> (<span class="kw">def</span> pq (pq-delete-min pq))
+clojure> (pq-find-min pq)
+<span class="comment">;; 231</span>
+clojure> (<span class="kw">def</span> pq (pq-delete-min pq))
+clojure> (pq-find-min pq)
+<span class="comment">;; 900</span>
+clojure> (<span class="kw">def</span> pq (pq-delete-min pq))
+clojure> (pq-find-min pq)
+<span class="comment">;; nil</span>
+      </code></pre>
+    </div>
+
+    <p><strong>Exercise 1</strong>. <code>Heap-merge</code> uses the <code>&lt;=</code> numeric comparison function for prioritizing the nodes.
+      Make this function more generic by making the priority-operation configurable by the user.</p>
+
+    <h2>The Priority Queue as a Seq</h2>
+
+    <p>Clojure defines many useful operations in terms of <a href="https://clojure.org/reference/sequences" target="_blank" rel="noopener">sequences</a>.
+      A sequence is immutable and <a href="https://en.wikipedia.org/wiki/Persistent_data_structure" target="_blank" rel="noopener">persistent</a>.
+      As a result, they are thread-safe and can share their state freely.</p>
+
+    <p>The priority queue we implemented in the previous section is also immutable and persistent. So it would be a good candidate for being a
+      sequence. Let us make the priority queue respond to the <em>first</em>, <em>rest</em> and <em>conj</em> functions. These functions
+      in turn can be used to describe more sophisticated sequence processing operations. This way our custom data structure is given
+      a chance to blend nicely with the rest of Clojure.</p>
+
+    <p>To be treated as a sequence, a type has to implement the
+      <a href="https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/ISeq.java" target="_blank" rel="noopener">clojure.lang.ISeq</a>
+      interface. We will use the <a href="https://clojure.org/reference/datatypes" target="_blank" rel="noopener">deftype</a> macro to
+      define a <em>LeftistHeapPriorityQueue</em> that implements the ISeq interface.</p>
+
+    <p>While iterating over a sequence, it is idiomatic in Clojure to call the <em>seq</em> function to check for termination.
+      A priority queue may sometimes be involved in an iteration, as part of a debugging session or for fetching all values sorted by priority.
+      So let us also make our new type respond properly to the <em>seq</em> function call. This function is declared in the
+      <a href="https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/Seqable.java" target="_blank" rel="noopener">clojure.lang.Seqable</a>
+      interface.</p>
+
+    <p>All these requirements leads to the following final definition of <em>LeftistHeapPriorityQueue</em>:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">deftype</span> LeftistHeapPriorityQueue [pq]
+  clojure.lang.ISeq
+  <span class="comment">;; return a seq of the rest of the elements,
+  ;; return nil if no elements remain.</span>
+  (next [_] (let [pq-rest (pq-delete-min pq)]
+              (when-not (empty-heap? pq-rest)
+                (LeftistHeapPriorityQueue. pq-rest))))
+
+  <span class="comment">;; return the first element.</span>
+  (first [_] (pq-find-min pq))
+
+  <span class="comment">;; return the sequence with the first item removed,
+  ;; or an empty sequence if no items remain.</span>
+  (more [this] (<span class="pw">or</span> (next this) '()))`
+
+  <span class="comment">;; return a new sequence with `obj` prefixed,
+  ;; invoked via the global `conj`.</span>
+  (cons [_ obj] (LeftistHeapPriorityQueue. (pq-insert obj pq)))
+
+  clojure.lang.Seqable
+  (seq [this] (<span class="kw">when</span> (.next this) this)))
+      </code></pre>
+    </div>
+
+    <p>The helper function <code>pq-insert-all</code> used by <em>cons</em> is,</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> pq-insert-all
+  <span class="str">"Insert all elements from the sequence `objs` into the
+   priority queue `pq`."</span>
+  [objs pq]
+  (<span class="kw">loop</span> [xs objs, pq pq]
+    (<span class="kw">if</span> (seq xs)
+      (<span class="kw">recur</span> (rest xs) (pq-insert (first xs) pq))
+      pq)))
+      </code></pre>
+    </div>
+
+    <p><strong>Exercise 2.</strong> The <em>pq-insert-all</em> function runs in O(n log n) time. Is a more efficient
+      (as in O(n)) alternative implementation possible?</p>
+
+    <p>To make it convenient to create priority queues from a sequence of values,
+      let us define a "constructor" of <em>LeftistHeapPriorityQueue</em>s:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> priority-queue
+  ([objs]
+   (LeftistHeapPriorityQueue. (pq-insert-all objs empty-heap)))
+  ([]
+   (priority-queue [])))
+      </code></pre>
+    </div>
+
+    <p>Finally, by implementing the <em><a href="https://clojuredocs.org/clojure.core/print-method" target="_blank" rel="noopener">print-method</a></em>
+      multimethod, we can let the REPL know how to display a <em>LeftistHeapPriorityQueue</em> literal:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defmethod</span> print-method LeftistHeapPriorityQueue
+  [tree ^java.io.Writer w]
+  (.write w (str <span class="str">"#lhpq<"</span> (.first tree) <span class="str">" ...>"</span>)))
+      </code></pre>
+    </div>
+
+    <p>Before we say goodbye, here is a REPL session with our new sequence type:</p>
+
+    <div class="prog">
+      <pre><code>    
+clojure> (<span class="kw">def</span> a (priority-queue [1 123 12 45]))
+clojure> (seq a)
+<span class="comment">;; #lhpq&lt;1 ...&gt;</span>
+clojure> (seq? a)
+<span class="comment">;; true</span>
+clojure> (first a)
+<span class="comment">;; 1</span>
+clojure> (<span class="kw">def</span> a (rest a))
+clojure> (first a)
+<span class="comment">;; 12</span>
+clojure> (<span class="kw">def</span> a (conj a 50))
+clojure> (first (rest a))
+<span class="comment">;; 45</span>
+clojure> (first (rest (rest a)))
+<span class="comment">;; 50</span>
+
+      </code></pre>
+    </div>
+    
+    <h4>Downloads</h4>
+    <p>The <a href="./code/lhpq.clj" target="_blank" rel="noopener">full source code</a> for this post.</p>
+    
+    <h4>References</h4>
+    <ol>
+      <li>The original implementation of the leftist-heap priority queue can be found in Chapter 3 of Chris Okasaki's
+        <a href="https://www.amazon.com/Purely-Functional-Structures-Chris-Okasaki/dp/0521663504" target="_blank" rel="noopener">Purely Functional Data Structures</a>.</li>
+      <li>Inside Clojure/<a href="http://insideclojure.org/2015/01/02/sequences/" target="_blank" rel="noopener">Sequences</a>.</li>
+    </ol>
+
+    <hr></hr>
+
+  </body>
+</html>

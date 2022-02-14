@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../stylesheets/w3.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+  <link rel="stylesheet" href="../stylesheets/font-awesome.min.css">
+  <link rel="stylesheet" href="../stylesheets/style.css">
+  <link rel="stylesheet" href="./style.css">
+  <title>Vijay Mathew / Blog / Partials & Patterns</title>
+  </head>
+
+  <body>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-content" style="max-width:1100px">
+
+      <!-- Header -->
+      <header class="w3-panel w3-center w3-opacity" style="padding:50px 16px">
+	<h1 class="w3-xlarge">Partials & Patterns</h1>
+
+	<div class="w3-bar w3-border">
+	  <a href="./index.html" class="w3-bar-item w3-button">home</a>
+	  <a href="mailto:mathew.vijay@gmail.com" class="w3-bar-item w3-button w3-hide-small">email</a>
+	</div>
+      </header>
+
+    <p class="published">2019-July-10</p>
+      
+    <p>In functional programming, a function can be applied to only some of the parameters. This operation will result
+      in a new function that can be applied to the rest of the arguments to produce the final result. Partial application is an
+      important function-building technique.</p>
+
+    <p>Clojure provides the <code><a href="https://clojuredocs.org/clojure.core/partial" target="_blank">partial</a></code>
+      function for this purpose. An example of using <code>partial</code> is given below:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> f (partial list 1 2))
+(f 10 20)
+<span class="comment">;;=> (1 2 10 20)</span>
+      </code></pre>
+    </div>
+
+    <p>The <code>partial</code> function assumes that the arguments are always applied in sequence. What if some of the arguments in-between
+      are unknown at the time of calling <code>partial</code>? It should be possible to specify the unknown values as
+      "empty-slots", which can be filled-in later at the time of the final function application.</p>
+
+    <p>Let's assume that we have an operator that can construct such non-sequential partials for us.
+      We shall call this abstraction as <code>cut</code> because it knows how to deal with segmented argument lists. The slot for
+      a missing argument will be represented by the pattern <code><></code>.</p>
+
+    <p>First we shall look at a few examples of using <code>cut</code>, then we will look at its actual implementation.</p>
+
+    <h4>Some Examples</h4>
+
+    <p>The following program shows that, at the basic level, <code>cut</code> behaves exactly like <code>partial</code>:</p>
+    
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> f (cut list 1 2))
+(f 10 20)
+<span class="comment">;;=> (1 2 10 20)</span>
+      </code></pre>
+    </div>
+
+    <p>The next program shows <code>cut</code> with a single slot between two arguments. This means, the resulting function has to be
+      called with exactly one value, just enough to fill-in the slot.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> f (cut list 1 <> 2))
+(f 10)
+<span class="comment">;;=> (1 10 2)</span>
+      </code></pre>
+    </div>
+
+    <p>The following examples show that slots can appear anywhere in the partial argument list: </p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> f (cut list 1 <> 2 <> <> 3))
+(f 10 20 30)
+<span class="comment">;;=> (1 10 2 20 30 3)</span>
+
+(<span class="kw">def</span> f (cut list <> 1 <> 2 <> <> 3))
+(f 10 20 30 40)
+<span class="comment">;;=> (10 1 20 2 30 40 3)</span>
+      </code></pre>
+    </div>
+
+    <p>Finally, we introduce the <i>rest</i> pattern (<code>...</code>) that will allow the partial function to accept an arbitrary number of
+      arguments at the tail of the argument-list:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> f (cut list <> 1 <> 2 <> <> 3 ...))
+(f 10 20 30 40 50 60 70 80)
+<span class="comment">;;=> (10 1 20 2 30 40 3 50 60 70 80)</span>
+      </code></pre>
+    </div>
+
+    <h4>Implementation</h4>
+
+    <p>The <code>cut</code> operator is defined as a macro that walks down the partial argument list looking for slots.
+      It constructs a parameter list that contain entries for each slot. An argument list is also prepared with the partial arguments and
+      variables from the parameter list inserted in proper order. As the last step, a new function is created which will call the
+      partially-applied function with the fully-constructed argument list.</p>
+    
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defmacro</span> cut [f arg & args]
+  (<span class="kw">let</span> [arg-templ? (= arg <span class="sym">'<></span>)
+        a1 (<span class="kw">if</span> arg-templ?
+             (gensym)
+             arg)]
+     <span class="comment">;; collect paremeter and argument lists in a single pass over `args`</span>
+     (<span class="kw">loop</span> [args args
+            params (<span class="kw">if</span> arg-templ? [a1] [])
+            final-args [a1]]
+      (<span class="kw">if</span> (seq args)
+        (<span class="kw">let</span> [a (first args)]
+          (<span class="kw">cond</span>
+            (= a <span class="sym">'<></span>)
+            (<span class="kw">let</span> [p (gensym)]
+              (<span class="kw">recur</span> (rest args)
+                     (conj params p)
+                     (conj final-args p)))
+            
+            (= a <span class="sym">'...</span>) <span class="comment">; ignore rest of `args`</span>
+            (<span class="kw">let</span> [xs (gensym)
+                  params (conj params <span class="sym">'&</span> xs)]
+              `(<span class="kw">fn</span> ~params (apply ~f ~@final-args ~xs)))
+            
+            <span class="pw">:else</span>
+            (<span class="kw">recur</span> (rest args)
+                   params
+                   (conj final-args a))))
+        (<span class="kw">if</span> (seq params)
+          `(<span class="kw">fn</span> ~params (~f ~@final-args))
+          `(<span class="kw">fn</span> [& ~(symbol <span class="str">"xs"</span>)] (apply ~f ~@final-args ~(symbol <span class="str">"xs"</span>))))))))
+      </code></pre>
+    </div>
+    
+    <h4>References</h4>
+    <p>The <code>cut</code> operator was inspired by
+      a <a href="https://www.gnu.org/software/kawa/Partial-application.html#idm139913600510608" target="_blank">similar abstraction</a>
+      in Kawa-Scheme.</p>
+    <hr></hr>
+
+  </body>
+</html>

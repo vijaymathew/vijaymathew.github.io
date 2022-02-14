@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../stylesheets/w3.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+  <link rel="stylesheet" href="../stylesheets/font-awesome.min.css">
+  <link rel="stylesheet" href="../stylesheets/style.css">
+  <link rel="stylesheet" href="./style.css">
+  <title>Vijay Mathew / Blog / Syntactic Abstractions</title>
+  </head>
+
+  <body>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-content" style="max-width:1100px">
+
+      <!-- Header -->
+      <header class="w3-panel w3-center w3-opacity" style="padding:50px 16px">
+	<h1 class="w3-xlarge">Syntactic Abstractions</h1>
+
+	<div class="w3-bar w3-border">
+	  <a href="./index.html" class="w3-bar-item w3-button">home</a>
+	  <a href="mailto:mathew.vijay@gmail.com" class="w3-bar-item w3-button w3-hide-small">email</a>
+	</div>
+      </header>
+    <p class="published">2017-February-22</p>
+
+    <p>The <a href="./func.html">previous post</a> explained higher-order functions and the abstractions they enable us to build. The programming techniques we discussed there can be applied
+      in any functional language. This post describes a kind of abstraction that can be built only in Lisp. I am referring to Lisp's ability to abstract over its own syntax.</p>
+
+    <p>If you have programmed in a language like C, Java or Python, you realize how "sacred" the idea of syntax is &ndash; those rigid, inviolable rules established by high-ranking language lawyers.
+      But once in a while we do feel that if the language had such and such an operator or control construct, our life would've been easier. For instance, consider a Java programmer trying
+      to iterate over a table in a relational database and  do something with the data in each row:</p>
+
+<div class="prog"><pre><code>
+String sql = <span class="str">&quot;SELECT name, salary FROM employee WHERE salary > 1000&quot;</span>;
+Statement s = new Statement(sql);
+ResultSet r = dbconnection.executeQuery(s);
+<span class="kw">while</span> (r.next()) {
+   String employeeName = r.getString(<span class="str">"name"</span>);
+   double employeeSalary =  r.getDouble(<span class="str">"salary"</span>);
+   doSomething(employeeName, employeeSalary);
+}
+</pre></code></div>
+
+    <p>After repeatedly typing in the same pattern of code many times over, our Java programmer starts to wish for a built-in language construct specially designed for iterating 
+      over database rows. This is the language extension he has in mind:</p>
+
+<div class="prog"><pre><code>
+String sql = <span class="str">"SELECT name, salary FROM employee WHERE salary > 1000"</span>;
+<span class="kw">for_each_row</span> (dbconn, sql, String employeeName = name,
+              double employeeSalary = salary) {
+  doSomething(employeeName, employeeSalary);
+}
+</pre></code></div>
+
+    <p>The <em>for_each_row</em> construct will enable him to program the database from a higher level, in a declarative style. He just specifies what data he wants to fetch,
+      establish some local variable bindings for them and do his work with those values. The compiler recognizes <em>for_each_row</em> as a special construct and emits all the
+      lower-level code required to access and bind the variables.</p>
+
+    <p>We all know this is just wishful thinking! Application programmers are not allowed to change the language just like that. They are expected to solve their problems while staying within
+      the boundaries established by the language designers. Well, not so if you are programming in Lisp!</p>
+
+    <p>Lisp elevates the status of application developers to that of language designers. If you think that adding a new syntactic extension to the language will make your program cleaner,
+      shorter and faster, you just go ahead and add it.</p>
+    
+    <h3>Expressions and the rules of evaluation</h3>
+
+    <p>Before we delve into extending Lisp with new syntax, we should get a high-level overview of how Lisp programs are encoded and interpreted.
+      Lisp programs consist of expressions of two types &ndash; atomic and compound. An atomic expression (or atoms) consists of a value that cannot be split any further.
+      An integer literal like <em>23</em> is an example of an atom. The rules for evaluating an atom are,</p>
+
+    <p>
+      <ol>
+	<li>If an atom is a literal, like the number <em>23</em>, just return the value as-is.</li>
+	<li>If the atom is a symbol representing the name of a variable, fetch and return the value associated with that variable.
+	  (The variable name will be mapped to a value in an in-memory store, usually known as the <em>environment</em>).</li>
+      </ol>
+    </p>
+    
+    <p><strong>Note</strong>: Atomic values are also known as <em>scalars</em> in other languages.</p>
+    
+    <p>Compound expressions are formed by delimiting a list of expressions within parenthesis. They are also known as <em>combinations</em> and they denote function application. The following are all examples of combinations:</p>
+
+<div class="prog"><pre><code>
+(+ 2 3)
+(* 10 (+ 2 3))
+</pre></code></div>
+
+    <p>These are the rules followed by a Lisp interpreter for evaluating a combination:</p>
+
+    <p>
+      <ol>
+	<li>Evaluate each expression in the combination</li>
+	<li>Apply the function (i.e, the value of the left-most expression, known as the <em>operator</em>) to the other sub-expressions (arguments or <em>operands</em>).</li>
+      </ol>
+    </p>
+
+    <p>Lisp also allow expressions to be <em>quoted</em>. This is done by prefixing the expression with the quote character (') or with a call to the <em>quote</em> operator.
+      Quoted expressions are not evaluated by the interpreter, instead their literal representation is returned.</p>
+
+    <p>The following session at the <a href="http://clojure.org/" target="_blank">Clojure</a> REPL demonstrates all the evaluation rules we discussed so far:</p>
+
+<div class="prog"><pre><code>
+user> 23 <span class="comment">; an atom</span>
+<span class="comment">;;  23</span>
+
+<span class="comment">;; a combination with + as operator and 2 and 3 as operands.</span>
+user> (+ 2 3)
+<span class="comment">;; 5</span>
+
+<span class="comment">;; another combination with * as operator and 10 and
+;; the value of the combination `(+ 2 3)` as operands.</span>
+user> (* 10 (+ 2 3))
+<span class="comment">;; 50</span>
+
+user> (<span class="kw">def</span> x 100)
+user> x <span class="comment">; an atom that names a variable.</span>
+<span class="comment">;; 100</span>
+user> 'x <span class="comment">; the same atom, quoted</span>
+<span class="comment">;; x</span>
+user> '(+ 2 3) <span class="comment">; quoting turns-off evaluation.</span>
+<span class="comment">;; (+ 2 3)</span>
+user> (quote (+ 2 3)) <span class="comment">; same as '(+ 2 3)</span>
+<span class="comment">;; (+ 2 3)</span>
+user> (quote x) <span class="comment">; same as 'x</span>
+<span class="comment">;; x</span>
+</pre></code></div>
+
+    <p>As we noted earlier, the call to <em>quote</em> behaves differently from a normal function call. It appears that <em>quote</em> gets the whole expression passed to it, unevaluated.
+      This is because <em>quote</em> is an operator specially recognized by the interpreter/evaluator. Most Lisps have a small set of such operators with unique evaluation rules.
+      These operators are known as <em>special forms</em>.</p>
+
+    <p>The evaluation rules for atoms, function calls and special forms sums up the behavior of a Lisp interpreter. It is this amazing simplicity in representation and evaluation that makes Lisp a language extensible to the core.</p>
+    <p><strong>Note</strong>: Though we explained the evaluations rules in the context of an <a href="https://en.wikipedia.org/wiki/Interpreter_(computing)" target="_blank">interpreter</a>,
+      they apply equally well for a <a href="https://en.wikipedia.org/wiki/Compiler" target="_blank">compiler</a>.</p>
+    
+    <h3>Macros</h3>
+    <p>Now we have enough background to understand the syntax-level extension facility offered by Lisp. Let us begin with a very simple but realistic syntactic extension. Imagine you want to define an operator
+      that evaluates its body only when some condition is false. In Clojure you can use the built-in <em>if-not</em> or <em>when-not</em> operators for this, but you feel that the code will be more readable
+      if you can write something like &ndash; <em>(unless this-is-true do-this)</em>. It is possible to define <em>unless</em> as a higher-order function as shown by the following program:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defn</span> unless
+  [condition consequent]
+  (when-not condition (consequent)))
+
+<span class="comment">;; Example usage:</span>
+(unless (< 2 1) #(println <span class="str">"ok"</span>))
+<span class="comment">;;&gt; ok</span>
+(unless (< 1 2) #(println <span class="str">"ok"</span>))
+<span class="comment">;; nil</span>
+(unless (< 2 1) (fn [] (println <span class="str">"ok"</span>) 100))
+<span class="comment">;;&gt; ok
+;; 100</span>
+</pre></code></div>
+
+    <p><strong>Note</strong>: In the code samples, <code>;;&gt;</code> denotes the result of a side-effect, like printing to the standard output.</p>
+    
+    <p>The problem with this definition is that the users of <em>unless</em> have to wrap the <em>consequent</em> expression in a function literal. Otherwise it will be evaluated when <em>unless</em> is called,
+      no matter what the <em>condition</em> is. This is because all the arguments are evaluated before the function call itself. In other words, the evaluation rules for function call is different from special forms.
+      An argument passed to special forms are evaluated only when its value is really needed by the operator. The good news is that we can add our own special forms to extend the Lisp interpreter or compiler!
+      These user-defined special forms are known as <em>macros</em>. A macro is introduced to the Clojure compiler with a <em>defmacro</em> definition. Let us rewrite <em>unless</em> as a macro:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> unless
+  [condition consequent]
+  `(<span class="kw">when-not</span> ~condition ~consequent))
+
+(unless (< 2 1) (println <span class="str">"ok"</span>))
+<span class="comment">;;&gt; ok</span>
+(unless (< 1 2) (println <span class="str">"ok"</span>))
+<span class="comment">;; nil</span>
+</pre></code></div>
+
+    <p>The<em> unless</em> macro behaves more like a built-in operator, we can pass a raw expressions in the  <em>consequent</em> part. We are also able to avoid the runtime cost of creating and
+      calling a function. Let us spend some more time understanding the special treatment given to a macro by the compiler.</p>
+
+    <p>A macro is essentially a function that is called by the compiler. Consider the expression <em>(unless (&lt; 2 1) (println "ok"))</em>. When the compiler detects that this is a call to a macro,
+      it asks the Lisp interpreter to kick-in and evaluate the body of <em>unless</em> with the arguments <em>(&lt; 2 1) </em>and <em>(println "ok"), </em>just like it would evaluate a function call.
+      Note that the value returned by <em>unless</em> is a quasiquoted list (a list prefixed by the backtick character (`)). A quasiquoted expression is similar to a quoted expression, in that the evaluator
+      is turned-off and the expression is returned literally. But a quasiquoted expression can contain "escaped" or unquoted sub-expressions. The evaluator will evaluate these unquoted sub-expressions and
+      replace them with their values. (Clojure uses the tilde (~) character for unquoting expressions).</p>
+
+    <p>It will be easier to understand the difference between quote and quasiquote by playing around a bit in the REPL:</p>
+
+<div class="prog"><pre><code>
+user> (<span class="kw">def</span> a 10)
+user> (list a a)
+(10 10)
+<span class="comment">;; the quote turns-off the evaluation of the
+;; elements in the list.</span>
+user> '(a a)
+<span class="comment">;; (a a) </span>
+
+<span class="comment">;; A quasiquote without any escaped sub-expressions
+;; has the same effect as a quote.</span>
+user> `(a a)
+<span class="comment">;; (a a)</span>
+user> `(~a a)
+<span class="comment">;; (10 a)</span>
+user> `(~a ~a)
+<span class="comment">;; (10 10)</span>
+</pre></code></div>
+
+    <p>So in our example, the evaluator replaces <em>~condition</em> and <em>~consequent</em> with the lists <em>(&lt; 2 1)</em> and <em>(println "ok")</em> respectively. This results in the
+      final expression <em>(when-not (&lt; 2 1) (println "ok"))</em>. The compiler then proceeds to replace the call to <em>unless</em> with this expression. This is as good as typing
+      the <em>when-not</em> expression directly into the program. This phase of compilation when the macro is "called" to return some auto-generated code is known as "macro expansion".
+      Macro expansion happens only once in the life-time of a macro call. The expanded code may be executed multiple times when the program runs, without any additional overhead.</p>
+
+    <p><strong>Exercise 1</strong>: In Clojure, the built-in function <em>macroexpand</em> can be called to find out the expansion of a macro. Use this function to return the expansion of the call
+      <em>(unless (&lt; 2 1) (println "ok"))</em>. Find out why the resulting expansion is different from the template code we provided in the body of <em>unless</em>.
+      Also figure out the use of <em>macroexpand-1</em> and <em>macroexpand-all</em>. These functions will come in handy for debugging complex macros.</p>
+
+    <p>Our current implementation of <em>unless</em> has a limitation &ndash; it can accept only a single expression in the <em>consequent</em> part. Let us fix this by taking
+      advantage of a macro's ability to accept an arbitrary number of arguments. These arguments are all packaged into a list and passed to the macro. This list has to be
+      introduced as a parameter by preceding it with an ampersand (&). Before changing <em>unless</em>, let us look at a simpler example. The following program defines a macro
+      that can merge an arbitrary number of values into a single vector.</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> into-vec
+  [a & args]
+  `[~a '~args])
+
+(into-vec 1 2 3 4)
+<span class="comment">;; [1 (2 3 4)]</span>
+</pre></code></div>
+
+    <p>This first version of the <em>into-vec</em> macro does not do exactly what we want. We want the argument list to be "spliced" into the resulting expression.
+      This can be achieved by using the <em>unquote-splice</em> (<em>~@</em>) operator:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> into-vec
+  [a & args]
+  `[~a ~@args])
+
+(into-vec 1 2 3 4)
+<span class="comment">;; [1 2 3 4]</span>
+</pre></code></div>
+
+    <p>Now we know how to make <em>unless</em> accept more than one expression in the consequent part. Just define it to take an arbitrary number of arguments after <em>condition</em> and unquote-splice
+      those into the body of <em>when-not</em>:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> unless
+  [condition & consequent]
+  `(<span class="kw">when-not</span> ~condition ~@consequent))
+
+<span class="comment">;; Example usage:</span>
+(unless (< 2 1)
+  (println "hey")
+  (println "there!")
+  (+ 2 1))
+<span class="comment">;;&gt; hey
+;;&gt; there!
+;; 3</span>
+</pre></code></div>
+
+<h3>When to use macros</h3>
+    <p>We can use both higher-order functions and macros to define custom control structures, but macros have some advantages here. First of all, macros can save a few keystrokes,
+      because they can get rid of explicit function literals. Secondly, there may be some performance advantage, as macros avoid a function call at runtime by directly injecting the code into the call-site.</p>
+
+    <p>Some programs may want a piece of code, like a frequently performed expensive math calculation, to be highly optimized. What is the best way to optimize a computation? By not doing it! Well,
+      to be fair, by not doing it at runtime. If we can pre-compute the result at compile-time, why not do that and insert the final result into the program? Macros can help with compile-time computations.
+      In the following example, we define such a macro. It does some checks to see if it has all the information needed to perform the computation at compile-time itself. If that is possible,
+      the computation is executed and the result is returned to the compiler. If not enough information is available to do the computation at compile-time, the macro will return
+      the code that can do the computation later at runtime:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> fast-hypot
+  [x y]
+  (<span class="kw">if</span> (<span class="kw">and</span> (number? x) (number? y))
+    (Math/hypot x y)
+    `(Math/hypot ~x ~y)))
+
+(macroexpand-1 '(fast-hypot 123.22 145.67))
+<span class="comment">;; 190.7954855335943</span>
+(macroexpand-1 '(fast-hypot a 145.67))
+<span class="comment">;; (java.lang.Math/hypot a 145.67)</span>
+</pre></code></div>
+
+    <p>Functions are the natural building blocks of Lisp, their implementation is highly optimized and they have first-class status in the language.
+      Too many macro calls tend to bloat the final program generated by the compiler by having the same code copied to multiple locations. If a syntactic extension to the language makes it cleaner,
+      faster and easier to maintain, go for macros. If you have to define a custom language to solve a particular problem, you may have to depend a lot on macros.
+      In all other situations, stick to functions. So the guiding principal is &ndash; use functions whenever you can and use macros when you have to.</p>
+    
+<h3>Macro caveats</h3>
+    <p>Macros are vulnerable to certain types of bugs that do not usually occur with normal functions. This section throws light on some of those issues.</p>
+    
+    <h4>Variable capture</h4>
+    <p>Variable capture occurs when a symbol in the expanded macro body ends up referring to a variable from another context. If the variable capture is unintentional it can lead to subtle bugs.
+      In the next program, we define a macro that will capture a variable from the context it is called.</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">def</span> x 100)
+(<span class="kw">defmacro</span> prnx
+ []
+ `(println ~'x))
+
+(prnx)
+<span class="comment">;;&gt; 100</span>
+(let [x 200] (prnx))
+<span class="comment">;;&gt; 200</span>
+</pre></code></div>
+
+    <p>The macro <em>prnx</em> has a bug if the macro writer intended it to always print the value of the global variable <em>x</em>. This simple macro highlights one way a capture can occur &ndash;
+      by means of <em>free</em> variables. A variable is <em>free</em> in an expression if that expression does not create a binding for it. The <em>prnx</em> macro do not bind the variable <em>x</em>
+      in its body nor in its parameter list. This opens up <em>x</em> to obtain a value from the context in which <em>prnx</em> is called and may lead the macro to behave in unintended ways.
+      If you want to avoid a variable from being captured, make sure it does not occur <em>free</em> in the macro body.</p>
+
+    <p>Let us try to write a macro that do not have any free variables and thus avoid variable capture. For this I decided to implement a slightly more complicated macro &ndash;
+      a control structure that imitates the behavior of the <em>for</em> loop found in most imperative languages. Here is the first version of our <em>for</em> loop:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> for-loop
+  [var-name start-from loop-until & body]
+  `(<span class="kw">let</span> [~'end ~loop-until]
+     (<span class="kw">loop</span> [~var-name ~start-from]
+       (<span class="kw">when</span> (< ~var-name ~'end)
+        (<span class="kw">do</span> ~@body
+            (<span class="kw">recur</span> (inc ~var-name)))))))
+</pre></code></div>
+
+    <p>The <em>for-loop</em> construct seems to work under all normal circumstances:</p>
+
+<div class="prog"><pre><code>
+(for-loop x 0 3 (println x))
+<span class="comment">;;&gt; 0
+    1
+    2</span>
+</pre></code></div>
+
+    <p>But when we use the symbol <em>end</em> for the loop variable, a subtle bug raises its ugly head to the surface:</p>
+
+<div class="prog"><pre><code>
+(for-loop end 0 3 (println end))
+</pre></code></div>
+
+    <p>A call to <em>macroexpand-1</em> reveals why the macro is not working as expected:</p>
+
+<div class="prog"><pre><code>
+(macroexpand-1 '(for-loop end 0 3 (println x)))
+<span class="comment">;; (clojure.core/let [end 3]
+       (clojure.core/loop [end 0]
+         (clojure.core/when
+           (clojure.core/< end end)
+             (do (println x)
+                 (recur (clojure.core/inc end))))))</span>
+</pre></code></div>
+
+    <p>The problem is the hard-coded symbol <em>end</em> we used to name a local variable. The variable name passed to the macro by the user is shadowing this variable.
+      This means that just avoiding free variables is not enough to get rid of variable capture. We also need to ensure that the local variable names bound in the macro body
+      are unique across the system. The function <em>gensym</em> can help us here. It returns a new symbol that is guaranteed to be unique. Let us rewrite the <em>for-loop</em> macro using <em>gensym</em>:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> for-loop
+  [var-name start-from loop-until & body]
+  (<span class="kw">let</span> [end (gensym)]
+    `(<span class="kw">let</span> [~end ~loop-until]
+       (<span class="kw">loop</span> [~var-name ~start-from]
+         (<span class="kw">when</span> (< ~var-name ~end)
+	   (<span class="kw">do</span> ~@body
+	   (<span class="kw">recur</span> (inc ~var-name))))))))
+
+(for-loop x 0 3 (println x))
+<span class="comment">;;&gt; 0
+    1
+    2</span>
+(for-loop end 0 3 (println end))
+<span class="comment">;;&gt; 0
+    1
+    2</span>
+</pre></code></div>
+
+    <p>Note that the first <em>let</em> expression is not part of the code template returned by the macro. It is not quasiquoted. So it will be evaluated during compile-time,
+      binding the variable <em>end</em> to a unique symbol value. This symbol is used in the code template to ensure that no name clashes occur. Now, having to write this extra
+      code for generating local symbol names can be tedious if the macro has lots of them. So Clojure offers us a shortcut. You can suffix a variable name with the hash (<em>#)</em>
+      character and the Clojure compiler will consistently replace that name with a unique symbol. This replacing will happen as long as the name occurs within a quasiquoted expression. This facility is demonstrated below:</p>
+
+<div class="prog"><pre><code>
+user> (<span class="kw">let</span> [a# 1] a#)
+<span class="comment">;; 1</span>
+user> '(<span class="kw">let</span> [a# 1] a#)
+<span class="comment">;; (let [a# 1] a#)</span>
+user> `(<span class="kw">let</span> [a# 1] a#)
+<span class="comment">;; (clojure.core/let [a__2875__auto__ 1] a__2875__auto__)</span>
+</pre></code></div>
+
+    <p>Now we are ready to write the final, correct version of our <em>for-loop</em> macro:</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> for-loop
+  [var-name start-from loop-until & body]
+  `(<span class="kw">let</span> [end# ~loop-until]
+     (<span class="kw">loop</span> [~var-name ~start-from]
+       (<span class="kw">when</span> (< ~var-name end#)
+         (<span class="kw">do</span> ~@body
+             (<span class="kw">recur</span> (inc ~var-name)))))))
+</pre></code></div>
+
+    <p><strong>Tidbit</strong>: Macros in <a href="https://en.wikipedia.org/wiki/Scheme_(programming_language)" target="_blank">Scheme</a> do not have the variable capture
+      problem because the macro system is "hygienic". The macro expander takes care of properly renaming variables locally bound by the macro body. If the macro refers to any free variable,
+      the expander makes sure that the reference seen by the macro will always be the one when the transformer was specified.</p>
+
+    <p>Now you may wonder if there is a way to fix the broken <em>prnx</em> macro. We can take advantage of the Clojure namespace system to force <em>prnx </em>to refer to the global variable
+      we intended. We just qualify the free variable with the namespace that it belongs to.</p>
+
+<div class="prog"><pre><code>
+user> (<span class="kw">def</span> x 100)
+user> (<span class="kw">defmacro</span> prnx
+        []
+        `(println ~user/x))
+
+user> (prnx)
+<span class="comment">;; 100</span>
+user> (<span class="kw">let</span> [x 200] (prnx))
+<span class="comment">;; 100</span>
+</pre></code></div>
+
+<h4>Multiple evaluations</h4>
+    <p>While reading the definition of the <em>for-loop</em> macro, some of you might have thought why I have introduced the extra variable <em>end#</em>. Why not directly check
+      the value of the <em>loop-until</em> argument to determine when to exit the loop? Let us rewrite the macro without the extra local variable and examine the resulting behavior.</p>
+
+<div class="prog"><pre><code>
+(<span class="kw">defmacro</span> for-loop
+  [var-name start-from loop-until & body]
+  `(<span class="kw">loop</span> [~var-name ~start-from]
+     (<span class="kw">when</span> (< ~var-name ~loop-until)
+       (<span class="kw">do</span> ~@body
+            (<span class="kw">recur</span> (inc ~var-name))))))
+</pre></code></div>
+
+<p>The problem with this definition is that the expression passed to <em>loop-until</em> will be evaluated each time the loop is executed. This is evident from the following REPL session:</p>
+
+<div class="prog"><pre><code>
+user> (for-loop x 0 (do (println <span class="str">"expensive computation...."</span>) 3)
+         (println x))
+<span class="comment">;;&gt; expensive computation....
+0
+expensive computation....
+1
+expensive computation....
+2
+expensive computation....</span>
+</pre></code></div>
+
+    <p>If there is no other reason, you should unquote and evaluate the arguments only once, bind the results to local variables and refer to those variables in the rest of the macro body.
+      This was what the earlier definition of <em>for-loop</em> was doing and it did not suffer from this "multiple-evaluation" problem.</p>
+
+    <p>The order in which macro arguments are evaluated can also become an issue, especially if the argument expressions perform side-effects. You can avoid this problem by sticking to pure
+      functional programming as much as possible. The macro expansions should also be purely functional. Expander code should depend on nothing but the expressions passed to it as arguments
+      and should not perform any side-effects other than returning a value.</p>
+    
+    <h3>Conclusion</h3>
+    <p>It is the unique nature by which Lisp programs are encoded and interpreted that makes it an extensible language. This amazing extensibility has enabled Lisp to be a great survivor.
+      When new programming paradigms emerged, older languages died out. But Lisp simply adapted to the changing environment and moved on. It is this adaptability and flexibility that makes
+      learning Lisp not only fun but also a safe investment.</p>
+
+    <p><strong>Exercise 2</strong>: At the beginning of this post we talked about an extension to the Java language for making relational database access easier. Design and implement a similar extension as a Clojure macro.</p>
+    
+    <h4>Suggested reading</h4>
+    <p>
+      <ol>
+	<li><a href="http://www.paulgraham.com/onlisp.html">On Lisp</a> - everything you need to know about macros.</li>
+	<li><a href="https://mitpress.mit.edu/books/art-metaobject-protocol">The Art of Meta-Object Protocol</a> - explains in great detail an object-oriented extension developed for Common Lisp, providing profound insights on the possibilities of syntactic abstractions.</li>
+	<li>The <a href="https://en.wikipedia.org/wiki/Forth_(programming_language)">Forth</a> programming language also has an extensible compiler. <a href="https://www.forth.com/starting-forth/">Stating Forth</a> is a great tutorial on the language (or on <em>any</em> language!).</li>
+      </ol>
+    </p>
+    
+<h4>Download</h4>
+<p><a href="./code/exercise2_solution.tar.gz">A solution</a> to Exercise 2.</p>
+
+    <hr></hr>
+  </body>
+</html>
+
+      

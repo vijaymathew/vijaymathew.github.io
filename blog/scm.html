@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../stylesheets/w3.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+  <link rel="stylesheet" href="../stylesheets/font-awesome.min.css">
+  <link rel="stylesheet" href="../stylesheets/style.css">
+  <link rel="stylesheet" href="./style.css">
+  <title>Vijay Mathew / Blog / An Etude in Minimalism</title>
+  </head>
+
+  <body>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-content" style="max-width:1100px">
+
+      <!-- Header -->
+      <header class="w3-panel w3-center w3-opacity" style="padding:50px 16px">
+	<h1 class="w3-xlarge">An Etude in Minimalism</h1>
+
+	<div class="w3-bar w3-border">
+	  <a href="./index.html" class="w3-bar-item w3-button">home</a>
+	  <a href="mailto:mathew.vijay@gmail.com" class="w3-bar-item w3-button w3-hide-small">email</a>
+	</div>
+      </header>
+
+      <p class="published">2018-November-16</p>
+
+    <p><a href="https://en.wikipedia.org/wiki/Scheme_%28programming_language%29" target="_blank">Scheme</a> is a masterpiece of minimalism in
+      programming language design. Despite being a simple language, it has amazing expressive power. Its most widely
+      implemented <a href="https://schemers.org/Documents/Standards/R5RS/r5rs.pdf" target="_blank">standard</a> is only 50 pages
+      long and can be read over a weekend. This post is an attempt to find out the secret to Scheme's minimal but effective design.
+      It is hoped that the insights gained should be applicable to system design problems in general.</p>
+
+    <h2>Lambda the Powerful!</h2>
+
+    <p>First-class functions are the primary means of abstraction in Scheme. A function can be passed as an argument to other functions,
+      can be created at will and can be stored in data structures. A function can also make
+      unbounded number of iterative calls to itself or to other functions. This is possible because Scheme implementations are required
+      to optimize <a href="https://en.wikipedia.org/wiki/Tail_call" target="_blank">tail calls</a>.
+      This enable programmers to use tail recursion for expressing iteration.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="comment">;; Sum the elements in a list, utilizing tail recursion.</span>
+
+(<span class="kw">define</span> (sum-list xs sum)
+  (<span class="kw">if</span> (null? xs)
+    sum
+    (sum-list (cdr xs) (+ (car xs) sum))))
+
+(sum-list '(1 2 3 4 5) 0)
+<span class="comment">;;=> 15</span>
+      </code></pre>
+    </div>
+
+    <p>We can redefine <code>sum-list</code> as a general "list reducer". The operation used to combine the elements of the list together
+      into a single value can be passed as a functional argument:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define</span> (reduce xs init opr)
+  (<span class="kw">if</span> (null? xs)
+  init
+  (reduce (cdr xs) (opr (car xs) init) opr)))
+
+<span class="comment">;; Same as sum-list</span>
+(reduce '(1 2 3 4 5) 0 +)
+<span class="comment">;;=> 15</span>
+
+(reduce '(1 2 3 4 5) 1 *)
+<span class="comment">;;=> 120</span>
+
+(<span class="kw">define</span> (square x) (* x x))
+
+(reduce '(1 2 3 4 5) 1 (<span class="kw">lambda</span> (x y) (+ (square x) (square y))))
+<span class="comment">;;=> 28569050</span>
+      </code></pre>
+    </div>
+
+    <p>Tail call optimization makes it unnecessary to bake-in looping constructs like <code>for</code> and <code>while</code> into the core
+      of the language.</p>
+
+    <h2>Lexical Scope</h2>
+
+    <p>Scheme was one of the earliest languages to support lexical scoping of variables. This means, all variable bind to the values given
+      to them in the context they were defined. These bindings do not change even when the expressions are evaluated in other parts of the
+      program.</p>
+    <p>The following program demonstrates the possibilities offered by lexical scoping. It defines a function
+      that returns another function. The returned function can refer to the variable bindings in its defining context, even when
+      it is invoked from other contexts.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define</span> (make-adder base)
+  (<span class="kw">lambda</span> (x) (+ base x)))
+
+(<span class="kw">define</span> a5 (make-adder 5))
+(<span class="kw">define</span> a10 (make-adder 10))
+(a5 20)
+<span class="comment">;;=> 25</span>
+(a10 20)
+<span class="comment">;;=> 30</span>
+      </code></pre>
+    </div>
+
+    <p>The combination of first-class functions and lexical scoping allows Scheme to express object-based programs. No special syntax or
+      language construct is required to use this powerful paradigm.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define</span> (make-cat)
+  (<span class="kw">lambda</span> (message)
+    (<span class="kw">case</span> message
+      ((say-hello) <span class="sym">'meow</span>))))
+
+(<span class="kw">define</span> (make-dog)
+  (<span class="kw">lambda</span> (message)
+    (<span class="kw">case</span> message
+      ((say-hello) <span class="sym">'bow-wow</span>))))
+
+(<span class="kw">define</span> c (make-cat))
+(c <span class="sym">'say-hello</span>)
+<span class="comment">;;=> meow</span>
+(<span class="kw">define</span> d (make-dog))
+(d <span class="sym">'say-hello</span>)
+<span class="comment">;;=> bow-wow</span>
+      </code></pre>
+    </div>
+
+    (<a href="./func.html" target="_blank">Read more</a> about functional abstractions).
+
+    <h2>Syntactic Abstractions</h2>
+
+    <p>It is quite impressive that a combination of a few simple concepts is enough to program in multiple paradigms. But sometimes the
+      programs written might need a more natural syntax. For instance, programs will become shorter and easier to maintain if there is
+      syntactic support for defining classes of objects. Instead of building in syntax for all possible paradigms, Scheme (like other Lisps)
+      allow users to extend the language syntax by a macro system. Scheme's macro system is even more powerful because
+      the code generated by a macro is guaranteed to be
+      <a href="https://en.wikipedia.org/wiki/Hygienic_macro" target="_blank">hygienic</a>. The Scheme macro system respects the lexical
+      scoping of the rest of the language. This is assured by special naming and scoping rules for macro expansion and avoids
+      common programming errors that can occur in the macro systems of other programming languages. The macro system is also very expressive
+      because it makes use of a simple pattern matching sub-language.</p>
+
+    <p>Let us extend Scheme to support a language for defining new classes of objects. This extension will add a new construct to
+      the language called <code>define-class</code>. It takes the class name and a list of messages and message handlers as
+      arguments. The Scheme macro expander will transform a <code>define-class</code> to a function definition that takes a symbolic
+      message as argument and execute the appropriate message implementation.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define-syntax</span> define-class
+  (<span class="kw">syntax-rules</span> ()
+    ((define-class class-name ((message-name message-body) ...))
+     (<span class="kw">define</span> (class-name)
+       (<span class="kw">lambda</span> (message)
+	 (<span class="kw">case</span> message
+	   ((message-name) message-body)
+	   ...
+	   (<span class="kw">else</span> (error <span class="str">"invalid message"</span> message))))))))
+
+(<span class="kw">define-class</span> cat ((say-hello <span class="sym">'meow</span>)))
+(<span class="kw">define-class</span> dog ((say-hello <span class="sym">'bow-wow</span>)))
+
+(<span class="kw">define</span> c (cat))
+(<span class="kw">define</span> d (dog))
+
+(c <span class="sym">'say-hello</span>)
+<span class="comment">;;=> meow</span>
+(d <span class="sym">'say-hello</span>)
+<span class="comment">;;=> bow-wow</span>
+      </code></pre>
+    </div>
+
+    <p><strong>Exercise 1</strong>: Add attribute support for classes defined by <code>define-class</code>. For instance, it should be possible to
+      assign names to the various animal objects, like - <code>(define c (cat 'sassy))</code>. It should also be possible to refer and
+      update the attributes through messages, e,g: </p>
+    <p><pre><code>(c 'name) ;;=> sassy
+(c 'set-name 'Kitty)
+(c 'name) ;;=> Kitty</code></pre></p>
+
+    <p>Let us conclude this section with one more example. We will define a macro that will behave like the
+      <code>while</code> loop found in most imperative languages. Notice how the macro compiles the loop to a tail-recursive function.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define-syntax</span> while
+  (<span class="kw">syntax-rules</span> ()
+    ((while condition body ...)
+     (<span class="kw">begin</span>
+       (<span class="kw">define</span> (loop)
+	 (<span class="kw">if</span> condition
+	     (<span class="kw">begin</span>
+                body ...
+	       (loop))))
+        (loop)))))
+
+<span class="comment">;; Usage:</span>
+(<span class="kw">define</span> i 0)
+(while (&lt; i 5)
+  (display <span class="str">"hello\n"</span>)
+  (set! i (+ i 1)))
+<span class="comment">;;-> hello
+     hello
+     hello
+     hello
+     hello</span>
+      </code></pre>
+    </div>
+
+    (<a href="./syn.html" target="_blank">Read more</a> about building syntactic abstractions in Lisp).
+
+    <h2>Control-flow Abstractions</h2>
+
+    <p>The previous sections showed how a pragmatic language can be designed on top of only a couple of simple building blocks.
+      First-class functions and macros can be combined together in intuitive ways to extend and adapt the language to suit
+      almost any problem domain. But Scheme does not stop there! It also allows the programmer to get access to the control state of
+      the program and add extensions to the language that control the way the program execution flows. It is possible to capture
+      the current state of control flow as a function. If this function is called from another part of the program, control will go back
+      to the point where it was captured and the program will continue executing from there.</p>
+
+    <p>The presence of first-class <a href="https://en.wikipedia.org/wiki/Continuation" target="_blank">continuations</a>
+      means Scheme do not need built-in support for features like exceptions and coroutines.
+      These can be added to the language as libraries.</p>
+
+    <p>We will conclude this post with two examples of using continuations. The first one shows the implementation of a simple coroutine
+      mechanism.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define</span> continue <span class="pw">#f</span>)
+
+(<span class="kw">define</span> (f)
+  (display <span class="str">"f: hello\n"</span>)
+  (<span class="kw">call/cc</span>
+   (<span class="kw">lambda</span> (k)
+     (set! continue k)
+     (g)))
+  (display <span class="str">"bye bye!\n"</span>))
+
+(<span class="kw">define</span> (g)
+  (display <span class="str">"g: hello\n"</span>)
+  (continue))
+
+(f)
+<span class="comment">;;-> f: hello
+;;-> g: hello
+;;-> bye bye!</span>
+      </code></pre>
+    </div>
+
+    <p>The continuation captured in the function <code>f</code> allows the function <code>g</code> to restart <code>f</code> from where it
+      left off. This code can become the basis for a more feature-full multitasking library.</p>
+
+    <p><strong>Exercise 2</strong>: Read about the <a href="https://en.wikipedia.org/wiki/Actor_model" target="_blank">Actor model</a>
+      of computation and write an implementation for Scheme.
+      Look at <a href="https://en.wikipedia.org/wiki/Erlang_(programming_language)" target="_blank">Erlang</a> for inspiration!
+      You can find some guidance on actual implementation
+      <a href="https://www.scheme.com/tspl4/examples.html#./examples:h11" target="_blank">here</a> and
+      <a href="http://www.iro.umontreal.ca/~gambit/doc/gambit.html#Threads" target="_blank">here</a>.</p>
+
+    <p>The second example combines continuations with functions and macros to implement an exception handling mechanism.
+      Basically, the error handlers are continuations which are made to replace the current state of program execution when an
+      exception is raised.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">define</span> handlers '())
+
+(<span class="kw">define</span> (top-handler)
+  (car handlers))
+
+(<span class="kw">define</span> (pop-handlers!)
+  (<span class="kw">if</span> (not (null? handlers))
+      (set! handlers (cdr handlers))))
+
+(<span class="kw">define</span> no-handlers? null?)
+
+(<span class="kw">define</span> (exception msg)
+  (<span class="kw">if</span> (no-handlers? handlers)
+      (error msg)
+      (<span class="kw">let</span> ((handler (top-handler)))
+	(handler (cons <span class="sym">'error</span> msg)))))
+
+(<span class="kw">define</span> (prepare-handler handler)
+  (pop-handlers!)
+  (<span class="kw">lambda</span> (obj)
+    (<span class="kw">if</span> (<span class="kw">and</span> (pair? obj) (eq? <span class="sym">'error</span> (car obj)))
+	(handler obj)
+	obj)))
+
+(<span class="kw">define-syntax</span> with-handler
+  (<span class="kw">syntax-rules</span> ()
+    ((with-handler handler body ...)
+     ((prepare-handler handler)
+      (<span class="kw">call/cc</span>
+       (<span class="kw">lambda</span> (k)
+	 (set! handlers (cons k handlers))
+	 body
+	 ...))))))
+
+
+<span class="comment">;; Example usage:</span>
+(<span class="kw">define</span> (f x y)
+  (<span class="kw">if</span> (= y 0)
+    (exception <span class="str">"cannot divide by zero"</span>)
+    (/ x y)))
+
+(with-handler
+   (<span class="kw">lambda</span> (ex)
+     (format <span class="pw">#t</span> <span class="str">"~A\n"</span> ex))
+   (display (f 10 20))
+   (display <span class="str">" -- done!\n"</span>))
+<span class="comment">;;-> 1/2 -- done!</span>
+
+(with-handler
+   (<span class="kw">lambda</span> (ex)
+     (format <span class="pw">#t</span> <span class="str">"~A\n"</span> ex))
+   (display (f 10 0))
+   (display <span class="str">" -- done!\n"</span>))
+<span class="comment">;;-> (error . cannot divide by zero)</span>
+</code></pre>
+</div>
+
+
+    <h2>Conclusion</h2>
+    <p>Scheme is the <a href="https://en.wikipedia.org/wiki/Lego" target="_blank">Lego</a> of the programming world.
+      Strict, first-class functions with lexically scoped variable bindings
+      are the primary building material here. We combine and compose them in various patterns to build abstractions of immense power.
+      These abstractions can be constructed fast because the semantics of function definition and application is
+      simple to understand and easy to reason about.
+      These abstractions will normally have <a href="https://ecraven.github.io/r7rs-benchmarks/" target="_blank">good performance</a>
+      because most Scheme implementations take special care to optimize function calls. Add hygienic macros and continuations to the toolbox
+      and we have unlimited power at our disposal. Scheme allows us to build the right abstractions at the right level and write code in
+      a language tailor-made for the problem at hand. Indeed Scheme is a triumph of minimalism in language design and engineering!</p>
+  </body>
+</html>
