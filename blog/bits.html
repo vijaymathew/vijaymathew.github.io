@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../stylesheets/w3.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+  <link rel="stylesheet" href="../stylesheets/font-awesome.min.css">
+  <link rel="stylesheet" href="../stylesheets/style.css">
+  <link rel="stylesheet" href="./style.css">
+  <title>Vijay Mathew / Blog / Bits of Things</title>
+  </head>
+
+  <body>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-content" style="max-width:1100px">
+
+      <!-- Header -->
+      <header class="w3-panel w3-center w3-opacity" style="padding:50px 16px">
+	<h1 class="w3-xlarge">Bits of Things</h1>
+
+	<div class="w3-bar w3-border">
+	  <a href="./index.html" class="w3-bar-item w3-button">home</a>
+	  <a href="mailto:mathew.vijay@gmail.com" class="w3-bar-item w3-button w3-hide-small">email</a>
+	</div>
+      </header>
+
+    <p class="published">2017-April-04</p>
+      
+    <p>Most programming languages provide I/O facilities over streams of bytes. For instance, the Java abstract
+      classes <em><a href="https://docs.oracle.com/javase/7/docs/api/java/io/InputStream.html" target="_blank">java.io.InputStream</a></em>
+      and <em><a href="https://docs.oracle.com/javase/7/docs/api/java/io/OutputStream.html" target="_blank">java.io.OutputStream</a></em> declare
+      interfaces for performing input and output on byte streams. These interfaces are implemented by classes dedicated for performing I/O
+      on files, pipes and in-memory buffers. Sometimes we also have to deal with streams of bits. Consider the frames in an MP3 file where
+      the frame header is encoded as bit-fields of varying lengths. Another example is that of a TCP header, the layout of which is illustrated below:</p>
+
+    <p><img src="img/tcpheader.png" alt="TCPHeader.png" width="900" height="450"></img></p>
+
+    <p>Some fields in the TCP header are encoded using two or more bytes. For example, the <em>Source</em> and <em>destination</em> ports are
+      16 bits each (2 bytes). <em>Sequence</em> and <em>acknowledgment</em> numbers are 32 bit values (4 bytes). Normal byte streams should
+      be sufficient for reading and writing these values. But there are also fields that do not fall on proper byte offsets. For instance, the
+      <em>data offset</em> field is 5 bits and the <em>reserved</em> field is 6 bits. The six flags that follow are 1 bit each.
+      As most I/O libraries treat bytes as the fundamental unit of information, special bit-twiddling code is required to encode and
+      decode a TCP header. Writing such code can be difficult and error-prone. When we have to pack information in a space-efficient way,
+      an abstraction that can perform I/O on streams of bits starts to look attractive!</p>
+
+    <p>In this post we develop such an abstraction for the JVM. In this process, we will learn how to mix high-performance Java code
+      with Clojure. We will also see how the expressiveness of Clojure can enhance the usability of lower-level abstractions.</p>
+
+    <p>We will start with a simple and efficient library that allows us to read and write bits over an underlying stream.
+      This underlying stream must be an implementation of <em>java.io.InputStream</em> or <em>java.io.OutputStream</em>. As objects of
+      these classes can do I/O only on bytes, the bit stream library has to maintain some local state. At the bare minimum it will require a byte
+      to pack together the bits seen so far. An integer counter is needed to keep track of the current bit position.
+      As the library does I/O, fast and frequent updates to both these state variables become inevitable. So we will implement the lower-level
+      I/O code as two Java classes - <code>bits.BitsReader</code> and <code>bits.BitsWriter</code>.</p>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">package</span> bits;
+
+<span class="kw">import</span> java.io.InputStream;
+<span class="kw">import</span> java.io.IOException;
+
+<span class="comment">/**
+ * Read bits from an InputStream.
+ */</span>
+<span class="kw">public class</span> BitsReader {
+
+    <span class="kw">private</span> InputStream bytesInput;
+    <span class="kw">private</span> <span class="pw">int</span> currentByte;
+    <span class="kw">private</span> <span class="pw">int</span> bit;
+
+    <span class="kw">public</span> BitsReader(InputStream inputStream) {
+        bytesInput = inputStream;
+        currentByte = 0;
+        bit = 0;
+    }
+
+    <span class="comment">/**
+     * Read the next bit, as either 1 or 0, from `bytesInput`.
+     * At the end of the input stream, return -1.
+     */</span>
+    <span class="kw">public</span> <span class="pw">int</span> read() <span class="kw">throws</span> IOException {
+        <span class="comment">// `currentByte` is exhausted of bits, read the 
+        // next byte from the InputStream.</span>
+        <span class="kw">if</span> (bit == 0) {
+            currentByte = bytesInput.read();
+            <span class="kw">if</span> (currentByte == -1) <span class="kw">return</span> currentByte;
+            <span class="comment">// Reset bit index to the beginning 
+            // of `currentByte`.
+            // 128 = 10000000 in binary.</span>
+            bit = 128;
+            <span class="kw">return</span> read();
+        } <span class="kw">else</span> {
+            <span class="comment">// If `bit` is on in currentByte, return 1, 
+            // if it is off, return 0.</span>
+            <span class="pw">int</span> r = ((currentByte & bit) > 0) ? 1 : 0;
+            <span class="comment">// Halving `bit` get the index ready to 
+            // check for the next bit in `currentByte`.</span>
+            bit = bit/2;
+            <span class="kw">return</span> r;
+        }
+    }
+
+    <span class="comment">/**
+     * Read the next `n` bits from input, pad those into
+     * a single integer value. Return -1 at end of stream.
+     */</span>
+    <span class="kw">public</span> <span class="pw">int</span> read(int n) <span class="kw">throws</span> IOException {
+        <span class="kw">if</span> (n <= 0 || n > 32)
+            <span class="kw">throw new</span> IOException(<span class="str">"invalid bit-count in read"</span>);
+        <span class="pw">int</span> r = 0;
+        <span class="kw">for</span> (<span class="pw">int</span> x = n-1; x >= 0; --x) {
+            <span class="pw">int</span> b = read();
+            <span class="kw">if</span> (currentByte == -1) <span class="kw">return</span> -1;
+            r |= (b << x);
+        }
+        <span class="kw">return</span> r;
+    }
+
+    <span class="comment">/**
+     * Align input to the next byte in `bytesInput`.
+     */</span>
+    <span class="kw">public void</span> align() {
+        bit = 0;
+    }
+}
+      </code></pre>
+    </div>
+
+    <div class="prog">
+      <pre><code>
+<span class="kw">package</span> bits;
+
+<span class="kw">import</span> java.io.OutputStream;
+<span class="kw">import</span> java.io.IOException;
+
+<span class="comment">/**
+ * Write bits to an OutputStream.
+ */</span>
+<span class="kw">public class</span> BitsWriter {
+
+    <span class="kw">private</span> OutputStream bytesOutput;
+    <span class="kw">private</span> <span class="pw">int</span> currentByte;
+    <span class="kw">private</span> <span class="pw">int</span> bit;
+
+    <span class="kw">public</span> BitsWriter(OutputStream output) {
+        bytesOutput = output;
+        currentByte = 0;
+        bit = 7;
+    }
+
+    <span class="comment">/**
+     * If atleast one bit was padded to `currentByte`,
+     * write it to the underlying OutputStream.
+     */</span>
+    <span class="kw">public</span> <span class="pw">void</span> flush() <span class="kw">throws</span> IOException {
+        <span class="kw">if</span> (bit < 7) bytesOutput.write(currentByte);
+        currentByte = 0;
+        bit = 7;
+    }
+
+    <span class="comment">/**
+     * If `b` is not zero, turn on the bit in `currentByte` at
+     * position `bit`. If one byte is full, flush that to the
+     * OutputStream.
+     */</span>
+    <span class="kw">public</span> <span class="pw">void</span> write(<span class="pw">int</span> b) <span class="kw">throws</span> IOException {
+        <span class="kw">if</span> (bit == -1) {
+            flush();
+            write(b);
+        } <span class="kw">else</span> {
+            <span class="kw">if</span> (b != 0) currentByte |= (1 << bit);
+            bit -= 1;
+        }
+    }
+
+    <span class="comment">/**
+     * Extract `n` bits from the integer `b` and write that to
+     * the OutputStream.
+     */</span>
+    <span class="kw">public</span> <span class="pw">void</span> write(<span class="pw">int</span> b, <span class="pw">int</span> n) <span class="kw">throws</span> IOException {
+        <span class="kw">if</span> (n &lt;= 0 || n &gt; 32)
+            <span class="kw">throw new</span> IOException(<span class="str">"invalid bit-count in write"</span>);
+        <span class="kw">for</span> (<span class="pw">int</span> x = n-1; x &gt;= 0; --x)
+            write(b & (1 &lt;&lt; x));
+    }
+}
+      </code></pre>
+    </div>
+
+    <p>Invoking these classes from Clojure is quite easy. We just need to update the <a href="https://leiningen.org/" target="_blank">lein</a>
+      <em>project.clj</em> file with the path to the Java package. In the example project, I put the <code>bits</code> package in the
+      <code>src/java</code> folder. This path should be specified in the <em>:java-source-paths</em> property of the project file as shown below:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defproject</span> bit-stream <span class="str">"0.1.0"</span>
+  <span class="pw">:description</span> <span class="str">"A Clojure library for bits IO."</span>
+  <span class="pw">:license</span> {<span class="pw">:name</span> <span class="str">"Eclipse Public License"</span>
+            <span class="pw">:url</span> <span class="str">"http://www.eclipse.org/legal/epl-v10.html"</span>}
+  <span class="pw">:java-source-paths</span> [<span class="str">"src/java"</span>]
+  <span class="pw">:dependencies</span> [[org.clojure/clojure <span class="str">"1.8.0"</span>]])
+      </code></pre>
+    </div>
+
+    <p>You may want to define some simple wrappers to make the bit-stream functions easier to use from Clojure:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">ns</span> bit-stream.core
+  (<span class="kw">import</span> [bits BitsReader BitsWriter]))
+
+(<span class="kw">defn</span> make-reader
+  [input-stream]
+  (BitsReader. input-stream))
+
+(<span class="kw">defn</span> read-bit
+  [reader]
+  (not (zero? (.read reader))))
+
+(<span class="kw">defn</span> read-bits
+  [reader n]
+  (.read reader n))
+
+(<span class="kw">defn</span> make-writer
+  [output-stream]
+  (BitsWriter. output-stream))
+
+(<span class="kw">defn</span> flush-bits
+  [writer]
+  (.flush writer))
+
+(<span class="kw">defn</span> write-bit
+  [writer b]
+  (.write writer (<span class="kw">if</span> b 1 0)))
+
+(<span class="kw">defn</span> write-bits
+  [writer b n]
+  (.write writer b n))
+      </code></pre>
+    </div>
+
+    <p>Now we're all set to move on to the interesting part. Let's design an abstraction that will allow us to program bit-streams from a much
+      higher-level. This new abstraction should enable us to specify bit-encoded data as first-class objects in Clojure. We will also write new
+      bit-stream functions that can read and write data based on these specifications. We won't be calling I/O functions directly on
+      bit-streams any more.</p>
+
+    <p>To understand our goal better, let us think about a simple object that can be bit-encoded. The example I have chosen is that of
+      <a href="https://en.wikipedia.org/wiki/High_color" target="_blank">16 bit colors</a>, where the red and blue components are encoded
+      in 5 bits and the green component is encoded in 6 bits. We can specify the structure of 16 bit colors as a vector of field names
+      and their bit-lengths:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> _16bit-color-spec [<span class="pw">:red</span> 5 <span class="pw">:green</span> 6 <span class="pw">:blue</span> 5])
+      </code></pre>
+    </div>
+
+    <p>Now we want to be able to encode three integer values into a single 16 bit color and decode a single 16 bit color value into red,
+      green and blue components. The higher-level bit-stream functions that we are going to implement should enable us to do this:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> encoded-color (bit-encode [<span class="pw">:red</span> 2 <span class="pw">:green</span> 52 <span class="pw">:blue</span> 16])
+                     _16bit-color-spec))
+
+(bit-decode encoded-color _16bit-color-spec)
+<span class="comment">;; [:red 2 :green 52 :blue 16]</span>
+      </pre></code>
+    </div>
+
+    <p>The definitions of <code>bit-encode</code> and <code>bit-decode</code> are shown below:</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">defn</span> bit-encode
+  <span class="str">"Return a byte-array with `data` bit-encoded into it.
+  `data` is a vector in the format:
+     [field-name1 value1, field-name2 value2, ...]
+  `spec` is a vector in the format:
+     [field-name1 bit-field-size1, field-name2 bit-field-size2, ...]
+   Values in `data` will be encoded with corresponding
+   bit-field sizes in `spec`.
+  `field-names` in both `data` and `spec` are ignored
+   during the encoding process."</span>
+  [data spec]
+  (<span class="kw">let</span> [ba (java.io.ByteArrayOutputStream.)
+        encoder (make-writer ba)]
+    (<span class="kw">loop</span> [data-values (filter integer? data)
+           bit-field-sizes (filter integer? spec)]
+      (<span class="kw">if</span> (<span class="kw">and</span> (seq data-values) (seq bit-field-sizes))
+        (<span class="kw">do</span> (write-bits encoder (first data-values)
+              (first bit-field-sizes))
+            (<span class="kw">recur</span> (rest data-values) (rest bit-field-sizes)))
+        (<span class="kw">do</span> (<span class="kw">when</span> (seq data-values)
+              (<span class="kw">throw</span> (Exception. <span class="str">"more data values"</span>)))
+            (<span class="kw">when</span> (seq bit-field-sizes)
+              (<span class="kw">throw</span> (Exception. <span class="str">"more bit field lengths"</span>))))))
+    (flush-bits encoder)
+    (.toByteArray ba)))
+
+(<span class="kw">defn</span> bit-decode
+  <span class="str">"Decode a byte-array returned by `bit-encode`.
+  `spec` is a vector in the format:
+    [field-name1 bit-field-size1, field-name2 bit-field-size2, ...]
+   A new vector is returned with the same field-names
+   as `spec` and the associated values
+   being integers initialized by reading the appropriate number
+   of bits from the encoded stream."</span>
+  [encoded-data spec]
+  (<span class="kw">let</span> [bi (java.io.ByteArrayInputStream. encoded-data)
+        decoder (make-reader bi)]
+    (<span class="kw">loop</span> [field-names (filter keyword? spec)
+           bit-field-sizes (filter integer? spec)
+           result []]
+      (<span class="kw">if</span> (seq field-names)
+        (<span class="kw">recur</span> (rest field-names) (rest bit-field-sizes)
+          (concat result [(first field-names)
+                          (read-bits decoder
+                            (first bit-field-sizes))]))
+        (vec result)))))
+      </code></pre>
+    </div>
+
+    <p>We can now easily decode and encode complicated structures like the TCP header.
+      We just have to translate the layout of the data into a specification vector and apply <code>bit-encode</code>
+      and <code>bit-decode</code> to it.</p>
+
+    <div class="prog">
+      <pre><code>
+(<span class="kw">def</span> tcp-header-spec
+  [<span class="pw">:source-port</span> 16
+   <span class="pw">:destination-port</span> 16
+   <span class="pw">:sequence</span> 32
+   <span class="pw">:acknowledgement-number</span> 32
+   <span class="pw">:data-offset</span> 4
+   <span class="pw">:reserved</span> 6
+   <span class="pw">:urg-flag</span> 1
+   <span class="pw">:ack-flag</span> 1
+   <span class="pw">:push-flag</span> 1
+   <span class="pw">:reset-flag</span> 1
+   <span class="pw">:syn-flag</span> 1
+   <span class="pw">:fin-flag</span> 1
+   <span class="pw">:receive-window-size</span> 16
+   <span class="pw">:checksum</span> 16
+   <span class="pw">:urgent-pointer</span> 16])
+
+(<span class="kw">defn</span> encode-tcp-header
+  [header]
+  (bit-encode header tcp-header-spec))
+
+(<span class="kw">defn</span> decode-tcp-header
+  [encoded-header]
+  (bit-decode encoded-header tcp-header-spec))
+
+<span class="comment">;; Example usage:</span>
+(<span class="kw">let</span> [sample-header [<span class="pw">:source-port</span> 38
+                     <span class="pw">:destination-port</span> 47892
+                     <span class="pw">:sequence</span> 1656212531
+                     <span class="pw">:acknowledgement-number</span> 1481973485
+                     <span class="pw">:data-offset</span> 5
+                     <span class="pw">:reserved</span> 0
+                     <span class="pw">:urg-flag</span> 0
+                     <span class="pw">:ack-flag</span> 0
+                     <span class="pw">:push-flag</span> 0
+                     <span class="pw">:reset-flag</span> 0
+                     <span class="pw">:syn-flag</span> 0
+                     <span class="pw">:fin-flag</span> 0
+                     <span class="pw">:receive-window-size</span> 17664
+                     <span class="pw">:checksum</span> 888
+                     <span class="pw">:urgent-pointer</span> 63404]]
+
+(= (decode-tcp-header (encode-tcp-header sample-header)
+   sample-header))
+<span class="comment">;; true</span>
+      </pre></code>
+    </div>
+
+    
+    <h3>References</h3>
+    <p>The basic bit-stream library is mostly based on a similar abstraction from the book
+      <a href="http://ocaml-book.com/more-ocaml-algorithms-methods-diversions/" target="_blank">More OCaml : Algorithms, Methods & Diversions</a>.
+      Pattern based encoding and decoding of bit-streams was inspired by Erlang's bit syntax.
+      Chapter 7 of the book <a href="https://pragprog.com/book/jaerlang2/programming-erlang" target="_blank">Programming Erlang</a>
+      cover this topic well.</p>
+    
+    <h3>Download</h3>
+    <p>Source code for the <a href="code/bit-stream.tar.gz">bit-stream library</a>.</p>
+
+    <hr></hr>
+    
+  </body>
+</html>

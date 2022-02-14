@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <title>Exception handling - the Common Lisp way</title>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <h2>Exception handling - the Common Lisp way</h2>
+    </div>
+    <div class="container">
+      <section id="main_content">
+        <p>Errors or exceptional events can occur during the execution of a program. The common idiom to handle exceptions is to return control to the caller function. This is done either by returning an error code or by throwing an exception object. Languages like C++, Java and Python allow the programmer to create an object that contain information about the error. This exception object is then handed over to the runtime system. This is known as throwing the exception. When an exception is thrown, the runtime system start unwinding the call stack, looking for a function with a special block of code that can handle the exception. This code block is called the exception handler. When an exception handler is found, the exception object is handed over to it. This is known as catching the exception. The code block can now decide what to do with the exception. It can retry the failed operation, log the error state, re-throw the exception or just ignore it. This mechanism has some clear advantages. For instance, languages like Java has checked exceptions that make it impossible for caller methods to ignore an exception event. The exception system also helps is separating error-handling code from regular code. But returning control to the caller has some disadvantages as well. The exception handling code might be high above the stack. This means unwinding the whole stack. This may not be the ideal thing to do, when the exceptional situation can be corrected locally. For example, think of a function that makes a socket connection to a remote server:</p>
+
+<div class="highlight"><pre><span class="c1">// This code is not Java or C#, but</span>
+<span class="c1">// an illustration.</span>
+<span class="n">Socket</span> <span class="nf">connect</span> <span class="o">(</span><span class="n">String</span> <span class="n">hostName</span><span class="o">,</span> <span class="kt">int</span> <span class="n">port</span><span class="o">)</span> 
+    <span class="kd">throws</span> <span class="n">SocketConnectionError</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">ResolveHost</span> <span class="o">(</span><span class="n">hostName</span><span class="o">))</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nf">SocketConnectionError</span> <span class="o">(</span>
+              <span class="s">"Host cannot be resolved."</span><span class="o">);</span>
+    <span class="o">....</span>
+    <span class="k">return</span> <span class="n">newSocketObject</span><span class="o">;</span> 
+<span class="o">}</span>
+</pre></div>
+
+<p>Now if hostName was input from a UI and the user misspelled it, this function will throw an exception and the whole sequence of function calls has to be started again, while the error can be corrected by directly replacing the value of hostName without leaving the current stack. The exception system used by most languages do not offer this flexibility. Now let us turn our attention to a superior way of dealing with errors: the condition system of Common Lisp.</p>
+
+<h2>Exception handling in Common Lisp</h2>
+
+<p>Before plunging into the full depths of the condition system, let us see how Common Lisp allows the handling of exceptions in the traditional way. In Common Lisp exception objects are called Conditions. A new Condition is defined using the define-condition macro. Conditions are sub-types of the error class. This is how a condition to signal socket errors could be defined:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">define-condition</span> <span class="nv">socket-connection-error</span> <span class="p">(</span><span class="nb">error</span><span class="p">)</span>
+  <span class="p">((</span><span class="nv">text</span> <span class="ss">:initarg</span> <span class="ss">:text</span> <span class="ss">:reader</span> <span class="nv">text</span><span class="p">)))</span>
+</pre></div>
+
+<p>The constructor of socket-connection-error will take an argument called text that describes the error. Now we can use socket-connection-error in the Common Lisp version of the SocketConnect function:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">defun</span> <span class="nv">socket-connect</span> <span class="p">(</span><span class="nv">host</span> <span class="nv">port</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">if</span> <span class="p">(</span><span class="nb">not</span> <span class="p">(</span><span class="nv">resolve-host</span> <span class="nv">host</span><span class="p">))</span>
+      <span class="p">(</span><span class="nb">error</span> <span class="ss">'socket-connection-error</span> 
+         <span class="ss">:text</span> <span class="s">"Failed to resolve host."</span><span class="p">))</span>
+ <span class="o">....</span>    
+ <span class="nv">new-socket-object</span><span class="p">)</span>
+</pre></div>
+
+<p>The macro handler-case can be used to implement the Java style exception handling mechanism by unwinding the stack:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">handler-case</span> 
+  <span class="p">(</span><span class="nv">socket-connect</span> <span class="s">"www.lisp.org"</span> <span class="mi">80</span><span class="p">)</span>
+  <span class="p">(</span><span class="nv">socket-connection-error</span> <span class="p">(</span><span class="nv">ex</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"error: ~a~%"</span> <span class="p">(</span><span class="nv">text</span> <span class="nv">ex</span><span class="p">))))</span>
+</pre></div>
+
+<p>This is similar to a try-catch block. If socket-connect fails, the socket-connection-error object is caught and the text description of the error is printed to the output stream.</p>
+
+<p>Another form used to catch exceptions is restart-case. This is similar to handler-case except that it does not specify any exceptions to be caught. Instead it contain named code blocks that will be executed in case of an error. These code blocks are called restarts.</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">defun</span> <span class="nv">get-page</span> <span class="p">(</span><span class="nv">host</span> <span class="nv">port</span> <span class="nv">page</span><span class="p">)</span>
+<span class="p">(</span><span class="nb">restart-case</span> 
+    <span class="p">(</span><span class="k">let</span> <span class="p">((</span><span class="nv">sock</span> <span class="p">(</span><span class="nv">socket-connect</span> <span class="nv">host</span> <span class="nv">port</span><span class="p">)))</span>
+            <span class="p">(</span><span class="nv">socket-http-get</span> <span class="nv">sock</span> <span class="nv">page</span><span class="p">))</span>
+  <span class="p">(</span><span class="nv">get-default-content</span> <span class="p">()</span> 
+    <span class="s">"Page not found"</span><span class="p">)))</span>
+</pre></div>
+
+<p>The above code handles a socket-connection-error with the help of a restart named get-default-content. It returns a pre-defined HTML encoded message in case of a socket connection error. If this is executed from a Common Lisp shell, the user will land in a debugger, where he will be given a list of restarts that include get-default-content. To evade the debugger and execute a preferred restart directly, we can use the handler-bind macro:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">handler-bind</span> <span class="p">((</span><span class="nv">socket-connection-error</span>
+              <span class="nf">#'</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="nv">ex</span><span class="p">)</span>
+                  <span class="p">(</span><span class="nb">invoke-restart</span>
+                    <span class="ss">'get-default-content</span><span class="p">))))</span>
+<span class="p">(</span><span class="nv">get-page</span> <span class="s">"www.lisp.org"</span> <span class="mi">80</span> <span class="s">"/"</span><span class="p">))</span>
+</pre></div>
+
+<p>handler-bind take two forms as arguments. The first form contain exception handler functions. The above code explicitly invokes the get-default-content restart. To the end user, this looks as if the get-page call has succeeded and returned valid HTML. Restarts are what makes the Common Lisp condition system special. With the help of restarts exceptions can be handled without unwinding the stack. Restarts also allow functions to expose a list of error handling policies. This give callers the opportunity to choose one error handling strategy over another. Let us study this in detail.
+Error handling policies</p>
+
+<p>Error handling policies are implemented by providing more than one restart. Here is a new version of get-page that expose three policies: one that returns a default HTML document, another that will return the value passed by the caller and yet another that simply prints the exception message. A caller can choose any one that suits his need:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">defun</span> <span class="nv">get-page</span> <span class="p">(</span><span class="nv">host</span> <span class="nv">port</span> <span class="nv">page</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">restart-case</span> 
+    <span class="p">(</span><span class="k">let</span> <span class="p">((</span><span class="nv">sock</span> <span class="p">(</span><span class="nv">socket-connect</span> <span class="nv">host</span> <span class="nv">port</span><span class="p">)))</span>
+            <span class="p">(</span><span class="nv">socket-http-get</span> <span class="nv">sock</span> <span class="nv">page</span><span class="p">))</span>
+  <span class="p">(</span><span class="nv">get-default-content</span> <span class="p">()</span> 
+   <span class="s">"Page not found"</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">use-value</span> <span class="p">(</span><span class="nv">v</span><span class="p">)</span> <span class="nv">v</span><span class="p">)</span>
+  <span class="p">(</span><span class="nv">print-error</span> <span class="p">(</span><span class="nv">ex</span><span class="p">)</span> 
+    <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"Error: ~a~%"</span> <span class="p">(</span><span class="nv">text</span> <span class="nv">ex</span><span class="p">)))))</span>
+</pre></div>
+
+<p>Someone that opts to pass in a user defined HTML document on a socket connection error can call get-page like this:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">handler-bind</span> <span class="p">((</span><span class="nv">socket-connection-error</span>
+              <span class="nf">#'</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="nv">ex</span><span class="p">)</span>
+                  <span class="p">(</span><span class="nb">invoke-restart</span> <span class="ss">'use-value</span>
+    <span class="s">"Network error!"</span><span class="p">))))</span>
+<span class="p">(</span><span class="nv">get-page</span> <span class="s">"www.lisp.org"</span> <span class="mi">80</span> <span class="s">"/"</span><span class="p">))</span>
+</pre></div>
+
+<p>It is even possible to make the restart read a value from the end user, so that exception handling becomes more interactive:</p>
+
+<div class="highlight"><pre><span class="c1">;; more restarts</span>
+<span class="p">(</span><span class="nb">defun</span> <span class="nv">get-page</span> <span class="p">(</span><span class="nv">host</span> <span class="nv">port</span> <span class="nv">page</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">restart-case</span> 
+   <span class="p">(</span><span class="k">let</span> <span class="p">((</span><span class="nv">sock</span> <span class="p">(</span><span class="nv">socket-connect</span> <span class="nv">host</span> <span class="nv">port</span><span class="p">)))</span>
+            <span class="p">(</span><span class="nv">socket-http-get</span> <span class="nv">sock</span> <span class="nv">page</span><span class="p">))</span>
+     <span class="p">(</span><span class="nv">get-default-content</span> <span class="p">()</span> <span class="s">"hello, world"</span><span class="p">)</span>
+     <span class="p">(</span><span class="nb">use-value</span> <span class="p">(</span><span class="nv">v</span><span class="p">)</span> 
+       <span class="ss">:report</span> <span class="s">"Specify HTML to return"</span>
+       <span class="ss">:interactive</span> <span class="p">(</span><span class="k">lambda</span> <span class="p">()</span> <span class="p">(</span><span class="nb">list</span> <span class="p">(</span><span class="nb">read</span><span class="p">)))</span>
+     <span class="nv">v</span><span class="p">)</span>
+  <span class="p">(</span><span class="nv">print-error</span> <span class="p">(</span><span class="nv">ex</span><span class="p">)</span> <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"Error: ~a~%"</span> <span class="p">(</span><span class="nv">text</span> <span class="nv">ex</span><span class="p">)))))</span>
+</pre></div>
+
+<p>The debugger will provide the user with the prompt "Specify HTML to return" where he can specify the value to be returned by get-page. (Asking the user to type in HTML will not be a pleasant UI experience, though!)</p>
+
+<p>The following updated version of get-page makes the interactive restart feature more practical. It gives the user an option to specify a new URL to connect to. A connection is attempted until success. The exception is fixed just were it occurred, without losing context:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">defun</span> <span class="nv">get-page</span> <span class="p">(</span><span class="nv">host</span> <span class="nv">port</span> <span class="nv">page</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">loop</span>
+    <span class="p">(</span><span class="nb">restart-case</span> 
+        <span class="p">(</span><span class="k">let</span> <span class="p">((</span><span class="nv">sock</span> <span class="p">(</span><span class="nv">socket-connect</span> <span class="nv">host</span> <span class="nv">port</span><span class="p">)))</span>
+              <span class="p">(</span><span class="nb">return</span> <span class="p">(</span><span class="nv">socket-http-get</span> <span class="nv">sock</span> <span class="nv">page</span><span class="p">)))</span>
+    <span class="p">(</span><span class="nb">use-value</span> <span class="p">(</span><span class="nv">v</span><span class="p">)</span> <span class="p">(</span><span class="nb">setf</span> <span class="nv">host</span> <span class="nv">v</span><span class="p">)))))</span>
+</pre></div>
+
+<p>A user level function can now retry the connection from the get-page stack itself:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">defun</span> <span class="nv">download-page</span> <span class="p">(</span><span class="nv">url</span> <span class="nv">page</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">handler-bind</span> 
+    <span class="p">((</span><span class="nv">socket-connection-error</span>
+      <span class="nf">#'</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="nv">ex</span><span class="p">)</span> 
+          <span class="p">(</span><span class="nb">invoke-restart</span> <span class="ss">'use-value</span> 
+           <span class="p">(</span><span class="k">progn</span>
+            <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"Connection failed. Enter a new URL:"</span><span class="p">)</span>
+            <span class="p">(</span><span class="nb">list</span> <span class="p">(</span><span class="nb">read</span><span class="p">)))))))</span>
+   <span class="p">(</span><span class="nv">get-page</span> <span class="nv">url</span> <span class="mi">80</span> <span class="nv">page</span><span class="p">)))</span>
+</pre></div>
+
+<h2>More than handling errors!</h2>
+
+<p>The scope of the condition system is not limited to error handling. We can build signalling protocols on top of this so that functions can interact with each other in complex ways. The error function we used to raise a condition is built on top of a primitive called signal. This can be called directly to use conditions as a communication mechanism between functions. The following example shows how signal can be used to interleave execution of two functions:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nb">define-condition</span> <span class="nv">hand-over-control</span> <span class="p">(</span><span class="nb">error</span><span class="p">)</span> <span class="no">nil</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">defun</span> <span class="nv">f</span> <span class="p">()</span>
+   <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"f1 "</span><span class="p">)</span>
+   <span class="p">(</span><span class="nb">signal</span> <span class="p">(</span><span class="nb">make-condition</span> <span class="ss">'hand-over-control</span><span class="p">))</span>
+   <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"f2 "</span><span class="p">))</span>
+
+  <span class="p">(</span><span class="nb">defun</span> <span class="nv">g</span> <span class="p">()</span>
+   <span class="p">(</span><span class="nb">handler-bind</span>
+    <span class="p">((</span><span class="nv">hand-over-control</span> <span class="nf">#'</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="nv">hand-over-control-object</span><span class="p">)</span>
+                        <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"g1 "</span><span class="p">))))</span>
+   <span class="p">(</span><span class="nv">f</span><span class="p">))</span>
+   <span class="p">(</span><span class="nb">format</span> <span class="no">t</span> <span class="s">"g2~%"</span><span class="p">))</span>
+</pre></div>
+
+<p>A call to g will produce the following output:</p>
+
+<div class="highlight"><pre><span class="nb">&gt;</span> <span class="p">(</span><span class="nv">g</span><span class="p">)</span>
+   <span class="nv">f1</span> <span class="nv">g1</span> <span class="nv">f2</span> <span class="nv">g2</span>
+</pre></div>
+      </section>
+    </div>
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+	<div class="container"><a href="./index.html">./index</a></div>
+      </footer>
+    </div>
+    
+  </body>
+</html>
