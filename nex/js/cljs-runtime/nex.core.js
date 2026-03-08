@@ -7,22 +7,22 @@ nex.core.default_editor_source = (""+"-- Example program\n"+"let win := create W
 nex.core.nex_keywords = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 38, ["else",null,"retry",null,"of",null,"not",null,"class",null,"repeat",null,"elseif",null,"private",null,"ensure",null,"require",null,"fn",null,"note",null,"feature",null,"if",null,"let",null,"import",null,"or",null,"case",null,"inherit",null,"old",null,"when",null,"until",null,"raise",null,"function",null,"and",null,"do",null,"intern",null,"from",null,"across",null,"create",null,"with",null,"then",null,"rescue",null,"invariant",null,"as",null,"deferred",null,"end",null,"variant",null], null), null);
 nex.core.nex_types = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 16, ["Void",null,"Turtle",null,"Char",null,"Map",null,"Real",null,"Decimal",null,"Any",null,"Integer64",null,"Integer",null,"String",null,"Window",null,"Cursor",null,"Function",null,"Image",null,"Array",null,"Boolean",null], null), null);
 nex.core.nex_constants = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 3, ["false",null,"true",null,"nil",null], null), null);
-nex.core.nex_builtins = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 4, ["exception",null,"println",null,"print",null,"result",null], null), null);
+nex.core.nex_builtins = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 6, ["exception",null,"println",null,"type_is",null,"print",null,"type_of",null,"result",null], null), null);
 if((typeof nex !== 'undefined') && (typeof nex.core !== 'undefined') && (typeof nex.core.app_state !== 'undefined')){
 } else {
-nex.core.app_state = cljs.core.atom.cljs$core$IFn$_invoke$arity$1(cljs.core.PersistentHashMap.fromArrays([new cljs.core.Keyword(null,"docs-page","docs-page",384100997),new cljs.core.Keyword(null,"repl-var-types","repl-var-types",-509579547),new cljs.core.Keyword(null,"tutorial-visible","tutorial-visible",-1160851578),new cljs.core.Keyword(null,"typecheck-enabled","typecheck-enabled",-1119403315),new cljs.core.Keyword(null,"docs-pages","docs-pages",-1391259474),new cljs.core.Keyword(null,"repl-history-index","repl-history-index",-1565006671),new cljs.core.Keyword(null,"repl-history","repl-history",-1696427534),new cljs.core.Keyword(null,"editor-file-handle","editor-file-handle",144237907),new cljs.core.Keyword(null,"editor-files","editor-files",-1923906955),new cljs.core.Keyword(null,"repl-history-draft","repl-history-draft",-994272616),new cljs.core.Keyword(null,"ctx","ctx",-493610118),new cljs.core.Keyword(null,"editor-active-file","editor-active-file",-970607489)],[(0),cljs.core.PersistentArrayMap.EMPTY,false,false,new cljs.core.PersistentVector(null, 7, 5, cljs.core.PersistentVector.EMPTY_NODE, [(""+"<h3>1) First Program</h3>"+"<p>Start with a tiny program and comment syntax.</p>"+"<pre><code>print(\"Hello, Nex\")\n"+"-- This line is ignored by the compiler/interpreter\n"+"print(\"Hello again\")</code></pre>"+"<p>Use the REPL for short experiments and the editor for larger snippets.</p>"),(""+"<h3>2) Values, Variables, and Types</h3>"+"<p>Variables use <code>let</code> and assignment <code>:=</code>.</p>"+"<pre><code>let name: String := \"Ada\"\n"+"let age: Integer := 12\n"+"let height: Real := 1.52\n"+"let ok: Boolean := true\n\n"+"let x := 10\n"+"let y := x + 5\n"+"let maybe_name: ?String := nil</code></pre>"),(""+"<h3>3) Expressions and Control Flow</h3>"+"<pre><code>let a := 10 + 2 * 3\n"+"let b := (10 + 2) * 3\n"+"let same := a = b\n"+"let valid := (a &gt; 5) and not false</code></pre>"+"<p>Conditionals and expression-level choice:</p>"+"<pre><code>if age &gt;= 18 then\n"+"  print(\"adult\")\n"+"elseif age &gt;= 13 then\n"+"  print(\"teen\")\n"+"else\n"+"  print(\"child\")\n"+"end\n\n"+"let category := when age &gt;= 18 \"adult\" else \"minor\" end</code></pre>"+"<p><code>case/of</code> is also available for branch-by-value logic.</p>"),(""+"<h3>4) Repetition</h3>"+"<p>Nex loops from the tutorial: <code>from/until</code>, <code>repeat</code>, <code>across</code>.</p>"+"<pre><code>from\n"+"  let i: Integer := 1\n"+"until\n"+"  i &gt; 5\n"+"do\n"+"  print(i)\n"+"  i := i + 1\n"+"end</code></pre>"+"<pre><code>repeat 3 do\n"+"  print(\"tick\")\n"+"end\n\n"+"across [10, 20, 30] as x do\n"+"  print(x)\n"+"end</code></pre>"),(""+"<h3>5) Functions and Data Structures</h3>"+"<pre><code>function double(n: Integer): Integer\n"+"do\n"+"  result := n * 2\n"+"end\n\n"+"let inc := fn (n: Integer): Integer do\n"+"  result := n + 1\n"+"end</code></pre>"+"<p>Arrays and maps:</p>"+"<pre><code>let xs: Array [Integer] := [1, 2, 3]\n"+"print(xs.get(0))\n\n"+"let m: Map [String, String] := {\"name\": \"Nex\", \"kind\": \"language\"}\n"+"print(m.get(\"name\"))</code></pre>"),(""+"<h3>6) Classes, Generics, and Inheritance</h3>"+"<pre><code>class Counter\n"+"  create\n"+"    make(start: Integer) do\n"+"      this.value := start\n"+"    end\n\n"+"  feature\n"+"    value: Integer\n\n"+"    inc() do\n"+"      this.value := this.value + 1\n"+"    end\n"+"end\n\n"+"let c: Counter := create Counter.make(10)\n"+"c.inc</code></pre>"+"<p>Generics and inheritance are part of the core language and covered in detail in the full tutorial.</p>"),(""+"<h3>7) Contracts and Error Handling</h3>"+"<p>Nex supports Design by Contract with <code>require</code>, <code>ensure</code>, and <code>invariant</code>.</p>"+"<pre><code>spend(amount: Real)\n"+"  require\n"+"    enough: amount &lt;= money\n"+"  do\n"+"    money := money - amount\n"+"  ensure\n"+"    less: money = old money - amount\n"+"  end</code></pre>"+"<p>Error handling pattern:</p>"+"<pre><code>do\n"+"  raise \"not ready\"\n"+"rescue\n"+"  print(exception)\n"+"  retry\n"+"end</code></pre>"+"<p>In-app pages are synced to the flow in <code>docs/md/TUTORIAL.md</code>.</p>")], null),null,cljs.core.PersistentVector.EMPTY,null,new cljs.core.PersistentArrayMap(null, 1, ["scratch.nex",nex.core.default_editor_source], null),"",nex.interpreter.make_context(),"scratch.nex"]));
+nex.core.app_state = cljs.core.atom.cljs$core$IFn$_invoke$arity$1(cljs.core.PersistentHashMap.fromArrays([new cljs.core.Keyword(null,"docs-page","docs-page",384100997),new cljs.core.Keyword(null,"repl-var-types","repl-var-types",-509579547),new cljs.core.Keyword(null,"tutorial-visible","tutorial-visible",-1160851578),new cljs.core.Keyword(null,"docs-mode","docs-mode",-1709618583),new cljs.core.Keyword(null,"typecheck-enabled","typecheck-enabled",-1119403315),new cljs.core.Keyword(null,"docs-pages","docs-pages",-1391259474),new cljs.core.Keyword(null,"repl-history-index","repl-history-index",-1565006671),new cljs.core.Keyword(null,"repl-history","repl-history",-1696427534),new cljs.core.Keyword(null,"editor-file-handle","editor-file-handle",144237907),new cljs.core.Keyword(null,"editor-files","editor-files",-1923906955),new cljs.core.Keyword(null,"repl-history-draft","repl-history-draft",-994272616),new cljs.core.Keyword(null,"web-ide-pages","web-ide-pages",-1227866951),new cljs.core.Keyword(null,"ctx","ctx",-493610118),new cljs.core.Keyword(null,"editor-active-file","editor-active-file",-970607489)],[(0),cljs.core.PersistentArrayMap.EMPTY,false,new cljs.core.Keyword(null,"tutorial","tutorial",1017223195),false,new cljs.core.PersistentVector(null, 7, 5, cljs.core.PersistentVector.EMPTY_NODE, [(""+"<h3>1) First Program</h3>"+"<p>Start with a tiny program and comment syntax.</p>"+"<pre><code>print(\"Hello, Nex\")\n"+"-- This line is ignored by the compiler/interpreter\n"+"print(\"Hello again\")</code></pre>"+"<p>Use the REPL for short experiments and the editor for larger snippets.</p>"),(""+"<h3>2) Values, Variables, and Types</h3>"+"<p>Variables use <code>let</code> and assignment <code>:=</code>.</p>"+"<pre><code>let name: String := \"Ada\"\n"+"let age: Integer := 12\n"+"let height: Real := 1.52\n"+"let ok: Boolean := true\n\n"+"let x := 10\n"+"let y := x + 5\n"+"let maybe_name: ?String := nil</code></pre>"),(""+"<h3>3) Expressions and Control Flow</h3>"+"<pre><code>let a := 10 + 2 * 3\n"+"let b := (10 + 2) * 3\n"+"let same := a = b\n"+"let valid := (a &gt; 5) and not false</code></pre>"+"<p>Conditionals and expression-level choice:</p>"+"<pre><code>if age &gt;= 18 then\n"+"  print(\"adult\")\n"+"elseif age &gt;= 13 then\n"+"  print(\"teen\")\n"+"else\n"+"  print(\"child\")\n"+"end\n\n"+"let category := when age &gt;= 18 \"adult\" else \"minor\" end</code></pre>"+"<p><code>case/of</code> is also available for branch-by-value logic.</p>"),(""+"<h3>4) Repetition</h3>"+"<p>Nex loops from the tutorial: <code>from/until</code>, <code>repeat</code>, <code>across</code>.</p>"+"<pre><code>from\n"+"  let i: Integer := 1\n"+"until\n"+"  i &gt; 5\n"+"do\n"+"  print(i)\n"+"  i := i + 1\n"+"end</code></pre>"+"<pre><code>repeat 3 do\n"+"  print(\"tick\")\n"+"end\n\n"+"across [10, 20, 30] as x do\n"+"  print(x)\n"+"end</code></pre>"),(""+"<h3>5) Functions and Data Structures</h3>"+"<pre><code>function double(n: Integer): Integer\n"+"do\n"+"  result := n * 2\n"+"end\n\n"+"let inc := fn (n: Integer): Integer do\n"+"  result := n + 1\n"+"end</code></pre>"+"<p>Arrays and maps:</p>"+"<pre><code>let xs: Array [Integer] := [1, 2, 3]\n"+"print(xs.get(0))\n\n"+"let m: Map [String, String] := {\"name\": \"Nex\", \"kind\": \"language\"}\n"+"print(m.get(\"name\"))</code></pre>"),(""+"<h3>6) Classes, Generics, and Inheritance</h3>"+"<pre><code>class Counter\n"+"  create\n"+"    make(start: Integer) do\n"+"      this.value := start\n"+"    end\n\n"+"  feature\n"+"    value: Integer\n\n"+"    inc() do\n"+"      this.value := this.value + 1\n"+"    end\n"+"end\n\n"+"let c: Counter := create Counter.make(10)\n"+"c.inc</code></pre>"+"<p>Generics and inheritance are part of the core language and covered in detail in the full tutorial.</p>"),(""+"<h3>7) Contracts and Error Handling</h3>"+"<p>Nex supports Design by Contract with <code>require</code>, <code>ensure</code>, and <code>invariant</code>.</p>"+"<pre><code>spend(amount: Real)\n"+"  require\n"+"    enough: amount &lt;= money\n"+"  do\n"+"    money := money - amount\n"+"  ensure\n"+"    less: money = old money - amount\n"+"  end</code></pre>"+"<p>Error handling pattern:</p>"+"<pre><code>do\n"+"  raise \"not ready\"\n"+"rescue\n"+"  print(exception)\n"+"  retry\n"+"end</code></pre>"+"<p>In-app pages are synced to the flow in <code>docs/md/TUTORIAL.md</code>.</p>")], null),null,cljs.core.PersistentVector.EMPTY,null,new cljs.core.PersistentArrayMap(null, 1, ["scratch.nex",nex.core.default_editor_source], null),"",new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [(""+"<h3>1) Web IDE Layout</h3>"+"<p>The browser IDE is split into three working areas:</p>"+"<ul><li><b>Editor</b>: write and run larger programs.</li>"+"<li><b>REPL</b>: test expressions quickly.</li>"+"<li><b>Canvas</b>: drawing output for Window/Turtle examples.</li></ul>"),(""+"<h3>2) File Workflow</h3>"+"<p>Use the <code>File</code> menu for project-style editing in the browser:</p>"+"<ul><li><b>New File</b>: create a new buffer.</li>"+"<li><b>Open File</b>: load a local <code>.nex</code> file.</li>"+"<li><b>Save File</b>: save to the filesystem (or download fallback).</li></ul>"+"<p>Keyboard shortcuts: <code>Ctrl/Cmd+N</code>, <code>Ctrl/Cmd+O</code>, <code>Ctrl/Cmd+S</code>.</p>"),(""+"<h3>3) Editor + REPL Usage</h3>"+"<p>Editor controls:</p>"+"<ul><li><b>Format</b>: auto-format the current buffer.</li>"+"<li><b>Run In REPL</b>: execute editor content through the REPL runtime.</li></ul>"+"<p>REPL tips:</p>"+"<ul><li>Press <code>Enter</code> in REPL input to evaluate.</li>"+"<li>Use <code>ArrowUp</code>/<code>ArrowDown</code> for REPL history.</li>"+"<li>Toggle <b>Typecheck</b> before evaluation if you want static checks.</li></ul>"),(""+"<h3>4) Productivity Shortcuts</h3>"+"<ul><li><code>Ctrl+Enter</code> in editor: run editor buffer.</li>"+"<li><code>Ctrl+Shift+F</code> in editor: format buffer.</li>"+"<li><code>Tab</code>/<code>Shift+Tab</code>: indent/outdent selection.</li>"+"<li><code>Esc</code>: close open menus and the help pane.</li></ul>"+"<p>Use the Tutorial and this guide together: tutorial teaches language features, this guide teaches IDE workflow.</p>")], null),nex.interpreter.make_context(),"scratch.nex"]));
 }
 nex.core.by_id = (function nex$core$by_id(id){
 return document.getElementById(id);
 });
 nex.core.storage_get = (function nex$core$storage_get(k){
 try{return localStorage.getItem(k);
-}catch (e7279){var _ = e7279;
+}catch (e6082){var _ = e6082;
 return null;
 }});
 nex.core.storage_set_BANG_ = (function nex$core$storage_set_BANG_(k,v){
 try{return localStorage.setItem(k,v);
-}catch (e7280){var _ = e7280;
+}catch (e6083){var _ = e6083;
 return null;
 }});
 nex.core.storage_get_edn = (function nex$core$storage_get_edn(k,fallback){
@@ -30,7 +30,7 @@ var temp__5821__auto__ = nex.core.storage_get(k);
 if(cljs.core.truth_(temp__5821__auto__)){
 var raw = temp__5821__auto__;
 try{return cljs.reader.read_string.cljs$core$IFn$_invoke$arity$1(raw);
-}catch (e7281){var _ = e7281;
+}catch (e6084){var _ = e6084;
 return fallback;
 }} else {
 return fallback;
@@ -41,10 +41,10 @@ var hist = new cljs.core.Keyword(null,"repl-history","repl-history",-1696427534)
 return nex.core.storage_set_BANG_(nex.core.repl_history_storage_key,cljs.core.pr_str.cljs$core$IFn$_invoke$arity$variadic(cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([hist], 0)));
 });
 nex.core.persist_editor_state_BANG_ = (function nex$core$persist_editor_state_BANG_(){
-var map__7283 = cljs.core.deref(nex.core.app_state);
-var map__7283__$1 = cljs.core.__destructure_map(map__7283);
-var editor_files = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__7283__$1,new cljs.core.Keyword(null,"editor-files","editor-files",-1923906955));
-var editor_active_file = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__7283__$1,new cljs.core.Keyword(null,"editor-active-file","editor-active-file",-970607489));
+var map__6085 = cljs.core.deref(nex.core.app_state);
+var map__6085__$1 = cljs.core.__destructure_map(map__6085);
+var editor_files = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6085__$1,new cljs.core.Keyword(null,"editor-files","editor-files",-1923906955));
+var editor_active_file = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6085__$1,new cljs.core.Keyword(null,"editor-active-file","editor-active-file",-970607489));
 nex.core.storage_set_BANG_(nex.core.editor_files_storage_key,cljs.core.pr_str.cljs$core$IFn$_invoke$arity$variadic(cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([editor_files], 0)));
 
 return nex.core.storage_set_BANG_(nex.core.editor_active_file_storage_key,editor_active_file);
@@ -127,13 +127,13 @@ nex.core.typecheck_error_QMARK_ = (function nex$core$typecheck_error_QMARK_(e){
 return cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(new cljs.core.Keyword(null,"typecheck","typecheck",1714186884),new cljs.core.Keyword(null,"type","type",1174270348).cljs$core$IFn$_invoke$arity$1(cljs.core.ex_data(e)));
 });
 nex.core.remember_typed_lets_BANG_ = (function nex$core$remember_typed_lets_BANG_(stmts){
-var seq__7297 = cljs.core.seq(stmts);
-var chunk__7298 = null;
-var count__7299 = (0);
-var i__7300 = (0);
+var seq__6086 = cljs.core.seq(stmts);
+var chunk__6087 = null;
+var count__6088 = (0);
+var i__6089 = (0);
 while(true){
-if((i__7300 < count__7299)){
-var stmt = chunk__7298.cljs$core$IIndexed$_nth$arity$2(null,i__7300);
+if((i__6089 < count__6088)){
+var stmt = chunk__6087.cljs$core$IIndexed$_nth$arity$2(null,i__6089);
 if(cljs.core.truth_((function (){var and__5140__auto__ = cljs.core.map_QMARK_(stmt);
 if(and__5140__auto__){
 var and__5140__auto____$1 = cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(new cljs.core.Keyword(null,"let","let",-1282412701),new cljs.core.Keyword(null,"type","type",1174270348).cljs$core$IFn$_invoke$arity$1(stmt));
@@ -151,32 +151,32 @@ cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$4(nex.core.app_state,cljs.core.
 }
 
 
-var G__9552 = seq__7297;
-var G__9553 = chunk__7298;
-var G__9554 = count__7299;
-var G__9555 = (i__7300 + (1));
-seq__7297 = G__9552;
-chunk__7298 = G__9553;
-count__7299 = G__9554;
-i__7300 = G__9555;
+var G__6127 = seq__6086;
+var G__6128 = chunk__6087;
+var G__6129 = count__6088;
+var G__6130 = (i__6089 + (1));
+seq__6086 = G__6127;
+chunk__6087 = G__6128;
+count__6088 = G__6129;
+i__6089 = G__6130;
 continue;
 } else {
-var temp__5823__auto__ = cljs.core.seq(seq__7297);
+var temp__5823__auto__ = cljs.core.seq(seq__6086);
 if(temp__5823__auto__){
-var seq__7297__$1 = temp__5823__auto__;
-if(cljs.core.chunked_seq_QMARK_(seq__7297__$1)){
-var c__5673__auto__ = cljs.core.chunk_first(seq__7297__$1);
-var G__9560 = cljs.core.chunk_rest(seq__7297__$1);
-var G__9561 = c__5673__auto__;
-var G__9562 = cljs.core.count(c__5673__auto__);
-var G__9563 = (0);
-seq__7297 = G__9560;
-chunk__7298 = G__9561;
-count__7299 = G__9562;
-i__7300 = G__9563;
+var seq__6086__$1 = temp__5823__auto__;
+if(cljs.core.chunked_seq_QMARK_(seq__6086__$1)){
+var c__5673__auto__ = cljs.core.chunk_first(seq__6086__$1);
+var G__6131 = cljs.core.chunk_rest(seq__6086__$1);
+var G__6132 = c__5673__auto__;
+var G__6133 = cljs.core.count(c__5673__auto__);
+var G__6134 = (0);
+seq__6086 = G__6131;
+chunk__6087 = G__6132;
+count__6088 = G__6133;
+i__6089 = G__6134;
 continue;
 } else {
-var stmt = cljs.core.first(seq__7297__$1);
+var stmt = cljs.core.first(seq__6086__$1);
 if(cljs.core.truth_((function (){var and__5140__auto__ = cljs.core.map_QMARK_(stmt);
 if(and__5140__auto__){
 var and__5140__auto____$1 = cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(new cljs.core.Keyword(null,"let","let",-1282412701),new cljs.core.Keyword(null,"type","type",1174270348).cljs$core$IFn$_invoke$arity$1(stmt));
@@ -194,14 +194,14 @@ cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$4(nex.core.app_state,cljs.core.
 }
 
 
-var G__9574 = cljs.core.next(seq__7297__$1);
-var G__9575 = null;
-var G__9576 = (0);
-var G__9577 = (0);
-seq__7297 = G__9574;
-chunk__7298 = G__9575;
-count__7299 = G__9576;
-i__7300 = G__9577;
+var G__6135 = cljs.core.next(seq__6086__$1);
+var G__6136 = null;
+var G__6137 = (0);
+var G__6138 = (0);
+seq__6086 = G__6135;
+chunk__6087 = G__6136;
+count__6088 = G__6137;
+i__6089 = G__6138;
 continue;
 }
 } else {
@@ -222,8 +222,8 @@ return (""+"<span class='tok-str'>"+cljs.core.str.cljs$core$IFn$_invoke$arity$1(
 if(cljs.core.truth_(cljs.core.re_matches(/^[0-9]+(\.[0-9]+)?$/,tok))){
 return (""+"<span class='tok-num'>"+cljs.core.str.cljs$core$IFn$_invoke$arity$1(esc)+"</span>");
 } else {
-if(cljs.core.truth_((function (){var fexpr__7390 = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 2, ["->",null,":=",null], null), null);
-return (fexpr__7390.cljs$core$IFn$_invoke$arity$1 ? fexpr__7390.cljs$core$IFn$_invoke$arity$1(tok) : fexpr__7390.call(null,tok));
+if(cljs.core.truth_((function (){var fexpr__6090 = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 2, ["->",null,":=",null], null), null);
+return (fexpr__6090.cljs$core$IFn$_invoke$arity$1 ? fexpr__6090.cljs$core$IFn$_invoke$arity$1(tok) : fexpr__6090.call(null,tok));
 })())){
 return (""+"<span class='tok-op'>"+cljs.core.str.cljs$core$IFn$_invoke$arity$1(esc)+"</span>");
 } else {
@@ -287,7 +287,7 @@ return (hl.innerHTML = nex.core.highlight_code_html(editor.value));
 } else {
 return null;
 }
-}catch (e7440){var e = e7440;
+}catch (e6091){var e = e6091;
 return console.error("Highlight error:",e);
 }});
 nex.core.parser_debug_info = (function nex$core$parser_debug_info(){
@@ -305,7 +305,7 @@ return shadow_js.require(module_id,({}));
 } else {
 return null;
 }
-}catch (e7465){var _ = e7465;
+}catch (e6092){var _ = e6092;
 return null;
 }});
 return (""+"parser-debug: "+"global-lexer="+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.boolean$(typeof module$nex$parser_js$grammar$nexlangLexer !== 'undefined'))+", global-parser="+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.boolean$(typeof module$nex$parser_js$grammar$nexlangParser !== 'undefined'))+", cljs-lexer="+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.boolean$((cljs_mods["module$nex$parser_js$grammar$nexlangLexer"])))+", cljs-parser="+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.boolean$((cljs_mods["module$nex$parser_js$grammar$nexlangParser"])))+", require-antlr="+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.boolean$(shadow_require("module$node_modules$antlr4$dist$antlr4_web_cjs")))+", require-lexer="+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.boolean$((function (){var or__5142__auto__ = shadow_require("module$nex$parser_js$grammar$nexlangLexer");
@@ -401,11 +401,11 @@ var pos = cljs.core.count(v);
 return input_el.setSelectionRange(pos,pos);
 });
 nex.core.navigate_repl_history_BANG_ = (function nex$core$navigate_repl_history_BANG_(direction){
-var map__7637 = cljs.core.deref(nex.core.app_state);
-var map__7637__$1 = cljs.core.__destructure_map(map__7637);
-var repl_history = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__7637__$1,new cljs.core.Keyword(null,"repl-history","repl-history",-1696427534));
-var repl_history_index = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__7637__$1,new cljs.core.Keyword(null,"repl-history-index","repl-history-index",-1565006671));
-var repl_history_draft = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__7637__$1,new cljs.core.Keyword(null,"repl-history-draft","repl-history-draft",-994272616));
+var map__6093 = cljs.core.deref(nex.core.app_state);
+var map__6093__$1 = cljs.core.__destructure_map(map__6093);
+var repl_history = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6093__$1,new cljs.core.Keyword(null,"repl-history","repl-history",-1696427534));
+var repl_history_index = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6093__$1,new cljs.core.Keyword(null,"repl-history-index","repl-history-index",-1565006671));
+var repl_history_draft = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6093__$1,new cljs.core.Keyword(null,"repl-history-draft","repl-history-draft",-994272616));
 var input_el = nex.core.by_id("repl-input");
 var current_input = input_el.value;
 var n = cljs.core.count(repl_history);
@@ -615,10 +615,10 @@ return nex.core.report_file_error_BANG_("Save failed",err);
 }));
 });
 nex.core.save_current_file_BANG_ = (function nex$core$save_current_file_BANG_(){
-var map__8051 = nex.core.snapshot_active_editor_BANG_();
-var map__8051__$1 = cljs.core.__destructure_map(map__8051);
-var filename = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__8051__$1,new cljs.core.Keyword(null,"filename","filename",-1428840783));
-var content = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__8051__$1,new cljs.core.Keyword(null,"content","content",15833224));
+var map__6094 = nex.core.snapshot_active_editor_BANG_();
+var map__6094__$1 = cljs.core.__destructure_map(map__6094);
+var filename = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6094__$1,new cljs.core.Keyword(null,"filename","filename",-1428840783));
+var content = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6094__$1,new cljs.core.Keyword(null,"content","content",15833224));
 var existing_handle = new cljs.core.Keyword(null,"editor-file-handle","editor-file-handle",144237907).cljs$core$IFn$_invoke$arity$1(cljs.core.deref(nex.core.app_state));
 if(nex.core.fs_access_supported_QMARK_()){
 if(cljs.core.truth_(existing_handle)){
@@ -683,8 +683,8 @@ var or__5142__auto____$2 = cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(trimmed,
 if(or__5142__auto____$2){
 return or__5142__auto____$2;
 } else {
-return cljs.core.some((function (p1__8100_SHARP_){
-return clojure.string.ends_with_QMARK_(trimmed,p1__8100_SHARP_);
+return cljs.core.some((function (p1__6095_SHARP_){
+return clojure.string.ends_with_QMARK_(trimmed,p1__6095_SHARP_);
 }),new cljs.core.PersistentVector(null, 14, 5, cljs.core.PersistentVector.EMPTY_NODE, ["class","do","then","else","elseif","require","ensure","from","until","inherit","invariant","variant","rescue","of"], null));
 }
 }
@@ -705,12 +705,12 @@ return clojure.string.join.cljs$core$IFn$_invoke$arity$2("\n",acc);
 var line = cljs.core.first(remaining);
 var trimmed = clojure.string.trim(line);
 if(clojure.string.blank_QMARK_(trimmed)){
-var G__9776 = cljs.core.rest(remaining);
-var G__9777 = indent_level;
-var G__9778 = cljs.core.conj.cljs$core$IFn$_invoke$arity$2(acc,"");
-remaining = G__9776;
-indent_level = G__9777;
-acc = G__9778;
+var G__6139 = cljs.core.rest(remaining);
+var G__6140 = indent_level;
+var G__6141 = cljs.core.conj.cljs$core$IFn$_invoke$arity$2(acc,"");
+remaining = G__6139;
+indent_level = G__6140;
+acc = G__6141;
 continue;
 } else {
 var before_level = cljs.core.max.cljs$core$IFn$_invoke$arity$2((0),((nex.core.line_closes_block_QMARK_(trimmed))?(indent_level - (1)):indent_level));
@@ -722,12 +722,12 @@ return (!(clojure.string.starts_with_QMARK_(trimmed,"end")));
 return and__5140__auto__;
 }
 })())?(before_level + (1)):before_level);
-var G__9789 = cljs.core.rest(remaining);
-var G__9790 = after_level;
-var G__9791 = cljs.core.conj.cljs$core$IFn$_invoke$arity$2(acc,formatted);
-remaining = G__9789;
-indent_level = G__9790;
-acc = G__9791;
+var G__6142 = cljs.core.rest(remaining);
+var G__6143 = after_level;
+var G__6144 = cljs.core.conj.cljs$core$IFn$_invoke$arity$2(acc,formatted);
+remaining = G__6142;
+indent_level = G__6143;
+acc = G__6144;
 continue;
 }
 }
@@ -753,8 +753,8 @@ if((i >= (0))){
 var line = cljs.core.nth.cljs$core$IFn$_invoke$arity$2(lines,i);
 var t = clojure.string.trim(line);
 if(clojure.string.blank_QMARK_(t)){
-var G__9806 = (i - (1));
-i = G__9806;
+var G__6145 = (i - (1));
+i = G__6145;
 continue;
 } else {
 return line;
@@ -772,8 +772,8 @@ if((i < cljs.core.count(lines))){
 var line = cljs.core.nth.cljs$core$IFn$_invoke$arity$2(lines,i);
 var t = clojure.string.trim(line);
 if(clojure.string.blank_QMARK_(t)){
-var G__9818 = (i + (1));
-i = G__9818;
+var G__6146 = (i + (1));
+i = G__6146;
 continue;
 } else {
 return line;
@@ -830,12 +830,12 @@ return "";
 }
 })();
 var current_code_trim = clojure.string.trim(nex.core.line_without_comment(current_line));
-var next_after_trim = (function (){var G__8476 = next_after_line;
-var G__8476__$1 = (((G__8476 == null))?null:nex.core.line_without_comment(G__8476));
-if((G__8476__$1 == null)){
+var next_after_trim = (function (){var G__6096 = next_after_line;
+var G__6096__$1 = (((G__6096 == null))?null:nex.core.line_without_comment(G__6096));
+if((G__6096__$1 == null)){
 return null;
 } else {
-return clojure.string.trim(G__8476__$1);
+return clojure.string.trim(G__6096__$1);
 }
 })();
 var prev_code_trim = clojure.string.trim(nex.core.line_without_comment(prev_line));
@@ -868,9 +868,9 @@ var selected = cljs.core.subs.cljs$core$IFn$_invoke$arity$3(value,start,end);
 var after = cljs.core.subs.cljs$core$IFn$_invoke$arity$2(value,end);
 var lines = clojure.string.split.cljs$core$IFn$_invoke$arity$3(selected,/\n/,(-1));
 var shifted = cljs.core.map.cljs$core$IFn$_invoke$arity$2((function (line){
-var G__8516 = direction;
-var G__8516__$1 = (((G__8516 instanceof cljs.core.Keyword))?G__8516.fqn:null);
-switch (G__8516__$1) {
+var G__6097 = direction;
+var G__6097__$1 = (((G__6097 instanceof cljs.core.Keyword))?G__6097.fqn:null);
+switch (G__6097__$1) {
 case "right":
 return (""+"  "+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line));
 
@@ -964,25 +964,25 @@ if(cljs.core.truth_(cljs.core.array_QMARK_(v))){
 return cljs.core.pr_str.cljs$core$IFn$_invoke$arity$variadic(cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([cljs.core.vec(v)], 0));
 } else {
 if((v instanceof Map)){
-return cljs.core.pr_str.cljs$core$IFn$_invoke$arity$variadic(cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([cljs.core.into.cljs$core$IFn$_invoke$arity$2(cljs.core.PersistentArrayMap.EMPTY,(function (){var iter__5628__auto__ = (function nex$core$fmt_value_$_iter__8688(s__8689){
+return cljs.core.pr_str.cljs$core$IFn$_invoke$arity$variadic(cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([cljs.core.into.cljs$core$IFn$_invoke$arity$2(cljs.core.PersistentArrayMap.EMPTY,(function (){var iter__5628__auto__ = (function nex$core$fmt_value_$_iter__6098(s__6099){
 return (new cljs.core.LazySeq(null,(function (){
-var s__8689__$1 = s__8689;
+var s__6099__$1 = s__6099;
 while(true){
-var temp__5823__auto__ = cljs.core.seq(s__8689__$1);
+var temp__5823__auto__ = cljs.core.seq(s__6099__$1);
 if(temp__5823__auto__){
-var s__8689__$2 = temp__5823__auto__;
-if(cljs.core.chunked_seq_QMARK_(s__8689__$2)){
-var c__5626__auto__ = cljs.core.chunk_first(s__8689__$2);
+var s__6099__$2 = temp__5823__auto__;
+if(cljs.core.chunked_seq_QMARK_(s__6099__$2)){
+var c__5626__auto__ = cljs.core.chunk_first(s__6099__$2);
 var size__5627__auto__ = cljs.core.count(c__5626__auto__);
-var b__8696 = cljs.core.chunk_buffer(size__5627__auto__);
-if((function (){var i__8694 = (0);
+var b__6101 = cljs.core.chunk_buffer(size__5627__auto__);
+if((function (){var i__6100 = (0);
 while(true){
-if((i__8694 < size__5627__auto__)){
-var entry = cljs.core._nth(c__5626__auto__,i__8694);
-cljs.core.chunk_append(b__8696,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [(entry[(0)]),(entry[(1)])], null));
+if((i__6100 < size__5627__auto__)){
+var entry = cljs.core._nth(c__5626__auto__,i__6100);
+cljs.core.chunk_append(b__6101,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [(entry[(0)]),(entry[(1)])], null));
 
-var G__9845 = (i__8694 + (1));
-i__8694 = G__9845;
+var G__6148 = (i__6100 + (1));
+i__6100 = G__6148;
 continue;
 } else {
 return true;
@@ -990,13 +990,13 @@ return true;
 break;
 }
 })()){
-return cljs.core.chunk_cons(cljs.core.chunk(b__8696),nex$core$fmt_value_$_iter__8688(cljs.core.chunk_rest(s__8689__$2)));
+return cljs.core.chunk_cons(cljs.core.chunk(b__6101),nex$core$fmt_value_$_iter__6098(cljs.core.chunk_rest(s__6099__$2)));
 } else {
-return cljs.core.chunk_cons(cljs.core.chunk(b__8696),null);
+return cljs.core.chunk_cons(cljs.core.chunk(b__6101),null);
 }
 } else {
-var entry = cljs.core.first(s__8689__$2);
-return cljs.core.cons(new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [(entry[(0)]),(entry[(1)])], null),nex$core$fmt_value_$_iter__8688(cljs.core.rest(s__8689__$2)));
+var entry = cljs.core.first(s__6099__$2);
+return cljs.core.cons(new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [(entry[(0)]),(entry[(1)])], null),nex$core$fmt_value_$_iter__6098(cljs.core.rest(s__6099__$2)));
 }
 } else {
 return null;
@@ -1032,8 +1032,8 @@ var ast = nex.parser.ast(wrapped_code);
 var _ = nex.core.typecheck_ast_BANG_(ast);
 var method_def = cljs.core.first(new cljs.core.Keyword(null,"members","members",159001018).cljs$core$IFn$_invoke$arity$1(cljs.core.first(new cljs.core.Keyword(null,"body","body",-2049205669).cljs$core$IFn$_invoke$arity$1(cljs.core.first(new cljs.core.Keyword(null,"classes","classes",2037804510).cljs$core$IFn$_invoke$arity$1(ast))))));
 var body = new cljs.core.Keyword(null,"body","body",-2049205669).cljs$core$IFn$_invoke$arity$1(method_def);
-var result = cljs.core.last(cljs.core.mapv.cljs$core$IFn$_invoke$arity$2((function (p1__8818_SHARP_){
-return nex.interpreter.eval_node.cljs$core$IFn$_invoke$arity$2(ctx,p1__8818_SHARP_);
+var result = cljs.core.last(cljs.core.mapv.cljs$core$IFn$_invoke$arity$2((function (p1__6102_SHARP_){
+return nex.interpreter.eval_node.cljs$core$IFn$_invoke$arity$2(ctx,p1__6102_SHARP_);
 }),body));
 if(cljs.core.truth_(new cljs.core.Keyword(null,"typecheck-enabled","typecheck-enabled",-1119403315).cljs$core$IFn$_invoke$arity$1(cljs.core.deref(nex.core.app_state)))){
 nex.core.remember_typed_lets_BANG_(body);
@@ -1050,53 +1050,53 @@ var result = ((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(new cljs.core.Keywor
 return new cljs.core.PersistentArrayMap(null, 2, [new cljs.core.Keyword(null,"result","result",1415092211),result,new cljs.core.Keyword(null,"output","output",-1105869043),cljs.core.deref(new cljs.core.Keyword(null,"output","output",-1105869043).cljs$core$IFn$_invoke$arity$1(ctx))], null);
 });
 nex.core.show_runtime_output_BANG_ = (function nex$core$show_runtime_output_BANG_(output,result){
-var seq__8865_9846 = cljs.core.seq(output);
-var chunk__8866_9847 = null;
-var count__8867_9848 = (0);
-var i__8868_9849 = (0);
+var seq__6103_6149 = cljs.core.seq(output);
+var chunk__6104_6150 = null;
+var count__6105_6151 = (0);
+var i__6106_6152 = (0);
 while(true){
-if((i__8868_9849 < count__8867_9848)){
-var line_9850 = chunk__8866_9847.cljs$core$IIndexed$_nth$arity$2(null,i__8868_9849);
-nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_9850)));
+if((i__6106_6152 < count__6105_6151)){
+var line_6153 = chunk__6104_6150.cljs$core$IIndexed$_nth$arity$2(null,i__6106_6152);
+nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_6153)));
 
 
-var G__9851 = seq__8865_9846;
-var G__9852 = chunk__8866_9847;
-var G__9853 = count__8867_9848;
-var G__9854 = (i__8868_9849 + (1));
-seq__8865_9846 = G__9851;
-chunk__8866_9847 = G__9852;
-count__8867_9848 = G__9853;
-i__8868_9849 = G__9854;
+var G__6154 = seq__6103_6149;
+var G__6155 = chunk__6104_6150;
+var G__6156 = count__6105_6151;
+var G__6157 = (i__6106_6152 + (1));
+seq__6103_6149 = G__6154;
+chunk__6104_6150 = G__6155;
+count__6105_6151 = G__6156;
+i__6106_6152 = G__6157;
 continue;
 } else {
-var temp__5823__auto___9855 = cljs.core.seq(seq__8865_9846);
-if(temp__5823__auto___9855){
-var seq__8865_9856__$1 = temp__5823__auto___9855;
-if(cljs.core.chunked_seq_QMARK_(seq__8865_9856__$1)){
-var c__5673__auto___9857 = cljs.core.chunk_first(seq__8865_9856__$1);
-var G__9858 = cljs.core.chunk_rest(seq__8865_9856__$1);
-var G__9859 = c__5673__auto___9857;
-var G__9860 = cljs.core.count(c__5673__auto___9857);
-var G__9861 = (0);
-seq__8865_9846 = G__9858;
-chunk__8866_9847 = G__9859;
-count__8867_9848 = G__9860;
-i__8868_9849 = G__9861;
+var temp__5823__auto___6158 = cljs.core.seq(seq__6103_6149);
+if(temp__5823__auto___6158){
+var seq__6103_6159__$1 = temp__5823__auto___6158;
+if(cljs.core.chunked_seq_QMARK_(seq__6103_6159__$1)){
+var c__5673__auto___6160 = cljs.core.chunk_first(seq__6103_6159__$1);
+var G__6161 = cljs.core.chunk_rest(seq__6103_6159__$1);
+var G__6162 = c__5673__auto___6160;
+var G__6163 = cljs.core.count(c__5673__auto___6160);
+var G__6164 = (0);
+seq__6103_6149 = G__6161;
+chunk__6104_6150 = G__6162;
+count__6105_6151 = G__6163;
+i__6106_6152 = G__6164;
 continue;
 } else {
-var line_9862 = cljs.core.first(seq__8865_9856__$1);
-nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_9862)));
+var line_6165 = cljs.core.first(seq__6103_6159__$1);
+nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_6165)));
 
 
-var G__9863 = cljs.core.next(seq__8865_9856__$1);
-var G__9864 = null;
-var G__9865 = (0);
-var G__9866 = (0);
-seq__8865_9846 = G__9863;
-chunk__8866_9847 = G__9864;
-count__8867_9848 = G__9865;
-i__8868_9849 = G__9866;
+var G__6166 = cljs.core.next(seq__6103_6159__$1);
+var G__6167 = null;
+var G__6168 = (0);
+var G__6169 = (0);
+seq__6103_6149 = G__6166;
+chunk__6104_6150 = G__6167;
+count__6105_6151 = G__6168;
+i__6106_6152 = G__6169;
 continue;
 }
 } else {
@@ -1128,57 +1128,57 @@ nex.core.append_line_BANG_("input",(""+"nex> "+cljs.core.str.cljs$core$IFn$_invo
 cljs.core.reset_BANG_(new cljs.core.Keyword(null,"output","output",-1105869043).cljs$core$IFn$_invoke$arity$1(ctx),cljs.core.PersistentVector.EMPTY);
 
 try{if(nex.core.looks_like_definition_QMARK_(trimmed)){
-var map__9004 = nex.core.run_program_BANG_(ctx,trimmed);
-var map__9004__$1 = cljs.core.__destructure_map(map__9004);
-var result = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9004__$1,new cljs.core.Keyword(null,"result","result",1415092211));
-var output = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9004__$1,new cljs.core.Keyword(null,"output","output",-1105869043));
-var seq__9015_9867 = cljs.core.seq(output);
-var chunk__9016_9868 = null;
-var count__9017_9869 = (0);
-var i__9018_9870 = (0);
+var map__6108 = nex.core.run_program_BANG_(ctx,trimmed);
+var map__6108__$1 = cljs.core.__destructure_map(map__6108);
+var result = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6108__$1,new cljs.core.Keyword(null,"result","result",1415092211));
+var output = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6108__$1,new cljs.core.Keyword(null,"output","output",-1105869043));
+var seq__6109_6170 = cljs.core.seq(output);
+var chunk__6110_6171 = null;
+var count__6111_6172 = (0);
+var i__6112_6173 = (0);
 while(true){
-if((i__9018_9870 < count__9017_9869)){
-var line_9871 = chunk__9016_9868.cljs$core$IIndexed$_nth$arity$2(null,i__9018_9870);
-nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_9871)));
+if((i__6112_6173 < count__6111_6172)){
+var line_6174 = chunk__6110_6171.cljs$core$IIndexed$_nth$arity$2(null,i__6112_6173);
+nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_6174)));
 
 
-var G__9872 = seq__9015_9867;
-var G__9873 = chunk__9016_9868;
-var G__9874 = count__9017_9869;
-var G__9875 = (i__9018_9870 + (1));
-seq__9015_9867 = G__9872;
-chunk__9016_9868 = G__9873;
-count__9017_9869 = G__9874;
-i__9018_9870 = G__9875;
+var G__6175 = seq__6109_6170;
+var G__6176 = chunk__6110_6171;
+var G__6177 = count__6111_6172;
+var G__6178 = (i__6112_6173 + (1));
+seq__6109_6170 = G__6175;
+chunk__6110_6171 = G__6176;
+count__6111_6172 = G__6177;
+i__6112_6173 = G__6178;
 continue;
 } else {
-var temp__5823__auto___9876 = cljs.core.seq(seq__9015_9867);
-if(temp__5823__auto___9876){
-var seq__9015_9877__$1 = temp__5823__auto___9876;
-if(cljs.core.chunked_seq_QMARK_(seq__9015_9877__$1)){
-var c__5673__auto___9878 = cljs.core.chunk_first(seq__9015_9877__$1);
-var G__9879 = cljs.core.chunk_rest(seq__9015_9877__$1);
-var G__9880 = c__5673__auto___9878;
-var G__9881 = cljs.core.count(c__5673__auto___9878);
-var G__9882 = (0);
-seq__9015_9867 = G__9879;
-chunk__9016_9868 = G__9880;
-count__9017_9869 = G__9881;
-i__9018_9870 = G__9882;
+var temp__5823__auto___6179 = cljs.core.seq(seq__6109_6170);
+if(temp__5823__auto___6179){
+var seq__6109_6180__$1 = temp__5823__auto___6179;
+if(cljs.core.chunked_seq_QMARK_(seq__6109_6180__$1)){
+var c__5673__auto___6181 = cljs.core.chunk_first(seq__6109_6180__$1);
+var G__6182 = cljs.core.chunk_rest(seq__6109_6180__$1);
+var G__6183 = c__5673__auto___6181;
+var G__6184 = cljs.core.count(c__5673__auto___6181);
+var G__6185 = (0);
+seq__6109_6170 = G__6182;
+chunk__6110_6171 = G__6183;
+count__6111_6172 = G__6184;
+i__6112_6173 = G__6185;
 continue;
 } else {
-var line_9883 = cljs.core.first(seq__9015_9877__$1);
-nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_9883)));
+var line_6186 = cljs.core.first(seq__6109_6180__$1);
+nex.core.append_line_BANG_("out",(""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(line_6186)));
 
 
-var G__9884 = cljs.core.next(seq__9015_9877__$1);
-var G__9885 = null;
-var G__9886 = (0);
-var G__9887 = (0);
-seq__9015_9867 = G__9884;
-chunk__9016_9868 = G__9885;
-count__9017_9869 = G__9886;
-i__9018_9870 = G__9887;
+var G__6187 = cljs.core.next(seq__6109_6180__$1);
+var G__6188 = null;
+var G__6189 = (0);
+var G__6190 = (0);
+seq__6109_6170 = G__6187;
+chunk__6110_6171 = G__6188;
+count__6111_6172 = G__6189;
+i__6112_6173 = G__6190;
 continue;
 }
 } else {
@@ -1193,22 +1193,22 @@ return nex.core.append_line_BANG_("info","Loaded definition.");
 return null;
 }
 } else {
-var map__9058 = (function (){try{return nex.core.eval_wrapped_BANG_(ctx,nex.core.wrap_expression(trimmed));
-}catch (e9059){var e1 = e9059;
+var map__6113 = (function (){try{return nex.core.eval_wrapped_BANG_(ctx,nex.core.wrap_expression(trimmed));
+}catch (e6114){var e1 = e6114;
 if(nex.core.typecheck_error_QMARK_(e1)){
 throw e1;
 } else {
 try{return nex.core.eval_wrapped_BANG_(ctx,nex.core.wrap_statement_block(trimmed));
-}catch (e9060){var _e2 = e9060;
+}catch (e6115){var _e2 = e6115;
 throw e1;
 }}
 }})();
-var map__9058__$1 = cljs.core.__destructure_map(map__9058);
-var result = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9058__$1,new cljs.core.Keyword(null,"result","result",1415092211));
-var output = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9058__$1,new cljs.core.Keyword(null,"output","output",-1105869043));
+var map__6113__$1 = cljs.core.__destructure_map(map__6113);
+var result = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6113__$1,new cljs.core.Keyword(null,"result","result",1415092211));
+var output = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6113__$1,new cljs.core.Keyword(null,"output","output",-1105869043));
 return nex.core.show_runtime_output_BANG_(output,result);
 }
-}catch (e8971){var e = e8971;
+}catch (e6107){var e = e6107;
 var msg = (""+"Error: "+cljs.core.str.cljs$core$IFn$_invoke$arity$1((function (){var or__5142__auto__ = e.message;
 if(cljs.core.truth_(or__5142__auto__)){
 return or__5142__auto__;
@@ -1239,15 +1239,15 @@ cljs.core.reset_BANG_(new cljs.core.Keyword(null,"output","output",-1105869043).
 
 try{var ast = nex.parser.ast(source);
 var has_defs_QMARK_ = ((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(new cljs.core.Keyword(null,"program","program",781564284),new cljs.core.Keyword(null,"type","type",1174270348).cljs$core$IFn$_invoke$arity$1(ast))) && (((cljs.core.seq(new cljs.core.Keyword(null,"classes","classes",2037804510).cljs$core$IFn$_invoke$arity$1(ast))) || (((cljs.core.seq(new cljs.core.Keyword(null,"functions","functions",184951466).cljs$core$IFn$_invoke$arity$1(ast))) || (((cljs.core.seq(new cljs.core.Keyword(null,"imports","imports",-1249933394).cljs$core$IFn$_invoke$arity$1(ast))) || (cljs.core.seq(new cljs.core.Keyword(null,"interns","interns",693699831).cljs$core$IFn$_invoke$arity$1(ast))))))))));
-var map__9097 = ((has_defs_QMARK_)?(function (){
+var map__6117 = ((has_defs_QMARK_)?(function (){
 nex.interpreter.eval_node.cljs$core$IFn$_invoke$arity$2(ctx,ast);
 
 return new cljs.core.PersistentArrayMap(null, 2, [new cljs.core.Keyword(null,"result","result",1415092211),null,new cljs.core.Keyword(null,"output","output",-1105869043),cljs.core.deref(new cljs.core.Keyword(null,"output","output",-1105869043).cljs$core$IFn$_invoke$arity$1(ctx))], null);
 })()
 :nex.core.eval_wrapped_BANG_(ctx,nex.core.wrap_statement_block(trimmed)));
-var map__9097__$1 = cljs.core.__destructure_map(map__9097);
-var result = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9097__$1,new cljs.core.Keyword(null,"result","result",1415092211));
-var output = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9097__$1,new cljs.core.Keyword(null,"output","output",-1105869043));
+var map__6117__$1 = cljs.core.__destructure_map(map__6117);
+var result = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6117__$1,new cljs.core.Keyword(null,"result","result",1415092211));
+var output = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6117__$1,new cljs.core.Keyword(null,"output","output",-1105869043));
 nex.core.show_runtime_output_BANG_(output,result);
 
 if(((cljs.core.empty_QMARK_(output)) && ((result == null)))){
@@ -1255,7 +1255,7 @@ return nex.core.append_line_BANG_("info","Program loaded and executed.");
 } else {
 return null;
 }
-}catch (e9078){var e = e9078;
+}catch (e6116){var e = e6116;
 return nex.core.append_line_BANG_("err",(""+"Error: "+cljs.core.str.cljs$core$IFn$_invoke$arity$1((function (){var or__5142__auto__ = e.message;
 if(cljs.core.truth_(or__5142__auto__)){
 return or__5142__auto__;
@@ -1266,22 +1266,32 @@ return (""+cljs.core.str.cljs$core$IFn$_invoke$arity$1(e));
 }}
 });
 nex.core.update_docs_BANG_ = (function nex$core$update_docs_BANG_(){
-var map__9136 = cljs.core.deref(nex.core.app_state);
-var map__9136__$1 = cljs.core.__destructure_map(map__9136);
-var docs_pages = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9136__$1,new cljs.core.Keyword(null,"docs-pages","docs-pages",-1391259474));
-var docs_page = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__9136__$1,new cljs.core.Keyword(null,"docs-page","docs-page",384100997));
-var max_page = (cljs.core.count(docs_pages) - (1));
+var map__6118 = cljs.core.deref(nex.core.app_state);
+var map__6118__$1 = cljs.core.__destructure_map(map__6118);
+var docs_pages = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6118__$1,new cljs.core.Keyword(null,"docs-pages","docs-pages",-1391259474));
+var web_ide_pages = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6118__$1,new cljs.core.Keyword(null,"web-ide-pages","web-ide-pages",-1227866951));
+var docs_page = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6118__$1,new cljs.core.Keyword(null,"docs-page","docs-page",384100997));
+var docs_mode = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6118__$1,new cljs.core.Keyword(null,"docs-mode","docs-mode",-1709618583));
+var pages = ((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(docs_mode,new cljs.core.Keyword(null,"web-ide","web-ide",1676910289)))?web_ide_pages:docs_pages);
+var pane_title = ((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(docs_mode,new cljs.core.Keyword(null,"web-ide","web-ide",1676910289)))?"Web IDE Guide":"Tutorial");
+var max_page = (cljs.core.count(pages) - (1));
 var prev_btn = nex.core.by_id("docs-prev");
 var next_btn = nex.core.by_id("docs-next");
+var pane_title_el = nex.core.by_id("docs-pane-title");
 var title_el = nex.core.by_id("docs-title");
 var body_el = nex.core.by_id("docs-body");
 if(cljs.core.truth_((function (){var and__5140__auto__ = prev_btn;
 if(cljs.core.truth_(and__5140__auto__)){
 var and__5140__auto____$1 = next_btn;
 if(cljs.core.truth_(and__5140__auto____$1)){
-var and__5140__auto____$2 = title_el;
+var and__5140__auto____$2 = pane_title_el;
 if(cljs.core.truth_(and__5140__auto____$2)){
+var and__5140__auto____$3 = title_el;
+if(cljs.core.truth_(and__5140__auto____$3)){
 return body_el;
+} else {
+return and__5140__auto____$3;
+}
 } else {
 return and__5140__auto____$2;
 }
@@ -1292,9 +1302,11 @@ return and__5140__auto____$1;
 return and__5140__auto__;
 }
 })())){
-(title_el.textContent = (""+"Page "+cljs.core.str.cljs$core$IFn$_invoke$arity$1((docs_page + (1)))+" / "+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.count(docs_pages))));
+(pane_title_el.textContent = pane_title);
 
-(body_el.innerHTML = cljs.core.nth.cljs$core$IFn$_invoke$arity$2(docs_pages,docs_page));
+(title_el.textContent = (""+"Page "+cljs.core.str.cljs$core$IFn$_invoke$arity$1((docs_page + (1)))+" / "+cljs.core.str.cljs$core$IFn$_invoke$arity$1(cljs.core.count(pages))));
+
+(body_el.innerHTML = cljs.core.nth.cljs$core$IFn$_invoke$arity$2(pages,docs_page));
 
 (prev_btn.disabled = (docs_page === (0)));
 
@@ -1319,7 +1331,14 @@ return null;
 }
 });
 nex.core.open_tutorial_BANG_ = (function nex$core$open_tutorial_BANG_(){
-cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$variadic(nex.core.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"tutorial-visible","tutorial-visible",-1160851578),true,cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(0)], 0));
+cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$variadic(nex.core.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"tutorial-visible","tutorial-visible",-1160851578),true,cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([new cljs.core.Keyword(null,"docs-mode","docs-mode",-1709618583),new cljs.core.Keyword(null,"tutorial","tutorial",1017223195),new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(0)], 0));
+
+nex.core.update_docs_BANG_();
+
+return nex.core.update_tutorial_visibility_BANG_();
+});
+nex.core.open_web_ide_guide_BANG_ = (function nex$core$open_web_ide_guide_BANG_(){
+cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$variadic(nex.core.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"tutorial-visible","tutorial-visible",-1160851578),true,cljs.core.prim_seq.cljs$core$IFn$_invoke$arity$2([new cljs.core.Keyword(null,"docs-mode","docs-mode",-1709618583),new cljs.core.Keyword(null,"web-ide","web-ide",1676910289),new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(0)], 0));
 
 nex.core.update_docs_BANG_();
 
@@ -1340,53 +1359,53 @@ return null;
 }
 });
 nex.core.close_all_menus_BANG_ = (function nex$core$close_all_menus_BANG_(){
-var seq__9237 = cljs.core.seq(cljs.core.array_seq.cljs$core$IFn$_invoke$arity$1(document.querySelectorAll(".menu[open]")));
-var chunk__9238 = null;
-var count__9239 = (0);
-var i__9240 = (0);
+var seq__6119 = cljs.core.seq(cljs.core.array_seq.cljs$core$IFn$_invoke$arity$1(document.querySelectorAll(".menu[open]")));
+var chunk__6120 = null;
+var count__6121 = (0);
+var i__6122 = (0);
 while(true){
-if((i__9240 < count__9239)){
-var menu = chunk__9238.cljs$core$IIndexed$_nth$arity$2(null,i__9240);
+if((i__6122 < count__6121)){
+var menu = chunk__6120.cljs$core$IIndexed$_nth$arity$2(null,i__6122);
 menu.removeAttribute("open");
 
 
-var G__9888 = seq__9237;
-var G__9889 = chunk__9238;
-var G__9890 = count__9239;
-var G__9891 = (i__9240 + (1));
-seq__9237 = G__9888;
-chunk__9238 = G__9889;
-count__9239 = G__9890;
-i__9240 = G__9891;
+var G__6191 = seq__6119;
+var G__6192 = chunk__6120;
+var G__6193 = count__6121;
+var G__6194 = (i__6122 + (1));
+seq__6119 = G__6191;
+chunk__6120 = G__6192;
+count__6121 = G__6193;
+i__6122 = G__6194;
 continue;
 } else {
-var temp__5823__auto__ = cljs.core.seq(seq__9237);
+var temp__5823__auto__ = cljs.core.seq(seq__6119);
 if(temp__5823__auto__){
-var seq__9237__$1 = temp__5823__auto__;
-if(cljs.core.chunked_seq_QMARK_(seq__9237__$1)){
-var c__5673__auto__ = cljs.core.chunk_first(seq__9237__$1);
-var G__9892 = cljs.core.chunk_rest(seq__9237__$1);
-var G__9893 = c__5673__auto__;
-var G__9894 = cljs.core.count(c__5673__auto__);
-var G__9895 = (0);
-seq__9237 = G__9892;
-chunk__9238 = G__9893;
-count__9239 = G__9894;
-i__9240 = G__9895;
+var seq__6119__$1 = temp__5823__auto__;
+if(cljs.core.chunked_seq_QMARK_(seq__6119__$1)){
+var c__5673__auto__ = cljs.core.chunk_first(seq__6119__$1);
+var G__6195 = cljs.core.chunk_rest(seq__6119__$1);
+var G__6196 = c__5673__auto__;
+var G__6197 = cljs.core.count(c__5673__auto__);
+var G__6198 = (0);
+seq__6119 = G__6195;
+chunk__6120 = G__6196;
+count__6121 = G__6197;
+i__6122 = G__6198;
 continue;
 } else {
-var menu = cljs.core.first(seq__9237__$1);
+var menu = cljs.core.first(seq__6119__$1);
 menu.removeAttribute("open");
 
 
-var G__9896 = cljs.core.next(seq__9237__$1);
-var G__9897 = null;
-var G__9898 = (0);
-var G__9899 = (0);
-seq__9237 = G__9896;
-chunk__9238 = G__9897;
-count__9239 = G__9898;
-i__9240 = G__9899;
+var G__6199 = cljs.core.next(seq__6119__$1);
+var G__6200 = null;
+var G__6201 = (0);
+var G__6202 = (0);
+seq__6119 = G__6199;
+chunk__6120 = G__6200;
+count__6121 = G__6201;
+i__6122 = G__6202;
 continue;
 }
 } else {
@@ -1409,15 +1428,15 @@ document.body.appendChild(el);
 return el;
 }
 })();
-(root.innerHTML = (""+"<div class='shell'>"+"  <header class='topbar'><h1>Nex Browser IDE</h1><p>Editor-first workflow with REPL and Canvas.</p></header>"+"  <nav class='menu-bar'>"+"    <details class='menu'><summary>File</summary>"+"      <div class='menu-items'>"+"        <button id='menu-new'>New File (Ctrl/Cmd+N)</button>"+"        <button id='menu-open'>Open File (Ctrl/Cmd+O)</button>"+"        <button id='menu-save'>Save File (Ctrl/Cmd+S)</button>"+"      </div>"+"    </details>"+"    <details class='menu'><summary>Help</summary>"+"      <div class='menu-items'>"+"        <button id='menu-tutorial'>Tutorial</button>"+"      </div>"+"    </details>"+"    <span id='active-file-label' class='active-file-label'></span>"+"  </nav>"+"  <input id='open-file-input' type='file' accept='.nex,.txt,text/plain' style='display:none' />"+"  <main class='ide'>"+"    <section id='editor-main' class='panel editor-main without-tutorial'>"+"      <h2>Editor</h2>"+"      <div class='editor-workarea'>"+"        <div class='editor-code-wrap'>"+"          <pre id='editor-highlight' aria-hidden='true'></pre>"+"          <textarea id='editor-input' spellcheck='false'></textarea>"+"        </div>"+"        <aside id='tutorial-pane' class='tutorial-pane closed'>"+"          <div class='tutorial-head'>"+"            <h2>Tutorial</h2>"+"            <button id='tutorial-close'>Close</button>"+"          </div>"+"          <div class='docs-nav'>"+"            <button id='docs-prev'>Previous</button>"+"            <span id='docs-title'></span>"+"            <button id='docs-next'>Next</button>"+"          </div>"+"          <article id='docs-body' class='docs-body'></article>"+"        </aside>"+"      </div>"+"      <div class='editor-controls'><button id='editor-format'>Format</button><button id='editor-run'>Run In REPL</button></div>"+"    </section>"+"    <section class='bottom-split'>"+"      <section class='panel repl'>"+"        <h2>REPL</h2>"+"        <div id='repl-output' class='repl-output'></div>"+"        <div class='repl-controls'>"+"          <div class='repl-input-row'>"+"            <input id='repl-input' type='text' placeholder='Enter any Nex expression...' />"+"          </div>"+"          <div class='repl-actions'>"+"            <button id='repl-typecheck' class='toggle off'>Typecheck: OFF</button>"+"            <button id='repl-eval'>Evaluate</button>"+"            <button id='repl-clear'>Clear</button>"+"          </div>"+"        </div>"+"      </section>"+"      <section class='panel canvas'>"+"        <h2>Canvas</h2>"+"        <div id='canvas-host' class='canvas-host'></div>"+"      </section>"+"    </section>"+"  </main>"+"</div>"+"<style>"+"  :root { --bg:#f3efe8; --card:#fffdf9; --ink:#18130b; --muted:#7a6a58; --accent:#165d5a; --line:#d9cdbf; }"+"  * { box-sizing:border-box; }"+"  html, body { height:100%; }"+"  body { margin:0; font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; color:var(--ink); background:radial-gradient(circle at 0% 0%, #efe5d7, #f3efe8 45%); }"+"  .shell { height:100vh; padding:10px; display:grid; grid-template-rows:auto auto minmax(0, 1fr); gap:10px; overflow:hidden; }"+"  .topbar h1 { margin:0; font-size:1.35rem; }"+"  .topbar p { margin:4px 0 10px 0; color:var(--muted); }"+"  .menu-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; }"+"  .menu { position:relative; }"+"  .menu > summary { list-style:none; cursor:pointer; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; user-select:none; }"+"  .menu > summary::-webkit-details-marker { display:none; }"+"  .menu-items { position:absolute; top:36px; left:0; z-index:20; min-width:150px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px; box-shadow:0 10px 22px rgba(0,0,0,0.08); display:grid; gap:6px; }"+"  .menu-items button { width:100%; text-align:left; background:#f8f4ed; color:var(--ink); border:1px solid #e2d8ca; }"+"  .active-file-label { margin-left:auto; font-size:0.9rem; color:var(--muted); font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; }"+"  .ide { display:grid; grid-template-rows:minmax(0, 1fr) minmax(220px, 38vh); gap:12px; min-height:0; }"+"  .panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; }"+"  .panel h2 { margin:0 0 8px; font-size:1rem; }"+"  .editor-main { min-height:0; display:grid; grid-template-rows:auto minmax(0, 1fr) auto; gap:8px; }"+"  .editor-workarea { min-height:0; display:grid; grid-template-columns:minmax(0, 1fr); gap:12px; }"+"  .editor-main.with-tutorial .editor-workarea { grid-template-columns:minmax(0, 1fr) minmax(300px, 40%); }"+"  .editor-code-wrap { position:relative; height:100%; min-height:0; border:1px solid var(--line); border-radius:8px; overflow:auto; background:#fff; }"+"  #editor-highlight { margin:0; padding:10px; min-height:100%; white-space:pre; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.92rem; line-height:1.4; pointer-events:none; }"+"  textarea#editor-input { position:absolute; inset:0; width:100%; height:100%; resize:none; margin:0; padding:10px; border:0; outline:none; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.92rem; line-height:1.4; background:transparent; color:transparent; caret-color:#111; }"+"  textarea#editor-input::selection { background:rgba(22,93,90,0.2); color:transparent; }"+"  .tok-comment { color:#7a6a58; font-style:italic; } .tok-kw { color:#6a1b9a; font-weight:600; } .tok-type { color:#1e4ea1; font-weight:600; } .tok-const { color:#b71c1c; font-weight:600; } .tok-builtin { color:#00796b; } .tok-num { color:#ad1457; } .tok-str { color:#2e7d32; } .tok-op { color:#bf360c; font-weight:600; }"+"  .editor-controls { display:flex; justify-content:flex-end; gap:8px; }"+"  .bottom-split { display:grid; grid-template-columns:1fr 1fr; gap:12px; min-height:0; }"+"  .repl { min-height:0; display:grid; grid-template-rows:auto minmax(0, 1fr) auto; }"+"  .repl-output { min-height:0; overflow:auto; background:#18130b; color:#f8f2e8; border-radius:8px; padding:8px; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.9rem; }"+"  .repl-line { margin-bottom:4px; white-space:pre-wrap; } .repl-line.input { color:#6ec6ff; } .repl-line.result { color:#8ee59e; } .repl-line.err { color:#ff8a8a; } .repl-line.info { color:#f7cf86; }"+"  .repl-controls { margin-top:8px; display:grid; row-gap:8px; }"+"  .repl-controls input { width:100%; min-width:0; padding:8px; border:1px solid var(--line); border-radius:8px; }"+"  .repl-actions { display:flex; gap:8px; flex-wrap:wrap; }"+"  button { border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; }"+"  button.toggle.off { background:#8a7f70; border-color:#8a7f70; } button.toggle.on { background:#2f7a34; border-color:#2f7a34; }"+"  button:disabled { opacity:0.5; cursor:default; }"+"  .canvas { min-height:0; display:grid; grid-template-rows:auto minmax(0, 1fr); }"+"  .canvas-host { min-height:0; height:100%; border:1px dashed var(--line); border-radius:8px; padding:8px; background:#fff; overflow:auto; }"+"  .tutorial-pane { min-height:0; border:1px solid var(--line); border-radius:8px; background:#fcfaf5; padding:8px; display:grid; grid-template-rows:auto auto minmax(0, 1fr); gap:8px; }"+"  .tutorial-pane.closed { display:none; }"+"  .tutorial-pane.open { display:grid; }"+"  .tutorial-head { display:flex; align-items:center; justify-content:space-between; }"+"  .docs-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; }"+"  .docs-body { min-height:0; border:1px solid var(--line); border-radius:8px; padding:10px; color:var(--ink); background:#fff; overflow:auto; }"+"  .docs-body h3 { margin:0 0 8px; font-size:1rem; color:var(--ink); } .docs-body p { margin:0 0 8px; color:var(--muted); line-height:1.35; }"+"  .docs-body code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.88rem; } .docs-body pre { margin:0 0 8px; padding:8px; border:1px solid var(--line); border-radius:8px; background:#faf7f1; overflow:auto; } .docs-body pre code { color:var(--ink); }"+"  @media (max-width: 1200px) { .editor-main.with-tutorial .editor-workarea { grid-template-columns:1fr; grid-template-rows:minmax(0, 1fr) minmax(220px, 40%); } }"+"  @media (max-width: 980px) { .shell { height:auto; min-height:100vh; overflow:visible; } .ide { grid-template-rows:minmax(0, 1fr) auto; } .bottom-split { grid-template-columns:1fr; } .canvas-host { min-height:220px; } }"+"</style>"));
+(root.innerHTML = (""+"<div class='shell'>"+"  <header class='topbar'><h1>Nex Browser IDE</h1><p>Editor-first workflow with REPL and Canvas.</p></header>"+"  <nav class='menu-bar'>"+"    <details class='menu'><summary>File</summary>"+"      <div class='menu-items'>"+"        <button id='menu-new' class='menu-item-btn' aria-label='New File'>\uFF0B <span>New File (Ctrl/Cmd+N)</span></button>"+"        <button id='menu-open' class='menu-item-btn' aria-label='Open File'>\u21EA <span>Open File (Ctrl/Cmd+O)</span></button>"+"        <button id='menu-save' class='menu-item-btn' aria-label='Save File'>\u2193 <span>Save File (Ctrl/Cmd+S)</span></button>"+"      </div>"+"    </details>"+"    <details class='menu'><summary>Help</summary>"+"      <div class='menu-items'>"+"        <button id='menu-tutorial' class='menu-item-btn' aria-label='Tutorial'>? <span>Tutorial</span></button>"+"        <button id='menu-webide-guide' class='menu-item-btn' aria-label='Web IDE Guide'>\u24D8 <span>Web IDE Guide</span></button>"+"      </div>"+"    </details>"+"    <span id='active-file-label' class='active-file-label'></span>"+"  </nav>"+"  <input id='open-file-input' type='file' accept='.nex,.txt,text/plain' style='display:none' />"+"  <main class='ide'>"+"    <section id='editor-main' class='panel editor-main without-tutorial'>"+"      <h2>Editor</h2>"+"      <div class='editor-workarea'>"+"        <div class='editor-code-wrap'>"+"          <pre id='editor-highlight' aria-hidden='true'></pre>"+"          <textarea id='editor-input' spellcheck='false'></textarea>"+"        </div>"+"        <aside id='tutorial-pane' class='tutorial-pane closed'>"+"          <div class='tutorial-head'>"+"            <h2 id='docs-pane-title'>Tutorial</h2>"+"            <button id='tutorial-close' class='icon-btn' title='Close' aria-label='Close'>\u2715</button>"+"          </div>"+"          <div class='docs-nav'>"+"            <button id='docs-prev' class='icon-btn' title='Previous' aria-label='Previous'>\u2190</button>"+"            <span id='docs-title'></span>"+"            <button id='docs-next' class='icon-btn' title='Next' aria-label='Next'>\u2192</button>"+"          </div>"+"          <article id='docs-body' class='docs-body'></article>"+"        </aside>"+"      </div>"+"      <div class='editor-controls'><button id='editor-format' class='icon-btn' title='Format' aria-label='Format'>\u2263</button><button id='editor-run' class='icon-btn' title='Run In REPL' aria-label='Run In REPL'>\u25B6</button></div>"+"    </section>"+"    <section class='bottom-split'>"+"      <section class='panel repl'>"+"        <h2>REPL</h2>"+"        <div id='repl-output' class='repl-output'></div>"+"        <div class='repl-controls'>"+"          <div class='repl-input-row'>"+"            <input id='repl-input' type='text' placeholder='Enter any Nex expression...' />"+"          </div>"+"          <div class='repl-actions'>"+"            <button id='repl-eval' class='icon-btn' title='Evaluate' aria-label='Evaluate'>\u25B6</button>"+"            <button id='repl-clear' class='icon-btn' title='Clear' aria-label='Clear'>\u232B</button>"+"            <button id='repl-typecheck' class='toggle off'>Typecheck: OFF</button>"+"          </div>"+"        </div>"+"      </section>"+"      <section class='panel canvas'>"+"        <h2>Canvas</h2>"+"        <div id='canvas-host' class='canvas-host'></div>"+"      </section>"+"    </section>"+"  </main>"+"</div>"+"<style>"+"  :root { --bg-0:#07161e; --bg-1:#0f2b3a; --card:#0d2230; --line:#2f5263; --text:#e8f4ff; --muted:#9fb9c8; --accent:#33d1b0; --accent-2:#ffd166; --code-bg:#041018; --code-line:#234150; --editor-bg:#f8fbff; --editor-ink:#102a3a; --editor-line:#c6d8e5; }"+"  * { box-sizing:border-box; }"+"  html, body { height:100%; }"+"  body { margin:0; font-family:'Space Grotesk', ui-sans-serif, system-ui, sans-serif; color:var(--text); background:radial-gradient(1200px 500px at 10% -10%, #1d5169 0%, transparent 60%), radial-gradient(900px 450px at 100% 0%, #174f44 0%, transparent 58%), linear-gradient(160deg, var(--bg-0), var(--bg-1)); }"+"  .shell { height:100vh; padding:10px; display:grid; grid-template-rows:auto auto minmax(0, 1fr); gap:10px; overflow:hidden; }"+"  .topbar h1 { margin:0; font-size:1.35rem; }"+"  .topbar p { margin:4px 0 10px 0; color:var(--muted); }"+"  .menu-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; }"+"  .menu { position:relative; }"+"  .menu > summary { list-style:none; cursor:pointer; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:color-mix(in srgb, var(--card) 88%, transparent); color:var(--text); user-select:none; }"+"  .menu > summary::-webkit-details-marker { display:none; }"+"  .menu-items { position:absolute; top:36px; left:0; z-index:20; min-width:150px; background:color-mix(in srgb, var(--card) 92%, transparent); border:1px solid var(--line); border-radius:8px; padding:6px; box-shadow:0 10px 22px rgba(0,0,0,0.25); display:grid; gap:6px; }"+"  .menu-items button { width:100%; background:color-mix(in srgb, var(--card) 82%, transparent); color:var(--text); border:1px solid var(--line); }"+"  .menu-item-btn { display:flex; align-items:center; gap:8px; text-align:left; font-weight:600; }"+"  .active-file-label { margin-left:auto; font-size:0.9rem; color:var(--muted); font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; }"+"  .ide { display:grid; grid-template-rows:minmax(0, 1fr) minmax(220px, 38vh); gap:12px; min-height:0; }"+"  .panel { background:color-mix(in srgb, var(--card) 90%, transparent); border:1px solid var(--line); border-radius:10px; padding:10px; backdrop-filter:blur(4px); }"+"  .panel h2 { margin:0 0 8px; font-size:1rem; color:var(--accent-2); }"+"  .editor-main { min-height:0; display:grid; grid-template-rows:auto minmax(0, 1fr) auto; gap:8px; }"+"  .editor-workarea { min-height:0; display:grid; grid-template-columns:minmax(0, 1fr); gap:12px; }"+"  .editor-main.with-tutorial .editor-workarea { grid-template-columns:minmax(0, 1fr) minmax(300px, 40%); }"+"  .editor-code-wrap { position:relative; height:100%; min-height:0; border:1px solid var(--editor-line); border-radius:8px; overflow:auto; background:var(--editor-bg); }"+"  #editor-highlight { margin:0; padding:10px; min-height:100%; white-space:pre; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.92rem; line-height:1.4; pointer-events:none; color:var(--editor-ink); }"+"  textarea#editor-input { position:absolute; inset:0; width:100%; height:100%; resize:none; margin:0; padding:10px; border:0; outline:none; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.92rem; line-height:1.4; background:transparent; color:transparent; caret-color:var(--editor-ink); }"+"  textarea#editor-input::selection { background:rgba(51,209,176,0.25); color:transparent; }"+"  .tok-comment { color:#5e7384; font-style:italic; } .tok-kw { color:#5a1a86; font-weight:600; } .tok-type { color:#1e4ea1; font-weight:600; } .tok-const { color:#a61b3b; font-weight:600; } .tok-builtin { color:#0a6c67; } .tok-num { color:#8f1f73; } .tok-str { color:#1f6f42; } .tok-op { color:#9f3a15; font-weight:600; }"+"  .editor-controls { display:flex; justify-content:flex-start; gap:8px; }"+"  .bottom-split { display:grid; grid-template-columns:1fr 1fr; gap:12px; min-height:0; }"+"  .repl { min-height:0; display:grid; grid-template-rows:auto minmax(0, 1fr) auto; }"+"  .repl-output { min-height:0; overflow:auto; background:var(--code-bg); color:#d4efff; border:1px solid var(--code-line); border-radius:8px; padding:8px; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.9rem; }"+"  .repl-line { margin-bottom:4px; white-space:pre-wrap; } .repl-line.input { color:#6ec6ff; } .repl-line.result { color:#8ee59e; } .repl-line.err { color:#ff8a8a; } .repl-line.info { color:#f7cf86; }"+"  .repl-controls { margin-top:8px; display:grid; row-gap:8px; }"+"  .repl-controls input { width:100%; min-width:0; padding:8px; border:1px solid var(--line); border-radius:8px; background:#102a3a; color:var(--text); }"+"  .repl-actions { display:flex; gap:8px; flex-wrap:wrap; }"+"  button { border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; }"+"  button.icon-btn { min-width:36px; min-height:36px; padding:6px 10px; font-size:1rem; line-height:1; font-weight:700; }"+"  button.toggle.off { background:#5e7282; border-color:#5e7282; } button.toggle.on { background:#2f7a34; border-color:#2f7a34; }"+"  button:disabled { opacity:0.5; cursor:default; }"+"  .canvas { min-height:0; display:grid; grid-template-rows:auto minmax(0, 1fr); }"+"  .canvas-host { min-height:0; height:100%; border:1px dashed var(--line); border-radius:8px; padding:8px; background:#0b1f2b; overflow:auto; }"+"  .tutorial-pane { min-height:0; border:1px solid var(--line); border-radius:8px; background:color-mix(in srgb, var(--card) 94%, transparent); padding:8px; display:grid; grid-template-rows:auto auto minmax(0, 1fr); gap:8px; }"+"  .tutorial-pane.closed { display:none; }"+"  .tutorial-pane.open { display:grid; }"+"  .tutorial-head { display:flex; align-items:center; justify-content:space-between; }"+"  .docs-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; }"+"  .docs-body { min-height:0; border:1px solid var(--editor-line); border-radius:8px; padding:10px; color:var(--editor-ink); background:var(--editor-bg); overflow:auto; }"+"  .docs-body h3 { margin:0 0 8px; font-size:1rem; color:var(--editor-ink); } .docs-body p { margin:0 0 8px; color:#36546a; line-height:1.35; }"+"  .docs-body code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size:0.88rem; } .docs-body pre { margin:0 0 8px; padding:8px; border:1px solid var(--editor-line); border-radius:8px; background:#eef5fb; overflow:auto; } .docs-body pre code { color:var(--editor-ink); }"+"  @media (max-width: 1200px) { .editor-main.with-tutorial .editor-workarea { grid-template-columns:1fr; grid-template-rows:minmax(0, 1fr) minmax(220px, 40%); } }"+"  @media (max-width: 980px) { .shell { height:auto; min-height:100vh; overflow:visible; } .ide { grid-template-rows:minmax(0, 1fr) auto; } .bottom-split { grid-template-columns:1fr; } .canvas-host { min-height:220px; } }"+"</style>"));
 
 nex.core.load_storage_state_BANG_();
 
 nex.core.update_typecheck_ui_BANG_();
 
-var active_file_9900 = new cljs.core.Keyword(null,"editor-active-file","editor-active-file",-970607489).cljs$core$IFn$_invoke$arity$1(cljs.core.deref(nex.core.app_state));
-var active_content_9901 = cljs.core.get_in.cljs$core$IFn$_invoke$arity$3(cljs.core.deref(nex.core.app_state),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"editor-files","editor-files",-1923906955),active_file_9900], null),nex.core.default_editor_source);
-(nex.core.by_id("editor-input").value = active_content_9901);
+var active_file_6203 = new cljs.core.Keyword(null,"editor-active-file","editor-active-file",-970607489).cljs$core$IFn$_invoke$arity$1(cljs.core.deref(nex.core.app_state));
+var active_content_6204 = cljs.core.get_in.cljs$core$IFn$_invoke$arity$3(cljs.core.deref(nex.core.app_state),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"editor-files","editor-files",-1923906955),active_file_6203], null),nex.core.default_editor_source);
+(nex.core.by_id("editor-input").value = active_content_6204);
 
 nex.core.update_editor_highlight_BANG_();
 
@@ -1467,6 +1486,12 @@ return nex.core.close_all_menus_BANG_();
 
 nex.core.by_id("menu-tutorial").addEventListener("click",(function (_){
 nex.core.open_tutorial_BANG_();
+
+return nex.core.close_all_menus_BANG_();
+}));
+
+nex.core.by_id("menu-webide-guide").addEventListener("click",(function (_){
+nex.core.open_web_ide_guide_BANG_();
 
 return nex.core.close_all_menus_BANG_();
 }));
@@ -1525,8 +1550,8 @@ return null;
 }));
 
 nex.core.by_id("repl-input").addEventListener("keydown",(function (e){
-var G__9361 = e.key;
-switch (G__9361) {
+var G__6125 = e.key;
+switch (G__6125) {
 case "Enter":
 e.preventDefault();
 
@@ -1610,17 +1635,23 @@ return null;
 }));
 
 nex.core.by_id("docs-prev").addEventListener("click",(function (_){
-cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$4(nex.core.app_state,cljs.core.update,new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(function (p1__9258_SHARP_){
-return cljs.core.max.cljs$core$IFn$_invoke$arity$2((0),(p1__9258_SHARP_ - (1)));
+cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$4(nex.core.app_state,cljs.core.update,new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(function (p1__6123_SHARP_){
+return cljs.core.max.cljs$core$IFn$_invoke$arity$2((0),(p1__6123_SHARP_ - (1)));
 }));
 
 return nex.core.update_docs_BANG_();
 }));
 
 nex.core.by_id("docs-next").addEventListener("click",(function (_){
-var last_page_9903 = (cljs.core.count(new cljs.core.Keyword(null,"docs-pages","docs-pages",-1391259474).cljs$core$IFn$_invoke$arity$1(cljs.core.deref(nex.core.app_state))) - (1));
-cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$4(nex.core.app_state,cljs.core.update,new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(function (p1__9259_SHARP_){
-return cljs.core.min.cljs$core$IFn$_invoke$arity$2(last_page_9903,(p1__9259_SHARP_ + (1)));
+var map__6126_6206 = cljs.core.deref(nex.core.app_state);
+var map__6126_6207__$1 = cljs.core.__destructure_map(map__6126_6206);
+var docs_mode_6208 = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6126_6207__$1,new cljs.core.Keyword(null,"docs-mode","docs-mode",-1709618583));
+var docs_pages_6209 = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6126_6207__$1,new cljs.core.Keyword(null,"docs-pages","docs-pages",-1391259474));
+var web_ide_pages_6210 = cljs.core.get.cljs$core$IFn$_invoke$arity$2(map__6126_6207__$1,new cljs.core.Keyword(null,"web-ide-pages","web-ide-pages",-1227866951));
+var pages_6211 = ((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(docs_mode_6208,new cljs.core.Keyword(null,"web-ide","web-ide",1676910289)))?web_ide_pages_6210:docs_pages_6209);
+var last_page_6212 = (cljs.core.count(pages_6211) - (1));
+cljs.core.swap_BANG_.cljs$core$IFn$_invoke$arity$4(nex.core.app_state,cljs.core.update,new cljs.core.Keyword(null,"docs-page","docs-page",384100997),(function (p1__6124_SHARP_){
+return cljs.core.min.cljs$core$IFn$_invoke$arity$2(last_page_6212,(p1__6124_SHARP_ + (1)));
 }));
 
 return nex.core.update_docs_BANG_();
