@@ -260,6 +260,10 @@ class nexlangListener$$module$nex$parser_js$grammar$nexlangListener extends modu
   }
   exitPrimary(ctx) {
   }
+  enterConvertExpression(ctx) {
+  }
+  exitConvertExpression(ctx) {
+  }
   enterWhenExpression(ctx) {
   }
   exitWhenExpression(ctx) {
