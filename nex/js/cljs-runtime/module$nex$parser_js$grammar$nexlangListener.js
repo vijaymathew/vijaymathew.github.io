@@ -40,22 +40,6 @@ class nexlangListener$$module$nex$parser_js$grammar$nexlangListener extends modu
   }
   exitInheritEntry(ctx) {
   }
-  enterInheritAdaptation(ctx) {
-  }
-  exitInheritAdaptation(ctx) {
-  }
-  enterRenameClause(ctx) {
-  }
-  exitRenameClause(ctx) {
-  }
-  enterRenameItem(ctx) {
-  }
-  exitRenameItem(ctx) {
-  }
-  enterRedefineClause(ctx) {
-  }
-  exitRedefineClause(ctx) {
-  }
   enterFeatureSection(ctx) {
   }
   exitFeatureSection(ctx) {
@@ -323,6 +307,10 @@ class nexlangListener$$module$nex$parser_js$grammar$nexlangListener extends modu
   enterMapEntry(ctx) {
   }
   exitMapEntry(ctx) {
+  }
+  enterSetLiteral(ctx) {
+  }
+  exitSetLiteral(ctx) {
   }
 }
 /** @const */ 
