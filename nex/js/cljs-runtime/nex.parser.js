@@ -22,7 +22,7 @@ return shadow_js.require(module_id,({}));
 } else {
 return null;
 }
-}catch (e6048){var _ = e6048;
+}catch (e6059){var _ = e6059;
 return null;
 }});
 nex.parser.parse_tree__GT_sexpr = (function nex$parser$parse_tree__GT_sexpr(parser,node){
@@ -33,9 +33,9 @@ if((((!((node.ruleIndex == null)))) && ((!(nex.parser.js_undefined_QMARK_(node.r
 var rule_name = (parser.ruleNames[node.ruleIndex]);
 var child_count = node.getChildCount();
 var children = cljs.core.vec(cljs.core.remove.cljs$core$IFn$_invoke$arity$2(cljs.core.nil_QMARK_,cljs.core.map.cljs$core$IFn$_invoke$arity$2((function (i){
-var G__6058 = parser;
-var G__6059 = node.getChild(i);
-return (nex.parser.parse_tree__GT_sexpr.cljs$core$IFn$_invoke$arity$2 ? nex.parser.parse_tree__GT_sexpr.cljs$core$IFn$_invoke$arity$2(G__6058,G__6059) : nex.parser.parse_tree__GT_sexpr.call(null,G__6058,G__6059));
+var G__6076 = parser;
+var G__6077 = node.getChild(i);
+return (nex.parser.parse_tree__GT_sexpr.cljs$core$IFn$_invoke$arity$2 ? nex.parser.parse_tree__GT_sexpr.cljs$core$IFn$_invoke$arity$2(G__6076,G__6077) : nex.parser.parse_tree__GT_sexpr.call(null,G__6076,G__6077));
 }),cljs.core.range.cljs$core$IFn$_invoke$arity$1(child_count))));
 return cljs.core.into.cljs$core$IFn$_invoke$arity$2(new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.keyword.cljs$core$IFn$_invoke$arity$1(rule_name)], null),children);
 } else {
@@ -46,11 +46,11 @@ return node.getText();
 });
 nex.parser.parse = (function nex$parser$parse(input){
 var antlr = nex.parser.resolve_module(module$node_modules$antlr4$dist$antlr4_web_cjs,"antlr4");
-var lexer_mod = (function (){var or__5142__auto__ = window.__nexlangLexer;
+var lexer_mod = (function (){var or__5142__auto__ = module$nex$parser_js$grammar$nexlangLexer;
 if(cljs.core.truth_(or__5142__auto__)){
 return or__5142__auto__;
 } else {
-var or__5142__auto____$1 = module$nex$parser_js$grammar$nexlangLexer;
+var or__5142__auto____$1 = window.__nexlangLexer;
 if(cljs.core.truth_(or__5142__auto____$1)){
 return or__5142__auto____$1;
 } else {
@@ -85,11 +85,11 @@ return nex.parser.try_shadow_require("module$nex$parser_js$grammar$nexlangLexer.
 }
 }
 })();
-var parser_mod = (function (){var or__5142__auto__ = window.__nexlangParser;
+var parser_mod = (function (){var or__5142__auto__ = module$nex$parser_js$grammar$nexlangParser;
 if(cljs.core.truth_(or__5142__auto__)){
 return or__5142__auto__;
 } else {
-var or__5142__auto____$1 = module$nex$parser_js$grammar$nexlangParser;
+var or__5142__auto____$1 = window.__nexlangParser;
 if(cljs.core.truth_(or__5142__auto____$1)){
 return or__5142__auto____$1;
 } else {

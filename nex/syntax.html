@@ -52,6 +52,9 @@ until</a></li>
 <li><a href="#arrays" id="toc-arrays">Arrays</a></li>
 <li><a href="#maps" id="toc-maps">Maps</a></li>
 <li><a href="#sets" id="toc-sets">Sets</a></li>
+<li><a href="#concurrency-spawn-task-and-channel"
+id="toc-concurrency-spawn-task-and-channel">Concurrency: spawn, Task,
+and Channel</a></li>
 <li><a href="#classes" id="toc-classes">Classes</a></li>
 <li><a href="#creating-objects" id="toc-creating-objects">Creating
 Objects</a></li>
@@ -180,6 +183,85 @@ let b: Set[Integer] := #{3, 4}
 print(a.union(b))                 -- #{1, 2, 3, 4}
 print(a.intersection(b))          -- #{3}
 print(a.difference(b))            -- #{1, 2}</code></pre>
+<h2 id="concurrency-spawn-task-and-channel">Concurrency: spawn, Task,
+and Channel</h2>
+<p>Use <code>spawn</code> to start a lightweight task:</p>
+<pre class="nex"><code>let t: Task[Integer] := spawn do
+  result := 1 + 2
+end
+
+print(t.await)                    -- 3
+print(t.is_done)                  -- true (after completion)</code></pre>
+<p>If the spawn body does not assign <code>result</code>, the type is
+plain <code>Task</code>:</p>
+<pre class="nex"><code>let t: Task := spawn do
+  print(&quot;background work&quot;)
+end</code></pre>
+<p>Task operations: - <code>await</code> waits until the task finishes -
+<code>await(ms)</code> waits up to <code>ms</code> milliseconds and
+returns <code>nil</code> on timeout - <code>cancel</code> requests task
+cancellation and returns <code>true</code> if the task was cancelled
+before finishing - <code>is_done</code> reports whether the task has
+finished - <code>is_cancelled</code> reports whether the task was
+cancelled - <code>await_any([t1, t2, ...])</code> waits for the first
+task to finish and returns its result -
+<code>await_all([t1, t2, ...])</code> waits for all tasks and returns an
+array of results</p>
+<p>Use <code>Channel[T]</code> to communicate between tasks:</p>
+<pre class="nex"><code>let ch: Channel[Integer] := create Channel[Integer]
+
+spawn do
+  ch.send(42)
+end
+
+print(ch.receive)                 -- 42
+ch.close
+print(ch.is_closed)               -- true</code></pre>
+<p>Use <code>.with_capacity(n)</code> for buffered channels:</p>
+<pre class="nex"><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(10)
+ch.send(20)
+print(ch.size)                    -- 2
+print(ch.capacity)                -- 2</code></pre>
+<p>Channel operations: - <code>send(value)</code> blocks until accepted
+- <code>send(value, ms)</code> waits up to <code>ms</code> milliseconds
+and returns <code>true</code> on success, <code>false</code> on timeout
+- <code>receive</code> blocks until a value is available -
+<code>receive(ms)</code> waits up to <code>ms</code> milliseconds and
+returns <code>nil</code> on timeout - <code>try_send(value)</code>
+returns <code>true</code> if the send succeeds immediately, otherwise
+<code>false</code> - <code>try_receive</code> returns a value if one is
+immediately available, otherwise <code>nil</code> - <code>close</code>
+prevents future sends; buffered values may still be received -
+<code>is_closed</code>, <code>size</code>, and <code>capacity</code>
+report channel state</p>
+<p>Use <code>select</code> to wait on multiple channel operations or
+completed tasks:</p>
+<pre class="nex"><code>select
+  when jobs.receive as job then
+    print(job)
+  when worker.await as value then
+    print(value)
+  when control.receive as signal then
+    print(signal)
+  timeout 1000 then
+    print(&quot;timed out&quot;)
+  else
+    print(&quot;idle&quot;)
+end</code></pre>
+<p><code>select</code> probes its clauses using <code>try_send</code> /
+<code>try_receive</code> for channels and <code>is_done</code> for
+tasks. Task clauses must use <code>Task.await</code>; they fire only
+when the task has already completed. If no clause is ready and there is
+no <code>else</code>, <code>select</code> waits until one becomes
+ready.</p>
+<p>JavaScript target note: - generated JavaScript uses Promise-based
+semantics - Nex source syntax stays the same - <code>spawn</code> lowers
+to async task code - <code>Task.await</code>, <code>Channel.send</code>,
+and <code>Channel.receive</code> lower to <code>await ...</code> in
+generated JavaScript</p>
+<p>For full concurrency semantics and runtime details, see <a
+href="CONCURRENCY.md">CONCURRENCY.md</a>.</p>
 <h2 id="classes">Classes</h2>
 <p>A class bundles data and actions together:</p>
 <pre class="nex"><code>class Pet
