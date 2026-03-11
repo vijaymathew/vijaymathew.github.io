@@ -124,6 +124,18 @@ class nexlangListener$$module$nex$parser_js$grammar$nexlangListener extends modu
   }
   exitCaseClause(ctx) {
   }
+  enterSelectStatement(ctx) {
+  }
+  exitSelectStatement(ctx) {
+  }
+  enterSelectClause(ctx) {
+  }
+  exitSelectClause(ctx) {
+  }
+  enterTimeoutClause(ctx) {
+  }
+  exitTimeoutClause(ctx) {
+  }
   enterScopedBlock(ctx) {
   }
   exitScopedBlock(ctx) {
@@ -155,6 +167,10 @@ class nexlangListener$$module$nex$parser_js$grammar$nexlangListener extends modu
   enterRetryStatement(ctx) {
   }
   exitRetryStatement(ctx) {
+  }
+  enterSpawnExpression(ctx) {
+  }
+  exitSpawnExpression(ctx) {
   }
   enterVariantClause(ctx) {
   }

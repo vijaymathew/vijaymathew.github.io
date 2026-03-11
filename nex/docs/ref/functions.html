@@ -165,6 +165,9 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#println" id="toc-println" class="nav-link" data-scroll-target="#println"><code>println</code></a></li>
   <li><a href="#type_of" id="toc-type_of" class="nav-link" data-scroll-target="#type_of"><code>type_of</code></a></li>
   <li><a href="#type_is" id="toc-type_is" class="nav-link" data-scroll-target="#type_is"><code>type_is</code></a></li>
+  <li><a href="#sleep" id="toc-sleep" class="nav-link" data-scroll-target="#sleep"><code>sleep</code></a></li>
+  <li><a href="#await_any" id="toc-await_any" class="nav-link" data-scroll-target="#await_any"><code>await_any</code></a></li>
+  <li><a href="#await_all" id="toc-await_all" class="nav-link" data-scroll-target="#await_all"><code>await_all</code></a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul>
 </nav>
@@ -211,6 +214,33 @@ ul.task-list li input[type="checkbox"] {
 <pre class="nex"><code>type_is(type_name: String, value): Boolean</code></pre>
 <p>Checks runtime type compatibility (including built-in inheritance relationships like scalar types implementing <code>Comparable</code>/<code>Hashable</code>, and cursor types matching <code>Cursor</code>).</p>
 </section>
+<section id="sleep" class="level2">
+<h2 class="anchored" data-anchor-id="sleep"><code>sleep</code></h2>
+<pre class="nex"><code>sleep(ms: Integer)</code></pre>
+<p>Blocks the current task for approximately <code>ms</code> milliseconds. Returns <code>nil</code>.</p>
+<p><code>ms</code> must be a non-negative integer.</p>
+</section>
+<section id="await_any" class="level2">
+<h2 class="anchored" data-anchor-id="await_any"><code>await_any</code></h2>
+<pre class="nex"><code>await_any(tasks: Array[Task[T]]): T</code></pre>
+<p>Waits for the first task in <code>tasks</code> to complete and returns its result.</p>
+<p>Rules:</p>
+<ul>
+<li><code>tasks</code> must be an array of tasks</li>
+<li>an empty array is an error</li>
+<li>if the first completed task failed, the failure is re-raised</li>
+</ul>
+</section>
+<section id="await_all" class="level2">
+<h2 class="anchored" data-anchor-id="await_all"><code>await_all</code></h2>
+<pre class="nex"><code>await_all(tasks: Array[Task[T]]): Array[T]</code></pre>
+<p>Waits for all tasks in <code>tasks</code> and returns an array of results in input order.</p>
+<p>Rules:</p>
+<ul>
+<li><code>tasks</code> must be an array of tasks</li>
+<li>if a task fails, the failure is re-raised when collecting results</li>
+</ul>
+</section>
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>
 <pre class="nex"><code>print("hello", 42, true)
@@ -219,7 +249,19 @@ println("done")
 let x := 12
 print(type_of(x))                 -- "Integer"
 print(type_is("Comparable", x))   -- true
-print(type_is("String", x))       -- false</code></pre>
+print(type_is("String", x))       -- false
+
+let fast: Task[Integer] := spawn do
+  result := 2
+end
+
+let slow: Task[Integer] := spawn do
+  sleep(10)
+  result := 1
+end
+
+print(await_any([slow, fast]))    -- 2
+print(await_all([slow, fast]))    -- [1, 2]</code></pre>
 
 
 </section>

@@ -14,7 +14,7 @@
     "href": "index.html#contents",
     "title": "Nex Reference",
     "section": "",
-    "text": "Built-in Functions\nFoundational Classes\nScalar Types\nCollection Types\nCursor Types\nSystem Classes\nGraphics Classes",
+    "text": "Built-in Functions\nFoundational Classes\nScalar Types\nCollection Types\nCursor Types\nSystem Classes\nConcurrency Guide\nGraphics Classes",
     "crumbs": [
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Contents</span>"
     ]
@@ -80,11 +80,41 @@
     ]
   },
   {
+    "objectID": "functions.html#sleep",
+    "href": "functions.html#sleep",
+    "title": "Built-in Functions",
+    "section": "sleep",
+    "text": "sleep\nsleep(ms: Integer)\nBlocks the current task for approximately ms milliseconds. Returns nil.\nms must be a non-negative integer.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Built-in Functions</span>"
+    ]
+  },
+  {
+    "objectID": "functions.html#await_any",
+    "href": "functions.html#await_any",
+    "title": "Built-in Functions",
+    "section": "await_any",
+    "text": "await_any\nawait_any(tasks: Array[Task[T]]): T\nWaits for the first task in tasks to complete and returns its result.\nRules:\n\ntasks must be an array of tasks\nan empty array is an error\nif the first completed task failed, the failure is re-raised",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Built-in Functions</span>"
+    ]
+  },
+  {
+    "objectID": "functions.html#await_all",
+    "href": "functions.html#await_all",
+    "title": "Built-in Functions",
+    "section": "await_all",
+    "text": "await_all\nawait_all(tasks: Array[Task[T]]): Array[T]\nWaits for all tasks in tasks and returns an array of results in input order.\nRules:\n\ntasks must be an array of tasks\nif a task fails, the failure is re-raised when collecting results",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Built-in Functions</span>"
+    ]
+  },
+  {
     "objectID": "functions.html#examples",
     "href": "functions.html#examples",
     "title": "Built-in Functions",
     "section": "Examples",
-    "text": "Examples\nprint(\"hello\", 42, true)\nprintln(\"done\")\n\nlet x := 12\nprint(type_of(x))                 -- \"Integer\"\nprint(type_is(\"Comparable\", x))   -- true\nprint(type_is(\"String\", x))       -- false",
+    "text": "Examples\nprint(\"hello\", 42, true)\nprintln(\"done\")\n\nlet x := 12\nprint(type_of(x))                 -- \"Integer\"\nprint(type_is(\"Comparable\", x))   -- true\nprint(type_is(\"String\", x))       -- false\n\nlet fast: Task[Integer] := spawn do\n  result := 2\nend\n\nlet slow: Task[Integer] := spawn do\n  sleep(10)\n  result := 1\nend\n\nprint(await_any([slow, fast]))    -- 2\nprint(await_all([slow, fast]))    -- [1, 2]",
     "crumbs": [
       "<span class='chapter-number'>2</span>  <span class='chapter-title'>Built-in Functions</span>"
     ]
@@ -390,11 +420,31 @@
     ]
   },
   {
+    "objectID": "system-classes.html#task",
+    "href": "system-classes.html#task",
+    "title": "System Classes",
+    "section": "Task",
+    "text": "Task\nTask values are returned by spawn.\n\nConstruction\nlet t: Task[Integer] := spawn do\n  result := 42\nend\n\n\nMethods\n\n\n\n\n\n\n\n\n\nMethod\nArguments\nReturns\nDescription\n\n\n\n\nawait\nnone\nT\nWait until the task completes and return its result.\n\n\nawait\nms: Integer\n?T\nWait up to ms milliseconds and return nil on timeout.\n\n\ncancel\nnone\nBoolean\nRequest cancellation of the task.\n\n\nis_done\nnone\nBoolean\nTrue if the task has finished.\n\n\nis_cancelled\nnone\nBoolean\nTrue if the task was cancelled.\n\n\n\n\n\nNotes\n\nIf a task fails, await re-raises the failure.\nIf a cancelled task is awaited, a task-cancelled failure is raised.\nawait(ms) returns nil only for timeout; failure and cancellation still raise.",
+    "crumbs": [
+      "<span class='chapter-number'>7</span>  <span class='chapter-title'>System Classes</span>"
+    ]
+  },
+  {
+    "objectID": "system-classes.html#channelt",
+    "href": "system-classes.html#channelt",
+    "title": "System Classes",
+    "section": "Channel[T]",
+    "text": "Channel[T]\nChannel[T] is Nex’s built-in coordination primitive for exchanging values between tasks.\n\nConstruction\ncreate Channel[Integer]\ncreate Channel[Integer].with_capacity(2)\n\n\nMethods\n\n\n\n\n\n\n\n\n\nMethod\nArguments\nReturns\nDescription\n\n\n\n\nsend\nvalue: T\nVoid\nSend a value, blocking until accepted.\n\n\nsend\nvalue: T, ms: Integer\nBoolean\nSend with timeout; returns false on timeout.\n\n\ntry_send\nvalue: T\nBoolean\nAttempt immediate send.\n\n\nreceive\nnone\nT\nReceive a value, blocking until available.\n\n\nreceive\nms: Integer\n?T\nReceive with timeout; returns nil on timeout.\n\n\ntry_receive\nnone\n?T\nAttempt immediate receive.\n\n\nclose\nnone\nVoid\nClose the channel for future sends.\n\n\nis_closed\nnone\nBoolean\nTrue if the channel is closed.\n\n\ncapacity\nnone\nInteger\nChannel capacity.\n\n\nsize\nnone\nInteger\nNumber of buffered values.\n\n\n\n\n\nNotes\n\ncreate Channel[T] creates an unbuffered channel.\ncreate Channel[T].with_capacity(n) creates a buffered channel with capacity n.\nSends on a closed channel fail.\nBuffered values remain receivable after close.\nOnce a channel is closed and drained, receive fails.",
+    "crumbs": [
+      "<span class='chapter-number'>7</span>  <span class='chapter-title'>System Classes</span>"
+    ]
+  },
+  {
     "objectID": "system-classes.html#examples",
     "href": "system-classes.html#examples",
     "title": "System Classes",
     "section": "Examples",
-    "text": "Examples\nlet con := create Console\ncon.print_line(\"Enter your name:\")\nlet name := con.read_line()\ncon.print_line(\"Hello, \" + name)\n\nlet f := create File.open(\"notes.txt\")\nf.write(\"line 1\")\nf.append(\"\\nline 2\")\nprint(f.exists())\nprint(f.lines())\n\nlet p := create Process\nprint(p.getenv(\"HOME\"))\nprint(p.command_line())",
+    "text": "Examples\nlet con := create Console\ncon.print_line(\"Enter your name:\")\nlet name := con.read_line()\ncon.print_line(\"Hello, \" + name)\n\nlet f := create File.open(\"notes.txt\")\nf.write(\"line 1\")\nf.append(\"\\nline 2\")\nprint(f.exists())\nprint(f.lines())\n\nlet p := create Process\nprint(p.getenv(\"HOME\"))\nprint(p.command_line())\n\nlet t: Task[Integer] := spawn do\n  result := 42\nend\nprint(t.await)\n\nlet ch: Channel[Integer] := create Channel[Integer].with_capacity(1)\nprint(ch.try_send(7))\nprint(ch.receive)",
     "crumbs": [
       "<span class='chapter-number'>7</span>  <span class='chapter-title'>System Classes</span>"
     ]

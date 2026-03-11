@@ -63,6 +63,9 @@ Structures</a>
 <ul>
 <li><a href="#arrays" id="toc-arrays">7.1 Arrays</a></li>
 <li><a href="#maps" id="toc-maps">7.2 Maps</a></li>
+<li><a href="#sets" id="toc-sets">7.3 Sets</a></li>
+<li><a href="#tasks-and-channels" id="toc-tasks-and-channels">7.4 Tasks
+and Channels</a></li>
 </ul></li>
 <li><a href="#classes-and-objects" id="toc-classes-and-objects">8.
 Classes and Objects</a></li>
@@ -71,6 +74,10 @@ Classes</a></li>
 <li><a href="#inheritance" id="toc-inheritance">10. Inheritance</a></li>
 <li><a href="#design-by-contract" id="toc-design-by-contract">11. Design
 by Contract</a></li>
+<li><a href="#debugger-quickstart" id="toc-debugger-quickstart">12.
+Debugger Quickstart</a></li>
+<li><a href="#errors-and-recovery" id="toc-errors-and-recovery">12.
+Errors and Recovery</a></li>
 <li><a href="#modules-and-interop" id="toc-modules-and-interop">13.
 Modules and Interop</a>
 <ul>
@@ -205,6 +212,83 @@ print(xs.get(0))</code></pre>
 <pre class="nex"><code>let m: Map [String, String] := {&quot;name&quot;: &quot;Nex&quot;, &quot;kind&quot;: &quot;language&quot;}
 print(m.get(&quot;name&quot;))</code></pre>
 <p>Array and map literals are expressions, so they can be nested.</p>
+<h3 id="sets">7.3 Sets</h3>
+<pre class="nex"><code>let ids: Set[Integer] := #{1, 2, 3}
+print(ids.contains(2))
+print(ids.union(#{4}))</code></pre>
+<p>An empty set uses <code>#{}</code>:</p>
+<pre class="nex"><code>let empty_ids: Set[Integer] := #{}</code></pre>
+<h3 id="tasks-and-channels">7.4 Tasks and Channels</h3>
+<p><code>spawn</code> starts a lightweight concurrent task:</p>
+<pre class="nex"><code>let t: Task[Integer] := spawn do
+  result := 40 + 2
+end
+
+print(t.await)</code></pre>
+<p>If a task does not produce a value, use plain <code>Task</code>:</p>
+<pre class="nex"><code>let t: Task := spawn do
+  print(&quot;working&quot;)
+end
+
+t.await</code></pre>
+<p>Tasks can also be timed or cancelled:</p>
+<pre class="nex"><code>print(t.await(100))
+print(t.cancel)
+print(t.is_cancelled)</code></pre>
+<p>Task groups can be joined in two ways:</p>
+<pre class="nex"><code>print(await_any([t1, t2]))
+print(await_all([t1, t2]))</code></pre>
+<p>Channels let tasks exchange values safely:</p>
+<pre class="nex"><code>let ch: Channel[Integer] := create Channel[Integer]
+
+spawn do
+  ch.send(42)
+end
+
+print(ch.receive)
+ch.close</code></pre>
+<p>By default, channels are unbuffered: <code>send</code> and
+<code>receive</code> rendezvous, so each side waits for the other.</p>
+<p>For buffered communication:</p>
+<pre class="nex"><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(1)
+ch.send(2)
+print(ch.size)</code></pre>
+<p>Non-blocking probes are also available:</p>
+<pre class="nex"><code>print(ch.try_send(3))
+print(ch.try_receive)</code></pre>
+<p>Timed channel operations use the same feature names with an extra
+timeout argument:</p>
+<pre class="nex"><code>print(ch.send(3, 50))
+print(ch.receive(50))</code></pre>
+<p>Use <code>select</code> when you want to react to whichever channel
+operation is ready first, or to a task that has already finished:</p>
+<pre class="nex"><code>select
+  when inbox.receive as msg then
+    print(msg)
+  when worker.await as value then
+    print(value)
+  when control.receive as signal then
+    print(signal)
+  timeout 100 then
+    print(&quot;timed out&quot;)
+  else
+    print(&quot;idle&quot;)
+end</code></pre>
+<p><code>select</code> uses channel readiness checks for channels and
+<code>is_done</code> checks for tasks. Task clauses use
+<code>Task.await</code>, but only become selectable after the task has
+already completed. If no clause is ready and there is no
+<code>else</code>, <code>select</code> waits until one becomes ready. If
+a <code>timeout</code> clause is present, that body runs once the
+timeout expires.</p>
+<p>On the JavaScript target, the source syntax is unchanged, but
+generated code uses async/await under the hood. That means
+<code>spawn</code>, <code>Task.await</code>, <code>Channel.send</code>,
+and <code>Channel.receive</code> are lowered to Promise-based operations
+in generated JavaScript.</p>
+<p>For the precise concurrency semantics, target differences, and
+runtime design, see <a href="CONCURRENCY.md">CONCURRENCY.md</a>.</p>
 <h2 id="classes-and-objects">8. Classes and Objects</h2>
 <p>A class groups fields and methods.</p>
 <pre class="nex"><code>class Counter
@@ -274,10 +358,10 @@ end
 
 let a: A := create Animal.named(&quot;Ko&quot;)
 a.speak -- &quot;Ko&quot;
-let d: A := create Dog.named(&quot;Ki&quot;)
+let d: Animal := create Dog.named(&quot;Ki&quot;)
 d.speak -- &quot;Ki says woof&quot;</code></pre>
-<p>Nex also supports adaptation in inheritance (<code>rename</code>,
-<code>redefine</code>) for precise reuse.</p>
+<p>Nex supports inheritance with <code>inherit</code> for code reuse and
+specialization.</p>
 <h2 id="design-by-contract">11. Design by Contract</h2>
 <p>Contracts are first-class in Nex.</p>
 <pre class="nex"><code>class Wallet
@@ -304,14 +388,10 @@ d.speak -- &quot;Ki says woof&quot;</code></pre>
 end
 
 let w: Wallet := create Wallet.with_balance(-10)
-Error: Class invariant violation: never_negative
-
-## 12. Debugger Quickstart
-
-Enable debugger in REPL:
-
-```text
-:debug on</code></pre>
+Error: Class invariant violation: never_negative</code></pre>
+<h2 id="debugger-quickstart">12. Debugger Quickstart</h2>
+<p>Enable debugger in REPL:</p>
+<pre class="text"><code>:debug on</code></pre>
 <p>Set breakpoints and run:</p>
 <pre class="text"><code>:break Wallet.spend
 :break Wallet.spend if amount &gt; 100
@@ -343,16 +423,15 @@ Enable debugger in REPL:
 <p>Script debugger commands from a file:</p>
 <pre class="text"><code>:debugscript debug_commands.dbg</code></pre>
 <p>For full command reference, see <code>docs/md/DEBUGGER.md</code>.</p>
-<p>let w: Wallet := create Wallet.with_balance(10.2) w.spend(9) w.money
-– 1.1999999999999993 w.spend(2) – Error: Precondition violation:
-enough</p>
-<pre><code>
-Use contracts to state assumptions (`require`), guarantees (`ensure`), and global consistency rules (`invariant`).
-
-## 12. Errors and Recovery
-
-```nex
-let attempts := 0
+<pre class="nex"><code>let w: Wallet := create Wallet.with_balance(10.2)
+w.spend(9)
+w.money -- 1.1999999999999993
+w.spend(2) -- Error: Precondition violation: enough</code></pre>
+<p>Use contracts to state assumptions (<code>require</code>), guarantees
+(<code>ensure</code>), and global consistency rules
+(<code>invariant</code>).</p>
+<h2 id="errors-and-recovery">12. Errors and Recovery</h2>
+<pre class="nex"><code>let attempts := 0
 
 do
   attempts := attempts + 1
