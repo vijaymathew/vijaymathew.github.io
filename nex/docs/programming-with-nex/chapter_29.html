@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>29&nbsp; Concurrency with Tasks and Channels – Programming with Nex</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_28.html" rel="next">
+<link href="./chapter_27.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_26.html">Part VIII — Putting It Together</a></li><li class="breadcrumb-item"><a href="./chapter_29.html"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Programming with Nex</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">index.html</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part I — Getting Started</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Your First Programs</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Values, Types, and Variables</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Expressions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Making Decisions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Repetition</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part II — Functions and Structure</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Functions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Thinking with Functions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Recursion</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part III — Organising Data</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Arrays</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Maps</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Nested and Composite Structures</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IV — Classes and Objects</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Classes</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Designing Classes Well</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Inheritance and Polymorphism</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Generic Classes</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part V — Design by Contract</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Preconditions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Postconditions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Invariants</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Loop Contracts</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Contracts as Design</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VI — Errors and Recovery</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Errors and Exceptions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_22.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Writing Robust Code</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VII — Working at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_23.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Modules and Files</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_24.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Interoperability</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_25.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Testing Your Programs</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VIII — Putting It Together</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_26.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">A Complete Program</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_27.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Common Patterns</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Nex Syntax Reference</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">B</span>&nbsp; <span class="chapter-title">Built-in Types and Operations</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_c.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">C</span>&nbsp; <span class="chapter-title">The Standard Library</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">D</span>&nbsp; <span class="chapter-title">The Debugger</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_e.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">E</span>&nbsp; <span class="chapter-title">Solutions to Selected Exercises</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#why-tasks-instead-of-shared-objects" id="toc-why-tasks-instead-of-shared-objects" class="nav-link active" data-scroll-target="#why-tasks-instead-of-shared-objects"><span class="header-section-number">29.1</span> Why Tasks Instead of Shared Objects</a></li>
+  <li><a href="#starting-a-task-with-spawn" id="toc-starting-a-task-with-spawn" class="nav-link" data-scroll-target="#starting-a-task-with-spawn"><span class="header-section-number">29.2</span> Starting a Task with <code>spawn</code></a></li>
+  <li><a href="#what-await-means" id="toc-what-await-means" class="nav-link" data-scroll-target="#what-await-means"><span class="header-section-number">29.3</span> What <code>await</code> Means</a></li>
+  <li><a href="#checking-task-state" id="toc-checking-task-state" class="nav-link" data-scroll-target="#checking-task-state"><span class="header-section-number">29.4</span> Checking Task State</a></li>
+  <li><a href="#waiting-with-a-timeout" id="toc-waiting-with-a-timeout" class="nav-link" data-scroll-target="#waiting-with-a-timeout"><span class="header-section-number">29.5</span> Waiting with a Timeout</a></li>
+  <li><a href="#channels-communication-between-tasks" id="toc-channels-communication-between-tasks" class="nav-link" data-scroll-target="#channels-communication-between-tasks"><span class="header-section-number">29.6</span> Channels: Communication Between Tasks</a></li>
+  <li><a href="#unbuffered-and-buffered-channels" id="toc-unbuffered-and-buffered-channels" class="nav-link" data-scroll-target="#unbuffered-and-buffered-channels"><span class="header-section-number">29.7</span> Unbuffered and Buffered Channels</a></li>
+  <li><a href="#non-blocking-channel-operations" id="toc-non-blocking-channel-operations" class="nav-link" data-scroll-target="#non-blocking-channel-operations"><span class="header-section-number">29.8</span> Non-Blocking Channel Operations</a></li>
+  <li><a href="#closing-a-channel" id="toc-closing-a-channel" class="nav-link" data-scroll-target="#closing-a-channel"><span class="header-section-number">29.9</span> Closing a Channel</a></li>
+  <li><a href="#coordinating-several-tasks-with-await_any-and-await_all" id="toc-coordinating-several-tasks-with-await_any-and-await_all" class="nav-link" data-scroll-target="#coordinating-several-tasks-with-await_any-and-await_all"><span class="header-section-number">29.10</span> Coordinating Several Tasks with <code>await_any</code> and <code>await_all</code></a></li>
+  <li><a href="#select-waiting-for-whatever-becomes-ready" id="toc-select-waiting-for-whatever-becomes-ready" class="nav-link" data-scroll-target="#select-waiting-for-whatever-becomes-ready"><span class="header-section-number">29.11</span> <code>select</code>: Waiting for Whatever Becomes Ready</a></li>
+  <li><a href="#select-with-timeout" id="toc-select-with-timeout" class="nav-link" data-scroll-target="#select-with-timeout"><span class="header-section-number">29.12</span> <code>select</code> with <code>timeout</code></a></li>
+  <li><a href="#a-small-pipeline-example" id="toc-a-small-pipeline-example" class="nav-link" data-scroll-target="#a-small-pipeline-example"><span class="header-section-number">29.13</span> A Small Pipeline Example</a></li>
+  <li><a href="#designing-with-concurrency-in-mind" id="toc-designing-with-concurrency-in-mind" class="nav-link" data-scroll-target="#designing-with-concurrency-in-mind"><span class="header-section-number">29.14</span> Designing with Concurrency in Mind</a></li>
+  <li><a href="#target-semantics" id="toc-target-semantics" class="nav-link" data-scroll-target="#target-semantics"><span class="header-section-number">29.15</span> Target Semantics</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">29.16</span> Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">29.17</span> Exercises</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_26.html">Part VIII — Putting It Together</a></li><li class="breadcrumb-item"><a href="./chapter_29.html"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>So far the tutorial has treated a Nex program as one thread of control: a function calls another, a method updates an object, and the next statement waits for the previous one to finish. Many real systems do not have that luxury. A server may need to wait for incoming requests while also writing logs. A pipeline may need one stage to produce data while another stage consumes it. A user interface may need background work without freezing the screen.</p>
+<p>Nex approaches concurrency with a small set of explicit tools:</p>
+<ul>
+<li><code>spawn</code> starts a task</li>
+<li><code>Task</code> represents work in progress</li>
+<li><code>Channel[T]</code> moves values between tasks</li>
+<li><code>select</code> waits for whichever communication or task completion becomes ready first</li>
+</ul>
+<p>The design goal is clarity. Concurrency is difficult enough already. The language should help you say what is running concurrently, how results are collected, and where coordination happens.</p>
+<section id="why-tasks-instead-of-shared-objects" class="level2" data-number="29.1">
+<h2 data-number="29.1" class="anchored" data-anchor-id="why-tasks-instead-of-shared-objects"><span class="header-section-number">29.1</span> Why Tasks Instead of Shared Objects</h2>
+<p>There are two broad ways to structure concurrent programs.</p>
+<p>One style shares mutable objects and synchronises access with locks, monitors, or similar mechanisms. That can work, but it pushes a great deal of reasoning burden onto the programmer. Every shared variable becomes a potential source of races, stale reads, or deadlocks.</p>
+<p>Nex takes a different starting point:</p>
+<ul>
+<li>start work in explicit tasks</li>
+<li>communicate through channels</li>
+<li>wait at explicit coordination points</li>
+</ul>
+<p>This does not remove all concurrency problems, but it keeps the structure visible. When you read the code, you can see where work is launched and where data crosses from one task to another.</p>
+</section>
+<section id="starting-a-task-with-spawn" class="level2" data-number="29.2">
+<h2 data-number="29.2" class="anchored" data-anchor-id="starting-a-task-with-spawn"><span class="header-section-number">29.2</span> Starting a Task with <code>spawn</code></h2>
+<p><code>spawn do ... end</code> starts a new task and returns a <code>Task</code> value.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  result := 40 + 2
+end
+
+print(t.await)</code></pre>
+<p>The body of the task runs concurrently with the caller. If the body assigns to <code>result</code>, the task has a result type such as <code>Task[Integer]</code>. If the body does not assign to <code>result</code>, the type is just <code>Task</code>.</p>
+<pre><code>let t: Task := spawn do
+  print("background work")
+end
+
+t.await</code></pre>
+<p>A task is a value. You can store it in a variable, return it from a routine, place it in an array, or pass it to another routine. That matters because concurrency should compose. We do not want a special hidden execution model that only works in toy cases.</p>
+</section>
+<section id="what-await-means" class="level2" data-number="29.3">
+<h2 data-number="29.3" class="anchored" data-anchor-id="what-await-means"><span class="header-section-number">29.3</span> What <code>await</code> Means</h2>
+<p><code>await</code> is the point where the caller synchronises with a task.</p>
+<pre><code>let t: Task[String] := spawn do
+  result := "report ready"
+end
+
+let msg: String := t.await
+print(msg)</code></pre>
+<p>A few points are important.</p>
+<p>First, <code>await</code> blocks until the task finishes, unless you use the timeout form that we will see later.</p>
+<p>Second, if the task failed by raising an exception, <code>await</code> re-raises that failure. The error is not lost just because the work happened concurrently.</p>
+<p>Third, <code>await</code> is an explicit boundary. Before it, the task may still be running. After it, the task has either completed successfully or failed.</p>
+<p>That explicit boundary is one of the central design ideas in Nex concurrency. Synchronisation should be visible in the source code.</p>
+</section>
+<section id="checking-task-state" class="level2" data-number="29.4">
+<h2 data-number="29.4" class="anchored" data-anchor-id="checking-task-state"><span class="header-section-number">29.4</span> Checking Task State</h2>
+<p>Tasks also support status queries.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  result := 10 * 10
+end
+
+print(t.is_done)
+print(t.await)
+print(t.is_done)</code></pre>
+<p>In real code, <code>is_done</code> is most useful when combined with <code>select</code>, or when you need a non-blocking readiness test before choosing the next step.</p>
+<p>Tasks can also be cancelled:</p>
+<pre><code>let t: Task := spawn do
+  sleep(10)
+end
+
+print(t.cancel)
+print(t.is_cancelled)</code></pre>
+<p>Cancellation is a request, not magic. It tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
+</section>
+<section id="waiting-with-a-timeout" class="level2" data-number="29.5">
+<h2 data-number="29.5" class="anchored" data-anchor-id="waiting-with-a-timeout"><span class="header-section-number">29.5</span> Waiting with a Timeout</h2>
+<p>Sometimes indefinite waiting is not acceptable. A program may want to give up after a bounded interval.</p>
+<p>Tasks support a timed form of <code>await</code>:</p>
+<pre><code>let t: Task[Integer] := spawn do
+  sleep(5)
+  result := 7
+end
+
+print(t.await(1))
+print(t.await(50))</code></pre>
+<p>If the task completes within the timeout, <code>await(ms)</code> returns the task result. If it does not, it returns <code>nil</code>.</p>
+<p>This design keeps the meaning simple:</p>
+<ul>
+<li><code>await()</code> means wait as long as needed</li>
+<li><code>await(ms)</code> means wait up to <code>ms</code> milliseconds</li>
+</ul>
+<p>The timeout form is especially useful at system boundaries, where a stalled background action should not block the entire program indefinitely.</p>
+</section>
+<section id="channels-communication-between-tasks" class="level2" data-number="29.6">
+<h2 data-number="29.6" class="anchored" data-anchor-id="channels-communication-between-tasks"><span class="header-section-number">29.6</span> Channels: Communication Between Tasks</h2>
+<p>Launching tasks is only half of the problem. The other half is communication.</p>
+<p>Nex uses typed channels for that purpose.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer]
+
+let producer: Task := spawn do
+  ch.send(42)
+end
+
+print(ch.receive)
+producer.await</code></pre>
+<p>A <code>Channel[T]</code> carries values of type <code>T</code>.</p>
+<p>In the example above:</p>
+<ul>
+<li>the producer task sends an integer</li>
+<li>the main thread receives it</li>
+<li>both sides agree on the element type because the channel itself is typed</li>
+</ul>
+<p>That type information matters. Concurrency already adds one level of indirection. The language should not also force the programmer to guess what kind of value may arrive.</p>
+</section>
+<section id="unbuffered-and-buffered-channels" class="level2" data-number="29.7">
+<h2 data-number="29.7" class="anchored" data-anchor-id="unbuffered-and-buffered-channels"><span class="header-section-number">29.7</span> Unbuffered and Buffered Channels</h2>
+<p>The default constructor creates an unbuffered channel:</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer]</code></pre>
+<p>An unbuffered channel is a rendezvous point:</p>
+<ul>
+<li><code>send</code> waits until some receiver is ready</li>
+<li><code>receive</code> waits until some sender is ready</li>
+</ul>
+<p>This is a very strong coordination mechanism. The send and the receive meet at one point in time.</p>
+<p>Sometimes that is too strict. One side may need to run ahead a little. For that, Nex supports buffered channels:</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(10)
+ch.send(20)
+print(ch.size)
+print(ch.capacity)</code></pre>
+<p>For a buffered channel:</p>
+<ul>
+<li><code>send</code> succeeds immediately when the buffer has space</li>
+<li><code>send</code> waits only when the buffer is full</li>
+<li><code>receive</code> succeeds immediately when a buffered value exists</li>
+<li><code>receive</code> waits only when the buffer is empty</li>
+</ul>
+<p>This gives you a controlled queue between tasks.</p>
+</section>
+<section id="non-blocking-channel-operations" class="level2" data-number="29.8">
+<h2 data-number="29.8" class="anchored" data-anchor-id="non-blocking-channel-operations"><span class="header-section-number">29.8</span> Non-Blocking Channel Operations</h2>
+<p>Blocking is sometimes right and sometimes not. When you need to probe a channel without waiting, Nex provides <code>try_send</code> and <code>try_receive</code>.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(1)
+print(ch.try_send(5))
+print(ch.try_send(6))
+print(ch.try_receive)
+print(ch.try_receive)</code></pre>
+<p>The meaning is:</p>
+<ul>
+<li><code>try_send(v)</code> returns <code>true</code> if the value was sent immediately, otherwise <code>false</code></li>
+<li><code>try_receive</code> returns a value if one is immediately available, otherwise <code>nil</code></li>
+</ul>
+<p>These operations are the building blocks for more flexible coordination logic, including <code>select</code>.</p>
+</section>
+<section id="closing-a-channel" class="level2" data-number="29.9">
+<h2 data-number="29.9" class="anchored" data-anchor-id="closing-a-channel"><span class="header-section-number">29.9</span> Closing a Channel</h2>
+<p>Channels can be closed.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(1)
+ch.close
+print(ch.is_closed)
+print(ch.receive)</code></pre>
+<p>After <code>close</code>:</p>
+<ul>
+<li>future sends are rejected</li>
+<li>buffered values, if any, can still be received</li>
+<li>once a closed channel is drained, later <code>receive</code> attempts fail</li>
+</ul>
+<p>Closing matters because streams of values are rarely infinite in practice. A reader often needs a definite signal that no more messages are coming.</p>
+</section>
+<section id="coordinating-several-tasks-with-await_any-and-await_all" class="level2" data-number="29.10">
+<h2 data-number="29.10" class="anchored" data-anchor-id="coordinating-several-tasks-with-await_any-and-await_all"><span class="header-section-number">29.10</span> Coordinating Several Tasks with <code>await_any</code> and <code>await_all</code></h2>
+<p>A single task is useful, but real programs often launch groups of related tasks.</p>
+<p><code>await_any</code> waits for the first task in a group to complete:</p>
+<pre><code>let slow: Task[Integer] := spawn do
+  sleep(20)
+  result := 10
+end
+
+let fast: Task[Integer] := spawn do
+  result := 20
+end
+
+print(await_any([slow, fast]))</code></pre>
+<p><code>await_all</code> waits for every task and returns their results in input order:</p>
+<pre><code>let a: Task[Integer] := spawn do
+  result := 1
+end
+
+let b: Task[Integer] := spawn do
+  result := 2
+end
+
+let results: Array[Integer] := await_all([a, b])
+print(results.get(0))
+print(results.get(1))</code></pre>
+<p>These operations keep the coordination logic explicit without forcing the programmer to hand-write loops over task arrays every time.</p>
+</section>
+<section id="select-waiting-for-whatever-becomes-ready" class="level2" data-number="29.11">
+<h2 data-number="29.11" class="anchored" data-anchor-id="select-waiting-for-whatever-becomes-ready"><span class="header-section-number">29.11</span> <code>select</code>: Waiting for Whatever Becomes Ready</h2>
+<p>When several channels or tasks may become ready, the right tool is <code>select</code>.</p>
+<pre><code>let ch: Channel[String] := create Channel[String].with_capacity(1)
+ch.send("done")
+
+select
+  when ch.receive as msg then
+    print(msg)
+  else
+    print("nothing ready")
+end</code></pre>
+<p>A <code>select</code> statement probes its clauses in order and chooses one that is ready.</p>
+<p>For channels:</p>
+<ul>
+<li><code>when ch.receive as x then ...</code> fires when a value can be received immediately</li>
+<li><code>when ch.send(v) then ...</code> fires when the send can proceed immediately</li>
+</ul>
+<p>For tasks:</p>
+<ul>
+<li><code>when task.await as x then ...</code> fires only when the task is already done</li>
+</ul>
+<p>This last point is important. A task clause in <code>select</code> is a readiness check, not a blocking wait hidden inside the clause. The clause is eligible only when the task has completed.</p>
+<p>That keeps the logic of <code>select</code> consistent: it chooses among ready operations.</p>
+</section>
+<section id="select-with-timeout" class="level2" data-number="29.12">
+<h2 data-number="29.12" class="anchored" data-anchor-id="select-with-timeout"><span class="header-section-number">29.12</span> <code>select</code> with <code>timeout</code></h2>
+<p>A <code>select</code> can also wait up to a bounded interval.</p>
+<pre><code>let ch: Channel[String] := create Channel[String]
+
+select
+  when ch.receive as msg then
+    print(msg)
+  timeout 5 then
+    print("timed out")
+end</code></pre>
+<p>This means:</p>
+<ul>
+<li>if some clause becomes ready before the timeout, run it</li>
+<li>otherwise run the timeout branch</li>
+</ul>
+<p>A timeout branch is different from <code>else</code>.</p>
+<ul>
+<li><code>else</code> means do not wait at all</li>
+<li><code>timeout n</code> means wait up to <code>n</code> milliseconds</li>
+</ul>
+<p>That distinction matters. One is a non-blocking probe. The other is a bounded wait.</p>
+</section>
+<section id="a-small-pipeline-example" class="level2" data-number="29.13">
+<h2 data-number="29.13" class="anchored" data-anchor-id="a-small-pipeline-example"><span class="header-section-number">29.13</span> A Small Pipeline Example</h2>
+<p>The following example shows tasks and channels working together.</p>
+<pre><code>let input: Channel[Integer] := create Channel[Integer].with_capacity(4)
+let output: Channel[Integer] := create Channel[Integer].with_capacity(4)
+
+let worker: Task := spawn do
+  let v: Integer := input.receive
+  output.send(v * v)
+end
+
+input.send(9)
+print(output.receive)
+worker.await</code></pre>
+<p>Even in this tiny example, the roles are clear:</p>
+<ul>
+<li>the channel defines how values move</li>
+<li>the task defines what work happens concurrently</li>
+<li>the main thread decides when to send, receive, and await completion</li>
+</ul>
+<p>That is the kind of clarity we want in larger programs too.</p>
+</section>
+<section id="designing-with-concurrency-in-mind" class="level2" data-number="29.14">
+<h2 data-number="29.14" class="anchored" data-anchor-id="designing-with-concurrency-in-mind"><span class="header-section-number">29.14</span> Designing with Concurrency in Mind</h2>
+<p>A few design habits help immediately.</p>
+<p>Prefer message passing to shared mutable state.</p>
+<p>If two tasks need to coordinate, a channel is often clearer than a shared object updated from both sides.</p>
+<p>Keep task boundaries meaningful.</p>
+<p>Do not spawn tasks for tiny operations that would be simpler inline. Concurrency has overhead. Use it where there is real independent work or waiting.</p>
+<p>Make waiting points explicit.</p>
+<p>A call to <code>await</code>, <code>receive</code>, or <code>select</code> is a design decision. It says where control may pause.</p>
+<p>Use timeouts at boundaries.</p>
+<p>Background work, I/O-like coordination, and external services are common places where bounded waiting is healthier than waiting forever.</p>
+<p>Test concurrency in small pieces.</p>
+<p>A small producer-consumer example is easier to trust than a large concurrent design written in one pass.</p>
+</section>
+<section id="target-semantics" class="level2" data-number="29.15">
+<h2 data-number="29.15" class="anchored" data-anchor-id="target-semantics"><span class="header-section-number">29.15</span> Target Semantics</h2>
+<p>The Nex source syntax is the same across targets, but the implementation strategy differs.</p>
+<p>On the JVM:</p>
+<ul>
+<li><code>spawn</code> uses an executor-backed task runtime</li>
+<li><code>await</code> can block normally</li>
+<li>channels use blocking coordination underneath</li>
+</ul>
+<p>In generated JavaScript and in the browser runtime:</p>
+<ul>
+<li>tasks and channels are implemented with Promise-based semantics</li>
+<li>generated JavaScript lowers concurrency operations to <code>async</code> and <code>await</code></li>
+<li>the language-level meaning remains the same, even though JavaScript itself does not support ordinary blocking threads</li>
+</ul>
+<p>This is a useful example of a general Nex idea: keep the source model stable while allowing the runtime implementation to fit the host platform.</p>
+<p>For a fuller discussion of the semantics and implementation details, see the repository’s concurrency guide in <code>docs/md/CONCURRENCY.md</code>.</p>
+</section>
+<section id="summary" class="level2" data-number="29.16">
+<h2 data-number="29.16" class="anchored" data-anchor-id="summary"><span class="header-section-number">29.16</span> Summary</h2>
+<ul>
+<li><code>spawn</code> starts explicit concurrent work and returns a <code>Task</code></li>
+<li><code>await</code> is the explicit point where a caller synchronises with a task</li>
+<li><code>Channel[T]</code> moves typed values between concurrent activities</li>
+<li>unbuffered channels rendezvous; buffered channels decouple producers and consumers</li>
+<li><code>try_send</code> and <code>try_receive</code> support non-blocking coordination</li>
+<li><code>await_any</code> and <code>await_all</code> coordinate groups of tasks</li>
+<li><code>select</code> chooses among ready task and channel operations</li>
+<li><code>else</code> means no waiting; <code>timeout</code> means bounded waiting</li>
+<li>Nex keeps the source model stable across JVM and JavaScript targets</li>
+</ul>
+</section>
+<section id="exercises" class="level2" data-number="29.17">
+<h2 data-number="29.17" class="anchored" data-anchor-id="exercises"><span class="header-section-number">29.17</span> Exercises</h2>
+<p><strong>1.</strong> Write a task that computes the sum of the integers from <code>1</code> to <code>100</code>, returns the answer through <code>result</code>, and print it using <code>await</code>.</p>
+<p><strong>2.</strong> Create a buffered <code>Channel[String]</code> with capacity <code>3</code>. Send three words into it, print <code>size</code>, then receive and print the words in order.</p>
+<p><strong>3.</strong> Write two tasks that each send a message on a channel. Use <code>select</code> to receive whichever message becomes ready first.</p>
+<p><strong>4.</strong> Write a small example that uses <code>await_all</code> to collect three independent computations.</p>
+<p><strong>5.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_27.html" class="pagination-link" aria-label="Common Patterns">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Common Patterns</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_28.html" class="pagination-link" aria-label="What to Read Next">
+        <span class="nav-page-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">What to Read Next</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

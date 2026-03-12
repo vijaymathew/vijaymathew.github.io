@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Studio 4 — The Architecture Refactor – Beyond Code – Building Software Systems That Last</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./part_VII_27.html" rel="next">
+<link href="./part_VI_26.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./studio_4.html">Studio 4 — The Architecture Refactor</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Beyond Code – Building Software Systems That Last</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">index.html</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./forward.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Foreword: What This Book Is For</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./prologue.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prologue — The Day the System Broke</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part I — Seeing The Problem</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">What Problem Are We Actually Solving?</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Looking at the Real World</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Writing a Problem Statement</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Edge Cases — Where Systems Break</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Chapter 5: From Stories to Specifications</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 1 — Our First Tiny System</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part II — Modeling the World</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Why Software Needs Models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Entities — The Things That Exist</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Relationships — How Things Connect</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Designing a Good Data Model</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Modeling Change</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 2 — The Model Redesign</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part III — The Shape of Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">What Is an Algorithm?</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Breaking Problems Apart</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_13.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Thinking Recursively</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_14.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Measuring Algorithm Behavior</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./algorithm_lab_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Algorithm Lab — The First Experiments</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IV — Organizing Data</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_15.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Lists and Sequences</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_16.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Sets and Maps</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_17.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Trees — Structured Data</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_18.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Graphs — Networks of Everything</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 3 — The Scaling Crisis</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part V — Algorithms That Power Systems</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_19.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Searching for What Matters</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_20.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Sorting the World</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_21.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Exploring Trees and Graphs</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_22.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Finding the Best Path</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./algorithm_lab_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Algorithm Lab — When Algorithms Compete</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VI — Building Real Software</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_23.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">From Algorithms to Components</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_24.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Functional Thinking</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_25.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Object-Oriented Thinking</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_26.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Designing Interfaces</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_4.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Studio 4 — The Architecture Refactor</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VII — Making Software Trustworthy</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_27.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Preconditions and Postconditions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_28.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Invariants — Rules That Must Never Break</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_29.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Testing as Exploration</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_30.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Debugging Like an Engineer</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 5 — Reliability</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VIII — Systems That Grow</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VIII_31.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Managing Complexity</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VIII_32.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Designing for Change</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VIII_33.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Refactoring Without Fear</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 6 — Evolution</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IX — Programming in the Age of AI</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IX_34.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Working With AI Coding Assistants</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IX_35.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Reviewing AI-Generated Code</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IX_36.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Human Judgment in an AI World</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./epilogue.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Epilogue — The Systems Behind Everything</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./glossary.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">41</span>&nbsp; <span class="chapter-title">Glossary</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index_terms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">42</span>&nbsp; <span class="chapter-title">Index of Terms</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">43</span>&nbsp; <span class="chapter-title">References</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#subtitle" id="toc-subtitle" class="nav-link active" data-scroll-target="#subtitle">Subtitle</a></li>
+  <li><a href="#the-situation" id="toc-the-situation" class="nav-link" data-scroll-target="#the-situation">The Situation</a></li>
+  <li><a href="#engineering-brief" id="toc-engineering-brief" class="nav-link" data-scroll-target="#engineering-brief">Engineering Brief</a></li>
+  <li><a href="#implementation-in-nex" id="toc-implementation-in-nex" class="nav-link" data-scroll-target="#implementation-in-nex">Implementation In Nex</a>
+  <ul class="collapse">
+  <li><a href="#shared-ports-interfaces-by-contract" id="toc-shared-ports-interfaces-by-contract" class="nav-link" data-scroll-target="#shared-ports-interfaces-by-contract">Shared Ports (Interfaces By Contract)</a></li>
+  <li><a href="#delivery-refactor-using-studio-3-v3-store" id="toc-delivery-refactor-using-studio-3-v3-store" class="nav-link" data-scroll-target="#delivery-refactor-using-studio-3-v3-store">Delivery Refactor (Using Studio 3 V3 Store)</a></li>
+  <li><a href="#knowledge-refactor-port-validator-service" id="toc-knowledge-refactor-port-validator-service" class="nav-link" data-scroll-target="#knowledge-refactor-port-validator-service">Knowledge Refactor (Port + Validator Service)</a></li>
+  <li><a href="#world-refactor-port-use-case-service" id="toc-world-refactor-port-use-case-service" class="nav-link" data-scroll-target="#world-refactor-port-use-case-service">World Refactor (Port + Use Case Service)</a></li>
+  <li><a href="#studio-driver-behavior-parity-check" id="toc-studio-driver-behavior-parity-check" class="nav-link" data-scroll-target="#studio-driver-behavior-parity-check">Studio Driver (Behavior Parity Check)</a></li>
+  </ul></li>
+  <li><a href="#studio-challenges" id="toc-studio-challenges" class="nav-link" data-scroll-target="#studio-challenges">Studio Challenges</a>
+  <ul class="collapse">
+  <li><a href="#level-1-one-architectural-seam" id="toc-level-1-one-architectural-seam" class="nav-link" data-scroll-target="#level-1-one-architectural-seam">Level 1 — One Architectural Seam</a></li>
+  <li><a href="#level-2-three-domain-architecture-pass" id="toc-level-2-three-domain-architecture-pass" class="nav-link" data-scroll-target="#level-2-three-domain-architecture-pass">Level 2 — Three-Domain Architecture Pass</a></li>
+  <li><a href="#level-3-alternative-architecture-experiment" id="toc-level-3-alternative-architecture-experiment" class="nav-link" data-scroll-target="#level-3-alternative-architecture-experiment">Level 3 — Alternative Architecture Experiment</a></li>
+  </ul></li>
+  <li><a href="#postmortem" id="toc-postmortem" class="nav-link" data-scroll-target="#postmortem">Postmortem</a></li>
+  <li><a href="#deliverables" id="toc-deliverables" class="nav-link" data-scroll-target="#deliverables">Deliverables</a></li>
+  <li><a href="#exit-criteria" id="toc-exit-criteria" class="nav-link" data-scroll-target="#exit-criteria">Exit Criteria</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Studio 4 — The Architecture Refactor</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="subtitle" class="level2">
+<h2 class="anchored" data-anchor-id="subtitle">Subtitle</h2>
+<p>Evolving Studio 3 optimizations into stable component architecture.</p>
+<div class="note-studio">
+<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as you iterate.</p>
+</div>
+</section>
+<section id="the-situation" class="level2">
+<h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
+<p>Studio 3 improved performance by adding indexes and targeted access paths over the Studio 2 model classes.</p>
+<p>Now a new problem appears: architecture fragility.</p>
+<p>Typical symptoms:</p>
+<ul>
+<li>orchestration logic mixed with storage details</li>
+<li>duplicate workflow rules across modules</li>
+<li>direct dependency on concrete classes everywhere</li>
+<li>difficult integration testing due to tight coupling</li>
+</ul>
+<p>Studio 4 is the natural next step: keep Studio 3 behavior gains, but move to explicit architectural boundaries.</p>
+</section>
+<section id="engineering-brief" class="level2">
+<h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
+<p>Refactor around components, ports, and contracts without changing externally visible behavior.</p>
+<p>Required outcomes:</p>
+<ul>
+<li>preserve Studio 3 semantics and performance intent</li>
+<li>define explicit component boundaries</li>
+<li>introduce interface-style ports for collaboration</li>
+<li>isolate domain logic from infrastructure details</li>
+<li>keep dependencies pointing toward domain intent</li>
+</ul>
+<p>Implementation guidance:</p>
+<ul>
+<li>start from existing V3 code paths</li>
+<li>create seams first, then move logic behind seams</li>
+<li>prove behavior parity with before/after run checks</li>
+</ul>
+</section>
+<section id="implementation-in-nex" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-in-nex">Implementation In Nex</h2>
+<p>Suggested files:</p>
+<ul>
+<li><code>architecture_ports.nex</code></li>
+<li><code>delivery_arch_refactor.nex</code></li>
+<li><code>knowledge_arch_refactor.nex</code></li>
+<li><code>world_arch_refactor.nex</code></li>
+<li><code>studio_4_main.nex</code></li>
+</ul>
+<p>If using the web IDE, place all classes in one file and run <code>App.run</code>.</p>
+<section id="shared-ports-interfaces-by-contract" class="level3">
+<h3 class="anchored" data-anchor-id="shared-ports-interfaces-by-contract">Shared Ports (Interfaces By Contract)</h3>
+<p>These ports abstract over concrete V3 storage/index implementations from Studio 3.</p>
+<pre class="nex"><code>class Task_Query_Port
+feature
+  status_of(task_id: String): String
+    require
+      id_present: task_id /= ""
+    do
+      result := "NOT_IMPLEMENTED"
+    ensure
+      non_empty: result /= ""
+    end
+end
+
+class Doc_Query_Port
+feature
+  has_doc(doc_id: String): Boolean
+    require
+      id_present: doc_id /= ""
+    do
+      result := false
+    ensure
+      bool_result: result = true or result = false
+    end
+end
+
+class World_Update_Port
+feature
+  move_by_id(object_id: String, delta: Integer): String
+    require
+      id_present: object_id /= ""
+    do
+      result := "NOT_IMPLEMENTED"
+    ensure
+      non_empty: result /= ""
+    end
+end</code></pre>
+</section>
+<section id="delivery-refactor-using-studio-3-v3-store" class="level3">
+<h3 class="anchored" data-anchor-id="delivery-refactor-using-studio-3-v3-store">Delivery Refactor (Using Studio 3 V3 Store)</h3>
+<p>Before (Studio 3): callers directly used <code>Delivery_Task_Store_V3</code>.</p>
+<p>After (Studio 4): callers depend on <code>Task_Query_Port</code>; concrete store is adapted behind it.</p>
+<pre class="nex"><code>class Delivery_Task_Store_V3
+create
+  make(k1: String, v1: String, k2: String, v2: String) do
+    this.k1 := k1
+    this.v1 := v1
+    this.k2 := k2
+    this.v2 := v2
+  end
+feature
+  k1: String
+  v1: String
+  k2: String
+  v2: String
+
+  find_status(task_id: String): String
+    require
+      id_present: task_id /= ""
+    do
+      if task_id = k1 then
+        result := v1
+      elseif task_id = k2 then
+        result := v2
+      else
+        result := "NOT_FOUND"
+      end
+    ensure
+      non_empty: result /= ""
+    end
+end
+
+class Delivery_Task_Adapter
+create
+  make(store: Delivery_Task_Store_V3) do
+    this.store := store
+  end
+feature
+  store: Delivery_Task_Store_V3
+
+  status_of(task_id: String): String
+    require
+      id_present: task_id /= ""
+    do
+      result := store.find_status(task_id)
+    ensure
+      non_empty: result /= ""
+    end
+end
+
+class Delivery_Workflow
+create
+  make(tasks: Delivery_Task_Adapter) do
+    this.tasks := tasks
+  end
+feature
+  tasks: Delivery_Task_Adapter
+
+  dispatch_view(task_id: String): String
+    require
+      id_present: task_id /= ""
+    do
+      let st: String := tasks.status_of(task_id)
+      if st = "NOT_FOUND" then
+        result := "UNKNOWN_TASK"
+      else
+        result := "TASK_STATUS:" + st
+      end
+    ensure
+      non_empty: result /= ""
+    end
+end</code></pre>
+</section>
+<section id="knowledge-refactor-port-validator-service" class="level3">
+<h3 class="anchored" data-anchor-id="knowledge-refactor-port-validator-service">Knowledge Refactor (Port + Validator Service)</h3>
+<pre class="nex"><code>class Doc_Index_V3
+create
+  make(dk1: String, dk2: String, dk3: String) do
+    this.dk1 := dk1
+    this.dk2 := dk2
+    this.dk3 := dk3
+  end
+feature
+  dk1: String
+  dk2: String
+  dk3: String
+
+  has_doc(doc_id: String): Boolean
+    require
+      id_present: doc_id /= ""
+    do
+      result := doc_id = dk1 or doc_id = dk2 
+                or doc_id = dk3
+    ensure
+      bool_result: result = true or result = false
+    end
+end
+
+class Doc_Query_Adapter
+create
+  make(idx: Doc_Index_V3) do
+    this.idx := idx
+  end
+feature
+  idx: Doc_Index_V3
+
+  has_doc(doc_id: String): Boolean
+    require
+      id_present: doc_id /= ""
+    do
+      result := idx.has_doc(doc_id)
+    ensure
+      bool_result: result = true or result = false
+    end
+end
+
+class Link_Validation_Service
+create
+  make(docs: Doc_Query_Adapter) do
+    this.docs := docs
+  end
+feature
+  docs: Doc_Query_Adapter
+
+  validate(from_id, to_id: String): String
+    require
+      ids_present: from_id /= "" and to_id /= ""
+    do
+      if not docs.has_doc(from_id) then
+        result := "MISSING_FROM"
+      elseif not docs.has_doc(to_id) then
+        result := "MISSING_TO"
+      else
+        result := "VALID"
+      end
+    ensure
+      known_result:
+        result = "VALID" or
+        result = "MISSING_FROM" or
+        result = "MISSING_TO"
+    end
+end</code></pre>
+</section>
+<section id="world-refactor-port-use-case-service" class="level3">
+<h3 class="anchored" data-anchor-id="world-refactor-port-use-case-service">World Refactor (Port + Use Case Service)</h3>
+<pre class="nex"><code>class World_Model_V3
+create
+  make(wk1: String, wx1: Integer) do
+    this.wk1 := wk1
+    this.wx1 := wx1
+  end
+feature
+  wk1: String
+  wx1: Integer
+
+  move_by_id(object_id: String, delta: Integer): String
+    require
+      id_present: object_id /= ""
+    do
+      if object_id = wk1 then
+        wx1 := wx1 + delta
+        result := "UPDATED"
+      else
+        result := "NOT_FOUND"
+      end
+    ensure
+      non_empty: result /= ""
+    end
+end
+
+class World_Update_Adapter
+create
+  make(model: World_Model_V3) do
+    this.model := model
+  end
+feature
+  model: World_Model_V3
+
+  move_by_id(object_id: String, delta: Integer): String
+    require
+      id_present: object_id /= ""
+    do
+      result := model.move_by_id(object_id, delta)
+    ensure
+      non_empty: result /= ""
+    end
+end
+
+class World_Step_Service
+create
+  make(updater: World_Update_Adapter) do
+    this.updater := updater
+  end
+feature
+  updater: World_Update_Adapter
+
+  apply_player_input(object_id: String, 
+                     delta: Integer): String
+    require
+      id_present: object_id /= ""
+    do
+      result := updater.move_by_id(object_id, delta)
+    ensure
+      known_result: result = "UPDATED" 
+                    or result = "NOT_FOUND"
+    end
+end</code></pre>
+</section>
+<section id="studio-driver-behavior-parity-check" class="level3">
+<h3 class="anchored" data-anchor-id="studio-driver-behavior-parity-check">Studio Driver (Behavior Parity Check)</h3>
+<pre class="nex"><code>class App
+feature
+  run() do
+    -- Delivery setup
+    let ds: Delivery_Task_Store_V3
+      := create Delivery_Task_Store_V3.make(
+           "T-1", "PENDING", "T-2", "IN_TRANSIT"
+         )
+    let da: Delivery_Task_Adapter
+      := create Delivery_Task_Adapter.make(ds)
+    let dw: Delivery_Workflow := 
+      create Delivery_Workflow.make(da)
+
+    print(dw.dispatch_view("T-2"))   -- TASK_STATUS:IN_TRANSIT
+    print(dw.dispatch_view("T-99"))  -- UNKNOWN_TASK
+
+    -- Knowledge setup
+    let di: Doc_Index_V3
+      := create Doc_Index_V3.make("D-1", "D-2", "D-3")
+    let dqa: Doc_Query_Adapter := 
+      create Doc_Query_Adapter.make(di)
+    let lvs: Link_Validation_Service
+      := create Link_Validation_Service.make(dqa)
+
+    print(lvs.validate("D-1", "D-3"))   -- VALID
+    print(lvs.validate("D-9", "D-3"))   -- MISSING_FROM
+
+    -- World setup
+    let wm: World_Model_V3 := 
+      create World_Model_V3.make("E-1", 10)
+    let wua: World_Update_Adapter
+      := create World_Update_Adapter.make(wm)
+    let wss: World_Step_Service := 
+      create World_Step_Service.make(wua)
+
+    print(wss.apply_player_input("E-1", 2))  -- UPDATED
+    print(wss.apply_player_input("E-9", 2))  -- NOT_FOUND
+  end
+end</code></pre>
+<p>Expected outcome:</p>
+<ul>
+<li>same core behavior as Studio 3 refactored paths</li>
+<li>clearer component boundaries</li>
+<li>easier component-level testing due to port seams</li>
+</ul>
+</section>
+</section>
+<section id="studio-challenges" class="level2">
+<h2 class="anchored" data-anchor-id="studio-challenges">Studio Challenges</h2>
+<section id="level-1-one-architectural-seam" class="level3">
+<h3 class="anchored" data-anchor-id="level-1-one-architectural-seam">Level 1 — One Architectural Seam</h3>
+<ul>
+<li>pick one Studio 3 optimized path</li>
+<li>introduce a port + adapter boundary</li>
+<li>prove behavior parity on nominal and edge cases</li>
+</ul>
+</section>
+<section id="level-2-three-domain-architecture-pass" class="level3">
+<h3 class="anchored" data-anchor-id="level-2-three-domain-architecture-pass">Level 2 — Three-Domain Architecture Pass</h3>
+<ul>
+<li>apply port/adapter + service orchestration pattern to delivery, knowledge, and world</li>
+<li>remove at least one direct concrete dependency per domain</li>
+<li>document dependency direction before/after</li>
+</ul>
+</section>
+<section id="level-3-alternative-architecture-experiment" class="level3">
+<h3 class="anchored" data-anchor-id="level-3-alternative-architecture-experiment">Level 3 — Alternative Architecture Experiment</h3>
+<ul>
+<li>compare two styles:
+<ul>
+<li>port/adapter with thin services</li>
+<li>feature modules with internal adapters</li>
+</ul></li>
+<li>evaluate maintainability and migration cost</li>
+</ul>
+</section>
+</section>
+<section id="postmortem" class="level2">
+<h2 class="anchored" data-anchor-id="postmortem">Postmortem</h2>
+<p>Discuss with evidence:</p>
+<ul>
+<li>Which seam reduced coupling the most?</li>
+<li>Which abstraction clarified behavior, and which added unnecessary ceremony?</li>
+<li>Which components are still doing too much?</li>
+<li>What is the next architecture risk if the system doubles again?</li>
+</ul>
+</section>
+<section id="deliverables" class="level2">
+<h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
+<ul>
+<li>architecture diagram with components and dependency direction</li>
+<li>refactored Nex code using ports/adapters over Studio 3 V3 logic</li>
+<li>behavior-parity run log (before/after outputs)</li>
+<li>short ADR-style note with chosen architecture and rejected alternative</li>
+</ul>
+</section>
+<section id="exit-criteria" class="level2">
+<h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
+<p>You are ready for Part VII if:</p>
+<ul>
+<li>key use cases depend on ports, not concrete storage classes</li>
+<li>orchestration logic is separated from storage/index details</li>
+<li>cross-component contracts are explicit and testable</li>
+<li>behavior parity with Studio 3 is demonstrated</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./part_VI_26.html" class="pagination-link" aria-label="Designing Interfaces">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Designing Interfaces</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./part_VII_27.html" class="pagination-link" aria-label="Preconditions and Postconditions">
+        <span class="nav-page-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Preconditions and Postconditions</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
