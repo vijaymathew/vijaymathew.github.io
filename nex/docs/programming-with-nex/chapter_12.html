@@ -499,13 +499,13 @@ Class(es) registered: Point</code></pre>
 <h2 data-number="13.2" class="anchored" data-anchor-id="creating-objects"><span class="header-section-number">13.2</span> Creating Objects</h2>
 <p>Objects are created with <code>create</code>, naming both the class and the constructor:</p>
 <pre><code>nex&gt; let p := create Point.make(3.0, 4.0)
-nex&gt; print(p.x)
+nex&gt; p.x
 3.0
 
-nex&gt; print(p.y)
+nex&gt; p.y
 4.0
 
-nex&gt; print(p.distance_from_origin)
+nex&gt; p.distance_from_origin
 5.0</code></pre>
 <p><code>create Point.make(3.0, 4.0)</code> runs the <code>make</code> constructor with the given arguments, initialising both fields. The resulting object is assigned to <code>p</code>.</p>
 <p>The <code>create</code> keyword appeared in Chapter 2 as <code>let con := create Console</code>. Now the mechanism is fully visible: <code>create</code> allocates a new instance and runs the named constructor.</p>
@@ -533,11 +533,11 @@ nex&gt; print(p.distance_from_origin)
 Class(es) registered: Point
 
 nex&gt; let p1 := create Point.origin
-nex&gt; print(p1.x)
+nex&gt; p1.x
 0.0
 
 nex&gt; let p2 := create Point.make(3.0, 4.0)
-nex&gt; print(p2.distance_from_origin)
+nex&gt; p2.distance_from_origin
 5.0</code></pre>
 <p>Named constructors communicate intent. <code>create Point.origin</code> clearly creates a point at the origin; <code>create Point.make(3.0, 4.0)</code> creates a point at specific coordinates. The name is part of the interface.</p>
 </section>
@@ -547,10 +547,10 @@ nex&gt; print(p2.distance_from_origin)
 <pre><code>nex&gt; let p1 := create Point.make(1.0, 2.0)
 nex&gt; let p2 := create Point.make(4.0, 6.0)
 
-nex&gt; print(p1.x)
+nex&gt; p1.x
 1.0
 
-nex&gt; print(p2.x)
+nex&gt; p2.x
 4.0</code></pre>
 <p>Fields are read using dot notation: <code>obj.field_name</code>. Assigning to a field from outside the class is not permitted — fields are private to the class. If a field needs to change, the class provides a method:</p>
 <pre><code>nex&gt; class Point
@@ -574,7 +574,7 @@ Class(es) registered: Point
 
 nex&gt; let p := create Point.make(1.0, 2.0)
 nex&gt; p.move(2.0, 2.0)
-nex&gt; print(p.x)
+nex&gt; p.x
 3.0</code></pre>
 <p>Classes can also define class-level constants directly in the <code>feature</code> block:</p>
 <pre><code>nex&gt; class Layout
@@ -588,9 +588,9 @@ nex&gt; print(p.x)
 Class(es) registered: Layout
 
 nex&gt; let layout := create Layout
-nex&gt; print(Layout.MAX_WIDTH)
+nex&gt; Layout.MAX_WIDTH
 450
-nex&gt; print(layout.widened)
+nex&gt; layout.widened
 460</code></pre>
 <p><code>HELLO</code> and <code>MAX_WIDTH</code> are not per-object fields. They belong to the class itself. Their meaning is: these features are always equal to those values.</p>
 <p>This is the Nex equivalent of a Java <code>static final</code> member.</p>
@@ -633,11 +633,11 @@ end</code></pre>
 Class(es) registered: Person
 
 nex&gt; let p := create Person.make("Ada")
-nex&gt; print(p.describe)
+nex&gt; p.describe
 Ada (no email)
 
 nex&gt; p.set_email("ada@example.com")
-nex&gt; print(p.describe)
+nex&gt; p.describe
 Ada &lt;ada@example.com&gt;</code></pre>
 <p><code>email</code> is declared as <code>?String</code> — a detachable string that may hold a value or <code>nil</code>. The constructor initialises it to <code>nil</code> explicitly. The <code>describe</code> method checks for <code>nil</code> before using it.</p>
 <p>The rule: use a plain type when the field must always have a value; use <code>?Type</code> when absence is a meaningful state for this field.</p>
@@ -680,7 +680,7 @@ Class(es) registered: BankAccount
 nex&gt; let account := create BankAccount.make("Alice", 1000.0)
 nex&gt; account.deposit(500.0)
 nex&gt; account.withdraw(200.0)
-nex&gt; print(account.describe)
+nex&gt; account.describe
 Alice: 1300.0</code></pre>
 </section>
 <section id="the-this-reference" class="level2" data-number="13.7">
@@ -717,17 +717,17 @@ Class(es) registered: Point
 
 nex&gt; let p1 := create Point.make(0.0, 0.0)
 nex&gt; let p2 := create Point.make(3.0, 4.0)
-nex&gt; print(p1.distance_to(p2))
+nex&gt; p1.distance_to(p2)
 5.0</code></pre>
 <p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the fields of the object the method was called on (<code>p1</code>), while <code>other.x</code> and <code>other.y</code> refer to the argument (<code>p2</code>).</p>
 </section>
 <section id="uniform-access" class="level2" data-number="13.8">
 <h2 data-number="13.8" class="anchored" data-anchor-id="uniform-access"><span class="header-section-number">13.8</span> Uniform Access</h2>
 <p>Field reads and method calls use identical syntax:</p>
-<pre><code>nex&gt; print(p.x)                      -- reads a field
+<pre><code>nex&gt; p.x                      -- reads a field
 3.0
 
-nex&gt; print(p.distance_from_origin)   -- calls a method
+nex&gt; p.distance_from_origin   -- calls a method
 5.0</code></pre>
 <p>Both use <code>obj.name</code> notation. The caller cannot tell — and does not need to tell — whether <code>name</code> is a stored field or a computed method. This is <em>uniform access</em>.</p>
 <p>It matters because it means a class can change its internal representation without breaking calling code. Consider <code>Circle</code>:</p>
@@ -748,10 +748,10 @@ nex&gt; print(p.distance_from_origin)   -- calls a method
 Class(es) registered: Circle
 
 nex&gt; let c := create Circle.make(5.0)
-nex&gt; print(c.radius)
+nex&gt; c.radius
 5.0
 
-nex&gt; print(c.diameter)
+nex&gt; c.diameter
 10.0</code></pre>
 <p><code>c.radius</code> reads a stored field. <code>c.diameter</code> calls a computation. Both look identical at the call site. If the implementation later changes — storing <code>diameter</code> directly and computing <code>radius</code> — no call site changes.</p>
 </section>
@@ -787,13 +787,13 @@ nex&gt; let s := create Stack.make
 nex&gt; s.push(10)
 nex&gt; s.push(20)
 nex&gt; s.push(30)
-nex&gt; print(s.peek)
+nex&gt; s.peek
 30
 
-nex&gt; print(s.pop)
+nex&gt; s.pop
 30
 
-nex&gt; print(s.size)
+nex&gt; s.size
 1</code></pre>
 <p><code>Stack</code> wraps an <code>Array[Integer]</code> and exposes only push, pop, peek, and size. The array is an implementation detail; the four methods are the interface. This is the essential move that classes make: bundle data with its governing operations and present a clean surface to the outside world.</p>
 </section>
