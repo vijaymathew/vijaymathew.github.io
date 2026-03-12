@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>31&nbsp; Invariants — Rules That Must Never Break – Beyond Code -- Building Software Systems That Last</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./part_VII_29.html" rel="next">
+<link href="./part_VII_27.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./part_VII_27.html">Part VII — Making Software Trustworthy</a></li><li class="breadcrumb-item"><a href="./part_VII_28.html"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Invariants — Rules That Must Never Break</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Beyond Code – Building Software Systems That Last</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">index.html</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./forward.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Foreword: What This Book Is For</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./prologue.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prologue — The Day the System Broke</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part I — Seeing The Problem</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">What Problem Are We Actually Solving?</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Looking at the Real World</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Writing a Problem Statement</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Edge Cases — Where Systems Break</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_I_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Chapter 5: From Stories to Specifications</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 1 — Our First Tiny System</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part II — Modeling the World</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Why Software Needs Models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Entities — The Things That Exist</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Relationships — How Things Connect</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Designing a Good Data Model</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_II_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Modeling Change</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 2 — The Model Redesign</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part III — The Shape of Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">What Is an Algorithm?</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Breaking Problems Apart</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_13.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Thinking Recursively</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_III_14.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Measuring Algorithm Behavior</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./algorithm_lab_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Algorithm Lab — The First Experiments</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IV — Organizing Data</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_15.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Lists and Sequences</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_16.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Sets and Maps</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_17.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Trees — Structured Data</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IV_18.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Graphs — Networks of Everything</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 3 — The Scaling Crisis</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part V — Algorithms That Power Systems</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_19.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Searching for What Matters</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_20.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Sorting the World</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_21.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Exploring Trees and Graphs</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_V_22.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Finding the Best Path</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./algorithm_lab_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Algorithm Lab — When Algorithms Compete</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VI — Building Real Software</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_23.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">From Algorithms to Components</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_24.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Functional Thinking</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_25.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Object-Oriented Thinking</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VI_26.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Designing Interfaces</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 4 — The Architecture Refactor</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VII — Making Software Trustworthy</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_27.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Preconditions and Postconditions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_28.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Invariants — Rules That Must Never Break</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_29.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Testing as Exploration</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VII_30.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Debugging Like an Engineer</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 5 — Reliability</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part VIII — Systems That Grow</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VIII_31.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Managing Complexity</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VIII_32.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Designing for Change</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_VIII_33.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Refactoring Without Fear</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studio_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Studio 6 — Evolution</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Part IX — Programming in the Age of AI</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IX_34.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Working With AI Coding Assistants</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IX_35.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Reviewing AI-Generated Code</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./part_IX_36.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Human Judgment in an AI World</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./epilogue.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Epilogue — The Systems Behind Everything</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./glossary.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">41</span>&nbsp; <span class="chapter-title">Glossary</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index_terms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">42</span>&nbsp; <span class="chapter-title">Index of Terms</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">43</span>&nbsp; <span class="chapter-title">References</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#what-an-invariant-is" id="toc-what-an-invariant-is" class="nav-link active" data-scroll-target="#what-an-invariant-is"><span class="header-section-number">31.1</span> What an Invariant Is</a></li>
+  <li><a href="#three-categories-of-invariant" id="toc-three-categories-of-invariant" class="nav-link" data-scroll-target="#three-categories-of-invariant"><span class="header-section-number">31.2</span> Three Categories of Invariant</a></li>
+  <li><a href="#invariants-and-transitions" id="toc-invariants-and-transitions" class="nav-link" data-scroll-target="#invariants-and-transitions"><span class="header-section-number">31.3</span> Invariants and Transitions</a></li>
+  <li><a href="#from-requirement-to-invariant-design" id="toc-from-requirement-to-invariant-design" class="nav-link" data-scroll-target="#from-requirement-to-invariant-design"><span class="header-section-number">31.4</span> From Requirement to Invariant Design</a></li>
+  <li><a href="#an-invariant-in-code" id="toc-an-invariant-in-code" class="nav-link" data-scroll-target="#an-invariant-in-code"><span class="header-section-number">31.5</span> An Invariant in Code</a></li>
+  <li><a href="#invariants-in-the-three-systems" id="toc-invariants-in-the-three-systems" class="nav-link" data-scroll-target="#invariants-in-the-three-systems"><span class="header-section-number">31.6</span> Invariants in the Three Systems</a></li>
+  <li><a href="#three-ways-invariant-design-fails" id="toc-three-ways-invariant-design-fails" class="nav-link" data-scroll-target="#three-ways-invariant-design-fails"><span class="header-section-number">31.7</span> Three Ways Invariant Design Fails</a></li>
+  <li><a href="#quick-exercise" id="toc-quick-exercise" class="nav-link" data-scroll-target="#quick-exercise"><span class="header-section-number">31.8</span> Quick Exercise</a></li>
+  <li><a href="#takeaways" id="toc-takeaways" class="nav-link" data-scroll-target="#takeaways"><span class="header-section-number">31.9</span> Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./part_VII_27.html">Part VII — Making Software Trustworthy</a></li><li class="breadcrumb-item"><a href="./part_VII_28.html"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Invariants — Rules That Must Never Break</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Invariants — Rules That Must Never Break</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Chapter 27 introduced contracts at the level of individual operations: preconditions that state what must be true before a routine is called, and postconditions that state what will be true when it returns. These are powerful tools for reasoning about individual calls. They do not, by themselves, answer a broader question: what is always true about an object, regardless of which sequence of operations has been applied to it, and regardless of what state it was in before any particular call?</p>
+<p>This is the question invariants answer. An invariant is a property that holds for every observable state of an object — after construction, before every operation call, and after every operation return. It is not a claim about one call or one transition; it is a claim about the object’s entire lifetime. Where a postcondition says “after this operation, the status is <code>IN_TRANSIT</code>,” an invariant says “at all times, the status is one of four declared values.” The postcondition is a consequence of a specific operation; the invariant is a constraint on the entire state space.</p>
+<section id="what-an-invariant-is" class="level2" data-number="31.1">
+<h2 data-number="31.1" class="anchored" data-anchor-id="what-an-invariant-is"><span class="header-section-number">31.1</span> What an Invariant Is</h2>
+<p>The simplest way to understand the force of an invariant is to consider what it rules out. A <code>Delivery_Task</code> with status <code>"PENDING"</code> and a non-empty <code>assigned_robot_id</code> is a state that the model never intends to permit: a pending task is one that has not yet been assigned. A <code>WorldObject</code> at position <code>x = -5</code> when the world begins at zero is a state that the physics never intends to permit. A <code>Document</code> with an empty identifier in a collection keyed by identifiers is a state that the index never intends to permit. Each of these is an invalid state, and each will eventually cause a failure — not at the point where the invalid state was created, but later, when downstream code encounters it and discovers that its own assumptions have been violated.</p>
+<p>An invariant is what prevents invalid states from being created. It is a constraint that every operation on the object must preserve. An operation that establishes an invalid state — that leaves the object in a configuration the invariant forbids — violates the invariant, and the violation can be detected immediately rather than at the distant point where the invalid state produces a symptom.</p>
+<p>The relationship between invariants and contracts is additive: invariants operate at the class level, contracts operate at the operation level, and together they provide complementary coverage. A contract without an invariant can ensure that each operation leaves the object in a correct state given the state it was in on entry, but cannot prevent the object from being constructed in an invalid state. An invariant without contracts can ensure the object’s state is always valid but cannot specify the relationship between inputs and outputs for any particular operation. Both are necessary.</p>
+</section>
+<section id="three-categories-of-invariant" class="level2" data-number="31.2">
+<h2 data-number="31.2" class="anchored" data-anchor-id="three-categories-of-invariant"><span class="header-section-number">31.2</span> Three Categories of Invariant</h2>
+<p>Invariants fall into three categories, corresponding to different levels of the object’s structure.</p>
+<p><strong>Field-level invariants</strong> constrain individual fields to valid domains. A task identifier must be non-empty. A position coordinate must be non-negative. A priority score must be within a defined range. These are the simplest invariants — they constrain one field in isolation — and they are also the most common source of errors when omitted. A system that permits empty identifiers will eventually call an operation that assumes identifiers are present, and the failure will be attributed to the operation rather than to the missing constraint on construction.</p>
+<p><strong>Relationship invariants</strong> constrain the relationship between two or more fields. A task in <code>IN_TRANSIT</code> status must have a non-empty <code>assigned_robot_id</code> — the transition to <code>IN_TRANSIT</code> is only meaningful when there is a robot to perform it, and the system should never be in a state where a task is claimed to be in transit without an assigned robot. A world object at <code>max_x</code> must have the appropriate boundary condition applied. These invariants are more powerful than field-level ones because they capture the dependencies between fields that individual field constraints cannot express.</p>
+<p><strong>Range and bound invariants</strong> constrain fields to stay within operational limits. A position must remain between zero and the world’s maximum extent. A score must remain non-negative. A collection must not exceed its defined capacity. These invariants are particularly important for systems where values are computed dynamically — where positions are updated by velocity, scores are computed by summing term weights, priorities are modified by rules — because the computation may produce values outside the valid range without the error being visible at the computation site.</p>
+</section>
+<section id="invariants-and-transitions" class="level2" data-number="31.3">
+<h2 data-number="31.3" class="anchored" data-anchor-id="invariants-and-transitions"><span class="header-section-number">31.3</span> Invariants and Transitions</h2>
+<p>A common confusion in invariant design is between invariants and transition preconditions, and the confusion produces both invariants that are too weak and invariants that are too strong.</p>
+<p>An invariant that is too weak fails to prevent invalid states. Consider a <code>DeliveryTask</code> whose invariant only constrains the status to one of four values but does not constrain the relationship between status and <code>assigned_robot_id</code>. The invariant permits a task in <code>IN_TRANSIT</code> with an empty <code>assigned_robot_id</code> — an invalid state that no operation should produce but that the invariant does not forbid. Strengthening the invariant to require <code>assigned_robot_id /= ""</code> whenever <code>status = "IN_TRANSIT"</code> closes this gap.</p>
+<p>An invariant that is too strict forbids states that are legitimately intermediate during a transition. If the invariant required <code>assigned_robot_id /= ""</code> at all times, no object could be constructed before an assignment has been made. The invariant must permit the initial <code>PENDING</code> state without an assigned robot while forbidding the <code>IN_TRANSIT</code> state without one. The relationship invariant — <code>status = "IN_TRANSIT" implies assigned_robot_id /= ""</code> — achieves this precision.</p>
+<p>The principle is: invariants should constrain the outcomes of transitions, not the inputs to them. Inputs to transitions belong in preconditions. The states that are permanently forbidden belong in invariants.</p>
+</section>
+<section id="from-requirement-to-invariant-design" class="level2" data-number="31.4">
+<h2 data-number="31.4" class="anchored" data-anchor-id="from-requirement-to-invariant-design"><span class="header-section-number">31.4</span> From Requirement to Invariant Design</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“World objects move each tick but must always stay within legal bounds.”</em></p>
+</blockquote>
+<p><strong>Step 1: Identify the always-true rules.</strong> Every world object must have a non-empty identifier — the identity constraint. Every world object must have a non-negative <code>max_x</code> — a malformed bound is worse than no bound. Every world object’s position must satisfy <code>x &gt;= 0 and x &lt;= max_x</code> — the spatial constraint that the requirement directly states. These are invariants: they hold before every tick and must hold after every tick.</p>
+<p><strong>Step 2: Keep transition behavior flexible.</strong> The <code>step</code> operation updates position by adding velocity. The invariant must constrain the resulting position without forbidding the operation. The correct design is to clamp the position within bounds in the operation body and to assert the spatial invariant in both the postcondition and the class invariant. The invariant does not say “velocity must be zero” — that would block movement. It says “after movement, position is within bounds” — which the operation must guarantee by clamping.</p>
+<p><strong>Step 3: Confirm that every operation preserves the invariant.</strong> For <code>World_Object</code>, the only operation that modifies position is <code>step</code>. The postcondition on <code>step</code> asserts <code>x &gt;= 0 and x &lt;= max_x</code>. Since this assertion matches the invariant’s spatial constraint, any execution of <code>step</code> that satisfies its postcondition will leave the invariant intact. The two assertions reinforce each other: the postcondition ensures the specific operation preserves the invariant, and the invariant ensures no other operation — including direct field assignment — can violate the constraint.</p>
+</section>
+<section id="an-invariant-in-code" class="level2" data-number="31.5">
+<h2 data-number="31.5" class="anchored" data-anchor-id="an-invariant-in-code"><span class="header-section-number">31.5</span> An Invariant in Code</h2>
+<pre class="nex"><code>class World_Object
+feature
+  object_id: String
+  x: Integer
+  vx: Integer
+  max_x: Integer
+  step()
+    require
+      max_valid: max_x &gt;= 0
+    do
+      let next: Integer := x + vx
+      if next &lt; 0 then
+        x := 0
+      elseif next &gt; max_x then
+        x := max_x
+      else
+        x := next
+      end
+    ensure
+      bounded_after_step: x &gt;= 0 and x &lt;= max_x
+    end
+invariant
+  id_present: object_id /= ""
+  max_non_negative: max_x &gt;= 0
+  x_bounded: x &gt;= 0 and x &lt;= max_x
+end</code></pre>
+<p>The three invariants cover all three categories. <code>id_present</code> is a field-level invariant — an object without an identifier is a malformed object. <code>max_non_negative</code> is a range invariant — a negative bound is not a legal bound. <code>x_bounded</code> is the relationship invariant between position and bound — the spatial constraint that the requirement states must always hold.</p>
+<p>The interaction between the invariant and the postcondition on <code>step</code> is the central design relationship in this sketch. The invariant asserts <code>x_bounded</code> as a permanent truth. The postcondition on <code>step</code> asserts <code>bounded_after_step</code>, which is the same condition. This is intentional: the postcondition is the per-call evidence that the invariant is preserved across the <code>step</code> operation. If a future modification to <code>step</code> removed the clamping logic and the postcondition, the invariant would immediately catch any execution that left <code>x</code> out of bounds.</p>
+<p>The precondition on <code>step</code> — <code>max_valid: max_x &gt;= 0</code> — might look redundant given the class invariant <code>max_non_negative</code>. It is not redundant for the same reason the <code>task_id_present</code> precondition in Chapter 27 was not redundant: the invariant guarantees the condition for any correctly constructed object; the precondition is a defensive assertion that makes the assumption visible in the operation’s own contract. As the class evolves and <code>step</code> is read in isolation, the precondition communicates the operation’s requirements without requiring the reader to consult the class invariant.</p>
+</section>
+<section id="invariants-in-the-three-systems" class="level2" data-number="31.6">
+<h2 data-number="31.6" class="anchored" data-anchor-id="invariants-in-the-three-systems"><span class="header-section-number">31.6</span> Invariants in the Three Systems</h2>
+<p>In the delivery system, the <code>DeliveryTask</code> invariant asserts that the status is always one of four declared values and that any task in <code>IN_TRANSIT</code> has a non-empty <code>assigned_robot_id</code>. The first invariant is a field-level constraint; the second is a relationship constraint. Together they ensure that no operation can leave the task in an ambiguous or unrepresentable state.</p>
+<p>In the knowledge engine, the <code>Document</code> invariant asserts that the document identifier is non-empty and unique within its scope. The uniqueness invariant is a relationship constraint — it relates one document instance to the collection that contains it — and it must be enforced at both construction and update. A document whose identifier changes to match another document’s identifier has violated the invariant, and the violation must be caught at the point of the change.</p>
+<p>In the virtual world, every <code>WorldObject</code> carries a spatial invariant: position coordinates are within bounds. Every <code>InteractionRule</code> carries a validity invariant: the object types it references must exist in the type registry. These invariants ensure that collision detection and interaction application can trust the data they receive, rather than defensively validating every piece of state they encounter.</p>
+<p>In all three systems, invariants are not defensive checks added to make buggy code safer. They are assertions about the system’s design: states that the model never intends to permit, properties that every correct operation must preserve, constraints that exist because the system’s reasoning depends on them.</p>
+</section>
+<section id="three-ways-invariant-design-fails" class="level2" data-number="31.7">
+<h2 data-number="31.7" class="anchored" data-anchor-id="three-ways-invariant-design-fails"><span class="header-section-number">31.7</span> Three Ways Invariant Design Fails</h2>
+<p><strong>Invariants too weak.</strong> An invariant that constrains individual fields but not their relationships permits states that the model never intends but cannot prevent. A <code>DeliveryTask</code> invariant that validates the status values but not the <code>assigned_robot_id</code> constraint permits in-transit tasks with no assigned robot — an invalid state that no invariant will catch and that subsequent operations will discover in the form of empty identifiers where non-empty ones were expected. The remedy is to strengthen the invariant to capture all of the relationships between fields that must hold for the object to be in a valid state.</p>
+<p><strong>Invariants too strict.</strong> An invariant that forbids states that are legitimate at certain points in an object’s lifecycle will make normal operations impossible. If the spatial invariant required <code>vx = 0</code> — forbidding any non-zero velocity — the <code>step</code> operation could not exist. Invariants that are too strict are not corrected by weakening the invariant; they are corrected by identifying which conditions are permanent constraints (invariants) and which are conditions required only before or after specific operations (preconditions and postconditions). Permanent constraints belong in the invariant. Transition-specific conditions belong in operation contracts.</p>
+<p><strong>Duplicate rule definitions that drift apart.</strong> When the same constraint appears in both a class invariant and the postconditions of multiple operations, the two definitions may diverge over time. One operation’s postcondition is updated to reflect a new understanding of the constraint; the invariant is not. Another operation is added with a postcondition that was written to match the updated understanding; the old operations are not updated. The invariant and the operations now describe different constraints, and the system enforces whichever one the checker happens to evaluate. The remedy is to treat the class invariant as the single authoritative statement of each constraint and to write postconditions that reference or derive from the invariant rather than restating it independently.</p>
+</section>
+<section id="quick-exercise" class="level2" data-number="31.8">
+<h2 data-number="31.8" class="anchored" data-anchor-id="quick-exercise"><span class="header-section-number">31.8</span> Quick Exercise</h2>
+<p>Choose one class in your system and define its complete invariant with three parts: two field-level invariants that constrain individual fields to their valid domains, one relationship invariant that constrains the relationship between two or more fields, and one operation that could violate one of the invariants if written carelessly.</p>
+<p>Then write one test that calls the potentially violating operation with inputs designed to produce a boundary case and verifies that the invariants hold afterward. If the test requires reading the implementation to write, the invariants are not yet strong enough to specify the boundary independently.</p>
+</section>
+<section id="takeaways" class="level2" data-number="31.9">
+<h2 data-number="31.9" class="anchored" data-anchor-id="takeaways"><span class="header-section-number">31.9</span> Takeaways</h2>
+<ul>
+<li>An invariant is a property that holds for every observable state of an object — not after one operation, but across the entire object’s lifetime. It is a constraint on the state space, not a claim about a single transition.</li>
+<li>Invariants and contracts are complementary. Invariants protect against invalid states across all operations; contracts specify the input-output relationship of individual operations. Both are necessary.</li>
+<li>Three categories cover most invariants: field-level constraints on individual fields, relationship invariants on the dependencies between fields, and range or bound invariants on computed values.</li>
+<li>Invariants should constrain the outcomes of transitions, not their inputs. Transition inputs belong in preconditions; permanently forbidden states belong in invariants.</li>
+<li>Duplicate rule definitions drift apart. The class invariant is the authoritative statement of each constraint; operation postconditions should derive from it, not independently restate it.</li>
+</ul>
+<p><em>Chapter 29 examines how testing extends the guarantees established by contracts and invariants. Where contracts specify what must be true, tests provide evidence that the specifications have been met — and they do so by exploring behavior across the full range of inputs, not just the ones the developer thought of first.</em></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./part_VII_27.html" class="pagination-link" aria-label="Preconditions and Postconditions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Preconditions and Postconditions</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./part_VII_29.html" class="pagination-link" aria-label="Testing as Exploration">
+        <span class="nav-page-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Testing as Exploration</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
