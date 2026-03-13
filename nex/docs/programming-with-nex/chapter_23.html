@@ -439,14 +439,15 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#why-split-a-program" id="toc-why-split-a-program" class="nav-link active" data-scroll-target="#why-split-a-program"><span class="header-section-number">24.1</span> Why Split a Program</a></li>
   <li><a href="#the-intern-statement" id="toc-the-intern-statement" class="nav-link" data-scroll-target="#the-intern-statement"><span class="header-section-number">24.2</span> The <code>intern</code> Statement</a></li>
-  <li><a href="#a-simple-two-file-example" id="toc-a-simple-two-file-example" class="nav-link" data-scroll-target="#a-simple-two-file-example"><span class="header-section-number">24.3</span> A Simple Two-File Example</a></li>
-  <li><a href="#aliases" id="toc-aliases" class="nav-link" data-scroll-target="#aliases"><span class="header-section-number">24.4</span> Aliases</a></li>
-  <li><a href="#designing-module-boundaries" id="toc-designing-module-boundaries" class="nav-link" data-scroll-target="#designing-module-boundaries"><span class="header-section-number">24.5</span> Designing Module Boundaries</a></li>
-  <li><a href="#what-belongs-together" id="toc-what-belongs-together" class="nav-link" data-scroll-target="#what-belongs-together"><span class="header-section-number">24.6</span> What Belongs Together</a></li>
-  <li><a href="#intern-and-contracts" id="toc-intern-and-contracts" class="nav-link" data-scroll-target="#intern-and-contracts"><span class="header-section-number">24.7</span> Intern and Contracts</a></li>
-  <li><a href="#a-worked-example-splitting-a-small-ledger" id="toc-a-worked-example-splitting-a-small-ledger" class="nav-link" data-scroll-target="#a-worked-example-splitting-a-small-ledger"><span class="header-section-number">24.8</span> A Worked Example: Splitting a Small Ledger</a></li>
-  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">24.9</span> Summary</a></li>
-  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">24.10</span> Exercises</a></li>
+  <li><a href="#how-intern-resolves-files" id="toc-how-intern-resolves-files" class="nav-link" data-scroll-target="#how-intern-resolves-files"><span class="header-section-number">24.3</span> How <code>intern</code> Resolves Files</a></li>
+  <li><a href="#a-simple-two-file-example" id="toc-a-simple-two-file-example" class="nav-link" data-scroll-target="#a-simple-two-file-example"><span class="header-section-number">24.4</span> A Simple Two-File Example</a></li>
+  <li><a href="#aliases" id="toc-aliases" class="nav-link" data-scroll-target="#aliases"><span class="header-section-number">24.5</span> Aliases</a></li>
+  <li><a href="#designing-module-boundaries" id="toc-designing-module-boundaries" class="nav-link" data-scroll-target="#designing-module-boundaries"><span class="header-section-number">24.6</span> Designing Module Boundaries</a></li>
+  <li><a href="#what-belongs-together" id="toc-what-belongs-together" class="nav-link" data-scroll-target="#what-belongs-together"><span class="header-section-number">24.7</span> What Belongs Together</a></li>
+  <li><a href="#intern-and-contracts" id="toc-intern-and-contracts" class="nav-link" data-scroll-target="#intern-and-contracts"><span class="header-section-number">24.8</span> Intern and Contracts</a></li>
+  <li><a href="#a-worked-example-splitting-a-small-ledger" id="toc-a-worked-example-splitting-a-small-ledger" class="nav-link" data-scroll-target="#a-worked-example-splitting-a-small-ledger"><span class="header-section-number">24.9</span> A Worked Example: Splitting a Small Ledger</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">24.10</span> Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">24.11</span> Exercises</a></li>
   </ul>
 </nav>
     </div>
@@ -495,8 +496,34 @@ ul.task-list li input[type="checkbox"] {
 <pre><code>intern math/Calculator as Calc</code></pre>
 <p>That allows the imported class to be referred to locally as <code>Calc</code>.</p>
 </section>
-<section id="a-simple-two-file-example" class="level2" data-number="24.3">
-<h2 data-number="24.3" class="anchored" data-anchor-id="a-simple-two-file-example"><span class="header-section-number">24.3</span> A Simple Two-File Example</h2>
+<section id="how-intern-resolves-files" class="level2" data-number="24.3">
+<h2 data-number="24.3" class="anchored" data-anchor-id="how-intern-resolves-files"><span class="header-section-number">24.3</span> How <code>intern</code> Resolves Files</h2>
+<p><code>intern</code> searches in this order:</p>
+<ol type="1">
+<li>the directory of the currently loaded script, if the code came from a file</li>
+<li>the REPL or process working directory</li>
+<li><code>~/.nex/deps</code></li>
+</ol>
+<p>For a path-qualified intern such as:</p>
+<pre class="text"><code>intern net/Tcp_Socket</code></pre>
+<p>Nex tries these local layouts under each search root:</p>
+<pre class="text"><code>Tcp_Socket.nex
+tcp_socket.nex
+lib/net/Tcp_Socket.nex
+lib/net/tcp_socket.nex
+lib/net/src/Tcp_Socket.nex
+lib/net/src/tcp_socket.nex</code></pre>
+<p>Then it tries the same path forms under:</p>
+<pre class="text"><code>~/.nex/deps</code></pre>
+<p>So all of these are valid examples:</p>
+<pre class="text"><code>./lib/net/tcp_socket.nex
+/some/project/lib/net/Tcp_Socket.nex
+~/.nex/deps/net/tcp_socket.nex
+~/.nex/deps/net/src/Tcp_Socket.nex</code></pre>
+<p>Exact-case filenames are checked first. If they are not found, Nex falls back to a lowercase filename such as <code>tcp_socket.nex</code>.</p>
+</section>
+<section id="a-simple-two-file-example" class="level2" data-number="24.4">
+<h2 data-number="24.4" class="anchored" data-anchor-id="a-simple-two-file-example"><span class="header-section-number">24.4</span> A Simple Two-File Example</h2>
 <p>Suppose <code>math/Counter.nex</code> contains:</p>
 <pre><code>class Counter
   create
@@ -526,8 +553,8 @@ class Main
 end</code></pre>
 <p>The point is not merely that the code compiles. The point is that <code>Counter</code> now has its own module boundary. It can be read, tested, and reused on its own.</p>
 </section>
-<section id="aliases" class="level2" data-number="24.4">
-<h2 data-number="24.4" class="anchored" data-anchor-id="aliases"><span class="header-section-number">24.4</span> Aliases</h2>
+<section id="aliases" class="level2" data-number="24.5">
+<h2 data-number="24.5" class="anchored" data-anchor-id="aliases"><span class="header-section-number">24.5</span> Aliases</h2>
 <p>Aliases are useful when:</p>
 <ul>
 <li>the imported name is long</li>
@@ -540,8 +567,8 @@ end</code></pre>
 <pre><code>let p := create Polygon.with_sides(5)</code></pre>
 <p>Use aliases sparingly. The goal is clarity, not abbreviation for its own sake.</p>
 </section>
-<section id="designing-module-boundaries" class="level2" data-number="24.5">
-<h2 data-number="24.5" class="anchored" data-anchor-id="designing-module-boundaries"><span class="header-section-number">24.5</span> Designing Module Boundaries</h2>
+<section id="designing-module-boundaries" class="level2" data-number="24.6">
+<h2 data-number="24.6" class="anchored" data-anchor-id="designing-module-boundaries"><span class="header-section-number">24.6</span> Designing Module Boundaries</h2>
 <p>A good file boundary often matches a good class boundary.</p>
 <p>As a rough rule:</p>
 <ul>
@@ -557,8 +584,8 @@ end</code></pre>
 </ul>
 <p>Files are design documents as much as storage containers.</p>
 </section>
-<section id="what-belongs-together" class="level2" data-number="24.6">
-<h2 data-number="24.6" class="anchored" data-anchor-id="what-belongs-together"><span class="header-section-number">24.6</span> What Belongs Together</h2>
+<section id="what-belongs-together" class="level2" data-number="24.7">
+<h2 data-number="24.7" class="anchored" data-anchor-id="what-belongs-together"><span class="header-section-number">24.7</span> What Belongs Together</h2>
 <p>These belong together:</p>
 <ul>
 <li>a <code>Stack</code> class and helper routines whose only purpose is to support the stack</li>
@@ -570,14 +597,14 @@ end</code></pre>
 <p>If you feel tempted to group code by when it was written rather than by what it means, stop and redesign.</p>
 <p>The best modules reduce mental load. A reader opening a file should have a good guess what they are about to find.</p>
 </section>
-<section id="intern-and-contracts" class="level2" data-number="24.7">
-<h2 data-number="24.7" class="anchored" data-anchor-id="intern-and-contracts"><span class="header-section-number">24.7</span> Intern and Contracts</h2>
+<section id="intern-and-contracts" class="level2" data-number="24.8">
+<h2 data-number="24.8" class="anchored" data-anchor-id="intern-and-contracts"><span class="header-section-number">24.8</span> Intern and Contracts</h2>
 <p>Contracts become even more important once code is split across files.</p>
 <p>When a class is used from another module, the reader of the calling code should not need to open the original file to know basic obligations and guarantees. Good preconditions, postconditions, and invariants make module boundaries trustworthy.</p>
 <p>In a multi-file program, the contract is often the first and most important documentation of a class.</p>
 </section>
-<section id="a-worked-example-splitting-a-small-ledger" class="level2" data-number="24.8">
-<h2 data-number="24.8" class="anchored" data-anchor-id="a-worked-example-splitting-a-small-ledger"><span class="header-section-number">24.8</span> A Worked Example: Splitting a Small Ledger</h2>
+<section id="a-worked-example-splitting-a-small-ledger" class="level2" data-number="24.9">
+<h2 data-number="24.9" class="anchored" data-anchor-id="a-worked-example-splitting-a-small-ledger"><span class="header-section-number">24.9</span> A Worked Example: Splitting a Small Ledger</h2>
 <p>Imagine a program with these concepts:</p>
 <ul>
 <li><code>Transaction</code></li>
@@ -629,8 +656,8 @@ class Ledger_Report
 end</code></pre>
 <p>Each file has one job. The design is visible in the file structure itself.</p>
 </section>
-<section id="summary" class="level2" data-number="24.9">
-<h2 data-number="24.9" class="anchored" data-anchor-id="summary"><span class="header-section-number">24.9</span> Summary</h2>
+<section id="summary" class="level2" data-number="24.10">
+<h2 data-number="24.10" class="anchored" data-anchor-id="summary"><span class="header-section-number">24.10</span> Summary</h2>
 <ul>
 <li>Split programs into files to express design boundaries, not merely to reduce length</li>
 <li>Use <code>intern path/Class_Name</code> to load Nex classes from other files</li>
@@ -640,8 +667,8 @@ end</code></pre>
 <li>A clean module layout reduces coupling and mental overhead</li>
 </ul>
 </section>
-<section id="exercises" class="level2" data-number="24.10">
-<h2 data-number="24.10" class="anchored" data-anchor-id="exercises"><span class="header-section-number">24.10</span> Exercises</h2>
+<section id="exercises" class="level2" data-number="24.11">
+<h2 data-number="24.11" class="anchored" data-anchor-id="exercises"><span class="header-section-number">24.11</span> Exercises</h2>
 <p><strong>1.</strong> Split a simple earlier example into two files: one defining a class and one using it with <code>intern</code>.</p>
 <p><strong>2.</strong> Take a class that currently does too much and divide it into two classes in two files. Explain why the new boundary is better.</p>
 <p><strong>3.</strong> Write a short example using <code>intern ... as ...</code> and show why the alias is helpful.</p>
