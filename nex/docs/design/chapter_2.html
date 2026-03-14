@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>2&nbsp; Parsing, ASTs, and Interpretation – The Design and Implementation of Nex</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_3.html" rel="next">
+<link href="./chapter_1.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_2.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Parsing, ASTs, and Interpretation</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">The Design and Implementation of Nex</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">index.html</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Introduction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Design Goals</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Parsing, ASTs, and Interpretation</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Typechecking and Code Generation</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Libraries, Host Integration, and Concurrency</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Future Directions</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-grammar" id="toc-the-grammar" class="nav-link active" data-scroll-target="#the-grammar"><span class="header-section-number">2.1</span> 2.1 The Grammar</a></li>
+  <li><a href="#the-parser-layer" id="toc-the-parser-layer" class="nav-link" data-scroll-target="#the-parser-layer"><span class="header-section-number">2.2</span> 2.2 The Parser Layer</a></li>
+  <li><a href="#the-walker-from-grammar-trees-to-semantic-asts" id="toc-the-walker-from-grammar-trees-to-semantic-asts" class="nav-link" data-scroll-target="#the-walker-from-grammar-trees-to-semantic-asts"><span class="header-section-number">2.3</span> 2.3 The Walker: From Grammar Trees to Semantic ASTs</a></li>
+  <li><a href="#the-ast-as-plain-data" id="toc-the-ast-as-plain-data" class="nav-link" data-scroll-target="#the-ast-as-plain-data"><span class="header-section-number">2.4</span> 2.4 The AST as Plain Data</a></li>
+  <li><a href="#the-program-node" id="toc-the-program-node" class="nav-link" data-scroll-target="#the-program-node"><span class="header-section-number">2.5</span> 2.5 The <code>:program</code> Node</a></li>
+  <li><a href="#the-runtime-context" id="toc-the-runtime-context" class="nav-link" data-scroll-target="#the-runtime-context"><span class="header-section-number">2.6</span> 2.6 The Runtime Context</a>
+  <ul class="collapse">
+  <li><a href="#make-context" id="toc-make-context" class="nav-link" data-scroll-target="#make-context"><span class="header-section-number">2.6.1</span> <code>make-context</code></a></li>
+  </ul></li>
+  <li><a href="#the-environment-model" id="toc-the-environment-model" class="nav-link" data-scroll-target="#the-environment-model"><span class="header-section-number">2.7</span> 2.7 The Environment Model</a></li>
+  <li><a href="#how-evaluation-proceeds" id="toc-how-evaluation-proceeds" class="nav-link" data-scroll-target="#how-evaluation-proceeds"><span class="header-section-number">2.8</span> 2.8 How Evaluation Proceeds</a>
+  <ul class="collapse">
+  <li><a href="#two-paths-worth-special-attention" id="toc-two-paths-worth-special-attention" class="nav-link" data-scroll-target="#two-paths-worth-special-attention"><span class="header-section-number">2.8.1</span> Two Paths Worth Special Attention</a></li>
+  </ul></li>
+  <li><a href="#built-in-types-and-the-types-subtree" id="toc-built-in-types-and-the-types-subtree" class="nav-link" data-scroll-target="#built-in-types-and-the-types-subtree"><span class="header-section-number">2.9</span> 2.9 Built-In Types and the <code>types/</code> Subtree</a></li>
+  <li><a href="#source-tracking-and-error-localisation" id="toc-source-tracking-and-error-localisation" class="nav-link" data-scroll-target="#source-tracking-and-error-localisation"><span class="header-section-number">2.10</span> 2.10 Source Tracking and Error Localisation</a></li>
+  <li><a href="#the-interpreter-as-semantic-baseline" id="toc-the-interpreter-as-semantic-baseline" class="nav-link" data-scroll-target="#the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> 2.11 The Interpreter as Semantic Baseline</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Parsing, ASTs, and Interpretation</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The front half of the Nex implementation is conventional in broad outline and deliberately simple in detail. Source text becomes a parse tree, the parse tree becomes a cleaner AST, and that AST is handed to an interpreter that evaluates it directly. There is no intermediate representation, no optimisation pass, no compilation to bytecode before meaning is assigned. The interpreter is the semantics.</p>
+<p>That simplicity is a design choice, not a limitation. A tree-walking interpreter is slower than a compiler and unsuitable for production JVM deployment, but it has one property that matters enormously for a language under active development: the connection between the AST and the executed behaviour is immediate and inspectable. If you want to know what a piece of Nex means, you read the interpreter. What it does is what the language does.</p>
+<p>The relevant files are:</p>
+<ul>
+<li><a href="https://github.com/vijaymathew/nex/blob/main/grammar/nexlang.g4"><code>grammar/nexlang.g4</code></a> — the ANTLR grammar</li>
+<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a> — the thin parser layer</li>
+<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.cljc"><code>src/nex/walker.cljc</code></a> — grammar tree to semantic AST</li>
+<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.cljc"><code>src/nex/interpreter.cljc</code></a> — evaluation</li>
+</ul>
+<p>If you are reading the code for the first time, treat this chapter as a guide to reading order. The shortest useful path through the implementation is:</p>
+<ol type="1">
+<li><code>parser/ast</code></li>
+<li>the walker’s <code>:program</code> handler</li>
+<li><code>make-context</code></li>
+<li><code>eval-node :program</code></li>
+<li>selected <code>eval-node</code> methods for expressions and statements</li>
+</ol>
+<p>That path takes you from source text to executable meaning with very little indirection.</p>
+<section id="the-grammar" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="the-grammar"><span class="header-section-number">2.1</span> 2.1 The Grammar</h2>
+<p>The ANTLR grammar defines the concrete syntax of Nex — what strings of characters constitute valid programs. It covers class declarations, functions and anonymous functions, generic parameters, contracts, array and map and set literals, <code>intern</code> and <code>import</code>, <code>spawn</code> and <code>select</code>.</p>
+<p>The grammar’s job is narrow on purpose: answer whether a given string is syntactically well-formed. It should not know whether a call is type-correct, whether an inheritance relation is legal, or whether a contract is meaningful. Those are later questions, and forcing them into the grammar would make it harder to evolve and harder to reason about. A grammar that tries to solve semantic problems is not a grammar any more — it is a grammar with hidden semantics scattered through it.</p>
+<p>For a contributor, the practical consequence is simple: when a feature change is really a syntax change, start in the grammar. If it is not a syntax change, do not force it there.</p>
+</section>
+<section id="the-parser-layer" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="the-parser-layer"><span class="header-section-number">2.2</span> 2.2 The Parser Layer</h2>
+<p><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a> is intentionally thin:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> parser</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  (antlr/parser <span class="st">"grammar/nexlang.g4"</span>))</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>(<span class="bu">defn</span><span class="fu"> parse </span>[input]</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  (antlr/parse parser input))</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>(<span class="bu">defn</span><span class="fu"> ast </span>[input]</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> input</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      parse</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>      walker/walk-node))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>It creates an ANTLR parser via <code>clj-antlr</code>, invokes it on input, and hands the result to the walker. That is all. The thinness is a good sign — it means the parser layer is not secretly acting as a second semantics engine.</p>
+<p>It also means the first real implementation boundary is easy to locate. Everything before <code>walker/walk-node</code> is parsing infrastructure. Everything after it is language processing.</p>
+</section>
+<section id="the-walker-from-grammar-trees-to-semantic-asts" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="the-walker-from-grammar-trees-to-semantic-asts"><span class="header-section-number">2.3</span> 2.3 The Walker: From Grammar Trees to Semantic ASTs</h2>
+<p>The parse tree that ANTLR produces is faithful to the grammar, but grammar-faithful is not the same as easy to evaluate. Grammar trees carry syntactic noise — token boundaries, optional punctuation, production-rule artifacts — that the rest of the implementation should not have to navigate. The role of <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.cljc"><code>src/nex/walker.cljc</code></a> is to convert grammar-shaped trees into semantic AST nodes that the interpreter and type-checker can work with directly.</p>
+<p>This conversion produces regular Clojure maps with a <code>:type</code> key and a set of named fields:</p>
+<ul>
+<li><code>{:type :class ...}</code></li>
+<li><code>{:type :function ...}</code></li>
+<li><code>{:type :binary ...}</code></li>
+<li><code>{:type :call ...}</code></li>
+<li><code>{:type :spawn ...}</code></li>
+</ul>
+<p>The walker also normalises syntax that would otherwise require downstream phases to reconstruct:</p>
+<ul>
+<li><code>intern</code> becomes path, class name, and alias</li>
+<li><code>import</code> becomes qualified name and optional source</li>
+<li>generic parameters become structured type data</li>
+<li>source position becomes explicit <code>:line</code> and <code>:col</code> fields on every AST node</li>
+</ul>
+<p>Each of these normalisations is a small thing on its own. Together they mean the interpreter can be written against a clean, explicit representation rather than against whatever the grammar happened to produce.</p>
+<p>The walker is large but highly regular. It is best read as a dispatch table from grammar node names to AST constructors. Several parts deserve particular attention:</p>
+<ul>
+<li>the <code>:program</code> handler, because it determines the top-level shape of the AST and the main contract with downstream phases</li>
+<li><code>:internStmt</code> and <code>:importStmt</code>, because they show how module-related syntax is normalised</li>
+<li>class and function handlers, because they define the structures the typechecker and interpreter consume</li>
+<li>expression handlers for <code>:binary</code>, <code>:call</code>, <code>:create</code>, and <code>:spawn</code>, because these become the most frequently evaluated nodes</li>
+</ul>
+<p>A useful habit when reading the walker is to keep the corresponding grammar production open alongside it. The grammar shows how tokens are recognised; the walker shows which information survives into the semantic representation. The difference between the two is the walker’s entire purpose.</p>
+</section>
+<section id="the-ast-as-plain-data" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="the-ast-as-plain-data"><span class="header-section-number">2.4</span> 2.4 The AST as Plain Data</h2>
+<p>The AST is represented entirely in plain Clojure data: maps, vectors, strings, keywords, and numbers. This is not incidental — it is one of the strongest architectural decisions in the implementation.</p>
+<p>Because the AST is plain data, it can be inspected at the REPL without a special pretty-printer. Tests can construct or compare pieces of it without building a parser. Transformations stay explicit because there is no object graph to traverse imperatively. Later phases remain decoupled from parser internals because they receive ordinary data structures, not opaque parse-tree objects.</p>
+<p>It also means feature debugging is unusually direct. When something is wrong, you can inspect the AST produced for a piece of source and ask three separate questions: did the grammar accept the right structure? Did the walker preserve the right meaning? Is the bug actually in the interpreter or generator? Plain data makes those questions answerable without a debugger.</p>
+</section>
+<section id="the-program-node" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="the-program-node"><span class="header-section-number">2.5</span> 2.5 The <code>:program</code> Node</h2>
+<p>The <code>:program</code> node is the output of the entire front end and the input to everything that follows. Its structure is worth understanding in detail, because it is the main contract between parsing and execution.</p>
+<p>The walker collects top-level material into named buckets:</p>
+<ul>
+<li>imports</li>
+<li>interns</li>
+<li>classes</li>
+<li>functions</li>
+<li>statements</li>
+<li>calls</li>
+</ul>
+<p>This structure encodes an important distinction: declarations and executable statements are separated, not interleaved. That separation drives both typechecking order and interpretation order. Classes can reference each other regardless of source position; top-level statements execute after the static world is fully loaded. The <code>:program</code> shape is what makes both of those properties straightforward to implement.</p>
+</section>
+<section id="the-runtime-context" class="level2" data-number="2.6">
+<h2 data-number="2.6" class="anchored" data-anchor-id="the-runtime-context"><span class="header-section-number">2.6</span> 2.6 The Runtime Context</h2>
+<p>The interpreter in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.cljc"><code>src/nex/interpreter.cljc</code></a> keeps execution state inside a <code>Context</code> record. The context holds everything evaluation needs:</p>
+<ul>
+<li>known classes</li>
+<li>global bindings</li>
+<li>the current lexical environment</li>
+<li>captured output</li>
+<li>import metadata</li>
+<li>specialised generic classes</li>
+</ul>
+<p>Making this state explicit — as a data structure passed through evaluation rather than as mutable globals — is what keeps the interpreter readable and testable. The evaluator is not a set of mutually recursive functions sharing hidden state. It is an evaluator with a visible runtime world that can be inspected at any point.</p>
+<section id="make-context" class="level3" data-number="2.6.1">
+<h3 data-number="2.6.1" class="anchored" data-anchor-id="make-context"><span class="header-section-number">2.6.1</span> <code>make-context</code></h3>
+<p><code>make-context</code> is the runtime root: the function that produces the initial context before any user code runs. It does three things:</p>
+<ol type="1">
+<li>creates the global environment</li>
+<li>creates the mutable registries used during evaluation</li>
+<li>registers the built-in base classes — <code>Any</code>, <code>Function</code>, <code>Cursor</code>, <code>Comparable</code>, <code>Hashable</code>, and the scalar types</li>
+</ol>
+<p>A fresh context is therefore not empty in the ordinary sense. It already knows the built-in world of Nex. This is a useful point to keep in mind when debugging: many things that look like user-visible classes are bootstrapped in <code>make-context</code> before any user program loads.</p>
+</section>
+</section>
+<section id="the-environment-model" class="level2" data-number="2.7">
+<h2 data-number="2.7" class="anchored" data-anchor-id="the-environment-model"><span class="header-section-number">2.7</span> 2.7 The Environment Model</h2>
+<p>Lexical scope is implemented through nested environments. Variables are introduced with <code>env-define</code>, looked up with <code>env-lookup</code>, and updated with <code>env-set!</code>. Each scope — method body, constructor, spawned task, nested block — gets its own environment that chains to its enclosing scope.</p>
+<p>This model is simple, but its simplicity is the point. Because every scope is an explicit structure in the chain, the reason a name resolves to a particular value is always traceable. When a value resolves unexpectedly, the environment chain is the first place to look — and it is always inspectable.</p>
+</section>
+<section id="how-evaluation-proceeds" class="level2" data-number="2.8">
+<h2 data-number="2.8" class="anchored" data-anchor-id="how-evaluation-proceeds"><span class="header-section-number">2.8</span> 2.8 How Evaluation Proceeds</h2>
+<p>The core evaluator dispatches on node type. <code>eval-node :program</code> does the work described in Section 2.5: it processes imports, interns, class definitions, and function definitions before executing top-level statements in source order. The control flow is worth reading directly:</p>
+<ol type="1">
+<li>store import nodes in the context</li>
+<li>process all <code>intern</code> nodes</li>
+<li>register class definitions</li>
+<li>register and instantiate function values</li>
+<li>execute top-level statements in source order</li>
+<li>return the updated context</li>
+</ol>
+<p>This is not “evaluate everything in order.” It is “load the static world first, then execute the dynamic world.” That distinction is one of the reasons the implementation stays predictable: by the time any statement executes, all class and function definitions are already in scope.</p>
+<p>Within expressions and statements, the evaluator handles:</p>
+<ul>
+<li>variable references through lexical environment lookup</li>
+<li>binary and unary expressions through operator helpers</li>
+<li>calls and method invocations through method lookup and dispatch</li>
+<li>object construction through built-in and user-defined creation paths</li>
+<li>control flow through direct recursive evaluation</li>
+</ul>
+<section id="two-paths-worth-special-attention" class="level3" data-number="2.8.1">
+<h3 data-number="2.8.1" class="anchored" data-anchor-id="two-paths-worth-special-attention"><span class="header-section-number">2.8.1</span> Two Paths Worth Special Attention</h3>
+<p>Two evaluator paths connect more subsystems than the others and deserve to be read carefully.</p>
+<p><code>eval-node :call</code> sits at the centre of routine and method execution. It handles free functions, method calls, built-in method dispatch, function values, and inherited behaviour. If something goes wrong during ordinary execution, the call path is usually involved.</p>
+<p><code>eval-node :create</code> sits at the centre of object construction. It handles built-in constructors (arrays, maps, sets, tasks, channels), user-defined class constructors, generic specialisation, contract checking at construction time, class invariant verification, and Java interop fallback on the JVM. Understanding this path means understanding most of the runtime contract machinery.</p>
+</section>
+</section>
+<section id="built-in-types-and-the-types-subtree" class="level2" data-number="2.9">
+<h2 data-number="2.9" class="anchored" data-anchor-id="built-in-types-and-the-types-subtree"><span class="header-section-number">2.9</span> 2.9 Built-In Types and the <code>types/</code> Subtree</h2>
+<p>The interpreter hosts Nex’s built-in types and methods — arrays, maps, sets, strings, tasks, channels, cursors, and platform utilities — but it delegates the low-level mechanics of primitive operations to <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/types/"><code>src/nex/types/</code></a>. This split keeps the interpreter file from becoming a bag of primitive helpers while still keeping the meaning of the language — how methods are exposed, how built-in constructors behave, how runtime objects are represented — in the interpreter where it belongs.</p>
+<p>The practical consequence: if you are debugging the behaviour of an array method, look in <code>types/</code>. If you are debugging how array methods are dispatched or what contract checks apply, look in the interpreter.</p>
+</section>
+<section id="source-tracking-and-error-localisation" class="level2" data-number="2.10">
+<h2 data-number="2.10" class="anchored" data-anchor-id="source-tracking-and-error-localisation"><span class="header-section-number">2.10</span> 2.10 Source Tracking and Error Localisation</h2>
+<p>The front end attaches source position metadata — line and column — to every AST node. The interpreter carries debug stack information and source references through method and constructor calls. This infrastructure supports accurate error reporting, debugger integration, and contract failure localisation.</p>
+<p>It is the kind of machinery that is easy to overlook when discussing a language in the abstract, but it is what makes a contract violation message say <em>which</em> condition failed on <em>which</em> line rather than simply crashing. Nex’s contract system only delivers its diagnostic value if the runtime can locate failures precisely. The source-tracking infrastructure is what makes that possible.</p>
+</section>
+<section id="the-interpreter-as-semantic-baseline" class="level2" data-number="2.11">
+<h2 data-number="2.11" class="anchored" data-anchor-id="the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> 2.11 The Interpreter as Semantic Baseline</h2>
+<p>The interpreter is the semantic baseline for Nex. Even when Nex is compiled to JVM bytecode or JavaScript, the interpreter remains the authoritative statement of what the language means. The generators are correct when they produce behaviour that matches the interpreter. When they diverge, the interpreter wins.</p>
+<p>This has a practical consequence for contributors: if you are unsure what a feature should do, make it work correctly in the interpreter first. The generators should follow the interpreter, not define their own semantics independently. A generator that is easier to write by taking a shortcut from the intended semantics is a generator that is wrong.</p>
+<p>The interpreter’s clarity is therefore not just an aesthetic property. It is the guarantee that the rest of the implementation has something reliable to follow.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_1.html" class="pagination-link" aria-label="Design Goals">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Design Goals</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_3.html" class="pagination-link" aria-label="Typechecking and Code Generation">
+        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Typechecking and Code Generation</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
