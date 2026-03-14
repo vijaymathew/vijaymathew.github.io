@@ -1,0 +1,442 @@
+[
+  {
+    "objectID": "introduction.html",
+    "href": "introduction.html",
+    "title": "Introduction",
+    "section": "",
+    "text": "Design Commitments\nThis short book is about Nex as a language system rather than Nex as a teaching surface.\nThe tutorial and syntax documents explain how to write Nex programs. This manual explains why the language looks the way it does and how the implementation is organised underneath that surface. It is intended for language implementers, contributors, advanced users, and readers who want to understand Nex as a piece of software engineering.\nThe discussion throughout is tied to the actual source tree. This is not a description of a hypothetical implementation that happens to resemble Nex — it is a description of Nex, and the code is the evidence.\nNex is built around a small set of linked commitments, and the tension between them is what gives the design its character.\nThe first is that correctness should be part of ordinary programming. Not a static analysis pass, not a type system annotation, not a proof obligation that lives in a separate file — but executable conditions woven into the program itself, checked at runtime, reported by name when violated. This is Bertrand Meyer’s Design by Contract, carried forward from Eiffel into a language designed for a broader audience.\nThe second is that readability should survive as systems grow. A language that is clean at ten lines and illegible at ten thousand has solved the wrong problem. Nex borrows from Scheme the conviction that a small, consistent core scales further than a large feature set, and from Eiffel the structural discipline of explicit class interfaces.\nThe third is that object-oriented structure and functional abstraction should cooperate. Classes, inheritance, and contracts handle the stateful parts of a system; pure functions, higher-order operations, and immutable values handle the rest. Nex does not treat these as competing paradigms — it treats them as complementary tools.\nThe fourth is that a language can be theoretically informed without becoming hostile to beginners. The contract system has roots in Hoare logic; the type system has roots in ML; the concurrency model — goroutines and channels, borrowed from Go — has roots in CSP. None of this requires the user to know any of it. The theory shows up as design clarity, not as notation.\nThese commitments are in tension. Contracts add syntax. A clean core resists the features users ask for. Cooperation between paradigms requires the implementation to understand both. The chapters that follow explain how those tensions were resolved — and where they have not been resolved yet.",
+    "crumbs": [
+      "Introduction"
+    ]
+  },
+  {
+    "objectID": "introduction.html#organisation",
+    "href": "introduction.html#organisation",
+    "title": "Introduction",
+    "section": "Organisation",
+    "text": "Organisation\nChapter 1 explains the design goals in full: what problem Nex is trying to solve, what it deliberately does not do, and how the four commitments above translate into concrete language decisions.\nChapter 2 covers the front half of the implementation: the grammar and parser, AST construction, and the tree-walking interpreter. The interpreter is where the semantics of the language actually live, and understanding it is the prerequisite for everything that follows.\nChapter 3 covers static checking and the two code generators — JVM bytecode and JavaScript. The static checker enforces the type system and contract structure before execution; the code generators translate the verified AST into runnable form.\nChapter 4 covers extension and integration: how Nex programs call Java and JavaScript libraries, how the module system is organised, and how goroutine and channel concurrency is implemented on top of the JVM and JS runtimes.\nChapter 5 turns to what is not yet done. Every implementation has a gap between its aspirations and its current state. This chapter names that gap honestly — what is missing, what is intentionally conservative, and where the implementation is likely to grow.\nThe reader this manual assumes has some familiarity with language implementation concepts — parsing, ASTs, type checking — but does not need expertise. Where implementation techniques require background, the relevant ideas are introduced before they are used.",
+    "crumbs": [
+      "Introduction"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html",
+    "href": "chapter_1.html",
+    "title": "1  Design Goals",
+    "section": "",
+    "text": "1.1 3.1 A Language That Teaches More Than Syntax\nNex was not designed as a minimal teaching toy and not as a maximal industrial platform. It was designed to occupy the space between them: a language small enough to understand, disciplined enough to teach sound habits, and practical enough to support real programs.\nThat combination is harder to achieve than it looks. Teaching languages typically simplify by removing the problems that make software engineering difficult — and so teach a version of programming that does not survive contact with real systems. Production languages solve practical problems while leaving correctness, clarity, and teachability to convention — and so scale in power while failing to scale in comprehensibility. Nex tries to keep all three concerns in view at once. This chapter explains what that means in concrete terms.\nMost beginners first experience programming as a collection of constructs: variables, conditionals, loops, functions, classes. Those constructs matter, but they do not by themselves produce engineers. A student can learn syntax quickly and still have no clear idea how to divide responsibility between classes, how to state what a function assumes, or how to protect an object’s internal consistency. Those are judgment calls — and judgment is not taught by syntax alone.\nNex therefore treats software engineering concerns as language-level concerns rather than as conventions to be absorbed later. Contracts are built into the ordinary routine form, not added as an assertion library or a documentation convention. Generic types are ordinary types, not a library trick layered over an untyped core. Concurrency is exposed through explicit tasks and channels rather than through low-level thread APIs that require expert handling to use safely. Modularity and host integration are part of the normal programming story from the beginning.\nThe hope is not that a language feature can replace judgment — it cannot. The hope is that the language can make good judgment visible sooner. A student who writes a precondition has named an assumption. A student who writes an invariant has named a commitment. The act of writing it in executable form is qualitatively different from leaving it in a comment or leaving it unstated.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html#why-object-oriented-and-functional-together",
+    "href": "chapter_1.html#why-object-oriented-and-functional-together",
+    "title": "1  Design Goals",
+    "section": "1.2 3.2 Why Object-Oriented and Functional Together",
+    "text": "1.2 3.2 Why Object-Oriented and Functional Together\nNex is object-oriented because long-lived programs need stable models of things. Classes, constructors, fields, methods, invariants, and inheritance all exist to support that modelling work. When the problem is to represent a bank account, an HTTP request, or a graphics window, a class is the right unit of thought: it names the concept, bundles the data, and specifies the rules under which the data may change.\nBut classes are not the only useful unit of thought. Sometimes the important thing is not a long-lived object but a transformation — a local computation, a callback, an operation that takes values in and produces a value out without touching any persistent state. For that kind of problem, function values and expression-oriented forms are more natural and more honest. Wrapping a pure computation in a class to satisfy a stylistic rule produces noise without adding clarity.\nNex therefore supports both, not as competing paradigms but as complementary tools. A class may use functions internally when local abstraction serves it better than a new method. A function may manipulate objects when that is what the computation requires. The language makes no ideological commitment to either style. It makes a practical commitment to letting each be used where it fits, without friction between them.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html#declarative-structure-in-an-imperative-world",
+    "href": "chapter_1.html#declarative-structure-in-an-imperative-world",
+    "title": "1  Design Goals",
+    "section": "1.3 3.3 Declarative Structure in an Imperative World",
+    "text": "1.3 3.3 Declarative Structure in an Imperative World\nNex is mostly imperative in execution model. Statements run in sequence. Objects hold state. Loops update variables. This is not an accident — it is a deliberate choice to keep the execution model legible, especially for learners who are still building a mental model of what a running program does.\nBut many of the most important things about a program are not naturally imperative. Preconditions, postconditions, invariants, and types are all declarative — they are claims about what must hold, not instructions for what to do. In most languages, the body of a routine is asked to do all the explanatory work. In Nex, the body is only part of the story. The surrounding claims matter just as much: what callers must provide, what the routine guarantees on exit, what the class maintains across all its operations, what kinds of values are permitted to flow through a given point.\nThis gives Nex a partly declarative character without turning it into a theorem prover or a logic language. The imperative body handles the how; the contract handles the what and the why. That separation is what allows the language to be simultaneously concrete enough for beginners and rigorous enough for serious use.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html#rigor-without-ceremony",
+    "href": "chapter_1.html#rigor-without-ceremony",
+    "title": "1  Design Goals",
+    "section": "1.4 3.4 Rigor Without Ceremony",
+    "text": "1.4 3.4 Rigor Without Ceremony\nNex wants to be theoretically informed. The contract system has roots in Hoare logic. The type system draws on decades of work in static analysis. The concurrency model has roots in CSP. These are not cosmetic choices — they are the reason the language behaves the way it does and provides the guarantees it provides.\nBut none of this should require the reader to absorb a heavy formal notation before writing useful code. That affects the surface design throughout. The syntax is intentionally direct. Control flow is explicit. Assertions are named in plain language rather than expressed as logical formulae. Generic parameters use the square-bracket notation that programmers in many languages already recognise. Anonymous functions are present but written in a form that does not obscure what they do.\nThe same principle governs the implementation. Nex tends to prefer explicit data structures and clearly separated passes over hidden inference engines or elaborate metaprogramming. The goal is a system that remains inspectable — one where a reader who wants to understand why the compiler makes a particular decision can trace it through the source without needing a background in type theory to follow the argument.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html#real-world-practicality",
+    "href": "chapter_1.html#real-world-practicality",
+    "title": "1  Design Goals",
+    "section": "1.5 3.5 Real-World Practicality",
+    "text": "1.5 3.5 Real-World Practicality\nIf Nex existed only as a vehicle for chapters and exercises, it would not need files, processes, graphics, host imports, or concurrency. A clean teaching language can be entirely self-contained. But then the line between “the language students learn” and “the tools they use in practice” would be too wide, and the habits formed in one would not transfer to the other.\nNex includes practical facilities because the educational story is stronger when it reaches real systems. Collections handle ordinary data work. Files and processes support scripting and system interaction. Graphics libraries support visual programs. HTTP and networking libraries support service-style programs. Tasks and channels support modern concurrent programming. Host interop connects Nex programs to the JVM and JavaScript ecosystems, where the majority of practical libraries live.\nThese are not concessions to practicality at the expense of the teaching mission. They are part of it. A student who builds a program that reads files, calls a web API, and processes the result concurrently has learned something that a student who builds only in-memory examples has not.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html#why-the-core-stays-small",
+    "href": "chapter_1.html#why-the-core-stays-small",
+    "title": "1  Design Goals",
+    "section": "1.6 3.6 Why the Core Stays Small",
+    "text": "1.6 3.6 Why the Core Stays Small\nThere is a temptation in young languages to add every useful abstraction directly into the core grammar. The temptation is understandable — each addition solves a real problem. The cost is that the core grows until it can no longer be held in a single coherent view, and the language becomes something that must be learned piecemeal rather than understood as a whole.\nNex resists that temptation. The grammar should remain small enough that its semantics can be explained without hand-waving. New vocabulary — new operations, new conveniences, new host integrations — belongs in libraries rather than in the language itself. This is why the intern mechanism matters: it creates room for growth outside the grammar, so that the language can remain useful to practitioners without becoming unintelligible by accumulation.\nA language intended for study should not become, over time, a language that can only be learned by reading a long list of special cases.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_1.html#the-central-tradeoff",
+    "href": "chapter_1.html#the-central-tradeoff",
+    "title": "1  Design Goals",
+    "section": "1.7 3.7 The Central Tradeoff",
+    "text": "1.7 3.7 The Central Tradeoff\nEvery design decision in Nex sits inside the same tradeoff: more power often means more complexity; more convenience often means less clarity; more abstraction often means less immediate visibility into what the program actually does.\nNex usually resolves that tradeoff in favour of the side that preserves reasoning, even at some cost in convenience. This is not a refusal to be practical — the previous section established that practicality matters. It is a judgment that a language whose behaviour can be understood is ultimately more useful than a language whose behaviour can only be observed.\nThat judgment is the design philosophy in one sentence. The chapters that follow explain how it plays out in the implementation.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html",
+    "href": "chapter_2.html",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "",
+    "text": "2.1 2.1 The Grammar\nThe front half of the Nex implementation is conventional in broad outline and deliberately simple in detail. Source text becomes a parse tree, the parse tree becomes a cleaner AST, and that AST is handed to an interpreter that evaluates it directly. There is no intermediate representation, no optimisation pass, no compilation to bytecode before meaning is assigned. The interpreter is the semantics.\nThat simplicity is a design choice, not a limitation. A tree-walking interpreter is slower than a compiler and unsuitable for production JVM deployment, but it has one property that matters enormously for a language under active development: the connection between the AST and the executed behaviour is immediate and inspectable. If you want to know what a piece of Nex means, you read the interpreter. What it does is what the language does.\nThe relevant files are:\nIf you are reading the code for the first time, treat this chapter as a guide to reading order. The shortest useful path through the implementation is:\nThat path takes you from source text to executable meaning with very little indirection.\nThe ANTLR grammar defines the concrete syntax of Nex — what strings of characters constitute valid programs. It covers class declarations, functions and anonymous functions, generic parameters, contracts, array and map and set literals, intern and import, spawn and select.\nThe grammar’s job is narrow on purpose: answer whether a given string is syntactically well-formed. It should not know whether a call is type-correct, whether an inheritance relation is legal, or whether a contract is meaningful. Those are later questions, and forcing them into the grammar would make it harder to evolve and harder to reason about. A grammar that tries to solve semantic problems is not a grammar any more — it is a grammar with hidden semantics scattered through it.\nFor a contributor, the practical consequence is simple: when a feature change is really a syntax change, start in the grammar. If it is not a syntax change, do not force it there.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-parser-layer",
+    "href": "chapter_2.html#the-parser-layer",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.2 2.2 The Parser Layer",
+    "text": "2.2 2.2 The Parser Layer\nsrc/nex/parser.clj is intentionally thin:\n(def parser\n  (antlr/parser \"grammar/nexlang.g4\"))\n\n(defn parse [input]\n  (antlr/parse parser input))\n\n(defn ast [input]\n  (-&gt; input\n      parse\n      walker/walk-node))\nIt creates an ANTLR parser via clj-antlr, invokes it on input, and hands the result to the walker. That is all. The thinness is a good sign — it means the parser layer is not secretly acting as a second semantics engine.\nIt also means the first real implementation boundary is easy to locate. Everything before walker/walk-node is parsing infrastructure. Everything after it is language processing.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-walker-from-grammar-trees-to-semantic-asts",
+    "href": "chapter_2.html#the-walker-from-grammar-trees-to-semantic-asts",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.3 2.3 The Walker: From Grammar Trees to Semantic ASTs",
+    "text": "2.3 2.3 The Walker: From Grammar Trees to Semantic ASTs\nThe parse tree that ANTLR produces is faithful to the grammar, but grammar-faithful is not the same as easy to evaluate. Grammar trees carry syntactic noise — token boundaries, optional punctuation, production-rule artifacts — that the rest of the implementation should not have to navigate. The role of src/nex/walker.cljc is to convert grammar-shaped trees into semantic AST nodes that the interpreter and type-checker can work with directly.\nThis conversion produces regular Clojure maps with a :type key and a set of named fields:\n\n{:type :class ...}\n{:type :function ...}\n{:type :binary ...}\n{:type :call ...}\n{:type :spawn ...}\n\nThe walker also normalises syntax that would otherwise require downstream phases to reconstruct:\n\nintern becomes path, class name, and alias\nimport becomes qualified name and optional source\ngeneric parameters become structured type data\nsource position becomes explicit :line and :col fields on every AST node\n\nEach of these normalisations is a small thing on its own. Together they mean the interpreter can be written against a clean, explicit representation rather than against whatever the grammar happened to produce.\nThe walker is large but highly regular. It is best read as a dispatch table from grammar node names to AST constructors. Several parts deserve particular attention:\n\nthe :program handler, because it determines the top-level shape of the AST and the main contract with downstream phases\n:internStmt and :importStmt, because they show how module-related syntax is normalised\nclass and function handlers, because they define the structures the typechecker and interpreter consume\nexpression handlers for :binary, :call, :create, and :spawn, because these become the most frequently evaluated nodes\n\nA useful habit when reading the walker is to keep the corresponding grammar production open alongside it. The grammar shows how tokens are recognised; the walker shows which information survives into the semantic representation. The difference between the two is the walker’s entire purpose.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-ast-as-plain-data",
+    "href": "chapter_2.html#the-ast-as-plain-data",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.4 2.4 The AST as Plain Data",
+    "text": "2.4 2.4 The AST as Plain Data\nThe AST is represented entirely in plain Clojure data: maps, vectors, strings, keywords, and numbers. This is not incidental — it is one of the strongest architectural decisions in the implementation.\nBecause the AST is plain data, it can be inspected at the REPL without a special pretty-printer. Tests can construct or compare pieces of it without building a parser. Transformations stay explicit because there is no object graph to traverse imperatively. Later phases remain decoupled from parser internals because they receive ordinary data structures, not opaque parse-tree objects.\nIt also means feature debugging is unusually direct. When something is wrong, you can inspect the AST produced for a piece of source and ask three separate questions: did the grammar accept the right structure? Did the walker preserve the right meaning? Is the bug actually in the interpreter or generator? Plain data makes those questions answerable without a debugger.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-program-node",
+    "href": "chapter_2.html#the-program-node",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.5 2.5 The :program Node",
+    "text": "2.5 2.5 The :program Node\nThe :program node is the output of the entire front end and the input to everything that follows. Its structure is worth understanding in detail, because it is the main contract between parsing and execution.\nThe walker collects top-level material into named buckets:\n\nimports\ninterns\nclasses\nfunctions\nstatements\ncalls\n\nThis structure encodes an important distinction: declarations and executable statements are separated, not interleaved. That separation drives both typechecking order and interpretation order. Classes can reference each other regardless of source position; top-level statements execute after the static world is fully loaded. The :program shape is what makes both of those properties straightforward to implement.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-runtime-context",
+    "href": "chapter_2.html#the-runtime-context",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.6 2.6 The Runtime Context",
+    "text": "2.6 2.6 The Runtime Context\nThe interpreter in src/nex/interpreter.cljc keeps execution state inside a Context record. The context holds everything evaluation needs:\n\nknown classes\nglobal bindings\nthe current lexical environment\ncaptured output\nimport metadata\nspecialised generic classes\n\nMaking this state explicit — as a data structure passed through evaluation rather than as mutable globals — is what keeps the interpreter readable and testable. The evaluator is not a set of mutually recursive functions sharing hidden state. It is an evaluator with a visible runtime world that can be inspected at any point.\n\n2.6.1 make-context\nmake-context is the runtime root: the function that produces the initial context before any user code runs. It does three things:\n\ncreates the global environment\ncreates the mutable registries used during evaluation\nregisters the built-in base classes — Any, Function, Cursor, Comparable, Hashable, and the scalar types\n\nA fresh context is therefore not empty in the ordinary sense. It already knows the built-in world of Nex. This is a useful point to keep in mind when debugging: many things that look like user-visible classes are bootstrapped in make-context before any user program loads.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-environment-model",
+    "href": "chapter_2.html#the-environment-model",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.7 2.7 The Environment Model",
+    "text": "2.7 2.7 The Environment Model\nLexical scope is implemented through nested environments. Variables are introduced with env-define, looked up with env-lookup, and updated with env-set!. Each scope — method body, constructor, spawned task, nested block — gets its own environment that chains to its enclosing scope.\nThis model is simple, but its simplicity is the point. Because every scope is an explicit structure in the chain, the reason a name resolves to a particular value is always traceable. When a value resolves unexpectedly, the environment chain is the first place to look — and it is always inspectable.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#how-evaluation-proceeds",
+    "href": "chapter_2.html#how-evaluation-proceeds",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.8 2.8 How Evaluation Proceeds",
+    "text": "2.8 2.8 How Evaluation Proceeds\nThe core evaluator dispatches on node type. eval-node :program does the work described in Section 2.5: it processes imports, interns, class definitions, and function definitions before executing top-level statements in source order. The control flow is worth reading directly:\n\nstore import nodes in the context\nprocess all intern nodes\nregister class definitions\nregister and instantiate function values\nexecute top-level statements in source order\nreturn the updated context\n\nThis is not “evaluate everything in order.” It is “load the static world first, then execute the dynamic world.” That distinction is one of the reasons the implementation stays predictable: by the time any statement executes, all class and function definitions are already in scope.\nWithin expressions and statements, the evaluator handles:\n\nvariable references through lexical environment lookup\nbinary and unary expressions through operator helpers\ncalls and method invocations through method lookup and dispatch\nobject construction through built-in and user-defined creation paths\ncontrol flow through direct recursive evaluation\n\n\n2.8.1 Two Paths Worth Special Attention\nTwo evaluator paths connect more subsystems than the others and deserve to be read carefully.\neval-node :call sits at the centre of routine and method execution. It handles free functions, method calls, built-in method dispatch, function values, and inherited behaviour. If something goes wrong during ordinary execution, the call path is usually involved.\neval-node :create sits at the centre of object construction. It handles built-in constructors (arrays, maps, sets, tasks, channels), user-defined class constructors, generic specialisation, contract checking at construction time, class invariant verification, and Java interop fallback on the JVM. Understanding this path means understanding most of the runtime contract machinery.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#built-in-types-and-the-types-subtree",
+    "href": "chapter_2.html#built-in-types-and-the-types-subtree",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.9 2.9 Built-In Types and the types/ Subtree",
+    "text": "2.9 2.9 Built-In Types and the types/ Subtree\nThe interpreter hosts Nex’s built-in types and methods — arrays, maps, sets, strings, tasks, channels, cursors, and platform utilities — but it delegates the low-level mechanics of primitive operations to src/nex/types/. This split keeps the interpreter file from becoming a bag of primitive helpers while still keeping the meaning of the language — how methods are exposed, how built-in constructors behave, how runtime objects are represented — in the interpreter where it belongs.\nThe practical consequence: if you are debugging the behaviour of an array method, look in types/. If you are debugging how array methods are dispatched or what contract checks apply, look in the interpreter.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#source-tracking-and-error-localisation",
+    "href": "chapter_2.html#source-tracking-and-error-localisation",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.10 2.10 Source Tracking and Error Localisation",
+    "text": "2.10 2.10 Source Tracking and Error Localisation\nThe front end attaches source position metadata — line and column — to every AST node. The interpreter carries debug stack information and source references through method and constructor calls. This infrastructure supports accurate error reporting, debugger integration, and contract failure localisation.\nIt is the kind of machinery that is easy to overlook when discussing a language in the abstract, but it is what makes a contract violation message say which condition failed on which line rather than simply crashing. Nex’s contract system only delivers its diagnostic value if the runtime can locate failures precisely. The source-tracking infrastructure is what makes that possible.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_2.html#the-interpreter-as-semantic-baseline",
+    "href": "chapter_2.html#the-interpreter-as-semantic-baseline",
+    "title": "2  Parsing, ASTs, and Interpretation",
+    "section": "2.11 2.11 The Interpreter as Semantic Baseline",
+    "text": "2.11 2.11 The Interpreter as Semantic Baseline\nThe interpreter is the semantic baseline for Nex. Even when Nex is compiled to JVM bytecode or JavaScript, the interpreter remains the authoritative statement of what the language means. The generators are correct when they produce behaviour that matches the interpreter. When they diverge, the interpreter wins.\nThis has a practical consequence for contributors: if you are unsure what a feature should do, make it work correctly in the interpreter first. The generators should follow the interpreter, not define their own semantics independently. A generator that is easier to write by taking a shortcut from the intended semantics is a generator that is wrong.\nThe interpreter’s clarity is therefore not just an aesthetic property. It is the guarantee that the rest of the implementation has something reliable to follow.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Parsing, ASTs, and Interpretation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html",
+    "href": "chapter_3.html",
+    "title": "3  Typechecking and Code Generation",
+    "section": "",
+    "text": "3.1 3.1 The Typechecker\nAfter parsing and AST construction, the implementation has two different but related questions to answer.\nFirst: is the program statically coherent? Second: if it is, how should it run on a host platform?\nThe typechecker answers the first question. The two code generators answer the second. This chapter covers all three, in that order, because the generators depend on the typechecker and the typechecker depends on the AST — the pipeline runs left to right, and so does the explanation.\nThe typechecker in src/nex/typechecker.cljc is a proper pass over the AST, not a set of ad hoc checks buried in the interpreter.\nThat separation matters on two levels. At the language level, it gives programmers earlier and clearer feedback — a type error reported before execution is more useful than a runtime failure with a confusing message. At the implementation level, it prevents the interpreter and generators from rediscovering static facts on every evaluation. Facts established once by the typechecker do not need to be re-established downstream.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#the-typechecker",
+    "href": "chapter_3.html#the-typechecker",
+    "title": "3  Typechecking and Code Generation",
+    "section": "",
+    "text": "3.1.1 The Type Environment\nTypechecking is fundamentally a process of carrying and refining assumptions. The typechecker makes this process visible by maintaining an explicit environment that records:\n\nvariables and their types\nmethods and their signatures\nclasses and their definitions\nproven non-nil facts that hold in the current control-flow scope\n\nThe environment is created with make-type-env and manipulated through a small set of named operations: env-add-var, env-lookup-var, env-add-method, env-lookup-method, env-add-class, and env-mark-non-nil. Because nearly all of the checker’s knowledge lives in this one explicit structure, the pass is straightforward to inspect and debug. There is no hidden compiler state to account for.\n\n\n3.1.2 The Main Typechecking Flow\nThe best entry point into the typechecker is check-program. Its control flow is clear and worth reading directly:\n\ncreate a fresh type environment\nregister imported Java classes as placeholder class names\ncollect class information for all declared classes\nregister built-in methods and built-in classes\ninject any pre-existing variable types, such as REPL bindings\nregister top-level functions as callable values\ncheck class bodies\ncheck top-level statements in source order\n\nThe ordering is not arbitrary. Class information is collected before class bodies are checked so that forward references resolve correctly. Built-ins are registered after user class collection so that the checker has access to both before it begins body-checking. Top-level statements are checked last, preserving the source-order feel of the language while ensuring all declarations are already in scope when they are needed.\nThis is a good example of Nex’s general implementation style: a multi-pass pipeline with explicit, non-overlapping responsibilities.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#what-the-typechecker-checks",
+    "href": "chapter_3.html#what-the-typechecker-checks",
+    "title": "3  Typechecking and Code Generation",
+    "section": "3.2 3.2 What the Typechecker Checks",
+    "text": "3.2 3.2 What the Typechecker Checks\nThe typechecker is substantial. It handles scalar types, arrays, maps, sets, tasks, channels, and function values; generic classes and their arguments; constructor calls; inheritance-aware method lookup; detachability and nil; convert; spawn result typing; and the validity rules for channel operations and select. This is enough to protect real programs without being so complex that it becomes opaque.\nReading through the file, the implementation clusters into four areas:\n\nexpression checking — computing the type of literals, calls, binary expressions, constructors, and so on\nstatement checking — updating the environment across let, assignment, loops, conditionals, and blocks\nclass checking — validating fields, constructors, methods, inheritance, and invariants\nbuilt-in registration — giving core types such as Array, Map, Set, Task, and Channel their method signatures\n\nThree features have richer semantics than ordinary method calls and deserve closer attention.\n\n3.2.1 Spawn Typing\nspawn is handled by a dedicated path rather than by pretending it is a normal function call. The checker creates a nested environment, introduces a synthetic result binding, and tracks assignments to that binding to infer the task’s element type. A spawn body that assigns no result produces Task; one that assigns a consistent type produces Task[T]; one with inconsistent assignments is rejected. This precision would not be achievable if spawn were treated as an ordinary expression.\n\n\n3.2.2 Channels and select\nThe same explicit treatment applies to channels and select. The checker registers Channel[T] methods as built-ins, but it also has dedicated rules for constructor forms such as Channel.with_capacity, the send and receive operations, timeout arguments, and the legality of select clauses. This is necessary because select is not a method call — it is a control-flow form whose clauses are restricted to a small set of communication patterns, and those restrictions must be enforced by the checker, not discovered at runtime.\n\n\n3.2.3 Nil and Detachability\nThe checker tracks proven non-nil facts in the type environment. This gives it limited but useful flow-sensitive behaviour: after certain checks, a variable may be treated as safely non-detachable within a particular branch. The implementation records locally justified facts in the environment and uses them where appropriate. It does not attempt global dataflow analysis or theorem proving — the goal is precision where it is achievable without obscurity.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#conservative-by-design",
+    "href": "chapter_3.html#conservative-by-design",
+    "title": "3  Typechecking and Code Generation",
+    "section": "3.3 3.3 Conservative by Design",
+    "text": "3.3 3.3 Conservative by Design\nThe typechecker is not trying to be heroic. It does not perform deep global inference or sophisticated constraint solving. That restraint is deliberate.\nNex is intended to teach programmers how to state intent clearly. A type system that works primarily through invisible cleverness would undermine that goal — if the rules cannot be explained, they cannot be taught. The checker aims to be precise enough to catch real errors and simple enough that a contributor reading the file can understand how every rule is applied.\nThis is a recurring theme across the Nex implementation: precision matters, but intelligibility matters too. Where they are in tension, Nex usually chooses intelligibility.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#why-two-generators",
+    "href": "chapter_3.html#why-two-generators",
+    "title": "3  Typechecking and Code Generation",
+    "section": "3.4 3.4 Why Two Generators",
+    "text": "3.4 3.4 Why Two Generators\nNex has two code generation targets: Java on the JVM and JavaScript for Node.js and browser environments. The relevant files are:\n\nsrc/nex/generator/java.clj\nsrc/nex/generator/javascript.clj\n\nBoth generators are source-to-source translators rather than optimising native compilers. Their task is to preserve Nex semantics in practical host languages. The main control flow is intentionally similar in both:\n\nparse Nex source\ntype-check it unless explicitly disabled\nwalk the AST and emit target-language code\nsplice in runtime helpers needed by that target\n\nType-checking before generation is the right default. A generator should not silently produce host code for a program that Nex itself considers ill-typed.\nHaving two targets also imposes a useful discipline. Any feature added to Nex must make sense in three settings — interpreted on the JVM, translated to Java, and translated to JavaScript. That pressure discourages features that only work by accident in one execution model. If you add or change a language feature, you should expect to touch the grammar, the walker, the typechecker, the interpreter, and both generators. This is not duplication for its own sake. It is how Nex keeps semantics explicit across the whole system.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#the-java-generator",
+    "href": "chapter_3.html#the-java-generator",
+    "title": "3  Typechecking and Code Generation",
+    "section": "3.5 3.5 The Java Generator",
+    "text": "3.5 3.5 The Java Generator\nThe Java generator is the richer of the two backends, which is natural: the JVM is the primary deployment target, and many Nex runtime services map comfortably onto Java facilities.\nThe generator is large but organised around a small set of recurring tasks: mapping Nex types to Java types; generating expressions, statements, and class members from AST nodes; and emitting runtime helper code for language features that Java does not directly provide. To read it effectively, start with these functions and follow the control flow downward:\n\ntranslate and translate-ast — whole-program entry points\ngenerate-class, generate-method, generate-constructor — class-level emission\ngenerate-expression, generate-statement — local code generation\n\nThe generator emits translated Nex classes, helper base classes for function values, runtime support for contracts and invariants, helpers for arrays, maps, sets, cursors, tasks, channels, and I/O, and generated support classes for graphics types such as NexWindow, NexImage, and NexTurtle.\nOne design decision worth noting: the Java generator embeds a substantial runtime alongside the translated user code. A translated Nex program carries the parts of the runtime it needs rather than assuming a separately installed Nex VM. This keeps deployment simple at the cost of larger output, a tradeoff that is appropriate for Nex’s current use cases.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#the-javascript-generator",
+    "href": "chapter_3.html#the-javascript-generator",
+    "title": "3  Typechecking and Code Generation",
+    "section": "3.6 3.6 The JavaScript Generator",
+    "text": "3.6 3.6 The JavaScript Generator\nThe JavaScript generator serves a different purpose. It must preserve Nex’s semantics in a host environment with a different object model, single-threaded event-loop execution, promises rather than JVM blocking primitives, and ES module import conventions. It does not simply mirror the Java emitter — it re-expresses Nex semantics in a JavaScript-native form.\nThe generator is organised around the same four concerns as the Java generator — type mapping, expression emission, statement emission, and class emission — but several target-specific areas are worth calling out.\nFirst, the generator must decide when operations should produce await-bearing code. This matters for task and channel semantics, where the event-loop model requires explicit async boundaries that the JVM does not.\nSecond, JavaScript imports are generated from Nex import ... from ... forms rather than from JVM-style qualified names, reflecting the ES module convention.\nThird, target-specific with \"javascript\" blocks are retained while with \"java\" blocks are omitted. This is a visible example of compile-time target selection — the same source file can contain platform-specific fragments, and each generator takes only what belongs to it.\nFor the concurrency side specifically, read generate-spawn-expr, generate-select, and generate-select-clause-js. These functions make explicit how Nex concurrency is lowered into async JavaScript without changing the surface language — the semantics are preserved, but the mechanism is entirely different from the JVM path.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_3.html#generators-as-semantic-documents",
+    "href": "chapter_3.html#generators-as-semantic-documents",
+    "title": "3  Typechecking and Code Generation",
+    "section": "3.7 3.7 Generators as Semantic Documents",
+    "text": "3.7 3.7 Generators as Semantic Documents\nA source generator is not only an output mechanism. It is also a semantic document.\nReading the Java and JavaScript generators side by side is instructive precisely where they diverge. Where both generators take the same path, the feature is straightforwardly language-level. Where they diverge — concurrency being the clearest example — the divergence reveals something real about Nex: the language semantics are more fundamental than any one execution model, and the generators are two independent proofs of that claim.\nThe larger architectural point is that parsing and typechecking are shared while code generation diverges only where the targets genuinely differ. One syntax, one AST, one static model, multiple execution strategies. That separation is what a language implementation should aim for, and Nex largely achieves it. *",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Typechecking and Code Generation</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html",
+    "href": "chapter_4.html",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "",
+    "text": "4.1 4.1 Extending Nex with Libraries\nThe previous chapters described Nex as a language core — syntax, semantics, typechecking, code generation. This chapter describes how that core reaches outward: into reusable libraries, host platforms, and concurrent execution.\nEach of these involves a design tension that is worth naming before the implementation details. Libraries must grow the language without growing the grammar. Host integration must connect to real ecosystems without pretending those ecosystems are part of Nex. Concurrency must be expressible in terms that preserve reasoning rather than opening a trapdoor into unstructured shared state. How Nex resolves each tension is the actual subject of this chapter.\nThe preferred extension mechanism for Nex is not “add another core keyword.” It is “write a Nex library and load it with intern.” This is a crucial design choice. It keeps the language kernel small and pushes growth into ordinary source-level abstractions — the same kind the user writes.\nLibrary loading is implemented in the interpreter through a straightforward pipeline. The intern form is parsed into an AST node, the file path is resolved, the library source is parsed, the classes defined there are registered, and an optional alias is bound. The interpreter searches for interned files in sensible locations: the current source directory, the current working directory, and user-level dependency locations.\nThe relevant interpreter functions are intern-search-roots, find-intern-file, and process-intern. Together they implement the concrete flow:\nThis is a small mechanism, but it is the whole of Nex’s current library model. Its smallness is a virtue: it is simple enough to understand completely and flexible enough to support the libraries that already exist.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#extending-nex-with-libraries",
+    "href": "chapter_4.html#extending-nex-with-libraries",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "",
+    "text": "determine search roots relative to the current source file and process environment\nderive candidate filenames from the requested class name\nfind the first matching .nex file\nparse it\nevaluate the resulting AST in the current context\nbind the loaded class name or alias\n\n\n\n4.1.1 What Libraries Cover\nThe lib/ tree shows the intended scope. Nex libraries handle file and directory operations, text processing, time, networking, and higher-level wrappers around runtime services. This is the right boundary: core semantics in the language and runtime, domain-specific convenience in libraries written at the surface level.\nUseful examples live under lib/io, lib/net, lib/text, and lib/time. Reading these alongside the intern pipeline shows how much can be expressed in Nex itself once the underlying runtime hooks exist.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#java-integration",
+    "href": "chapter_4.html#java-integration",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.2 4.2 Java Integration",
+    "text": "4.2 4.2 Java Integration\nNex supports host interoperation with Java through import. The design is intentionally modest: Nex is not implementing the full Java name-resolution model. It is giving the programmer a clear and explicit bridge to imported host classes.\nIn the AST, Java imports are represented as import nodes with a qualified name and no source field. The interpreter stores these nodes in the runtime context. When Nex needs to resolve a host class, it searches the stored imports and matches the simple class name against the imported qualified names. The Java generator uses the same information to emit Java import statements in generated code.\nThe implementation path is worth tracing. The walker records imports as AST nodes. The interpreter stores those nodes. Later resolution is a straightforward lookup against that stored information. There is no hidden class-path scanning or implicit resolution — the programmer’s explicit import is the entire record of what host classes are available.\nThis is a modest but effective design. It gives Nex a clean bridge into the JVM ecosystem without requiring that all useful host functionality be wrapped as a Nex built-in from the start. New Java classes become available to Nex programs as soon as they are explicitly imported, and the cost of adding that bridge is a single line.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#javascript-integration",
+    "href": "chapter_4.html#javascript-integration",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.3 4.3 JavaScript Integration",
+    "text": "4.3 4.3 JavaScript Integration\nJavaScript integration uses the same surface concept but a different host form. When a Nex import includes a from clause, the walker records both the imported identifier and its source path. The JavaScript generator turns that into an ES module import.\nThe key distinction is captured in the AST:\n\nimport X — qualified name only, no source — is a Java import\nimport X from \"module\" — qualified name plus source — is a JavaScript import\n\nThe Java generator ignores imports that have a source. The JavaScript generator emits only imports that do. This simple AST distinction keeps the front end shared while allowing the backends to behave differently with no ambiguity. It is a clean example of the general pattern: one representation, multiple interpretations at generation time.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#platform-specific-code",
+    "href": "chapter_4.html#platform-specific-code",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.4 4.4 Platform-Specific Code",
+    "text": "4.4 4.4 Platform-Specific Code\nJava and JavaScript APIs differ in ways that cannot always be abstracted away. Rather than hiding that fact, Nex allows explicit target-specific sections with with \"java\" and with \"javascript\" blocks. This is a pragmatic choice, and an honest one: the portability boundary is made visible rather than papered over.\nThe implementation is consistent across all three execution paths. The interpreter evaluates the branch that matches its host and ignores the others. The Java generator emits with \"java\" blocks and omits the rest. The JavaScript generator does the reverse. In each case the decision is made at the same point in the pipeline — statement evaluation — not as a preprocessing step.\nThis means with is not a textual macro trick. It is a real target-discrimination construct that survives the full implementation stack. A programmer who writes with \"javascript\" can reason about exactly where that code will and will not run.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#concurrency-design-before-implementation",
+    "href": "chapter_4.html#concurrency-design-before-implementation",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.5 4.5 Concurrency: Design Before Implementation",
+    "text": "4.5 4.5 Concurrency: Design Before Implementation\nConcurrency in Nex is expressed through language-level constructs — spawn, Task, Channel[T], await, await_any, await_all, and select — rather than through raw host threads or shared mutable objects. This is one of the most significant design decisions in the language, and it is worth understanding the motivation before the implementation.\nLocks and shared mutable state can express any concurrent program, but they hide the structure of coordination in ways that make programs hard to reason about and hard to teach. When one task sends and another receives on a channel, the communication path is visible in the source. The typechecker can check that the types agree. A reader can follow the coordination without inferring it from lock acquisition patterns. Channels do not just provide synchronisation — they make synchronisation legible.\nThat conceptual choice propagates into the implementation. The typechecker has special rules for legal select clauses precisely because select is a controlled concurrency abstraction, not an arbitrary expression. The generators lower channel operations differently on JVM and JavaScript, but both preserve the same visible coordination structure at the surface level.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#jvm-concurrency-implementation",
+    "href": "chapter_4.html#jvm-concurrency-implementation",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.6 4.6 JVM Concurrency Implementation",
+    "text": "4.6 4.6 JVM Concurrency Implementation\nIn the JVM interpreter, concurrency is built on Java primitives: CompletableFuture, executors, timeouts, and cancellation support. This gives the interpreter a real concurrent runtime — tasks execute asynchronously, awaits can block or time out, channels can be unbuffered or buffered, and select-style coordination is implemented concretely.\nThe execution flow for spawn is straightforward:\n\ncreate a new lexical environment for the spawned body\ninitialise a result binding\nexecute the body asynchronously\ninspect whether result was assigned\nwrap the underlying future in a Nex Task\n\nChannels are implemented as built-in runtime objects rather than user-defined classes. Their constructors are recognised specially, and their methods are wired into both the interpreter and the typechecker. This is one of the places where Nex uses a built-in abstraction because the semantics genuinely belong in the runtime — a user-defined Channel class could not provide the synchronisation guarantees the language model requires.\nTo trace the concurrency path end to end, start at the interpreter’s :spawn evaluator and work outward to the Task and Channel method support. The typechecker’s registration of Task and Channel is the corresponding static half of the same story.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#javascript-concurrency-implementation",
+    "href": "chapter_4.html#javascript-concurrency-implementation",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.7 4.7 JavaScript Concurrency Implementation",
+    "text": "4.7 4.7 JavaScript Concurrency Implementation\nJavaScript cannot offer the blocking-thread model the JVM provides, so the JavaScript backend uses async control flow and promise-based mechanisms to represent tasks and channel coordination. The surface language does not change. The implementation strategy does.\nThis becomes especially visible in select. Both generators lower select into explicit coordination loops, but in target-appropriate ways:\n\nthe Java generator uses a loop with small sleeps and direct runtime calls\nthe JavaScript generator uses async loops, immediate probes such as try_receive, and promise-friendly suspension\n\nThe structure is similar enough that comparing generate-select in both generators is one of the fastest ways to understand what select means in Nex independent of either host. Where the generators agree, the behaviour is language-level. Where they diverge, the divergence is a host accommodation, not a semantic difference.\nFor the async boundary specifically, generate-spawn-expr, generate-select, and generate-select-clause-js are the functions to read. They make explicit how Nex’s synchronous-looking concurrency model is lowered into JavaScript’s explicitly asynchronous one.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_4.html#the-design-pressure",
+    "href": "chapter_4.html#the-design-pressure",
+    "title": "4  Libraries, Host Integration, and Concurrency",
+    "section": "4.8 4.8 The Design Pressure",
+    "text": "4.8 4.8 The Design Pressure\nLibraries, host integration, and concurrency all test the same underlying question: can Nex remain conceptually clean while reaching into real systems?\nThe current implementation answers that question with a consistent strategy: keep the core syntax and semantics explicit; push practical growth into libraries; use host interop directly when that is the honest solution; and build concurrency out of visible coordination primitives rather than exposing the host’s threading model raw.\nEach part of this chapter is an instance of that strategy applied to a different kind of outward reach. The intern mechanism keeps library loading as ordinary as possible. The import distinction keeps host integration traceable. The with construct keeps platform specificity visible rather than implicit. And the channel model keeps concurrency in the language’s reasoning model rather than below it.\nFor contributors, the practical reading order for this chapter’s material is:\n\nthe intern path in the interpreter\nthe import path in the walker and both generators\nthe built-in Task and Channel support in the typechecker\nthe spawn and select implementations in the interpreter and generators\n\nThat sequence moves from the simplest form of outward reach to the most complex, and it is the shortest path to understanding how Nex extends beyond its local semantics without losing its character in the process.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Libraries, Host Integration, and Concurrency</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html",
+    "href": "chapter_5.html",
+    "title": "5  Future Directions",
+    "section": "",
+    "text": "5.1 5.1 Parsing on the JavaScript Side\nA language implementation becomes interesting not only because of what it already does, but because of the pressures it reveals. Nex already shows several such pressures clearly. This chapter names them — not as a wishlist, but as a map of where the current architecture points and where it would have to change.\nThe organising question is not “what else could be added?” but “what additions would strengthen the original purpose of the language?” That question has a different shape for each area, and the answer is sometimes “not much.”\nThe current parsing story is strongest on the JVM. The parser is built around ANTLR and clj-antlr, which work well in Clojure but have no natural path to ClojureScript. The current workaround — parse on the JVM, then ship ASTs to the JavaScript side — works, but it means the JavaScript target depends on a JVM process for its front end. That asymmetry is the most obvious architectural gap in the system.\nA cleaner JavaScript story would require one of three paths: a pure ClojureScript parser, a more polished generated JavaScript parser pipeline, or a more principled approach to AST transport between server and client. None of these is trivial.\nThe current boundary is defined in src/nex/parser.clj, src/nex/walker.cljc, and docs/md/CLOJURESCRIPT.md. A contributor working on this area should read all three before proposing a direction, because the constraints they reveal are easy to underestimate.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#libraries-and-package-management",
+    "href": "chapter_5.html#libraries-and-package-management",
+    "title": "5  Future Directions",
+    "section": "5.2 5.2 Libraries and Package Management",
+    "text": "5.2 5.2 Libraries and Package Management\nintern is conceptually clean and works well for the library sizes Nex currently needs. But it defers several questions that will eventually need answers: how libraries declare their supported targets, how versions are managed, how dependencies are resolved reproducibly, and how library documentation is discovered by tools rather than by reading source.\nThe challenge is to answer these questions without burying Nex under the weight of a conventional package manager. Many languages have damaged their teaching value by making the bootstrap experience — getting a working project — the hardest part of learning the language. Nex should avoid that.\nThe right approach is probably to let the intern mechanism stay as it is for as long as possible and add structure only where it is genuinely needed. When the time comes, the pressure points will be intern resolution in the interpreter, the shape of the lib/ tree, and whatever metadata format is chosen for library declarations. Those changes should stay outside the grammar unless a compelling language-level reason emerges.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#richer-static-reasoning",
+    "href": "chapter_5.html#richer-static-reasoning",
+    "title": "5  Future Directions",
+    "section": "5.3 5.3 Richer Static Reasoning",
+    "text": "5.3 5.3 Richer Static Reasoning\nThe present typechecker is intentionally conservative. A type system that cannot be explained cannot be taught, and Nex has consistently chosen intelligibility over power where the two are in tension.\nThat choice has a cost. There is genuine room for more precise reasoning in several areas: flow-sensitive narrowing of detachable types, stronger generic constraints, better interaction between contract clauses and static analysis, and more rigorous checking of inheritance obligations. Each of these would catch real errors that the current checker misses.\nThe implementation pressure falls almost entirely on src/nex/typechecker.cljc — specifically on environment refinement, generic substitution and method lookup, and the interaction between static analysis and the contract representation in the AST. These are not independent changes. A contributor should expect them to interact, and should test each addition against the principle that the resulting rules remain explainable to a reader without a background in type theory.\nThe danger is real: a type system can become substantially more powerful while becoming much less useful as a teaching tool. Expansion here should be slow and deliberate.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#tooling",
+    "href": "chapter_5.html#tooling",
+    "title": "5  Future Directions",
+    "section": "5.4 5.4 Tooling",
+    "text": "5.4 5.4 Tooling\nA language designed to teach engineering discipline can benefit disproportionately from good tools, because good tools reinforce the habits the language is trying to instil. Weak tools push the programmer back into guesswork — exactly the mode the language is trying to displace.\nNex already has an interpreter, REPL, debugger, formatter, and documentation generator. The most valuable near-term improvements are probably: clearer and more local error messages (including contract violation messages that name not just which condition failed but what the violation implies about the caller’s obligations), stronger IDE support for navigating contracts and inheritance hierarchies, and richer debugger workflows for concurrent programs where the current tooling is thinnest.\nThese improvements would live in src/nex/repl.clj, src/nex/debugger.clj, src/nex/fmt.clj, and src/nex/docgen.clj. One advantage of the current codebase is that these tools are still close enough to the language core that they can evolve together without the usual friction between language teams and tooling teams.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#backends-and-deployment",
+    "href": "chapter_5.html#backends-and-deployment",
+    "title": "5  Future Directions",
+    "section": "5.5 5.5 Backends and Deployment",
+    "text": "5.5 5.5 Backends and Deployment\nThe Java and JavaScript generators already demonstrate that Nex is not bound to one execution strategy. That is a structural asset. The questions that any future backend would have to answer — how values are represented, how classes and functions are lowered, how contracts are enforced, how concurrency is expressed, how host integration is handled — are already answered twice in the current codebase. A third backend could follow the same pattern.\nThe most plausible near-term directions are a better browser-first generation story, improved Node-specific deployment support, and lighter-weight runtime packaging. A WebAssembly-oriented backend is conceivable further out. None of these should be pursued speculatively — the architecture supports them, but that is not by itself a reason to build them.\nThe pressure points for new backends are concentrated in the generator files and in the runtime helper sections they emit: Java runtime emission in src/nex/generator/java.clj and JavaScript runtime emission in src/nex/generator/javascript.clj. Reading both before designing a new backend is not optional — the decisions they embody are easy to reinvent badly.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#language-growth-and-restraint",
+    "href": "chapter_5.html#language-growth-and-restraint",
+    "title": "5  Future Directions",
+    "section": "5.6 5.6 Language Growth and Restraint",
+    "text": "5.6 5.6 Language Growth and Restraint\nThe hardest future direction is deciding what not to add.\nA language with educational ambitions can easily lose its clarity by accumulating convenience features one at a time, each individually reasonable, collectively blurring the model the language was meant to convey. A language with practical ambitions can just as easily become too small to solve real problems and get abandoned for something less principled but more capable. Nex must keep navigating between these.\nThe working criterion for additions is straightforward to state: a change is worth making if it makes reasoning about programs clearer, improves practical usefulness without distorting the language model, or strengthens the connection between language design and good engineering. A change that does none of these is noise, however much it is requested.\nImplementation details matter here in a way that design discussions often ignore. A proposal that is elegant at the language level may require special cases in every pass — grammar, walker, typechecker, interpreter, and both generators — in ways that accumulate into an implementation that is no longer easy to read. Nex should continue to prefer features that fit the existing architecture cleanly, not because cleanliness is an end in itself, but because a messy implementation makes the semantics harder to verify and the codebase harder for contributors to enter.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#what-maturity-looks-like",
+    "href": "chapter_5.html#what-maturity-looks-like",
+    "title": "5  Future Directions",
+    "section": "5.7 5.7 What Maturity Looks Like",
+    "text": "5.7 5.7 What Maturity Looks Like\nA mature Nex would not necessarily be a larger Nex. It would be a more settled one: clearer library conventions, stronger tooling, a firmer JavaScript story, more complete documentation, a typechecker and runtime that are broader in coverage but still readable in full.\nThat last property matters more than it might seem. The codebase is currently small enough that a determined reader can trace any feature from grammar to walker to typechecker to interpreter to generators. That traceability is one of Nex’s most valuable properties. Growth should preserve it — not out of sentiment, but because a language designed to teach disciplined thinking about programs should itself be implemented in a way that rewards disciplined reading.\nThe pressures this chapter has described are real, and some of them will eventually force changes that make the system larger and more complex. The goal is to let that happen slowly enough that the system remains comprehensible at each stage, rather than crossing the threshold — familiar from many language histories — where the implementation becomes something that can only be worked on piecemeal, by specialists, without a view of the whole.\nNex has not crossed that threshold. Keeping it on the right side is the most important long-term design commitment the project can make.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  }
+]

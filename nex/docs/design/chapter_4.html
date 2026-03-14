@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>4&nbsp; Libraries, Host Integration, and Concurrency – The Design and Implementation of Nex</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_5.html" rel="next">
+<link href="./chapter_3.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_4.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Libraries, Host Integration, and Concurrency</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">The Design and Implementation of Nex</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">index.html</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Introduction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Design Goals</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Parsing, ASTs, and Interpretation</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Typechecking and Code Generation</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Libraries, Host Integration, and Concurrency</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Future Directions</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#extending-nex-with-libraries" id="toc-extending-nex-with-libraries" class="nav-link active" data-scroll-target="#extending-nex-with-libraries"><span class="header-section-number">4.1</span> 4.1 Extending Nex with Libraries</a>
+  <ul class="collapse">
+  <li><a href="#what-libraries-cover" id="toc-what-libraries-cover" class="nav-link" data-scroll-target="#what-libraries-cover"><span class="header-section-number">4.1.1</span> What Libraries Cover</a></li>
+  </ul></li>
+  <li><a href="#java-integration" id="toc-java-integration" class="nav-link" data-scroll-target="#java-integration"><span class="header-section-number">4.2</span> 4.2 Java Integration</a></li>
+  <li><a href="#javascript-integration" id="toc-javascript-integration" class="nav-link" data-scroll-target="#javascript-integration"><span class="header-section-number">4.3</span> 4.3 JavaScript Integration</a></li>
+  <li><a href="#platform-specific-code" id="toc-platform-specific-code" class="nav-link" data-scroll-target="#platform-specific-code"><span class="header-section-number">4.4</span> 4.4 Platform-Specific Code</a></li>
+  <li><a href="#concurrency-design-before-implementation" id="toc-concurrency-design-before-implementation" class="nav-link" data-scroll-target="#concurrency-design-before-implementation"><span class="header-section-number">4.5</span> 4.5 Concurrency: Design Before Implementation</a></li>
+  <li><a href="#jvm-concurrency-implementation" id="toc-jvm-concurrency-implementation" class="nav-link" data-scroll-target="#jvm-concurrency-implementation"><span class="header-section-number">4.6</span> 4.6 JVM Concurrency Implementation</a></li>
+  <li><a href="#javascript-concurrency-implementation" id="toc-javascript-concurrency-implementation" class="nav-link" data-scroll-target="#javascript-concurrency-implementation"><span class="header-section-number">4.7</span> 4.7 JavaScript Concurrency Implementation</a></li>
+  <li><a href="#the-design-pressure" id="toc-the-design-pressure" class="nav-link" data-scroll-target="#the-design-pressure"><span class="header-section-number">4.8</span> 4.8 The Design Pressure</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Libraries, Host Integration, and Concurrency</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The previous chapters described Nex as a language core — syntax, semantics, typechecking, code generation. This chapter describes how that core reaches outward: into reusable libraries, host platforms, and concurrent execution.</p>
+<p>Each of these involves a design tension that is worth naming before the implementation details. Libraries must grow the language without growing the grammar. Host integration must connect to real ecosystems without pretending those ecosystems are part of Nex. Concurrency must be expressible in terms that preserve reasoning rather than opening a trapdoor into unstructured shared state. How Nex resolves each tension is the actual subject of this chapter.</p>
+<section id="extending-nex-with-libraries" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="extending-nex-with-libraries"><span class="header-section-number">4.1</span> 4.1 Extending Nex with Libraries</h2>
+<p>The preferred extension mechanism for Nex is not “add another core keyword.” It is “write a Nex library and load it with <code>intern</code>.” This is a crucial design choice. It keeps the language kernel small and pushes growth into ordinary source-level abstractions — the same kind the user writes.</p>
+<p>Library loading is implemented in the interpreter through a straightforward pipeline. The <code>intern</code> form is parsed into an AST node, the file path is resolved, the library source is parsed, the classes defined there are registered, and an optional alias is bound. The interpreter searches for interned files in sensible locations: the current source directory, the current working directory, and user-level dependency locations.</p>
+<p>The relevant interpreter functions are <code>intern-search-roots</code>, <code>find-intern-file</code>, and <code>process-intern</code>. Together they implement the concrete flow:</p>
+<ol type="1">
+<li>determine search roots relative to the current source file and process environment</li>
+<li>derive candidate filenames from the requested class name</li>
+<li>find the first matching <code>.nex</code> file</li>
+<li>parse it</li>
+<li>evaluate the resulting AST in the current context</li>
+<li>bind the loaded class name or alias</li>
+</ol>
+<p>This is a small mechanism, but it is the whole of Nex’s current library model. Its smallness is a virtue: it is simple enough to understand completely and flexible enough to support the libraries that already exist.</p>
+<section id="what-libraries-cover" class="level3" data-number="4.1.1">
+<h3 data-number="4.1.1" class="anchored" data-anchor-id="what-libraries-cover"><span class="header-section-number">4.1.1</span> What Libraries Cover</h3>
+<p>The <code>lib/</code> tree shows the intended scope. Nex libraries handle file and directory operations, text processing, time, networking, and higher-level wrappers around runtime services. This is the right boundary: core semantics in the language and runtime, domain-specific convenience in libraries written at the surface level.</p>
+<p>Useful examples live under <a href="https://github.com/vijaymathew/nex/tree/main/lib/io"><code>lib/io</code></a>, <a href="https://github.com/vijaymathew/nex/tree/main/lib/net"><code>lib/net</code></a>, <a href="https://github.com/vijaymathew/nex/tree/main/lib/text"><code>lib/text</code></a>, and <a href="https://github.com/vijaymathew/nex/tree/main/lib/time"><code>lib/time</code></a>. Reading these alongside the <code>intern</code> pipeline shows how much can be expressed in Nex itself once the underlying runtime hooks exist.</p>
+</section>
+</section>
+<section id="java-integration" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="java-integration"><span class="header-section-number">4.2</span> 4.2 Java Integration</h2>
+<p>Nex supports host interoperation with Java through <code>import</code>. The design is intentionally modest: Nex is not implementing the full Java name-resolution model. It is giving the programmer a clear and explicit bridge to imported host classes.</p>
+<p>In the AST, Java imports are represented as import nodes with a qualified name and no <code>source</code> field. The interpreter stores these nodes in the runtime context. When Nex needs to resolve a host class, it searches the stored imports and matches the simple class name against the imported qualified names. The Java generator uses the same information to emit Java <code>import</code> statements in generated code.</p>
+<p>The implementation path is worth tracing. The walker records imports as AST nodes. The interpreter stores those nodes. Later resolution is a straightforward lookup against that stored information. There is no hidden class-path scanning or implicit resolution — the programmer’s explicit <code>import</code> is the entire record of what host classes are available.</p>
+<p>This is a modest but effective design. It gives Nex a clean bridge into the JVM ecosystem without requiring that all useful host functionality be wrapped as a Nex built-in from the start. New Java classes become available to Nex programs as soon as they are explicitly imported, and the cost of adding that bridge is a single line.</p>
+</section>
+<section id="javascript-integration" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="javascript-integration"><span class="header-section-number">4.3</span> 4.3 JavaScript Integration</h2>
+<p>JavaScript integration uses the same surface concept but a different host form. When a Nex <code>import</code> includes a <code>from</code> clause, the walker records both the imported identifier and its source path. The JavaScript generator turns that into an ES module import.</p>
+<p>The key distinction is captured in the AST:</p>
+<ul>
+<li><code>import X</code> — qualified name only, no <code>source</code> — is a Java import</li>
+<li><code>import X from "module"</code> — qualified name plus <code>source</code> — is a JavaScript import</li>
+</ul>
+<p>The Java generator ignores imports that have a <code>source</code>. The JavaScript generator emits only imports that do. This simple AST distinction keeps the front end shared while allowing the backends to behave differently with no ambiguity. It is a clean example of the general pattern: one representation, multiple interpretations at generation time.</p>
+</section>
+<section id="platform-specific-code" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="platform-specific-code"><span class="header-section-number">4.4</span> 4.4 Platform-Specific Code</h2>
+<p>Java and JavaScript APIs differ in ways that cannot always be abstracted away. Rather than hiding that fact, Nex allows explicit target-specific sections with <code>with "java"</code> and <code>with "javascript"</code> blocks. This is a pragmatic choice, and an honest one: the portability boundary is made visible rather than papered over.</p>
+<p>The implementation is consistent across all three execution paths. The interpreter evaluates the branch that matches its host and ignores the others. The Java generator emits <code>with "java"</code> blocks and omits the rest. The JavaScript generator does the reverse. In each case the decision is made at the same point in the pipeline — statement evaluation — not as a preprocessing step.</p>
+<p>This means <code>with</code> is not a textual macro trick. It is a real target-discrimination construct that survives the full implementation stack. A programmer who writes <code>with "javascript"</code> can reason about exactly where that code will and will not run.</p>
+</section>
+<section id="concurrency-design-before-implementation" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="concurrency-design-before-implementation"><span class="header-section-number">4.5</span> 4.5 Concurrency: Design Before Implementation</h2>
+<p>Concurrency in Nex is expressed through language-level constructs — <code>spawn</code>, <code>Task</code>, <code>Channel[T]</code>, <code>await</code>, <code>await_any</code>, <code>await_all</code>, and <code>select</code> — rather than through raw host threads or shared mutable objects. This is one of the most significant design decisions in the language, and it is worth understanding the motivation before the implementation.</p>
+<p>Locks and shared mutable state can express any concurrent program, but they hide the structure of coordination in ways that make programs hard to reason about and hard to teach. When one task sends and another receives on a channel, the communication path is visible in the source. The typechecker can check that the types agree. A reader can follow the coordination without inferring it from lock acquisition patterns. Channels do not just provide synchronisation — they make synchronisation legible.</p>
+<p>That conceptual choice propagates into the implementation. The typechecker has special rules for legal <code>select</code> clauses precisely because <code>select</code> is a controlled concurrency abstraction, not an arbitrary expression. The generators lower channel operations differently on JVM and JavaScript, but both preserve the same visible coordination structure at the surface level.</p>
+</section>
+<section id="jvm-concurrency-implementation" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="jvm-concurrency-implementation"><span class="header-section-number">4.6</span> 4.6 JVM Concurrency Implementation</h2>
+<p>In the JVM interpreter, concurrency is built on Java primitives: <code>CompletableFuture</code>, executors, timeouts, and cancellation support. This gives the interpreter a real concurrent runtime — tasks execute asynchronously, awaits can block or time out, channels can be unbuffered or buffered, and <code>select</code>-style coordination is implemented concretely.</p>
+<p>The execution flow for <code>spawn</code> is straightforward:</p>
+<ol type="1">
+<li>create a new lexical environment for the spawned body</li>
+<li>initialise a <code>result</code> binding</li>
+<li>execute the body asynchronously</li>
+<li>inspect whether <code>result</code> was assigned</li>
+<li>wrap the underlying future in a Nex <code>Task</code></li>
+</ol>
+<p>Channels are implemented as built-in runtime objects rather than user-defined classes. Their constructors are recognised specially, and their methods are wired into both the interpreter and the typechecker. This is one of the places where Nex uses a built-in abstraction because the semantics genuinely belong in the runtime — a user-defined <code>Channel</code> class could not provide the synchronisation guarantees the language model requires.</p>
+<p>To trace the concurrency path end to end, start at the interpreter’s <code>:spawn</code> evaluator and work outward to the <code>Task</code> and <code>Channel</code> method support. The typechecker’s registration of <code>Task</code> and <code>Channel</code> is the corresponding static half of the same story.</p>
+</section>
+<section id="javascript-concurrency-implementation" class="level2" data-number="4.7">
+<h2 data-number="4.7" class="anchored" data-anchor-id="javascript-concurrency-implementation"><span class="header-section-number">4.7</span> 4.7 JavaScript Concurrency Implementation</h2>
+<p>JavaScript cannot offer the blocking-thread model the JVM provides, so the JavaScript backend uses async control flow and promise-based mechanisms to represent tasks and channel coordination. The surface language does not change. The implementation strategy does.</p>
+<p>This becomes especially visible in <code>select</code>. Both generators lower <code>select</code> into explicit coordination loops, but in target-appropriate ways:</p>
+<ul>
+<li>the Java generator uses a loop with small sleeps and direct runtime calls</li>
+<li>the JavaScript generator uses async loops, immediate probes such as <code>try_receive</code>, and promise-friendly suspension</li>
+</ul>
+<p>The structure is similar enough that comparing <code>generate-select</code> in both generators is one of the fastest ways to understand what <code>select</code> means in Nex independent of either host. Where the generators agree, the behaviour is language-level. Where they diverge, the divergence is a host accommodation, not a semantic difference.</p>
+<p>For the async boundary specifically, <code>generate-spawn-expr</code>, <code>generate-select</code>, and <code>generate-select-clause-js</code> are the functions to read. They make explicit how Nex’s synchronous-looking concurrency model is lowered into JavaScript’s explicitly asynchronous one.</p>
+</section>
+<section id="the-design-pressure" class="level2" data-number="4.8">
+<h2 data-number="4.8" class="anchored" data-anchor-id="the-design-pressure"><span class="header-section-number">4.8</span> 4.8 The Design Pressure</h2>
+<p>Libraries, host integration, and concurrency all test the same underlying question: can Nex remain conceptually clean while reaching into real systems?</p>
+<p>The current implementation answers that question with a consistent strategy: keep the core syntax and semantics explicit; push practical growth into libraries; use host interop directly when that is the honest solution; and build concurrency out of visible coordination primitives rather than exposing the host’s threading model raw.</p>
+<p>Each part of this chapter is an instance of that strategy applied to a different kind of outward reach. The <code>intern</code> mechanism keeps library loading as ordinary as possible. The import distinction keeps host integration traceable. The <code>with</code> construct keeps platform specificity visible rather than implicit. And the channel model keeps concurrency in the language’s reasoning model rather than below it.</p>
+<p>For contributors, the practical reading order for this chapter’s material is:</p>
+<ol type="1">
+<li>the <code>intern</code> path in the interpreter</li>
+<li>the import path in the walker and both generators</li>
+<li>the built-in <code>Task</code> and <code>Channel</code> support in the typechecker</li>
+<li>the <code>spawn</code> and <code>select</code> implementations in the interpreter and generators</li>
+</ol>
+<p>That sequence moves from the simplest form of outward reach to the most complex, and it is the shortest path to understanding how Nex extends beyond its local semantics without losing its character in the process.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_3.html" class="pagination-link" aria-label="Typechecking and Code Generation">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Typechecking and Code Generation</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_5.html" class="pagination-link" aria-label="Future Directions">
+        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Future Directions</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
