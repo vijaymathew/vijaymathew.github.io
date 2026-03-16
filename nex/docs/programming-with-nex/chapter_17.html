@@ -115,7 +115,7 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Home</span></a>
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -374,14 +374,14 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
+  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
+  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
   </div>
 </li>
       </ul>
@@ -502,6 +502,14 @@ ul.task-list li input[type="checkbox"] {
   decreased: balance = old balance - amount</code></pre>
 <p><code>old balance</code> means the value of <code>balance</code> at routine entry. Without <code>old</code>, many useful guarantees would be impossible to state cleanly.</p>
 <p>In practice, the simplest use of <code>old</code> in Nex is on fields of the current object, or on expressions built from those fields. That is the style used throughout this tutorial.</p>
+<p>There is an important practical limitation to keep in mind. <code>old</code> is not a deep immutable snapshot of every object reachable from the current routine. If a field refers to a mutable object and that object is updated in place, then <code>old</code> may still refer to the same underlying object rather than to a frozen copy of its earlier contents.</p>
+<p>For example, if a class field is an <code>Array</code> and a routine calls <code>items.add(value)</code>, a postcondition such as:</p>
+<pre><code>ensure
+  size_increased: items.length = old items.length + 1</code></pre>
+<p>is not reliable in the current implementation, because both <code>items</code> and <code>old items</code> may observe the same mutated array object. In such cases, it is better to write a postcondition about the visible result after the update, for example:</p>
+<pre><code>ensure
+  last_is_value: items.get(items.length - 1) = value</code></pre>
+<p>So the safest rule in current Nex is this: use <code>old</code> mainly for current-object fields and value-like expressions whose earlier state is not being mutated in place through the same reference.</p>
 <p>For example:</p>
 <pre><code>nex&gt; class Counter
        create
@@ -516,8 +524,7 @@ ul.task-list li input[type="checkbox"] {
            ensure
              advanced: count = old count + 1
            end
-     end
-Class(es) registered: Counter</code></pre>
+     end</code></pre>
 <p>The postcondition does not describe the code line by line. It describes the observable result: after <code>increment</code>, the count is exactly one larger than before.</p>
 </section>
 <section id="routine-responsibility" class="level2" data-number="18.3">
@@ -538,8 +545,7 @@ Class(es) registered: Counter</code></pre>
            ensure
              advanced: count = old count + 1
            end
-     end
-Class(es) registered: Counter</code></pre>
+     end</code></pre>
 <p>Then:</p>
 <pre><code>nex&gt; let c := create Counter.make
 nex&gt; c.increment
@@ -621,8 +627,7 @@ Error: Postcondition violation: advanced</code></pre>
            ensure
              sender_lost_amount: balance = old balance - amount
            end
-     end
-Class(es) registered: Account</code></pre>
+     end</code></pre>
 <p>The postconditions on <code>withdraw</code> and <code>deposit</code> explain why <code>transfer_to</code> is trustworthy. The postcondition on <code>transfer_to</code> then states the exact effect on the source account. The corresponding effect on the destination account is guaranteed indirectly through the contract of <code>deposit</code>.</p>
 <p>Contracts accumulate. A system of small precise routines is easier to reason about than a system of large vague ones.</p>
 </section>
@@ -670,8 +675,7 @@ Class(es) registered: Account</code></pre>
              size_decreased: items.length = old items.length - 1
              returned_old_last: result = old items.get(old items.length - 1)
            end
-     end
-Class(es) registered: Stack</code></pre>
+     end</code></pre>
 <p>The postcondition on <code>pop</code> is particularly good because it specifies both effects:</p>
 <ul>
 <li>the stack becomes shorter by one</li>
@@ -730,7 +734,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const num = link.querySelector(".chapter-number");
     if (num) num.remove();
     const title = link.querySelector(".chapter-title");
-    if (title && title.textContent.trim() === "index.html") {
+    if (title && title.textContent.trim() !== "Home") {
       title.textContent = "Home";
     }
   });

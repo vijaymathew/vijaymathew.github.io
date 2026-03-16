@@ -115,7 +115,7 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Home</span></a>
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -374,14 +374,14 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
+  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
+  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
   </div>
 </li>
       </ul>
@@ -438,7 +438,7 @@ ul.task-list li input[type="checkbox"] {
    
   <ul>
   <li><a href="#the-problem" id="toc-the-problem" class="nav-link active" data-scroll-target="#the-problem"><span class="header-section-number">27.1</span> The Problem</a></li>
-  <li><a href="#the-first-class-task" id="toc-the-first-class-task" class="nav-link" data-scroll-target="#the-first-class-task"><span class="header-section-number">27.2</span> The First Class: <code>Task</code></a></li>
+  <li><a href="#the-first-class-todo_item" id="toc-the-first-class-todo_item" class="nav-link" data-scroll-target="#the-first-class-todo_item"><span class="header-section-number">27.2</span> The First Class: <code>Todo_Item</code></a></li>
   <li><a href="#the-second-class-task_list" id="toc-the-second-class-task_list" class="nav-link" data-scroll-target="#the-second-class-task_list"><span class="header-section-number">27.3</span> The Second Class: <code>Task_List</code></a></li>
   <li><a href="#queries-that-summarize-state" id="toc-queries-that-summarize-state" class="nav-link" data-scroll-target="#queries-that-summarize-state"><span class="header-section-number">27.4</span> Queries That Summarize State</a></li>
   <li><a href="#a-first-manual-run" id="toc-a-first-manual-run" class="nav-link" data-scroll-target="#a-first-manual-run"><span class="header-section-number">27.5</span> A First Manual Run</a></li>
@@ -493,19 +493,19 @@ ul.task-list li input[type="checkbox"] {
 <p>Even in a small program like this, good design matters. We do not begin by typing methods at random. We begin by identifying the concepts in the problem itself.</p>
 <p>The obvious concepts are:</p>
 <ul>
-<li>a <code>Task</code></li>
+<li>a <code>Todo_Item</code></li>
 <li>a <code>Task_List</code></li>
 </ul>
 </section>
-<section id="the-first-class-task" class="level2" data-number="27.2">
-<h2 data-number="27.2" class="anchored" data-anchor-id="the-first-class-task"><span class="header-section-number">27.2</span> The First Class: <code>Task</code></h2>
+<section id="the-first-class-todo_item" class="level2" data-number="27.2">
+<h2 data-number="27.2" class="anchored" data-anchor-id="the-first-class-todo_item"><span class="header-section-number">27.2</span> The First Class: <code>Todo_Item</code></h2>
 <p>A task needs:</p>
 <ul>
 <li>a title</li>
 <li>a completion flag</li>
 </ul>
 <p>Here is the class:</p>
-<pre><code>nex&gt; class Task
+<pre><code>nex&gt; class Todo_Item
        create
          make(t: String) do
            title := t
@@ -525,8 +525,7 @@ ul.task-list li input[type="checkbox"] {
          end
        invariant
          title_not_empty: title.length &gt; 0
-     end
-Class(es) registered: Task</code></pre>
+     end</code></pre>
 <p>The invariant says a task must have a non-empty title. The method <code>mark_done</code> has a simple postcondition. Already the class has a clear meaning.</p>
 </section>
 <section id="the-second-class-task_list" class="level2" data-number="27.3">
@@ -538,16 +537,16 @@ Class(es) registered: Task</code></pre>
            tasks := []
          end
        feature
-         tasks: Array[Task]
+         tasks: Array[Todo_Item]
          add_task(title: String)
            require
              title_not_empty: title.length &gt; 0
            do
-             tasks.add(create Task.make(title))
+             tasks.add(create Todo_Item.make(title))
            ensure
-             size_increased: tasks.length = old tasks.length + 1
+             added_title_visible: tasks.get(tasks.length - 1).title = title
            end
-         task_at(index: Integer): Task
+         task_at(index: Integer): Todo_Item
            require
              index_in_range: index &gt;= 0 and index &lt; tasks.length
            do
@@ -558,8 +557,7 @@ Class(es) registered: Task</code></pre>
          end
        invariant
          storage_exists: tasks /= nil
-     end
-Class(es) registered: Task_List</code></pre>
+     end</code></pre>
 <p>This is enough to create and access tasks, but not yet enough to report progress.</p>
 </section>
 <section id="queries-that-summarize-state" class="level2" data-number="27.4">
@@ -571,16 +569,16 @@ Class(es) registered: Task_List</code></pre>
            tasks := []
          end
        feature
-         tasks: Array[Task]
+         tasks: Array[Todo_Item]
          add_task(title: String)
            require
              title_not_empty: title.length &gt; 0
            do
-             tasks.add(create Task.make(title))
+             tasks.add(create Todo_Item.make(title))
            ensure
-             size_increased: tasks.length = old tasks.length + 1
+             added_title_visible: tasks.get(tasks.length - 1).title = title
            end
-         task_at(index: Integer): Task
+         task_at(index: Integer): Todo_Item
            require
              index_in_range: index &gt;= 0 and index &lt; tasks.length
            do
@@ -590,7 +588,7 @@ Class(es) registered: Task_List</code></pre>
            do
              result := 0
              across tasks as task do
-               if task.is_done then
+               if task.is_done() then
                  result := result + 1
                end
              end
@@ -605,8 +603,7 @@ Class(es) registered: Task_List</code></pre>
          end
        invariant
          storage_exists: tasks /= nil
-     end
-Class(es) registered: Task_List</code></pre>
+     end</code></pre>
 <p>Notice the style:</p>
 <ul>
 <li>commands change state</li>
@@ -627,8 +624,8 @@ nex&gt; todo.size
 nex&gt; todo.completed_count
 0
 
-nex&gt; todo.task_at(0).mark_done
-nex&gt; todo.task_at(1).mark_done
+nex&gt; todo.task_at(0).mark_done()
+nex&gt; todo.task_at(1).mark_done()
 
 nex&gt; todo.completed_count
 2
@@ -639,12 +636,12 @@ false</code></pre>
 </section>
 <section id="raising-the-level-of-the-interface" class="level2" data-number="27.6">
 <h2 data-number="27.6" class="anchored" data-anchor-id="raising-the-level-of-the-interface"><span class="header-section-number">27.6</span> Raising the Level of the Interface</h2>
-<p>Calling <code>task_at(i).mark_done</code> is acceptable, but it exposes more representation than necessary. The list itself should offer a routine:</p>
+<p>The call <code>task_at(i).mark_done()</code> now works correctly. Still, a list class can offer a better public routine. Marking a task done is an operation in the vocabulary of the problem, not just a low-level storage update. A dedicated command also gives one clear place for contracts and future changes:</p>
 <pre><code>nex&gt; mark_task_done(index: Integer)
        require
          index_in_range: index &gt;= 0 and index &lt; tasks.length
        do
-         tasks.get(index).mark_done
+         task_at(index).mark_done()
        ensure
          selected_done: tasks.get(index).done
        end</code></pre>
@@ -655,16 +652,16 @@ false</code></pre>
            tasks := []
          end
        feature
-         tasks: Array[Task]
+         tasks: Array[Todo_Item]
          add_task(title: String)
            require
              title_not_empty: title.length &gt; 0
            do
-             tasks.add(create Task.make(title))
+             tasks.add(create Todo_Item.make(title))
            ensure
-             size_increased: tasks.length = old tasks.length + 1
+             added_title_visible: tasks.get(tasks.length - 1).title = title
            end
-         task_at(index: Integer): Task
+         task_at(index: Integer): Todo_Item
            require
              index_in_range: index &gt;= 0 and index &lt; tasks.length
            do
@@ -674,7 +671,7 @@ false</code></pre>
            require
              index_in_range: index &gt;= 0 and index &lt; tasks.length
            do
-             tasks.get(index).mark_done
+             task_at(index).mark_done()
            ensure
              selected_done: tasks.get(index).done
            end
@@ -682,7 +679,7 @@ false</code></pre>
            do
              result := 0
              across tasks as task do
-               if task.is_done then
+               if task.is_done() then
                  result := result + 1
                end
              end
@@ -697,8 +694,7 @@ false</code></pre>
          end
        invariant
          storage_exists: tasks /= nil
-     end
-Class(es) registered: Task_List</code></pre>
+     end</code></pre>
 <p>The class now offers a cleaner interface.</p>
 </section>
 <section id="tests-for-the-program" class="level2" data-number="27.7">
@@ -751,7 +747,7 @@ Class(es) registered: Task_List</code></pre>
 <h2 data-number="27.8" class="anchored" data-anchor-id="what-the-example-shows"><span class="header-section-number">27.8</span> What the Example Shows</h2>
 <p>The finished program is not complicated, but it demonstrates the whole method of development:</p>
 <p>Start from concepts.</p>
-<p><code>Task</code> and <code>Task_List</code> emerged from the problem statement.</p>
+<p><code>Todo_Item</code> and <code>Task_List</code> emerged from the problem statement.</p>
 <p>Use contracts to shape the interface.</p>
 <p>Invalid indices and empty titles became preconditions. Important effects became postconditions.</p>
 <p>Use invariants to capture class meaning.</p>
@@ -774,7 +770,7 @@ Class(es) registered: Task_List</code></pre>
 </section>
 <section id="exercises" class="level2" data-number="27.10">
 <h2 data-number="27.10" class="anchored" data-anchor-id="exercises"><span class="header-section-number">27.10</span> Exercises</h2>
-<p><strong>1.</strong> Extend <code>Task</code> with a <code>description: ?String</code> field and a routine for setting it. Decide whether an invariant is needed.</p>
+<p><strong>1.</strong> Extend <code>Todo_Item</code> with a <code>description: ?String</code> field and a routine for setting it. Decide whether an invariant is needed.</p>
 <p><strong>2.</strong> Add a routine <code>remaining_count(): Integer</code> to <code>Task_List</code> and write a postcondition for it.</p>
 <p><strong>3.</strong> Prevent a task from being marked done twice by strengthening the interface. Decide whether this should be a precondition or simply an idempotent operation.</p>
 <p><strong>4.</strong> Split the chapter’s program into two or three files using <code>intern</code>.</p>
@@ -811,7 +807,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const num = link.querySelector(".chapter-number");
     if (num) num.remove();
     const title = link.querySelector(".chapter-title");
-    if (title && title.textContent.trim() === "index.html") {
+    if (title && title.textContent.trim() !== "Home") {
       title.textContent = "Home";
     }
   });
