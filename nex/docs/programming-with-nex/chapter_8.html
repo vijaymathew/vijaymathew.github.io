@@ -374,14 +374,14 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
+  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
+  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
   </div>
 </li>
       </ul>
@@ -583,6 +583,10 @@ nex&gt; count_char("mississippi", #s)
 <h2 data-number="9.5" class="anchored" data-anchor-id="mutual-recursion"><span class="header-section-number">9.5</span> Mutual Recursion</h2>
 <p>Two functions can be mutually recursive — each calling the other. A classic example is testing whether a number is even or odd without using <code>%</code>:</p>
 <pre><code>nex&gt; function is_even(n: Integer): Boolean
+
+nex&gt; function is_odd(n: Integer): Boolean
+
+nex&gt; function is_even(n: Integer): Boolean
      do
        if n = 0 then
          result := true
@@ -605,6 +609,7 @@ true
 
 nex&gt; is_odd(7)
 true</code></pre>
+<p>The first two lines are forward declarations. They tell the typechecker the signatures of both functions before either body is checked. Without those declarations, the first function body would refer to a function whose return type is not yet known.</p>
 <p><code>is_even(4)</code> calls <code>is_odd(3)</code>, which calls <code>is_even(2)</code>, which calls <code>is_odd(1)</code>, which calls <code>is_even(0)</code>, which returns <code>true</code>. The base cases anchor both functions: zero is even and zero is not odd.</p>
 <p>Mutual recursion is less common than direct recursion but appears naturally in parsers, state machines, and algorithms over tree structures. The same principles apply: every chain of calls must reach a base case, and each call must make progress toward it.</p>
 </section>
@@ -650,8 +655,8 @@ nex&gt; print_to(1, 10)</code></pre>
 nex&gt; sum_to(100000)
 
 nex&gt; -- this handles any n safely
+nex&gt; let total := 0
 nex&gt; from
-       let total := 0
        let i := 1
     until
        i &gt; 100000
@@ -694,6 +699,53 @@ nex&gt; total
 </section>
 
 </main> <!-- /main -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function isNumeric(text) {
+    return /^\d+$/.test(text.trim());
+  }
+
+  function decrementNumericText(el) {
+    const text = el.textContent.trim();
+    if (isNumeric(text)) {
+      el.textContent = String(parseInt(text, 10) - 1);
+    }
+  }
+
+  function decrementSectionText(el) {
+    const text = el.textContent.trim();
+    const match = text.match(/^(\d+)(\..*)?$/);
+    if (match) {
+      const lead = parseInt(match[1], 10) - 1;
+      el.textContent = String(lead) + (match[2] || "");
+    }
+  }
+
+  const indexLinks = document.querySelectorAll('a[href$="index.html"]');
+  indexLinks.forEach(function (link) {
+    const num = link.querySelector(".chapter-number");
+    if (num) num.remove();
+    const title = link.querySelector(".chapter-title");
+    if (title && title.textContent.trim() === "index.html") {
+      title.textContent = "Home";
+    }
+  });
+
+  document.querySelectorAll(".chapter-number").forEach(function (el) {
+    if (el.closest('a[href$="index.html"]')) return;
+    decrementNumericText(el);
+  });
+
+  document.querySelectorAll(".header-section-number").forEach(decrementSectionText);
+
+  const titleEl = document.querySelector("title");
+  if (titleEl) {
+    titleEl.textContent = titleEl.textContent.replace(/^(\d+)(\u00a0|\s+)/, function (_, n, space) {
+      return String(parseInt(n, 10) - 1) + space;
+    });
+  }
+});
+</script>
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";

@@ -374,14 +374,14 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
+  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./chapter_28.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">What to Read Next</span></span></a>
+  <a href="./chapter_29.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Concurrency with Tasks and Channels</span></span></a>
   </div>
 </li>
       </ul>
@@ -443,11 +443,12 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#the-result-variable" id="toc-the-result-variable" class="nav-link" data-scroll-target="#the-result-variable"><span class="header-section-number">7.4</span> The <code>result</code> Variable</a></li>
   <li><a href="#multiple-parameters" id="toc-multiple-parameters" class="nav-link" data-scroll-target="#multiple-parameters"><span class="header-section-number">7.5</span> Multiple Parameters</a></li>
   <li><a href="#functions-calling-functions" id="toc-functions-calling-functions" class="nav-link" data-scroll-target="#functions-calling-functions"><span class="header-section-number">7.6</span> Functions Calling Functions</a></li>
-  <li><a href="#anonymous-functions" id="toc-anonymous-functions" class="nav-link" data-scroll-target="#anonymous-functions"><span class="header-section-number">7.7</span> Anonymous Functions</a></li>
-  <li><a href="#when-to-write-a-function" id="toc-when-to-write-a-function" class="nav-link" data-scroll-target="#when-to-write-a-function"><span class="header-section-number">7.8</span> When to Write a Function</a></li>
-  <li><a href="#a-worked-example-temperature-converter" id="toc-a-worked-example-temperature-converter" class="nav-link" data-scroll-target="#a-worked-example-temperature-converter"><span class="header-section-number">7.9</span> A Worked Example: Temperature Converter</a></li>
-  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">7.10</span> Summary</a></li>
-  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">7.11</span> Exercises</a></li>
+  <li><a href="#forward-declarations" id="toc-forward-declarations" class="nav-link" data-scroll-target="#forward-declarations"><span class="header-section-number">7.7</span> Forward Declarations</a></li>
+  <li><a href="#anonymous-functions" id="toc-anonymous-functions" class="nav-link" data-scroll-target="#anonymous-functions"><span class="header-section-number">7.8</span> Anonymous Functions</a></li>
+  <li><a href="#when-to-write-a-function" id="toc-when-to-write-a-function" class="nav-link" data-scroll-target="#when-to-write-a-function"><span class="header-section-number">7.9</span> When to Write a Function</a></li>
+  <li><a href="#a-worked-example-temperature-converter" id="toc-a-worked-example-temperature-converter" class="nav-link" data-scroll-target="#a-worked-example-temperature-converter"><span class="header-section-number">7.10</span> A Worked Example: Temperature Converter</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">7.11</span> Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">7.12</span> Exercises</a></li>
   </ul>
 </nav>
     </div>
@@ -618,8 +619,31 @@ nex&gt; sum_of_squares(3, 4)
 25</code></pre>
 <p><code>sum_of_squares</code> delegates the squaring work to <code>square</code> and focuses only on the addition. Each function has a single, clear responsibility. This decomposition is the subject of Chapter 7; for now, the key observation is that calling a function inside another function is natural and encouraged.</p>
 </section>
-<section id="anonymous-functions" class="level2" data-number="7.7">
-<h2 data-number="7.7" class="anchored" data-anchor-id="anonymous-functions"><span class="header-section-number">7.7</span> Anonymous Functions</h2>
+<section id="forward-declarations" class="level2" data-number="7.7">
+<h2 data-number="7.7" class="anchored" data-anchor-id="forward-declarations"><span class="header-section-number">7.7</span> Forward Declarations</h2>
+<p>Sometimes a function needs to call another function whose body will be defined later. If the typechecker sees the first definition before it has seen the later function’s signature, it does not yet know what type that call should return. The solution is to declare the later function’s signature first and define its body afterwards.</p>
+<p>In the REPL, this matters when static checking is enabled:</p>
+<pre><code>nex&gt; :typecheck on
+Type checking enabled. Code will be validated before execution.</code></pre>
+<pre><code>nex&gt; function normalize_name(name: String): String
+
+nex&gt; function greet_user(name: String): String
+     do
+       result := "Hello, " + normalize_name(name)
+     end
+
+nex&gt; function normalize_name(name: String): String
+     do
+       result := name.trim()
+     end
+
+nex&gt; greet_user("  Vijay  ")
+"Hello, Vijay"</code></pre>
+<p>The first line is a declaration only. It introduces the function name, parameter type, and return type. The later full definition must match that signature exactly.</p>
+<p>This preserves static typechecking and keeps the program structure explicit.</p>
+</section>
+<section id="anonymous-functions" class="level2" data-number="7.8">
+<h2 data-number="7.8" class="anchored" data-anchor-id="anonymous-functions"><span class="header-section-number">7.8</span> Anonymous Functions</h2>
 <p>A function defined with <code>function</code> has a name and exists for the duration of the session. Sometimes a function is needed only in one place, and giving it a name would be more ceremony than it is worth. For these cases, Nex provides anonymous functions using <code>fn</code>:</p>
 <pre><code>nex&gt; let double := fn (n: Integer): Integer do
        result := n * 2
@@ -639,8 +663,8 @@ nex&gt; apply_twice(fn (n: Integer): Integer do result := n + 3 end, 10)
 <p>The anonymous function <code>fn (n: Integer): Integer do result := n + 3 end</code> adds 3 to its argument. <code>apply_twice</code> calls it twice, so <code>10</code> becomes <code>13</code> and then <code>16</code>.</p>
 <p>This style — passing functions as arguments — becomes more powerful as programs grow. We return to it in Chapter 7.</p>
 </section>
-<section id="when-to-write-a-function" class="level2" data-number="7.8">
-<h2 data-number="7.8" class="anchored" data-anchor-id="when-to-write-a-function"><span class="header-section-number">7.8</span> When to Write a Function</h2>
+<section id="when-to-write-a-function" class="level2" data-number="7.9">
+<h2 data-number="7.9" class="anchored" data-anchor-id="when-to-write-a-function"><span class="header-section-number">7.9</span> When to Write a Function</h2>
 <p>A function is worth writing whenever a computation has a name, when it is used in more than one place, or when naming it would make the code that calls it clearer. These three criteria are worth examining individually.</p>
 <p><strong>A computation has a name.</strong> If you find yourself adding a comment that says “compute the shipping cost” before a block of code, that block is a function waiting to be extracted. Naming it <code>shipping_cost</code> turns the comment into an executable label. The code that calls it becomes:</p>
 <pre><code>let cost := shipping_cost(weight, distance)</code></pre>
@@ -653,8 +677,8 @@ nex&gt; apply_twice(fn (n: Integer): Integer do result := n + 3 end, 10)
 <p>The second is clearer at a glance — <code>passed</code> communicates what the condition means rather than asking the reader to evaluate it. The function earns its existence by making the code that calls it easier to read, even if the function body itself is simple.</p>
 <p>The threshold for writing a function should be low. Functions are not reserved for complex code. A two-line function with a good name is often more valuable than a two-line comment explaining what the code does.</p>
 </section>
-<section id="a-worked-example-temperature-converter" class="level2" data-number="7.9">
-<h2 data-number="7.9" class="anchored" data-anchor-id="a-worked-example-temperature-converter"><span class="header-section-number">7.9</span> A Worked Example: Temperature Converter</h2>
+<section id="a-worked-example-temperature-converter" class="level2" data-number="7.10">
+<h2 data-number="7.10" class="anchored" data-anchor-id="a-worked-example-temperature-converter"><span class="header-section-number">7.10</span> A Worked Example: Temperature Converter</h2>
 <p>Here is a small library of related functions, built up one at a time:</p>
 <pre><code>nex&gt; function celsius_to_fahrenheit(c: Real): Real
      do
@@ -695,10 +719,11 @@ nex&gt; describe_temperature(body_temp_c)
 warm</code></pre>
 <p>Each function does one thing. The code that uses them reads like a series of clear questions: what is this in Fahrenheit, how would we describe this temperature? The answers are delegated to functions that can be developed, tested, and read independently.</p>
 </section>
-<section id="summary" class="level2" data-number="7.10">
-<h2 data-number="7.10" class="anchored" data-anchor-id="summary"><span class="header-section-number">7.10</span> Summary</h2>
+<section id="summary" class="level2" data-number="7.11">
+<h2 data-number="7.11" class="anchored" data-anchor-id="summary"><span class="header-section-number">7.11</span> Summary</h2>
 <ul>
 <li>A function is defined with <code>function name(parameters): return_type do ... end</code></li>
+<li>A function signature may be declared without a body when later definitions need forward references</li>
 <li>Parameters are declared with their types; multiple parameters of the same type can be grouped: <code>(a, b: Integer)</code></li>
 <li>The return value is assigned to the special variable <code>result</code>; the function returns whatever <code>result</code> holds when the body finishes</li>
 <li>A function with no <code>result</code> assignment returns no value and should not be used as an expression</li>
@@ -707,8 +732,8 @@ warm</code></pre>
 <li>Functions calling other functions is natural and encouraged; decomposition is how manageable programs are built from simple pieces</li>
 </ul>
 </section>
-<section id="exercises" class="level2" data-number="7.11">
-<h2 data-number="7.11" class="anchored" data-anchor-id="exercises"><span class="header-section-number">7.11</span> Exercises</h2>
+<section id="exercises" class="level2" data-number="7.12">
+<h2 data-number="7.12" class="anchored" data-anchor-id="exercises"><span class="header-section-number">7.12</span> Exercises</h2>
 <p><strong>1.</strong> Define a function <code>fahrenheit_to_kelvin(f: Real): Real</code> that converts a Fahrenheit temperature to Kelvin. The formula is: subtract 32, multiply by 5/9, then add 273.15. Test it by verifying that 32 deg F converts to 273.15 K and 212 deg F converts to 373.15 K.</p>
 <p><strong>2.</strong> Define a function <code>is_leap_year(year: Integer): Boolean</code> that returns <code>true</code> if <code>year</code> is a leap year. A year is a leap year if it is divisible by 4, except that years divisible by 100 are not leap years, unless they are also divisible by 400. Test with 2000 (true), 1900 (false), 2024 (true), and 2023 (false).</p>
 <p><strong>3.</strong> Define a function <code>digit_sum(n: Integer): Integer</code> that returns the sum of the digits of a non-negative integer. For example, <code>digit_sum(123)</code> should return <code>6</code>. Hint: use <code>%</code> to extract the last digit and <code>/</code> to remove it, repeating until the number is zero.</p>
@@ -719,6 +744,53 @@ warm</code></pre>
 </section>
 
 </main> <!-- /main -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function isNumeric(text) {
+    return /^\d+$/.test(text.trim());
+  }
+
+  function decrementNumericText(el) {
+    const text = el.textContent.trim();
+    if (isNumeric(text)) {
+      el.textContent = String(parseInt(text, 10) - 1);
+    }
+  }
+
+  function decrementSectionText(el) {
+    const text = el.textContent.trim();
+    const match = text.match(/^(\d+)(\..*)?$/);
+    if (match) {
+      const lead = parseInt(match[1], 10) - 1;
+      el.textContent = String(lead) + (match[2] || "");
+    }
+  }
+
+  const indexLinks = document.querySelectorAll('a[href$="index.html"]');
+  indexLinks.forEach(function (link) {
+    const num = link.querySelector(".chapter-number");
+    if (num) num.remove();
+    const title = link.querySelector(".chapter-title");
+    if (title && title.textContent.trim() === "index.html") {
+      title.textContent = "Home";
+    }
+  });
+
+  document.querySelectorAll(".chapter-number").forEach(function (el) {
+    if (el.closest('a[href$="index.html"]')) return;
+    decrementNumericText(el);
+  });
+
+  document.querySelectorAll(".header-section-number").forEach(decrementSectionText);
+
+  const titleEl = document.querySelector("title");
+  if (titleEl) {
+    titleEl.textContent = titleEl.textContent.replace(/^(\d+)(\u00a0|\s+)/, function (_, n, space) {
+      return String(parseInt(n, 10) - 1) + space;
+    });
+  }
+});
+</script>
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
