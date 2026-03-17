@@ -7,7 +7,7 @@ That moment usually arrives earlier than you think. The deployment sequence you 
 This chapter is about eliminating that friction. We'll cover shell scripts, aliases and functions, `make` as a task runner, environment management, and the patterns that separate automation that holds up over time from automation that creates more problems than it solves.
 
 
-## 7.1 Shell Scripts: The Foundation
+## Shell Scripts: The Foundation
 
 A shell script is a text file containing shell commands. That's it. There's no compilation step, no runtime to install, no dependency to manage. If a sequence of commands works in your terminal, it works in a shell script.
 
@@ -226,7 +226,7 @@ The `trap` command runs a function when the script exits — whether normally, d
 
 
 
-## 7.2 Aliases and Functions: Instant Shortcuts
+## Aliases and Functions: Instant Shortcuts
 
 Shell scripts live in files and need to be called explicitly. Aliases and shell functions live in your shell configuration and are available instantly in any terminal session.
 
@@ -357,7 +357,7 @@ This approach also makes it easy to share your shell config as a dotfiles reposi
 
 
 
-## 7.3 `make`: The Underrated Task Runner
+## `make`: The Underrated Task Runner
 
 `make` was created in 1976 to automate C compilation. Fifty years later, it's one of the best task runners available for any language or project type — not because of its build features, but because of its interface.
 
@@ -502,7 +502,7 @@ Any target with a `##` comment will appear in `make help` with its description, 
 
 
 
-## 7.4 Environment Management
+## Environment Management
 
 Automation breaks in subtle ways when environment variables are wrong — missing API keys, wrong database URLs, development credentials used in production. Good environment management prevents this class of problem.
 
@@ -599,7 +599,7 @@ gh secret set API_TOKEN < api_token.txt
 
 
 
-## 7.5 Scheduling and Background Tasks
+## Scheduling and Background Tasks
 
 ### `cron`: scheduled execution
 
@@ -676,7 +676,7 @@ This is useful for monitoring live output without writing a full polling loop. `
 
 
 
-## 7.6 A Practical Automation Toolkit
+## A Practical Automation Toolkit
 
 Here's a collection of scripts that solve common development automation problems, ready to adapt:
 
@@ -826,7 +826,7 @@ log "Version $CURRENT_VERSION is live on $ENV"
 
 
 
-## 7.7 Putting It Together: A Complete Developer Automation Setup
+## Putting It Together: A Complete Developer Automation Setup
 
 Here's how all these pieces fit together into a complete project automation setup:
 

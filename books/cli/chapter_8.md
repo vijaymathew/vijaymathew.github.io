@@ -7,7 +7,7 @@ The difference usually isn't knowledge of more commands. It's the accumulated ef
 This chapter covers those improvements. Some are configuration changes. Some are tools worth installing. Some are habits and keyboard shortcuts that take a week to internalize and then become automatic. None of them are complicated. All of them are worth the investment.
 
 
-## 8.1 Choosing and Configuring Your Shell
+## Choosing and Configuring Your Shell
 
 Most systems default to `bash`. It's reliable, ubiquitous, and fine. But two alternatives are worth knowing about: `zsh` and `fish`.
 
@@ -63,7 +63,7 @@ fish_config                    # web-based configuration UI
 
 
 
-## 8.2 A Better Prompt with Starship
+## A Better Prompt with Starship
 
 Your prompt is the text that appears before every command. The default prompt tells you very little — usually just your username, hostname, and current directory. A well-configured prompt can show your current git branch, whether you have uncommitted changes, the active Node or Python version, the last command's exit code, and more — all without you having to run a single command to find out.
 
@@ -143,7 +143,7 @@ The `$git_status` module alone is worth the setup — at a glance you can see wh
 
 
 
-## 8.3 Smarter History
+## Smarter History
 
 The default shell history is a flat list of commands you've run. With the right configuration and tools, it becomes a searchable, context-aware database of everything you've ever done at the terminal.
 
@@ -201,7 +201,7 @@ Once installed, `Ctrl+R` opens a scrollable, searchable list of your entire comm
 
 
 
-## 8.4 Smarter Directory Navigation
+## Smarter Directory Navigation
 
 `cd` is the most-typed command in the terminal. Most developers type it far more than necessary.
 
@@ -267,7 +267,7 @@ Think of it as a browser's back button for the terminal. For quick context switc
 
 
 
-## 8.5 `bat`, `eza`, and `fd`: Modernizing the Classics
+## `bat`, `eza`, and `fd`: Modernizing the Classics
 
 We mentioned these tools in earlier chapters. Here's the full picture on setup and configuration.
 
@@ -336,7 +336,7 @@ The `--exec` flag works like `find`'s `-exec` but with a cleaner syntax. `{}` is
 
 
 
-## 8.6 `fzf` Beyond History Search
+## `fzf` Beyond History Search
 
 `fzf` is more than a history search tool. It's a general-purpose fuzzy selector that can be composed with any command that produces a list of items.
 
@@ -403,7 +403,7 @@ The `fg` function is particularly powerful: it uses `rg` to search for a pattern
 
 
 
-## 8.7 Multiplexers: `tmux`
+## Multiplexers: `tmux`
 
 A terminal multiplexer lets you run multiple terminal sessions within a single window, split panes side by side, and keep sessions running after you disconnect. `tmux` is the most widely used.
 
@@ -540,7 +540,7 @@ set -g status-right "%H:%M %d-%b"
 
 
 
-## 8.8 Keyboard Shortcuts Worth Memorizing
+## Keyboard Shortcuts Worth Memorizing
 
 Terminal keyboard shortcuts are multiplicative — they work in any command, in any context, without any setup. Spending thirty minutes learning them saves hours every week.
 
@@ -593,7 +593,7 @@ jobs           List background and suspended jobs
 
 
 
-## 8.9 Terminal Emulators Worth Considering
+## Terminal Emulators Worth Considering
 
 The terminal emulator is the application that runs your shell. The default options — Terminal.app on macOS, gnome-terminal on Linux — work fine, but several alternatives offer meaningful improvements for developers.
 
@@ -627,7 +627,7 @@ Ghostty is a newer terminal emulator that balances performance with features, wi
 
 
 
-## 8.10 A Recommended Setup
+## A Recommended Setup
 
 Here's a complete recommended setup for a developer who wants to invest in their terminal environment once and benefit for years:
 

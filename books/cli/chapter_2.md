@@ -5,7 +5,7 @@ If there's one skill that separates developers who are fast from developers who 
 IDEs have search. GitHub has search. But neither gives you the speed, precision, and composability of searching from the terminal. Once you've internalized the tools in this chapter, you'll find yourself reaching for them instinctively — not because you're a terminal purist, but because they're simply the fastest way to find what you're looking for.
 
 
-## 2.1 `grep`: The Classic
+## `grep`: The Classic
 
 `grep` has been part of Unix since 1974. The name stands for *globally search a regular expression and print* — which is exactly what it does. Despite its age, it remains one of the most useful tools in a developer's arsenal.
 
@@ -76,7 +76,7 @@ grep -rP "(?<=userId: )\d+" logs/               # lookbehind (Perl regex)
 
 
 
-## 2.2 `ripgrep`: The Modern Default
+## `ripgrep`: The Modern Default
 
 `grep` is powerful, but it has limitations that become painful on large modern codebases. It searches `node_modules`. It doesn't respect `.gitignore`. On a project with hundreds of thousands of files, it can be slow.
 
@@ -171,7 +171,7 @@ rg -F "arr[0]"                # treats brackets as literal brackets
 
 
 
-## 2.3 Searching Git History with `git grep` and `git log`
+## Searching Git History with `git grep` and `git log`
 
 Sometimes the pattern you're looking for isn't in the current code — it was deleted, or it exists in an older version. Git gives you two powerful tools for this.
 
@@ -217,7 +217,7 @@ git log -G "handle[A-Z][a-z]+" --oneline
 
 
 
-## 2.4 Searching Structured Data with `jq`
+## Searching Structured Data with `jq`
 
 Not all searching is searching source code. Modern development means working with JSON constantly — API responses, config files, package manifests, log output. `grep` can search JSON, but it has no understanding of structure. `jq` does.
 
@@ -283,7 +283,7 @@ This finds every JSON file in the project and prints its `version` field if it h
 
 
 
-## 2.5 Building Search Pipelines
+## Building Search Pipelines
 
 The real power of command-line search comes from combining tools. Each of the tools above produces text output that can be piped into the next tool in a chain.
 
@@ -323,7 +323,7 @@ Or more commonly, feed results into a command that makes a change — we'll cove
 
 
 
-## 2.6 Practical Search Recipes
+## Practical Search Recipes
 
 Here are some searches that come up repeatedly in real development work, ready to use or adapt:
 

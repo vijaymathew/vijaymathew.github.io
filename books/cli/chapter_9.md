@@ -7,7 +7,7 @@ These situations have something in common: they're not code problems. They're *p
 This chapter covers the tools for understanding and managing processes, debugging environment issues, and wrapping commands defensively so they fail gracefully rather than hanging forever. These aren't glamorous tools — you won't use them every day — but when you need them, nothing else will do.
 
 
-## 8.1 Understanding What's Running with `ps`
+## Understanding What's Running with `ps`
 
 `ps` (process status) shows information about running processes. It's been part of Unix since the beginning, and its flags are notoriously inconsistent across platforms — a legacy of competing Unix standards that was never fully resolved. The version you'll use most often sidesteps this by using BSD-style flags that work on both macOS and Linux:
 
@@ -77,7 +77,7 @@ pgrep -a node | wc -l                 # how many node processes are running?
 
 
 
-## 8.2 Controlling Processes with `kill`
+## Controlling Processes with `kill`
 
 `kill` sends a signal to a process. Despite the name, it doesn't only kill — signals can pause, resume, reload, or terminate a process depending on which signal you send.
 
@@ -168,7 +168,7 @@ pkill -P <parent-pid>                # kill children of a specific PID
 
 
 
-## 8.3 `top` and `htop`: Live Process Monitoring
+## `top` and `htop`: Live Process Monitoring
 
 `ps` gives you a snapshot. `top` gives you a live view, refreshing every few seconds:
 
@@ -211,7 +211,7 @@ The last form is invaluable when you're trying to delete or modify a file and ge
 
 
 
-## 8.4 `timeout`: Wrapping Commands Defensively
+## `timeout`: Wrapping Commands Defensively
 
 A command that hangs is worse than a command that fails. A failed command gives you an error and exits. A hanging command blocks your pipeline, your script, or your CI job indefinitely — until something external intervenes.
 
@@ -283,7 +283,7 @@ timeout 5m npm run db:migrate || {
 
 
 
-## 8.5 Environment Debugging with `env`, `printenv`, and `export`
+## Environment Debugging with `env`, `printenv`, and `export`
 
 A significant class of bugs in development — scripts that work locally but fail in CI, applications that behave differently across environments, commands that can't find other commands — trace back to environment variables. These tools help you see exactly what environment a process is operating in.
 
@@ -369,7 +369,7 @@ Redirecting to stderr (`>&2`) ensures this diagnostic output doesn't interfere w
 
 
 
-## 8.6 `which`, `type`, and `command`: Resolving Command Mysteries
+## `which`, `type`, and `command`: Resolving Command Mysteries
 
 "Command not found" and "this isn't the version I expected" are the two most common environment debugging scenarios. These tools resolve them.
 
@@ -445,7 +445,7 @@ After running `hash -r` or starting a new shell session, the next invocation of 
 
 
 
-## 8.7 Debugging with `strace` and `dtrace`
+## Debugging with `strace` and `dtrace`
 
 For the hardest process debugging problems — a process that's doing something unexpected and you can't figure out what — system call tracing tools let you see exactly what a process is doing at the operating system level.
 
@@ -476,7 +476,7 @@ System call tracing is a power tool — reach for it when all other debugging ap
 
 
 
-## 8.8 Background Jobs and Process Groups
+## Background Jobs and Process Groups
 
 We covered background jobs briefly in Chapter 7. Here's the fuller picture from a process management perspective.
 
@@ -534,7 +534,7 @@ wc -l <(find . -name "*.ts")                 # count matching files
 
 
 
-## 8.9 Practical Debugging Workflows
+## Practical Debugging Workflows
 
 ### Scenario 1: Something is using my port
 

@@ -7,7 +7,7 @@ The terminal has better answers. `sed` and `awk` are stream editors — tools de
 This chapter covers `sed`, `awk`, and a handful of supporting tools that together give you everything you need to edit files from the terminal — from simple substitutions to complex structural transformations.
 
 
-## 4.1 `sed`: Stream Editing
+## `sed`: Stream Editing
 
 `sed` stands for *stream editor*. It reads input line by line, applies a transformation to each line, and writes the result to standard output. The most common transformation — the one you'll use in probably 80% of your `sed` invocations — is substitution.
 
@@ -141,7 +141,7 @@ sed 's/foo/bar/g; s/baz/qux/g' file.txt
 
 
 
-## 4.2 `awk`: Structured Text Processing
+## `awk`: Structured Text Processing
 
 If `sed` is a scalpel — precise, focused, best for specific line-by-line transformations — `awk` is a Swiss Army knife. It's a full programming language built around the idea of processing structured text: files where data is organized into rows and columns, like CSV files, log files, or command output.
 
@@ -252,7 +252,7 @@ These one-liners replace what would otherwise require a dedicated log analysis s
 
 
 
-## 4.3 `tr`: Translating Characters
+## `tr`: Translating Characters
 
 `tr` (translate) is a smaller, more focused tool that transforms individual characters. It doesn't understand lines or fields — it operates character by character on a stream.
 
@@ -284,7 +284,7 @@ cat file.txt | tr -s '\n'                   # remove blank lines
 
 
 
-## 4.4 `cut`: Extracting Columns
+## `cut`: Extracting Columns
 
 `cut` is simpler than `awk` for the specific task of extracting columns from delimited text:
 
@@ -308,7 +308,7 @@ cut -c10- file.txt                # everything from character 10 onwards
 
 
 
-## 4.5 `sort` and `uniq`: Organizing and Deduplicating
+## `sort` and `uniq`: Organizing and Deduplicating
 
 These two tools are almost always used together, and they appear constantly in the pipelines built around `sed` and `awk`.
 
@@ -357,7 +357,7 @@ awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -10
 
 
 
-## 4.6 `tee`: Writing and Passing Through
+## `tee`: Writing and Passing Through
 
 `tee` reads from stdin and writes to both stdout *and* a file simultaneously. It's named after the T-shaped plumbing fitting that splits a pipe into two directions.
 
@@ -387,7 +387,7 @@ This reads the log once, writes ERROR lines to `errors.log`, WARN lines to `warn
 
 
 
-## 4.7 Putting It Together: Real Editing Workflows
+## Putting It Together: Real Editing Workflows
 
 ### Refactoring a module name across a codebase
 

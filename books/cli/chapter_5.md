@@ -9,7 +9,7 @@ The command line is where that database becomes queryable. GUI Git clients are f
 This chapter covers the Git workflows and commands that most developers either don't know exist or have heard of but never learned properly. The assumption is that you're already comfortable with the basics. What follows is everything beyond them.
 
 
-## 5.1 Understanding Your Repository at a Glance
+## Understanding Your Repository at a Glance
 
 Before making changes, it helps to understand exactly where things stand. These commands give you that picture quickly.
 
@@ -88,7 +88,7 @@ a3f2c1b Fix authentication token handling
 
 
 
-## 5.2 Investigating Changes
+## Investigating Changes
 
 Understanding *what* changed is one thing. Understanding *why* it changed — and *when* — requires a different set of tools.
 
@@ -171,7 +171,7 @@ This is one of the most powerful debugging tools in Git. When you find an unexpe
 
 
 
-## 5.3 Branching and Merging Efficiently
+## Branching and Merging Efficiently
 
 ### Creating and switching branches
 
@@ -265,7 +265,7 @@ git cherry-pick a3f2c1b --no-commit    # apply changes without committing
 
 
 
-## 5.4 Undoing Things
+## Undoing Things
 
 Git's undo model is one of the most important things to understand deeply. There are several different tools, each appropriate for different situations.
 
@@ -333,7 +333,7 @@ The reflog only exists locally and expires after 90 days by default, but within 
 
 
 
-## 5.5 Working with Remotes
+## Working with Remotes
 
 ### Fetching and inspecting before merging
 
@@ -385,7 +385,7 @@ git push origin --delete feature/old          # delete a remote branch
 
 
 
-## 5.6 Git Aliases — Building Your Own Commands
+## Git Aliases — Building Your Own Commands
 
 Git's built-in commands are verbose. Aliases let you define shorter, more memorable versions:
 
@@ -415,7 +415,7 @@ cat ~/.gitconfig          # view all git configuration
 
 
 
-## 5.7 Searching the Repository
+## Searching the Repository
 
 Beyond what we covered in Chapter 2, Git offers several powerful ways to search the repository itself.
 
@@ -466,7 +466,7 @@ This runs `npm test` at each commit and uses the exit code to determine good or 
 
 
 
-## 5.8 Shell Aliases and Scripts for Git Workflows
+## Shell Aliases and Scripts for Git Workflows
 
 Beyond Git's own alias system, shell-level aliases and functions can further streamline your workflow:
 
@@ -494,7 +494,7 @@ The `gclean` alias is worth highlighting: it deletes all local branches that hav
 
 
 
-## 5.9 Putting It Together: Real Git Workflows
+## Putting It Together: Real Git Workflows
 
 ### Investigating a production bug
 

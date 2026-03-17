@@ -12,10 +12,10 @@ title-block: false
 <p>This book shows how to move with confidence in unfamiliar codebases, compose fast searches, tame data and APIs, automate repetitive work, and keep the terminal experience sane so you can build reliable software without leaving the shell.</p>
 <p>Start reading:</p>
 <ul>
-  <li><a href="introduction.html">Introduction</a></li>
+  <li><a href="introduction.html">Introduction</a> — why the terminal still wins when you need reproducible, composable work.</li>
 </ul>
 <p>Chapter roadmap:</p>
-<ol>
+<ol start="2">
   <li><a href="chapter_1.html">Navigating and Understanding a Codebase Quickly</a> — build an orientation instinct with <code>tree</code>, <code>ls</code>, <code>find</code>, <code>stat</code>, and <code>file</code>, so you always know where to look.</li>
   <li><a href="chapter_2.html">Searching Code Like a Pro</a> — compare <code>grep</code> and <code>rg</code>, tailor ignores, combine <code>find</code> with search tools, and hunt down config values and call sites fast.</li>
   <li><a href="chapter_3.html">Reading and Inspecting Files Without an Editor</a> — use <code>cat</code>, <code>head</code>, <code>tail</code>, <code>less</code>, and <code>wc</code> to peek into files and logs with speed and control.</li>

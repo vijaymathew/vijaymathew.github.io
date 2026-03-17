@@ -9,7 +9,7 @@ The pipe — the `|` character — is the mechanism that makes "work together" p
 This chapter is about understanding these mechanisms deeply enough that composing tools becomes instinctive — not something you look up, but something you reach for automatically whenever a problem involves more than one step.
 
 
-## 9.1 The Unix Philosophy in Practice
+## The Unix Philosophy in Practice
 
 Before the mechanics, the mental model. Unix tools are designed around three standard streams:
 
@@ -31,7 +31,7 @@ Each step is independent. Each step can be tested alone. And the whole pipeline 
 
 
 
-## 9.2 The Pipe Operator `|`
+## The Pipe Operator `|`
 
 The pipe is the most important character in the Unix terminal. Here's how to think about it and use it effectively.
 
@@ -85,7 +85,7 @@ doesn't wait for `cat` to finish before starting `grep`. All three commands run 
 
 
 
-## 9.3 Redirection Operators
+## Redirection Operators
 
 Pipes connect commands to each other. Redirection operators connect commands to files.
 
@@ -176,7 +176,7 @@ jq '.' <<< '{"name":"Alice","role":"admin"}'
 
 
 
-## 9.4 `xargs`: Bridging the Gap
+## `xargs`: Bridging the Gap
 
 The pipe model works perfectly when the receiving command reads from stdin. But many commands don't read from stdin — they take arguments. `find`, `rm`, `cp`, `mv`, `grep` with a list of files — these commands expect their input as command-line arguments, not on stdin.
 
@@ -252,7 +252,7 @@ cat urls.txt | xargs -n 1 curl -sO      # download each URL one at a time
 
 
 
-## 9.5 Advanced Redirection Patterns
+## Advanced Redirection Patterns
 
 ### Redirecting to multiple destinations with `tee`
 
@@ -316,7 +316,7 @@ Named pipes are less commonly needed than anonymous pipes, but they're the right
 
 
 
-## 9.6 Stderr and Error Handling in Pipelines
+## Stderr and Error Handling in Pipelines
 
 Stderr and pipelines interact in ways that catch developers by surprise.
 
@@ -381,7 +381,7 @@ fi
 
 
 
-## 9.7 Building One-Liners That Replace Scripts
+## Building One-Liners That Replace Scripts
 
 The highest expression of the Unix pipeline model is the one-liner: a single command that performs a complete, meaningful task. One-liners aren't about showing off — they're about solving a problem at the speed of thought, without creating a file, opening an editor, or writing boilerplate.
 
@@ -493,7 +493,7 @@ git log --since="1 month ago" --format="%an" \
 
 
 
-## 9.8 Composing the Tools From This Book
+## Composing the Tools From This Book
 
 The real value of understanding pipes and redirection is that it multiplies the value of everything else you've learned. Here's how the tools from previous chapters combine:
 
@@ -549,7 +549,7 @@ find tests/ -name "*.test.ts" -print0 \
 
 
 
-## 9.9 When Not to Use a Pipeline
+## When Not to Use a Pipeline
 
 Pipelines are powerful, but they're not always the right tool. Knowing when *not* to use them is as important as knowing how.
 

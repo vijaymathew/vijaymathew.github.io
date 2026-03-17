@@ -7,7 +7,7 @@ If you've been reading linearly, you might feel a mixture of excitement and mild
 This final chapter is about that question. How to build on what you've learned. How CLI fluency actually develops over time. What to do when you get stuck. Where to go deeper. And why the investment you've started making in these skills will pay compounding returns for the rest of your career.
 
 
-## 12.1 How Fluency Actually Develops
+## How Fluency Actually Develops
 
 Learning terminal tools is not like learning an API or a framework. With a framework, you study the documentation, understand the abstractions, build a project, and after a few weeks you're productive. The knowledge is largely declarative — you either know how `useEffect` works or you don't.
 
@@ -29,7 +29,7 @@ The distance between stages is measured in *repetitions*, not in time. A develop
 
 
 
-## 12.2 One New Tool or Trick Per Week
+## One New Tool or Trick Per Week
 
 The most practical advice for continuing to develop after finishing this book is also the simplest: learn one new tool, flag, or technique per week, and use it until it sticks.
 
@@ -63,7 +63,7 @@ The key is specificity. "Get better at the terminal" is not a useful goal. "Lear
 
 
 
-## 12.3 Building Instincts, Not Just Knowledge
+## Building Instincts, Not Just Knowledge
 
 There's a difference between knowing that `rg "pattern" -l | xargs sed -i '' 's/old/new/g'` is how you rename something across a codebase, and *reaching for it automatically* when you need to rename something across a codebase. The first is knowledge. The second is instinct. This book can give you the first. Only practice can give you the second.
 
@@ -79,7 +79,7 @@ The fastest way to build instincts is to impose constraints on yourself — to d
 
 
 
-## 12.4 When You Get Stuck
+## When You Get Stuck
 
 Every terminal user gets stuck. Commands that should work don't. Pipelines that look right produce wrong output. Error messages that seem to have nothing to do with what you did. Getting unstuck quickly is a skill in itself.
 
@@ -123,7 +123,7 @@ shellcheck scripts/deploy.sh
 
 
 
-## 12.5 The Compounding Value of CLI Fluency
+## The Compounding Value of CLI Fluency
 
 It's worth being explicit about why all of this matters — not just in the abstract "become a better developer" sense, but concretely.
 
@@ -145,7 +145,7 @@ Perhaps the most important effect of CLI fluency is a change in how you think ab
 
 
 
-## 12.6 A Note on Tools Changing
+## A Note on Tools Changing
 
 Everything in this book is accurate as of writing, but tools change. Some of the "modern alternatives" covered here — `rg`, `fd`, `bat`, `eza` — will likely be superseded by something better in the years ahead. New tools will emerge that solve problems the current generation doesn't handle well.
 
@@ -155,7 +155,7 @@ Invest in understanding the principles. The specific tools are learnable in an a
 
 
 
-## 12.7 What a Fluent Terminal User Looks Like
+## What a Fluent Terminal User Looks Like
 
 It can be useful to have a concrete picture of what you're working toward — not as a benchmark to measure yourself against anxiously, but as a description of habits and instincts that develop naturally with practice.
 
@@ -173,7 +173,7 @@ And they remain curious. The terminal is deep. Even developers who have used it 
 
 
 
-## 12.8 Final Words
+## Final Words
 
 The terminal is not a relic. It is not a hazing ritual that experienced developers impose on newcomers to prove a point. It is not something you need to master before you're allowed to call yourself a real developer.
 

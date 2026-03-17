@@ -7,7 +7,7 @@ The terminal gives you a different set of primitives for reading files. Some are
 This chapter covers the tools you'll use to read and inspect files at the command line — and, more importantly, when to reach for each one.
 
 
-## 3.1 `cat`: Quick Reads and Concatenation
+## `cat`: Quick Reads and Concatenation
 
 `cat` is the simplest file-reading tool. It reads a file and prints its contents to standard output — nothing more.
 
@@ -47,7 +47,7 @@ If a config file is behaving unexpectedly and you suspect Windows-style line end
 
 
 
-## 3.2 `less`: Navigating Large Files
+## `less`: Navigating Large Files
 
 `less` is an interactive file viewer. Unlike `cat`, it doesn't load the entire file at once — it reads and displays content on demand, which makes it fast even for files that are gigabytes in size.
 
@@ -106,7 +106,7 @@ This is one of the most common terminal patterns: run a command, realize the out
 
 
 
-## 3.3 `head` and `tail`: Reading the Edges of Files
+## `head` and `tail`: Reading the Edges of Files
 
 Most of the time, you don't need to read an entire file. You need the beginning, or the end. `head` and `tail` give you exactly that, without touching the rest of the file.
 
@@ -177,7 +177,7 @@ The `-m 1` flag on `grep` stops after the first match. This is useful in shell s
 
 
 
-## 3.4 `wc`: Counting Lines, Words, and Characters
+## `wc`: Counting Lines, Words, and Characters
 
 `wc` (word count) is a small tool with a surprisingly wide range of uses in development workflows.
 
@@ -220,7 +220,7 @@ The pattern `command | wc -l` is so common it becomes muscle memory.
 
 
 
-## 3.5 `bat`: A Better `cat`
+## `bat`: A Better `cat`
 
 `bat` is a modern replacement for `cat` that adds syntax highlighting, line numbers, and Git change indicators — all with sensible defaults that don't get in the way.
 
@@ -266,7 +266,7 @@ This means you can alias `cat` to `bat` without breaking any pipelines — somet
 
 
 
-## 3.6 Reading Compressed and Binary Files
+## Reading Compressed and Binary Files
 
 Not every file you need to inspect is a plain text file. A few tools handle the common cases.
 
@@ -308,7 +308,7 @@ strings some-binary | grep -i "error"
 
 
 
-## 3.7 Comparing Files with `diff`
+## Comparing Files with `diff`
 
 Reading files often leads to a related question: how does this file differ from another version? `diff` is the classic tool for this.
 
@@ -357,7 +357,7 @@ A quick way to audit the differences between environment configs — something t
 
 
 
-## 3.8 Putting It Together: A Real Workflow
+## Putting It Together: A Real Workflow
 
 Here's how these tools work together in a realistic debugging scenario. Imagine a service is throwing errors intermittently and you need to investigate.
 
