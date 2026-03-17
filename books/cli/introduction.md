@@ -89,7 +89,7 @@ Where relevant, this book will introduce these modern tools alongside their clas
 
 ## A Word Before We Begin
 
-Writing this book came from a simple frustration: watching talented developers spend ten minutes manually hunting through files for something a single `rg` command would have found in two seconds. Or copy-pasting JSON into an online formatter when `jq` was already installed on their machine. Or avoiding the terminal entirely because no one ever showed them that it's have to be hostile.
+Writing this book came from a simple frustration: watching talented developers spend ten minutes manually hunting through files for something a single `rg` command would have found in two seconds. Or copy-pasting JSON into an online formatter when `jq` was already installed on their machine. Or avoiding the terminal entirely because no one ever showed them that it doesn't have to be hostile.
 
 The terminal has a learning curve. This book is designed to make that curve as short and as rewarding as possible. Every hour you invest in CLI fluency pays back many times over — not just in raw speed, but in a deeper understanding of how your software and your system actually work.
 
