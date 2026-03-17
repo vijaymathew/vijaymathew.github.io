@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>7&nbsp; Git Workflows from the Command Line – Using Unix Command Line Tools to Supercharge Your Development Workflow</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_6.html" rel="next">
+<link href="./chapter_4.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_5.html"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Git Workflows from the Command Line</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Using Unix Command Line Tools to Supercharge Your Development Workflow</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction: The Terminal Never Got Old</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Navigating and Understanding a Codebase Quickly</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Searching Code Like a Pro</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Reading and Inspecting Files Without an Editor</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Editing Files from the Terminal</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Git Workflows from the Command Line</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Working with Data and APIs from the Command Line</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Automating Repetitive Dev Tasks</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Terminal Quality of Life</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Process Management and Debugging</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Composing Tools with Pipes and Redirection</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Working on Remote Machines</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Conclusion — Building CLI Fluency Over Time</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./about.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">About the Author</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./bibliography.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Bibliography</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#understanding-your-repository-at-a-glance" id="toc-understanding-your-repository-at-a-glance" class="nav-link active" data-scroll-target="#understanding-your-repository-at-a-glance"><span class="header-section-number">7.1</span> Understanding Your Repository at a Glance</a>
+  <ul class="collapse">
+  <li><a href="#git-status-but-more-useful" id="toc-git-status-but-more-useful" class="nav-link" data-scroll-target="#git-status-but-more-useful"><span class="header-section-number">7.1.1</span> <code>git status</code> — but more useful</a></li>
+  <li><a href="#git-log-actually-readable" id="toc-git-log-actually-readable" class="nav-link" data-scroll-target="#git-log-actually-readable"><span class="header-section-number">7.1.2</span> <code>git log</code> — actually readable</a></li>
+  <li><a href="#filtering-log-output" id="toc-filtering-log-output" class="nav-link" data-scroll-target="#filtering-log-output"><span class="header-section-number">7.1.3</span> Filtering log output</a></li>
+  <li><a href="#git-log---stat-and-git-log---shortstat" id="toc-git-log---stat-and-git-log---shortstat" class="nav-link" data-scroll-target="#git-log---stat-and-git-log---shortstat"><span class="header-section-number">7.1.4</span> <code>git log --stat</code> and <code>git log --shortstat</code></a></li>
+  </ul></li>
+  <li><a href="#investigating-changes" id="toc-investigating-changes" class="nav-link" data-scroll-target="#investigating-changes"><span class="header-section-number">7.2</span> Investigating Changes</a>
+  <ul class="collapse">
+  <li><a href="#git-diff-beyond-the-basics" id="toc-git-diff-beyond-the-basics" class="nav-link" data-scroll-target="#git-diff-beyond-the-basics"><span class="header-section-number">7.2.1</span> <code>git diff</code> — beyond the basics</a></li>
+  <li><a href="#git-blame-who-wrote-this" id="toc-git-blame-who-wrote-this" class="nav-link" data-scroll-target="#git-blame-who-wrote-this"><span class="header-section-number">7.2.2</span> <code>git blame</code> — who wrote this?</a></li>
+  <li><a href="#git-show-inspecting-a-specific-commit" id="toc-git-show-inspecting-a-specific-commit" class="nav-link" data-scroll-target="#git-show-inspecting-a-specific-commit"><span class="header-section-number">7.2.3</span> <code>git show</code> — inspecting a specific commit</a></li>
+  <li><a href="#git-log--s-the-pickaxe-revisited" id="toc-git-log--s-the-pickaxe-revisited" class="nav-link" data-scroll-target="#git-log--s-the-pickaxe-revisited"><span class="header-section-number">7.2.4</span> <code>git log -S</code> — the pickaxe (revisited)</a></li>
+  </ul></li>
+  <li><a href="#branching-and-merging-efficiently" id="toc-branching-and-merging-efficiently" class="nav-link" data-scroll-target="#branching-and-merging-efficiently"><span class="header-section-number">7.3</span> Branching and Merging Efficiently</a>
+  <ul class="collapse">
+  <li><a href="#creating-and-switching-branches" id="toc-creating-and-switching-branches" class="nav-link" data-scroll-target="#creating-and-switching-branches"><span class="header-section-number">7.3.1</span> Creating and switching branches</a></li>
+  <li><a href="#keeping-a-branch-up-to-date" id="toc-keeping-a-branch-up-to-date" class="nav-link" data-scroll-target="#keeping-a-branch-up-to-date"><span class="header-section-number">7.3.2</span> Keeping a branch up to date</a></li>
+  <li><a href="#interactive-rebase-cleaning-up-before-merging" id="toc-interactive-rebase-cleaning-up-before-merging" class="nav-link" data-scroll-target="#interactive-rebase-cleaning-up-before-merging"><span class="header-section-number">7.3.3</span> Interactive rebase — cleaning up before merging</a></li>
+  <li><a href="#stashing-work-in-progress" id="toc-stashing-work-in-progress" class="nav-link" data-scroll-target="#stashing-work-in-progress"><span class="header-section-number">7.3.4</span> Stashing work in progress</a></li>
+  <li><a href="#cherry-picking-commits" id="toc-cherry-picking-commits" class="nav-link" data-scroll-target="#cherry-picking-commits"><span class="header-section-number">7.3.5</span> Cherry-picking commits</a></li>
+  </ul></li>
+  <li><a href="#undoing-things" id="toc-undoing-things" class="nav-link" data-scroll-target="#undoing-things"><span class="header-section-number">7.4</span> Undoing Things</a>
+  <ul class="collapse">
+  <li><a href="#git-restore-discarding-working-tree-changes" id="toc-git-restore-discarding-working-tree-changes" class="nav-link" data-scroll-target="#git-restore-discarding-working-tree-changes"><span class="header-section-number">7.4.1</span> <code>git restore</code> — discarding working tree changes</a></li>
+  <li><a href="#git-reset-moving-the-branch-pointer" id="toc-git-reset-moving-the-branch-pointer" class="nav-link" data-scroll-target="#git-reset-moving-the-branch-pointer"><span class="header-section-number">7.4.2</span> <code>git reset</code> — moving the branch pointer</a></li>
+  <li><a href="#git-revert-undoing-without-rewriting-history" id="toc-git-revert-undoing-without-rewriting-history" class="nav-link" data-scroll-target="#git-revert-undoing-without-rewriting-history"><span class="header-section-number">7.4.3</span> <code>git revert</code> — undoing without rewriting history</a></li>
+  <li><a href="#git-reflog-the-safety-net" id="toc-git-reflog-the-safety-net" class="nav-link" data-scroll-target="#git-reflog-the-safety-net"><span class="header-section-number">7.4.4</span> <code>git reflog</code> — the safety net</a></li>
+  </ul></li>
+  <li><a href="#working-with-remotes" id="toc-working-with-remotes" class="nav-link" data-scroll-target="#working-with-remotes"><span class="header-section-number">7.5</span> Working with Remotes</a>
+  <ul class="collapse">
+  <li><a href="#fetching-and-inspecting-before-merging" id="toc-fetching-and-inspecting-before-merging" class="nav-link" data-scroll-target="#fetching-and-inspecting-before-merging"><span class="header-section-number">7.5.1</span> Fetching and inspecting before merging</a></li>
+  <li><a href="#tracking-branches" id="toc-tracking-branches" class="nav-link" data-scroll-target="#tracking-branches"><span class="header-section-number">7.5.2</span> Tracking branches</a></li>
+  <li><a href="#pushing-efficiently" id="toc-pushing-efficiently" class="nav-link" data-scroll-target="#pushing-efficiently"><span class="header-section-number">7.5.3</span> Pushing efficiently</a></li>
+  </ul></li>
+  <li><a href="#git-aliases-building-your-own-commands" id="toc-git-aliases-building-your-own-commands" class="nav-link" data-scroll-target="#git-aliases-building-your-own-commands"><span class="header-section-number">7.6</span> Git Aliases — Building Your Own Commands</a></li>
+  <li><a href="#searching-the-repository" id="toc-searching-the-repository" class="nav-link" data-scroll-target="#searching-the-repository"><span class="header-section-number">7.7</span> Searching the Repository</a>
+  <ul class="collapse">
+  <li><a href="#git-grep" id="toc-git-grep" class="nav-link" data-scroll-target="#git-grep"><span class="header-section-number">7.7.1</span> <code>git grep</code></a></li>
+  <li><a href="#finding-which-commit-broke-something-with-git-bisect" id="toc-finding-which-commit-broke-something-with-git-bisect" class="nav-link" data-scroll-target="#finding-which-commit-broke-something-with-git-bisect"><span class="header-section-number">7.7.2</span> Finding which commit broke something with <code>git bisect</code></a></li>
+  </ul></li>
+  <li><a href="#shell-aliases-and-scripts-for-git-workflows" id="toc-shell-aliases-and-scripts-for-git-workflows" class="nav-link" data-scroll-target="#shell-aliases-and-scripts-for-git-workflows"><span class="header-section-number">7.8</span> Shell Aliases and Scripts for Git Workflows</a></li>
+  <li><a href="#putting-it-together-real-git-workflows" id="toc-putting-it-together-real-git-workflows" class="nav-link" data-scroll-target="#putting-it-together-real-git-workflows"><span class="header-section-number">7.9</span> Putting It Together: Real Git Workflows</a>
+  <ul class="collapse">
+  <li><a href="#investigating-a-production-bug" id="toc-investigating-a-production-bug" class="nav-link" data-scroll-target="#investigating-a-production-bug"><span class="header-section-number">7.9.1</span> Investigating a production bug</a></li>
+  <li><a href="#preparing-a-clean-pull-request" id="toc-preparing-a-clean-pull-request" class="nav-link" data-scroll-target="#preparing-a-clean-pull-request"><span class="header-section-number">7.9.2</span> Preparing a clean pull request</a></li>
+  <li><a href="#recovering-from-a-mistake" id="toc-recovering-from-a-mistake" class="nav-link" data-scroll-target="#recovering-from-a-mistake"><span class="header-section-number">7.9.3</span> Recovering from a mistake</a></li>
+  </ul></li>
+  <li><a href="#chapter-summary" id="toc-chapter-summary" class="nav-link" data-scroll-target="#chapter-summary"><span class="header-section-number">7.10</span> Chapter Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">7.11</span> Exercises</a></li>
+  <li><a href="#quick-reference" id="toc-quick-reference" class="nav-link" data-scroll-target="#quick-reference"><span class="header-section-number">7.12</span> Quick Reference</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Git Workflows from the Command Line</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Most developers use Git every day. Most developers also use only a fraction of what Git can do.</p>
+<p>The typical workflow — <code>git add</code>, <code>git commit</code>, <code>git push</code>, <code>git pull</code> — covers the basics of moving code around. But Git is also a database. Every version of every file your project has ever contained is stored in it. Every change, who made it, when, and — if they wrote a good commit message — why. Every branch, every merge, every rebase.</p>
+<p>The command line is where that database becomes queryable. GUI Git clients are fine for basic operations, but they put a layer of abstraction between you and the underlying data that makes the more powerful operations either impossible or difficult to discover. The terminal gives you direct access to everything Git knows — and Git knows a lot.</p>
+<p>This chapter covers the Git workflows and commands that most developers either don’t know exist or have heard of but never learned properly. The assumption is that you’re already comfortable with the basics. What follows is everything beyond them.</p>
+<section id="understanding-your-repository-at-a-glance" class="level2" data-number="7.1">
+<h2 data-number="7.1" class="anchored" data-anchor-id="understanding-your-repository-at-a-glance"><span class="header-section-number">7.1</span> Understanding Your Repository at a Glance</h2>
+<p>Before making changes, it helps to understand exactly where things stand. These commands give you that picture quickly.</p>
+<section id="git-status-but-more-useful" class="level3" data-number="7.1.1">
+<h3 data-number="7.1.1" class="anchored" data-anchor-id="git-status-but-more-useful"><span class="header-section-number">7.1.1</span> <code>git status</code> — but more useful</h3>
+<p>Most developers know <code>git status</code>. Fewer know its short form:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> status <span class="at">-s</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>-s</code> flag produces compact output — one line per file, with a two-character status code on the left:</p>
+<pre><code>M  src/auth.ts         # modified, staged
+ M src/config.ts       # modified, not staged
+?? src/new-file.ts     # untracked
+A  src/added.ts        # new file, staged
+D  src/deleted.ts      # deleted, staged</code></pre>
+<p>The first character is the staging area status; the second is the working tree status. Once you’re used to reading this format, it’s faster than the verbose default output.</p>
+</section>
+<section id="git-log-actually-readable" class="level3" data-number="7.1.2">
+<h3 data-number="7.1.2" class="anchored" data-anchor-id="git-log-actually-readable"><span class="header-section-number">7.1.2</span> <code>git log</code> — actually readable</h3>
+<p>The default <code>git log</code> output is verbose and hard to scan. These formats are far more useful:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span>                          <span class="co"># one line per commit</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--graph</span>                  <span class="co"># with branch/merge graph</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--graph</span> <span class="at">--all</span>            <span class="co"># include all branches</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--graph</span> <span class="at">--all</span> <span class="at">--decorate</span> <span class="co"># with branch and tag names</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>--graph --all --decorate</code> combination gives you a visual representation of your entire branch history — merges, divergences, tags, and all — in the terminal. It’s not as pretty as a GUI, but it’s always available and it’s composable:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--graph</span> <span class="at">--all</span> <span class="at">--decorate</span> <span class="kw">|</span> <span class="fu">head</span> <span class="at">-30</span>    <span class="co"># recent history only</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--graph</span> <span class="at">--all</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="st">"feature/"</span>        <span class="co"># filter to feature branches</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="filtering-log-output" class="level3" data-number="7.1.3">
+<h3 data-number="7.1.3" class="anchored" data-anchor-id="filtering-log-output"><span class="header-section-number">7.1.3</span> Filtering log output</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--author</span><span class="op">=</span><span class="st">"Alice"</span>              <span class="co"># commits by a specific author</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--since</span><span class="op">=</span><span class="st">"2 weeks ago"</span>         <span class="co"># recent commits</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--since</span><span class="op">=</span><span class="st">"2024-01-01"</span> <span class="at">--until</span><span class="op">=</span><span class="st">"2024-03-01"</span>  <span class="co"># date range</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--grep</span><span class="op">=</span><span class="st">"fix"</span>                  <span class="co"># commits with "fix" in message</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> src/auth.ts                   <span class="co"># commits that touched a specific file</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The last one is especially useful: <code>git log &lt;filename&gt;</code> shows the complete history of a specific file — every commit that changed it, in chronological order. Pair it with <code>-p</code> to see the actual diff for each change:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">-p</span> src/auth.ts                  <span class="co"># full diff history of a file</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">-p</span> <span class="at">--follow</span> src/auth.ts         <span class="co"># follow file across renames</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>--follow</code> is important for files that have been renamed — without it, git log stops at the rename boundary.</p>
+</section>
+<section id="git-log---stat-and-git-log---shortstat" class="level3" data-number="7.1.4">
+<h3 data-number="7.1.4" class="anchored" data-anchor-id="git-log---stat-and-git-log---shortstat"><span class="header-section-number">7.1.4</span> <code>git log --stat</code> and <code>git log --shortstat</code></h3>
+<p>When you want to understand the <em>scope</em> of recent changes without reading every diff:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--stat</span> <span class="at">--oneline</span>                <span class="co"># files changed per commit</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--shortstat</span> <span class="at">--oneline</span>           <span class="co"># summary stats per commit</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>a3f2c1b Fix authentication token handling
+ src/auth.ts | 12 ++++++
+ src/config.ts |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)</code></pre>
+</section>
+</section>
+<section id="investigating-changes" class="level2" data-number="7.2">
+<h2 data-number="7.2" class="anchored" data-anchor-id="investigating-changes"><span class="header-section-number">7.2</span> Investigating Changes</h2>
+<p>Understanding <em>what</em> changed is one thing. Understanding <em>why</em> it changed — and <em>when</em> — requires a different set of tools.</p>
+<section id="git-diff-beyond-the-basics" class="level3" data-number="7.2.1">
+<h3 data-number="7.2.1" class="anchored" data-anchor-id="git-diff-beyond-the-basics"><span class="header-section-number">7.2.1</span> <code>git diff</code> — beyond the basics</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff                          <span class="co"># unstaged changes</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--staged</span>                 <span class="co"># staged changes (what will be committed)</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff HEAD                     <span class="co"># all changes since last commit</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff main..feature-branch     <span class="co"># changes between two branches</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff HEAD~3..HEAD             <span class="co"># changes in the last 3 commits</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff HEAD~1 src/auth.ts       <span class="co"># changes to a specific file since last commit</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For a high-level summary of what changed without the full diff:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--stat</span> main..feature-branch      <span class="co"># files changed and line counts</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--name-only</span> main..feature-branch <span class="co"># just the filenames</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--name-status</span> main..feature-branch <span class="co"># filenames with change type (A/M/D)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>--name-only</code> output is useful when you want to feed changed files into another command:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--name-only</span> main..HEAD <span class="kw">|</span> <span class="fu">xargs</span> rg <span class="st">"TODO"</span>    <span class="co"># TODOs in changed files only</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="git-blame-who-wrote-this" class="level3" data-number="7.2.2">
+<h3 data-number="7.2.2" class="anchored" data-anchor-id="git-blame-who-wrote-this"><span class="header-section-number">7.2.2</span> <code>git blame</code> — who wrote this?</h3>
+<p><code>git blame</code> annotates every line of a file with the commit and author that last modified it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> blame src/auth.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>a3f2c1b (Alice  2024-03-10 14:22:18 +0000  42) function handleAuth(req, res) {
+b7d9e2a (Bob    2024-02-28 09:15:44 +0000  43)   const token = req.headers['authorization'];
+a3f2c1b (Alice  2024-03-10 14:22:18 +0000  44)   if (!token) {</code></pre>
+<p>The output shows commit hash, author, date, line number, and line content. This is the command you reach for when you’re staring at a confusing piece of code and asking “why does this work this way?” — <code>git blame</code> tells you who to ask and when it was written.</p>
+<p>Useful flags:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> blame <span class="at">-L</span> 40,60 src/auth.ts        <span class="co"># blame only lines 40–60</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> blame <span class="at">-w</span> src/auth.ts              <span class="co"># ignore whitespace changes</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> blame <span class="at">-M</span> src/auth.ts              <span class="co"># detect lines moved within the file</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> blame <span class="at">-C</span> src/auth.ts              <span class="co"># detect lines copied from other files</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="git-show-inspecting-a-specific-commit" class="level3" data-number="7.2.3">
+<h3 data-number="7.2.3" class="anchored" data-anchor-id="git-show-inspecting-a-specific-commit"><span class="header-section-number">7.2.3</span> <code>git show</code> — inspecting a specific commit</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show a3f2c1b                      <span class="co"># full diff for a commit</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show a3f2c1b <span class="at">--stat</span>               <span class="co"># summary of files changed</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show a3f2c1b:src/auth.ts          <span class="co"># file contents at that commit</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show HEAD~3:src/config.ts         <span class="co"># file contents 3 commits ago</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>git show &lt;commit&gt;:&lt;file&gt;</code> form is particularly useful — it lets you read the old version of a file without checking it out. When someone says “this worked last week,” you can compare the current version to the version from a week ago:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show HEAD~7:src/auth.ts <span class="kw">|</span> <span class="fu">diff</span> <span class="at">-</span> src/auth.ts      <span class="co"># diff old vs current</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="git-log--s-the-pickaxe-revisited" class="level3" data-number="7.2.4">
+<h3 data-number="7.2.4" class="anchored" data-anchor-id="git-log--s-the-pickaxe-revisited"><span class="header-section-number">7.2.4</span> <code>git log -S</code> — the pickaxe (revisited)</h3>
+<p>We covered this in Chapter 2, but it’s worth emphasizing again in context. The <code>-S</code> flag finds commits that <em>added or removed</em> a specific string:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">-S</span> <span class="st">"handleAuth"</span> <span class="at">--oneline</span>           <span class="co"># when was this function introduced?</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">-S</span> <span class="st">"API_KEY"</span> <span class="at">--oneline</span>              <span class="co"># when was this constant added?</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">-S</span> <span class="st">"DROP TABLE"</span> <span class="at">--oneline</span>           <span class="co"># find dangerous migrations</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This is one of the most powerful debugging tools in Git. When you find an unexpected piece of code and need to understand its history, <code>git log -S</code> will find the exact moment it was introduced.</p>
+</section>
+</section>
+<section id="branching-and-merging-efficiently" class="level2" data-number="7.3">
+<h2 data-number="7.3" class="anchored" data-anchor-id="branching-and-merging-efficiently"><span class="header-section-number">7.3</span> Branching and Merging Efficiently</h2>
+<section id="creating-and-switching-branches" class="level3" data-number="7.3.1">
+<h3 data-number="7.3.1" class="anchored" data-anchor-id="creating-and-switching-branches"><span class="header-section-number">7.3.1</span> Creating and switching branches</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch <span class="at">-c</span> feature/new-auth          <span class="co"># create and switch (modern syntax)</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch main                         <span class="co"># switch to existing branch</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch <span class="at">-</span>                            <span class="co"># switch to previous branch</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>git switch</code> command was introduced in Git 2.23 as a cleaner alternative to <code>git checkout</code> for branch operations. <code>git switch -</code> (switch to previous branch) is particularly handy — it works like <code>cd -</code> for navigating between the two branches you’re currently working across.</p>
+</section>
+<section id="keeping-a-branch-up-to-date" class="level3" data-number="7.3.2">
+<h3 data-number="7.3.2" class="anchored" data-anchor-id="keeping-a-branch-up-to-date"><span class="header-section-number">7.3.2</span> Keeping a branch up to date</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch origin                        <span class="co"># fetch remote changes without merging</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> rebase origin/main                  <span class="co"># rebase current branch onto main</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull <span class="at">--rebase</span> origin main           <span class="co"># fetch and rebase in one step</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>--rebase</code> flag on <code>git pull</code> is worth making a habit. Instead of creating a merge commit every time you pull, it replays your local commits on top of the updated remote branch — keeping history linear and readable.</p>
+<p>To make this the default:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> pull.rebase true</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="interactive-rebase-cleaning-up-before-merging" class="level3" data-number="7.3.3">
+<h3 data-number="7.3.3" class="anchored" data-anchor-id="interactive-rebase-cleaning-up-before-merging"><span class="header-section-number">7.3.3</span> Interactive rebase — cleaning up before merging</h3>
+<p>Before merging a feature branch, it’s good practice to clean up your commits — squashing work-in-progress commits, rewriting unclear messages, reordering changes for clarity. Interactive rebase is the tool for this:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> rebase <span class="at">-i</span> HEAD~5                    <span class="co"># interactively edit the last 5 commits</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> rebase <span class="at">-i</span> origin/main              <span class="co"># edit all commits not yet in main</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This opens an editor with a list of commits and instructions:</p>
+<pre><code>pick a3f2c1b Add authentication middleware
+pick b7d9e2a WIP
+pick c8e3f4a fix tests
+pick d9f4g5h more fixes
+pick e0g5h6i cleanup
+
+# Commands:
+# p, pick = use commit
+# r, reword = use commit, but edit the commit message
+# s, squash = use commit, but meld into previous commit
+# f, fixup = like squash, but discard this commit's log message
+# d, drop = remove commit</code></pre>
+<p>Changing <code>pick</code> to <code>squash</code> (or <code>s</code>) merges a commit into the one above it. <code>fixup</code> does the same but discards the commit message. <code>reword</code> lets you edit the message. <code>drop</code> removes the commit entirely.</p>
+<p>A common pattern before a pull request:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> rebase <span class="at">-i</span> origin/main</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co"># squash all WIP commits into their parent commits</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># reword any unclear commit messages</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co"># drop any debugging commits</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="stashing-work-in-progress" class="level3" data-number="7.3.4">
+<h3 data-number="7.3.4" class="anchored" data-anchor-id="stashing-work-in-progress"><span class="header-section-number">7.3.4</span> Stashing work in progress</h3>
+<p>When you need to switch contexts mid-work without committing:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash                               <span class="co"># stash all changes</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash push <span class="at">-m</span> <span class="st">"auth refactor WIP"</span>  <span class="co"># stash with a description</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash list                          <span class="co"># see all stashes</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash pop                           <span class="co"># apply and remove most recent stash</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash apply stash@{2}              <span class="co"># apply a specific stash without removing</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash drop stash@{0}               <span class="co"># delete a specific stash</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A stash is a stack — <code>git stash pop</code> takes the most recent entry. If you have multiple stashes, <code>git stash list</code> shows them all, and you can apply them by index.</p>
+</section>
+<section id="cherry-picking-commits" class="level3" data-number="7.3.5">
+<h3 data-number="7.3.5" class="anchored" data-anchor-id="cherry-picking-commits"><span class="header-section-number">7.3.5</span> Cherry-picking commits</h3>
+<p>To apply a specific commit from one branch to another without merging the whole branch:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> cherry-pick a3f2c1b                <span class="co"># apply a single commit</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> cherry-pick a3f2c1b..e0g5h6i      <span class="co"># apply a range of commits</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> cherry-pick a3f2c1b <span class="at">--no-commit</span>    <span class="co"># apply changes without committing</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>--no-commit</code> applies the changes to the working tree and staging area but doesn’t create a commit — useful when you want to cherry-pick changes and combine them with other modifications before committing.</p>
+</section>
+</section>
+<section id="undoing-things" class="level2" data-number="7.4">
+<h2 data-number="7.4" class="anchored" data-anchor-id="undoing-things"><span class="header-section-number">7.4</span> Undoing Things</h2>
+<p>Git’s undo model is one of the most important things to understand deeply. There are several different tools, each appropriate for different situations.</p>
+<section id="git-restore-discarding-working-tree-changes" class="level3" data-number="7.4.1">
+<h3 data-number="7.4.1" class="anchored" data-anchor-id="git-restore-discarding-working-tree-changes"><span class="header-section-number">7.4.1</span> <code>git restore</code> — discarding working tree changes</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> restore src/auth.ts                <span class="co"># discard changes to a file</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> restore .                          <span class="co"># discard all unstaged changes</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> restore <span class="at">--staged</span> src/auth.ts       <span class="co"># unstage a file (keep changes)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>git restore</code> is the modern replacement for <code>git checkout -- &lt;file&gt;</code>. It’s clearer about intent and harder to misuse.</p>
+</section>
+<section id="git-reset-moving-the-branch-pointer" class="level3" data-number="7.4.2">
+<h3 data-number="7.4.2" class="anchored" data-anchor-id="git-reset-moving-the-branch-pointer"><span class="header-section-number">7.4.2</span> <code>git reset</code> — moving the branch pointer</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reset HEAD~1                       <span class="co"># undo last commit, keep changes staged</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reset <span class="at">--soft</span> HEAD~1               <span class="co"># undo last commit, keep changes staged</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reset <span class="at">--mixed</span> HEAD~1              <span class="co"># undo last commit, unstage changes (default)</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reset <span class="at">--hard</span> HEAD~1               <span class="co"># undo last commit, discard all changes</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The three modes of <code>git reset</code> are important to understand:</p>
+<ul>
+<li><code>--soft</code>: the commit is undone but all its changes remain staged. Useful for re-committing with a different message or squashing commits manually.</li>
+<li><code>--mixed</code> (default): the commit is undone and changes are unstaged but preserved in the working tree. Useful for re-organizing what goes into the next commit.</li>
+<li><code>--hard</code>: the commit is undone and all changes are discarded permanently. Use with caution — this is one of the few Git operations that can lose work.</li>
+</ul>
+</section>
+<section id="git-revert-undoing-without-rewriting-history" class="level3" data-number="7.4.3">
+<h3 data-number="7.4.3" class="anchored" data-anchor-id="git-revert-undoing-without-rewriting-history"><span class="header-section-number">7.4.3</span> <code>git revert</code> — undoing without rewriting history</h3>
+<p>When you need to undo a commit that has already been pushed to a shared branch, <code>git reset</code> is the wrong tool — it rewrites history, which causes problems for anyone else working on the branch. <code>git revert</code> is the right tool:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> revert a3f2c1b                    <span class="co"># create a new commit that undoes a3f2c1b</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> revert HEAD~3..HEAD               <span class="co"># revert the last 3 commits</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> revert a3f2c1b <span class="at">--no-commit</span>        <span class="co"># stage the revert without committing</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>git revert</code> creates a new commit that is the inverse of the specified commit — it adds lines that were removed and removes lines that were added. History is preserved, and the undo is visible to everyone.</p>
+</section>
+<section id="git-reflog-the-safety-net" class="level3" data-number="7.4.4">
+<h3 data-number="7.4.4" class="anchored" data-anchor-id="git-reflog-the-safety-net"><span class="header-section-number">7.4.4</span> <code>git reflog</code> — the safety net</h3>
+<p>The reflog is a local log of every position HEAD has been at, including commits that have been reset, amended, or rebased away. It’s your safety net when you’ve done something destructive:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reflog                             <span class="co"># show HEAD movement history</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reflog show feature/auth           <span class="co"># show reflog for a specific branch</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>a3f2c1b HEAD@{0}: commit: Add auth middleware
+b7d9e2a HEAD@{1}: reset: moving to HEAD~1
+c8e3f4a HEAD@{2}: commit: WIP
+d9f4g5h HEAD@{3}: checkout: moving from main to feature/auth</code></pre>
+<p>If you accidentally ran <code>git reset --hard</code> and lost commits, <code>git reflog</code> shows you where HEAD was before the reset. You can recover those commits:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reset <span class="at">--hard</span> HEAD@{2}             <span class="co"># go back to where HEAD was 2 moves ago</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> recovery HEAD@{2}     <span class="co"># create a branch at an earlier HEAD position</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The reflog only exists locally and expires after 90 days by default, but within that window it has saved countless developers from genuine data loss.</p>
+</section>
+</section>
+<section id="working-with-remotes" class="level2" data-number="7.5">
+<h2 data-number="7.5" class="anchored" data-anchor-id="working-with-remotes"><span class="header-section-number">7.5</span> Working with Remotes</h2>
+<section id="fetching-and-inspecting-before-merging" class="level3" data-number="7.5.1">
+<h3 data-number="7.5.1" class="anchored" data-anchor-id="fetching-and-inspecting-before-merging"><span class="header-section-number">7.5.1</span> Fetching and inspecting before merging</h3>
+<p>A good habit before merging remote changes is to fetch and inspect them first:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch origin                              <span class="co"># fetch without merging</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> HEAD..origin/main           <span class="co"># what's new on remote main?</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff HEAD origin/main                     <span class="co"># what changed?</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--stat</span> HEAD origin/main              <span class="co"># summary of changes</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This gives you a chance to understand what you’re about to merge before you merge it — and to resolve any obvious conflicts mentally before they appear in your working tree.</p>
+</section>
+<section id="tracking-branches" class="level3" data-number="7.5.2">
+<h3 data-number="7.5.2" class="anchored" data-anchor-id="tracking-branches"><span class="header-section-number">7.5.2</span> Tracking branches</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">-vv</span>                                <span class="co"># show all branches with tracking info</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">-r</span>                                 <span class="co"># show all remote branches</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">-a</span>                                 <span class="co"># show local and remote branches</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>git branch -vv</code> is a useful overview — it shows each local branch, the commit it’s at, its tracking remote (if any), and whether it’s ahead, behind, or diverged from the remote:</p>
+<pre><code>  feature/auth    a3f2c1b [origin/feature/auth: ahead 2] Add auth middleware
+* main            b7d9e2a [origin/main] Update README
+  old-feature     c8e3f4a [origin/old-feature: gone] Old work</code></pre>
+<p>Branches marked <code>gone</code> have had their remote deleted — usually after a merged pull request. You can clean them up:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch <span class="at">--prune</span>                             <span class="co"># remove tracking refs for deleted remotes</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">-vv</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="st">': gone]'</span> <span class="kw">|</span> <span class="fu">awk</span> <span class="st">'{print $1}'</span> <span class="kw">|</span> <span class="fu">xargs</span> git branch <span class="at">-d</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This one-liner finds all local branches whose remote has been deleted and removes them — a useful cleanup after a sprint or release.</p>
+</section>
+<section id="pushing-efficiently" class="level3" data-number="7.5.3">
+<h3 data-number="7.5.3" class="anchored" data-anchor-id="pushing-efficiently"><span class="header-section-number">7.5.3</span> Pushing efficiently</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push <span class="at">-u</span> origin feature/auth               <span class="co"># push and set upstream</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push <span class="at">--force-with-lease</span>                   <span class="co"># safer force push</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin <span class="at">--delete</span> feature/old          <span class="co"># delete a remote branch</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>--force-with-lease</code> is a safer alternative to <code>git push --force</code>. It refuses to push if the remote branch has been updated since you last fetched — protecting you from accidentally overwriting someone else’s commits.</p>
+</section>
+</section>
+<section id="git-aliases-building-your-own-commands" class="level2" data-number="7.6">
+<h2 data-number="7.6" class="anchored" data-anchor-id="git-aliases-building-your-own-commands"><span class="header-section-number">7.6</span> Git Aliases — Building Your Own Commands</h2>
+<p>Git’s built-in commands are verbose. Aliases let you define shorter, more memorable versions:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.st <span class="st">"status -s"</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.lg <span class="st">"log --oneline --graph --all --decorate"</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.co <span class="st">"switch"</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.last <span class="st">"log -1 HEAD --stat"</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.undo <span class="st">"reset --soft HEAD~1"</span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.unstage <span class="st">"restore --staged"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>After setting these, <code>git lg</code> gives you the decorated graph log, <code>git undo</code> undoes your last commit softly, and <code>git unstage &lt;file&gt;</code> removes a file from staging.</p>
+<p>Aliases can also run shell commands by prefixing with <code>!</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.root <span class="st">"rev-parse --show-toplevel"</span>    <span class="co"># print repo root</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> alias.whoami <span class="st">"config user.email"</span>          <span class="co"># print current git user</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Your aliases are stored in <code>~/.gitconfig</code>. Viewing and editing them directly is often easier than using <code>git config</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> ~/.gitconfig          <span class="co"># view all git configuration</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="searching-the-repository" class="level2" data-number="7.7">
+<h2 data-number="7.7" class="anchored" data-anchor-id="searching-the-repository"><span class="header-section-number">7.7</span> Searching the Repository</h2>
+<p>Beyond what we covered in Chapter 2, Git offers several powerful ways to search the repository itself.</p>
+<section id="git-grep" class="level3" data-number="7.7.1">
+<h3 data-number="7.7.1" class="anchored" data-anchor-id="git-grep"><span class="header-section-number">7.7.1</span> <code>git grep</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> grep <span class="st">"handleAuth"</span>                         <span class="co"># search tracked files</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> grep <span class="at">-n</span> <span class="st">"handleAuth"</span>                      <span class="co"># with line numbers</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> grep <span class="at">-l</span> <span class="st">"handleAuth"</span>                      <span class="co"># filenames only</span></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> grep <span class="st">"handleAuth"</span> <span class="at">--</span> <span class="st">"*.ts"</span>               <span class="co"># search only TypeScript files</span></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> grep <span class="st">"handleAuth"</span> HEAD~10                 <span class="co"># search at a point in history</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>git grep</code> is faster than <code>rg</code> for repository searches because it reads directly from Git’s object store rather than the filesystem.</p>
+</section>
+<section id="finding-which-commit-broke-something-with-git-bisect" class="level3" data-number="7.7.2">
+<h3 data-number="7.7.2" class="anchored" data-anchor-id="finding-which-commit-broke-something-with-git-bisect"><span class="header-section-number">7.7.2</span> Finding which commit broke something with <code>git bisect</code></h3>
+<p><code>git bisect</code> is one of the most powerful and least-used tools in Git. It performs a binary search through commit history to find the exact commit that introduced a bug.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect start</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect bad                              <span class="co"># current commit has the bug</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect good v1.2.0                     <span class="co"># this version was fine</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Git will check out a commit halfway between the good and bad versions. You test whether the bug exists, then tell Git:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect good                             <span class="co"># this commit is fine</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or</span></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect bad                              <span class="co"># this commit has the bug</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Git narrows the range by half each time. For a range of 1000 commits, it takes only 10 steps to find the exact offending commit. When it’s done:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect reset                            <span class="co"># return to original HEAD</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>git bisect</code> can also be automated with a test script:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect start HEAD v1.2.0</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> bisect run npm test                     <span class="co"># automatically test each commit</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This runs <code>npm test</code> at each commit and uses the exit code to determine good or bad automatically — finding the breaking commit with no manual intervention.</p>
+</section>
+</section>
+<section id="shell-aliases-and-scripts-for-git-workflows" class="level2" data-number="7.8">
+<h2 data-number="7.8" class="anchored" data-anchor-id="shell-aliases-and-scripts-for-git-workflows"><span class="header-section-number">7.8</span> Shell Aliases and Scripts for Git Workflows</h2>
+<p>Beyond Git’s own alias system, shell-level aliases and functions can further streamline your workflow:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># In ~/.zshrc or ~/.bashrc</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Common shortcuts</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> gs=<span class="st">"git status -s"</span></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> ga=<span class="st">"git add"</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> gc=<span class="st">"git commit -m"</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> gp=<span class="st">"git push"</span></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> gl=<span class="st">"git log --oneline --graph --all --decorate"</span></span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Switch to main and pull latest</span></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> gomain=<span class="st">"git switch main &amp;&amp; git pull --rebase"</span></span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Delete merged branches</span></span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> gclean=<span class="st">"git branch --merged main | grep -v 'main\|*' | xargs git branch -d"</span></span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Open the repository in GitHub (macOS)</span></span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="bu">alias</span> ghopen=<span class="st">"open </span><span class="dt">\$</span><span class="st">(git remote get-url origin | sed 's/git@github.com:/https:\/\/github.com\//' | sed 's/\.git$//')"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>gclean</code> alias is worth highlighting: it deletes all local branches that have already been merged into main — the kind of housekeeping that’s easy to forget and builds up over time.</p>
+</section>
+<section id="putting-it-together-real-git-workflows" class="level2" data-number="7.9">
+<h2 data-number="7.9" class="anchored" data-anchor-id="putting-it-together-real-git-workflows"><span class="header-section-number">7.9</span> Putting It Together: Real Git Workflows</h2>
+<section id="investigating-a-production-bug" class="level3" data-number="7.9.1">
+<h3 data-number="7.9.1" class="anchored" data-anchor-id="investigating-a-production-bug"><span class="header-section-number">7.9.1</span> Investigating a production bug</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="co"># When did this start happening?</span></span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">-S</span> <span class="st">"NullPointerException"</span> <span class="at">--oneline</span></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Who changed the relevant file recently?</span></span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">--since</span><span class="op">=</span><span class="st">"1 week ago"</span> src/auth.ts</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a><span class="co"># What exactly changed in that commit?</span></span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show a3f2c1b</span>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Who wrote the specific line that's failing?</span></span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> blame <span class="at">-L</span> 87,92 src/auth.ts</span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Is this bug in the current release tag?</span></span>
+<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log v2.1.0..HEAD <span class="at">--oneline</span> src/auth.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="preparing-a-clean-pull-request" class="level3" data-number="7.9.2">
+<h3 data-number="7.9.2" class="anchored" data-anchor-id="preparing-a-clean-pull-request"><span class="header-section-number">7.9.2</span> Preparing a clean pull request</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Start from updated main</span></span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch main <span class="kw">&amp;&amp;</span> <span class="fu">git</span> pull <span class="at">--rebase</span></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create feature branch</span></span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch <span class="at">-c</span> feature/auth-refactor</span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a><span class="co"># ... do work, make commits ...</span></span>
+<span id="cb47-8"><a href="#cb47-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-9"><a href="#cb47-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Before opening PR: clean up commits</span></span>
+<span id="cb47-10"><a href="#cb47-10" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> rebase <span class="at">-i</span> origin/main</span>
+<span id="cb47-11"><a href="#cb47-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-12"><a href="#cb47-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Check what will be merged</span></span>
+<span id="cb47-13"><a href="#cb47-13" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--stat</span> origin/main..HEAD</span>
+<span id="cb47-14"><a href="#cb47-14" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> origin/main..HEAD</span>
+<span id="cb47-15"><a href="#cb47-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-16"><a href="#cb47-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Push</span></span>
+<span id="cb47-17"><a href="#cb47-17" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push <span class="at">-u</span> origin feature/auth-refactor</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="recovering-from-a-mistake" class="level3" data-number="7.9.3">
+<h3 data-number="7.9.3" class="anchored" data-anchor-id="recovering-from-a-mistake"><span class="header-section-number">7.9.3</span> Recovering from a mistake</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Accidentally committed to main instead of a branch</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">-3</span>                          <span class="co"># find the commit hash</span></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch <span class="at">-c</span> feature/accidental-commit       <span class="co"># create branch here</span></span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch main</span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reset <span class="at">--hard</span> HEAD~1                       <span class="co"># remove commit from main</span></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch feature/accidental-commit          <span class="co"># continue work on the branch</span></span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Accidentally deleted a branch</span></span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> reflog                                    <span class="co"># find the last commit on that branch</span></span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> recovered-branch HEAD@{4}    <span class="co"># recreate it</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="chapter-summary" class="level2" data-number="7.10">
+<h2 data-number="7.10" class="anchored" data-anchor-id="chapter-summary"><span class="header-section-number">7.10</span> Chapter Summary</h2>
+<p>Git’s command line interface is the most complete way to interact with a repository. The tools in this chapter — <code>git log</code> with its many flags, <code>git diff</code>, <code>git blame</code>, <code>git bisect</code>, interactive rebase, the reflog — give you a level of visibility and control over your codebase’s history that no GUI can fully replicate.</p>
+<p>The key habits to build:</p>
+<ul>
+<li>Use <code>git log --oneline --graph --all --decorate</code> (or an alias for it) as your default history view</li>
+<li>Reach for <code>git blame</code> whenever you encounter code that doesn’t make obvious sense — the history is usually the explanation</li>
+<li>Always use <code>--force-with-lease</code> instead of <code>--force</code> when pushing</li>
+<li>Learn <code>git bisect</code> — it’s the fastest way to find a breaking commit in a large history</li>
+<li>Use interactive rebase to clean up commits before opening a pull request</li>
+<li>Keep <code>git reflog</code> in the back of your mind as your safety net — almost nothing in Git is truly permanent</li>
+</ul>
+</section>
+<section id="exercises" class="level2" data-number="7.11">
+<h2 data-number="7.11" class="anchored" data-anchor-id="exercises"><span class="header-section-number">7.11</span> Exercises</h2>
+<p><strong>1.</strong> Find a repository you’ve worked on for a while. Use <code>git log --oneline --graph --all --decorate</code> to visualize its branch history. Identify any branches that have been merged and not cleaned up.</p>
+<p><strong>2.</strong> Use <code>git blame</code> to investigate a piece of code you’ve always found confusing. Find the commit that introduced it and read the full diff with <code>git show</code>. Does the commit message explain the decision?</p>
+<p><strong>3.</strong> Practice <code>git bisect</code> on any repository: introduce a known bug, commit a few more times, then use <code>git bisect</code> to find the exact commit that introduced it.</p>
+<p><strong>4.</strong> Use interactive rebase on a feature branch to squash all commits into a single well-described commit. Then use <code>git log -p</code> to verify the result looks correct.</p>
+<p><strong>5.</strong> Set up at least three Git aliases — one for your preferred <code>git log</code> format, one for a common operation you do repeatedly, and one shell alias for a multi-step workflow.</p>
+</section>
+<section id="quick-reference" class="level2" data-number="7.12">
+<h2 data-number="7.12" class="anchored" data-anchor-id="quick-reference"><span class="header-section-number">7.12</span> Quick Reference</h2>
+<div class="line-block">Command | What it does |</div>
+<p>||| | <code>git status -s</code> | Compact status view | | <code>git log --oneline --graph --all --decorate</code> | Visual branch history | | <code>git log --oneline src/file.ts</code> | History of a specific file | | <code>git log -p --follow src/file.ts</code> | Full diff history, following renames | | <code>git log -S "pattern" --oneline</code> | Find commits that added/removed a string | | <code>git diff --name-only main..HEAD</code> | Files changed since branching from main | | <code>git blame -L 40,60 src/file.ts</code> | Annotate specific lines | | <code>git show &lt;commit&gt;:src/file.ts</code> | View file at a specific commit | | <code>git bisect start / good / bad</code> | Binary search for a breaking commit | | <code>git rebase -i origin/main</code> | Interactive rebase for cleanup | | <code>git stash push -m "description"</code> | Stash with a label | | <code>git restore --staged src/file.ts</code> | Unstage a file | | <code>git reset --soft HEAD~1</code> | Undo last commit, keep changes staged | | <code>git revert &lt;commit&gt;</code> | Undo a commit without rewriting history | | <code>git reflog</code> | View full HEAD movement history | | <code>git push --force-with-lease</code> | Safe force push | | <code>git fetch --prune</code> | Remove stale remote tracking branches | | <code>git branch -vv</code> | Show branches with tracking status |</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_4.html" class="pagination-link" aria-label="Editing Files from the Terminal">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Editing Files from the Terminal</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_6.html" class="pagination-link" aria-label="Working with Data and APIs from the Command Line">
+        <span class="nav-page-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Working with Data and APIs from the Command Line</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

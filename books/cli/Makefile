@@ -21,20 +21,16 @@ ensure-pdflatex:
 		$(RENDER_ENV) $(QUARTO) install tinytex --no-prompt; \
 	fi
 
-book: init-texmf ensure-pdflatex
-	$(RENDER_ENV) $(QUARTO) render
-	@pdf_file=$$(ls -1 _book/*.pdf 2>/dev/null | head -n1); \
-	if [ -n "$$pdf_file" ]; then cp "$$pdf_file" _book/cli-workflow-guide.pdf; fi
-	@rm -f _book/$(INTERMEDIATE_STEM).pdf
+book: html pdf
 
 html: init-texmf
-	$(RENDER_ENV) $(QUARTO) render --to html
+	$(RENDER_ENV) $(QUARTO) render --to html --output-dir html
 
 pdf: init-texmf ensure-pdflatex
-	$(RENDER_ENV) $(QUARTO) render --to pdf
-	@pdf_file=$$(ls -1 _book/*.pdf 2>/dev/null | head -n1); \
-	if [ -n "$$pdf_file" ]; then cp "$$pdf_file" _book/cli-workflow-guide.pdf; fi
-	@rm -f _book/$(INTERMEDIATE_STEM).pdf
+	$(RENDER_ENV) $(QUARTO) render --to pdf --output-dir pdf
+	@pdf_file=$$(ls -1 pdf/*.pdf 2>/dev/null | head -n1); \
+	if [ -n "$$pdf_file" ]; then cp "$$pdf_file" pdf/cli-workflow-guide.pdf; fi
+	@rm -f pdf/$(INTERMEDIATE_STEM).pdf
 
 clean:
-	rm -rf _book .cache .quarto
+	rm -rf _book .cache .quarto html pdf
