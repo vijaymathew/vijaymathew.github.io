@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>3&nbsp; Navigating and Understanding a Codebase Quickly – Using Unix Command Line Tools to Supercharge Your Development Workflow</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_2.html" rel="next">
+<link href="./introduction.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_1.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Navigating and Understanding a Codebase Quickly</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Using Unix Command Line Tools to Supercharge Your Development Workflow</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction: The Terminal Never Got Old</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Navigating and Understanding a Codebase Quickly</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Searching Code Like a Pro</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Reading and Inspecting Files Without an Editor</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Editing Files from the Terminal</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Git Workflows from the Command Line</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Working with Data and APIs from the Command Line</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Automating Repetitive Dev Tasks</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Terminal Quality of Life</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Process Management and Debugging</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Composing Tools with Pipes and Redirection</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Working on Remote Machines</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Conclusion — Building CLI Fluency Over Time</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./about.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">About the Author</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./bibliography.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Bibliography</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#getting-the-lay-of-the-land-with-tree" id="toc-getting-the-lay-of-the-land-with-tree" class="nav-link active" data-scroll-target="#getting-the-lay-of-the-land-with-tree"><span class="header-section-number">3.1</span> 1.1 Getting the Lay of the Land with <code>tree</code></a></li>
+  <li><a href="#targeted-file-listing-with-ls" id="toc-targeted-file-listing-with-ls" class="nav-link" data-scroll-target="#targeted-file-listing-with-ls"><span class="header-section-number">3.2</span> 1.2 Targeted File Listing with <code>ls</code></a></li>
+  <li><a href="#finding-files-with-find" id="toc-finding-files-with-find" class="nav-link" data-scroll-target="#finding-files-with-find"><span class="header-section-number">3.3</span> 1.3 Finding Files with <code>find</code></a>
+  <ul class="collapse">
+  <li><a href="#finding-by-name" id="toc-finding-by-name" class="nav-link" data-scroll-target="#finding-by-name"><span class="header-section-number">3.3.1</span> Finding by name</a></li>
+  <li><a href="#finding-by-type" id="toc-finding-by-type" class="nav-link" data-scroll-target="#finding-by-type"><span class="header-section-number">3.3.2</span> Finding by type</a></li>
+  <li><a href="#finding-by-modification-time" id="toc-finding-by-modification-time" class="nav-link" data-scroll-target="#finding-by-modification-time"><span class="header-section-number">3.3.3</span> Finding by modification time</a></li>
+  <li><a href="#excluding-noisy-directories" id="toc-excluding-noisy-directories" class="nav-link" data-scroll-target="#excluding-noisy-directories"><span class="header-section-number">3.3.4</span> Excluding noisy directories</a></li>
+  <li><a href="#combining-find-with-actions" id="toc-combining-find-with-actions" class="nav-link" data-scroll-target="#combining-find-with-actions"><span class="header-section-number">3.3.5</span> Combining <code>find</code> with actions</a></li>
+  </ul></li>
+  <li><a href="#understanding-files-before-opening-them" id="toc-understanding-files-before-opening-them" class="nav-link" data-scroll-target="#understanding-files-before-opening-them"><span class="header-section-number">3.4</span> 1.4 Understanding Files Before Opening Them</a>
+  <ul class="collapse">
+  <li><a href="#file-what-kind-of-file-is-this" id="toc-file-what-kind-of-file-is-this" class="nav-link" data-scroll-target="#file-what-kind-of-file-is-this"><span class="header-section-number">3.4.1</span> <code>file</code> — what kind of file is this?</a></li>
+  <li><a href="#stat-metadata-about-a-file" id="toc-stat-metadata-about-a-file" class="nav-link" data-scroll-target="#stat-metadata-about-a-file"><span class="header-section-number">3.4.2</span> <code>stat</code> — metadata about a file</a></li>
+  </ul></li>
+  <li><a href="#putting-it-together-a-real-workflow" id="toc-putting-it-together-a-real-workflow" class="nav-link" data-scroll-target="#putting-it-together-a-real-workflow"><span class="header-section-number">3.5</span> 1.5 Putting It Together: A Real Workflow</a></li>
+  <li><a href="#modern-alternatives-worth-knowing" id="toc-modern-alternatives-worth-knowing" class="nav-link" data-scroll-target="#modern-alternatives-worth-knowing"><span class="header-section-number">3.6</span> 1.6 Modern Alternatives Worth Knowing</a></li>
+  <li><a href="#chapter-summary" id="toc-chapter-summary" class="nav-link" data-scroll-target="#chapter-summary"><span class="header-section-number">3.7</span> Chapter Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">3.8</span> Exercises</a></li>
+  <li><a href="#quick-reference" id="toc-quick-reference" class="nav-link" data-scroll-target="#quick-reference"><span class="header-section-number">3.9</span> Quick Reference</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Navigating and Understanding a Codebase Quickly</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>There’s a moment every developer knows. You’ve just cloned a new repository — or been handed ownership of a project someone else wrote — and you’re staring at a directory listing trying to figure out where anything is. Where’s the entry point? Where do the tests live? What even <em>is</em> this <code>scripts/</code> folder?</p>
+<p>Most developers handle this by opening the project in their IDE and clicking around. That works. But the terminal gives you something the IDE file tree doesn’t: the ability to ask <em>precise questions</em> about a codebase and get immediate, scriptable answers.</p>
+<p>This chapter is about building that orientation instinct at the command line — getting from “I have no idea what this project looks like” to “I understand its structure” as fast as possible.</p>
+<section id="getting-the-lay-of-the-land-with-tree" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="getting-the-lay-of-the-land-with-tree"><span class="header-section-number">3.1</span> 1.1 Getting the Lay of the Land with <code>tree</code></h2>
+<p>The first thing you want when encountering a new codebase is a structural overview. The <code>ls</code> command will show you the contents of the current directory, but it’s <code>tree</code> that gives you the full picture at a glance.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tree</span> <span class="at">-L</span> 2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>-L 2</code> flag limits the output to two levels deep — enough to understand the top-level organization without drowning in every nested file. A typical output might look like this:</p>
+<pre><code>.
+|-- src
+|   |-- components
+|   |-- services
+|   |-- utils
+|   `-- index.ts
+|-- tests
+|   |-- unit
+|   `-- integration
+|-- scripts
+|-- package.json
+|-- tsconfig.json
+`-- README.md</code></pre>
+<p>In ten lines you’ve learned more about this project’s structure than five minutes of IDE clicking would have told you. You can see it’s a TypeScript project, it separates unit and integration tests, and there’s a <code>scripts/</code> directory worth investigating.</p>
+<p>To go deeper on a specific directory:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tree</span> src/services</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To exclude directories that are usually noise — <code>node_modules</code>, build output, <code>.git</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tree</span> <span class="at">-L</span> 3 <span class="at">-I</span> <span class="st">"node_modules|dist|.git"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>-I</code> flag takes a pipe-separated pattern of names to ignore. This is one you’ll use almost every time in a JavaScript or Python project.</p>
+<p>If <code>tree</code> isn’t installed on your system, you can get it with <code>brew install tree</code> on macOS or <code>apt install tree</code> on Ubuntu. It’s worth adding to your standard developer setup.</p>
+</section>
+<section id="targeted-file-listing-with-ls" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="targeted-file-listing-with-ls"><span class="header-section-number">3.2</span> 1.2 Targeted File Listing with <code>ls</code></h2>
+<p><code>tree</code> gives you the overview. <code>ls</code> gives you the details of a specific location — and with the right flags, it tells you quite a lot.</p>
+<p>The version of <code>ls</code> most developers should be using day-to-day:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lah</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Breaking that down: - <code>-l</code> — long format, showing permissions, owner, size, and modification date - <code>-a</code> — show hidden files (dotfiles like <code>.env</code>, <code>.gitignore</code>, <code>.eslintrc</code>) - <code>-h</code> — human-readable file sizes (<code>4.2K</code> instead of <code>4302</code>)</p>
+<p>The modification date column is particularly useful when you’re trying to understand what changed recently in a project:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-laht</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Adding <code>-t</code> sorts by modification time, newest first. Run this in a directory and you immediately see what’s been touched most recently — useful for understanding where active development is happening, or for finding a file you edited an hour ago but can’t remember the name of.</p>
+<p>To list only directories:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-d</span> <span class="pp">*</span>/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>And to see the contents of a directory without changing into it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lah</span> src/services/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="finding-files-with-find" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="finding-files-with-find"><span class="header-section-number">3.3</span> 1.3 Finding Files with <code>find</code></h2>
+<p><code>tree</code> and <code>ls</code> are great for browsing. But when you know <em>what</em> you’re looking for and just need to locate it, <code>find</code> is the right tool.</p>
+<section id="finding-by-name" class="level3" data-number="3.3.1">
+<h3 data-number="3.3.1" class="anchored" data-anchor-id="finding-by-name"><span class="header-section-number">3.3.1</span> Finding by name</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.config.js"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This searches from the current directory (<code>.</code>) recursively for any file matching the pattern <code>*.config.js</code>. The quotes are important — without them, the shell may expand the glob before <code>find</code> sees it.</p>
+<p>Case-insensitive search:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-iname</span> <span class="st">"readme*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="finding-by-type" class="level3" data-number="3.3.2">
+<h3 data-number="3.3.2" class="anchored" data-anchor-id="finding-by-type"><span class="header-section-number">3.3.2</span> Finding by type</h3>
+<p>To find only directories named <code>tests</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> d <span class="at">-name</span> <span class="st">"tests"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To find only files (not directories) with a <code>.env</code> extension:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-type</span> f <span class="at">-name</span> <span class="st">".env*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="finding-by-modification-time" class="level3" data-number="3.3.3">
+<h3 data-number="3.3.3" class="anchored" data-anchor-id="finding-by-modification-time"><span class="header-section-number">3.3.3</span> Finding by modification time</h3>
+<p>This is where <code>find</code> starts to pull away from anything an IDE file tree can do. To find files modified in the last 24 hours:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-mtime</span> <span class="at">-1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Files modified more than 7 days ago:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-mtime</span> +7</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Files modified between 2 and 5 days ago:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-mtime</span> +2 <span class="at">-mtime</span> <span class="at">-5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This is invaluable when you’re debugging a production issue and need to answer the question: <em>what changed recently?</em></p>
+</section>
+<section id="excluding-noisy-directories" class="level3" data-number="3.3.4">
+<h3 data-number="3.3.4" class="anchored" data-anchor-id="excluding-noisy-directories"><span class="header-section-number">3.3.4</span> Excluding noisy directories</h3>
+<p>Like <code>tree</code>, <code>find</code> will happily descend into <code>node_modules</code> unless you tell it not to:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.ts"</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/node_modules/*"</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/dist/*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="combining-find-with-actions" class="level3" data-number="3.3.5">
+<h3 data-number="3.3.5" class="anchored" data-anchor-id="combining-find-with-actions"><span class="header-section-number">3.3.5</span> Combining <code>find</code> with actions</h3>
+<p><code>find</code> becomes dramatically more powerful when you pair it with <code>-exec</code> to run a command on each result:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.log"</span> <span class="at">-exec</span> rm {} <span class="dt">\;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This finds every <code>.log</code> file and deletes it. The <code>{}</code> is a placeholder for the filename, and <code>\;</code> ends the <code>-exec</code> expression.</p>
+<p>A safer pattern when you’re not sure what you’re about to delete — preview first:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.log"</span>          <span class="co"># see what would be affected</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.log"</span> <span class="at">-exec</span> rm {} <span class="dt">\;</span>   <span class="co"># then act</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>We’ll return to <code>find</code> and <code>-exec</code> in later chapters when we cover batch operations. For now, the key mental model is: <code>find</code> locates; <code>-exec</code> acts.</p>
+</section>
+</section>
+<section id="understanding-files-before-opening-them" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="understanding-files-before-opening-them"><span class="header-section-number">3.4</span> 1.4 Understanding Files Before Opening Them</h2>
+<p>Before you open a file, two tools can tell you a lot about what you’re dealing with.</p>
+<section id="file-what-kind-of-file-is-this" class="level3" data-number="3.4.1">
+<h3 data-number="3.4.1" class="anchored" data-anchor-id="file-what-kind-of-file-is-this"><span class="header-section-number">3.4.1</span> <code>file</code> — what kind of file is this?</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">file</span> some-binary</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>some-binary: ELF 64-bit LSB executable, x86-64, dynamically linked</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">file</span> mystery-data</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>mystery-data: gzip compressed data, was "backup.tar", last modified: Mon Feb 12 09:14:22 2024</code></pre>
+<p>This is particularly useful when you encounter files without extensions, or when a file isn’t behaving the way you expect. Before spending ten minutes trying to open something, a quick <code>file</code> check tells you exactly what you’re dealing with.</p>
+</section>
+<section id="stat-metadata-about-a-file" class="level3" data-number="3.4.2">
+<h3 data-number="3.4.2" class="anchored" data-anchor-id="stat-metadata-about-a-file"><span class="header-section-number">3.4.2</span> <code>stat</code> — metadata about a file</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stat</span> src/index.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>  File: src/index.ts
+  Size: 3421        Blocks: 8          IO Block: 4096   regular file
+Device: fd01h/64769d    Inode: 2894732     Links: 1
+Access: (0644/-rw-r--r--)  Uid: ( 1000/   alice)   Gid: ( 1000/   alice)
+Access: 2024-03-12 09:14:22.000000000 +0000
+Modify: 2024-03-11 17:43:09.000000000 +0000
+Change: 2024-03-11 17:43:09.000000000 +0000</code></pre>
+<p>The three timestamps at the bottom are often what you’re after: when the file was last accessed, when its content was last modified, and when its metadata last changed. This is more precise than what <code>ls</code> shows, and it’s scriptable — you can extract individual fields:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stat</span> <span class="at">-c</span> <span class="st">"%n %y"</span> src/<span class="pp">*</span>.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This prints the name and last-modified time for every TypeScript file in <code>src/</code> — useful for a quick audit of recently touched files.</p>
+</section>
+</section>
+<section id="putting-it-together-a-real-workflow" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="putting-it-together-a-real-workflow"><span class="header-section-number">3.5</span> 1.5 Putting It Together: A Real Workflow</h2>
+<p>Here’s how these tools work together in practice. Imagine you’ve just been asked to investigate a bug in an unfamiliar service. Your first five minutes at the terminal might look like this:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the overall structure</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="ex">tree</span> <span class="at">-L</span> 2 <span class="at">-I</span> <span class="st">"node_modules|dist|.git"</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Understand what's been touched recently</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-laht</span> src/</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the entry point</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"index.*"</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/node_modules/*"</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Find any config files that might affect behavior</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.config.*"</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/node_modules/*"</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if there are any files that changed in the last day</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-mtime</span> <span class="at">-1</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/node_modules/*"</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/.git/*"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In under two minutes, without opening a single file, you have a clear picture of the project’s structure, what it’s built with, and what changed recently. That’s a foundation you can investigate from.</p>
+</section>
+<section id="modern-alternatives-worth-knowing" class="level2" data-number="3.6">
+<h2 data-number="3.6" class="anchored" data-anchor-id="modern-alternatives-worth-knowing"><span class="header-section-number">3.6</span> 1.6 Modern Alternatives Worth Knowing</h2>
+<p>The tools covered in this chapter are available on virtually every Unix system. But a few modern alternatives are worth knowing about, particularly if you’re setting up a new development machine.</p>
+<p><strong><code>eza</code> (formerly <code>exa</code>)</strong> is a modern replacement for <code>ls</code>, written in Rust. It has better defaults, color-coded output by file type, built-in Git status indicators next to each file, and a tree view mode that combines what <code>ls</code> and <code>tree</code> do separately:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="ex">eza</span> <span class="at">--tree</span> <span class="at">--level</span><span class="op">=</span>2 <span class="at">--git-ignore</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong><code>broot</code></strong> is an interactive tree navigator that lets you browse, search, and open files all from a single interface. It’s particularly good for very large codebases where <code>tree</code> output becomes overwhelming.</p>
+<p><strong><code>fd</code></strong> is a modern alternative to <code>find</code> with a simpler syntax, faster performance, and <code>.gitignore</code> awareness by default:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="ex">fd</span> <span class="st">"*.config.js"</span>           <span class="co"># equivalent to: find . -name "*.config.js"</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="ex">fd</span> <span class="at">-t</span> d tests              <span class="co"># find directories named "tests"</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="ex">fd</span> <span class="at">--changed-within</span> 1d     <span class="co"># files modified in the last day</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If you’re working on a new machine, <code>fd</code> and <code>eza</code> are both worth installing. That said, <code>find</code> and <code>ls</code> are available everywhere — on production servers, in CI environments, in Docker containers — and fluency with them is non-negotiable. Learn the classics first, then layer in the modern tools where they help.</p>
+</section>
+<section id="chapter-summary" class="level2" data-number="3.7">
+<h2 data-number="3.7" class="anchored" data-anchor-id="chapter-summary"><span class="header-section-number">3.7</span> Chapter Summary</h2>
+<p>The tools in this chapter — <code>tree</code>, <code>ls</code>, <code>find</code>, <code>file</code>, and <code>stat</code> — are your orientation layer. They answer the question <em>what is this codebase?</em> before you ever open a file. Used together, they can give you a remarkably complete picture of an unfamiliar project in just a few minutes.</p>
+<p>The key habits to build:</p>
+<ul>
+<li>Start every new project or investigation with <code>tree -L 2 -I "node_modules|dist|.git"</code></li>
+<li>Use <code>ls -laht</code> to see what’s been recently modified in a directory</li>
+<li>Use <code>find</code> with <code>-mtime</code> when you need to know what changed and when</li>
+<li>Check <code>file</code> before assuming you know what an unfamiliar file contains</li>
+<li>Build <code>find</code> commands incrementally — preview before you act</li>
+</ul>
+</section>
+<section id="exercises" class="level2" data-number="3.8">
+<h2 data-number="3.8" class="anchored" data-anchor-id="exercises"><span class="header-section-number">3.8</span> Exercises</h2>
+<p><strong>1.</strong> Clone any open source project you haven’t worked with before. Use <code>tree</code>, <code>ls</code>, and <code>find</code> to answer these questions without opening any file in an editor: What language is it written in? Where do the tests live? Are there any hidden configuration files in the root?</p>
+<p><strong>2.</strong> Find all files in a project that were modified in the last 3 days, excluding <code>node_modules</code> and <code>.git</code>.</p>
+<p><strong>3.</strong> Use <code>find</code> with <code>-exec</code> to list the line count (using <code>wc -l</code>) of every <code>.js</code> file in a project.</p>
+<p><strong>4.</strong> Install <code>eza</code> and compare its output to <code>ls -lah</code> on the same directory. Which information does each show that the other doesn’t?</p>
+</section>
+<section id="quick-reference" class="level2" data-number="3.9">
+<h2 data-number="3.9" class="anchored" data-anchor-id="quick-reference"><span class="header-section-number">3.9</span> Quick Reference</h2>
+<div class="line-block">Command | What it does |</div>
+<p>||| | <code>tree -L 2 -I "node_modules\|dist"</code> | Project structure, 2 levels deep, ignoring noise | | <code>ls -laht</code> | Directory listing sorted by modification time | | <code>find . -name "*.ts"</code> | Find all TypeScript files recursively | | <code>find . -mtime -1</code> | Files modified in the last 24 hours | | <code>find . -type d -name "tests"</code> | Find directories named “tests” | | <code>find . -name "*.log" -exec rm {} \;</code> | Find and delete all log files | | <code>file mystery-file</code> | Identify what kind of file something is | | <code>stat src/index.ts</code> | Full metadata including timestamps |</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const value = Number(el.textContent.trim());
+    if (!Number.isNaN(value) && value > 1) {
+      el.textContent = String(value - 1);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.chapter-number').forEach(function (el) {
+      adjustNumber(el);
+    });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./introduction.html" class="pagination-link" aria-label="Introduction: The Terminal Never Got Old">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction: The Terminal Never Got Old</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_2.html" class="pagination-link" aria-label="Searching Code Like a Pro">
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Searching Code Like a Pro</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

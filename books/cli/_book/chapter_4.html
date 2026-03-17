@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>6&nbsp; Editing Files from the Terminal – Using Unix Command Line Tools to Supercharge Your Development Workflow</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_5.html" rel="next">
+<link href="./chapter_3.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dfa48a90d809c806c7ea2d5aecd9fc66.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-44a9c9b05eaaf72774b03816a62a8468.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_4.html"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Editing Files from the Terminal</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Using Unix Command Line Tools to Supercharge Your Development Workflow</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction: The Terminal Never Got Old</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Navigating and Understanding a Codebase Quickly</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Searching Code Like a Pro</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Reading and Inspecting Files Without an Editor</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Editing Files from the Terminal</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Git Workflows from the Command Line</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Working with Data and APIs from the Command Line</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Automating Repetitive Dev Tasks</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Terminal Quality of Life</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Process Management and Debugging</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Composing Tools with Pipes and Redirection</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Working on Remote Machines</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Conclusion — Building CLI Fluency Over Time</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./about.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">About the Author</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./bibliography.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Bibliography</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sed-stream-editing" id="toc-sed-stream-editing" class="nav-link active" data-scroll-target="#sed-stream-editing"><span class="header-section-number">6.1</span> 4.1 <code>sed</code>: Stream Editing</a>
+  <ul class="collapse">
+  <li><a href="#basic-substitution" id="toc-basic-substitution" class="nav-link" data-scroll-target="#basic-substitution"><span class="header-section-number">6.1.1</span> Basic substitution</a></li>
+  <li><a href="#in-place-editing" id="toc-in-place-editing" class="nav-link" data-scroll-target="#in-place-editing"><span class="header-section-number">6.1.2</span> In-place editing</a></li>
+  <li><a href="#renaming-across-an-entire-codebase" id="toc-renaming-across-an-entire-codebase" class="nav-link" data-scroll-target="#renaming-across-an-entire-codebase"><span class="header-section-number">6.1.3</span> Renaming across an entire codebase</a></li>
+  <li><a href="#deleting-lines" id="toc-deleting-lines" class="nav-link" data-scroll-target="#deleting-lines"><span class="header-section-number">6.1.4</span> Deleting lines</a></li>
+  <li><a href="#printing-specific-lines" id="toc-printing-specific-lines" class="nav-link" data-scroll-target="#printing-specific-lines"><span class="header-section-number">6.1.5</span> Printing specific lines</a></li>
+  <li><a href="#inserting-and-appending-text" id="toc-inserting-and-appending-text" class="nav-link" data-scroll-target="#inserting-and-appending-text"><span class="header-section-number">6.1.6</span> Inserting and appending text</a></li>
+  <li><a href="#multiple-expressions" id="toc-multiple-expressions" class="nav-link" data-scroll-target="#multiple-expressions"><span class="header-section-number">6.1.7</span> Multiple expressions</a></li>
+  </ul></li>
+  <li><a href="#awk-structured-text-processing" id="toc-awk-structured-text-processing" class="nav-link" data-scroll-target="#awk-structured-text-processing"><span class="header-section-number">6.2</span> 4.2 <code>awk</code>: Structured Text Processing</a>
+  <ul class="collapse">
+  <li><a href="#basic-field-extraction" id="toc-basic-field-extraction" class="nav-link" data-scroll-target="#basic-field-extraction"><span class="header-section-number">6.2.1</span> Basic field extraction</a></li>
+  <li><a href="#changing-the-field-separator" id="toc-changing-the-field-separator" class="nav-link" data-scroll-target="#changing-the-field-separator"><span class="header-section-number">6.2.2</span> Changing the field separator</a></li>
+  <li><a href="#filtering-with-conditions" id="toc-filtering-with-conditions" class="nav-link" data-scroll-target="#filtering-with-conditions"><span class="header-section-number">6.2.3</span> Filtering with conditions</a></li>
+  <li><a href="#built-in-patterns-begin-and-end" id="toc-built-in-patterns-begin-and-end" class="nav-link" data-scroll-target="#built-in-patterns-begin-and-end"><span class="header-section-number">6.2.4</span> Built-in patterns: BEGIN and END</a></li>
+  <li><a href="#calculating-totals" id="toc-calculating-totals" class="nav-link" data-scroll-target="#calculating-totals"><span class="header-section-number">6.2.5</span> Calculating totals</a></li>
+  <li><a href="#reformatting-output" id="toc-reformatting-output" class="nav-link" data-scroll-target="#reformatting-output"><span class="header-section-number">6.2.6</span> Reformatting output</a></li>
+  <li><a href="#a-practical-example-parsing-access-logs" id="toc-a-practical-example-parsing-access-logs" class="nav-link" data-scroll-target="#a-practical-example-parsing-access-logs"><span class="header-section-number">6.2.7</span> A practical example: parsing access logs</a></li>
+  </ul></li>
+  <li><a href="#tr-translating-characters" id="toc-tr-translating-characters" class="nav-link" data-scroll-target="#tr-translating-characters"><span class="header-section-number">6.3</span> 4.3 <code>tr</code>: Translating Characters</a>
+  <ul class="collapse">
+  <li><a href="#basic-character-translation" id="toc-basic-character-translation" class="nav-link" data-scroll-target="#basic-character-translation"><span class="header-section-number">6.3.1</span> Basic character translation</a></li>
+  <li><a href="#deleting-characters" id="toc-deleting-characters" class="nav-link" data-scroll-target="#deleting-characters"><span class="header-section-number">6.3.2</span> Deleting characters</a></li>
+  <li><a href="#squeezing-repeated-characters" id="toc-squeezing-repeated-characters" class="nav-link" data-scroll-target="#squeezing-repeated-characters"><span class="header-section-number">6.3.3</span> Squeezing repeated characters</a></li>
+  </ul></li>
+  <li><a href="#cut-extracting-columns" id="toc-cut-extracting-columns" class="nav-link" data-scroll-target="#cut-extracting-columns"><span class="header-section-number">6.4</span> 4.4 <code>cut</code>: Extracting Columns</a>
+  <ul class="collapse">
+  <li><a href="#extracting-character-ranges" id="toc-extracting-character-ranges" class="nav-link" data-scroll-target="#extracting-character-ranges"><span class="header-section-number">6.4.1</span> Extracting character ranges</a></li>
+  </ul></li>
+  <li><a href="#sort-and-uniq-organizing-and-deduplicating" id="toc-sort-and-uniq-organizing-and-deduplicating" class="nav-link" data-scroll-target="#sort-and-uniq-organizing-and-deduplicating"><span class="header-section-number">6.5</span> 4.5 <code>sort</code> and <code>uniq</code>: Organizing and Deduplicating</a>
+  <ul class="collapse">
+  <li><a href="#sort" id="toc-sort" class="nav-link" data-scroll-target="#sort"><span class="header-section-number">6.5.1</span> <code>sort</code></a></li>
+  <li><a href="#uniq" id="toc-uniq" class="nav-link" data-scroll-target="#uniq"><span class="header-section-number">6.5.2</span> <code>uniq</code></a></li>
+  </ul></li>
+  <li><a href="#tee-writing-and-passing-through" id="toc-tee-writing-and-passing-through" class="nav-link" data-scroll-target="#tee-writing-and-passing-through"><span class="header-section-number">6.6</span> 4.6 <code>tee</code>: Writing and Passing Through</a>
+  <ul class="collapse">
+  <li><a href="#splitting-a-pipeline" id="toc-splitting-a-pipeline" class="nav-link" data-scroll-target="#splitting-a-pipeline"><span class="header-section-number">6.6.1</span> Splitting a pipeline</a></li>
+  </ul></li>
+  <li><a href="#putting-it-together-real-editing-workflows" id="toc-putting-it-together-real-editing-workflows" class="nav-link" data-scroll-target="#putting-it-together-real-editing-workflows"><span class="header-section-number">6.7</span> 4.7 Putting It Together: Real Editing Workflows</a>
+  <ul class="collapse">
+  <li><a href="#refactoring-a-module-name-across-a-codebase" id="toc-refactoring-a-module-name-across-a-codebase" class="nav-link" data-scroll-target="#refactoring-a-module-name-across-a-codebase"><span class="header-section-number">6.7.1</span> Refactoring a module name across a codebase</a></li>
+  <li><a href="#cleaning-and-normalizing-a-csv-file" id="toc-cleaning-and-normalizing-a-csv-file" class="nav-link" data-scroll-target="#cleaning-and-normalizing-a-csv-file"><span class="header-section-number">6.7.2</span> Cleaning and normalizing a CSV file</a></li>
+  <li><a href="#generating-a-report-from-log-data" id="toc-generating-a-report-from-log-data" class="nav-link" data-scroll-target="#generating-a-report-from-log-data"><span class="header-section-number">6.7.3</span> Generating a report from log data</a></li>
+  </ul></li>
+  <li><a href="#chapter-summary" id="toc-chapter-summary" class="nav-link" data-scroll-target="#chapter-summary"><span class="header-section-number">6.8</span> Chapter Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">6.9</span> Exercises</a></li>
+  <li><a href="#quick-reference" id="toc-quick-reference" class="nav-link" data-scroll-target="#quick-reference"><span class="header-section-number">6.10</span> Quick Reference</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Editing Files from the Terminal</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Reading files is passive. At some point you need to change them — rename a variable across an entire codebase, strip headers from a batch of CSV files, reformat log output, update a configuration value in a dozen places at once. This is where most developers reach for their IDE’s find-and-replace, or write a throwaway Python script, or do it manually and hate every second of it.</p>
+<p>The terminal has better answers. <code>sed</code> and <code>awk</code> are stream editors — tools designed to transform text as it flows through a pipeline. They’re not interactive editors. You don’t open a file, move a cursor, and save. Instead, you describe a transformation, apply it to a stream of text, and the result comes out the other side. That difference in mental model is what makes them so powerful: the same transformation you apply to one file can be applied to ten thousand files just as easily.</p>
+<p>This chapter covers <code>sed</code>, <code>awk</code>, and a handful of supporting tools that together give you everything you need to edit files from the terminal — from simple substitutions to complex structural transformations.</p>
+<section id="sed-stream-editing" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="sed-stream-editing"><span class="header-section-number">6.1</span> 4.1 <code>sed</code>: Stream Editing</h2>
+<p><code>sed</code> stands for <em>stream editor</em>. It reads input line by line, applies a transformation to each line, and writes the result to standard output. The most common transformation — the one you’ll use in probably 80% of your <code>sed</code> invocations — is substitution.</p>
+<section id="basic-substitution" class="level3" data-number="6.1.1">
+<h3 data-number="6.1.1" class="anchored" data-anchor-id="basic-substitution"><span class="header-section-number">6.1.1</span> Basic substitution</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'s/old/new/'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>s</code> command means substitute. The syntax is <code>s/pattern/replacement/</code>. By default, this replaces the <em>first</em> occurrence of the pattern on each line and prints the result to stdout. The original file is untouched.</p>
+<p>To replace <em>all</em> occurrences on each line, add the <code>g</code> (global) flag:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'s/old/new/g'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To make the substitution case-insensitive:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'s/old/new/gi'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="in-place-editing" class="level3" data-number="6.1.2">
+<h3 data-number="6.1.2" class="anchored" data-anchor-id="in-place-editing"><span class="header-section-number">6.1.2</span> In-place editing</h3>
+<p>Printing to stdout is useful in pipelines, but most of the time you want to edit the file itself. The <code>-i</code> flag enables in-place editing:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">'s/old/new/g'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>On macOS, <code>-i</code> requires an extension argument for the backup file. Use an empty string to skip the backup:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">''</span> <span class="st">'s/old/new/g'</span> file.txt    <span class="co"># macOS</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">'s/old/new/g'</span> file.txt       <span class="co"># Linux</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This is a cross-platform difference worth memorizing — it’s the most common reason <code>sed</code> commands copied from the internet fail on macOS.</p>
+<p>Always preview before editing in place. Run the command without <code>-i</code> first to confirm the output looks right, then add <code>-i</code> to commit the change:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'s/apiUrl/API_URL/g'</span> src/config.ts        <span class="co"># preview</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">''</span> <span class="st">'s/apiUrl/API_URL/g'</span> src/config.ts  <span class="co"># commit</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="renaming-across-an-entire-codebase" class="level3" data-number="6.1.3">
+<h3 data-number="6.1.3" class="anchored" data-anchor-id="renaming-across-an-entire-codebase"><span class="header-section-number">6.1.3</span> Renaming across an entire codebase</h3>
+<p>Combined with <code>find</code> and <code>xargs</code>, <code>sed</code> becomes a codebase-wide refactoring tool:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.ts"</span> <span class="at">-not</span> <span class="at">-path</span> <span class="st">"*/node_modules/*"</span> <span class="dt">\</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">xargs</span> sed <span class="at">-i</span> <span class="st">''</span> <span class="st">'s/getUserById/fetchUserById/g'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This renames <code>getUserById</code> to <code>fetchUserById</code> in every TypeScript file in the project. A task that would take ten minutes of IDE find-and-replace across multiple files takes one command.</p>
+<p>Be careful with names that appear as substrings of other names — <code>sed</code> doesn’t understand code, only text. The pattern <code>getUserById</code> would also match inside <code>getAdminUserById</code> if that existed. Use word boundaries to be safe:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># macOS (uses \b for word boundary in extended regex)</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.ts"</span> <span class="kw">|</span> <span class="fu">xargs</span> sed <span class="at">-i</span> <span class="st">''</span> <span class="st">'s/\bgetUserById\b/fetchUserById/g'</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Linux (GNU sed)</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.ts"</span> <span class="kw">|</span> <span class="fu">xargs</span> sed <span class="at">-i</span> <span class="st">'s/\bgetUserById\b/fetchUserById/g'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="deleting-lines" class="level3" data-number="6.1.4">
+<h3 data-number="6.1.4" class="anchored" data-anchor-id="deleting-lines"><span class="header-section-number">6.1.4</span> Deleting lines</h3>
+<p><code>sed</code> can delete lines matching a pattern:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'/console\.log/d'</span> src/index.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>d</code> command deletes lines matching the pattern. This removes every <code>console.log</code> line from the output. Combined with <code>-i</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> . <span class="at">-name</span> <span class="st">"*.ts"</span> <span class="kw">|</span> <span class="fu">xargs</span> sed <span class="at">-i</span> <span class="st">''</span> <span class="st">'/console\.log/d'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Strips all <code>console.log</code> statements from your TypeScript codebase before a commit. A blunt instrument — use with care — but occasionally exactly what you need.</p>
+<p>To delete blank lines:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'/^$/d'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>^$</code> matches lines that are empty from start (<code>^</code>) to end (<code>$</code>).</p>
+</section>
+<section id="printing-specific-lines" class="level3" data-number="6.1.5">
+<h3 data-number="6.1.5" class="anchored" data-anchor-id="printing-specific-lines"><span class="header-section-number">6.1.5</span> Printing specific lines</h3>
+<p>The <code>-n</code> flag suppresses default output, and the <code>p</code> command prints matching lines — together they let you extract specific lines from a file:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-n</span> <span class="st">'10,20p'</span> file.ts          <span class="co"># print lines 10 through 20</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-n</span> <span class="st">'/function handleAuth/p'</span> file.ts   <span class="co"># print lines matching pattern</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This is an alternative to <code>head</code>/<code>tail</code> for extracting specific line ranges, and more flexible because it supports pattern matching.</p>
+</section>
+<section id="inserting-and-appending-text" class="level3" data-number="6.1.6">
+<h3 data-number="6.1.6" class="anchored" data-anchor-id="inserting-and-appending-text"><span class="header-section-number">6.1.6</span> Inserting and appending text</h3>
+<p><code>sed</code> can insert a line before a match (<code>i</code>) or append a line after it (<code>a</code>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Insert a comment before every function declaration</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'/^function /i\// Auto-generated'</span> src/utils.ts</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Append a blank line after every closing brace</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'/^}/a\\'</span> src/utils.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>These are less commonly used in day-to-day development, but they’re invaluable for code generation and template processing scripts.</p>
+</section>
+<section id="multiple-expressions" class="level3" data-number="6.1.7">
+<h3 data-number="6.1.7" class="anchored" data-anchor-id="multiple-expressions"><span class="header-section-number">6.1.7</span> Multiple expressions</h3>
+<p>Run multiple <code>sed</code> expressions in one pass with <code>-e</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-e</span> <span class="st">'s/foo/bar/g'</span> <span class="at">-e</span> <span class="st">'s/baz/qux/g'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Or equivalently, separate expressions with semicolons:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">'s/foo/bar/g; s/baz/qux/g'</span> file.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="awk-structured-text-processing" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="awk-structured-text-processing"><span class="header-section-number">6.2</span> 4.2 <code>awk</code>: Structured Text Processing</h2>
+<p>If <code>sed</code> is a scalpel — precise, focused, best for specific line-by-line transformations — <code>awk</code> is a Swiss Army knife. It’s a full programming language built around the idea of processing structured text: files where data is organized into rows and columns, like CSV files, log files, or command output.</p>
+<p>The mental model for <code>awk</code> is simple: it reads input line by line, splits each line into fields, and executes a program for each line. That program can filter, transform, calculate, and reformat the data any way you need.</p>
+<section id="basic-field-extraction" class="level3" data-number="6.2.1">
+<h3 data-number="6.2.1" class="anchored" data-anchor-id="basic-field-extraction"><span class="header-section-number">6.2.1</span> Basic field extraction</h3>
+<p>The most common use of <code>awk</code> is extracting specific columns from structured output:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-lah</span> <span class="kw">|</span> <span class="fu">awk</span> <span class="st">'{print $5, $9}'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>$1</code>, <code>$2</code>, <code>$3</code>… refer to the first, second, third fields of each line (split on whitespace by default). <code>$0</code> refers to the entire line. <code>$NF</code> refers to the last field (NF stands for Number of Fields).</p>
+<p>This extracts the file size (<code>$5</code>) and filename (<code>$9</code>) from <code>ls -lah</code> output — a clean two-column view instead of the full listing.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> aux <span class="kw">|</span> <span class="fu">awk</span> <span class="st">'{print $1, $2, $11}'</span>    <span class="co"># user, PID, and command name</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="changing-the-field-separator" class="level3" data-number="6.2.2">
+<h3 data-number="6.2.2" class="anchored" data-anchor-id="changing-the-field-separator"><span class="header-section-number">6.2.2</span> Changing the field separator</h3>
+<p>For CSV files or other delimited formats, use <code>-F</code> to set the field separator:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="at">-F</span><span class="st">','</span> <span class="st">'{print $1, $3}'</span> data.csv          <span class="co"># extract columns 1 and 3</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="at">-F</span><span class="st">':'</span> <span class="st">'{print $1}'</span> /etc/passwd           <span class="co"># extract usernames</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="at">-F</span><span class="st">'\t'</span> <span class="st">'{print $2}'</span> data.tsv             <span class="co"># tab-delimited files</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="filtering-with-conditions" class="level3" data-number="6.2.3">
+<h3 data-number="6.2.3" class="anchored" data-anchor-id="filtering-with-conditions"><span class="header-section-number">6.2.3</span> Filtering with conditions</h3>
+<p><code>awk</code> programs consist of <code>condition { action }</code> pairs. The action runs only when the condition is true:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Print lines where the third field is greater than 1000</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'$3 &gt; 1000 {print $0}'</span> data.csv</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Print lines where the second field matches a pattern</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'$2 ~ /ERROR/ {print $0}'</span> logs/app.log</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Print lines where the fifth field equals "admin"</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'$5 == "admin" {print $1, $2}'</span> users.csv</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>~</code> operator is a regex match. <code>!~</code> is its inverse (does not match).</p>
+</section>
+<section id="built-in-patterns-begin-and-end" class="level3" data-number="6.2.4">
+<h3 data-number="6.2.4" class="anchored" data-anchor-id="built-in-patterns-begin-and-end"><span class="header-section-number">6.2.4</span> Built-in patterns: BEGIN and END</h3>
+<p><code>awk</code> has two special patterns: <code>BEGIN</code> runs before any input is processed, and <code>END</code> runs after all input is processed. These are used for headers, footers, and aggregations:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Print a header, then process data, then print a summary</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'BEGIN {print "Name, Size"} {print $9, $5} END {print "Done"}'</span> <span class="op">&lt;(</span><span class="fu">ls</span> <span class="at">-lah</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="calculating-totals" class="level3" data-number="6.2.5">
+<h3 data-number="6.2.5" class="anchored" data-anchor-id="calculating-totals"><span class="header-section-number">6.2.5</span> Calculating totals</h3>
+<p><code>awk</code>’s ability to accumulate values across lines makes it the right tool for quick aggregations:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Sum the third column of a CSV</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="at">-F</span><span class="st">','</span> <span class="st">'{sum += $3} END {print "Total:", sum}'</span> sales.csv</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Count lines matching a pattern</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'/ERROR/ {count++} END {print count, "errors"}'</span> app.log</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Average response time from a log file</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'{sum += $NF; count++} END {print "Average:", sum/count, "ms"}'</span> access.log</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="reformatting-output" class="level3" data-number="6.2.6">
+<h3 data-number="6.2.6" class="anchored" data-anchor-id="reformatting-output"><span class="header-section-number">6.2.6</span> Reformatting output</h3>
+<p><code>awk</code>’s <code>printf</code> gives you full control over output formatting:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="at">-F</span><span class="st">','</span> <span class="st">'{printf "%-20s %10.2f\n", $1, $3}'</span> sales.csv</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>%-20s</code> left-aligns a string in a 20-character field. <code>%10.2f</code> right-aligns a floating-point number with two decimal places in a 10-character field. This produces clean columnar output from messy CSV data.</p>
+</section>
+<section id="a-practical-example-parsing-access-logs" class="level3" data-number="6.2.7">
+<h3 data-number="6.2.7" class="anchored" data-anchor-id="a-practical-example-parsing-access-logs"><span class="header-section-number">6.2.7</span> A practical example: parsing access logs</h3>
+<p>Apache and Nginx access logs are structured text — a perfect target for <code>awk</code>. A typical log line looks like:</p>
+<pre><code>192.168.1.1 - - [12/Mar/2024:09:14:22 +0000] "GET /api/users HTTP/1.1" 200 1423</code></pre>
+<p>Extracting useful information:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Count requests by status code</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'{print $9}'</span> access.log <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the top 10 most requested URLs</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'{print $7}'</span> access.log <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span> <span class="kw">|</span> <span class="fu">head</span> <span class="at">-10</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate total bytes transferred</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'{sum += $10} END {print sum / 1024 / 1024, "MB"}'</span> access.log</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Find all IPs that generated 500 errors</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'$9 == 500 {print $1}'</span> access.log <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>These one-liners replace what would otherwise require a dedicated log analysis script. They run in seconds even on log files with millions of lines.</p>
+</section>
+</section>
+<section id="tr-translating-characters" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="tr-translating-characters"><span class="header-section-number">6.3</span> 4.3 <code>tr</code>: Translating Characters</h2>
+<p><code>tr</code> (translate) is a smaller, more focused tool that transforms individual characters. It doesn’t understand lines or fields — it operates character by character on a stream.</p>
+<section id="basic-character-translation" class="level3" data-number="6.3.1">
+<h3 data-number="6.3.1" class="anchored" data-anchor-id="basic-character-translation"><span class="header-section-number">6.3.1</span> Basic character translation</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"hello world"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="st">'a-z'</span> <span class="st">'A-Z'</span>     <span class="co"># lowercase to uppercase</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"Hello World"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="st">'A-Z'</span> <span class="st">'a-z'</span>     <span class="co"># uppercase to lowercase</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="deleting-characters" class="level3" data-number="6.3.2">
+<h3 data-number="6.3.2" class="anchored" data-anchor-id="deleting-characters"><span class="header-section-number">6.3.2</span> Deleting characters</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"hello, world!"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'[:punct:]'</span>   <span class="co"># remove punctuation</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"phone: (555) 123-4567"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'()-. '</span>  <span class="co"># extract digits</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> file.txt <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'\r'</span>                  <span class="co"># remove Windows carriage returns</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The last example — removing <code>\r</code> characters — is one of the most practical uses of <code>tr</code> in development. When a file created on Windows is used on Linux, the <code>\r</code> characters cause all kinds of mysterious behavior. <code>tr -d '\r'</code> fixes it instantly.</p>
+</section>
+<section id="squeezing-repeated-characters" class="level3" data-number="6.3.3">
+<h3 data-number="6.3.3" class="anchored" data-anchor-id="squeezing-repeated-characters"><span class="header-section-number">6.3.3</span> Squeezing repeated characters</h3>
+<p>The <code>-s</code> flag replaces sequences of repeated characters with a single instance:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"too    many    spaces"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-s</span> <span class="st">' '</span>   <span class="co"># squeeze multiple spaces to one</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> file.txt <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-s</span> <span class="st">'\n'</span>                   <span class="co"># remove blank lines</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="cut-extracting-columns" class="level2" data-number="6.4">
+<h2 data-number="6.4" class="anchored" data-anchor-id="cut-extracting-columns"><span class="header-section-number">6.4</span> 4.4 <code>cut</code>: Extracting Columns</h2>
+<p><code>cut</code> is simpler than <code>awk</code> for the specific task of extracting columns from delimited text:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span><span class="st">','</span> <span class="at">-f1,3</span> data.csv          <span class="co"># extract columns 1 and 3 from a CSV</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span><span class="st">':'</span> <span class="at">-f1</span> /etc/passwd         <span class="co"># extract usernames</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-f2</span> data.tsv                   <span class="co"># extract column 2 from tab-delimited file</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>-d</code> sets the delimiter (comma, colon, tab, etc.) and <code>-f</code> specifies which fields to extract. For simple column extraction, <code>cut</code> is cleaner than <code>awk</code>. For anything more complex — filtering, calculating, reformatting — reach for <code>awk</code>.</p>
+<section id="extracting-character-ranges" class="level3" data-number="6.4.1">
+<h3 data-number="6.4.1" class="anchored" data-anchor-id="extracting-character-ranges"><span class="header-section-number">6.4.1</span> Extracting character ranges</h3>
+<p><code>cut</code> can also extract by character position rather than field:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-c1-10</span> file.txt               <span class="co"># first 10 characters of each line</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-c-5</span> file.txt                 <span class="co"># first 5 characters</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-c10-</span> file.txt                <span class="co"># everything from character 10 onwards</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="sort-and-uniq-organizing-and-deduplicating" class="level2" data-number="6.5">
+<h2 data-number="6.5" class="anchored" data-anchor-id="sort-and-uniq-organizing-and-deduplicating"><span class="header-section-number">6.5</span> 4.5 <code>sort</code> and <code>uniq</code>: Organizing and Deduplicating</h2>
+<p>These two tools are almost always used together, and they appear constantly in the pipelines built around <code>sed</code> and <code>awk</code>.</p>
+<section id="sort" class="level3" data-number="6.5.1">
+<h3 data-number="6.5.1" class="anchored" data-anchor-id="sort"><span class="header-section-number">6.5.1</span> <code>sort</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> file.txt                     <span class="co"># alphabetical sort</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-r</span> file.txt                  <span class="co"># reverse order</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-n</span> file.txt                  <span class="co"># numeric sort</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-rn</span> file.txt                 <span class="co"># reverse numeric sort</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-k2</span> file.txt                 <span class="co"># sort by second field</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-t</span><span class="st">','</span> <span class="at">-k3</span> <span class="at">-n</span> data.csv        <span class="co"># sort CSV by third column numerically</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-u</span> file.txt                  <span class="co"># sort and remove duplicates</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>-k</code> flag specifies the sort key — which field to sort by. Combined with <code>-t</code> to set the delimiter, it works on any structured text:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Sort a CSV by the third column (numerically, descending)</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> <span class="at">-t</span><span class="st">','</span> <span class="at">-k3</span> <span class="at">-rn</span> data.csv</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="uniq" class="level3" data-number="6.5.2">
+<h3 data-number="6.5.2" class="anchored" data-anchor-id="uniq"><span class="header-section-number">6.5.2</span> <code>uniq</code></h3>
+<p><code>uniq</code> removes consecutive duplicate lines. Because it only compares adjacent lines, it almost always needs to be preceded by <code>sort</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> file.txt <span class="kw">|</span> <span class="fu">uniq</span>               <span class="co"># remove duplicates</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> file.txt <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span>            <span class="co"># count occurrences of each line</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> file.txt <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-d</span>            <span class="co"># show only duplicate lines</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> file.txt <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-u</span>            <span class="co"># show only unique lines (no duplicates)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>sort | uniq -c | sort -rn</code> pipeline is one of the most useful in existence for frequency analysis:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># What are the most common words in a file?</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> README.md <span class="kw">|</span> <span class="fu">tr</span> <span class="st">' '</span> <span class="st">'\n'</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'[:punct:]'</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span> <span class="kw">|</span> <span class="fu">head</span> <span class="at">-20</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co"># What are the most common HTTP status codes in a log?</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'{print $9}'</span> access.log <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="co"># What IP addresses appear most often?</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="st">'{print $1}'</span> access.log <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span> <span class="kw">|</span> <span class="fu">head</span> <span class="at">-10</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="tee-writing-and-passing-through" class="level2" data-number="6.6">
+<h2 data-number="6.6" class="anchored" data-anchor-id="tee-writing-and-passing-through"><span class="header-section-number">6.6</span> 4.6 <code>tee</code>: Writing and Passing Through</h2>
+<p><code>tee</code> reads from stdin and writes to both stdout <em>and</em> a file simultaneously. It’s named after the T-shaped plumbing fitting that splits a pipe into two directions.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> <span class="kw">|</span> <span class="fu">tee</span> output.txt           <span class="co"># write to file AND see on screen</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> <span class="kw">|</span> <span class="fu">tee</span> <span class="at">-a</span> output.txt        <span class="co"># append to file (don't overwrite)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The most common use case: you’re running a long build or test command and you want to see the output in real time <em>and</em> save it to a file for later:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> test <span class="kw">|</span> <span class="fu">tee</span> test-results.txt</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">tee</span> build.log</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>2&gt;&amp;1</code> redirects stderr to stdout, so both streams are captured.</p>
+<section id="splitting-a-pipeline" class="level3" data-number="6.6.1">
+<h3 data-number="6.6.1" class="anchored" data-anchor-id="splitting-a-pipeline"><span class="header-section-number">6.6.1</span> Splitting a pipeline</h3>
+<p><code>tee</code> can also feed output into multiple subsequent pipeline branches:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> access.log <span class="kw">|</span> <span class="fu">tee</span> <span class="op">&gt;(</span><span class="fu">grep</span> <span class="st">"ERROR"</span> <span class="op">&gt;</span> errors.log<span class="op">)</span> <span class="op">&gt;(</span><span class="fu">grep</span> <span class="st">"WARN"</span> <span class="op">&gt;</span> warnings.log<span class="op">)</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This reads the log once, writes ERROR lines to <code>errors.log</code>, WARN lines to <code>warnings.log</code>, and counts total lines — all in a single pass. This is a more advanced pattern, but it’s the right solution when you need to process a large file in multiple ways without reading it multiple times.</p>
+</section>
+</section>
+<section id="putting-it-together-real-editing-workflows" class="level2" data-number="6.7">
+<h2 data-number="6.7" class="anchored" data-anchor-id="putting-it-together-real-editing-workflows"><span class="header-section-number">6.7</span> 4.7 Putting It Together: Real Editing Workflows</h2>
+<section id="refactoring-a-module-name-across-a-codebase" class="level3" data-number="6.7.1">
+<h3 data-number="6.7.1" class="anchored" data-anchor-id="refactoring-a-module-name-across-a-codebase"><span class="header-section-number">6.7.1</span> Refactoring a module name across a codebase</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="va">OLD</span><span class="op">=</span><span class="st">"UserService"</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="va">NEW</span><span class="op">=</span><span class="st">"AccountService"</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview the changes first</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-r</span> <span class="st">"</span><span class="va">$OLD</span><span class="st">"</span> src/ <span class="at">--include</span><span class="op">=</span><span class="st">"*.ts"</span> <span class="at">-l</span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the rename</span></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> src/ <span class="at">-name</span> <span class="st">"*.ts"</span> <span class="kw">|</span> <span class="fu">xargs</span> sed <span class="at">-i</span> <span class="st">''</span> <span class="st">"s/\b</span><span class="va">$OLD</span><span class="st">\b/</span><span class="va">$NEW</span><span class="st">/g"</span></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify the old name is gone</span></span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-r</span> <span class="st">"</span><span class="va">$OLD</span><span class="st">"</span> src/ <span class="at">--include</span><span class="op">=</span><span class="st">"*.ts"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="cleaning-and-normalizing-a-csv-file" class="level3" data-number="6.7.2">
+<h3 data-number="6.7.2" class="anchored" data-anchor-id="cleaning-and-normalizing-a-csv-file"><span class="header-section-number">6.7.2</span> Cleaning and normalizing a CSV file</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> raw-data.csv <span class="dt">\</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'\r'</span> <span class="dt">\ </span>                         <span class="co"># remove Windows line endings</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sed</span> <span class="st">'1d'</span> <span class="dt">\ </span>                           <span class="co"># remove header row</span></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">awk</span> <span class="at">-F</span><span class="st">','</span> <span class="st">'$3 &gt; 0 {print $0}'</span> <span class="dt">\ </span>     <span class="co"># filter rows where column 3 &gt; 0</span></span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-t</span><span class="st">','</span> <span class="at">-k2</span> <span class="dt">\ </span>                     <span class="co"># sort by column 2</span></span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">tee</span> cleaned-data.csv <span class="dt">\ </span>              <span class="co"># save to file</span></span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span>                                <span class="co"># print row count</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="generating-a-report-from-log-data" class="level3" data-number="6.7.3">
+<h3 data-number="6.7.3" class="anchored" data-anchor-id="generating-a-report-from-log-data"><span class="header-section-number">6.7.3</span> Generating a report from log data</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"=== Error Report ==="</span> <span class="op">&gt;</span> report.txt</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"Generated: </span><span class="va">$(</span><span class="fu">date</span><span class="va">)</span><span class="st">"</span> <span class="op">&gt;&gt;</span> report.txt</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">""</span> <span class="op">&gt;&gt;</span> report.txt</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"Top 10 Error Messages:"</span> <span class="op">&gt;&gt;</span> report.txt</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="st">"ERROR"</span> app.log <span class="dt">\</span></span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">awk</span> <span class="st">'{$1=$2=$3=""; print $0}'</span> <span class="dt">\ </span>     <span class="co"># strip timestamp fields</span></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-rn</span> <span class="dt">\ </span>         <span class="co"># count and rank</span></span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">head</span> <span class="at">-10</span> <span class="op">&gt;&gt;</span> report.txt</span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">""</span> <span class="op">&gt;&gt;</span> report.txt</span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"Errors by Hour:"</span> <span class="op">&gt;&gt;</span> report.txt</span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="st">"ERROR"</span> app.log <span class="dt">\</span></span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">awk</span> <span class="st">'{print substr($2, 1, 2)}'</span> <span class="dt">\ </span>    <span class="co"># extract hour from timestamp</span></span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="op">&gt;&gt;</span> report.txt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="chapter-summary" class="level2" data-number="6.8">
+<h2 data-number="6.8" class="anchored" data-anchor-id="chapter-summary"><span class="header-section-number">6.8</span> Chapter Summary</h2>
+<p>The tools in this chapter — <code>sed</code>, <code>awk</code>, <code>tr</code>, <code>cut</code>, <code>sort</code>, <code>uniq</code>, and <code>tee</code> — form the core of the Unix text processing toolkit. Used individually, each one is useful. Used together in pipelines, they can replace entire scripts for data transformation, log analysis, and codebase-wide refactoring.</p>
+<p>The key habits to build:</p>
+<ul>
+<li>Always preview <code>sed</code> substitutions before using <code>-i</code> to edit in place</li>
+<li>Remember the macOS vs Linux difference for <code>sed -i</code> — it catches everyone eventually</li>
+<li>Use <code>sort | uniq -c | sort -rn</code> as your go-to frequency analysis pipeline</li>
+<li>Reach for <code>awk</code> when you need to work with columns or do arithmetic; use <code>cut</code> for simple column extraction</li>
+<li>Use <code>tee</code> whenever you want to both see and save the output of a long-running command</li>
+<li>Build transformations incrementally in a pipeline — add one tool at a time and check the output before adding the next</li>
+</ul>
+</section>
+<section id="exercises" class="level2" data-number="6.9">
+<h2 data-number="6.9" class="anchored" data-anchor-id="exercises"><span class="header-section-number">6.9</span> Exercises</h2>
+<p><strong>1.</strong> Use <code>sed</code> to rename a function across all files of a given type in a project. Preview the changes first, then apply them. Verify the old name no longer appears.</p>
+<p><strong>2.</strong> Take an Apache or Nginx access log (or generate a sample one) and use <code>awk</code> to produce a frequency table of HTTP status codes, sorted from most to least common.</p>
+<p><strong>3.</strong> Use <code>tr</code>, <code>sort</code>, and <code>uniq -c</code> to find the ten most common words in a text file, excluding punctuation.</p>
+<p><strong>4.</strong> Build a pipeline that reads a CSV file, filters rows based on a numeric condition in one column, sorts by another column, and writes the result to a new file using <code>tee</code>.</p>
+<p><strong>5.</strong> Use <code>sed -n</code> with a line range to extract a specific function from a source file — just the lines from the function definition to its closing brace.</p>
+</section>
+<section id="quick-reference" class="level2" data-number="6.10">
+<h2 data-number="6.10" class="anchored" data-anchor-id="quick-reference"><span class="header-section-number">6.10</span> Quick Reference</h2>
+<div class="line-block">Command | What it does |</div>
+<p>||| | <code>sed 's/old/new/g' file</code> | Replace all occurrences in output | | <code>sed -i '' 's/old/new/g' file</code> | Replace in place (macOS) | | <code>sed -i 's/old/new/g' file</code> | Replace in place (Linux) | | <code>sed '/pattern/d' file</code> | Delete lines matching pattern | | <code>sed -n '10,20p' file</code> | Print lines 10–20 only | | <code>awk '{print $1, $3}' file</code> | Print fields 1 and 3 | | <code>awk -F',' '{print $2}' file</code> | Use comma as field separator | | <code>awk '$3 &gt; 100 {print}' file</code> | Print lines where field 3 &gt; 100 | | <code>awk '{sum+=$3} END{print sum}' file</code> | Sum a column | | <code>tr 'a-z' 'A-Z'</code> | Convert to uppercase | | <code>tr -d '\r'</code> | Remove Windows carriage returns | | <code>tr -s ' '</code> | Squeeze multiple spaces to one | | <code>cut -d',' -f1,3 file</code> | Extract CSV columns 1 and 3 | | <code>sort -t',' -k3 -rn file</code> | Sort CSV by column 3, descending | | <code>sort \| uniq -c \| sort -rn</code> | Frequency count pipeline | | <code>command \| tee file.txt</code> | Write to file and stdout simultaneously |</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const value = Number(el.textContent.trim());
+    if (!Number.isNaN(value) && value > 1) {
+      el.textContent = String(value - 1);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.chapter-number').forEach(function (el) {
+      adjustNumber(el);
+    });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_3.html" class="pagination-link" aria-label="Reading and Inspecting Files Without an Editor">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Reading and Inspecting Files Without an Editor</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_5.html" class="pagination-link" aria-label="Git Workflows from the Command Line">
+        <span class="nav-page-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Git Workflows from the Command Line</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
