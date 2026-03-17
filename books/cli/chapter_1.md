@@ -7,7 +7,7 @@ Most developers handle this by opening the project in their IDE and clicking aro
 This chapter is about building that orientation instinct at the command line — getting from "I have no idea what this project looks like" to "I understand its structure" as fast as possible.
 
 
-## 1.1 Getting the Lay of the Land with `tree`
+## Getting the Lay of the Land with `tree`
 
 The first thing you want when encountering a new codebase is a structural overview. The `ls` command will show you the contents of the current directory, but it's `tree` that gives you the full picture at a glance.
 
@@ -53,7 +53,7 @@ If `tree` isn't installed on your system, you can get it with `brew install tree
 
 
 
-## 1.2 Targeted File Listing with `ls`
+## Targeted File Listing with `ls`
 
 `tree` gives you the overview. `ls` gives you the details of a specific location — and with the right flags, it tells you quite a lot.
 
@@ -90,7 +90,7 @@ ls -lah src/services/
 
 
 
-## 1.3 Finding Files with `find`
+## Finding Files with `find`
 
 `tree` and `ls` are great for browsing. But when you know *what* you're looking for and just need to locate it, `find` is the right tool.
 
@@ -173,7 +173,7 @@ We'll return to `find` and `-exec` in later chapters when we cover batch operati
 
 
 
-## 1.4 Understanding Files Before Opening Them
+## Understanding Files Before Opening Them
 
 Before you open a file, two tools can tell you a lot about what you're dealing with.
 
@@ -223,7 +223,7 @@ This prints the name and last-modified time for every TypeScript file in `src/` 
 
 
 
-## 1.5 Putting It Together: A Real Workflow
+## Putting It Together: A Real Workflow
 
 Here's how these tools work together in practice. Imagine you've just been asked to investigate a bug in an unfamiliar service. Your first five minutes at the terminal might look like this:
 
@@ -248,7 +248,7 @@ In under two minutes, without opening a single file, you have a clear picture of
 
 
 
-## 1.6 Modern Alternatives Worth Knowing
+## Modern Alternatives Worth Knowing
 
 The tools covered in this chapter are available on virtually every Unix system. But a few modern alternatives are worth knowing about, particularly if you're setting up a new development machine.
 

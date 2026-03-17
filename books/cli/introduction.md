@@ -2,7 +2,7 @@
 chapter-number: 1
 ---
 
-## Introduction: The Terminal Never Got Old
+# Introduction: The Terminal Never Got Old
 
 Every few years, a new tool promises to change how developers work. A new IDE with smarter autocomplete. A GUI that makes Git "finally make sense." A visual debugger that eliminates the need to ever touch a terminal again. Developers adopt them eagerly, and for good reason — good tools matter.
 
@@ -11,7 +11,7 @@ And yet, the terminal remains. Decades after its invention, the Unix command lin
 This book is about those tools — and how to use them to write better software, faster.
 
 
-### Why the Terminal Still Wins
+## Why the Terminal Still Wins
 
 The command line has a reputation for being cryptic, unforgiving, and steep to learn. That reputation isn't entirely undeserved. But it obscures something important: once you're fluent, the terminal is *faster* and *more expressive* than almost any graphical alternative.
 
@@ -35,7 +35,7 @@ That composability is the terminal's real superpower, and it's what this book is
 
 
 
-### A Philosophy Built to Last
+## A Philosophy Built to Last
 
 Unix was designed in the late 1960s around a set of principles that have aged remarkably well. The most important of these, for our purposes, is this: **each tool should do one thing, and do it well.**
 
@@ -47,7 +47,7 @@ The Unix toolkit is the opposite. Transparent, composable, and endlessly hackabl
 
 
 
-### What This Book Will Teach You
+## What This Book Will Teach You
 
 This isn't a reference manual. You don't need to memorize every flag for every command — that's what `man` pages are for. What this book aims to give you is *fluency*: an intuition for which tool to reach for, how to compose tools together, and how to think in the Unix way when you hit a problem.
 
@@ -57,7 +57,7 @@ Along the way, every concept will be grounded in real development scenarios. Not
 
 
 
-### How This Book Is Organized
+## How This Book Is Organized
 
 Each chapter focuses on a specific category of work — searching, editing, automation, data wrangling — and follows the same structure. We start with the *why*: what problem does this class of tools solve, and why does solving it at the command line beat the alternatives? Then we move to the *how*: hands-on examples you can run immediately, building from simple usage to more powerful combinations. Each chapter closes with a set of **exercises** and a **cheat sheet** of the most useful commands covered.
 
@@ -67,7 +67,7 @@ All examples in this book were tested on macOS and Ubuntu. Where behavior differ
 
 
 
-### Who This Book Is For
+## Who This Book Is For
 
 If you're a developer who mostly lives in an IDE and only opens a terminal when you absolutely have to, this book will change how you work. You'll find that many tasks you currently consider tedious can be solved in seconds with the right command.
 
@@ -79,7 +79,7 @@ The only real prerequisite is that you're writing software and you want to get b
 
 
 
-### A Note on Modern Tools
+## A Note on Modern Tools
 
 The Unix command line has also evolved. Alongside the classics — `grep`, `sed`, `awk`, `curl` — a new generation of tools has emerged that are faster, friendlier, and better suited to modern development workflows. `ripgrep` is faster than `grep` and respects your `.gitignore` by default. `jq` makes JSON — the lingua franca of modern APIs — a first-class citizen on the command line. `fzf` brings fuzzy search to everything. `bat` makes reading files in the terminal actually pleasant.
 
@@ -87,9 +87,9 @@ Where relevant, this book will introduce these modern tools alongside their clas
 
 
 
-### A Word Before We Begin
+## A Word Before We Begin
 
-Writing this book came from a simple frustration: watching talented developers spend ten minutes manually hunting through files for something a single `rg` command would have found in two seconds. Or copy-pasting JSON into an online formatter when `jq` was already installed on their machine. Or avoiding the terminal entirely because no one ever showed them that it doesn't have to be hostile.
+Writing this book came from a simple frustration: watching talented developers spend ten minutes manually hunting through files for something a single `rg` command would have found in two seconds. Or copy-pasting JSON into an online formatter when `jq` was already installed on their machine. Or avoiding the terminal entirely because no one ever showed them that it's have to be hostile.
 
 The terminal has a learning curve. This book is designed to make that curve as short and as rewarding as possible. Every hour you invest in CLI fluency pays back many times over — not just in raw speed, but in a deeper understanding of how your software and your system actually work.
 

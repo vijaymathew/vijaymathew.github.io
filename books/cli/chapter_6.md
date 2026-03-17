@@ -7,7 +7,7 @@ Most developers handle this data through GUI tools — Postman for API testing, 
 This chapter covers the terminal toolkit for working with data and APIs: `curl` for HTTP, `jq` for JSON, and a collection of tools for CSV, YAML, and other formats you'll encounter in the wild. By the end of it, you'll be able to explore, transform, and manipulate data from the command line as fluently as you manipulate code.
 
 
-## 6.1 `curl`: The Universal HTTP Client
+## `curl`: The Universal HTTP Client
 
 `curl` is the command-line tool for making HTTP requests. It supports every HTTP method, every authentication scheme, file uploads, cookies, redirects, and dozens of other features. It's available on virtually every system, which means a `curl` command you write today will work on any server you SSH into for the foreseeable future.
 
@@ -131,7 +131,7 @@ curl -K curl.config https://api.example.com/users
 
 
 
-## 6.2 `jq`: JSON as a First-Class Citizen
+## `jq`: JSON as a First-Class Citizen
 
 We introduced `jq` briefly in Chapter 2. Here we go deep. `jq` is a complete query and transformation language for JSON — think of it as `sed` and `awk` combined, but designed specifically for structured data.
 
@@ -282,7 +282,7 @@ This pattern — building JSON payloads with `jq -n` — is useful in deployment
 
 
 
-## 6.3 Working with CSV Data
+## Working with CSV Data
 
 JSON is the format of APIs. CSV is the format of everything else — spreadsheet exports, database dumps, analytics data, billing records. The terminal handles CSV well, but with some caveats.
 
@@ -365,7 +365,7 @@ The ability to convert between formats unlocks cross-tool processing: convert CS
 
 
 
-## 6.4 Working with YAML
+## Working with YAML
 
 YAML appears constantly in modern development — Kubernetes manifests, Docker Compose files, CI/CD configuration, Ansible playbooks, application config. Unlike JSON, it's designed to be human-readable, which also makes it harder to process programmatically.
 
@@ -425,7 +425,7 @@ Being able to convert between YAML and JSON means you can use `jq`'s richer quer
 
 
 
-## 6.5 Working with Other Formats
+## Working with Other Formats
 
 ### XML with `xmllint`
 
@@ -478,7 +478,7 @@ diff <(cat .env.development | sort) <(cat .env.production | sort)
 
 
 
-## 6.6 Building API Workflows
+## Building API Workflows
 
 Individual `curl` and `jq` commands are useful. Combined into workflows, they become small but complete data processing systems.
 
@@ -605,7 +605,7 @@ done
 
 
 
-## 6.7 `httpie`: A More Ergonomic Alternative
+## `httpie`: A More Ergonomic Alternative
 
 `httpie` (the `http` command) is a modern alternative to `curl` with a more readable syntax, automatic JSON formatting, and sensible defaults for API development.
 
@@ -633,7 +633,7 @@ The `=` operator sets JSON string fields, `:=` sets non-string JSON values, `==`
 
 
 
-## 6.8 Putting It Together: A Complete Data Pipeline
+## Putting It Together: A Complete Data Pipeline
 
 Here's a realistic end-to-end pipeline: fetch sales data from an API, enrich it with user data from a CSV, generate a summary report, and post the results to a Slack webhook.
 

@@ -7,7 +7,7 @@ The terminal is the native interface for remote machines. There is no GUI, no ID
 This chapter covers SSH from the ground up: configuration that makes connecting fast and painless, transferring files reliably, tunneling ports for local access to remote services, multiplexing connections for speed, and using `tmux` over SSH so that your work survives disconnections. By the end of it, working on a remote machine will feel almost as fluid as working locally.
 
 
-## 11.1 SSH Basics and Key Authentication
+## SSH Basics and Key Authentication
 
 SSH (Secure Shell) is the protocol for securely connecting to remote machines. The basic command:
 
@@ -63,7 +63,7 @@ Host *
 
 
 
-## 11.2 The SSH Config File
+## The SSH Config File
 
 Typing `ssh -i ~/.ssh/id_ed25519 -p 2222 -l alice server.example.com` every time you connect to a server is tedious and error-prone. The SSH config file — `~/.ssh/config` — lets you define aliases and settings for every host you connect to regularly.
 
@@ -147,7 +147,7 @@ LocalForward 5432 localhost:5432
 
 
 
-## 11.3 Transferring Files
+## Transferring Files
 
 ### `scp`: simple file copying
 
@@ -238,7 +238,7 @@ rsync -avz --delete myserver:~/project/ ./backups/project/
 
 
 
-## 11.4 SSH Multiplexing: Eliminating Connection Overhead
+## SSH Multiplexing: Eliminating Connection Overhead
 
 Every time you run an SSH command — `ssh`, `scp`, `rsync`, `git push` over SSH — it establishes a new TCP connection, performs the cryptographic handshake, and authenticates. On a fast local network this takes a fraction of a second. On a remote server with higher latency, it can take 1–3 seconds. Multiply that by dozens of operations and it adds up.
 
@@ -292,7 +292,7 @@ ssh -O exit myserver
 
 
 
-## 11.5 Port Forwarding and Tunneling
+## Port Forwarding and Tunneling
 
 SSH tunneling allows you to securely access services on a remote machine (or network) as if they were running locally. This is one of SSH's most powerful and underused features.
 
@@ -365,7 +365,7 @@ Configure your browser or system to use `localhost:1080` as a SOCKS5 proxy, and 
 
 
 
-## 11.6 `tmux` Over SSH: Surviving Disconnections
+## `tmux` Over SSH: Surviving Disconnections
 
 One of the most painful experiences in remote work is having an SSH connection drop mid-operation — a long-running database migration, a deployment, a compilation. If the process was running in the foreground of your SSH session, it's now dead. The connection drop sent a SIGHUP to the shell, which killed everything running in it.
 
@@ -437,7 +437,7 @@ disown $!
 
 
 
-## 11.7 Working Efficiently on Remote Machines
+## Working Efficiently on Remote Machines
 
 ### Copying your configuration
 
@@ -516,7 +516,7 @@ The heredoc approach (`<< 'EOF'`) is particularly clean for multi-step remote op
 
 
 
-## 11.8 Inspecting and Debugging Remote Systems
+## Inspecting and Debugging Remote Systems
 
 Once connected, all the tools from previous chapters work exactly as they do locally. But a few tools and patterns are especially relevant on remote servers.
 
@@ -582,7 +582,7 @@ curl -v https://example.com       # verbose HTTP request for debugging
 
 
 
-## 11.9 A Practical Remote Workflow
+## A Practical Remote Workflow
 
 Here's how a complete remote debugging session might look, using the tools from this chapter and earlier ones:
 
