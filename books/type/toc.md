@@ -1,10 +1,10 @@
-# The CLI Typographer
+# The Well-Set Typographer
 ## Typography, Typesetting, and Document Production from the Command Line
 
 
 ## Table of Contents
 
-
+### Introduction: Why This Matters, and Why Here
 
 ### Part I — Letters, Ink, and Pixels: A Foundation
 
