@@ -281,7 +281,7 @@ Slide breaks are created with `##` headings (level 2). The presentation body use
 
 ## A demonstration {background-color="#2c3e50"}
 
-```{python}
+```{{python}}
 #| echo: true
 import pandoc
 # Live code in a slide
@@ -299,12 +299,15 @@ Supporting content in the narrower column.
 ::::
 ```
 
-The `.incremental` class on a list makes items appear one at a time in the HTML presentation. The `{background-color}` attribute sets the slide's background. The `{.smaller}` class reduces font size on a specific slide.
+The `.incremental` class on a list makes items appear one at a time in the HTML presentation. 
+The `{background-color}` attribute sets the slide's background. The `{.smaller}` class reduces 
+font size on a specific slide.
 
 
 ## Callouts and special blocks
 
-Quarto provides five types of callout blocks for emphasising content — note, tip, warning, caution, and important — which render appropriately across formats:
+Quarto provides five types of callout blocks for emphasising content — note, tip, warning, caution, 
+and important — which render appropriately across formats:
 
 ```markdown
 ::: {.callout-note}
@@ -352,7 +355,8 @@ python3 -c "print(sum(range(100)))"
 
 ## Themes and customisation
 
-Quarto's HTML output uses Bootstrap 5 themes. The `theme` key in `format: html` accepts either a built-in theme name or a list combining a base theme with a custom SCSS file:
+Quarto's HTML output uses Bootstrap 5 themes. The `theme` key in `format: html` accepts either 
+a built-in theme name or a list combining a base theme with a custom SCSS file:
 
 ```yaml
 format:

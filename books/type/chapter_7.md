@@ -174,7 +174,8 @@ The `--measure` variable — `66ch`, approximately 66 characters — enforces th
 For Google Fonts, the `@import` URL includes font-display control:
 
 ```css
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Fira+Sans:wght@400;500&family=JetBrains+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,
+wght@0,400;0,500;1,400&family=Fira+Sans:wght@400;500&family=JetBrains+Mono&display=swap');
 ```
 
 The `display=swap` parameter in the Google Fonts URL applies `font-display: swap` to all loaded faces.
