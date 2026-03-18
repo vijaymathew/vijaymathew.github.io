@@ -1,4 +1,4 @@
-# Chapter 5: Markdown for Document Authors
+# Markdown for Document Authors
 
 Markdown is, at first glance, a formatting shorthand for the web — a way to write `**bold**` and have it render as **bold**, to write `# Heading` and have it become an `<h1>`. That characterisation is accurate but limiting. In the hands of the CLI typographer, Markdown is something more: a source format for serious documents, one that can be compiled to PDF, HTML, EPUB, and DOCX from a single file, that integrates with bibliography managers, supports footnotes and cross-references and tables, and scales to book-length projects.
 

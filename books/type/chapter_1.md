@@ -1,4 +1,4 @@
-# Chapter 1: A Brief History of Typesetting
+# A Brief History of Typesetting
 
 Before there were fonts, there were hands. For most of human history, if you wanted a copy of a document, you found someone with good handwriting and sufficient patience and you waited. The result was beautiful, often — medieval illuminated manuscripts rank among the finest visual artifacts ever produced — but it was also slow, expensive, and error-prone. Every copy introduced new mistakes. Every scriptorium was a bottleneck. Knowledge moved at the speed of a quill.
 

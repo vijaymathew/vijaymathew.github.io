@@ -1,4 +1,4 @@
-# Chapter 2: Typography Fundamentals
+# Typography Fundamentals
 
 Typography is older than printing. The word comes from the Greek *typos* — impression, mark — and *graphia* — writing. Long before Gutenberg cast his first piece of type, scribes were making deliberate decisions about letterforms, spacing, and the arrangement of text on a page. What printing industrialized, and what the computer later digitized, was a body of knowledge and practice that had been accumulating for centuries.
 

@@ -1,4 +1,4 @@
-# Chapter 4: Font Management from the CLI
+# Font Management from the CLI
 
 Fonts are software. They are files, stored in directories, loaded by programs, updated by package managers, and subject to licenses. Most operating systems provide graphical tools for managing them — font books, preview panels, installation wizards — but every one of those operations has a command-line equivalent, and for the CLI typographer, the command-line path is faster, scriptable, and often more informative.
 
