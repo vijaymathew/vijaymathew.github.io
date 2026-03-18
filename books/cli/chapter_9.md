@@ -669,7 +669,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `ps aux` | Show all running processes |
 | `ps aux \| grep node` | Find processes by name |
 | `ps aux --sort=-%cpu \| head` | Top processes by CPU |

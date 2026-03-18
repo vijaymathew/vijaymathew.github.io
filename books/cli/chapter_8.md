@@ -735,7 +735,7 @@ The key habits to build:
 
 ### Readline shortcuts
 | Shortcut | What it does |
-|||
+| --- | --- |
 | `Ctrl+A / Ctrl+E` | Beginning / end of line |
 | `Alt+B / Alt+F` | Back / forward one word |
 | `Ctrl+W` | Delete word before cursor |
@@ -749,7 +749,7 @@ The key habits to build:
 
 ### tmux shortcuts (with Ctrl+A prefix)
 | Shortcut | What it does |
-|||
+| --- | --- |
 | `Ctrl+A c` | New window |
 | `Ctrl+A \|` | Split vertically |
 | `Ctrl+A -` | Split horizontally |

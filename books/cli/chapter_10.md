@@ -598,7 +598,7 @@ The key habits to build:
 
 ### Pipes and redirection
 | Operator | What it does |
-|||
+| --- | --- |
 | `cmd1 \| cmd2` | Pipe stdout of cmd1 to stdin of cmd2 |
 | `cmd > file` | Redirect stdout to file (overwrite) |
 | `cmd >> file` | Redirect stdout to file (append) |
@@ -613,7 +613,7 @@ The key habits to build:
 
 ### Composition tools
 | Command | What it does |
-|||
+| --- | --- |
 | `cmd \| tee file` | Write to file and pass through to stdout |
 | `cmd \| tee >(cmd2)` | Split stream to another pipeline |
 | `diff <(cmd1) <(cmd2)` | Diff output of two commands |
@@ -625,7 +625,7 @@ The key habits to build:
 
 ### Error handling
 | Pattern | What it does |
-|||
+| --- | --- |
 | `set -o pipefail` | Fail pipeline if any command fails |
 | `echo "${PIPESTATUS[@]}"` | Exit codes of last pipeline's commands |
 | `cmd 2>&1 \| grep "ERROR"` | Include stderr in pipe |

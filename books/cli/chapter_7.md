@@ -920,7 +920,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command / Pattern | What it does |
-|||
+| --- | --- |
 | `#!/usr/bin/env bash` | Portable shebang line |
 | `set -euo pipefail` | Exit on error, undefined vars, pipe failures |
 | `${VAR:-default}` | Variable with fallback default |

@@ -471,7 +471,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `sed 's/old/new/g' file` | Replace all occurrences in output |
 | `sed -i '' 's/old/new/g' file` | Replace in place (macOS) |
 | `sed -i 's/old/new/g' file` | Replace in place (Linux) |

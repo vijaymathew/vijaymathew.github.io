@@ -58,7 +58,7 @@ less logs/application.log
 Once inside `less`, navigation works like this:
 
 | Key | Action |
-|||
+| --- | --- |
 | `Space` or `f` | Page down |
 | `b` | Page up |
 | `G` | Jump to end of file |
@@ -422,7 +422,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `cat file` | Print file contents to stdout |
 | `cat -n file` | Print with line numbers |
 | `cat -A file` | Show non-printing characters |
