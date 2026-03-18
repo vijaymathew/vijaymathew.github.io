@@ -66,7 +66,7 @@ find . -name "*.ts" -not -path "*/node_modules/*" \
 
 This renames `getUserById` to `fetchUserById` in every TypeScript file in the project. A task that would take ten minutes of IDE find-and-replace across multiple files takes one command.
 
-Be careful with names that appear as substrings of other names — `sed` doesn't understand code, only text. The pattern `getUserById` would also match inside `getAdminUserById` if that existed. Use word boundaries to be safe:
+Be careful with names that appear as substrings of other names — `sed` doesn't understand code, only text. The pattern `getUserById` would also match inside `getUserByIdAndRole` if that existed. Use word boundaries to be safe:
 
 ```bash
 # macOS (uses \b for word boundary in extended regex)
