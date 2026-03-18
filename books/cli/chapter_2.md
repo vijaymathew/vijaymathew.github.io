@@ -383,7 +383,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `rg "pattern"` | Search current directory recursively (respects .gitignore) |
 | `rg "pattern" --type ts` | Search only TypeScript files |
 | `rg "pattern" -l` | List matching filenames only |

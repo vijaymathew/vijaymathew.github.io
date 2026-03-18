@@ -586,7 +586,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `git status -s` | Compact status view |
 | `git log --oneline --graph --all --decorate` | Visual branch history |
 | `git log --oneline src/file.ts` | History of a specific file |

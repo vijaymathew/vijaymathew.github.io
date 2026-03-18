@@ -290,7 +290,7 @@ The key habits to build:
 
 **1.** Clone any open source project you haven't worked with before. Use `tree`, `ls`, and `find` to answer these questions without opening any file in an editor: What language is it written in? Where do the tests live? Are there any hidden configuration files in the root?
 
-**2.** Find all files in a project that were modified in the last 3 days, excluding `node_modules` and `.git`.
+**2.** Find all files in a project that were modified in the last 3 days, excluding `node_modules` (it it's a node project) and `.git`.
 
 **3.** Use `find` with `-exec` to list the line count (using `wc -l`) of every `.js` file in a project.
 
@@ -301,7 +301,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `tree -L 2 -I "node_modules\|dist"` | Project structure, 2 levels deep, ignoring noise |
 | `ls -laht` | Directory listing sorted by modification time |
 | `find . -name "*.ts"` | Find all TypeScript files recursively |

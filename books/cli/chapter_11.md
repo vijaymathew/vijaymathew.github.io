@@ -667,7 +667,7 @@ The key habits to build:
 
 ### SSH basics
 | Command | What it does |
-|||
+| --- | --- |
 | `ssh-keygen -t ed25519` | Generate an ed25519 key pair |
 | `ssh-copy-id user@host` | Copy public key to remote server |
 | `ssh-add ~/.ssh/id_ed25519` | Add key to ssh-agent |
@@ -677,7 +677,7 @@ The key habits to build:
 
 ### File transfer
 | Command | What it does |
-|||
+| --- | --- |
 | `scp file.txt myserver:~/` | Copy file to remote home directory |
 | `scp myserver:~/file.txt ./` | Copy file from remote to local |
 | `rsync -avz src/ myserver:~/dest/` | Sync directory to remote |
@@ -687,7 +687,7 @@ The key habits to build:
 
 ### Port forwarding
 | Command | What it does |
-|||
+| --- | --- |
 | `ssh -L 5432:localhost:5432 myserver` | Forward local 5432 to remote 5432 |
 | `ssh -fNL 5432:localhost:5432 myserver` | Same, backgrounded |
 | `ssh -R 8080:localhost:3000 myserver` | Expose local 3000 as remote 8080 |
@@ -695,13 +695,13 @@ The key habits to build:
 
 ### Multiplexing
 | Command | What it does |
-|||
+| --- | --- |
 | `ssh -O check myserver` | Check if master connection exists |
 | `ssh -O stop myserver` | Stop master connection |
 
 ### Remote diagnostics
 | Command | What it does |
-|||
+| --- | --- |
 | `df -h` | Disk space usage |
 | `free -h` | Memory usage |
 | `uptime` | Load averages |

@@ -731,7 +731,7 @@ The key habits to build:
 ## Quick Reference
 
 | Command | What it does |
-|||
+| --- | --- |
 | `curl -s URL` | GET request, silent mode |
 | `curl -X POST -d @file.json URL` | POST with JSON body from file |
 | `curl -H "Authorization: Bearer token" URL` | Request with auth header |
