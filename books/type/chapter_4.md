@@ -39,7 +39,7 @@ The `-f` flag forces a rebuild even if fontconfig thinks the cache is current; `
 fc-list
 ```
 
-```
+```sh
 /usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf: DejaVu Serif:style=Bold
 /usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf: Poppins:style=Bold
 /usr/share/fonts/truetype/freefont/FreeSansOblique.ttf: FreeSans:style=Oblique

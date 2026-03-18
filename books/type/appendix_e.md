@@ -73,7 +73,8 @@ A clear and elegant account of the Unix philosophy and its tools. Still valuable
 **Cederholm, D., & Ethan Marcotte. *CSS Typography*. A Book Apart.**  
 A concise guide to typographic decisions in CSS. Part of the A Book Apart series on web design and development.
 
-**Mozilla Developer Network. *CSS Fonts*. `developer.mozilla.org/docs/Web/CSS/CSS_fonts`.**  
+**Mozilla Developer Network. *CSS Fonts*. 
+`developer.mozilla.org/docs/Web/CSS/CSS_fonts`.**  
 The complete reference for CSS font properties, including `font-feature-settings`, `font-variation-settings`, and the full `@font-face` syntax.
 
 **W3C. *CSS Fonts Module Level 4*. `w3.org/TR/css-fonts`.**  
@@ -120,7 +121,8 @@ A well-written set of guides on type terminology, pairing, and best practices. P
 
 Bringhurst, R. (2012). *The Elements of Typographic Style* (4th ed.). Hartley & Marks.
 
-Duffner, G., & Pardo, O. EB Garamond. *GitHub*. `github.com/octaviopardo/EBGaramond`
+Duffner, G., & Pardo, O. EB Garamond. 
+*GitHub*. `github.com/octaviopardo/EBGaramond`
 
 Gruber, J. (2004). Markdown. `daringfireball.net/projects/markdown`
 
