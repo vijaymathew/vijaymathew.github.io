@@ -677,7 +677,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>No practical language lives entirely by itself. Sooner or later a program needs a file system, a library, a graphical surface, or an external service. Nex is designed for that reality. It can import host-platform symbols and it can be translated to Java or JavaScript.</p>
+<p>No practical language lives entirely by itself. Sooner or later a program needs a file system, a library, a host API, or an external service. Nex is designed for that reality. It can import host-platform symbols and it can target the JVM or JavaScript.</p>
 <p>The important question is not whether interop exists, but where it should live in the design. This chapter is about that boundary.</p>
 <section id="importing-platform-symbols" class="level2" data-number="25.1">
 <h2 data-number="25.1" class="anchored" data-anchor-id="importing-platform-symbols"><span class="header-section-number">25.1</span> Importing Platform Symbols</h2>
@@ -686,7 +686,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code>import java.util.Scanner</code></pre>
 <p>For JavaScript modules:</p>
 <pre><code>import Math from './math.js'</code></pre>
-<p>These imports are primarily meaningful when translating Nex programs to the target platform. They tell the generated Java or JavaScript code which host symbols it should import.</p>
+<p>These imports are primarily meaningful when compiling or translating Nex programs to the target platform. They tell the JVM compiler or JavaScript generator which host symbols the program expects to use.</p>
 </section>
 <section id="import-versus-intern" class="level2" data-number="25.2">
 <h2 data-number="25.2" class="anchored" data-anchor-id="import-versus-intern"><span class="header-section-number">25.2</span> <code>import</code> Versus <code>intern</code></h2>
@@ -718,26 +718,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="translation-targets" class="level2" data-number="25.4">
 <h2 data-number="25.4" class="anchored" data-anchor-id="translation-targets"><span class="header-section-number">25.4</span> Translation Targets</h2>
-<p>The repository supports translation from Nex to Java and JavaScript.</p>
+<p>The repository supports JVM bytecode compilation and JavaScript translation.</p>
 <p>From Clojure:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">require</span> '[nex.generator.java <span class="at">:as</span> java])</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">require</span> '[nex.compiler.jvm.file <span class="at">:as</span> jvm])</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>(<span class="kw">require</span> '[nex.generator.javascript <span class="at">:as</span> js])</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>(<span class="kw">println</span> (java/translate nex-code))</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>(<span class="kw">println</span> (js/translate nex-code))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>(<span class="kw">println</span> (js/translate nex-code))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>And for files:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>(java/translate-file <span class="st">"input.nex"</span> <span class="st">"Output.java"</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>(jvm/compile-jar <span class="st">"input.nex"</span> <span class="st">"build/"</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>(js/translate-file <span class="st">"input.nex"</span> <span class="st">"output.js"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This matters for design because the same Nex source may be aimed at different host environments. A routine that depends only on arrays, maps, strings, and user-defined classes is much easier to move, test, and trust than one tangled with host APIs at every step.</p>
 </section>
 <section id="development-builds-and-production-builds" class="level2" data-number="25.5">
 <h2 data-number="25.5" class="anchored" data-anchor-id="development-builds-and-production-builds"><span class="header-section-number">25.5</span> Development Builds and Production Builds</h2>
-<p>Contracts are included in normal translated output. For production translation, the generators support <code>skip-contracts</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(java/translate nex-code {<span class="at">:skip-contracts</span> <span class="va">true</span>})</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>(js/translate nex-code {<span class="at">:skip-contracts</span> <span class="va">true</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Likewise for files:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>(java/translate-file <span class="st">"input.nex"</span> <span class="st">"Output.java"</span> {<span class="at">:skip-contracts</span> <span class="va">true</span>})</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>(js/translate-file <span class="st">"input.nex"</span> <span class="st">"output.js"</span> {<span class="at">:skip-contracts</span> <span class="va">true</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Contracts are included in normal translated output. For production translation, the JavaScript generator supports <code>skip-contracts</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(js/translate nex-code {<span class="at">:skip-contracts</span> <span class="va">true</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Likewise for JavaScript file translation:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>(js/translate-file <span class="st">"input.nex"</span> <span class="st">"output.js"</span> {<span class="at">:skip-contracts</span> <span class="va">true</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This is an important design point. Contracts remain in the source as specification and documentation, but the runtime checking overhead can be removed for production output when desired.</p>
 <p>Use this option deliberately. Development builds should usually keep contracts enabled.</p>
 </section>
@@ -792,7 +789,7 @@ end</code></pre>
 <ul>
 <li><code>import</code> brings in host-platform symbols; <code>intern</code> brings in Nex classes</li>
 <li>Keep interop code near system boundaries rather than scattering it through core logic</li>
-<li>Nex can be translated to Java and JavaScript</li>
+<li>Nex can target JVM bytecode and JavaScript</li>
 <li>Production translation can omit runtime contract checks with <code>skip-contracts</code></li>
 <li>Contracts are especially valuable around interop boundaries</li>
 <li>Portable core logic is easier to test, reason about, and reuse</li>
