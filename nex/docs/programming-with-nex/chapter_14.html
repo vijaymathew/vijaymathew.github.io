@@ -611,7 +611,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#overriding-methods" id="toc-overriding-methods" class="nav-link" data-scroll-target="#overriding-methods"><span class="header-section-number">15.3</span> Overriding Methods</a></li>
   <li><a href="#polymorphism" id="toc-polymorphism" class="nav-link" data-scroll-target="#polymorphism"><span class="header-section-number">15.4</span> Polymorphism</a></li>
   <li><a href="#when-inheritance-is-the-right-tool" id="toc-when-inheritance-is-the-right-tool" class="nav-link" data-scroll-target="#when-inheritance-is-the-right-tool"><span class="header-section-number">15.5</span> When Inheritance Is the Right Tool</a></li>
-  <li><a href="#abstract-methods" id="toc-abstract-methods" class="nav-link" data-scroll-target="#abstract-methods"><span class="header-section-number">15.6</span> Abstract Methods</a></li>
+  <li><a href="#feature-override" id="toc-feature-override" class="nav-link" data-scroll-target="#feature-override"><span class="header-section-number">15.6</span> Feature Override</a></li>
   <li><a href="#inheritance-and-contracts" id="toc-inheritance-and-contracts" class="nav-link" data-scroll-target="#inheritance-and-contracts"><span class="header-section-number">15.7</span> Inheritance and Contracts</a>
   <ul class="collapse">
   <li><a href="#precondition-inheritance" id="toc-precondition-inheritance" class="nav-link" data-scroll-target="#precondition-inheritance"><span class="header-section-number">15.7.1</span> Precondition Inheritance</a></li>
@@ -762,10 +762,10 @@ A green circle with radius 2.0</code></pre>
 <p><strong>You only want to reuse code.</strong> If the goal is to avoid duplicating a few methods, <em>composition</em> — giving a class a field of another class type and delegating to its methods — is usually better.</p>
 <p><strong>The subclass needs to override most of what it inherits.</strong> A subclass that overrides everything is not a specialisation — it is a different class wearing a misleading name.</p>
 </section>
-<section id="abstract-methods" class="level2" data-number="15.6">
-<h2 data-number="15.6" class="anchored" data-anchor-id="abstract-methods"><span class="header-section-number">15.6</span> Abstract Methods</h2>
-<p>Sometimes a superclass wants to declare the shape of an operation without providing an implementation, because there is no sensible default. Every shape has an area, but there is no general formula for “the area of a shape.”</p>
-<p>Nex allows declaring a method as <code>abstract</code>:</p>
+<section id="feature-override" class="level2" data-number="15.6">
+<h2 data-number="15.6" class="anchored" data-anchor-id="feature-override"><span class="header-section-number">15.6</span> Feature Override</h2>
+<p>A superclass can provide a default implementation for a method that subclasses override with specialised behaviour. This is useful when the superclass defines a general structure and the subclass fills in the details.</p>
+<p>Every shape has an area, but “the area of a shape” has no general formula. The superclass provides a safe default:</p>
 <pre><code>nex&gt; class Shape
        create
          make(c: String) do
@@ -773,12 +773,12 @@ A green circle with radius 2.0</code></pre>
          end
        feature
          colour: String
-         area(): Real is abstract
+         area(): Real do result := 0.0 end
          describe(): String do
            result := "A " + colour + " shape with area " + area.to_string
          end
      end</code></pre>
-<p><code>area</code> is declared abstract — no body, just a signature. Any concrete subclass must implement it. The <code>describe</code> method in <code>Shape</code> calls <code>area</code> safely, knowing the concrete subclass will supply the implementation.</p>
+<p><code>area</code> returns <code>0.0</code> by default. The <code>describe</code> method in <code>Shape</code> calls <code>area</code>, and subclasses override <code>area</code> with their own formula:</p>
 <pre><code>nex&gt; class Circle inherit Shape
        create
          make(c: String, r: Real) do
@@ -794,9 +794,8 @@ A green circle with radius 2.0</code></pre>
 
 nex&gt; let c := create Circle.make("red", 5.0)
 nex&gt; c.describe
-A red circle with area 78.53975</code></pre>
-<p><code>describe</code> in <code>Shape</code> calls <code>area</code> — which runs <code>Circle</code>’s <code>area</code> because <code>c</code> is a <code>Circle</code>. The superclass defines the structure; the subclass fills in the detail. This pattern — a concrete superclass method calling an abstract method — is called the <em>template method</em> pattern.</p>
-<p>A class with at least one abstract method cannot be instantiated directly. Only concrete subclasses that implement all abstract methods can be created.</p>
+A red shape with area 78.53975</code></pre>
+<p><code>describe</code> in <code>Shape</code> calls <code>area</code> — which runs <code>Circle</code>’s <code>area</code> because <code>c</code> is a <code>Circle</code>. The superclass defines the structure; the subclass fills in the detail. This is the <em>template method</em> pattern: a superclass method calls an overridable method whose behaviour varies by subclass.</p>
 </section>
 <section id="inheritance-and-contracts" class="level2" data-number="15.7">
 <h2 data-number="15.7" class="anchored" data-anchor-id="inheritance-and-contracts"><span class="header-section-number">15.7</span> Inheritance and Contracts</h2>
@@ -965,18 +964,17 @@ Carol: 200.0 (overdraft limit: 500.0)</code></pre>
 <li><code>super.method_name(   )</code> calls an overridden superclass method from within an override</li>
 <li>Overriding replaces a superclass method with a subclass-specific version; dynamic dispatch calls the correct version at runtime</li>
 <li>Polymorphism allows objects of different subclasses to be treated through a common superclass type</li>
-<li>Abstract methods (<code>name(): ReturnType is abstract</code>) declare a signature without an implementation; subclasses must implement them; classes with abstract methods cannot be instantiated</li>
-<li>The template method pattern: a concrete superclass method calls an abstract method; the superclass defines structure, subclasses fill in details</li>
+<li>The template method pattern: a superclass method calls an overridable method; the superclass defines structure, subclasses fill in details via override</li>
 <li>Overriding methods must honour the superclass contract; preconditions should not be strengthened, postconditions should not be weakened</li>
 <li>Use inheritance for genuine is-a relationships and polymorphism; use composition for has-a relationships or code reuse without a conceptual relationship</li>
 </ul>
 </section>
 <section id="exercises" class="level2" data-number="15.10">
 <h2 data-number="15.10" class="anchored" data-anchor-id="exercises"><span class="header-section-number">15.10</span> Exercises</h2>
-<p><strong>1.</strong> Define an abstract class <code>Animal</code> with a field <code>name: String</code>, a constructor <code>make</code>, and an abstract method <code>sound(): String</code>. Define subclasses <code>Dog</code>, <code>Cat</code>, and <code>Cow</code> each implementing <code>sound</code>. Create an <code>Array[Animal]</code>, add one of each, and print each animal’s name and sound.</p>
-<p><strong>2.</strong> Add an abstract method <code>perimeter(): Real</code> to the <code>Shape</code> class. Implement it in <code>Circle</code> (<code>2 * 3.14159 * radius</code>) and <code>Rectangle</code> (<code>2 * (width + height)</code>). Update <code>describe</code> in <code>Shape</code> to report both area and perimeter.</p>
+<p><strong>1.</strong> Define a class <code>Animal</code> with a field <code>name: String</code>, a constructor <code>make</code>, and a method <code>sound(): String</code> that returns <code>"..."</code> by default. Define subclasses <code>Dog</code>, <code>Cat</code>, and <code>Cow</code> each overriding <code>sound</code>. Create an <code>Array[Animal]</code>, add one of each, and print each animal’s name and sound.</p>
+<p><strong>2.</strong> Add a method <code>perimeter(): Real</code> to the <code>Shape</code> class with a default return of <code>0.0</code>. Override it in <code>Circle</code> (<code>2 * 3.14159 * radius</code>) and <code>Rectangle</code> (<code>2 * (width + height)</code>). Update <code>describe</code> in <code>Shape</code> to report both area and perimeter.</p>
 <p><strong>3.</strong> The <code>withdraw</code> method in <code>OverdraftAccount</code> overrides the one in <code>Account</code>. Does the override honour the Liskov Substitution Principle? Does it accept the same inputs? Does it make the same kind of promise — returning <code>true</code> on success and <code>false</code> on failure? What does a caller of <code>Account</code> need to know about <code>OverdraftAccount.withdraw</code>?</p>
-<p><strong>4.</strong> Define a class <code>Vehicle</code> with fields <code>make: String</code> and <code>speed: Real</code>, and abstract methods <code>fuel_type(): String</code> and <code>max_speed(): Real</code>. Define <code>ElectricCar</code> and <code>PetrolCar</code> implementing the abstract methods. Add <code>can_reach(distance, fuel: Real): Boolean</code> to each — <code>PetrolCar</code> uses 10 litres per 100 km; <code>ElectricCar</code> uses 20 kWh per 100 km.</p>
+<p><strong>4.</strong> Define a class <code>Vehicle</code> with fields <code>make: String</code> and <code>speed: Real</code>, and methods <code>fuel_type(): String</code> and <code>max_speed(): Real</code> with sensible defaults. Define <code>ElectricCar</code> and <code>PetrolCar</code> overriding those methods. Add <code>can_reach(distance, fuel: Real): Boolean</code> to each — <code>PetrolCar</code> uses 10 litres per 100 km; <code>ElectricCar</code> uses 20 kWh per 100 km.</p>
 <p><strong>5.*</strong> Define a <code>Logger</code> base class with a method <code>log(message: String)</code> that prints with a prefix. Define <code>FileLogger</code> that also appends to a <code>log_history: String</code> field, and <code>SilentLogger</code> that discards all messages. Create an <code>Array[Logger]</code> with one of each and call <code>log("test")</code> on each. What does this demonstrate about polymorphism and swappable implementations?</p>
 
 
