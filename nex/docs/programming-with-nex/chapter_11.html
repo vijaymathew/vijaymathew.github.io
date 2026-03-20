@@ -671,8 +671,10 @@ Neuromancer (1984)
 Foundation (1951)</code></pre>
 <p>To find records matching a condition — all books published before 1970, say:</p>
 <pre><code>nex&gt; across books as book do
-     if book.get("year") &lt; 1970 then
-        print(book.get("title"))
+     if convert book.get("year") to year: Integer then
+        if year &lt; 1970 then
+           print(book.get("title"))
+        end
      end
   end
 Dune
@@ -723,14 +725,16 @@ Wednesday:
    do
      result := {}
      across entries as entry do
-        let name := entry.get("name").to_string
-        let score := entry.get("score")
-        let current := result.try_get(name, [])
-        current.add(score)
-        result.put(name, current)
+        if convert entry.get("name") to name: String then
+           let current := result.try_get(name, [])
+           if convert entry.get("score") to score: Integer then
+              current.add(score)
+              result.put(name, current)
+           end
+        end
      end
    end</code></pre>
-<pre><code>nex&gt; let entries := [
+<pre><code>nex&gt; let entries: Array[Map[String, Any]] := [
      {"name": "Alice", "score": 85},
      {"name": "Bob",   "score": 72},
      {"name": "Alice", "score": 91},
@@ -767,7 +771,7 @@ nex&gt; gradebook.get("Bob")
 <h2 data-number="12.5" class="anchored" data-anchor-id="tree-shaped-data"><span class="header-section-number">12.5</span> Tree-Shaped Data</h2>
 <p>Some data is genuinely hierarchical: file systems with directories containing files and subdirectories, organisation charts with managers having direct reports, category trees with subcategories. These are tree-shaped — each node may contain other nodes of the same kind.</p>
 <p>Nex does not have a built-in tree type. Trees are represented using maps, where each node is a map with a value field and a children field that holds an array of child nodes. Here is a simple representation of a file system fragment:</p>
-<pre><code>nex&gt; let filesystem := {
+<pre><code>nex&gt; let filesystem: Map[String, Any] := {
      "name": "root",
      "type": "dir",
      "children": [
@@ -800,10 +804,13 @@ nex&gt; gradebook.get("Bob")
         padding := padding + "  "
         i := i + 1
      end
-     print(padding + node.get("name").to_string)
-     let children := node.get("children")
-     across children as child do
-        print_tree(child, indent + 1)
+     if convert node.get("name") to name: String then
+        print(padding + name)
+     end
+     if convert node.get("children") to children: Array[Map[String, Any]] then
+        across children as child do
+           print_tree(child, indent + 1)
+        end
      end
    end</code></pre>
 <pre><code>nex&gt; print_tree(filesystem, 0)
