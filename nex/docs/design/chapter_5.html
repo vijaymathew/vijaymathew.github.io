@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>5&nbsp; Future Directions – The Design and Implementation of Nex</title>
+<title>5&nbsp; JVM Bytecode Translation Reference – The Design and Implementation of Nex</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -33,6 +33,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
+<link href="./chapter_6.html" rel="next">
 <link href="./chapter_4.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -252,7 +253,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_5.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Future Directions</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_5.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">JVM Bytecode Translation Reference</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -319,7 +320,13 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./chapter_5.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Future Directions</span></span></a>
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">JVM Bytecode Translation Reference</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Future Directions</span></span></a>
   </div>
 </li>
     </ul>
@@ -332,13 +339,92 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#parsing-on-the-javascript-side" id="toc-parsing-on-the-javascript-side" class="nav-link active" data-scroll-target="#parsing-on-the-javascript-side"><span class="header-section-number">5.1</span> 5.1 Parsing on the JavaScript Side</a></li>
-  <li><a href="#libraries-and-package-management" id="toc-libraries-and-package-management" class="nav-link" data-scroll-target="#libraries-and-package-management"><span class="header-section-number">5.2</span> 5.2 Libraries and Package Management</a></li>
-  <li><a href="#richer-static-reasoning" id="toc-richer-static-reasoning" class="nav-link" data-scroll-target="#richer-static-reasoning"><span class="header-section-number">5.3</span> 5.3 Richer Static Reasoning</a></li>
-  <li><a href="#tooling" id="toc-tooling" class="nav-link" data-scroll-target="#tooling"><span class="header-section-number">5.4</span> 5.4 Tooling</a></li>
-  <li><a href="#backends-and-deployment" id="toc-backends-and-deployment" class="nav-link" data-scroll-target="#backends-and-deployment"><span class="header-section-number">5.5</span> 5.5 Backends and Deployment</a></li>
-  <li><a href="#language-growth-and-restraint" id="toc-language-growth-and-restraint" class="nav-link" data-scroll-target="#language-growth-and-restraint"><span class="header-section-number">5.6</span> 5.6 Language Growth and Restraint</a></li>
-  <li><a href="#what-maturity-looks-like" id="toc-what-maturity-looks-like" class="nav-link" data-scroll-target="#what-maturity-looks-like"><span class="header-section-number">5.7</span> 5.7 What Maturity Looks Like</a></li>
+  <li><a href="#purpose-and-scope" id="toc-purpose-and-scope" class="nav-link active" data-scroll-target="#purpose-and-scope"><span class="header-section-number">5.1</span> 5.1 Purpose and Scope</a></li>
+  <li><a href="#compilation-pipeline" id="toc-compilation-pipeline" class="nav-link" data-scroll-target="#compilation-pipeline"><span class="header-section-number">5.2</span> 5.2 Compilation Pipeline</a>
+  <ul class="collapse">
+  <li><a href="#parse" id="toc-parse" class="nav-link" data-scroll-target="#parse"><span class="header-section-number">5.2.1</span> Parse</a></li>
+  <li><a href="#typecheck" id="toc-typecheck" class="nav-link" data-scroll-target="#typecheck"><span class="header-section-number">5.2.2</span> Typecheck</a></li>
+  <li><a href="#lowering" id="toc-lowering" class="nav-link" data-scroll-target="#lowering"><span class="header-section-number">5.2.3</span> Lowering</a></li>
+  <li><a href="#emission" id="toc-emission" class="nav-link" data-scroll-target="#emission"><span class="header-section-number">5.2.4</span> Emission</a></li>
+  <li><a href="#runtime-helpers" id="toc-runtime-helpers" class="nav-link" data-scroll-target="#runtime-helpers"><span class="header-section-number">5.2.5</span> Runtime Helpers</a></li>
+  <li><a href="#repl-compilation-vs-file-compilation" id="toc-repl-compilation-vs-file-compilation" class="nav-link" data-scroll-target="#repl-compilation-vs-file-compilation"><span class="header-section-number">5.2.6</span> REPL Compilation vs File Compilation</a></li>
+  </ul></li>
+  <li><a href="#runtime-model" id="toc-runtime-model" class="nav-link" data-scroll-target="#runtime-model"><span class="header-section-number">5.3</span> 5.3 Runtime Model</a>
+  <ul class="collapse">
+  <li><a href="#nexreplstate" id="toc-nexreplstate" class="nav-link" data-scroll-target="#nexreplstate"><span class="header-section-number">5.3.1</span> <code>NexReplState</code></a></li>
+  <li><a href="#compiled-session-vs-interpreter-sync" id="toc-compiled-session-vs-interpreter-sync" class="nav-link" data-scroll-target="#compiled-session-vs-interpreter-sync"><span class="header-section-number">5.3.2</span> Compiled Session vs Interpreter Sync</a></li>
+  <li><a href="#deoptreopt-model" id="toc-deoptreopt-model" class="nav-link" data-scroll-target="#deoptreopt-model"><span class="header-section-number">5.3.3</span> Deopt/Reopt Model</a></li>
+  </ul></li>
+  <li><a href="#expression-translation" id="toc-expression-translation" class="nav-link" data-scroll-target="#expression-translation"><span class="header-section-number">5.4</span> 5.4 Expression Translation</a>
+  <ul class="collapse">
+  <li><a href="#literals" id="toc-literals" class="nav-link" data-scroll-target="#literals"><span class="header-section-number">5.4.1</span> Literals</a></li>
+  <li><a href="#arithmetic-and-comparisons" id="toc-arithmetic-and-comparisons" class="nav-link" data-scroll-target="#arithmetic-and-comparisons"><span class="header-section-number">5.4.2</span> Arithmetic and Comparisons</a></li>
+  <li><a href="#logical-operators" id="toc-logical-operators" class="nav-link" data-scroll-target="#logical-operators"><span class="header-section-number">5.4.3</span> Logical Operators</a></li>
+  <li><a href="#string-concatenation" id="toc-string-concatenation" class="nav-link" data-scroll-target="#string-concatenation"><span class="header-section-number">5.4.4</span> String Concatenation</a></li>
+  <li><a href="#builtins" id="toc-builtins" class="nav-link" data-scroll-target="#builtins"><span class="header-section-number">5.4.5</span> Builtins</a></li>
+  <li><a href="#collection-literals" id="toc-collection-literals" class="nav-link" data-scroll-target="#collection-literals"><span class="header-section-number">5.4.6</span> Collection Literals</a></li>
+  <li><a href="#if-and-when" id="toc-if-and-when" class="nav-link" data-scroll-target="#if-and-when"><span class="header-section-number">5.4.7</span> <code>if</code> and <code>when</code></a></li>
+  <li><a href="#convert" id="toc-convert" class="nav-link" data-scroll-target="#convert"><span class="header-section-number">5.4.8</span> <code>convert</code></a></li>
+  </ul></li>
+  <li><a href="#statement-and-control-flow-translation" id="toc-statement-and-control-flow-translation" class="nav-link" data-scroll-target="#statement-and-control-flow-translation"><span class="header-section-number">5.5</span> 5.5 Statement and Control-Flow Translation</a>
+  <ul class="collapse">
+  <li><a href="#let" id="toc-let" class="nav-link" data-scroll-target="#let"><span class="header-section-number">5.5.1</span> <code>let</code></a></li>
+  <li><a href="#assignment-and-member-assignment" id="toc-assignment-and-member-assignment" class="nav-link" data-scroll-target="#assignment-and-member-assignment"><span class="header-section-number">5.5.2</span> Assignment and Member Assignment</a></li>
+  <li><a href="#loops" id="toc-loops" class="nav-link" data-scroll-target="#loops"><span class="header-section-number">5.5.3</span> Loops</a></li>
+  <li><a href="#case" id="toc-case" class="nav-link" data-scroll-target="#case"><span class="header-section-number">5.5.4</span> <code>case</code></a></li>
+  <li><a href="#across" id="toc-across" class="nav-link" data-scroll-target="#across"><span class="header-section-number">5.5.5</span> <code>across</code></a></li>
+  <li><a href="#select" id="toc-select" class="nav-link" data-scroll-target="#select"><span class="header-section-number">5.5.6</span> <code>select</code></a></li>
+  </ul></li>
+  <li><a href="#functions-and-closures" id="toc-functions-and-closures" class="nav-link" data-scroll-target="#functions-and-closures"><span class="header-section-number">5.6</span> 5.6 Functions and Closures</a>
+  <ul class="collapse">
+  <li><a href="#top-level-functions" id="toc-top-level-functions" class="nav-link" data-scroll-target="#top-level-functions"><span class="header-section-number">5.6.1</span> Top-Level Functions</a></li>
+  <li><a href="#anonymous-functions" id="toc-anonymous-functions" class="nav-link" data-scroll-target="#anonymous-functions"><span class="header-section-number">5.6.2</span> Anonymous Functions</a></li>
+  <li><a href="#captured-closures" id="toc-captured-closures" class="nav-link" data-scroll-target="#captured-closures"><span class="header-section-number">5.6.3</span> Captured Closures</a></li>
+  <li><a href="#function-object-invocation" id="toc-function-object-invocation" class="nav-link" data-scroll-target="#function-object-invocation"><span class="header-section-number">5.6.4</span> Function-Object Invocation</a></li>
+  </ul></li>
+  <li><a href="#object-model" id="toc-object-model" class="nav-link" data-scroll-target="#object-model"><span class="header-section-number">5.7</span> 5.7 Object Model</a>
+  <ul class="collapse">
+  <li><a href="#classes" id="toc-classes" class="nav-link" data-scroll-target="#classes"><span class="header-section-number">5.7.1</span> Classes</a></li>
+  <li><a href="#constants" id="toc-constants" class="nav-link" data-scroll-target="#constants"><span class="header-section-number">5.7.2</span> Constants</a></li>
+  <li><a href="#constructors" id="toc-constructors" class="nav-link" data-scroll-target="#constructors"><span class="header-section-number">5.7.3</span> Constructors</a></li>
+  <li><a href="#multiple-inheritance" id="toc-multiple-inheritance" class="nav-link" data-scroll-target="#multiple-inheritance"><span class="header-section-number">5.7.4</span> Multiple Inheritance</a></li>
+  <li><a href="#super" id="toc-super" class="nav-link" data-scroll-target="#super"><span class="header-section-number">5.7.5</span> <code>super</code></a></li>
+  <li><a href="#deferred-classes" id="toc-deferred-classes" class="nav-link" data-scroll-target="#deferred-classes"><span class="header-section-number">5.7.6</span> Deferred Classes</a></li>
+  <li><a href="#invariants" id="toc-invariants" class="nav-link" data-scroll-target="#invariants"><span class="header-section-number">5.7.7</span> Invariants</a></li>
+  </ul></li>
+  <li><a href="#contracts-and-exceptions" id="toc-contracts-and-exceptions" class="nav-link" data-scroll-target="#contracts-and-exceptions"><span class="header-section-number">5.8</span> 5.8 Contracts and Exceptions</a>
+  <ul class="collapse">
+  <li><a href="#require-and-ensure" id="toc-require-and-ensure" class="nav-link" data-scroll-target="#require-and-ensure"><span class="header-section-number">5.8.1</span> <code>require</code> and <code>ensure</code></a></li>
+  <li><a href="#old" id="toc-old" class="nav-link" data-scroll-target="#old"><span class="header-section-number">5.8.2</span> <code>old</code></a></li>
+  <li><a href="#raise" id="toc-raise" class="nav-link" data-scroll-target="#raise"><span class="header-section-number">5.8.3</span> <code>raise</code></a></li>
+  <li><a href="#rescue" id="toc-rescue" class="nav-link" data-scroll-target="#rescue"><span class="header-section-number">5.8.4</span> <code>rescue</code></a></li>
+  <li><a href="#retry" id="toc-retry" class="nav-link" data-scroll-target="#retry"><span class="header-section-number">5.8.5</span> <code>retry</code></a></li>
+  </ul></li>
+  <li><a href="#concurrency" id="toc-concurrency" class="nav-link" data-scroll-target="#concurrency"><span class="header-section-number">5.9</span> 5.9 Concurrency</a>
+  <ul class="collapse">
+  <li><a href="#spawn" id="toc-spawn" class="nav-link" data-scroll-target="#spawn"><span class="header-section-number">5.9.1</span> <code>spawn</code></a></li>
+  <li><a href="#task" id="toc-task" class="nav-link" data-scroll-target="#task"><span class="header-section-number">5.9.2</span> <code>Task</code></a></li>
+  <li><a href="#channel" id="toc-channel" class="nav-link" data-scroll-target="#channel"><span class="header-section-number">5.9.3</span> <code>Channel</code></a></li>
+  <li><a href="#select-1" id="toc-select-1" class="nav-link" data-scroll-target="#select-1"><span class="header-section-number">5.9.4</span> <code>select</code></a></li>
+  <li><a href="#await_any-and-await_all" id="toc-await_any-and-await_all" class="nav-link" data-scroll-target="#await_any-and-await_all"><span class="header-section-number">5.9.5</span> <code>await_any</code> and <code>await_all</code></a></li>
+  </ul></li>
+  <li><a href="#modules-and-interop" id="toc-modules-and-interop" class="nav-link" data-scroll-target="#modules-and-interop"><span class="header-section-number">5.10</span> 5.10 Modules and Interop</a>
+  <ul class="collapse">
+  <li><a href="#import" id="toc-import" class="nav-link" data-scroll-target="#import"><span class="header-section-number">5.10.1</span> <code>import</code></a></li>
+  <li><a href="#intern" id="toc-intern" class="nav-link" data-scroll-target="#intern"><span class="header-section-number">5.10.2</span> <code>intern</code></a></li>
+  <li><a href="#with-java" id="toc-with-java" class="nav-link" data-scroll-target="#with-java"><span class="header-section-number">5.10.3</span> <code>with "java"</code></a></li>
+  </ul></li>
+  <li><a href="#debugging-and-metadata" id="toc-debugging-and-metadata" class="nav-link" data-scroll-target="#debugging-and-metadata"><span class="header-section-number">5.11</span> 5.11 Debugging and Metadata</a></li>
+  <li><a href="#fallback-boundaries" id="toc-fallback-boundaries" class="nav-link" data-scroll-target="#fallback-boundaries"><span class="header-section-number">5.12</span> 5.12 Fallback Boundaries</a></li>
+  <li><a href="#worked-examples" id="toc-worked-examples" class="nav-link" data-scroll-target="#worked-examples"><span class="header-section-number">5.13</span> 5.13 Worked Examples</a>
+  <ul class="collapse">
+  <li><a href="#example-1-top-level-let" id="toc-example-1-top-level-let" class="nav-link" data-scroll-target="#example-1-top-level-let"><span class="header-section-number">5.13.1</span> Example 1: Top-Level <code>let</code></a></li>
+  <li><a href="#example-2-captured-closure" id="toc-example-2-captured-closure" class="nav-link" data-scroll-target="#example-2-captured-closure"><span class="header-section-number">5.13.2</span> Example 2: Captured Closure</a></li>
+  <li><a href="#example-3-multiple-inheritance-method-call" id="toc-example-3-multiple-inheritance-method-call" class="nav-link" data-scroll-target="#example-3-multiple-inheritance-method-call"><span class="header-section-number">5.13.3</span> Example 3: Multiple Inheritance Method Call</a></li>
+  <li><a href="#example-4-select" id="toc-example-4-select" class="nav-link" data-scroll-target="#example-4-select"><span class="header-section-number">5.13.4</span> Example 4: <code>select</code></a></li>
+  <li><a href="#example-5-file-compilation" id="toc-example-5-file-compilation" class="nav-link" data-scroll-target="#example-5-file-compilation"><span class="header-section-number">5.13.5</span> Example 5: File Compilation</a></li>
+  </ul></li>
+  <li><a href="#why-this-reference-exists" id="toc-why-this-reference-exists" class="nav-link" data-scroll-target="#why-this-reference-exists"><span class="header-section-number">5.14</span> 5.14 Why This Reference Exists</a></li>
   </ul>
 </nav>
     </div>
@@ -348,7 +434,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Future Directions</span></h1>
+<h1 class="title"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">JVM Bytecode Translation Reference</span></h1>
 </div>
 
 
@@ -365,52 +451,522 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>A language implementation becomes interesting not only because of what it already does, but because of the pressures it reveals. Nex already shows several such pressures clearly. This chapter names them — not as a wishlist, but as a map of where the current architecture points and where it would have to change.</p>
-<p>The organising question is not “what else could be added?” but “what additions would strengthen the original purpose of the language?” That question has a different shape for each area, and the answer is sometimes “not much.”</p>
-<section id="parsing-on-the-javascript-side" class="level2" data-number="5.1">
-<h2 data-number="5.1" class="anchored" data-anchor-id="parsing-on-the-javascript-side"><span class="header-section-number">5.1</span> 5.1 Parsing on the JavaScript Side</h2>
-<p>The current parsing story is strongest on the JVM. The parser is built around ANTLR and <code>clj-antlr</code>, which work well in Clojure but have no natural path to ClojureScript. The current workaround — parse on the JVM, then ship ASTs to the JavaScript side — works, but it means the JavaScript target depends on a JVM process for its front end. That asymmetry is the most obvious architectural gap in the system.</p>
-<p>A cleaner JavaScript story would require one of three paths: a pure ClojureScript parser, a more polished generated JavaScript parser pipeline, or a more principled approach to AST transport between server and client. None of these is trivial.</p>
-<p>The current boundary is defined in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a>, <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.cljc"><code>src/nex/walker.cljc</code></a>, and <a href="https://github.com/vijaymathew/nex/blob/main/docs/md/CLOJURESCRIPT.md"><code>docs/md/CLOJURESCRIPT.md</code></a>. A contributor working on this area should read all three before proposing a direction, because the constraints they reveal are easy to underestimate.</p>
+<p>The JVM backend is no longer a narrow experiment. It now covers most of the Nex language surface, supports both REPL compilation and file-to-jar compilation, and uses a mixed strategy of direct bytecode emission plus explicit runtime helper calls where that is the better engineering trade.</p>
+<p>This chapter is a translation guide for the current implementation. It is not a wishlist, and it is not a plan. The code in:</p>
+<ul>
+<li><a href="../../src/nex/lower.cljc"><code>src/nex/lower.cljc</code></a></li>
+<li><a href="../../src/nex/ir.cljc"><code>src/nex/ir.cljc</code></a></li>
+<li><a href="../../src/nex/compiler/jvm/emit.clj"><code>src/nex/compiler/jvm/emit.clj</code></a></li>
+<li><a href="../../src/nex/compiler/jvm/runtime.clj"><code>src/nex/compiler/jvm/runtime.clj</code></a></li>
+<li><a href="../../src/nex/compiler/jvm/repl.clj"><code>src/nex/compiler/jvm/repl.clj</code></a></li>
+<li><a href="../../src/nex/compiler/jvm/file.clj"><code>src/nex/compiler/jvm/file.clj</code></a></li>
+</ul>
+<p>is the primary evidence. This chapter explains the design choices that are no longer obvious from reading those files one by one.</p>
+<section id="purpose-and-scope" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="purpose-and-scope"><span class="header-section-number">5.1</span> 5.1 Purpose and Scope</h2>
+<p>This reference answers a practical question: when a Nex construct stays on the compiled JVM path, what does the compiler actually do with it?</p>
+<p>In this chapter, <strong>compiled path</strong> means:</p>
+<ul>
+<li>the compiled REPL backend, where a REPL input is parsed, lowered, emitted to JVM bytecode, loaded through a dynamic classloader, and executed immediately, or</li>
+<li>the file compiler, where a <code>.nex</code> file is compiled into <code>.class</code> files and then packaged into a runnable jar.</li>
+</ul>
+<p>This chapter does <strong>not</strong> try to document every helper function or every opcode sequence. It documents the stable translation strategy:</p>
+<ul>
+<li>which constructs lower directly to IR and bytecode,</li>
+<li>which constructs stay compiled but route through runtime helpers,</li>
+<li>where the compiler deliberately deopts to the interpreter,</li>
+<li>and what invariants the mixed-mode design depends on.</li>
+</ul>
+<p>The remaining deopt surface is real and intentional. The compiled backend is the default REPL path now, but it is still a mixed-mode system rather than a pure ahead-of-time replacement for the interpreter.</p>
 </section>
-<section id="libraries-and-package-management" class="level2" data-number="5.2">
-<h2 data-number="5.2" class="anchored" data-anchor-id="libraries-and-package-management"><span class="header-section-number">5.2</span> 5.2 Libraries and Package Management</h2>
-<p><code>intern</code> is conceptually clean and works well for the library sizes Nex currently needs. But it defers several questions that will eventually need answers: how libraries declare their supported targets, how versions are managed, how dependencies are resolved reproducibly, and how library documentation is discovered by tools rather than by reading source.</p>
-<p>The challenge is to answer these questions without burying Nex under the weight of a conventional package manager. Many languages have damaged their teaching value by making the bootstrap experience — getting a working project — the hardest part of learning the language. Nex should avoid that.</p>
-<p>The right approach is probably to let the <code>intern</code> mechanism stay as it is for as long as possible and add structure only where it is genuinely needed. When the time comes, the pressure points will be <code>intern</code> resolution in the interpreter, the shape of the <code>lib/</code> tree, and whatever metadata format is chosen for library declarations. Those changes should stay outside the grammar unless a compelling language-level reason emerges.</p>
+<section id="compilation-pipeline" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="compilation-pipeline"><span class="header-section-number">5.2</span> 5.2 Compilation Pipeline</h2>
+<p>The JVM backend follows the same broad pipeline in both REPL and file compilation, but the surrounding packaging differs.</p>
+<section id="parse" class="level3" data-number="5.2.1">
+<h3 data-number="5.2.1" class="anchored" data-anchor-id="parse"><span class="header-section-number">5.2.1</span> Parse</h3>
+<p>Source first becomes the ordinary Nex AST through the ANTLR-based parser and walker. The backend does not use a separate parser or a parallel AST shape.</p>
 </section>
-<section id="richer-static-reasoning" class="level2" data-number="5.3">
-<h2 data-number="5.3" class="anchored" data-anchor-id="richer-static-reasoning"><span class="header-section-number">5.3</span> 5.3 Richer Static Reasoning</h2>
-<p>The present typechecker is intentionally conservative. A type system that cannot be explained cannot be taught, and Nex has consistently chosen intelligibility over power where the two are in tension.</p>
-<p>That choice has a cost. There is genuine room for more precise reasoning in several areas: flow-sensitive narrowing of detachable types, stronger generic constraints, better interaction between contract clauses and static analysis, and more rigorous checking of inheritance obligations. Each of these would catch real errors that the current checker misses.</p>
-<p>The implementation pressure falls almost entirely on <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/typechecker.cljc"><code>src/nex/typechecker.cljc</code></a> — specifically on environment refinement, generic substitution and method lookup, and the interaction between static analysis and the contract representation in the AST. These are not independent changes. A contributor should expect them to interact, and should test each addition against the principle that the resulting rules remain explainable to a reader without a background in type theory.</p>
-<p>The danger is real: a type system can become substantially more powerful while becoming much less useful as a teaching tool. Expansion here should be slow and deliberate.</p>
+<section id="typecheck" class="level3" data-number="5.2.2">
+<h3 data-number="5.2.2" class="anchored" data-anchor-id="typecheck"><span class="header-section-number">5.2.2</span> Typecheck</h3>
+<p>Typechecking still belongs to the shared typechecker, not to the JVM backend. This matters because the compiler is not the owner of the language semantics; it is a consumer of the typed AST.</p>
 </section>
-<section id="tooling" class="level2" data-number="5.4">
-<h2 data-number="5.4" class="anchored" data-anchor-id="tooling"><span class="header-section-number">5.4</span> 5.4 Tooling</h2>
-<p>A language designed to teach engineering discipline can benefit disproportionately from good tools, because good tools reinforce the habits the language is trying to instil. Weak tools push the programmer back into guesswork — exactly the mode the language is trying to displace.</p>
-<p>Nex already has an interpreter, REPL, debugger, formatter, and documentation generator. The most valuable near-term improvements are probably: clearer and more local error messages (including contract violation messages that name not just which condition failed but what the violation implies about the caller’s obligations), stronger IDE support for navigating contracts and inheritance hierarchies, and richer debugger workflows for concurrent programs where the current tooling is thinnest.</p>
-<p>These improvements would live in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/repl.clj"><code>src/nex/repl.clj</code></a>, <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/debugger.clj"><code>src/nex/debugger.clj</code></a>, <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/fmt.clj"><code>src/nex/fmt.clj</code></a>, and <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/docgen.clj"><code>src/nex/docgen.clj</code></a>. One advantage of the current codebase is that these tools are still close enough to the language core that they can evolve together without the usual friction between language teams and tooling teams.</p>
+<section id="lowering" class="level3" data-number="5.2.3">
+<h3 data-number="5.2.3" class="anchored" data-anchor-id="lowering"><span class="header-section-number">5.2.3</span> Lowering</h3>
+<p>The lowering pass in <a href="../../src/nex/lower.cljc"><code>src/nex/lower.cljc</code></a> converts AST nodes into:</p>
+<ul>
+<li>expression and statement IR in <a href="../../src/nex/ir.cljc"><code>src/nex/ir.cljc</code></a>,</li>
+<li>function specs,</li>
+<li>class specs,</li>
+<li>launcher/program units for file compilation.</li>
+</ul>
+<p>Lowering is where most of the backend strategy lives. It decides whether a construct becomes:</p>
+<ul>
+<li>direct IR for primitive JVM emission,</li>
+<li>a user-class or function class spec,</li>
+<li>or a runtime-helper call.</li>
+</ul>
 </section>
-<section id="backends-and-deployment" class="level2" data-number="5.5">
-<h2 data-number="5.5" class="anchored" data-anchor-id="backends-and-deployment"><span class="header-section-number">5.5</span> 5.5 Backends and Deployment</h2>
-<p>The JVM bytecode compiler and the JavaScript generator already demonstrate that Nex is not bound to one execution strategy. That is a structural asset. The questions that any future backend would have to answer — how values are represented, how classes and functions are lowered, how contracts are enforced, how concurrency is expressed, how host integration is handled — are already answered twice in the current codebase. A third backend could follow the same pattern.</p>
-<p>The most plausible near-term directions are a better browser-first generation story, improved Node-specific deployment support, and lighter-weight runtime packaging. A WebAssembly-oriented backend is conceivable further out. None of these should be pursued speculatively — the architecture supports them, but that is not by itself a reason to build them.</p>
-<p>The pressure points for new backends are concentrated in the backend entry points and the runtime helper sections they rely on: JVM emission in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/file.clj"><code>src/nex/compiler/jvm/file.clj</code></a> and JavaScript runtime emission in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/generator/javascript.clj"><code>src/nex/generator/javascript.clj</code></a>. Reading both before designing a new backend is not optional — the decisions they embody are easy to reinvent badly.</p>
+<section id="emission" class="level3" data-number="5.2.4">
+<h3 data-number="5.2.4" class="anchored" data-anchor-id="emission"><span class="header-section-number">5.2.4</span> Emission</h3>
+<p>The emitter in <a href="../../src/nex/compiler/jvm/emit.clj"><code>src/nex/compiler/jvm/emit.clj</code></a> turns lowered units and class specs into byte arrays using ASM. It emits:</p>
+<ul>
+<li>compiled REPL cell classes,</li>
+<li>user-defined classes,</li>
+<li>anonymous function classes,</li>
+<li>program classes for file compilation,</li>
+<li>launcher classes with <code>main</code>.</li>
+</ul>
 </section>
-<section id="language-growth-and-restraint" class="level2" data-number="5.6">
-<h2 data-number="5.6" class="anchored" data-anchor-id="language-growth-and-restraint"><span class="header-section-number">5.6</span> 5.6 Language Growth and Restraint</h2>
-<p>The hardest future direction is deciding what not to add.</p>
-<p>A language with educational ambitions can easily lose its clarity by accumulating convenience features one at a time, each individually reasonable, collectively blurring the model the language was meant to convey. A language with practical ambitions can just as easily become too small to solve real problems and get abandoned for something less principled but more capable. Nex must keep navigating between these.</p>
-<p>The working criterion for additions is straightforward to state: a change is worth making if it makes reasoning about programs clearer, improves practical usefulness without distorting the language model, or strengthens the connection between language design and good engineering. A change that does none of these is noise, however much it is requested.</p>
-<p>Implementation details matter here in a way that design discussions often ignore. A proposal that is elegant at the language level may require special cases in every pass — grammar, walker, typechecker, interpreter, and both generators — in ways that accumulate into an implementation that is no longer easy to read. Nex should continue to prefer features that fit the existing architecture cleanly, not because cleanliness is an end in itself, but because a messy implementation makes the semantics harder to verify and the codebase harder for contributors to enter.</p>
+<section id="runtime-helpers" class="level3" data-number="5.2.5">
+<h3 data-number="5.2.5" class="anchored" data-anchor-id="runtime-helpers"><span class="header-section-number">5.2.5</span> Runtime Helpers</h3>
+<p>The JVM backend does not try to inline the entire Nex runtime into bytecode. It relies on <a href="../../src/nex/compiler/jvm/runtime.clj"><code>src/nex/compiler/jvm/runtime.clj</code></a> for:</p>
+<ul>
+<li>REPL state access,</li>
+<li>host interop,</li>
+<li>some builtins,</li>
+<li>some collection and concurrency operations,</li>
+<li>closure invocation,</li>
+<li>deopt/reopt reconstruction support.</li>
+</ul>
+<p>The important point is that <strong>runtime helper use is still compiled execution</strong>. A helper call is not a deopt. It is a compiled call into a runtime boundary chosen deliberately.</p>
 </section>
-<section id="what-maturity-looks-like" class="level2" data-number="5.7">
-<h2 data-number="5.7" class="anchored" data-anchor-id="what-maturity-looks-like"><span class="header-section-number">5.7</span> 5.7 What Maturity Looks Like</h2>
-<p>A mature Nex would not necessarily be a larger Nex. It would be a more settled one: clearer library conventions, stronger tooling, a firmer JavaScript story, more complete documentation, a typechecker and runtime that are broader in coverage but still readable in full.</p>
-<p>That last property matters more than it might seem. The codebase is currently small enough that a determined reader can trace any feature from grammar to walker to typechecker to interpreter to generators. That traceability is one of Nex’s most valuable properties. Growth should preserve it — not out of sentiment, but because a language designed to teach disciplined thinking about programs should itself be implemented in a way that rewards disciplined reading.</p>
-<p>The pressures this chapter has described are real, and some of them will eventually force changes that make the system larger and more complex. The goal is to let that happen slowly enough that the system remains comprehensible at each stage, rather than crossing the threshold — familiar from many language histories — where the implementation becomes something that can only be worked on piecemeal, by specialists, without a view of the whole.</p>
-<p>Nex has not crossed that threshold. Keeping it on the right side is the most important long-term design commitment the project can make.</p>
+<section id="repl-compilation-vs-file-compilation" class="level3" data-number="5.2.6">
+<h3 data-number="5.2.6" class="anchored" data-anchor-id="repl-compilation-vs-file-compilation"><span class="header-section-number">5.2.6</span> REPL Compilation vs File Compilation</h3>
+<p>The REPL compiler and the file compiler share the same lowering and emission core.</p>
+<p>The main differences are:</p>
+<ul>
+<li>the REPL compiler emits short-lived cell classes and keeps canonical session state in memory,</li>
+<li>the file compiler emits named program classes, launcher classes, and shaded jars.</li>
+</ul>
+<p>This shared core is what keeps the JVM backend coherent: REPL compilation is not a toy path and file compilation is not a separate compiler.</p>
+</section>
+</section>
+<section id="runtime-model" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="runtime-model"><span class="header-section-number">5.3</span> 5.3 Runtime Model</h2>
+<section id="nexreplstate" class="level3" data-number="5.3.1">
+<h3 data-number="5.3.1" class="anchored" data-anchor-id="nexreplstate"><span class="header-section-number">5.3.1</span> <code>NexReplState</code></h3>
+<p>The compiled REPL runtime is organized around <code>NexReplState</code> in <a href="../../src/nex/compiler/jvm/runtime.clj"><code>src/nex/compiler/jvm/runtime.clj</code></a>. It stores:</p>
+<ul>
+<li>top-level values,</li>
+<li>top-level types,</li>
+<li>compiled function wrappers,</li>
+<li>REPL output,</li>
+<li>compiled class metadata,</li>
+<li>imports,</li>
+<li>a class-name counter,</li>
+<li>the dynamic classloader.</li>
+</ul>
+<p>This is the canonical runtime state for compiled REPL execution.</p>
+</section>
+<section id="compiled-session-vs-interpreter-sync" class="level3" data-number="5.3.2">
+<h3 data-number="5.3.2" class="anchored" data-anchor-id="compiled-session-vs-interpreter-sync"><span class="header-section-number">5.3.2</span> Compiled Session vs Interpreter Sync</h3>
+<p>The compiled REPL session in <a href="../../src/nex/compiler/jvm/repl.clj"><code>src/nex/compiler/jvm/repl.clj</code></a> stores more than runtime values. It also remembers:</p>
+<ul>
+<li>function ASTs,</li>
+<li>class ASTs,</li>
+<li>import ASTs,</li>
+<li>intern ASTs,</li>
+<li>compiled class metadata,</li>
+<li>the dynamic loader and the runtime state.</li>
+</ul>
+<p>The interpreter context and the compiled session are kept coherent by explicit sync in both directions:</p>
+<ul>
+<li>compiled session -&gt; interpreter, when the system deopts,</li>
+<li>interpreter -&gt; compiled session, after interpreter evaluation succeeds.</li>
+</ul>
+<p>This is why the compiled REPL can be the default without pretending the interpreter no longer exists.</p>
+</section>
+<section id="deoptreopt-model" class="level3" data-number="5.3.3">
+<h3 data-number="5.3.3" class="anchored" data-anchor-id="deoptreopt-model"><span class="header-section-number">5.3.3</span> Deopt/Reopt Model</h3>
+<p>The compiler does not attempt to compile every AST shape. If an input is outside the supported compiled subset, or hits a deliberately conservative fallback boundary, the REPL:</p>
+<ol type="1">
+<li>materializes interpreter state from the compiled session,</li>
+<li>runs the input through the interpreter,</li>
+<li>syncs the resulting state back into the compiled session,</li>
+<li>resumes compiled execution on later supported inputs.</li>
+</ol>
+<p>The correct way to think about the REPL now is:</p>
+<ul>
+<li>compiled by default,</li>
+<li>interpreter as a correctness-preserving fallback,</li>
+<li>not “compiled unless we forgot to implement it.”</li>
+</ul>
+</section>
+</section>
+<section id="expression-translation" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="expression-translation"><span class="header-section-number">5.4</span> 5.4 Expression Translation</h2>
+<section id="literals" class="level3" data-number="5.4.1">
+<h3 data-number="5.4.1" class="anchored" data-anchor-id="literals"><span class="header-section-number">5.4.1</span> Literals</h3>
+<p>Primitive literals lower directly:</p>
+<ul>
+<li>integers,</li>
+<li>integer64,</li>
+<li>reals,</li>
+<li>decimals,</li>
+<li>booleans,</li>
+<li>chars,</li>
+<li>strings,</li>
+<li><code>nil</code>.</li>
+</ul>
+<p>These either become primitive JVM values or object constants depending on type.</p>
+</section>
+<section id="arithmetic-and-comparisons" class="level3" data-number="5.4.2">
+<h3 data-number="5.4.2" class="anchored" data-anchor-id="arithmetic-and-comparisons"><span class="header-section-number">5.4.2</span> Arithmetic and Comparisons</h3>
+<p>Arithmetic lowers directly for the normal numeric operators:</p>
+<ul>
+<li><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code></li>
+<li>comparisons such as <code>=</code>, <code>/=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code></li>
+</ul>
+<p>Mixed numeric operands are widened before emission. The compiler now follows Nex numeric widening rules rather than requiring identical lowered JVM types.</p>
+</section>
+<section id="logical-operators" class="level3" data-number="5.4.3">
+<h3 data-number="5.4.3" class="anchored" data-anchor-id="logical-operators"><span class="header-section-number">5.4.3</span> Logical Operators</h3>
+<p><code>and</code>, <code>or</code>, and <code>not</code> are direct compiled operators. <code>and</code> and <code>or</code> are emitted with short-circuit branching rather than as runtime calls.</p>
+</section>
+<section id="string-concatenation" class="level3" data-number="5.4.4">
+<h3 data-number="5.4.4" class="anchored" data-anchor-id="string-concatenation"><span class="header-section-number">5.4.4</span> String Concatenation</h3>
+<p>String <code>+</code> stays on the compiled path. It is compiled through a dedicated helper strategy rather than pretending it is ordinary primitive addition.</p>
+</section>
+<section id="builtins" class="level3" data-number="5.4.5">
+<h3 data-number="5.4.5" class="anchored" data-anchor-id="builtins"><span class="header-section-number">5.4.5</span> Builtins</h3>
+<p>The builtin surface is split into two categories:</p>
+<ul>
+<li>builtins with direct lowering/emission or dedicated helper mapping,</li>
+<li>builtins that still use a generic runtime bridge as a defensive fallback.</li>
+</ul>
+<p>The important design change is that the supported builtin surface no longer relies on pretending builtins are user-defined REPL functions.</p>
+</section>
+<section id="collection-literals" class="level3" data-number="5.4.6">
+<h3 data-number="5.4.6" class="anchored" data-anchor-id="collection-literals"><span class="header-section-number">5.4.6</span> Collection Literals</h3>
+<p>Array, map, and set literals lower directly. They no longer require interpreter fallback just because they are collection constructors.</p>
+</section>
+<section id="if-and-when" class="level3" data-number="5.4.7">
+<h3 data-number="5.4.7" class="anchored" data-anchor-id="if-and-when"><span class="header-section-number">5.4.7</span> <code>if</code> and <code>when</code></h3>
+<p>Expression-shaped <code>if</code> and <code>when</code> lower directly. Branch results are coerced to the declared IR result type during emission when necessary.</p>
+</section>
+<section id="convert" class="level3" data-number="5.4.8">
+<h3 data-number="5.4.8" class="anchored" data-anchor-id="convert"><span class="header-section-number">5.4.8</span> <code>convert</code></h3>
+<p><code>convert ... to</code> lowers on the compiled path and uses the runtime’s compatibility model for the dynamic success/failure result.</p>
+</section>
+</section>
+<section id="statement-and-control-flow-translation" class="level2" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="statement-and-control-flow-translation"><span class="header-section-number">5.5</span> 5.5 Statement and Control-Flow Translation</h2>
+<section id="let" class="level3" data-number="5.5.1">
+<h3 data-number="5.5.1" class="anchored" data-anchor-id="let"><span class="header-section-number">5.5.1</span> <code>let</code></h3>
+<p>Top-level <code>let</code> in the compiled REPL is not lowered as a local-only binding. It becomes mutation of canonical top-level REPL state.</p>
+<p>That design choice is what made compiled REPL state coherent enough to become the default.</p>
+</section>
+<section id="assignment-and-member-assignment" class="level3" data-number="5.5.2">
+<h3 data-number="5.5.2" class="anchored" data-anchor-id="assignment-and-member-assignment"><span class="header-section-number">5.5.2</span> Assignment and Member Assignment</h3>
+<p>Top-level assignment lowers directly when the target is known and type-valid. Member assignment lowers to field-set IR on compiled object paths that are currently supported.</p>
+</section>
+<section id="loops" class="level3" data-number="5.5.3">
+<h3 data-number="5.5.3" class="anchored" data-anchor-id="loops"><span class="header-section-number">5.5.3</span> Loops</h3>
+<p>Loop constructs now lower on the compiled path, including loop contracts where supported. The backend does not treat ordinary looping as an interpreter-only feature anymore.</p>
+</section>
+<section id="case" class="level3" data-number="5.5.4">
+<h3 data-number="5.5.4" class="anchored" data-anchor-id="case"><span class="header-section-number">5.5.4</span> <code>case</code></h3>
+<p><code>case</code> lowers to statement-level branching rather than forcing REPL wrapper fallback.</p>
+</section>
+<section id="across" class="level3" data-number="5.5.5">
+<h3 data-number="5.5.5" class="anchored" data-anchor-id="across"><span class="header-section-number">5.5.5</span> <code>across</code></h3>
+<p><code>across</code> is not compiled as a magical special loop. It is translated through the cursor protocol. One important refinement was necessary here: if the iterated value is already a <code>Cursor</code>, the compiled path now uses it directly instead of forcing an unnecessary <code>.cursor</code> call.</p>
+</section>
+<section id="select" class="level3" data-number="5.5.6">
+<h3 data-number="5.5.6" class="anchored" data-anchor-id="select"><span class="header-section-number">5.5.6</span> <code>select</code></h3>
+<p><code>select</code> has explicit lowering and runtime helper support. It is not just a generic builtin call. Clause scheduling and timeout handling live partly in lowering strategy and partly in runtime helpers.</p>
+</section>
+</section>
+<section id="functions-and-closures" class="level2" data-number="5.6">
+<h2 data-number="5.6" class="anchored" data-anchor-id="functions-and-closures"><span class="header-section-number">5.6</span> 5.6 Functions and Closures</h2>
+<section id="top-level-functions" class="level3" data-number="5.6.1">
+<h3 data-number="5.6.1" class="anchored" data-anchor-id="top-level-functions"><span class="header-section-number">5.6.1</span> Top-Level Functions</h3>
+<p>Top-level functions lower to callable compiled units and are registered into <code>NexReplState.functions</code>.</p>
+<p>In the REPL, this means later compiled cells can call them directly through compiled session state.</p>
+</section>
+<section id="anonymous-functions" class="level3" data-number="5.6.2">
+<h3 data-number="5.6.2" class="anchored" data-anchor-id="anonymous-functions"><span class="header-section-number">5.6.2</span> Anonymous Functions</h3>
+<p>Anonymous functions without captures lower to synthetic compiled classes.</p>
+</section>
+<section id="captured-closures" class="level3" data-number="5.6.3">
+<h3 data-number="5.6.3" class="anchored" data-anchor-id="captured-closures"><span class="header-section-number">5.6.3</span> Captured Closures</h3>
+<p>Captured closures are supported too, but not with the same representation. They use runtime-backed closure objects with captured environment snapshots. This is a deliberate split:</p>
+<ul>
+<li>no-capture anonymous functions can be emitted cleanly as compiled classes,</li>
+<li>captured closures are more stable when represented as runtime-backed Nex closure objects.</li>
+</ul>
+</section>
+<section id="function-object-invocation" class="level3" data-number="5.6.4">
+<h3 data-number="5.6.4" class="anchored" data-anchor-id="function-object-invocation"><span class="header-section-number">5.6.4</span> Function-Object Invocation</h3>
+<p>Indirect calls through function values lower to explicit function-object invocation, not to the top-level function registry. This is what makes higher-order compiled code possible without pretending all functions are top-level named routines.</p>
+</section>
+</section>
+<section id="object-model" class="level2" data-number="5.7">
+<h2 data-number="5.7" class="anchored" data-anchor-id="object-model"><span class="header-section-number">5.7</span> 5.7 Object Model</h2>
+<section id="classes" class="level3" data-number="5.7.1">
+<h3 data-number="5.7.1" class="anchored" data-anchor-id="classes"><span class="header-section-number">5.7.1</span> Classes</h3>
+<p>User-defined classes are compiled. The JVM backend now treats ordinary class definitions as part of the compiled surface, not as a special REPL-only exception.</p>
+</section>
+<section id="constants" class="level3" data-number="5.7.2">
+<h3 data-number="5.7.2" class="anchored" data-anchor-id="constants"><span class="header-section-number">5.7.2</span> Constants</h3>
+<p>Class constants lower separately from instance fields and emit as real JVM <code>static final</code> fields.</p>
+</section>
+<section id="constructors" class="level3" data-number="5.7.3">
+<h3 data-number="5.7.3" class="anchored" data-anchor-id="constructors"><span class="header-section-number">5.7.3</span> Constructors</h3>
+<p>Default creation and simple named constructors are compiled. Constructor logic is lowered into the class model rather than forced back into the interpreter.</p>
+</section>
+<section id="multiple-inheritance" class="level3" data-number="5.7.4">
+<h3 data-number="5.7.4" class="anchored" data-anchor-id="multiple-inheritance"><span class="header-section-number">5.7.4</span> Multiple Inheritance</h3>
+<p>Nex multiple inheritance is <strong>not</strong> implemented through JVM class inheritance.</p>
+<p>Instead, the backend mirrors the Java generator strategy:</p>
+<ul>
+<li>user classes extend <code>Object</code>,</li>
+<li>direct parents are represented as composition fields,</li>
+<li>inherited methods are exposed through generated delegation methods,</li>
+<li>inherited constructor behavior is exposed through generated shims.</li>
+</ul>
+<p>This is one of the most important design decisions in the backend. It keeps Nex semantics aligned with the language rather than with the JVM’s single-inheritance object model.</p>
+</section>
+<section id="super" class="level3" data-number="5.7.5">
+<h3 data-number="5.7.5" class="anchored" data-anchor-id="super"><span class="header-section-number">5.7.5</span> <code>super</code></h3>
+<p><code>super</code> is compiled on top of the composition/delegation inheritance strategy, not through JVM <code>super</code> dispatch between user-defined Nex classes.</p>
+</section>
+<section id="deferred-classes" class="level3" data-number="5.7.6">
+<h3 data-number="5.7.6" class="anchored" data-anchor-id="deferred-classes"><span class="header-section-number">5.7.6</span> Deferred Classes</h3>
+<p>Deferred classes are compiled as abstract JVM classes where appropriate, but the important semantic layer remains the Nex class model and parent metadata, not raw JVM inheritance.</p>
+</section>
+<section id="invariants" class="level3" data-number="5.7.7">
+<h3 data-number="5.7.7" class="anchored" data-anchor-id="invariants"><span class="header-section-number">5.7.7</span> Invariants</h3>
+<p>Class invariants are enforced on the compiled path through runtime validation hooks. The backend does not pretend invariants are optional because code is compiled.</p>
+</section>
+</section>
+<section id="contracts-and-exceptions" class="level2" data-number="5.8">
+<h2 data-number="5.8" class="anchored" data-anchor-id="contracts-and-exceptions"><span class="header-section-number">5.8</span> 5.8 Contracts and Exceptions</h2>
+<section id="require-and-ensure" class="level3" data-number="5.8.1">
+<h3 data-number="5.8.1" class="anchored" data-anchor-id="require-and-ensure"><span class="header-section-number">5.8.1</span> <code>require</code> and <code>ensure</code></h3>
+<p>Preconditions and postconditions lower to assertion-like checks on the compiled path. They use the same runtime exception/contract-violation mechanism as the rest of the backend rather than inventing a second error model.</p>
+</section>
+<section id="old" class="level3" data-number="5.8.2">
+<h3 data-number="5.8.2" class="anchored" data-anchor-id="old"><span class="header-section-number">5.8.2</span> <code>old</code></h3>
+<p><code>old</code> is implemented through entry snapshots for the supported method/constructor postcondition cases. This is broader than the earliest field-snapshot prototype but still intentionally tied to the actual runtime object model.</p>
+</section>
+<section id="raise" class="level3" data-number="5.8.3">
+<h3 data-number="5.8.3" class="anchored" data-anchor-id="raise"><span class="header-section-number">5.8.3</span> <code>raise</code></h3>
+<p><code>raise</code> becomes a real compiled throw path.</p>
+</section>
+<section id="rescue" class="level3" data-number="5.8.4">
+<h3 data-number="5.8.4" class="anchored" data-anchor-id="rescue"><span class="header-section-number">5.8.4</span> <code>rescue</code></h3>
+<p><code>rescue</code> lowers to try/catch-style control flow using explicit runtime exception values where needed.</p>
+</section>
+<section id="retry" class="level3" data-number="5.8.5">
+<h3 data-number="5.8.5" class="anchored" data-anchor-id="retry"><span class="header-section-number">5.8.5</span> <code>retry</code></h3>
+<p><code>retry</code> is represented as a retry signal in the compiled runtime model. It is not a parser-only feature.</p>
+</section>
+</section>
+<section id="concurrency" class="level2" data-number="5.9">
+<h2 data-number="5.9" class="anchored" data-anchor-id="concurrency"><span class="header-section-number">5.9</span> 5.9 Concurrency</h2>
+<section id="spawn" class="level3" data-number="5.9.1">
+<h3 data-number="5.9.1" class="anchored" data-anchor-id="spawn"><span class="header-section-number">5.9.1</span> <code>spawn</code></h3>
+<p><code>spawn</code> lowers on the compiled path and allocates tasks through the runtime model rather than forcing interpreter fallback.</p>
+</section>
+<section id="task" class="level3" data-number="5.9.2">
+<h3 data-number="5.9.2" class="anchored" data-anchor-id="task"><span class="header-section-number">5.9.2</span> <code>Task</code></h3>
+<p>Task lifecycle operations are supported on the compiled path:</p>
+<ul>
+<li><code>await</code></li>
+<li><code>cancel</code></li>
+<li><code>is_done</code></li>
+<li>related task state queries</li>
+</ul>
+<p>Some of these use specialized helper calls rather than bespoke primitive opcodes, but they are no longer generic builtin trampolines.</p>
+</section>
+<section id="channel" class="level3" data-number="5.9.3">
+<h3 data-number="5.9.3" class="anchored" data-anchor-id="channel"><span class="header-section-number">5.9.3</span> <code>Channel</code></h3>
+<p>Channel creation and core operations stay on the compiled path:</p>
+<ul>
+<li><code>send</code></li>
+<li><code>receive</code></li>
+<li><code>try_send</code></li>
+<li><code>try_receive</code></li>
+<li><code>close</code></li>
+<li>state queries where supported</li>
+</ul>
+</section>
+<section id="select-1" class="level3" data-number="5.9.4">
+<h3 data-number="5.9.4" class="anchored" data-anchor-id="select-1"><span class="header-section-number">5.9.4</span> <code>select</code></h3>
+<p><code>select</code> is part of the concurrency lowering story, not a separate ad hoc runtime trick.</p>
+</section>
+<section id="await_any-and-await_all" class="level3" data-number="5.9.5">
+<h3 data-number="5.9.5" class="anchored" data-anchor-id="await_any-and-await_all"><span class="header-section-number">5.9.5</span> <code>await_any</code> and <code>await_all</code></h3>
+<p>These now have dedicated compiled helper paths. They are not routed through the old generic builtin dispatch layer.</p>
+</section>
+</section>
+<section id="modules-and-interop" class="level2" data-number="5.10">
+<h2 data-number="5.10" class="anchored" data-anchor-id="modules-and-interop"><span class="header-section-number">5.10</span> 5.10 Modules and Interop</h2>
+<section id="import" class="level3" data-number="5.10.1">
+<h3 data-number="5.10.1" class="anchored" data-anchor-id="import"><span class="header-section-number">5.10.1</span> <code>import</code></h3>
+<p>Imports are part of compiled session state and are visible to the compiler. The backend does not treat them as interpreter-only metadata anymore.</p>
+</section>
+<section id="intern" class="level3" data-number="5.10.2">
+<h3 data-number="5.10.2" class="anchored" data-anchor-id="intern"><span class="header-section-number">5.10.2</span> <code>intern</code></h3>
+<p>Interned local <code>.nex</code> files are resolved before lowering in both REPL and file compilation. The compiled session keeps the resulting metadata so later compiled inputs can reuse it across deopt/reopt cycles.</p>
+</section>
+<section id="with-java" class="level3" data-number="5.10.3">
+<h3 data-number="5.10.3" class="anchored" data-anchor-id="with-java"><span class="header-section-number">5.10.3</span> <code>with "java"</code></h3>
+<p><code>with "java"</code> is now on the JVM compiled path. Static and instance Java interop is lowered into host interop support rather than being excluded from compilation just because it is foreign code.</p>
+</section>
+</section>
+<section id="debugging-and-metadata" class="level2" data-number="5.11">
+<h2 data-number="5.11" class="anchored" data-anchor-id="debugging-and-metadata"><span class="header-section-number">5.11</span> 5.11 Debugging and Metadata</h2>
+<p>The emitter now includes more than raw executable bytecode. It also emits:</p>
+<ul>
+<li>source file names,</li>
+<li>line tables,</li>
+<li>local-variable tables.</li>
+</ul>
+<p>The current metadata is sufficient for meaningful stack traces and debugger-oriented inspection. It is still pragmatic rather than perfect; the local-variable live ranges are tighter than the earliest whole-method implementation, but they are not yet a full optimizer-grade liveness model.</p>
+<p>Debugger behavior under compiled mode is currently safe because the REPL routes debugger-enabled evaluation through the interpreter path rather than attempting native compiled debugging for every step.</p>
+</section>
+<section id="fallback-boundaries" class="level2" data-number="5.12">
+<h2 data-number="5.12" class="anchored" data-anchor-id="fallback-boundaries"><span class="header-section-number">5.12</span> 5.12 Fallback Boundaries</h2>
+<p>The compiled backend is the default REPL path, but the fallback surface still matters.</p>
+<p>The remaining deopt cases are not “all advanced features.” They are mostly:</p>
+<ul>
+<li>AST shapes outside the compiled eligibility gate,</li>
+<li>debugger-enabled REPL evaluation,</li>
+<li>known conservative mixed-mode boundaries,</li>
+<li>unresolved or unsupported receiver/call shapes,</li>
+<li>a small number of deliberately interpreter-routed cases where semantic fidelity is better preserved that way.</li>
+</ul>
+<p>Two design rules are important here:</p>
+<ol type="1">
+<li>A runtime helper call is <strong>not</strong> a deopt.</li>
+<li>A deopt must preserve user-visible semantics after sync, not just finish execution somehow.</li>
+</ol>
+</section>
+<section id="worked-examples" class="level2" data-number="5.13">
+<h2 data-number="5.13" class="anchored" data-anchor-id="worked-examples"><span class="header-section-number">5.13</span> 5.13 Worked Examples</h2>
+<section id="example-1-top-level-let" class="level3" data-number="5.13.1">
+<h3 data-number="5.13.1" class="anchored" data-anchor-id="example-1-top-level-let"><span class="header-section-number">5.13.1</span> Example 1: Top-Level <code>let</code></h3>
+<p>Source:</p>
+<pre class="nex"><code>let x: Integer := 40</code></pre>
+<p>Lowered strategy:</p>
+<ul>
+<li>lower to top-level REPL state mutation, not a transient local</li>
+</ul>
+<p>Emitted strategy:</p>
+<ul>
+<li>compiled REPL cell stores into <code>NexReplState.values</code> and <code>NexReplState.types</code></li>
+</ul>
+<p>Runtime involvement:</p>
+<ul>
+<li>state update helpers</li>
+<li>session-&gt;interpreter sync only if later deopt requires it</li>
+</ul>
+</section>
+<section id="example-2-captured-closure" class="level3" data-number="5.13.2">
+<h3 data-number="5.13.2" class="anchored" data-anchor-id="example-2-captured-closure"><span class="header-section-number">5.13.2</span> Example 2: Captured Closure</h3>
+<p>Source:</p>
+<pre class="nex"><code>let add_base := fn (n: Integer): Integer do
+  result := n + x
+end</code></pre>
+<p>Lowered strategy:</p>
+<ul>
+<li>captured closure does not become a plain no-capture function class</li>
+<li>captured environment is represented through a runtime-backed closure object</li>
+</ul>
+<p>Emitted strategy:</p>
+<ul>
+<li>compiled code allocates the closure through a runtime helper</li>
+</ul>
+<p>Runtime involvement:</p>
+<ul>
+<li>closure capture storage</li>
+<li>function-object invocation path</li>
+</ul>
+</section>
+<section id="example-3-multiple-inheritance-method-call" class="level3" data-number="5.13.3">
+<h3 data-number="5.13.3" class="anchored" data-anchor-id="example-3-multiple-inheritance-method-call"><span class="header-section-number">5.13.3</span> Example 3: Multiple Inheritance Method Call</h3>
+<p>Source:</p>
+<pre class="nex"><code>class C inherit A, B
+feature
+  run() do
+    A.show()
+    B.show()
+  end
+end</code></pre>
+<p>Lowered strategy:</p>
+<ul>
+<li>parent-qualified calls lower against composition fields and delegation metadata</li>
+</ul>
+<p>Emitted strategy:</p>
+<ul>
+<li>child class extends <code>Object</code></li>
+<li>parent state lives in parent composition fields</li>
+<li>delegation methods and parent-qualified dispatch are emitted explicitly</li>
+</ul>
+<p>Runtime involvement:</p>
+<ul>
+<li>object-state validation where required</li>
+</ul>
+</section>
+<section id="example-4-select" class="level3" data-number="5.13.4">
+<h3 data-number="5.13.4" class="anchored" data-anchor-id="example-4-select"><span class="header-section-number">5.13.4</span> Example 4: <code>select</code></h3>
+<p>Source:</p>
+<pre class="nex"><code>select
+  when ch.receive() as msg then
+    print(msg)
+  timeout 100 then
+    print(0)
+end</code></pre>
+<p>Lowered strategy:</p>
+<ul>
+<li>explicit select lowering</li>
+<li>clause structure preserved rather than reduced to one builtin call</li>
+</ul>
+<p>Emitted strategy:</p>
+<ul>
+<li>compiled control flow plus runtime helper support for probe/send/receive behavior</li>
+</ul>
+<p>Runtime involvement:</p>
+<ul>
+<li>channel/task coordination helpers</li>
+</ul>
+</section>
+<section id="example-5-file-compilation" class="level3" data-number="5.13.5">
+<h3 data-number="5.13.5" class="anchored" data-anchor-id="example-5-file-compilation"><span class="header-section-number">5.13.5</span> Example 5: File Compilation</h3>
+<p>Source:</p>
+<pre class="nex"><code>print("hello")</code></pre>
+<p>Lowered strategy:</p>
+<ul>
+<li>ordinary program AST lowered into a program unit</li>
+</ul>
+<p>Emitted strategy:</p>
+<ul>
+<li>emit a program class</li>
+<li>emit a launcher class with <code>main</code></li>
+<li>package emitted classes and runtime support into a jar</li>
+</ul>
+<p>Runtime involvement:</p>
+<ul>
+<li>launcher bootstrap</li>
+<li>shaded runtime helpers in the output jar</li>
+</ul>
+</section>
+</section>
+<section id="why-this-reference-exists" class="level2" data-number="5.14">
+<h2 data-number="5.14" class="anchored" data-anchor-id="why-this-reference-exists"><span class="header-section-number">5.14</span> 5.14 Why This Reference Exists</h2>
+<p>The JVM backend has reached the point where “read the source” is no longer an adequate replacement for a design reference. There are now too many important translation choices whose correctness depends on understanding the whole:</p>
+<ul>
+<li>direct bytecode vs runtime-helper boundaries,</li>
+<li>mixed-mode REPL state coherence,</li>
+<li>composition-based multiple inheritance,</li>
+<li>closure representation,</li>
+<li>contract and exception lowering,</li>
+<li>concurrency lowering,</li>
+<li>module and interop handling.</li>
+</ul>
+<p>This chapter is meant to keep those choices legible. It is a maintenance tool as much as a book chapter. Future backend work should update this reference whenever the translation strategy changes in a way that affects reasoning, not just implementation detail.</p>
 
 
 </section>
@@ -841,6 +1397,9 @@ ul.task-list li input[type="checkbox"] {
       </a>          
   </div>
   <div class="nav-page nav-page-next">
+      <a href="./chapter_6.html" class="pagination-link" aria-label="Future Directions">
+        <span class="nav-page-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Future Directions</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
   </div>
 </nav>
 </div> <!-- /content -->
