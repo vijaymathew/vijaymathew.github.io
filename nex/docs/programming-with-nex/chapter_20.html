@@ -614,8 +614,15 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#a-contract-first-routine" id="toc-a-contract-first-routine" class="nav-link" data-scroll-target="#a-contract-first-routine"><span class="header-section-number">21.6</span> A Contract-First Routine</a></li>
   <li><a href="#contracts-improve-class-boundaries" id="toc-contracts-improve-class-boundaries" class="nav-link" data-scroll-target="#contracts-improve-class-boundaries"><span class="header-section-number">21.7</span> Contracts Improve Class Boundaries</a></li>
   <li><a href="#a-worked-example-designing-a-small-set-class" id="toc-a-worked-example-designing-a-small-set-class" class="nav-link" data-scroll-target="#a-worked-example-designing-a-small-set-class"><span class="header-section-number">21.8</span> A Worked Example: Designing a Small Set Class</a></li>
-  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">21.9</span> Summary</a></li>
-  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">21.10</span> Exercises</a></li>
+  <li><a href="#inheritance-and-contracts" id="toc-inheritance-and-contracts" class="nav-link" data-scroll-target="#inheritance-and-contracts"><span class="header-section-number">21.9</span> Inheritance and Contracts</a>
+  <ul class="collapse">
+  <li><a href="#precondition-inheritance" id="toc-precondition-inheritance" class="nav-link" data-scroll-target="#precondition-inheritance"><span class="header-section-number">21.9.1</span> Precondition Inheritance</a></li>
+  <li><a href="#postcondition-inheritance" id="toc-postcondition-inheritance" class="nav-link" data-scroll-target="#postcondition-inheritance"><span class="header-section-number">21.9.2</span> Postcondition Inheritance</a></li>
+  <li><a href="#invariant-inheritance" id="toc-invariant-inheritance" class="nav-link" data-scroll-target="#invariant-inheritance"><span class="header-section-number">21.9.3</span> Invariant Inheritance</a></li>
+  <li><a href="#multiple-inheritance" id="toc-multiple-inheritance" class="nav-link" data-scroll-target="#multiple-inheritance"><span class="header-section-number">21.9.4</span> Multiple Inheritance</a></li>
+  </ul></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">21.10</span> Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">21.11</span> Exercises</a></li>
   </ul>
 </nav>
     </div>
@@ -801,8 +808,98 @@ end</code></pre>
 <p>The postcondition on <code>add</code> is the important part. It says what the routine must achieve, not how. The body then chooses one reasonable implementation.</p>
 <p>If later we replace <code>Array[String]</code> with a map or a tree, the contract can remain the same. That is contract-first design doing its proper job.</p>
 </section>
-<section id="summary" class="level2" data-number="21.9">
-<h2 data-number="21.9" class="anchored" data-anchor-id="summary"><span class="header-section-number">21.9</span> Summary</h2>
+<section id="inheritance-and-contracts" class="level2" data-number="21.9">
+<h2 data-number="21.9" class="anchored" data-anchor-id="inheritance-and-contracts"><span class="header-section-number">21.9</span> Inheritance and Contracts</h2>
+<p>When a subclass overrides a method, the override should honour the same contract as the superclass method: it should accept at least the same inputs and guarantee at least as much. This is the <em>Liskov Substitution Principle</em>: wherever a superclass instance is expected, a subclass instance should be usable without breaking anything.</p>
+<p>In Nex, this idea is not only informal. Contract inheritance follows explicit rules.</p>
+<section id="precondition-inheritance" class="level3" data-number="21.9.1">
+<h3 data-number="21.9.1" class="anchored" data-anchor-id="precondition-inheritance"><span class="header-section-number">21.9.1</span> Precondition Inheritance</h3>
+<p>For an overridden feature, the effective precondition is:</p>
+<p><code>&lt;base-feature-require&gt; or &lt;local-feature-require&gt;</code></p>
+<p>Either side may be absent. The practical meaning is that a child class may <em>weaken</em> the precondition. It may accept everything the parent accepted, and possibly more.</p>
+<p>For example:</p>
+<pre class="text"><code>class Account
+feature
+  balance: Real
+  withdraw(amount: Real)
+    require
+      enough: amount &lt;= balance
+    do
+      balance := balance - amount
+    end
+  create
+    make(balance: Real) do this.balance := balance end
+end
+
+class Overdraft_Account
+inherit Account
+feature
+  withdraw(amount: Real)
+    require
+      within_limit: amount &lt;= balance + overdraft_limit
+    do
+      balance := balance - amount
+    end
+  overdraft_limit: Real
+  create
+    make(balance, overdraft_limit: Real)
+      do
+        Account.make(balance)
+        this.overdraft_limit := overdraft_limit
+      end
+end</code></pre>
+<p>The effective precondition of <code>Overdraft_Account.withdraw</code> is:</p>
+<p><code>(amount &lt;= balance) or (amount &lt;= balance + overdraft_limit)</code></p>
+<p>So any call valid for <code>Account</code> remains valid for <code>Overdraft_Account</code>.</p>
+</section>
+<section id="postcondition-inheritance" class="level3" data-number="21.9.2">
+<h3 data-number="21.9.2" class="anchored" data-anchor-id="postcondition-inheritance"><span class="header-section-number">21.9.2</span> Postcondition Inheritance</h3>
+<p>For an overridden feature, the effective postcondition is:</p>
+<p><code>&lt;base-feature-ensure&gt; and &lt;local-feature-ensure&gt;</code></p>
+<p>Either side may be absent. The practical meaning is that a child class may <em>strengthen</em> the postcondition, but it may not drop promises that the parent already made.</p>
+<p>If a parent routine promises that <code>area &gt;= 0.0</code>, then every child implementation must still guarantee <code>area &gt;= 0.0</code>. A child may add a stronger fact, but not a weaker one.</p>
+</section>
+<section id="invariant-inheritance" class="level3" data-number="21.9.3">
+<h3 data-number="21.9.3" class="anchored" data-anchor-id="invariant-inheritance"><span class="header-section-number">21.9.3</span> Invariant Inheritance</h3>
+<p>For a child class, the effective class invariant is:</p>
+<p><code>&lt;base-invariants&gt; and &lt;local-class-invariants&gt;</code></p>
+<p><code>base-invariants</code> includes the invariants of all immediate parent classes, and those parent invariants already include their own inherited invariants recursively.</p>
+<p>For example:</p>
+<pre class="text"><code>class Account
+invariant
+  non_negative_balance: balance &gt;= 0.0
+end
+
+class Savings_Account
+inherit Account
+invariant
+  non_negative_rate: interest_rate &gt;= 0.0
+end</code></pre>
+<p>The effective invariant of <code>Savings_Account</code> is:</p>
+<p><code>(balance &gt;= 0.0) and (interest_rate &gt;= 0.0)</code></p>
+<p>This means subclass objects must satisfy everything required of parent objects, plus their own additional consistency rules.</p>
+</section>
+<section id="multiple-inheritance" class="level3" data-number="21.9.4">
+<h3 data-number="21.9.4" class="anchored" data-anchor-id="multiple-inheritance"><span class="header-section-number">21.9.4</span> Multiple Inheritance</h3>
+<p>With multiple inheritance, Nex combines:</p>
+<ul>
+<li>inherited preconditions with <code>or</code></li>
+<li>inherited postconditions with <code>and</code></li>
+<li>inherited class invariants with <code>and</code></li>
+</ul>
+<p>Inherited invariant contributions are collected recursively and deduped by ancestor class, so the same ancestor contract is not applied twice through different parent paths.</p>
+<p>The rule to remember is simple:</p>
+<ul>
+<li>children may accept more</li>
+<li>children must promise at least as much</li>
+<li>child objects must satisfy all inherited validity rules</li>
+</ul>
+<p>If <code>Shape.area</code> promises to return a non-negative real number, then every subclass <code>area</code> must also return a non-negative real. A subclass that returns a negative area or raises an exception where the superclass would not has violated the contract that clients of <code>Shape</code> rely on.</p>
+<p>When overriding a method: read the superclass method’s contract first. In Nex, the language combines inherited contracts in exactly the way behavioral subtyping requires.</p>
+</section>
+</section>
+<section id="summary" class="level2" data-number="21.10">
+<h2 data-number="21.10" class="anchored" data-anchor-id="summary"><span class="header-section-number">21.10</span> Summary</h2>
 <ul>
 <li>Contracts are most powerful when written before the implementation</li>
 <li>A clear contract often makes the body obvious</li>
@@ -813,8 +910,8 @@ end</code></pre>
 <li>Contract-first design keeps attention on behavior rather than mechanism</li>
 </ul>
 </section>
-<section id="exercises" class="level2" data-number="21.10">
-<h2 data-number="21.10" class="anchored" data-anchor-id="exercises"><span class="header-section-number">21.10</span> Exercises</h2>
+<section id="exercises" class="level2" data-number="21.11">
+<h2 data-number="21.11" class="anchored" data-anchor-id="exercises"><span class="header-section-number">21.11</span> Exercises</h2>
 <p><strong>1.</strong> Design the contract for a routine <code>append_line(path: String, text: String)</code> before writing its body. What belongs in the precondition, and what belongs in error handling instead?</p>
 <p><strong>2.</strong> Write a contract-first design for <code>front(queue: Queue[String]): String</code>. Include any necessary preconditions and at least one postcondition.</p>
 <p><strong>3.</strong> Consider a class <code>Timer</code> with methods <code>start</code>, <code>stop</code>, and <code>elapsed</code>. Write the contracts you would want before implementing any of the methods.</p>
