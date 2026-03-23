@@ -663,6 +663,7 @@ ul.task-list li input[type="checkbox"] {
      end</code></pre>
 <p>This defines a class <code>Point</code> with a constructor named <code>make</code>, two fields <code>x</code> and <code>y</code>, and one method <code>distance_from_origin</code>.</p>
 <p>Fields are declared inside <code>feature</code> as <code>name: Type</code> — no keyword needed. Methods are declared as <code>name(params): ReturnType do ... end</code>, also inside <code>feature</code>. The distinction between fields and methods is structural: fields have no parameter list or body; methods do.</p>
+<p>A plain <code>feature</code> section introduces public features. Nex also supports <code>private feature</code> for members that should only be used inside the class itself.</p>
 </section>
 <section id="creating-objects" class="level2" data-number="13.2">
 <h2 data-number="13.2" class="anchored" data-anchor-id="creating-objects"><span class="header-section-number">13.2</span> Creating Objects</h2>
@@ -720,7 +721,7 @@ nex&gt; p1.x
 
 nex&gt; p2.x
 4.0</code></pre>
-<p>Fields are read using dot notation: <code>obj.field_name</code>. Assigning to a field from outside the class is not permitted — fields are private to the class. If a field needs to change, the class provides a method:</p>
+<p>Fields in a public <code>feature</code> section are read using dot notation: <code>obj.field_name</code>. Assigning to a field from outside the class is not permitted. If a field needs to change, the class provides a method:</p>
 <pre><code>nex&gt; class Point
        create
          make(px, py: Real) do
@@ -743,6 +744,28 @@ nex&gt; let p := create Point.make(1.0, 2.0)
 nex&gt; p.move(2.0, 2.0)
 nex&gt; p.x
 3.0</code></pre>
+<p>If a field or helper method is an implementation detail, put it in a <code>private feature</code> section instead:</p>
+<pre><code>nex&gt; class Counter
+       create
+         make(start: Integer) do
+           count := start
+         end
+       feature
+         increment() do
+           count := count + 1
+         end
+         current(): Integer do
+           result := count
+         end
+       private feature
+         count: Integer
+     end
+
+nex&gt; let c := create Counter.make(10)
+nex&gt; c.increment()
+nex&gt; c.current
+11</code></pre>
+<p>Here <code>increment</code> and <code>current</code> are public operations, but <code>count</code> is hidden from code outside <code>Counter</code>. Private helper methods are declared the same way: place them under <code>private feature</code>.</p>
 <p>Classes can also define class-level constants directly in the <code>feature</code> block:</p>
 <pre><code>nex&gt; class Layout
        feature
@@ -817,8 +840,8 @@ end</code></pre>
 <pre><code>name(params) do
      
 end</code></pre>
-<p>Methods access the object’s own fields directly by name. Here is a <code>BankAccount</code> class:</p>
-<pre><code>nex&gt; class BankAccount
+<p>Methods access the object’s own fields directly by name. Here is a <code>Bank_Account</code> class:</p>
+<pre><code>nex&gt; class Bank_Account
        create
          make(name: String, initial: Real) do
            owner := name
@@ -841,7 +864,7 @@ end</code></pre>
          end
      end
 
-nex&gt; let account := create BankAccount.make("Alice", 1000.0)
+nex&gt; let account := create Bank_Account.make("Alice", 1000.0)
 nex&gt; account.deposit(500.0)
 nex&gt; account.withdraw(200.0)
 nex&gt; account.describe
@@ -862,7 +885,7 @@ nex&gt; account.describe
      end</code></pre>
 <p>Here the constructor parameters are also named <code>x</code> and <code>y</code>. Inside the constructor, bare <code>x</code> refers to the parameter; <code>this.x</code> refers to the field. Without <code>this</code>, the assignment <code>x := x</code> would assign the parameter to itself and leave the field uninitialised.</p>
 <p><code>this</code> is also used when an object needs to pass itself as an argument:</p>
-<pre><code>nex&gt; class Point
+<pre><code>nex&gt; class Point_2
        create
          make(px, py: Real) do
            x := px
@@ -871,15 +894,15 @@ nex&gt; account.describe
        feature
          x: Real
          y: Real
-         distance_to(other: Point): Real do
+         distance_to(other: Point_2): Real do
            let dx := this.x - other.x
            let dy := this.y - other.y
            result := ((dx * dx) + (dy * dy)) ^ 0.5
          end
      end
 
-nex&gt; let p1 := create Point.make(0.0, 0.0)
-nex&gt; let p2 := create Point.make(3.0, 4.0)
+nex&gt; let p1 := create Point_2.make(0.0, 0.0)
+nex&gt; let p2 := create Point_2.make(3.0, 4.0)
 nex&gt; p1.distance_to(p2)
 5.0</code></pre>
 <p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the fields of the object the method was called on (<code>p1</code>), while <code>other.x</code> and <code>other.y</code> refer to the argument (<code>p2</code>).</p>
@@ -964,7 +987,8 @@ nex&gt; s.size
 <li>A class has a <code>create</code> block (constructors) and a <code>feature</code> block (fields and methods)</li>
 <li>Constructors are named; <code>create ClassName.constructor_name(args)</code> creates an instance</li>
 <li>Fields are <code>name: Type</code> inside <code>feature</code>; class constants use <code>NAME: Type = value</code> or <code>NAME = value</code>; methods are <code>name(params): ReturnType do ... end</code></li>
-<li>Fields are private — external code reads them with <code>obj.field</code> but cannot assign; changes go through methods</li>
+<li><code>feature</code> is public by default; use <code>private feature</code> for fields and helper methods that should stay inside the class</li>
+<li>Public fields may be read with <code>obj.field</code>, but external code cannot assign to them; changes go through methods</li>
 <li>In strict mode, non-basic fields must be initialised in the constructor; use <code>?Type</code> for fields that may legitimately be <code>nil</code></li>
 <li><code>this</code> refers to the current object; needed when a parameter name shadows a field, or to pass the object as an argument</li>
 <li>Uniform access: field reads and method calls use identical <code>obj.name</code> syntax</li>
@@ -974,7 +998,7 @@ nex&gt; s.size
 <h2 data-number="13.11" class="anchored" data-anchor-id="exercises"><span class="header-section-number">13.11</span> Exercises</h2>
 <p><strong>1.</strong> Define a class <code>Rectangle</code> with fields <code>width</code> and <code>height</code> (both <code>Real</code>) and a constructor <code>make</code>. Add methods <code>area(): Real</code>, <code>perimeter(): Real</code>, and <code>is_square(): Boolean</code>. Test with a 4.0 x 6.0 rectangle and a 5.0 x 5.0 square.</p>
 <p><strong>2.</strong> Define a class <code>Temperature</code> with a single field <code>celsius: Real</code>. Add methods <code>fahrenheit(): Real</code> and <code>kelvin(): Real</code>. Add <code>describe(): String</code> returning <code>"freezing"</code>, <code>"cold"</code>, <code>"mild"</code>, or <code>"warm"</code>. All derived values should be computed methods, not stored fields.</p>
-<p><strong>3.</strong> Define a class <code>StringStack</code> that behaves like <code>Stack</code> but holds <code>String</code> values. Use it to reverse a string by pushing each character and popping them all off.</p>
+<p><strong>3.</strong> Define a class <code>String_Stack</code> that behaves like <code>Stack</code> but holds <code>String</code> values. Use it to reverse a string by pushing each character and popping them all off.</p>
 <p><strong>4.</strong> Define a class <code>Accumulator</code> with fields <code>total: Real</code> and <code>count: Integer</code> (both initialised to <code>0</code>). Add <code>add(value: Real)</code>, <code>reset()</code>, and <code>average(): Real</code>. State the precondition for <code>average</code> as a comment.</p>
 <p><strong>5.*</strong> Define a class <code>Queue</code> supporting <code>enqueue(value: Integer)</code>, <code>dequeue(): Integer</code>, <code>front(): Integer</code>, <code>is_empty(): Boolean</code>, and <code>size(): Integer</code>, backed by an <code>Array[Integer]</code>. Enqueue 1 through 5, dequeue and print each, and verify first-in-first-out order.</p>
 
