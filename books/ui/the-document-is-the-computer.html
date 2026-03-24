@@ -2001,6 +2001,13 @@ runW();
 <div class="section-break">· · ·</div>
 <h2>9.1 The mutation model</h2>
 <p>Every user action in a rendered widget produces exactly one of three mutation types: <em>Append</em> — new text is added to the document; sending a reply appends a block, accepting an invite appends a log line, completing a task appends a timestamp. <em>Replace</em> — existing text is modified in place; editing a table cell replaces the cell value, changing a task's due date replaces the parameter value, toggling a checkbox replaces <code>[ ]</code> with <code>[x]</code>. <em>Delete</em> — existing text is removed; dismissing a directive removes it, detaching a table from its source removes the parameter. Every mutation is expressed as a text edit. Every text edit is recorded in the document's version history. The document's history is a complete audit trail of every action the user took.</p>
+<div class="section-break">· · ·</div>
+<h2>9.1.1 Two kinds of state: owned and mirrored</h2>
+<p>Not all directives have the same relationship to the document text. The architecture must distinguish clearly between two modes, because confusing them is the surest path to a system that lies to its user.</p>
+<p><strong>Owned state</strong> is state for which the document text is the sole canonical source. A <code>::task</code> directive is owned state: the task exists because the text says it does, and checking it off is a text edit that constitutes the completion — there is no external database to reconcile with. A <code>::py</code> block is owned state: the code is in the text, the output is derived from the code, and nothing outside the document can change either. A <code>::table</code> with inline data is owned state. For owned state, bidirectional sync is trivial. The text is the truth. The renderer displays the truth. Edits modify the truth. There is exactly one source, and the mutation model described above is the complete story.</p>
+<p><strong>Mirrored state</strong> is state for which an external backend is the canonical source, and the document holds a projection — a rendered view of some slice of that backend — plus a journal of the user's actions against it. A <code>::email[inbox]</code> directive is mirrored state: the emails live on the mail server; the document renders a filtered view and logs what the user did (replied, filed, deleted). A <code>::cal</code> directive showing events from a Google Calendar backend is mirrored state: the events are authoritative on Google's servers; the document renders them and records the user's responses. A <code>::chat</code> channel embed is mirrored state: the messages live on the chat server; the document shows a window into them.</p>
+<p>The distinction matters because the sync obligations are different. For owned state, the document need only keep its rendered widgets consistent with its own text — a local problem, solvable with the three mutation types above. For mirrored state, the document must additionally maintain a faithful projection of an external system whose state can change without the document's knowledge or consent. This is a harder problem, and the architecture must not pretend otherwise.</p>
+<p>The principle that "the text file is always the source of truth" holds in both cases, but it means different things in each. For owned state, the text <em>is</em> the data. For mirrored state, the text is the record of the user's relationship with the data — what they saw, what they did, what they decided. The email itself lives on the server. The fact that you replied to it, at 14:32, saying "confirmed, will escalate" — that lives in the document. The document does not replace the backend. It is the user's authoritative account of their interaction with the backend. This is a weaker claim than "the document is the database," but it is an honest claim, and it is sufficient: the user's document is a complete, greppable, diffable, version-controlled record of every action they took, regardless of what the backends do with those actions afterward.</p>
 </div>
 
 <!-- FIG 9.1: CALENDAR EMBED WITH SYNC -->
@@ -2045,10 +2052,238 @@ runW();
 <div class="section-break">· · ·</div>
 <h2>9.2 Remote backends</h2>
 <p>When a directive interacts with a remote backend — sending an email, accepting a calendar invite, posting a chat message — the mutation model extends to cover the remote state. The renderer sends the action to the backend and waits for confirmation. On success, it emits a sync event that writes the mutation to the document text. On failure, it emits an error that renders inline in the document. The key property is that the document text reflects reality. If an email was sent, the document contains a record of it. The document is not an interface to the backends. It is a journal of what has happened, with the backends as the execution layer.</p>
-<div class="aside"><p>This model has a direct analogy in event sourcing — an architectural pattern in software systems where the system's state is derived by replaying a sequence of events rather than by reading a current state snapshot. The text-native document is an event-sourced personal information system: the document text is the event log, the rendered widgets are derived views, and the "current state" is always computable from the log. The benefits of event sourcing — auditability, reproducibility, time travel — apply directly.</p></div>
+<div class="section-break">· · ·</div>
+<h2>9.2.1 The document as event log</h2>
+<p>The model described above — renderers emit actions, actions are confirmed by backends, confirmations are written to the document as text — has a precise analogy in software architecture: <em>event sourcing</em>. In an event-sourced system, the authoritative state is not a database snapshot. It is an ordered sequence of events. The current state is derived by replaying the events from the beginning. The events are immutable. The derived state is disposable — it can always be recomputed.</p>
+<p>The text-native document is an event-sourced personal information system. The document text is the event log. The rendered widgets are derived views. The "current state" of any directive — whether a task is complete, whether an email was replied to, what time a meeting is scheduled for — is computable by reading the document from top to bottom. This is not a metaphor. It is the operational model, and it has consequences that the architecture depends on.</p>
+<p>Every mutation written to the document — whether by a user action, a renderer sync, or an inbound backend update — is an <strong>event record</strong>. An event record has four fields:</p>
+<div class="grammar-box">
+<span class="g-label">event record schema</span>
+<div><span class="g-kw">timestamp</span> &nbsp; ISO 8601, always UTC — when the event was confirmed</div>
+<div><span class="g-kw">source</span> &nbsp;&nbsp;&nbsp;&nbsp; one of: <span class="g-id">user</span>, <span class="g-id">renderer</span>, <span class="g-id">sync</span> — who originated the mutation</div>
+<div><span class="g-kw">type</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; one of: <span class="g-id">append</span>, <span class="g-id">replace</span>, <span class="g-id">delete</span> — the mutation class from §9.1</div>
+<div><span class="g-kw">payload</span> &nbsp;&nbsp;&nbsp; the text that was written, replaced, or removed</div>
+</div>
+<p>In the raw document, an event record is a line of text. The user's acceptance of a meeting is: <em>accepted team roadmap review, 14:00, 24 March.</em> The source is <code>user</code>; the type is <code>append</code>; the timestamp is implicit in the document's version history; the payload is the line itself. A sync annotation from an inbound backend change is: <em>[sync 2026-03-24T08:12] team roadmap review rescheduled by organiser: 14:00 → 15:00.</em> The source is <code>sync</code>; the timestamp is explicit in the bracket; the type is <code>append</code>; the payload is the annotation text. The schema is the same in both cases. The document accumulates these records in chronological order. It never edits a past record — it only appends new ones.</p>
+<p>This gives the architecture three properties that are difficult to achieve any other way:</p>
+<p><strong>Replay.</strong> The current state of any directive can be reconstructed by reading the document's event records in order. A task that was created, then had its due date changed, then was completed, has three event records. Reading them in sequence produces the current state: completed, with the revised due date. This means there is no hidden state — no database row that the user cannot see. Everything is in the text, in order, readable.</p>
+<p><strong>Time travel.</strong> Because event records are immutable and chronologically ordered, the document at any past point in time is recoverable by replaying events up to that point. Combined with <code>git</code> version history — which the architecture assumes for all documents — this means the user can answer questions like "what did my Tuesday look like before the meeting was rescheduled?" by checking out the document as of Monday night. The event log and the version history are complementary: the version history shows the file at each commit; the event log shows the reasoning within each version.</p>
+<p><strong>Auditability.</strong> Every action has a record. Every record has a source. A user, an AI assistant, a backend sync, or a renderer action — each is attributed. When something unexpected appears in the document, the event log answers "who did this and when" without requiring any external system. This matters especially for AI-nativity (Chapter 23): when a language model writes to the document — suggesting a task, drafting a reply, computing a summary — its actions are event records with <code>source=ai</code>, distinguishable from user actions, auditable in the same text.</p>
+<div class="aside"><p>Event sourcing in traditional software systems typically requires a purpose-built event store — a database optimised for append-only writes and sequential reads. The text-native document needs no such infrastructure. The event store is the text file. Appending an event is appending a line. Sequential reads are reading the file from top to bottom. The format is the infrastructure. This is, perhaps, the most direct expression of why text is the right substrate: it is already an event log. It has been one since the first person wrote a diary.</p></div>
+<div class="section-break">· · ·</div>
+<h2>9.2.2 Inbound sync: when the backend changes without you</h2>
+<p>The mutation model described so far covers only outbound sync — the user acts in the document, and the action propagates to the backend. But backends change on their own. A meeting organiser reschedules from 14:00 to 15:00. A colleague deletes a shared document. A chat message is edited after it was rendered in the document. An email is moved to spam by a server-side filter. In each case, the backend's state has diverged from the projection the document last rendered. The document must handle this, or it will become a record of a world that no longer exists.</p>
+<p>The architecture addresses inbound sync through a <strong>refresh cycle</strong>. When a mirrored-state directive is rendered, the renderer queries the backend for the current state of the resource it projects. If the backend state matches the document's last-known state, rendering proceeds normally. If the backend state has changed, the renderer must do two things: update the rendered view to reflect the new state, and write a sync annotation to the document text recording what changed and when.</p>
+<p>The sync annotation is the critical piece. Consider the rescheduled meeting. The document contains a log line from yesterday: <em>accepted team sync, 14:00, 24 March.</em> Today, when the <code>::cal</code> renderer refreshes, it discovers that the event is now at 15:00. The renderer updates the calendar widget to show 15:00. And it appends to the document: <em>[sync 2026-03-24T08:12] team sync rescheduled by organiser: 14:00 → 15:00.</em> The original acceptance record is not modified — it is historical fact. The sync annotation records the new fact. The document now contains both, in chronological order, and a reader — human or machine — can reconstruct the full history.</p>
+<p>For deletions, the pattern is the same. If a backend resource no longer exists — an email was permanently deleted server-side, a shared document was removed — the renderer annotates the directive: <em>[sync 2026-03-24T09:00] resource not found — email deleted server-side.</em> The directive remains in the document as a record of what was once there. The renderer displays it in a muted or struck-through style, but the text is preserved. The document does not silently lose references to things that have vanished.</p>
+<p>The refresh cycle is not continuous. Renderers poll or subscribe to backend changes at a cadence appropriate to their type: email and chat renderers may poll every few minutes or hold a push connection; calendar renderers may refresh on document open and at a longer interval thereafter; file renderers may check on render only. The cadence is a parameter of the renderer registration, not of the architecture itself. What the architecture requires is the contract: when a mirrored-state renderer detects a backend change, it must write a sync annotation to the document text. Silent updates — where the rendered widget changes but the text does not — are prohibited. If the user can see it, the document must say it.</p>
+<div class="aside"><p>There is a subtlety here that is worth stating. The refresh cycle means the document can be temporarily out of date — the backend changed at 08:12 but the renderer does not poll until 08:17. During those five minutes, the document's rendered view is stale. This is acceptable, and in fact unavoidable in any distributed system. The document does not claim to be a real-time mirror of every backend. It claims to be an <em>eventually consistent</em> projection that records every change it discovers. Staleness is bounded by the refresh interval. Dishonesty — a widget that shows one thing while the text says another — is never acceptable.</p></div>
+</div>
+
+<!-- FIG 9.2: INBOUND SYNC — THE HARD CASE -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 9.2 — Inbound sync: the organiser reschedules, the document catches up</div>
+<div class="fig-box">
+<style>
+.f92{font-family:var(--sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.f92-steps{display:flex;gap:0;margin-bottom:1rem;border:.5px solid var(--rule2);border-radius:8px;overflow:hidden}
+.f92-step{flex:1;padding:8px 4px;font-size:11px;border:none;background:transparent;cursor:pointer;color:var(--ink2);border-right:.5px solid var(--rule2);transition:all .15s;font-family:var(--sans);text-align:center;line-height:1.3}
+.f92-step:last-child{border-right:none}
+.f92-step.f92-on{background:var(--paper2);color:var(--ink);font-weight:500}
+.f92-step.f92-done{background:var(--success-bg);color:var(--success-text)}
+.f92-step.f92-warn{background:var(--warn-bg);color:var(--warn-text)}
+.f92-prose{font-family:var(--serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--ink2);font-style:italic;margin-bottom:.75rem}
+.f92-embed{border:.5px solid var(--rule2);border-radius:10px;overflow:hidden;margin:.65rem 0}
+.f92-ehead{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--paper2);border-bottom:.5px solid var(--rule2)}
+.f92-etag{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.f92-ebody{padding:10px 14px}
+.f92-ev{display:flex;align-items:center;gap:10px;padding:8px 0}
+.f92-ev-bar{width:3px;border-radius:2px;align-self:stretch;min-height:32px}
+.f92-ev-time{font-size:13px;color:var(--ink2);min-width:90px;font-family:var(--sans);transition:all .3s}
+.f92-ev-title{font-size:13px;font-weight:500;color:var(--ink);font-family:var(--sans)}
+.f92-ev-sub{font-size:11px;color:var(--ink3);font-family:var(--sans)}
+.f92-ev-badge{font-size:11px;padding:2px 8px;border-radius:5px;margin-left:auto;white-space:nowrap;font-family:var(--sans);transition:all .3s}
+.f92-badge-ok{background:var(--success-bg);border:.5px solid #2d5a3d;color:var(--success-text)}
+.f92-badge-warn{background:var(--warn-bg);border:.5px solid #ba7517;color:var(--warn-text)}
+.f92-badge-sync{background:var(--info-bg);border:.5px solid var(--accent);color:var(--info-text)}
+.f92-annot{font-family:var(--mono);font-size:11px;color:var(--warn-text);padding:6px 12px;border-top:.5px solid var(--rule2);background:var(--warn-bg);line-height:1.6;transition:all .4s;overflow:hidden}
+.f92-annot.f92-hidden{max-height:0;padding:0 12px;opacity:0}
+.f92-annot.f92-show{max-height:60px;opacity:1}
+.f92-annot2{font-family:var(--mono);font-size:11px;color:var(--info-text);padding:6px 12px;border-top:.5px solid var(--rule2);background:var(--info-bg);line-height:1.6;transition:all .4s;overflow:hidden}
+.f92-annot2.f92-hidden{max-height:0;padding:0 12px;opacity:0}
+.f92-annot2.f92-show{max-height:60px;opacity:1}
+.f92-log{margin-top:.65rem;border:.5px solid var(--rule2);border-radius:8px;overflow:hidden}
+.f92-log-head{font-size:10px;font-weight:500;padding:5px 10px;background:var(--paper2);border-bottom:.5px solid var(--rule2);color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;font-family:var(--sans)}
+.f92-ll{font-family:var(--mono);font-size:11px;padding:4px 10px;border-bottom:.5px solid var(--rule2);color:var(--ink2);line-height:1.6;transition:background .5s}
+.f92-ll:last-child{border-bottom:none}
+.f92-ll.f92-flash{background:var(--success-bg)}
+.f92-lk{color:var(--accent)}.f92-lv{color:#534AB7}
+.f92-src{border:.5px solid var(--rule2);border-radius:8px;overflow:hidden;margin-top:.65rem}
+.f92-src-head{font-size:10px;font-weight:500;padding:5px 10px;background:var(--paper2);border-bottom:.5px solid var(--rule2);color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;font-family:var(--sans)}
+.f92-src-body{font-family:var(--mono);font-size:11px;color:var(--ink2);padding:8px 10px;line-height:1.7;white-space:pre;transition:all .3s}
+.f92-src-new{color:var(--warn-text);font-weight:500}
+.f92-src-sync{color:var(--info-text);font-weight:500}
+.f92-strike{text-decoration:line-through;opacity:.5}
+.f92-nav{display:flex;justify-content:space-between;margin-top:.75rem}
+.f92-btn{font-size:12px;padding:5px 14px;border:.5px solid var(--rule2);border-radius:6px;background:transparent;cursor:pointer;color:var(--ink2);font-family:var(--sans);transition:all .15s}
+.f92-btn:hover{background:var(--paper2);color:var(--ink)}
+.f92-btn:disabled{opacity:.3;cursor:default}
+</style>
+<div class="f92">
+<div class="f92-steps">
+<button class="f92-step f92-on" id="f92s1" onclick="f92go(1)">1. Document state<br>after acceptance</button>
+<button class="f92-step" id="f92s2" onclick="f92go(2)">2. Organiser<br>reschedules</button>
+<button class="f92-step" id="f92s3" onclick="f92go(3)">3. Refresh cycle<br>fires</button>
+</div>
+
+<p class="f92-prose">Accepted the team roadmap review yesterday. Preparing agenda notes this morning.</p>
+
+<div class="f92-embed">
+<div class="f92-ehead">
+<span class="f92-etag">::cal[2026-03-24]{view=agenda}</span>
+</div>
+<div class="f92-ebody">
+<div class="f92-ev">
+<div class="f92-ev-bar" style="background:#D85A30"></div>
+<div>
+<div class="f92-ev-title">Team roadmap review</div>
+<div class="f92-ev-sub">All team · Conference room A</div>
+</div>
+<span class="f92-ev-time" id="f92time">14:00 – 15:00</span>
+<span class="f92-ev-badge f92-badge-ok" id="f92badge">Accepted</span>
+</div>
+</div>
+<div class="f92-annot f92-hidden" id="f92annot">[sync 2026-03-24T08:12] team roadmap review rescheduled by organiser: 14:00–15:00 → 15:00–16:00</div>
+<div class="f92-annot2 f92-hidden" id="f92annot2">[sync 2026-03-24T08:12] ::task[prepare-agenda] due updated: 14:00 → 15:00</div>
+</div>
+
+<div class="f92-log">
+<div class="f92-log-head">document mutation log</div>
+<div id="f92logs">
+<div class="f92-ll"><span class="f92-lk">::cal[2026-03-24]</span> rendered — 1 event fetched from backend</div>
+<div class="f92-ll"><span class="f92-lk">accepted</span> team roadmap review, 14:00, 24 March — user action yesterday</div>
+</div>
+</div>
+
+<div class="f92-src">
+<div class="f92-src-head">raw document text</div>
+<div class="f92-src-body" id="f92src">accepted team roadmap review, 14:00, 24 March
+::cal[2026-03-24]{view=agenda}
+::task[prepare-agenda]{due=2026-03-24T14:00 priority=high}</div>
+</div>
+
+<div class="f92-nav">
+<button class="f92-btn" id="f92prev" onclick="f92go(f92cur-1)" disabled>← previous</button>
+<button class="f92-btn" id="f92next" onclick="f92go(f92cur+1)">next →</button>
+</div>
+</div>
+<script>
+(function(){
+var cur=1;
+window.f92cur=cur;
+window.f92go=function(n){
+  if(n<1||n>3)return;
+  cur=n;
+  window.f92cur=cur;
+  // step buttons
+  for(var i=1;i<=3;i++){
+    var el=document.getElementById('f92s'+i);
+    el.className='f92-step';
+    if(i===cur) el.classList.add('f92-on');
+    else if(i<cur) el.classList.add('f92-done');
+  }
+  if(cur===2) document.getElementById('f92s2').classList.add('f92-warn');
+  // nav
+  document.getElementById('f92prev').disabled=(cur===1);
+  document.getElementById('f92next').disabled=(cur===3);
+  // content by step
+  var time=document.getElementById('f92time');
+  var badge=document.getElementById('f92badge');
+  var annot=document.getElementById('f92annot');
+  var annot2=document.getElementById('f92annot2');
+  var logs=document.getElementById('f92logs');
+  var src=document.getElementById('f92src');
+  if(cur===1){
+    time.textContent='14:00 – 15:00';
+    time.style.color='';
+    badge.textContent='Accepted';
+    badge.className='f92-ev-badge f92-badge-ok';
+    annot.className='f92-annot f92-hidden';
+    annot2.className='f92-annot2 f92-hidden';
+    logs.innerHTML='<div class="f92-ll"><span class="f92-lk">::cal[2026-03-24]</span> rendered — 1 event fetched from backend</div>'
+      +'<div class="f92-ll"><span class="f92-lk">accepted</span> team roadmap review, 14:00, 24 March — user action yesterday</div>';
+    src.innerHTML='accepted team roadmap review, 14:00, 24 March\n::cal[2026-03-24]{view=agenda}\n::task[prepare-agenda]{due=2026-03-24T14:00 priority=high}';
+  } else if(cur===2){
+    time.textContent='14:00 – 15:00';
+    time.style.color='';
+    badge.textContent='Accepted · stale';
+    badge.className='f92-ev-badge f92-badge-warn';
+    annot.className='f92-annot f92-hidden';
+    annot2.className='f92-annot2 f92-hidden';
+    logs.innerHTML='<div class="f92-ll"><span class="f92-lk">::cal[2026-03-24]</span> rendered — 1 event fetched from backend</div>'
+      +'<div class="f92-ll"><span class="f92-lk">accepted</span> team roadmap review, 14:00, 24 March — user action yesterday</div>'
+      +'<div class="f92-ll f92-flash" style="color:var(--warn-text)"><span class="f92-lk" style="color:var(--warn-text)">⚠ backend</span> organiser rescheduled event to 15:00–16:00 (not yet synced to document)</div>';
+    src.innerHTML='accepted team roadmap review, 14:00, 24 March\n::cal[2026-03-24]{view=agenda}\n::task[prepare-agenda]{due=2026-03-24T14:00 priority=high}\n\n<span style="color:var(--ink3);font-style:italic">  ↑ text unchanged — document does not yet know about the reschedule</span>';
+  } else if(cur===3){
+    time.textContent='15:00 – 16:00';
+    time.style.color='var(--warn-text)';
+    badge.textContent='Accepted · updated';
+    badge.className='f92-ev-badge f92-badge-sync';
+    annot.className='f92-annot f92-show';
+    annot2.className='f92-annot2 f92-show';
+    logs.innerHTML='<div class="f92-ll"><span class="f92-lk">::cal[2026-03-24]</span> rendered — 1 event fetched from backend</div>'
+      +'<div class="f92-ll"><span class="f92-lk">accepted</span> team roadmap review, 14:00, 24 March — user action yesterday</div>'
+      +'<div class="f92-ll f92-flash"><span class="f92-lk">sync</span> event rescheduled: 14:00–15:00 → 15:00–16:00 — annotation written to document</div>'
+      +'<div class="f92-ll f92-flash"><span class="f92-lk">sync</span> ::task[prepare-agenda] due updated: 14:00 → 15:00 — annotation written to document</div>';
+    src.innerHTML='accepted team roadmap review, 14:00, 24 March\n::cal[2026-03-24]{view=agenda}\n::task[prepare-agenda]{due=2026-03-24T<span class="f92-src-new">15</span>:00 priority=high}\n<span class="f92-src-sync">[sync 2026-03-24T08:12] team roadmap review rescheduled by organiser: 14:00–15:00 → 15:00–16:00</span>';
+  }
+};
+})();
+</script>
+</div>
+<div class="fig-caption">Step through the scenario. In step 1, the document reflects yesterday's acceptance at the original time. In step 2, the organiser reschedules on the backend — the document is temporarily stale. In step 3, the refresh cycle fires: the widget updates, a sync annotation is written to the text, and the linked task's due time is adjusted. The original acceptance record is preserved. Watch the raw text panel to see exactly what changes.</div>
+</div>
+
+<div class="prose">
 <div class="section-break">· · ·</div>
 <h2>9.3 Conflict resolution</h2>
-<p>Conflicts arise when the same document is edited simultaneously from two locations — two devices, two users, two renderers. The conflict resolution strategy follows the git model: conflicts are surfaced as text in the document, using a standard conflict marker format, and resolved by the user editing the text to select one version or the other. This is not as elegant as automatic conflict resolution. It is more honest. Automatic conflict resolution requires rules about whose edit takes precedence, and those rules are inevitably wrong in some cases. Surfacing the conflict as text puts the resolution decision in the user's hands, expressed in the same medium as everything else. The conflict is text. The resolution is text. The history shows the conflict and its resolution. Nothing is hidden.</p>
+<p>Conflicts arise when the same document is edited simultaneously from two locations — two devices, two users, two renderers. The architecture's conflict resolution must handle these honestly, without hiding the disagreement and without asking the user to do work that the system can do for them.</p>
+<h3>9.3.1 The common case: concurrent non-overlapping edits</h3>
+<p>The most frequent conflict in practice is not two humans editing the same sentence. It is a user editing one part of the document — adding a paragraph, checking off a task — while a renderer writes a sync annotation to a different part — an inbound calendar update, a new chat message appended to an embed. These edits touch different regions of the text. They do not semantically conflict. They are concurrent appends or replacements to non-overlapping ranges.</p>
+<p>For this common case, the architecture adopts a CRDT-style merge: non-overlapping edits from different sources are merged automatically, without user intervention, by applying each edit to its target range in the document. The merge is deterministic — given the same set of edits, every device produces the same result — and it preserves every edit in full. No data is lost, no user action is required, and the document's version history records both edits with their respective sources and timestamps. This is the case that covers the vast majority of real-world concurrent editing, and it should be invisible to the user. The document simply contains both changes, as if one had happened slightly before the other.</p>
+<h3>9.3.2 The hard case: overlapping edits</h3>
+<p>True conflicts — two edits to the same range of text — are rarer but must be handled. A user on their phone changes a task's due date to Friday while their desktop renderer, processing an inbound sync, updates the same task's due date to Thursday because a linked calendar event moved. The same text range has been written by two sources with two different values.</p>
+<p>For this case, the architecture follows the git model: the conflict is recorded in the document text using a standard marker format.</p>
+<div class="code-block">
+<div><span class="kw">&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span> local</div>
+<div>::task[ship-report]{due=2026-03-28 priority=high}</div>
+<div><span class="kw">=======</span></div>
+<div>::task[ship-report]{due=2026-03-27 priority=high}</div>
+<div><span class="kw">&gt;&gt;&gt;&gt;&gt;&gt;&gt;</span> sync:cal-backend 2026-03-24T08:12</div>
+</div>
+<p>The conflict markers are text. The document is still a valid text file. A user reading the raw file can see exactly what happened: two sources disagreed about a value, and neither has been chosen yet.</p>
+<p>But raw conflict markers in a daily planner are a poor experience — and the architecture must not pretend otherwise. The renderer is required to present conflicts as a <strong>chooser widget</strong>: a compact inline element that shows both versions side by side with buttons to accept one, the other, or a manual edit. The chooser is the rendered view of the conflict markers, in the same way that a checkbox is the rendered view of <code>[ ]</code>. Choosing a resolution replaces the entire conflict block — markers and all — with the selected version. The resolution is a text edit, recorded in version history, attributed to the user who made the choice.</p>
+<div class="aside"><p>This is the same relationship between text and rendering that holds everywhere in the architecture: the conflict markers are the source of truth; the chooser widget is the renderer's presentation of them. A partial renderer that does not support the chooser displays the raw markers. A full renderer displays the widget. The document is correct in both cases.</p></div>
+<h3>9.3.3 Persistence and recovery</h3>
+<p>An unresolved conflict persists until the user resolves it. The document remains fully functional around the conflict — other directives render normally, other edits proceed, the daily document is usable. The conflict does not block rendering; it blocks only the specific directive it affects, which renders in its conflicted state (the chooser widget) until resolved.</p>
+<p>If a user ignores a conflict — closes the laptop, opens the document on their phone — the conflict markers are present in the text and the phone's renderer displays the same chooser. Conflicts travel with the document because they are text. They cannot be lost, forgotten by a renderer, or silently resolved by a device the user is not looking at. The user resolves the conflict once, on whichever device they choose, and the resolution propagates like any other text edit.</p>
+<p>The architecture does not auto-resolve conflicts after a timeout. Choosing for the user is worse than waiting for the user to choose, because a wrong automatic resolution that goes unnoticed is silent data loss — the one outcome the architecture is designed to prevent. The cost of an unresolved conflict is a visible widget asking a question. The cost of a wrong resolution is invisible corruption. The architecture prefers the former unconditionally.</p>
+<div class="section-break">· · ·</div>
+<h2>9.4 When sync fails</h2>
+<p>The preceding sections describe how the system behaves when things work. This section describes what happens when they do not. Sync failures are not edge cases in a system that interacts with remote backends over unreliable networks. They are routine, and the architecture must handle them without losing data or lying to the user.</p>
+<h3>9.4.1 Network failure during an outbound mutation</h3>
+<p>The user clicks "send" on an email reply. The renderer attempts to deliver the message to the mail backend. The network is down. What happens?</p>
+<p>The draft directive remains in the document. The renderer had already written <code>::email[draft]{to=sara@example.com}</code> to the text when the compose area opened (as described in Chapter 10). Sending would have replaced the draft directive with a sent log entry. Because the send failed, the replacement does not occur. The draft is still there — in the text, on disk, surviving any application crash. The renderer displays the draft with a failure annotation: <em>send failed — network unavailable — retry?</em> The annotation is rendered, not written to the document text, because it describes a transient condition rather than a historical fact.</p>
+<p>When the network recovers, the user can retry from the same draft. If the renderer supports automatic retry, it may attempt redelivery on a schedule — but it must not remove the draft directive from the document text until the backend confirms delivery. The invariant is: if the document says the message was sent (a sent log entry exists), then it was sent. If the document still contains the draft, then it was not. The document does not lie about the state of the world.</p>
+<h3>9.4.2 Partial sync: backend succeeded, text write failed</h3>
+<p>A harder failure: the RSVP was sent to the calendar backend successfully, but the application crashed before the acceptance could be written to the document text. The backend now says "accepted." The document does not reflect this. The two have diverged.</p>
+<p>This is resolved on the next refresh cycle. When the <code>::cal</code> renderer next queries the backend, it discovers that the event's status is "accepted" — a change from the document's last-known state. The inbound sync mechanism (Section 9.2.2) treats this like any other backend-initiated change: it writes a sync annotation to the document recording the acceptance. The annotation's source attribution — <em>[sync]</em> rather than a direct user action — signals that the document is catching up to reality rather than recording a new user decision. The end state is correct: the document reflects the acceptance. The path was indirect, but the contract held: the document eventually tells the truth.</p>
+<div class="aside"><p>This recovery depends on the refresh cycle described in Section 9.2.2. The gap between the crash and the next refresh is a window during which the document is wrong — it does not yet record the acceptance. This is the same eventual-consistency property discussed in the inbound sync section: the document does not claim to be instantaneously correct, only eventually correct, and the staleness window is bounded by the refresh interval. For most directive types, this interval is measured in minutes. For a daily document, a few minutes of inconsistency after a crash is acceptable. What would not be acceptable is permanent inconsistency — the acceptance never being recorded — and the refresh cycle prevents that.</p></div>
+<h3>9.4.3 Mutation ordering</h3>
+<p>When a document opens, multiple directives may evaluate or refresh concurrently: <code>::py</code> blocks execute in document order, <code>::cal</code> and <code>::email</code> renderers query their backends, <code>::task</code> directives render from the text. Do mutations from these concurrent operations have ordering guarantees?</p>
+<p>Yes, within a constraint. <strong>Owned-state mutations are ordered by document position.</strong> <code>::py</code> blocks execute top to bottom, sequentially, as specified in Chapter 6. A task that depends on a <code>::py</code> block's output will see the correct value because the block above it has already run. This is deterministic and reproducible.</p>
+<p><strong>Mirrored-state mutations are ordered by wall-clock receipt.</strong> When an inbound sync annotation arrives from a backend, it is appended to the document at the position of its directive, timestamped with the moment the renderer received the confirmation. If two sync annotations arrive for different directives at nearly the same time, they are written in receipt order. This order is not semantically meaningful — the annotations are independent facts about independent backends — but it is deterministic for a given execution, and the timestamps make the actual chronology recoverable.</p>
+<p><strong>Cross-type dependencies are the user's responsibility.</strong> If a <code>::py</code> block reads from a <code>::table</code> that a user is simultaneously editing in the rendered view, the block sees the text as it was at evaluation time — before or after the edit, depending on timing. The architecture does not attempt to impose transactional semantics across owned and mirrored state. The document is a text file, not a database. Edits are sequential text operations. The version history records the order in which they occurred. For the vast majority of personal-computing use cases, this is sufficient. For cases where it is not — where a computation must see a guaranteed-consistent snapshot of multiple directives — the user can trigger a manual re-evaluation of the <code>::py</code> block after the dependent edits are complete, or use <code>run=manual</code> instead of <code>run=auto</code> to control evaluation timing explicitly.</p>
 <div class="ch-end">Chapter 9 — Bidirectional sync<br><em>Part III: The eleven apps, redesigned → Chapter 10: Email</em></div>
 </div>
 </div>
@@ -3823,6 +4058,176 @@ window.shRun=function(id){
 <p>Raskin's observation was that spatial navigation is a concession to data that is not text. When data has no textual identity — when a file is a binary blob, when a pixel is just a coordinate — you need spatial metaphors to find it. But when all data is text, every piece of data has a textual identity, and that identity is sufficient for navigation. You do not need to remember where the document is; you remember what it says. You do not need to navigate to the task; you Leap to its name.</p>
 <p>The text-native document enables this but does not yet design it. A document where everything is text — prose, directives, computation, tasks, calendar events — is a document where everything is Leapable. The following query, in any implementation, should be a single keystroke interaction: jump to the next occurrence of a contact's name, find the next overdue task, return to the last Python block. These are searches, not navigations. The scroll bar is a compatibility shim for people who have not yet discovered that their data is text. The Leap key is what replaces it.</p>
 <div class="aside"><p>Raskin was explicit about the principle: "The user should not have to navigate. The user should be able to say what they want and arrive there." This is grep as UX. It is what every modern browser's Cmd-F implements for a single page, and what no personal computing environment has yet implemented as the primary navigation model for a person's entire document collection. The text-native document makes it technically possible. The design work remains.</p></div>
+</div>
+
+<!-- FIG 21.1: LEAP SEARCH -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 21.1 — Leap across a week: type to navigate, no scrolling, no clicking</div>
+<div class="fig-box">
+<style>
+.lp{font-family:var(--sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.lp-bar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;border:.5px solid var(--rule2);border-radius:8px;padding:6px 12px;background:var(--paper2);transition:border-color .15s}
+.lp-bar:focus-within{border-color:var(--accent)}
+.lp-key{font-size:11px;font-family:var(--mono);background:var(--paper);border:.5px solid var(--rule2);border-radius:4px;padding:2px 7px;color:var(--ink2);white-space:nowrap;flex-shrink:0}
+.lp-input{flex:1;border:none;background:transparent;font-size:14px;font-family:var(--sans);color:var(--ink);outline:none}
+.lp-input::placeholder{color:var(--ink4)}
+.lp-count{font-size:11px;color:var(--ink3);font-family:var(--mono);white-space:nowrap;min-width:50px;text-align:right}
+.lp-results{display:flex;flex-direction:column;gap:0;max-height:340px;overflow-y:auto;border:.5px solid var(--rule2);border-radius:8px}
+.lp-empty{padding:2rem;text-align:center;font-size:13px;color:var(--ink3);font-style:italic}
+.lp-day{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:6px 12px;background:var(--paper2);border-bottom:.5px solid var(--rule2);font-family:var(--sans);position:sticky;top:0;z-index:1}
+.lp-hit{padding:7px 12px;border-bottom:.5px solid var(--rule2);cursor:pointer;transition:background .1s;display:flex;gap:10px;align-items:flex-start;background:var(--paper)}
+.lp-hit:last-child{border-bottom:none}
+.lp-hit:hover{background:var(--paper2)}
+.lp-hit.lp-focus{background:var(--info-bg)}
+.lp-ln{font-size:10px;font-family:var(--mono);color:var(--ink4);min-width:24px;padding-top:2px;text-align:right;flex-shrink:0}
+.lp-text{font-size:12px;font-family:var(--mono);color:var(--ink2);line-height:1.6;flex:1;overflow:hidden;text-overflow:ellipsis}
+.lp-text mark{background:#d4edda;color:var(--ink);border-radius:2px;padding:0 1px;font-weight:500}
+.lp-tag{font-size:10px;font-family:var(--sans);padding:1px 6px;border-radius:4px;white-space:nowrap;flex-shrink:0;margin-top:1px}
+.lp-tag-task{background:var(--info-bg);color:var(--info-text)}
+.lp-tag-cal{background:#f0e6ff;color:#4a2d80}
+.lp-tag-py{background:var(--warn-bg);color:var(--warn-text)}
+.lp-tag-prose{background:var(--paper2);color:var(--ink3)}
+.lp-tag-email{background:var(--danger-bg);color:var(--danger-text)}
+.lp-tag-sync{background:var(--paper3);color:var(--ink2)}
+.lp-hint{font-size:11px;color:var(--ink3);margin-top:.75rem;font-family:var(--sans);text-align:center}
+.lp-hint kbd{font-family:var(--mono);background:var(--paper2);border:.5px solid var(--rule2);border-radius:3px;padding:1px 5px;font-size:10px}
+</style>
+<div class="lp">
+<div class="lp-bar">
+<span class="lp-key">Leap</span>
+<input class="lp-input" id="lp-q" type="text" placeholder="type to leap across all documents…" oninput="lpSearch(this.value)" autocomplete="off" spellcheck="false">
+<span class="lp-count" id="lp-count"></span>
+</div>
+<div class="lp-results" id="lp-results">
+<div class="lp-empty">Type a name, a directive, or any fragment — results appear instantly across a week of daily documents</div>
+</div>
+<div class="lp-hint"><kbd>↑</kbd> <kbd>↓</kbd> to move between matches · <kbd>Enter</kbd> to jump · no scrolling, no clicking, no app switching</div>
+</div>
+<script>
+(function(){
+var DOCS=[
+{day:'Mon 17 Mar 2026',file:'2026-03-17.txt',lines:[
+{n:1,text:'Monday. Short week — Sara is out until Wednesday.',type:'prose'},
+{n:4,text:'::cal[today]{view=agenda}',type:'cal'},
+{n:5,text:'  09:30 – 10:00  1:1 with Rohan',type:'cal'},
+{n:6,text:'  14:00 – 15:00  Q3 planning session',type:'cal'},
+{n:8,text:'::task[review-budget]{due=2026-03-19 priority=high}',type:'task'},
+{n:9,text:'::task[email-finance]{due=2026-03-18 priority=medium}',type:'task'},
+{n:12,text:'::py[weekly-hours]{run=auto}',type:'py'},
+{n:13,text:'hours = {"Mon": 6.5, "Tue": 0, "Wed": 0, "Thu": 0, "Fri": 0}',type:'py'},
+{n:18,text:'Rohan mentioned the hardware variance is now £2,300.',type:'prose'},
+]},
+{day:'Tue 18 Mar 2026',file:'2026-03-18.txt',lines:[
+{n:1,text:'Tuesday. Sent the finance email first thing.',type:'prose'},
+{n:3,text:'::task[email-finance]{due=2026-03-18 priority=medium done=true completed=2026-03-18T08:45}',type:'task'},
+{n:5,text:'sent reply to Sara — "Q3 hardware variance" — 08:47',type:'email'},
+{n:7,text:'::email[thread-q3-hardware]{limit=3}',type:'email'},
+{n:9,text:'::cal[today]{view=agenda}',type:'cal'},
+{n:10,text:'  11:00 – 12:00  Design review with Sara (rescheduled)',type:'cal'},
+{n:11,text:'[sync 2026-03-18T07:30] design review rescheduled by Sara: 10:00 → 11:00',type:'sync'},
+{n:14,text:'::py[budget-delta]{run=auto}',type:'py'},
+{n:15,text:'actuals = [4200, 1850, 6700, 3100, 950]',type:'py'},
+{n:16,text:'budget  = [3500, 2000, 5000, 3000, 1200]',type:'py'},
+{n:17,text:'print(f"Net overrun: {sum(a-b for a,b in zip(actuals, budget)):+,}")',type:'py'},
+]},
+{day:'Wed 19 Mar 2026',file:'2026-03-19.txt',lines:[
+{n:1,text:'Wednesday. Sara is back. Budget review day.',type:'prose'},
+{n:3,text:'::task[review-budget]{due=2026-03-19 priority=high done=true completed=2026-03-19T11:20}',type:'task'},
+{n:5,text:'::cal[today]{view=agenda}',type:'cal'},
+{n:6,text:'  09:00 – 09:30  Standup',type:'cal'},
+{n:7,text:'  10:00 – 11:00  Budget review with Sara and finance',type:'cal'},
+{n:8,text:'accepted budget review, 10:00, 19 March',type:'cal'},
+{n:10,text:'Sara confirmed: hardware overrun approved, no escalation needed.',type:'prose'},
+{n:12,text:'::task[update-board-pack]{due=2026-03-21 priority=high blocked-by=review-budget}',type:'task'},
+{n:14,text:'::py[forecast]{run=auto}',type:'py'},
+{n:15,text:'remaining_months = 3',type:'py'},
+{n:16,text:'projected = sum(actuals) + (sum(actuals)/len(actuals)) * remaining_months',type:'py'},
+]},
+{day:'Thu 20 Mar 2026',file:'2026-03-20.txt',lines:[
+{n:1,text:'Thursday. Quiet day — mostly writing.',type:'prose'},
+{n:3,text:'::task[draft-q3-narrative]{due=2026-03-21 priority=medium}',type:'task'},
+{n:5,text:'Rohan sent the breakdown spreadsheet. Converted to ::table.',type:'prose'},
+{n:6,text:'::table[hardware-breakdown]{source=rohan-export sortable=true}',type:'py'},
+{n:8,text:'::email[inbox]{filter=unread from=@team limit=3}',type:'email'},
+{n:10,text:'Sara asked about the forecast model — pointed her to Wed doc.',type:'prose'},
+]},
+{day:'Fri 21 Mar 2026',file:'2026-03-21.txt',lines:[
+{n:1,text:'Friday. Board pack deadline.',type:'prose'},
+{n:3,text:'::task[update-board-pack]{due=2026-03-21 priority=high done=true completed=2026-03-21T15:10}',type:'task'},
+{n:4,text:'::task[draft-q3-narrative]{due=2026-03-21 priority=medium done=true completed=2026-03-21T11:45}',type:'task'},
+{n:6,text:'sent board pack to Sara and finance — "Q3 board pack final" — 15:22',type:'email'},
+{n:8,text:'::py[final-summary]{run=auto}',type:'py'},
+{n:9,text:'print(f"Total actual: {sum(actuals):,}")',type:'py'},
+{n:10,text:'print(f"Total budget: {sum(budget):,}")',type:'py'},
+{n:12,text:'Good week. Budget approved, board pack shipped, no escalation.',type:'prose'},
+]}
+];
+var TAG_CLS={task:'lp-tag-task',cal:'lp-tag-cal',py:'lp-tag-py',prose:'lp-tag-prose',email:'lp-tag-email',sync:'lp-tag-sync'};
+var focusIdx=-1,hits=[];
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function highlight(text,q){
+  if(!q)return esc(text);
+  var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return esc(text).replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),function(m){return '<mark>'+m+'</mark>';});
+}
+window.lpSearch=function(q){
+  var res=document.getElementById('lp-results');
+  var cnt=document.getElementById('lp-count');
+  q=q.trim();
+  if(!q){
+    res.innerHTML='<div class="lp-empty">Type a name, a directive, or any fragment — results appear instantly across a week of daily documents</div>';
+    cnt.textContent='';focusIdx=-1;hits=[];return;
+  }
+  var ql=q.toLowerCase();hits=[];var html='';var total=0;
+  for(var d=0;d<DOCS.length;d++){
+    var doc=DOCS[d],dayHits=[];
+    for(var i=0;i<doc.lines.length;i++){
+      if(doc.lines[i].text.toLowerCase().indexOf(ql)!==-1){
+        dayHits.push(doc.lines[i]);
+      }
+    }
+    if(dayHits.length){
+      html+='<div class="lp-day">'+doc.file+' — '+doc.day+'</div>';
+      for(var j=0;j<dayHits.length;j++){
+        var h=dayHits[j];
+        var idx=hits.length;
+        hits.push(h);
+        html+='<div class="lp-hit" id="lph'+idx+'" onclick="lpFocus('+idx+')">'
+          +'<span class="lp-ln">'+h.n+'</span>'
+          +'<span class="lp-text">'+highlight(h.text,q)+'</span>'
+          +'<span class="lp-tag '+TAG_CLS[h.type]+'">'+h.type+'</span>'
+          +'</div>';
+        total++;
+      }
+    }
+  }
+  if(!total){
+    res.innerHTML='<div class="lp-empty">no matches across 5 documents</div>';
+    cnt.textContent='0';focusIdx=-1;return;
+  }
+  res.innerHTML=html;
+  cnt.textContent=total+' hit'+(total===1?'':'s');
+  focusIdx=0;
+  document.getElementById('lph0').classList.add('lp-focus');
+};
+window.lpFocus=function(i){
+  if(focusIdx>=0){var old=document.getElementById('lph'+focusIdx);if(old)old.classList.remove('lp-focus');}
+  focusIdx=i;
+  var el=document.getElementById('lph'+i);
+  if(el){el.classList.add('lp-focus');el.scrollIntoView({block:'nearest'});}
+};
+document.addEventListener('keydown',function(e){
+  if(!hits.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();lpFocus(Math.min(focusIdx+1,hits.length-1));}
+  else if(e.key==='ArrowUp'){e.preventDefault();lpFocus(Math.max(focusIdx-1,0));}
+});
+})();
+</script>
+</div>
+<div class="fig-caption">Type any fragment into the Leap bar — a name (<strong>Sara</strong>), a directive (<strong>::task</strong>), a number (<strong>2,300</strong>), a keyword (<strong>hardware</strong>). Results appear instantly across five days of daily documents, with file path, line number, match highlight, and directive type. Arrow keys move between matches. No folder was opened. No application was launched. The documents are text; the search is text; the navigation is text.</div>
+</div>
+
+<div class="prose">
 <h2 id="ch22">Chapter 22 — Auditability: when computation lives in prose</h2>
 <p>The spreadsheet's formula is a secret. It lives in the cell, invisible in the default view, accessible only by clicking into the cell and reading a syntax that takes years to read fluently. A spreadsheet can contain years of accumulated business logic, and none of it is visible in the output. The numbers appear. Their provenance does not. The <code>::py</code> block is the opposite of this. The computation is in the document. The code is in the text. Any reader of the document can see exactly what was computed, in language designed to be read, in the same scroll as the result.</p>
 <p>Consider a budget overrun report shared with a finance team. In a spreadsheet, the finance team receives a grid of numbers. If they want to understand how any number was derived, they must click into cells, trace formula chains, and hope the formula references are labelled. In practice, they rarely do this. In a text-native document, the finance team receives the prose explanation, the Python block, and the table. The computation is right there. Anyone with basic Python literacy can verify the derivation in sixty seconds. Auditability becomes the natural consequence of keeping computation in prose.</p>
