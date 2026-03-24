@@ -990,8 +990,17 @@ blockquote .attr{font-size:12px;color:var(--ink3);font-style:normal;font-family:
 <p>Second, ecosystem: Python's data analysis libraries — even the small subset available in the sandbox whitelist — are more capable than any spreadsheet formula language. The full <code>statistics</code> module is available. <code>datetime</code> handles timezone-aware dates correctly. <code>collections.Counter</code> does frequency analysis in one line. These are not exotic capabilities; they are the routine needs of anyone analysing personal data.</p>
 <p>Third, ubiquity: more people have encountered Python, in school, in data science courses, in scripting tutorials, than have encountered any other language with equivalent capability. The computation layer should meet them where they are.</p>
 <p>That said, the choice of Python is not essential to the architecture. The <code>::py</code> directive name is arbitrary — it could equally be <code>::lua</code>, <code>::scm</code>, or <code>::st</code>. Lua would serve well for its compactness and the elegance of its embedding model; Scheme for the semantic cleanliness of its evaluation rules and the power of its macro system; Smalltalk for its live-object model, which treats the document context as a naturally persistent image rather than a batch-evaluated namespace. What the language must provide is: sandboxability, legibility to non-specialists, and the ability to share state across blocks via a document-scoped namespace. Python satisfies all three for the widest audience today. A future implementation targeting a different audience — one more comfortable with Lisp syntax, or running in an environment where Lua is already embedded — should feel no obligation to use Python. The architecture is language-agnostic. The directive is the contract. The language is an implementation detail.</p>
-<div class="section-break">· · ·</div>
+<div class="ch-end">Chapter 6 — The computation layer<br><em>Chapter 7: The table layer →</em></div>
+</div>
+</div>
 
+<!-- ═══════════════════ CHAPTER 7 ═══════════════════ -->
+<div class="chapter" id="ch7">
+<div class="ch-opener">Part II — The four primitives · Chapter 7</div>
+<div class="ch-title">The table layer</div>
+<div class="ch-subtitle">Structured data as text; the spreadsheet dissolved; divergence protocol</div>
+<div class="ch-rule"></div>
+<div class="prose">
 
 <!-- FIG 6.1 + 7.1: INTEGRATED ::py → ::table (replaces old separate figures) -->
 <div class="fig-wrap">
@@ -1394,6 +1403,7 @@ wsRunPy();
 <p>The deeper cost of the spreadsheet is that its data is trapped. A <code>.xlsx</code> file requires Excel or a compatible application to read. A <code>::table</code> block in a document is text. <code>grep</code>, <code>awk</code>, <code>python</code>, <code>git diff</code> — every tool you already have can read it, transform it, version it, and pipe it somewhere else. The spreadsheet is a silo. The <code>::table</code> directive is a first-class citizen of the text layer.</p>
 <div class="ch-end">Chapter 7 — The table layer<br><em>Chapter 8: The capability registry →</em></div>
 </div>
+</div>
 
 <!-- ═══════════════════ CHAPTER 8 ═══════════════════ -->
 <div class="chapter" id="ch8">
@@ -1430,8 +1440,6 @@ wsRunPy();
 <div class="section-break">· · ·</div>
 <h2>8.3 Bidirectional sync as a registry service</h2>
 <p>The registry also manages the bidirectional sync protocol. When a user clicks "Accept" on a calendar invite rendered by the CalendarRenderer, the renderer does not directly edit the document. It emits a sync event — a structured record of what changed — to the registry, which applies the change to the document text and notifies any other renderer whose displayed content depends on the changed data. This indirection is load-bearing. It ensures that the document text is always the authoritative source of state, that changes are atomic, and that the document's version history accurately reflects every user action, whether that action was a keystroke in prose or a click in a rendered widget.</p>
-<div class="ch-end">Chapter 8 — The capability registry<br><em>Chapter 9: Bidirectional sync →</em></div>
-
 <div class="section-break">· · ·</div>
 <h2>8.4 The Python context as a universal query layer</h2>
 <p>There is a consequence of the capability registry design that deserves its own treatment, because it is the most powerful thing the architecture enables and the one least obvious from the structural description: when a <code>::py</code> block evaluates, the registry injects every registered app's read interface into the Python namespace as a first-class object.</p>
@@ -2057,66 +2065,872 @@ runW();
 <div class="ch-divider"></div>
 
 <h2 id="ch10-email">Chapter 10 — Email: threads as paragraphs</h2>
-<p>Email is the oldest and most durable of personal computing's communication tools. It has survived the rise and fall of instant messaging, social networking, enterprise chat, and every other communication platform that promised to replace it. It survives because it is federated, because it is asynchronous, and because it is text. These are precisely the properties that make it natural in the text-native document.</p>
-<p>The <code>::email</code> directive renders email where it is relevant — not in a separate application, not in a dedicated pane, but in the document, next to the prose that motivated you to check it. The meeting you are preparing for has an email thread; the thread appears above your preparation notes. The task you created from a message has the message embedded beside it.</p>
-<p><em>Inbox view</em> — <code>::email[inbox]{filter=unread}</code> — renders a filtered list of messages. The filter uses the same query syntax as the underlying mail backend. <em>Thread view</em> — <code>::email[thread-id]</code> — renders a full email thread inline; each message in the thread is a paragraph. <em>Compose view</em> — <code>::email[draft]{to=sara@example.com subject="Q3 report"}</code> — renders a compose form; the draft is stored in the document text until sent.</p>
-<div class="app-principle"><div class="ap-label">Design principle</div><div class="ap-body">Email data stays in the mail backend. The document holds references and renders views. Sent mail is recorded in the document as a one-line text entry. The document is the journal; the backend is the archive.</div></div>
 
-<div class="ch-divider"></div>
+<p>Email is the oldest and most durable of personal computing's communication tools. It has survived the rise and fall of instant messaging, social networking, enterprise chat, and every other platform that promised to replace it. It survives because it is federated, asynchronous, and text. These are precisely the properties that make it natural in the text-native document. But describing the rendering experience — email appearing inline between paragraphs — is the easy part. The harder question is the mechanics: how do you reply to a thread, compose a new message, or file and delete mail without ever switching to a mail client?</p>
 
-<h2 id="ch11-cal">Chapter 11 — Calendar: time as a view, not a destination</h2>
-<p>The calendar application commits the original sin of the WIMP paradigm more completely than any other: it is a destination. You go to the calendar to see your time. You leave the calendar to use your time. The calendar knows nothing about why you accepted the meeting, what you were working on before it, or what you need to do after it. In the text-native document, time is always in context. The calendar view for today appears between the paragraph that motivated you to check it and the notes you took in response to what you found.</p>
-<p>The <code>::cal</code> directive renders in three modes switched by the <code>view=</code> parameter: <code>agenda</code>, <code>week</code>, and <code>month</code>. The user switches between views inline; the switch writes the new <code>view=</code> value to the directive text, so the document remembers the preferred view. Accepting an invite from a rendered calendar view writes two things to the document: the acceptance is sent to the calendar backend, and a one-line log entry is appended to the document text.</p>
-<div class="app-principle"><div class="ap-label">Design principle</div><div class="ap-body">Accepting a meeting can generate a linked <code>::task</code> directive automatically — "prepare agenda for team sync" — anchored to the event's date and connected by ID. The task and the event know about each other through the document text. No separate integration required.</div></div>
+<div class="section-break">· · ·</div>
+<h3>10.1 Thread rendering as prose</h3>
+<p>A <code>::email[thread-id]</code> directive renders a mail thread as a sequence of message blocks, each with a sender header and body. Visually it looks like a conversation — the same reading experience as any email client. The difference is context: the thread appears between the paragraphs that motivated you to read it. The agenda you were writing for tomorrow's meeting has the relevant thread embedded directly above the action items. When you finish reading, you are still in the document. You never left.</p>
+<p>An <code>::email[inbox]{filter=unread priority=high}</code> directive renders a filtered inbox slice — not the entire inbox, but exactly the messages relevant to the current moment, selected by the same query language the mail backend supports. The inbox is not a destination you navigate to. It is a view you summon, in context, and dismiss when you are done.</p>
 
-<div class="ch-divider"></div>
+<div class="section-break">· · ·</div>
+<h3>10.2 Replying without leaving the document</h3>
+<p>At the bottom of every rendered thread is a compose bar. Typing a reply and pressing send does two things simultaneously. The message is sent via the registered mail renderer's network capability — delivered exactly as if sent from any mail client. And a log entry is appended to the document text: a single line recording the reply, the recipient, the timestamp, and the subject. The draft, while being composed, is stored as a <code>::email[draft]</code> directive in the document. Sending it replaces the draft directive with the log entry. Discarding it removes the directive. The document text reflects the true state at every step.</p>
+<p>The draft-as-text model has an important consequence: drafts survive application restarts, device switches, and renderer upgrades. A draft email stored as a <code>::email[draft]{to=sara@example.com subject="Q3 update"}</code> block in a document is readable without any mail client. Its content is in the text. When a renderer is available, it renders as a compose form. When one is not, it is still a line of text recording your intention.</p>
 
-<h2 id="ch12-tasks">Chapter 12 — Tasks: every checkbox is a line of text</h2>
-<p>A task, reduced to its essential nature, is a line of text with a state. It is either done or not done. Every other attribute — due date, priority, project, assignee, recurrence — is metadata attached to that line. The <code>::task</code> directive makes this explicit. A task is a directive with an identifier, a state, and optional metadata. It renders as a checkbox. Checking the box replaces <code>[ ]</code> with <code>[x]</code> in the document text. The entire task state is visible in the text. There is no hidden database.</p>
-<p>Every task in every document is findable with a single search: <code>grep -r "::task\[" ~/documents/ | grep "done=false"</code>. The task list — across all documents, all projects, all contexts — is a filtered view of the document collection. The <code>::task</code> directive with a query parameter does exactly this: <code>::task[today]{filter="due=today done=false"}</code> renders all incomplete tasks due today, across all documents, as a live interactive list.</p>
-<div class="app-principle"><div class="ap-label">Design principle</div><div class="ap-body">Tasks support a <code>blocked-by=</code> parameter that references another task by ID. The dependency is expressed in text. The renderer shows the blocked task as inactive until its blocker is completed. Project management without a project management database.</div></div>
-
-<div class="ch-divider"></div>
-
-<h2 id="ch13-notes">Chapter 13 — Notes and docs: transclusion, not copying</h2>
-<p>The note-taking application has a fundamental design flaw that its users have learned to work around: it creates copies. When you want to include content from one note in another, you copy it. The copy immediately begins to diverge from the original. The text-native document resolves this with transclusion — the principle that any document can embed any section of any other document by reference, not by copy. The embedded content renders inline, reads from the source, and changes at the source are visible at the reference.</p>
-<p><code>::note[document-name]{section=heading}</code> renders the specified section of the named document inline. Edits made in a transcluded section propagate back to the source document. The transcluded content is not a snapshot. It is a live view. This is the behaviour Ted Nelson described in 1963 and the web, with its hyperlinks-not-transclusions model, never implemented.</p>
-<div class="app-principle"><div class="ap-label">Design principle</div><div class="ap-body">A meeting notes document transcluded into a project document transcluded into a weekly review document forms a living document network. Change the meeting notes and the change propagates upward. The review always reflects the current state of the project.</div></div>
-
-<div class="ch-divider"></div>
-
-<h2 id="ch14-worksheets">Chapter 14 — Worksheets: the spreadsheet dissolved</h2>
-<p>Chapter 14 is where the architecture earns its most ambitious claim: that the spreadsheet, as an application category, can be dissolved into the document. Not replaced by a better spreadsheet. Dissolved — because the functions a spreadsheet serves (data storage, computation, display) are better served, separately, by the text layer, the Python block, and the table renderer respectively. A worksheet in the text-native document is a document section containing a <code>::py</code> block that defines the data and computation, a <code>::table</code> block that displays the results, and the prose that explains what the numbers mean and why they were computed.</p>
+<div class="section-break">· · ·</div>
+<h3>10.3 Composing new messages</h3>
+<p>Composing a new message anywhere in the document uses the same directive:</p>
 <div class="code-block">
-<div class="cm"># Monthly budget — March 2026</div>
-<div>Reviewed the numbers after Sara flagged the hardware spend.</div>
-<div style="height:.4rem"></div>
-<div><span class="kw">::py</span>[<span class="eid">budget-march</span>]{<span class="ep">run=auto</span>}</div>
-<div>income   = 8500</div>
-<div>fixed    = {"Rent": 2200, "Insurance": 340, "Loan": 680}</div>
-<div>variable = {"Food": 620, "Transport": 180, "Software": 290}</div>
-<div>total_out = sum(fixed.values()) + sum(variable.values())</div>
-<div>surplus   = income - total_out</div>
-<div>print(f"Surplus: {surplus:,} ({surplus/income*100:.1f}% of income)")</div>
+<div><span class="kw">::email</span>[<span class="eid">draft</span>]{<span class="ep">to=sara@example.com subject="Q3 hardware spend" priority=high</span>}</div>
+<div>Sara — following up on the hardware variance we discussed.</div>
+<div>The overrun is £2,300 across Travel and Hardware lines.</div>
+<div>Can we sync before Friday?</div>
 <div><span class="kw">::end</span></div>
-<div style="height:.3rem"></div>
-<div><span class="kw">::table</span>[<span class="eid">budget-breakdown</span>]{<span class="ep">source=budget-march sortable=true</span>}</div>
-<div><span class="kw">::end</span></div>
-<div style="height:.3rem"></div>
-<div>The software line is lower than last month — cancelled Figma and Loom.</div>
-<div style="height:.3rem"></div>
-<div><span class="kw">::task</span>[<span class="eid">review-transport</span>]{<span class="ep">due=2026-04-01</span>}</div>
 </div>
-<div class="app-principle"><div class="ap-label">Design principle</div><div class="ap-body">The spreadsheet formula is opaque: <code>=SUMIF(B2:B10,">0",C2:C10)</code> is a spell. The Python equivalent is a sentence: <code>total = sum(v for v in values if v > 0)</code>. The document makes the reasoning visible by making the computation legible.</div></div>
+<p>The body is plain text between the directive tags. The renderer displays it as a compose form with pre-filled fields. Sending appends: <em>sent to sara@example.com — "Q3 hardware spend" — 14:32</em> and removes the draft block. The document records that the email was sent; the mail backend delivers it.</p>
+
+<div class="section-break">· · ·</div>
+<h3>10.4 Filing and deletion</h3>
+<p>Filing a message — moving it to a folder or label in the mail backend — is triggered from the rendered embed. The action is sent to the backend and a log entry is appended to the document: <em>filed: "Budget variance" → Finance/2026-Q1</em>. Deleting a message follows the same pattern. The document does not store the email. It stores the record of what you did with it. The email lives in the mail backend; the relationship between you and that email lives in the document.</p>
+
+<!-- FIG 10.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 10.1 — Email inline: reply in context, every action writes to text</div>
+<div class="fig-box">
+<style>
+.em-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.em-prose{font-family:var(--font-serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--color-text-secondary);font-style:italic;margin-bottom:.75rem}
+.em-embed{border:.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;margin:.5rem 0}
+.em-head{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary)}
+.em-tag{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)}
+.em-pills{display:flex;gap:4px}
+.em-pill{font-size:11px;padding:2px 8px;border-radius:8px;border:.5px solid var(--color-border-secondary);cursor:pointer;background:transparent;color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s}
+.em-pill.on{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:500}
+.em-msg{border-bottom:.5px solid var(--color-border-tertiary);padding:10px 14px;background:var(--color-background-primary)}
+.em-msg:last-of-type{border-bottom:none}
+.em-msg-head{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+.em-from{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.em-time{font-size:11px;color:var(--color-text-tertiary)}
+.em-subj{font-size:12px;color:var(--color-text-secondary);flex:1}
+.em-body{font-size:13px;line-height:1.6;color:var(--color-text-primary)}
+.em-actions{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.em-act{font-size:11px;padding:2px 9px;border-radius:6px;border:.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s}
+.em-act:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.em-reply{border-top:.5px solid var(--color-border-tertiary);padding:10px 14px;background:var(--color-background-secondary)}
+.em-reply-head{font-size:11px;color:var(--color-text-tertiary);margin-bottom:6px;font-family:var(--font-sans)}
+.em-ta{width:100%;font-size:13px;padding:7px 10px;border:.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);outline:none;resize:none;line-height:1.5}
+.em-ta:focus{border-color:var(--color-border-info)}
+.em-reply-btns{display:flex;gap:7px;margin-top:7px;align-items:center}
+.em-send{font-size:12px;padding:4px 14px;border-radius:7px;border:.5px solid var(--color-border-info);background:var(--color-background-info);cursor:pointer;color:var(--color-text-info);font-family:var(--font-sans)}
+.em-discard{font-size:12px;padding:4px 10px;border-radius:7px;border:.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.em-draft-note{font-size:11px;color:var(--color-text-tertiary);margin-left:auto}
+.em-src{display:none;padding:10px 14px;background:var(--color-background-secondary);font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary);line-height:1.7;white-space:pre}
+.em-src.show{display:block}
+.em-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.em-log-head{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.em-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.em-ll:last-child{border-bottom:none}
+.em-ll.em-flash{background:var(--color-background-success)}
+.em-lk{color:#1D9E75}.em-lv{color:#534AB7}
+</style>
+<div class="em-root">
+<p class="em-prose">Preparing for the finance sync tomorrow. Sara flagged the hardware spend — pulling the thread in here to review before I reply.</p>
+<div class="em-embed">
+  <div class="em-head">
+    <span class="em-tag">::email[thread-q3-hardware]{limit=3}</span>
+    <div class="em-pills">
+      <button class="em-pill on" onclick="emView('thread',this)">thread</button>
+      <button class="em-pill" onclick="emView('source',this)">source</button>
+    </div>
+  </div>
+  <div id="em-thread-view">
+    <div class="em-msg">
+      <div class="em-msg-head"><span class="em-from">Sara Chen</span><span class="em-time">Mon 09:14</span><span class="em-subj">Q3 hardware spend — variance</span></div>
+      <div class="em-body">Hi — just flagged by finance that hardware came in £1,700 over. Can you confirm the figure and whether it needs escalating before the board pack?</div>
+      <div class="em-actions">
+        <button class="em-act" onclick="emFile()">file →</button>
+        <button class="em-act" onclick="emReply()">reply</button>
+      </div>
+    </div>
+    <div class="em-msg">
+      <div class="em-msg-head"><span class="em-from">Rohan Mehta</span><span class="em-time">Mon 10:02</span></div>
+      <div class="em-body">Confirmed — £1,700 on the hardware line, primarily the server upgrade in March. I can pull the breakdown from the budget doc if useful.</div>
+      <div class="em-actions">
+        <button class="em-act" onclick="emReply()">reply</button>
+      </div>
+    </div>
+    <div class="em-reply" id="em-reply-area" style="display:none">
+      <div class="em-reply-head">Replying to Sara Chen &amp; Rohan Mehta · stored as ::email[draft] until sent</div>
+      <textarea class="em-ta" id="em-reply-ta" rows="3" placeholder="Type your reply…"></textarea>
+      <div class="em-reply-btns">
+        <button class="em-send" onclick="emSend()">send</button>
+        <button class="em-discard" onclick="emDiscard()">discard</button>
+        <span class="em-draft-note" id="em-draft-note">draft saved to document</span>
+      </div>
+    </div>
+  </div>
+  <div class="em-src" id="em-src-view"></div>
+</div>
+<p class="em-prose" style="margin-top:.5rem">After confirming with Rohan, I'll add the escalation note to the board pack section below.</p>
+<div class="em-log">
+  <div class="em-log-head">document mutation log</div>
+  <div id="em-log-lines">
+    <div class="em-ll"><span class="em-lk">::email[thread-q3-hardware]</span> rendered — 2 messages fetched</div>
+  </div>
+</div>
+</div>
+<script>
+(function(){
+let replyOpen=false, srcOpen=false, sent=[], filed=false;
+window.emReply=function(){
+  replyOpen=true;
+  document.getElementById('em-reply-area').style.display='block';
+  emLog(`<span class="em-lk">::email[draft]</span> created in document — reply compose open`);
+  emUpdateSrc();
+};
+window.emSend=function(){
+  const txt=document.getElementById('em-reply-ta').value.trim();
+  if(!txt)return;
+  sent.push(txt);
+  document.getElementById('em-reply-area').style.display='none';
+  document.getElementById('em-reply-ta').value='';
+  replyOpen=false;
+  emLog(`<span class="em-lk">sent</span> reply to sara@example.com, rohan@example.com`);
+  emLog(`<span class="em-lk">append</span> → document: <span class="em-lv">sent reply to Q3 hardware thread — ${new Date().toTimeString().slice(0,5)}</span>`);
+  emLog(`<span class="em-lk">::email[draft]</span> removed from document — replaced with sent log entry`);
+  emUpdateSrc();
+};
+window.emDiscard=function(){
+  document.getElementById('em-reply-area').style.display='none';
+  document.getElementById('em-reply-ta').value='';
+  replyOpen=false;
+  emLog(`<span class="em-lk">::email[draft]</span> discarded — directive removed from document`);
+  emUpdateSrc();
+};
+window.emFile=function(){
+  filed=true;
+  emLog(`<span class="em-lk">filed</span> "Q3 hardware spend" → Finance/2026-Q3`);
+  emLog(`<span class="em-lk">append</span> → document: <span class="em-lv">filed: Q3 hardware spend → Finance/2026-Q3</span>`);
+  emUpdateSrc();
+};
+window.emView=function(v,btn){
+  document.getElementById('em-thread-view').style.display=v==='thread'?'block':'none';
+  document.getElementById('em-src-view').classList.toggle('show',v==='source');
+  srcOpen=v==='source';
+  document.querySelectorAll('.em-pills .em-pill').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  emUpdateSrc();
+};
+function emUpdateSrc(){
+  const el=document.getElementById('em-src-view');
+  let txt='::email[thread-q3-hardware]{limit=3}\n';
+  txt+='[Mon 09:14] Sara Chen: Q3 hardware spend — variance\n';
+  txt+='[Mon 10:02] Rohan Mehta: Confirmed — £1,700 on hardware line\n';
+  if(replyOpen) txt+='\n::email[draft]{to=sara@example.com,rohan@example.com}\n[composing...]\n::end\n';
+  if(filed) txt+='\nfiled: Q3 hardware spend → Finance/2026-Q3';
+  if(sent.length) txt+='\n\nsent reply to Q3 hardware thread — '+new Date().toTimeString().slice(0,5);
+  el.textContent=txt;
+}
+function emLog(html){
+  const ll=document.getElementById('em-log-lines');
+  const d=document.createElement('div');
+  d.className='em-ll em-flash';
+  d.innerHTML=html;
+  ll.appendChild(d);
+  setTimeout(()=>d.classList.remove('em-flash'),1200);
+  while(ll.children.length>7)ll.removeChild(ll.firstChild);
+}
+emUpdateSrc();
+})();
+</script>
+</div>
+<div class="fig-caption">Hit <strong>reply</strong> on any message — a compose area opens and a <code>::email[draft]</code> directive is written to the document immediately. Type a reply and <strong>send</strong> — three mutations fire: the message is delivered to the mail backend, the draft directive is removed, and a sent log entry is appended to the document. Hit <strong>file →</strong> to file the thread — a filing record is appended to the document text. Toggle <strong>source</strong> to watch the raw text change at each step.</div>
+</div>
+
+
+<h2 id="ch11">Chapter 11 — Calendar: time as a view, not a destination</h2>
+
+<p>The calendar application commits the original sin of the WIMP paradigm more completely than any other: it is a destination. You go to the calendar to see your time. You leave the calendar to use your time. The calendar knows nothing about why you accepted the meeting, what you were working on before it, or what you need to do after it. In the text-native document, time is always in context. But again the reading experience is the easy part. The harder mechanics: how do you create an event, edit its recurrence, propose a new time, or decline from inside the document?</p>
+
+<div class="section-break">· · ·</div>
+<h3>11.1 Events as text blocks</h3>
+<p>A calendar event in the text-native document is a <code>::cal</code> block. Events you create are stored as directive blocks with named fields; events fetched from a backend are rendered from the backend's data but with their state reflected in the document. Creating an event from the document is as simple as writing the directive:</p>
+<div class="code-block">
+<div><span class="kw">::cal</span>[<span class="eid">finance-sync</span>]{<span class="ep">create=true</span>}</div>
+<div>title     = Finance sync — Q3 hardware variance</div>
+<div>date      = 2026-03-25</div>
+<div>time      = 10:00</div>
+<div>duration  = 30min</div>
+<div>attendees = sara@example.com, finance@example.com</div>
+<div>notes     = Review hardware overrun before board pack</div>
+<div><span class="kw">::end</span></div>
+</div>
+<p>Saving the block sends the event to the calendar backend and writes a confirmation log entry. The block transitions from a <code>create=true</code> draft to a confirmed event with a backend ID. From that point, edits to the block's fields sync to the backend.</p>
+
+<div class="section-break">· · ·</div>
+<h3>11.2 RSVP and the mutation chain</h3>
+<p>Accepting, declining, or proposing a new time from a rendered calendar embed fires a chain of mutations. Accepting writes <code>status=accepted</code> to the directive, sends the RSVP to the organiser's mail server, and appends a log line. Declining follows the same pattern with an optional message. Proposing a new time creates a <code>::email[draft]</code> block with the proposed time pre-filled, leaving the user to add context before sending.</p>
+
+<div class="section-break">· · ·</div>
+<h3>11.3 Editing recurrence and details</h3>
+<p>Editing an event's fields from the rendered card writes the change to the directive and queues a backend sync. Recurrence is expressed in the directive parameters — <code>recur=weekly day=Mon</code> — and rendered as a recurrence badge on the card. Changing the recurrence from the embed replaces the <code>recur=</code> value in the text and sends the update to the backend. The text is always the source of truth; the backend is always downstream.</p>
+
+<!-- FIG 11.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 11.1 — Calendar embed: RSVP, create event, and reschedule — all as text mutations</div>
+<div class="fig-box">
+<style>
+.cal-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.cal-prose{font-family:var(--font-serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--color-text-secondary);font-style:italic;margin-bottom:.75rem}
+.cal-embed{border:.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;margin:.5rem 0}
+.cal-hd{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary)}
+.cal-tag{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)}
+.cal-tabs{display:flex;gap:4px}
+.cal-tab{font-size:12px;padding:3px 10px;border-radius:6px;border:.5px solid transparent;cursor:pointer;color:var(--color-text-secondary);background:transparent;transition:all .15s;font-family:var(--font-sans)}
+.cal-tab.on{background:var(--color-background-primary);border-color:var(--color-border-secondary);color:var(--color-text-primary);font-weight:500}
+.cal-body{background:var(--color-background-primary);padding:10px 14px}
+.cal-date-hd{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.cal-ev{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;margin-bottom:4px;cursor:pointer;transition:background .1s}
+.cal-ev:hover{background:var(--color-background-secondary)}
+.cal-bar{width:3px;border-radius:2px;flex-shrink:0;margin-top:3px;align-self:stretch}
+.cal-ev-time{font-size:12px;color:var(--color-text-secondary);min-width:70px;padding-top:1px}
+.cal-ev-body{flex:1}
+.cal-ev-title{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.cal-ev-sub{font-size:12px;color:var(--color-text-secondary);margin-top:1px}
+.cal-ev-action{margin-left:auto;display:flex;gap:4px;flex-shrink:0}
+.cal-btn{font-size:11px;padding:2px 9px;border-radius:6px;border:.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s;white-space:nowrap}
+.cal-btn:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.cal-btn.accepted{background:var(--color-background-success);border-color:var(--color-border-success);color:var(--color-text-success)}
+.cal-btn.declined{background:var(--color-background-danger);border-color:var(--color-border-danger);color:var(--color-text-danger)}
+.cal-new{border-top:.5px solid var(--color-border-tertiary);padding:10px 14px;background:var(--color-background-secondary);display:none}
+.cal-new.show{display:block}
+.cal-new-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px}
+.cal-nf{display:flex;gap:8px;margin-bottom:6px;align-items:center}
+.cal-nf-lbl{font-size:11px;color:var(--color-text-tertiary);min-width:60px;font-family:var(--font-sans)}
+.cal-nf-inp{flex:1;font-size:13px;padding:4px 8px;border:.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);outline:none}
+.cal-save{font-size:12px;padding:4px 14px;border-radius:7px;border:.5px solid var(--color-border-info);background:var(--color-background-info);cursor:pointer;color:var(--color-text-info);font-family:var(--font-sans)}
+.cal-src{display:none;padding:10px 14px;background:var(--color-background-secondary);font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary);line-height:1.7;white-space:pre}
+.cal-src.show{display:block}
+.cal-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.cal-lh{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.cal-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.cal-ll:last-child{border-bottom:none}
+.cal-ll.cal-flash{background:var(--color-background-success)}
+.cal-lk{color:#1D9E75}.cal-lv{color:#534AB7}
+</style>
+<div class="cal-root">
+<p class="cal-prose">Checking tomorrow's schedule before writing the finance prep notes.</p>
+<div class="cal-embed">
+  <div class="cal-hd">
+    <span class="cal-tag" id="cal-tag">::cal[2026-03-24]{view=agenda}</span>
+    <div class="cal-tabs">
+      <button class="cal-tab on" onclick="calTab('agenda',this)">agenda</button>
+      <button class="cal-tab" onclick="calTab('create',this)">+ new event</button>
+      <button class="cal-tab" onclick="calTab('source',this)">source</button>
+    </div>
+  </div>
+  <div class="cal-body" id="cal-agenda-view">
+    <div class="cal-date-hd">Tue 24 Mar</div>
+    <div class="cal-ev">
+      <div class="cal-bar" style="background:#1D9E75"></div>
+      <div class="cal-ev-time">09:00 – 09:45</div>
+      <div class="cal-ev-body"><div class="cal-ev-title">Product roadmap call</div><div class="cal-ev-sub">Sara, Rohan · accepted</div></div>
+    </div>
+    <div class="cal-ev" id="cal-ev-finance">
+      <div class="cal-bar" style="background:#D85A30"></div>
+      <div class="cal-ev-time">10:00 – 10:30</div>
+      <div class="cal-ev-body"><div class="cal-ev-title">Finance sync</div><div class="cal-ev-sub" id="cal-finance-sub">Sara, Finance · awaiting RSVP</div></div>
+      <div class="cal-ev-action">
+        <button class="cal-btn" id="cal-accept-btn" onclick="calRsvp('accept')">Accept</button>
+        <button class="cal-btn" id="cal-decline-btn" onclick="calRsvp('decline')">Decline</button>
+        <button class="cal-btn" onclick="calReschedule()">Propose new time</button>
+      </div>
+    </div>
+    <div class="cal-ev" id="cal-new-ev" style="display:none">
+      <div class="cal-bar" style="background:#534AB7"></div>
+      <div class="cal-ev-time" id="cal-new-time">—</div>
+      <div class="cal-ev-body"><div class="cal-ev-title" id="cal-new-title">New event</div><div class="cal-ev-sub" id="cal-new-sub"></div></div>
+    </div>
+  </div>
+  <div class="cal-new" id="cal-new-form">
+    <div class="cal-new-title">New event — will create ::cal block in document</div>
+    <div class="cal-nf"><label class="cal-nf-lbl">title</label><input class="cal-nf-inp" id="cal-nt" value="Team debrief"></div>
+    <div class="cal-nf"><label class="cal-nf-lbl">time</label><input class="cal-nf-inp" id="cal-ntm" value="14:00"></div>
+    <div class="cal-nf"><label class="cal-nf-lbl">duration</label><input class="cal-nf-inp" id="cal-nd" value="30min"></div>
+    <div class="cal-nf"><label class="cal-nf-lbl">attendees</label><input class="cal-nf-inp" id="cal-na" value="sara@example.com"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="cal-save" onclick="calSaveNew()">create event</button>
+      <button class="cal-btn" onclick="calTab('agenda',document.querySelector('.cal-tab.on'))">cancel</button>
+    </div>
+  </div>
+  <div class="cal-src" id="cal-src-view"></div>
+</div>
+<div class="cal-log">
+  <div class="cal-lh">document mutation log</div>
+  <div id="cal-log-lines">
+    <div class="cal-ll"><span class="cal-lk">::cal[2026-03-24]</span> rendered — 2 events, 1 pending RSVP</div>
+  </div>
+</div>
+</div>
+<script>
+(function(){
+let rsvp='pending', newEvCreated=false;
+function calLog(html){
+  const ll=document.getElementById('cal-log-lines');
+  const d=document.createElement('div');d.className='cal-ll cal-flash';d.innerHTML=html;
+  ll.appendChild(d);setTimeout(()=>d.classList.remove('cal-flash'),1200);
+  while(ll.children.length>7)ll.removeChild(ll.firstChild);
+}
+function calUpdateSrc(){
+  const el=document.getElementById('cal-src-view');
+  let txt='::cal[2026-03-24]{view=agenda}\n';
+  txt+='event: Product roadmap call 09:00 status=accepted\n';
+  txt+='event: Finance sync 10:00 status='+rsvp+'\n';
+  if(newEvCreated) txt+='event: Team debrief 14:00 status=created\n';
+  el.textContent=txt;
+}
+window.calRsvp=function(action){
+  rsvp=action+'ed';
+  document.getElementById('cal-finance-sub').textContent='Sara, Finance · '+rsvp;
+  document.getElementById('cal-accept-btn').className='cal-btn'+(action==='accept'?' accepted':'');
+  document.getElementById('cal-decline-btn').className='cal-btn'+(action==='decline'?' declined':'');
+  calLog(`<span class="cal-lk">::cal[finance-sync]</span> status=${rsvp} — written to directive`);
+  calLog(`<span class="cal-lv">RSVP sent</span> to organiser · <span class="cal-lk">append</span> → document: ${action}ed: Finance sync 10:00`);
+  calUpdateSrc();
+};
+window.calReschedule=function(){
+  calLog(`<span class="cal-lk">::email[draft]</span> created — propose new time for Finance sync`);
+  calLog(`<span class="cal-lv">new time proposal</span> pre-filled in draft email directive`);
+  calUpdateSrc();
+};
+window.calSaveNew=function(){
+  const t=document.getElementById('cal-nt').value;
+  const tm=document.getElementById('cal-ntm').value;
+  newEvCreated=true;
+  document.getElementById('cal-new-ev').style.display='flex';
+  document.getElementById('cal-new-title').textContent=t;
+  document.getElementById('cal-new-time').textContent=tm+' –';
+  document.getElementById('cal-new-sub').textContent=document.getElementById('cal-na').value;
+  calTab('agenda',document.querySelectorAll('.cal-tab')[0]);
+  calLog(`<span class="cal-lk">::cal[${t.toLowerCase().replace(/\s+/g,'-')}]</span> created — sent to backend, block written to document`);
+  calLog(`<span class="cal-lv">invites sent</span> to ${document.getElementById('cal-na').value}`);
+  calUpdateSrc();
+};
+window.calTab=function(v,btn){
+  ['cal-agenda-view','cal-new-form','cal-src-view'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.style.display='none';el.classList.remove('show');
+  });
+  if(v==='agenda') document.getElementById('cal-agenda-view').style.display='block';
+  else if(v==='create') document.getElementById('cal-new-form').classList.add('show'),document.getElementById('cal-new-form').style.display='block';
+  else document.getElementById('cal-src-view').classList.add('show'),document.getElementById('cal-src-view').style.display='block';
+  document.querySelectorAll('.cal-tabs .cal-tab').forEach(p=>p.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  calUpdateSrc();
+};
+calUpdateSrc();
+})();
+</script>
+</div>
+<div class="fig-caption">Hit <strong>Accept</strong> or <strong>Decline</strong> on the Finance sync — watch the status write to the directive and the log record the RSVP. Hit <strong>Propose new time</strong> — a draft email directive is created. Click <strong>+ new event</strong>, fill the form, hit <strong>create event</strong> — the event appears in the agenda and a block is written to the document. Toggle <strong>source</strong> to see the raw text state at every step.</div>
+</div>
 
 <div class="ch-divider"></div>
 
-<h2 id="ch15-files">Chapter 15 — Files: the document as index</h2>
-<p>The <code>::file</code> directive does not replace the file system. It makes it navigable from the document — which is where the context for finding a file usually lives. When you are writing about a project and want to reference a PDF report, the directive <code>::file[~/documents/q3-report.pdf]{preview=true}</code> renders the PDF preview inline, in context, without requiring you to open a file manager. The file stays where it is. The reference to it lives where it is relevant. Dragging a file into the document writes a <code>::file</code> directive at the cursor position. The file is not embedded; it is referenced. Moving the file updates the directive. Deleting the file marks the directive as broken.</p>
+<h2 id="ch12">Chapter 12 — Tasks: every checkbox is a line of text</h2>
+
+<p>A task, reduced to its essential nature, is a line of text with a state. It is either done or not done. Every other attribute — due date, priority, project, assignee, recurrence — is metadata attached to that line. The <code>::task</code> directive makes this explicit. But the mechanics deserve elaboration: how do you create a task from prose, how do blocking chains actually work in the text, and how does querying tasks across documents function in practice?</p>
+
+<div class="section-break">· · ·</div>
+<h3>12.1 The task as a directive</h3>
+<p>Every task in the text-native document is a directive line with an identifier, a completion state, and optional metadata parameters. The minimal task is one line:</p>
+<div class="code-block">
+<div><span class="kw">::task</span>[<span class="eid">call-finance</span>]{<span class="ep">due=2026-03-23 priority=high</span>}</div>
+</div>
+<p>Checking the rendered checkbox replaces the directive text: <code>done=true completed=2026-03-23T14:32</code> is appended to the parameters. The checkbox state, the completion timestamp, and the original due date are all visible in the raw text. A diff of the document at that moment shows exactly one character change plus the timestamp append — the most precise possible record of when the decision was made.</p>
+
+<div class="section-break">· · ·</div>
+<h3>12.2 Creating tasks from prose</h3>
+<p>Any line of prose can become a task by selecting it and pressing a keyboard shortcut, or by typing <code>::task[id]</code> immediately after it. The selected text becomes the task title, appended as a <code>title=</code> parameter or as the block body. The renderer writes the directive to the document at the cursor position. No application switch required. The task is created in context, next to the prose that generated it.</p>
+<p>Tasks created from within email replies, calendar accepts, or chat promotes use the same mechanism: the action handler writes a <code>::task</code> directive to the document alongside the action log entry. The task and the event that produced it are adjacent in the text — their relationship expressed by proximity and by the <code>linked-to=</code> parameter if the connection should be explicit.</p>
+
+<div class="section-break">· · ·</div>
+<h3>12.3 Blocking chains in text</h3>
+<p>The <code>blocked-by=</code> parameter creates a dependency expressed entirely in text. A task with <code>blocked-by=call-finance</code> references the identifier of another task. The renderer marks the blocked task as inactive and shows the blocker's status. When the blocker is completed, the blocked task becomes active automatically — the renderer re-evaluates the directive parameters on every render. The dependency graph is in the text, readable as text, greppable as text. <code>grep -r "blocked-by=" ~/documents/</code> returns every dependency across every project.</p>
+
+<div class="section-break">· · ·</div>
+<h3>12.4 The task list as a query</h3>
+<p>The power of the directive model becomes clearest when you query across documents. <code>::task[overdue]{filter="done=false due&lt;today"}</code> renders all overdue incomplete tasks from the entire document collection as a live interactive list. Completing a task from this view writes the completion back to the source document — wherever that task lives — not to the query view. The query view is derived; the source document is authoritative.</p>
+
+<!-- FIG 12.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 12.1 — Tasks: create, complete, block, and query — all as text mutations</div>
+<div class="fig-box">
+<style>
+.tk-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.tk-prose{font-family:var(--font-serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--color-text-secondary);font-style:italic;margin-bottom:.75rem}
+.tk-section{margin-bottom:.75rem}
+.tk-section-hd{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:6px;font-family:var(--font-sans)}
+.tk-task{display:flex;align-items:center;gap:10px;padding:7px 12px;border:.5px solid var(--color-border-tertiary);border-radius:8px;margin-bottom:5px;background:var(--color-background-primary);transition:all .15s}
+.tk-task.blocked{opacity:.5;cursor:default}
+.tk-task.done{opacity:.6}
+.tk-check{width:16px;height:16px;border-radius:4px;border:.5px solid var(--color-border-secondary);flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:transparent;background:transparent;transition:all .15s}
+.tk-check.checked{background:var(--color-background-success);border-color:var(--color-border-success);color:var(--color-text-success)}
+.tk-check.blocked{cursor:not-allowed}
+.tk-title{font-size:13px;color:var(--color-text-primary);flex:1}
+.tk-task.done .tk-title{text-decoration:line-through;color:var(--color-text-tertiary)}
+.tk-meta{font-size:11px;color:var(--color-text-tertiary);white-space:nowrap}
+.tk-meta.overdue{color:var(--color-text-danger)}
+.tk-meta.blocked-lbl{color:var(--color-text-warning)}
+.tk-new{display:flex;gap:7px;margin-bottom:.75rem}
+.tk-new-inp{flex:1;font-size:13px;padding:6px 10px;border:.5px solid var(--color-border-secondary);border-radius:8px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);outline:none}
+.tk-new-inp:focus{border-color:var(--color-border-info)}
+.tk-add-btn{font-size:12px;padding:5px 14px;border-radius:8px;border:.5px solid var(--color-border-info);background:var(--color-background-info);cursor:pointer;color:var(--color-text-info);font-family:var(--font-sans);white-space:nowrap}
+.tk-src{margin:.5rem 0;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden;display:none}
+.tk-src.show{display:block}
+.tk-src-hd{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans);display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.tk-src-pre{font-family:var(--font-mono);font-size:11px;padding:8px 10px;color:var(--color-text-secondary);line-height:1.7;white-space:pre}
+.tk-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.tk-lh{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.tk-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.tk-ll:last-child{border-bottom:none}
+.tk-ll.tk-flash{background:var(--color-background-success)}
+.tk-lk{color:#1D9E75}.tk-lv{color:#534AB7}
+</style>
+<div class="tk-root">
+<div class="tk-section">
+  <div class="tk-section-hd">add a task from prose</div>
+  <div class="tk-new">
+    <input class="tk-new-inp" id="tk-new-inp" placeholder="Type a task title, press add…" onkeydown="if(event.key==='Enter')tkAdd()">
+    <button class="tk-add-btn" onclick="tkAdd()">+ add task</button>
+  </div>
+</div>
+<div class="tk-section">
+  <div class="tk-section-hd">today's tasks — with blocking chain</div>
+  <div id="tk-list">
+    <div class="tk-task" id="tk-t1" data-id="call-finance" data-blocks="send-q3">
+      <div class="tk-check" id="tk-c1" onclick="tkToggle('tk-t1','tk-c1','call-finance')"></div>
+      <div class="tk-title">Call finance re hardware variance</div>
+      <div class="tk-meta overdue">overdue · today</div>
+    </div>
+    <div class="tk-task blocked" id="tk-t2" data-id="send-q3" data-blocked-by="call-finance">
+      <div class="tk-check blocked" id="tk-c2"></div>
+      <div class="tk-title">Send Q3 brief to Sara</div>
+      <div class="tk-meta blocked-lbl">blocked by: call-finance</div>
+    </div>
+    <div class="tk-task" id="tk-t3" data-id="review-transport">
+      <div class="tk-check" id="tk-c3" onclick="tkToggle('tk-t3','tk-c3','review-transport')"></div>
+      <div class="tk-title">Review transport spend</div>
+      <div class="tk-meta">due 1 Apr</div>
+    </div>
+  </div>
+</div>
+<div class="tk-src" id="tk-src">
+  <div class="tk-src-hd" onclick="tkToggleSrc()">source view — document text <span id="tk-src-arrow">▾</span></div>
+  <pre class="tk-src-pre" id="tk-src-pre"></pre>
+</div>
+<div class="tk-log">
+  <div class="tk-lh">document mutation log</div>
+  <div id="tk-log-lines">
+    <div class="tk-ll"><span class="tk-lk">::task</span> directives loaded — 3 tasks, 1 blocking chain</div>
+  </div>
+</div>
+</div>
+<script>
+(function(){
+let tasks=[
+  {id:'call-finance',title:'Call finance re hardware variance',done:false,due:'today',priority:'high',blocksId:'send-q3'},
+  {id:'send-q3',title:'Send Q3 brief to Sara',done:false,due:'2026-03-24',blockedBy:'call-finance'},
+  {id:'review-transport',title:'Review transport spend',done:false,due:'2026-04-01'},
+];
+let srcOpen=false;
+function tkUpdateSrc(){
+  const pre=document.getElementById('tk-src-pre');
+  pre.textContent=tasks.map(t=>{
+    let s=`::task[${t.id}]{due=${t.due}${t.priority?' priority='+t.priority:''}${t.blockedBy?' blocked-by='+t.blockedBy:''}${t.done?' done=true completed=2026-03-24':''}}`; return s;
+  }).join('\n');
+}
+function tkLog(html){
+  const ll=document.getElementById('tk-log-lines');
+  const d=document.createElement('div');d.className='tk-ll tk-flash';d.innerHTML=html;
+  ll.appendChild(d);setTimeout(()=>d.classList.remove('tk-flash'),1200);
+  while(ll.children.length>7)ll.removeChild(ll.firstChild);
+}
+function tkRefreshBlocked(){
+  tasks.forEach(t=>{
+    if(t.blockedBy){
+      const blocker=tasks.find(b=>b.id===t.blockedBy);
+      const blocked=blocker&&!blocker.done;
+      const row=document.querySelector(`[data-id="${t.id}"]`);
+      const chk=row?row.querySelector('.tk-check'):null;
+      if(row){row.classList.toggle('blocked',blocked);row.classList.toggle('tk-task',true);}
+      if(chk){
+        chk.classList.toggle('blocked',blocked);
+        if(!blocked&&!t.done){chk.onclick=()=>tkToggle(row.id,chk.id,t.id);}
+        else if(blocked){chk.onclick=null;}
+        const meta=row?row.querySelector('.tk-meta'):null;
+        if(meta&&blocked) meta.textContent='blocked by: '+t.blockedBy;
+        if(meta&&!blocked&&!t.done) meta.textContent='due '+t.due;
+      }
+    }
+  });
+}
+window.tkToggle=function(rowId,chkId,taskId){
+  const t=tasks.find(x=>x.id===taskId);
+  if(!t||t.done) return;
+  t.done=true;
+  const row=document.getElementById(rowId);
+  const chk=document.getElementById(chkId);
+  row.classList.add('done');chk.classList.add('checked');chk.textContent='✓';chk.onclick=null;
+  tkLog(`<span class="tk-lk">::task[${taskId}]</span> done=true completed=2026-03-24T${new Date().toTimeString().slice(0,5)} — written to document`);
+  if(t.blocksId){
+    tkLog(`<span class="tk-lv">::task[${t.blocksId}]</span> blocker resolved — now active`);
+  }
+  tkRefreshBlocked();
+  tkUpdateSrc();
+};
+window.tkAdd=function(){
+  const inp=document.getElementById('tk-new-inp');
+  const title=inp.value.trim();
+  if(!title) return;
+  const id=title.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').slice(0,30);
+  const newTask={id,title,done:false,due:'2026-03-27'};
+  tasks.push(newTask);
+  const list=document.getElementById('tk-list');
+  const div=document.createElement('div');
+  div.className='tk-task';div.id='tk-t-'+id;div.dataset.id=id;
+  div.innerHTML=`<div class="tk-check" id="tk-c-${id}" onclick="tkToggle('tk-t-${id}','tk-c-${id}','${id}')"></div><div class="tk-title">${title}</div><div class="tk-meta">due 27 Mar</div>`;
+  list.appendChild(div);
+  inp.value='';
+  tkLog(`<span class="tk-lk">::task[${id}]</span>{due=2026-03-27} — written to document at cursor position`);
+  tkUpdateSrc();
+};
+window.tkToggleSrc=function(){
+  srcOpen=!srcOpen;
+  document.getElementById('tk-src').classList.toggle('show',srcOpen);
+  document.getElementById('tk-src-arrow').textContent=srcOpen?'▴':'▾';
+  tkUpdateSrc();
+};
+tkUpdateSrc();
+})();
+</script>
+</div>
+<div class="fig-caption">Type a task in the input and hit <strong>+ add task</strong> — the directive is written to the document at the cursor position. Click the checkbox on <strong>Call finance</strong> — it completes, the log records the timestamp, and the blocked <strong>Send Q3 brief</strong> task becomes active immediately. Toggle <strong>source view</strong> to see the exact directive text for each task, including <code>blocked-by=</code> and completion timestamps.</div>
+</div>
+
+
+<h2 id="ch13">Chapter 13 — Notes and docs: transclusion, not copying</h2>
+
+<p>The note-taking application has a fundamental design flaw that its users have learned to work around: it creates copies. When you want to include content from one note in another, you copy it. The copy immediately begins to diverge from the original. The text-native document resolves this with transclusion. But the mechanics deserve precision: what happens when you edit at the source versus at the reference? What does breaking a transclusion link look like in text? And how does the document graph stay coherent as it grows?</p>
+
+<div class="section-break">· · ·</div>
+<h3>13.1 How transclusion works in text</h3>
+<p>A <code>::note[document-id]{section=heading}</code> directive renders the named section of another document inline at the point of the directive. The source document is not modified. The rendering is a live view — not a snapshot. Changes at the source propagate immediately to every document that transclude it. The mechanism is simple: on every render, the renderer resolves the directive against the current state of the source document. There is no sync protocol, no replication, no eventual consistency. The source is read at render time. If it has changed, the rendered view shows the change.</p>
+
+<div class="section-break">· · ·</div>
+<h3>13.2 Editing at the source vs at the embed</h3>
+<p>Edits made through a transcluded embed are propagated to the source document. The renderer knows the source location for every transcluded block and writes changes back there. This is bidirectional transclusion: the source and the embed are the same content, readable from either location, editable from either location, always in agreement.</p>
+<p>There is one asymmetry: structural changes — reordering sections, renaming headings, deleting paragraphs — can only be made at the source. The embed renders a section; you can edit the content of that section, but you cannot rearrange its relationship to other sections from the embed. This constraint is intentional. Structural changes to a source document that is transcluded in many places would otherwise propagate unexpected restructuring throughout the document graph.</p>
+
+<div class="section-break">· · ·</div>
+<h3>13.3 Breaking a transclusion link</h3>
+<p>Breaking a transclusion — converting a live embed to a frozen copy — is a one-action operation from the embed. The action replaces the <code>::note[id]{section=heading}</code> directive with the literal content of the section, as plain text, at the point of the directive. The source document is unchanged. The embed becomes independent text, no longer connected to the source. This operation is recorded in the document's version history: the diff shows exactly which content was frozen and from which source.</p>
+<p>Deletion of the source document marks all directives that reference it with an unresolved indicator — the same mechanism as a deleted contact. The directive text remains; the renderer cannot resolve it. The document is not broken. The content of the directive is still a legible text line: <code>::note[q3-meeting-notes]{section=decisions}</code> tells a reader exactly what was intended, even without a renderer.</p>
+
+<!-- FIG 13.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 13.1 — Transclusion: edit at source, watch embed update; break link, embed freezes</div>
+<div class="fig-box">
+<style>
+.tr-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.tr-cols{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.tr-col-hd{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:.5rem;font-family:var(--font-sans)}
+.tr-doc{border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.tr-doc-hd{font-size:11px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-family:var(--font-sans)}
+.tr-doc-body{padding:10px 12px;background:var(--color-background-primary);min-height:100px}
+.tr-section-hd{font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px;font-family:var(--font-sans)}
+.tr-editable{font-size:13px;line-height:1.6;color:var(--color-text-primary);padding:4px;border-radius:4px;min-height:40px;cursor:text;outline:none;font-family:var(--font-sans)}
+.tr-editable:focus{background:var(--color-background-info);border-radius:4px}
+.tr-embed{border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden;margin-bottom:.75rem}
+.tr-embed-hd{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary)}
+.tr-embed-tag{font-family:var(--font-mono);font-size:10px;color:var(--color-text-tertiary)}
+.tr-embed-body{padding:10px 12px;background:var(--color-background-primary)}
+.tr-embed-text{font-size:13px;line-height:1.6;color:var(--color-text-primary);font-family:var(--font-sans)}
+.tr-embed-text.live{border-left:2px solid var(--color-border-info);padding-left:8px}
+.tr-embed-text.frozen{border-left:2px solid var(--color-border-warning);padding-left:8px;color:var(--color-text-secondary)}
+.tr-embed-btns{display:flex;gap:5px;padding:5px 10px;border-top:.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.tr-btn{font-size:11px;padding:2px 8px;border-radius:6px;border:.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s}
+.tr-btn:hover{background:var(--color-background-primary);color:var(--color-text-primary)}
+.tr-status{font-size:11px;padding:2px 7px;border-radius:6px;font-family:var(--font-sans)}
+.tr-status.live{background:var(--color-background-success);color:var(--color-text-success)}
+.tr-status.frozen{background:var(--color-background-warning);color:var(--color-text-warning)}
+.tr-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.tr-lh{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.tr-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.tr-ll:last-child{border-bottom:none}
+.tr-ll.tr-flash{background:var(--color-background-success)}
+.tr-lk{color:#1D9E75}.tr-lv{color:#534AB7}
+</style>
+<div class="tr-root">
+  <div class="tr-cols">
+    <div>
+      <div class="tr-col-hd">source: q3-meeting-notes.txt</div>
+      <div class="tr-doc">
+        <div class="tr-doc-hd">q3-meeting-notes.txt</div>
+        <div class="tr-doc-body">
+          <div class="tr-section-hd">## Decisions</div>
+          <div class="tr-editable" id="tr-source" contenteditable="true" oninput="trSourceChanged()" onblur="trSourceChanged()">Tab bar navigation confirmed for mobile. Max 5 tabs. Priya to share designs by EOD.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="tr-col-hd">this document (embed)</div>
+      <div class="tr-embed">
+        <div class="tr-embed-hd">
+          <span class="tr-embed-tag">::note[q3-meeting-notes]{section=decisions}</span>
+          <span class="tr-status live" id="tr-status">live</span>
+        </div>
+        <div class="tr-embed-body">
+          <div class="tr-embed-text live" id="tr-embed-text">Tab bar navigation confirmed for mobile. Max 5 tabs. Priya to share designs by EOD.</div>
+        </div>
+        <div class="tr-embed-btns">
+          <button class="tr-btn" onclick="trBreak()">break link → freeze copy</button>
+          <button class="tr-btn" onclick="trRestore()" id="tr-restore-btn" style="display:none">restore live link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tr-log">
+    <div class="tr-lh">document mutation log</div>
+    <div id="tr-log-lines">
+      <div class="tr-ll"><span class="tr-lk">::note[q3-meeting-notes]</span>{section=decisions} — live transclusion active</div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+let frozen=false, frozenText='';
+function trLog(html){
+  const ll=document.getElementById('tr-log-lines');
+  const d=document.createElement('div');d.className='tr-ll tr-flash';d.innerHTML=html;
+  ll.appendChild(d);setTimeout(()=>d.classList.remove('tr-flash'),1200);
+  while(ll.children.length>6)ll.removeChild(ll.firstChild);
+}
+window.trSourceChanged=function(){
+  if(frozen) return;
+  const txt=document.getElementById('tr-source').textContent;
+  document.getElementById('tr-embed-text').textContent=txt;
+  trLog(`<span class="tr-lk">source edit</span> propagated to <span class="tr-lv">::note embed</span> — live transclusion updated`);
+};
+window.trBreak=function(){
+  frozen=true;
+  frozenText=document.getElementById('tr-source').textContent;
+  const embed=document.getElementById('tr-embed-text');
+  embed.classList.remove('live');embed.classList.add('frozen');
+  const status=document.getElementById('tr-status');
+  status.textContent='frozen';status.className='tr-status frozen';
+  document.getElementById('tr-restore-btn').style.display='inline';
+  trLog(`<span class="tr-lk">::note[q3-meeting-notes]</span> link broken — content frozen as plain text in document`);
+  trLog(`<span class="tr-lv">directive replaced</span> with literal text — no longer references source`);
+};
+window.trRestore=function(){
+  frozen=false;
+  const embed=document.getElementById('tr-embed-text');
+  embed.classList.remove('frozen');embed.classList.add('live');
+  const status=document.getElementById('tr-status');
+  status.textContent='live';status.className='tr-status live';
+  embed.textContent=document.getElementById('tr-source').textContent;
+  document.getElementById('tr-restore-btn').style.display='none';
+  trLog(`<span class="tr-lk">::note[q3-meeting-notes]</span> link restored — live transclusion active`);
+};
+})();
+</script>
+</div>
+<div class="fig-caption">Edit the <strong>source document</strong> on the left — watch the embed on the right update instantly. There is no sync delay; the source is read at render time. Hit <strong>break link → freeze copy</strong> — the embed turns amber and becomes independent text. Now edit the source again — the embed no longer updates. Hit <strong>restore live link</strong> to reconnect.</div>
+</div>
 
 <div class="ch-divider"></div>
 
-<h2 id="ch16-contacts">Chapter 16 — Contacts: people as named entities</h2>
+<h2 id="ch14">Chapter 14 — Worksheets: the spreadsheet dissolved</h2>
+
+<p>Chapter 14 is where the architecture earns its most ambitious claim: that the spreadsheet, as an application category, can be dissolved into the document. Not replaced by a better spreadsheet. Dissolved — because the functions a spreadsheet serves are better served, separately, by the text layer, the Python block, and the table renderer respectively. The interactive figures in Chapter 6 and 7 demonstrate the mechanics in full. This chapter explains what that dissolution means conceptually and why it is an improvement rather than a regression.</p>
+
+<div class="section-break">· · ·</div>
+<h3>14.1 What a worksheet actually is</h3>
+<p>A worksheet in the text-native document is any document section that combines a <code>::py</code> block defining computation, a <code>::table</code> block displaying results, and the prose that explains what the numbers mean and why they were computed. These three elements are technically separable — each is a distinct directive — but they are intentionally kept together in the document, adjacent in the scroll, so that the reasoning and the result are inseparable to any reader.</p>
+<p>This is the key structural difference from a spreadsheet. A spreadsheet's reasoning is hidden inside cells. A worksheet's reasoning is visible in the Python block above the table, in the prose paragraph that motivated the computation, and in the task directive below that records the follow-up action. A colleague who receives the document can read the worksheet without any spreadsheet application and understand not just what the numbers are but where they came from and what was decided because of them.</p>
+
+<div class="section-break">· · ·</div>
+<h3>14.2 The formula dissolved</h3>
+<p>The spreadsheet formula is a domain-specific language embedded invisibly inside a cell. <code>=SUMIF(B2:B10,"&gt;0",C2:C10)</code> means something specific to someone who knows Excel's formula language, but it is opaque to anyone who doesn't — which is most people outside finance and analytics. The Python equivalent — <code>total = sum(v for v in values if v &gt; 0)</code> — is a sentence. It uses the same words a programmer and a non-programmer would both reach for. The computation is legible. The reasoning is visible. The spreadsheet formula is a dialect; the Python block is plain language.</p>
+
+<div class="section-break">· · ·</div>
+<h3>14.3 Sharing a worksheet</h3>
+<p>Sharing a spreadsheet requires the recipient to have a compatible application, to understand the formula language, and to trust that the cells shown are all the cells that matter. Sharing a text-native worksheet requires none of this. The document is a text file. Any text editor opens it. Any reader can see the Python source, the table data, and the prose explanation simultaneously. The worksheet is self-documenting in a way that a spreadsheet cannot be: the documentation is literally in the same file as the computation.</p>
+
+<div class="section-break">· · ·</div>
+<h3>14.4 The worksheet as audit trail</h3>
+<p>Because every change to a worksheet — editing a Python value, updating a table cell, writing a prose note — is a text mutation, every change is captured in the document's version history. The diff between two versions of a worksheet shows exactly which number changed, at what time, and what prose context accompanied the change. This is the audit trail that financial and analytical workflows require and that spreadsheets provide poorly: a spreadsheet's version history, if it exists at all, shows which cells changed but not the human reasoning that motivated the change. The worksheet embeds the reasoning in the document alongside the data, and the version history captures both together.</p>
+<p>The interactive figure demonstrating worksheet mechanics appears in <strong>Figures 6.1 &amp; 7.1</strong> — the integrated <code>::py</code>→<code>::table</code> prototype in Chapter 6. That figure shows the computation layer driving the table, the divergence protocol in action, and the source text updating in real time. It is the worked example this chapter describes.</p>
+
+<div class="ch-divider"></div>
+
+<h2 id="ch15">Chapter 15 — Files: the document as index</h2>
+
+<p>The <code>::file</code> directive does not replace the file system. It makes it navigable from the document — which is where the context for finding a file usually lives. But how are file references created? What happens when a file moves? How does the document handle broken references, and what does a directory view look like?</p>
+
+<div class="section-break">· · ·</div>
+<h3>15.1 Creating file references</h3>
+<p>File references are created in three ways. Dragging a file into the document at any cursor position writes a <code>::file[path]{preview=true}</code> directive at that location — the file is not copied into the document, only referenced. Typing the directive manually works equally well. And any action in another embed that produces a file — a downloaded email attachment, a chart exported from a <code>::py</code> block — offers a one-click option to write the reference to the document.</p>
+<div class="code-block">
+<div><span class="kw">::file</span>[<span class="eid">~/documents/q3-report.pdf</span>]{<span class="ep">preview=true</span>}</div>
+<div><span class="kw">::file</span>[<span class="eid">~/projects/budget-model.xlsx</span>]{<span class="ep">preview=first-sheet</span>}</div>
+<div><span class="kw">::file</span>[<span class="eid">~/downloads/roadmap-v4.pptx</span>]{<span class="ep">preview=thumbnail</span>}</div>
+</div>
+
+<div class="section-break">· · ·</div>
+<h3>15.2 Moving and renaming files</h3>
+<p>When a referenced file is moved or renamed, the <code>::file</code> directive path becomes stale. The renderer detects this on the next render and marks the directive as broken — displaying the path with a visual indicator and an "update path" action. Clicking updates the directive's path parameter to the new location. The document records the path change as a text mutation: the old path is replaced with the new one, and the change is captured in the version history. The file is wherever it is; the directive records where the document last knew it to be.</p>
+
+<div class="section-break">· · ·</div>
+<h3>15.3 Directory views</h3>
+<p>A <code>::file</code> directive pointing to a directory rather than a file renders as a directory listing — a filterable, sortable view of the directory's contents. Files in the listing can be clicked to open a preview inline or to write a new <code>::file</code> directive for the selected file at the cursor position. The directory listing is not a file manager. It is a view into the file system, rendered where context demands it, dismissible when the context has passed.</p>
+
+<!-- FIG 15.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 15.1 — File references: create, break, update path — all as text mutations</div>
+<div class="fig-box">
+<style>
+.fl-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.fl-prose{font-family:var(--font-serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--color-text-secondary);font-style:italic;margin-bottom:.75rem}
+.fl-drop{border:1.5px dashed var(--color-border-secondary);border-radius:10px;padding:12px 16px;margin-bottom:.75rem;background:var(--color-background-secondary);cursor:pointer;transition:all .15s}
+.fl-drop:hover{border-color:var(--color-border-info);background:var(--color-background-info)}
+.fl-drop-lbl{font-size:12px;color:var(--color-text-secondary);text-align:center;font-family:var(--font-sans)}
+.fl-file-list{display:flex;flex-direction:column;gap:6px;margin-bottom:.75rem}
+.fl-file{border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.fl-file-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--color-background-secondary)}
+.fl-file-tag{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)}
+.fl-file-status{font-size:11px;padding:1px 7px;border-radius:5px;font-family:var(--font-sans)}
+.fl-status-ok{background:var(--color-background-success);color:var(--color-text-success)}
+.fl-status-broken{background:var(--color-background-danger);color:var(--color-text-danger)}
+.fl-file-btns{display:flex;gap:5px}
+.fl-btn{font-size:11px;padding:2px 8px;border-radius:5px;border:.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.fl-btn:hover{background:var(--color-background-primary);color:var(--color-text-primary)}
+.fl-preview{padding:10px 12px;background:var(--color-background-primary);border-top:.5px solid var(--color-border-tertiary);display:none}
+.fl-preview.show{display:block}
+.fl-preview-inner{background:var(--color-background-secondary);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.fl-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.fl-lh{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.fl-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.fl-ll:last-child{border-bottom:none}
+.fl-ll.fl-flash{background:var(--color-background-success)}
+.fl-lk{color:#1D9E75}.fl-lv{color:#534AB7}.fl-ld{color:#c0392b}
+</style>
+<div class="fl-root">
+  <p class="fl-prose">Working on the Q3 board pack. Pulling the key files in here for context before writing.</p>
+  <div class="fl-drop" onclick="flDropFile()">
+    <div class="fl-drop-lbl">drag a file here — or click to simulate dropping one</div>
+  </div>
+  <div class="fl-file-list" id="fl-file-list">
+    <div class="fl-file">
+      <div class="fl-file-hd">
+        <span class="fl-file-tag">::file[~/documents/q3-report.pdf]{preview=true}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="fl-file-status fl-status-ok">resolved</span>
+          <div class="fl-file-btns">
+            <button class="fl-btn" onclick="flTogglePreview('fl-pv1')">preview</button>
+            <button class="fl-btn fl-ld-btn" onclick="flBreak('fl-f1','~/documents/q3-report.pdf')">simulate move</button>
+          </div>
+        </div>
+      </div>
+      <div class="fl-preview" id="fl-pv1">
+        <div class="fl-preview-inner">Q3 Financial Report · 24 pages · PDF · Modified 22 Mar 2026<br>Contains: Executive summary, P&amp;L by department, hardware variance analysis</div>
+      </div>
+    </div>
+    <div class="fl-file" id="fl-f2">
+      <div class="fl-file-hd">
+        <span class="fl-file-tag">::file[~/projects/budget-model.xlsx]{preview=first-sheet}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="fl-file-status fl-status-ok">resolved</span>
+          <div class="fl-file-btns">
+            <button class="fl-btn" onclick="flTogglePreview('fl-pv2')">preview</button>
+            <button class="fl-btn" onclick="flBreak('fl-f2','~/projects/budget-model.xlsx')">simulate move</button>
+          </div>
+        </div>
+      </div>
+      <div class="fl-preview" id="fl-pv2">
+        <div class="fl-preview-inner">budget-model.xlsx · Sheet 1: Q3 Actuals · 7 rows, 5 columns<br>Categories: Rent, Insurance, Loan, Food, Transport, Software, Training</div>
+      </div>
+    </div>
+  </div>
+  <div class="fl-log">
+    <div class="fl-lh">document mutation log</div>
+    <div id="fl-log-lines">
+      <div class="fl-ll"><span class="fl-lk">::file[~/documents/q3-report.pdf]</span> resolved — preview available</div>
+      <div class="fl-ll"><span class="fl-lk">::file[~/projects/budget-model.xlsx]</span> resolved — preview available</div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+let dropCount=0;
+function flLog(html){
+  const ll=document.getElementById('fl-log-lines');
+  const d=document.createElement('div');d.className='fl-ll fl-flash';d.innerHTML=html;
+  ll.appendChild(d);setTimeout(()=>d.classList.remove('fl-flash'),1200);
+  while(ll.children.length>7)ll.removeChild(ll.firstChild);
+}
+window.flTogglePreview=function(id){
+  const el=document.getElementById(id);
+  el.classList.toggle('show');
+};
+window.flBreak=function(fileId, path){
+  const fileEl=document.getElementById(fileId)||document.querySelector('.fl-file:last-child');
+  if(!fileEl) return;
+  const tag=fileEl.querySelector('.fl-file-tag');
+  const status=fileEl.querySelector('.fl-file-status');
+  const newPath=path.replace('documents','archive').replace('projects','old-projects');
+  if(tag) tag.textContent=`::file[${newPath}]{preview=true}`;
+  if(status){status.textContent='broken — file moved';status.className='fl-file-status fl-status-broken';}
+  const btns=fileEl.querySelector('.fl-file-btns');
+  if(btns){
+    btns.innerHTML=`<button class="fl-btn" onclick="flFix(this,'${path}','${newPath}')">update path</button>`;
+  }
+  flLog(`<span class="fl-ld">::file[${path}]</span> broken — file moved to ${newPath}`);
+  flLog(`<span class="fl-lv">renderer flagged</span> broken reference — update path action available`);
+};
+window.flFix=function(btn, oldPath, newPath){
+  const fileEl=btn.closest('.fl-file');
+  const tag=fileEl.querySelector('.fl-file-tag');
+  const status=fileEl.querySelector('.fl-file-status');
+  if(tag) tag.textContent=`::file[${newPath}]{preview=true}`;
+  if(status){status.textContent='resolved';status.className='fl-file-status fl-status-ok';}
+  btn.parentElement.innerHTML=`<button class="fl-btn" onclick="flTogglePreview('fl-pv${fileEl.id.slice(-1)}')">preview</button><button class="fl-btn" onclick="flBreak('${fileEl.id}','${newPath}')">simulate move</button>`;
+  flLog(`<span class="fl-lk">::file path updated</span> ${oldPath} → ${newPath} — written to document`);
+};
+window.flDropFile=function(){
+  dropCount++;
+  const files=['~/downloads/roadmap-v4.pptx','~/desktop/finance-notes.txt','~/documents/api-spec.docx'];
+  const path=files[(dropCount-1)%files.length];
+  const previews=['Roadmap v4 · 18 slides · PowerPoint · Modified today','Finance notes · 342 words · Plain text','API specification · 14 pages · Word document'];
+  const prevText=previews[(dropCount-1)%previews.length];
+  const id='fl-fd'+dropCount;
+  const pvId='fl-fpv'+dropCount;
+  const div=document.createElement('div');
+  div.className='fl-file';div.id=id;
+  div.innerHTML=`<div class="fl-file-hd"><span class="fl-file-tag">::file[${path}]{preview=true}</span><div style="display:flex;align-items:center;gap:6px"><span class="fl-file-status fl-status-ok">resolved</span><div class="fl-file-btns"><button class="fl-btn" onclick="flTogglePreview('${pvId}')">preview</button><button class="fl-btn" onclick="flBreak('${id}','${path}')">simulate move</button></div></div></div><div class="fl-preview" id="${pvId}"><div class="fl-preview-inner">${prevText}</div></div>`;
+  document.getElementById('fl-file-list').appendChild(div);
+  flLog(`<span class="fl-lk">::file[${path}]</span> — directive written to document at cursor`);
+};
+})();
+</script>
+</div>
+<div class="fig-caption">Click <strong>drop zone</strong> to simulate dragging a file in — a <code>::file</code> directive is written to the document and the file is immediately available to preview. Click <strong>preview</strong> on any reference to see it inline. Click <strong>simulate move</strong> to move the file — the directive becomes broken and the renderer flags it. Click <strong>update path</strong> to fix the reference — the path parameter is updated in the document text.</div>
+</div>
+
+
+<h2 id="ch16">Chapter 16 — Contacts: people as named entities</h2>
 
 <p>In the text-native document, a person is a named entity in the text. Typing <code>@sara.chen</code> anywhere in the document creates a live reference to Sara's contact record. The <code>::contact</code> directive renders her card inline when needed. This much is the easy part to describe. The harder question — the one this chapter actually needs to answer — is: how do you <em>create</em> a contact record, <em>edit</em> one, and <em>delete</em> one, without ever leaving the document? And what does the text layer look like for each of those operations?</p>
 
@@ -2439,7 +3253,7 @@ function ctLog(html) {
 
 <div class="ch-divider"></div>
 
-<h2 id="ch17-chat">Chapter 17 — Chat: channels as embedded streams</h2>
+<h2 id="ch17">Chapter 17 — Chat: channels as embedded streams</h2>
 
 <p>Chat is the most context-destroying of all communication formats. A Slack message is a fragment — a sentence or two, deprived of the thread that preceded it, disconnected from the document it was discussing, unlinked from the task it created or the decision it recorded. The <code>::chat</code> directive renders a slice of a channel or thread in the document, in context. But again, the easy part is describing the reading experience. The harder question is the writing one: <em>how do you post a message without leaving the document?</em> And what does the mutation look like when you do?</p>
 
@@ -2659,14 +3473,315 @@ chRenderMsgs();
 
 <div class="ch-divider"></div>
 
-<h2 id="ch18-browser">Chapter 18 — The browser: the web, read-mode first</h2>
-<p>The <code>::web</code> directive addresses the web's text-accessibility problem by defaulting to reader mode — the cleaned, text-extracted, typography-first rendering of a web page that modern browsers offer as an optional mode and that most users have never discovered. Reader mode strips the web page to its content: the prose, the headings, the images that are part of the content. The result is text. The result can be saved to the document, searched, and processed by Python blocks. Saving a web clip writes three things to the document: the URL as a <code>::web</code> directive, the page title as a heading, and the first two sentences of the article as a summary. The clip is saved as text. The document holds the essence; the web holds the detail.</p>
+<h2 id="ch18">Chapter 18 — The browser: the web, read-mode first</h2>
+
+<p>The <code>::web</code> directive defaults to reader mode — the cleaned, text-extracted rendering of a web page that most users have never discovered. But the mechanics of how web content flows into the document deserve full treatment: how does clipping work, what does an annotation look like in text, and what happens when reader mode fails?</p>
+
+<div class="section-break">· · ·</div>
+<h3>18.1 Reader mode mechanics</h3>
+<p>When the <code>::web</code> renderer fetches a URL, it requests the page and applies a readability extraction algorithm — the same technology behind Firefox Reader View and Safari Reader. The algorithm strips navigation, advertisements, sidebars, and tracking pixels, preserving the article prose, headings, images that are part of the content, and the canonical URL. The result is rendered in the document's typography: the same font, the same line height, the same reading environment as everything else on the page. The web article becomes a paragraph in your document, not a window into a foreign interface.</p>
+<p>When reader mode fails — when the page is a single-page application with no extractable text, or a login wall, or a PDF — the directive renders with a fallback: the page title, the URL, and an "open externally" link. The fallback is text. The document is not broken.</p>
+
+<div class="section-break">· · ·</div>
+<h3>18.2 Clipping to the document</h3>
+<p>Clipping a web page writes three things to the document as a structured block: the URL as a <code>::web</code> directive, the page title as a heading, and a brief summary drawn from the first paragraph of the extracted content. The full extracted text is available by expanding the embed but is not written to the document by default — the document holds the reference, and the web holds the content. This is the appropriate division: the document owns your annotation, your context, and the pointer; the web owns the original.</p>
+<p>The clipped block can be annotated: any text you type below the <code>::web</code> directive and before the next block is treated as your annotation for that clip. The annotation is plain prose. It can be queried by a <code>::py</code> block, searched by <code>grep</code>, and versioned by <code>git</code>. It is yours unconditionally.</p>
+
+<div class="section-break">· · ·</div>
+<h3>18.3 The web as a source for ::py</h3>
+<p>A clipped article's extracted text is available in the document context as a string. A <code>::py</code> block following the clip can reference it: <code>article = web.clips[-1].text</code>. This means a web clip can feed a computation: counting words, extracting dates, summarising key figures. The <code>::py</code> sandbox does not make network requests — it reads from the document context. The <code>::web</code> renderer fetches the content; the Python block processes it. The data flow is text, always text.</p>
+
+<!-- FIG 18.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 18.1 — Web clip: toggle reader mode, clip article, annotate inline</div>
+<div class="fig-box">
+<style>
+.wb-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.wb-prose{font-family:var(--font-serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--color-text-secondary);font-style:italic;margin-bottom:.75rem}
+.wb-embed{border:.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;margin:.5rem 0}
+.wb-hd{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary)}
+.wb-tag{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)}
+.wb-controls{display:flex;gap:5px}
+.wb-btn{font-size:11px;padding:2px 9px;border-radius:7px;border:.5px solid var(--color-border-secondary);cursor:pointer;background:transparent;color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s}
+.wb-btn:hover{background:var(--color-background-primary);color:var(--color-text-primary)}
+.wb-btn.on{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:500}
+.wb-body{padding:14px;background:var(--color-background-primary)}
+.wb-url-bar{display:flex;gap:7px;margin-bottom:10px}
+.wb-url-inp{flex:1;font-size:12px;padding:5px 9px;border:.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-mono);outline:none}
+.wb-fetch{font-size:12px;padding:4px 12px;border-radius:7px;border:.5px solid var(--color-border-info);background:var(--color-background-info);cursor:pointer;color:var(--color-text-info);font-family:var(--font-sans)}
+.wb-raw{display:none;background:var(--color-background-secondary);border-radius:6px;padding:10px;font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.wb-raw.show{display:block}
+.wb-reader{display:none;background:var(--color-background-primary)}
+.wb-reader.show{display:block}
+.wb-article-title{font-size:16px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px;font-family:var(--font-sans)}
+.wb-article-meta{font-size:11px;color:var(--color-text-tertiary);margin-bottom:10px}
+.wb-article-body{font-size:13px;line-height:1.75;color:var(--color-text-primary);font-family:var(--font-serif,Georgia,serif)}
+.wb-clip-zone{border-top:.5px solid var(--color-border-tertiary);padding:10px 12px;background:var(--color-background-secondary);display:none}
+.wb-clip-zone.show{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.wb-clip-note{font-size:11px;color:var(--color-text-secondary)}
+.wb-clip-btn{font-size:12px;padding:4px 14px;border-radius:7px;border:.5px solid var(--color-border-success);background:var(--color-background-success);cursor:pointer;color:var(--color-text-success);font-family:var(--font-sans)}
+.wb-clipped-block{border:.5px solid var(--color-border-success);border-radius:8px;padding:10px 14px;margin-top:.5rem;background:var(--color-background-primary);display:none}
+.wb-clipped-block.show{display:block}
+.wb-clipped-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+.wb-clipped-url{font-size:11px;color:var(--color-text-info);margin-bottom:7px;font-family:var(--font-mono)}
+.wb-clipped-summary{font-size:12px;color:var(--color-text-secondary);line-height:1.6;margin-bottom:8px}
+.wb-annotation{font-size:13px;padding:6px 9px;border:.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);outline:none;width:100%;line-height:1.5}
+.wb-annotation:focus{border-color:var(--color-border-info);background:var(--color-background-primary)}
+.wb-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.wb-lh{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.wb-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.wb-ll:last-child{border-bottom:none}
+.wb-ll.wb-flash{background:var(--color-background-success)}
+.wb-lk{color:#1D9E75}.wb-lv{color:#534AB7}
+</style>
+<div class="wb-root">
+  <p class="wb-prose">Researching the baseline for navigation pattern decisions. Found a relevant article on mobile tab bar UX patterns.</p>
+  <div class="wb-embed">
+    <div class="wb-hd">
+      <span class="wb-tag" id="wb-tag">::web[https://example.com/mobile-nav-patterns]{view=raw}</span>
+      <div class="wb-controls">
+        <button class="wb-btn on" id="wb-raw-btn" onclick="wbView('raw',this)">raw</button>
+        <button class="wb-btn" id="wb-reader-btn" onclick="wbView('reader',this)">reader mode</button>
+      </div>
+    </div>
+    <div class="wb-body">
+      <div class="wb-url-bar">
+        <input class="wb-url-inp" id="wb-url" value="https://example.com/mobile-nav-patterns" readonly>
+        <button class="wb-fetch" onclick="wbFetch()">fetch ↵</button>
+      </div>
+      <div class="wb-raw show" id="wb-raw-panel">
+        <em style="color:var(--color-text-tertiary);font-size:12px">Fetch the URL to load the page content, then toggle to reader mode to extract the article.</em>
+      </div>
+      <div class="wb-reader" id="wb-reader-panel">
+        <div class="wb-article-title">Mobile Navigation Patterns: Tab Bar vs Hamburger Menu</div>
+        <div class="wb-article-meta">uxdesign.cc · 8 min read · March 2026</div>
+        <div class="wb-article-body">Research across 2,400 users shows tab bar navigation outperforms hamburger menus on task completion by 23% on average. The primary factor is discoverability: tab bar items are always visible, reducing the cognitive overhead of remembering what options are available. For applications with four to five primary destinations, the tab bar is the clear choice. Beyond five destinations, the trade-off shifts toward drawer-based navigation...</div>
+      </div>
+      <div class="wb-clip-zone" id="wb-clip-zone">
+        <span class="wb-clip-note">article extracted · clip to document?</span>
+        <button class="wb-clip-btn" onclick="wbClip()">clip to document</button>
+      </div>
+    </div>
+  </div>
+  <div class="wb-clipped-block" id="wb-clipped">
+    <div class="wb-clipped-title">Mobile Navigation Patterns: Tab Bar vs Hamburger Menu</div>
+    <div class="wb-clipped-url">https://example.com/mobile-nav-patterns</div>
+    <div class="wb-clipped-summary">Tab bar navigation outperforms hamburger menus on task completion by 23%. Tab bar items are always visible, reducing cognitive overhead...</div>
+    <textarea class="wb-annotation" id="wb-annotation" rows="2" placeholder="Add your annotation here — stored as plain text in document…"></textarea>
+  </div>
+  <div class="wb-log">
+    <div class="wb-lh">document mutation log</div>
+    <div id="wb-log-lines">
+      <div class="wb-ll"><span class="wb-lk">::web[...]</span>{view=raw} — directive in document, page not yet fetched</div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+let fetched=false, readerShown=false, clipped=false;
+function wbLog(html){
+  const ll=document.getElementById('wb-log-lines');
+  const d=document.createElement('div');d.className='wb-ll wb-flash';d.innerHTML=html;
+  ll.appendChild(d);setTimeout(()=>d.classList.remove('wb-flash'),1200);
+  while(ll.children.length>7)ll.removeChild(ll.firstChild);
+}
+window.wbFetch=function(){
+  fetched=true;
+  document.getElementById('wb-raw-panel').innerHTML='<div style="font-size:12px;color:var(--color-text-secondary);line-height:1.6"><strong style="color:var(--color-text-primary)">Page loaded:</strong> 847KB HTML · 14 external scripts · 3 ad networks · nav, sidebar, footer, cookie banner detected</div>';
+  document.getElementById('wb-clip-zone').classList.add('show');
+  wbLog(`<span class="wb-lk">::web</span> page fetched — 847KB HTML, readability extraction ready`);
+};
+window.wbView=function(v,btn){
+  if(v==='reader'&&!fetched){wbFetch();}
+  document.getElementById('wb-raw-panel').classList.toggle('show',v==='raw');
+  document.getElementById('wb-reader-panel').classList.toggle('show',v==='reader');
+  document.querySelectorAll('.wb-controls .wb-btn').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  const tag=document.getElementById('wb-tag');
+  tag.textContent=`::web[https://example.com/mobile-nav-patterns]{view=${v}}`;
+  if(v==='reader'){
+    readerShown=true;
+    wbLog(`<span class="wb-lk">::web view=reader</span> — readability extracted · directive updated in document`);
+  }
+};
+window.wbClip=function(){
+  clipped=true;
+  document.getElementById('wb-clipped').classList.add('show');
+  document.getElementById('wb-clip-zone').innerHTML='<span class="wb-clip-note" style="color:var(--color-text-success)">clipped to document</span>';
+  wbLog(`<span class="wb-lk">clip</span> written to document: title + URL + summary appended`);
+  wbLog(`<span class="wb-lv">annotation field</span> opened — plain text appended below clip in document`);
+  document.getElementById('wb-annotation').addEventListener('input',()=>{
+    wbLog(`<span class="wb-lk">annotation</span> → document text updated`);
+  });
+};
+})();
+</script>
+</div>
+<div class="fig-caption">Hit <strong>fetch ↵</strong> to load the page — the raw view shows what a browser sees (847KB, ads, scripts). Switch to <strong>reader mode</strong> — the article is extracted, stripped of noise, rendered in document typography. Hit <strong>clip to document</strong> — the title, URL, and summary are written as a structured block. Type in the annotation field — each keystroke appends to the document text below the clip directive.</div>
+</div>
 
 <div class="ch-divider"></div>
 
-<h2 id="ch19-terminal">Chapter 19 — The terminal: the document as notebook</h2>
-<p>The <code>::sh</code> directive is the terminal's representative in the document. It is distinct from the <code>::py</code> block in one critical way: it is not sandboxed. A <code>::sh</code> block runs in the user's shell, with the user's permissions, with access to the full file system and network. It can do anything a terminal command can do. This power requires explicit acknowledgement: <code>::sh</code> blocks in documents received from others are never auto-executed; they are shown as text until the user explicitly chooses to run them. For a user who works at the command line, the text-native document becomes a runnable notebook: a record of every command run, every output received, every script executed, integrated with the prose that explains why each command was run and what the output meant.</p>
-<div class="app-principle"><div class="ap-label">Design principle</div><div class="ap-body"><code>::sh</code> is the one directive that can have external side effects. This is by design. The shell is the privileged context for operations that reach beyond the document. The distinction between <code>::py</code> (sandboxed computation) and <code>::sh</code> (privileged execution) maps onto the distinction between reasoning and acting.</div></div>
+<h2 id="ch19">Chapter 19 — The terminal: the document as notebook</h2>
+
+<p>The <code>::sh</code> directive is the terminal's representative in the document — the one directive that can have external side effects, the one that runs in the user's actual shell rather than a sandbox. Its power requires careful design: how is output captured, how are errors rendered, and what does the runbook pattern look like in practice?</p>
+
+<div class="section-break">· · ·</div>
+<h3>19.1 ::sh versus ::py — the key distinction</h3>
+<p>The difference between <code>::sh</code> and <code>::py</code> is not just about what they can do. It is about the security model. A <code>::py</code> block is sandboxed: it cannot touch the file system, make network requests, or import arbitrary libraries. You can share a document containing <code>::py</code> blocks with a colleague and they can open it without risk. A <code>::sh</code> block is not sandboxed: it runs in your shell, with your permissions, against your file system and network. A document received from a stranger containing <code>::sh</code> blocks should never be auto-executed. The renderer enforces this: <code>::sh</code> blocks in documents opened from untrusted sources are displayed as text until the user explicitly clicks "run this block."</p>
+
+<div class="section-break">· · ·</div>
+<h3>19.2 Output capture and error rendering</h3>
+<p>When a <code>::sh</code> block is executed, stdout and stderr are captured separately. Stdout renders as a code block below the directive, with a timestamp and exit code. Stderr, if non-empty, renders with a distinct visual style — a danger-coloured border — but does not prevent the output from being shown. Non-zero exit codes are flagged. The output is written to the document text as an appended block:</p>
+<div class="code-block">
+<div><span class="kw">::sh</span>[<span class="eid">build-report</span>]{<span class="ep">cmd="make build" cwd=~/projects/q3-report</span>}</div>
+<div style="margin-top:.3rem;font-size:12px;color:var(--color-text-tertiary)">↓ output appended to document on run:</div>
+<div><span class="kw">::sh-output</span>[<span class="eid">build-report</span>]{<span class="ep">exit=0 duration=4.2s ts=2026-03-24T14:32</span>}</div>
+<div>Build successful. 3 files generated.</div>
+<div><span class="kw">::end</span></div>
+</div>
+<p>The output block is text. It can be diffed, grepped, and versioned. If the command is re-run, the output block is replaced — not appended — so the document shows the most recent result while the version history preserves all prior outputs.</p>
+
+<div class="section-break">· · ·</div>
+<h3>19.3 The runbook pattern</h3>
+<p>The runbook pattern is the most powerful use of <code>::sh</code> blocks: a document that is simultaneously a prose explanation, an executable procedure, and a run log. The document explains what each command does and why; the <code>::sh</code> blocks contain the commands; the output blocks contain what happened when they were run. A colleague reading the runbook after the fact can follow every step, see every output, and understand every decision — without needing to reconstruct the sequence from a shell history.</p>
+
+<div class="section-break">· · ·</div>
+<h3>19.4 Trust and execution context</h3>
+<p>The <code>::sh</code> directive has a <code>trust=</code> parameter that the document author can set to document their intent: <code>trust=author</code> means "I wrote this and vouch for it"; <code>trust=review-before-running</code> means "this should be read before executing." The renderer uses these hints but does not rely on them — all <code>::sh</code> blocks in documents from external sources require explicit user confirmation regardless of their trust parameter. The parameter is documentation, not a bypass.</p>
+
+<!-- FIG 19.1 -->
+<div class="fig-wrap">
+<div class="fig-label">Figure 19.1 — Shell notebook: run commands, capture output inline, see error rendering</div>
+<div class="fig-box">
+<style>
+.sh-root{font-family:var(--font-sans);padding:1.25rem;max-width:580px;margin:0 auto}
+.sh-prose{font-family:var(--font-serif,Georgia,serif);font-size:14px;line-height:1.8;color:var(--color-text-secondary);font-style:italic;margin-bottom:.75rem}
+.sh-block{border:.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;margin:.65rem 0}
+.sh-hd{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary)}
+.sh-tag{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)}
+.sh-run-btn{font-size:11px;padding:2px 10px;border-radius:8px;border:.5px solid var(--color-border-info);background:transparent;cursor:pointer;color:var(--color-text-info);font-family:var(--font-sans);transition:all .15s}
+.sh-run-btn:hover{background:var(--color-background-info)}
+.sh-run-btn.running{opacity:.5;cursor:wait}
+.sh-cmd{padding:8px 12px;background:var(--color-background-secondary);font-family:var(--font-mono);font-size:12px;color:var(--color-text-primary);line-height:1.6}
+.sh-output{display:none;padding:8px 12px;border-top:.5px solid var(--color-border-tertiary)}
+.sh-output.show{display:block}
+.sh-output.ok{background:var(--color-background-primary)}
+.sh-output.err{background:var(--color-background-danger)}
+.sh-out-meta{display:flex;gap:8px;align-items:center;margin-bottom:5px}
+.sh-exit{font-size:11px;padding:1px 7px;border-radius:5px;font-family:var(--font-sans)}
+.sh-exit.ok{background:var(--color-background-success);color:var(--color-text-success)}
+.sh-exit.err{background:var(--color-background-danger);color:var(--color-text-danger)}
+.sh-ts{font-size:11px;color:var(--color-text-tertiary);font-family:var(--font-mono)}
+.sh-out-text{font-family:var(--font-mono);font-size:12px;color:var(--color-text-primary);line-height:1.6;white-space:pre}
+.sh-out-text.err-text{color:var(--color-text-danger)}
+.sh-log{margin-top:.65rem;border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+.sh-lh{font-size:10px;font-weight:500;padding:5px 10px;background:var(--color-background-secondary);border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-sans)}
+.sh-ll{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);line-height:1.6;transition:background .4s}
+.sh-ll:last-child{border-bottom:none}
+.sh-ll.sh-flash{background:var(--color-background-success)}
+.sh-lk{color:#1D9E75}.sh-lv{color:#534AB7}.sh-ld{color:#c0392b}
+</style>
+<div class="sh-root">
+  <p class="sh-prose">Deploying the Q3 report to staging. Running build checks first, then deploying, then verifying the output.</p>
+
+  <div class="sh-block">
+    <div class="sh-hd">
+      <span class="sh-tag">::sh[check-deps]{cmd="npm run check" cwd=~/projects/q3-report trust=author}</span>
+      <button class="sh-run-btn" id="sh-r1" onclick="shRun(1)">run ▶</button>
+    </div>
+    <div class="sh-cmd">npm run check</div>
+    <div class="sh-output" id="sh-o1">
+      <div class="sh-out-meta"><span class="sh-exit" id="sh-e1"></span><span class="sh-ts" id="sh-t1"></span></div>
+      <div class="sh-out-text" id="sh-ot1"></div>
+    </div>
+  </div>
+
+  <p class="sh-prose">If checks pass, run the build:</p>
+
+  <div class="sh-block">
+    <div class="sh-hd">
+      <span class="sh-tag">::sh[build-report]{cmd="make build" cwd=~/projects/q3-report trust=author}</span>
+      <button class="sh-run-btn" id="sh-r2" onclick="shRun(2)">run ▶</button>
+    </div>
+    <div class="sh-cmd">make build</div>
+    <div class="sh-output" id="sh-o2">
+      <div class="sh-out-meta"><span class="sh-exit" id="sh-e2"></span><span class="sh-ts" id="sh-t2"></span></div>
+      <div class="sh-out-text" id="sh-ot2"></div>
+    </div>
+  </div>
+
+  <p class="sh-prose">Intentional error example — wrong directory:</p>
+
+  <div class="sh-block">
+    <div class="sh-hd">
+      <span class="sh-tag">::sh[deploy-fail]{cmd="make deploy" cwd=~/wrong-dir trust=author}</span>
+      <button class="sh-run-btn" id="sh-r3" onclick="shRun(3)">run ▶</button>
+    </div>
+    <div class="sh-cmd">make deploy</div>
+    <div class="sh-output" id="sh-o3">
+      <div class="sh-out-meta"><span class="sh-exit" id="sh-e3"></span><span class="sh-ts" id="sh-t3"></span></div>
+      <div class="sh-out-text" id="sh-ot3"></div>
+    </div>
+  </div>
+
+  <div class="sh-log">
+    <div class="sh-lh">document mutation log</div>
+    <div id="sh-log-lines">
+      <div class="sh-ll"><span class="sh-lk">::sh blocks</span> loaded — 3 commands, trust=author, awaiting execution</div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+const CMDS = [
+  {id:1, name:'check-deps', delay:800, exit:0, out:'> q3-report@1.2.0 check\nDependencies OK. 0 vulnerabilities.\n3 outdated packages (minor).', err:''},
+  {id:2, name:'build-report', delay:1200, exit:0, out:'make build\nBuilding Q3 report...\nProcessing 3 source files...\nBuild successful. Duration: 4.2s', err:''},
+  {id:3, name:'deploy-fail', delay:600, exit:2, out:'', err:'make: *** No rule to make target `deploy\'. Stop.\nmake: Entering directory `/wrong-dir\'\nError: Makefile not found in /wrong-dir'},
+];
+function shLog(html){
+  const ll=document.getElementById('sh-log-lines');
+  const d=document.createElement('div');d.className='sh-ll sh-flash';d.innerHTML=html;
+  ll.appendChild(d);setTimeout(()=>d.classList.remove('sh-flash'),1200);
+  while(ll.children.length>7)ll.removeChild(ll.firstChild);
+}
+window.shRun=function(id){
+  const cmd=CMDS[id-1];
+  const btn=document.getElementById('sh-r'+id);
+  btn.classList.add('running');btn.textContent='running…';
+  shLog(`<span class="sh-lk">::sh[${cmd.name}]</span> executing — shell process started`);
+  setTimeout(()=>{
+    const ts=new Date().toISOString().slice(0,19).replace('T',' ');
+    const out=document.getElementById('sh-o'+id);
+    const exitEl=document.getElementById('sh-e'+id);
+    const tsEl=document.getElementById('sh-t'+id);
+    const outText=document.getElementById('sh-ot'+id);
+    out.classList.add('show');
+    if(cmd.exit===0){
+      out.classList.add('ok');
+      exitEl.textContent='exit 0';exitEl.className='sh-exit ok';
+      outText.textContent=cmd.out;
+      outText.className='sh-out-text';
+    } else {
+      out.classList.add('err');
+      exitEl.textContent='exit '+cmd.exit;exitEl.className='sh-exit err';
+      outText.textContent=cmd.err;
+      outText.className='sh-out-text err-text';
+    }
+    tsEl.textContent=ts;
+    btn.classList.remove('running');
+    btn.textContent='re-run ▶';
+    shLog(`<span class="sh-lk">::sh-output[${cmd.name}]</span> exit=${cmd.exit} — appended to document`);
+    if(cmd.exit!==0) shLog(`<span class="sh-ld">error</span> rendered inline — document not broken, error is text`);
+  }, cmd.delay);
+};
+})();
+</script>
+</div>
+<div class="fig-caption">Click <strong>run ▶</strong> on each block in sequence. The first two succeed — output appears inline with a green exit badge and timestamp, and the output block is written to the document text. The third command intentionally fails — the error is rendered with a red border and exit code, but the document is not broken. The error is text, in the document, permanent. Hit <strong>re-run ▶</strong> on any block — the output block is replaced with the new result.</div>
+</div>
+
+
 <div class="ch-end">Part III — The eleven apps, redesigned<br><em>Part IV: The properties of text-native computing → Chapter 20</em></div>
 </div>
 </div>
@@ -2696,7 +3811,7 @@ chRenderMsgs();
 
 <div class="ch-divider"></div>
 
-<h2 id="ch21-grep">Chapter 21 — Grepability: one search to rule them all</h2>
+<h2 id="ch21">Chapter 21 — Grepability: one search to rule them all</h2>
 <p>When all your information is in text files, you can search all of it at once, with a single tool, in a fraction of a second. <code>grep -r "Sara" ~/documents/</code> returns every reference to Sara across every document you have ever written — meeting notes, tasks, email drafts, budget comments, project documents, daily notes. The result is a list of lines, each preceded by its file path and line number. The search crossed no silo boundaries, because there are no silo boundaries. Sara is a name in text files. The text files are a directory. The directory is searchable.</p>
 <p>Because the document uses a consistent directive grammar, search can be made structurally precise. Finding all incomplete high-priority tasks: <code>grep -r "::task\[" ~/documents/ | grep "priority=high" | grep -v "done=true"</code>. Finding every calendar event accepted in the past month: <code>grep -r "^accepted:" ~/documents/2026-02* ~/documents/2026-03*</code>. These are not queries to a database. They are text searches. The tools that run them are fifty years old, universally available, and require no installation, no account, and no subscription.</p>
 
@@ -2708,21 +3823,21 @@ chRenderMsgs();
 <p>Raskin's observation was that spatial navigation is a concession to data that is not text. When data has no textual identity — when a file is a binary blob, when a pixel is just a coordinate — you need spatial metaphors to find it. But when all data is text, every piece of data has a textual identity, and that identity is sufficient for navigation. You do not need to remember where the document is; you remember what it says. You do not need to navigate to the task; you Leap to its name.</p>
 <p>The text-native document enables this but does not yet design it. A document where everything is text — prose, directives, computation, tasks, calendar events — is a document where everything is Leapable. The following query, in any implementation, should be a single keystroke interaction: jump to the next occurrence of a contact's name, find the next overdue task, return to the last Python block. These are searches, not navigations. The scroll bar is a compatibility shim for people who have not yet discovered that their data is text. The Leap key is what replaces it.</p>
 <div class="aside"><p>Raskin was explicit about the principle: "The user should not have to navigate. The user should be able to say what they want and arrive there." This is grep as UX. It is what every modern browser's Cmd-F implements for a single page, and what no personal computing environment has yet implemented as the primary navigation model for a person's entire document collection. The text-native document makes it technically possible. The design work remains.</p></div>
-<h2 id="ch22-audit">Chapter 22 — Auditability: when computation lives in prose</h2>
+<h2 id="ch22">Chapter 22 — Auditability: when computation lives in prose</h2>
 <p>The spreadsheet's formula is a secret. It lives in the cell, invisible in the default view, accessible only by clicking into the cell and reading a syntax that takes years to read fluently. A spreadsheet can contain years of accumulated business logic, and none of it is visible in the output. The numbers appear. Their provenance does not. The <code>::py</code> block is the opposite of this. The computation is in the document. The code is in the text. Any reader of the document can see exactly what was computed, in language designed to be read, in the same scroll as the result.</p>
 <p>Consider a budget overrun report shared with a finance team. In a spreadsheet, the finance team receives a grid of numbers. If they want to understand how any number was derived, they must click into cells, trace formula chains, and hope the formula references are labelled. In practice, they rarely do this. In a text-native document, the finance team receives the prose explanation, the Python block, and the table. The computation is right there. Anyone with basic Python literacy can verify the derivation in sixty seconds. Auditability becomes the natural consequence of keeping computation in prose.</p>
 <div class="aside"><p>The academic concept of "reproducible research" — the practice of publishing not just results but the code and data that produced them — is exactly the text-native document ideal applied to science. The Jupyter notebook made reproducible research practical for data scientists. The text-native document makes it practical for personal computing at every scale.</p></div>
 
 <div class="ch-divider"></div>
 
-<h2 id="ch23-ai">Chapter 23 — AI-nativity: the model reads what you read</h2>
+<h2 id="ch23">Chapter 23 — AI-nativity: the model reads what you read</h2>
 <p>The language model is the first fundamentally new computing tool since the spreadsheet. It reads text and produces text — which means it is, structurally, a Unix program: it participates naturally in text-based workflows without any special integration. A language model can read your text-native document because your document is text. This is, when you think about it, remarkable: the most powerful AI tool ever built is natively compatible with the simplest possible data format.</p>
 <p>In the current application paradigm, integrating a language model with personal data requires significant work: connect the model to Gmail via OAuth, connect it to Calendar via a separate OAuth, connect it to Notion via yet another API, manage the permissions, manage the rate limits, manage the data residency questions. Each connection is a negotiation. In the text-native document, there are no apertures to negotiate. The language model reads the document. The document contains everything relevant. The model knows what the user knows, in the same format the user uses.</p>
 <p>The language model context window — the maximum amount of text a model can reason about at once — is the binding constraint on AI assistance for personal computing. A well-maintained daily document for one week is approximately 5,000–10,000 words. A model that reads the entire week's document has complete context for any question about that week. The text-native document is already shaped for this — a curated selection of relevant information assembled in the order that makes sense to the person writing it. The document is already the right size and shape for AI assistance, because it was designed to be the right size and shape for human attention. These turn out to be the same thing.</p>
 
 <div class="ch-divider"></div>
 
-<h2 id="ch24-degrade">Chapter 24 — Graceful degradation: without the renderer</h2>
+<h2 id="ch24">Chapter 24 — Graceful degradation: without the renderer</h2>
 <p>Every design system should be tested at its weakest point. For the text-native document architecture, the weakest point is the failure mode: what happens when the renderer is unavailable, when a directive type has no registered handler, when the user opens the document in a plain text editor because nothing else is installed? The answer must be: the document remains useful. Not as useful — the calendar does not render, the Python does not evaluate, the tasks do not have checkboxes. But the information is all there, in text, legible to any reader.</p>
 <div class="div-states">
 <div class="div-state"><div class="div-dot" style="background:var(--accent)"></div><div class="div-body"><div class="div-label">Full renderer</div><div class="div-desc">All directives render as interactive widgets. Python evaluates. Tables are sortable and editable. Calendar shows live events. The full experience.</div></div></div>
