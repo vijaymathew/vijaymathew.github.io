@@ -47,7 +47,8 @@ Folio is a prototype of a **text-native document architecture**. It is inspired 
 *   `src/shell/`: UI components (RenderCanvas, DocumentEditor) and styles.
 *   `src/renderers/`:
     *   `RendererBase.js`: The refined abstraction for all apps.
-    *   `mock/`: Mock implementations (Note, Task, Py).
+    *   `CalRenderer.js`, `EmailRenderer.js`, `TaskRenderer.js`, etc.: Concrete renderer implementations.
+    *   `mock/`: Mock implementations for testing and bootstrapping.
 *   `src/python/`: The Pyodide worker and NamespaceBridge for cross-app queries.
 
 ## Implementing a New App
@@ -78,7 +79,7 @@ registry.register('todo', TodoRenderer);
 - [x] **Phase 1**: Core Triad & Bootstrap.
 - [x] **Phase 2**: Refined Renderer Abstraction.
 - [x] **Phase 3**: Pyodide & Namespace Bridge.
-- [ ] **Phase 4**: Mock `cal` and `email` renderers.
+- [x] **Phase 4**: Mock `cal` and `email` renderers.
 - [ ] **Phase 5**: Real-world API integrations (Google Calendar, GitHub).
 - [ ] **Phase 6**: CodeMirror 6 with custom syntax highlighting for directives.
 
