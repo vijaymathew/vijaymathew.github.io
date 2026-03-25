@@ -17,19 +17,23 @@ export class RenderCanvas {
    * @param {HTMLElement} container   - The element to mount segments into (#render-canvas).
    * @param {CapabilityRegistry} registry
    * @param {SyncBus} syncBus
+   * @param {DirectiveParser} parser
    * @param {HTMLElement} scrollRoot  - The scrollable ancestor (#canvas-container).
    * @param {Object} [opts]
    * @param {number} [opts.proximityPx=600] - Pixel margin around viewport for activation.
    */
-  constructor(container, registry, syncBus, scrollRoot, opts = {}) {
+  constructor(container, registry, syncBus, parser, scrollRoot, opts = {}) {
     this.container = container;
     this.registry = registry;
     this.syncBus = syncBus;
+    this.parser = parser;
 
     /** Currently built segment model. */
     this.segments = [];
     /** Map lineStart → { element, descriptor, live } */
     this.activeWidgets = new Map();
+    /** Set of lineStart in explicit text view mode. */
+    this.textModeWidgets = new Set();
     /** Most-recent bridge reference. */
     this.bridge = null;
 
@@ -42,6 +46,20 @@ export class RenderCanvas {
         threshold: 0
       }
     );
+
+    this.container.addEventListener('toggle-view', (e) => {
+      const lineStart = parseInt(e.target.closest('[data-line-start]').dataset.lineStart, 10);
+      const widget = this.activeWidgets.get(lineStart);
+      if (widget) {
+        if (this.textModeWidgets.has(lineStart)) {
+          this.textModeWidgets.delete(lineStart);
+          this._activate(widget);
+        } else {
+          this.textModeWidgets.add(lineStart);
+          this._deactivate(widget);
+        }
+      }
+    });
   }
 
   // ── public API ──────────────────────────────────────────────
@@ -57,8 +75,9 @@ export class RenderCanvas {
     const next = this._buildSegments(text, index);
 
     if (this._structurallyEqual(next)) {
-      // Layout unchanged — patch prose in-place, leave widgets alone.
+      // Layout unchanged — patch prose and descriptors in-place, leave widgets alone.
       this._patchProse(next);
+      this._patchDirectives(next);
       this.segments = next;
       return;
     }
@@ -137,7 +156,7 @@ export class RenderCanvas {
         const el = document.createElement('div');
         el.className = 'prose';
         el.dataset.segmentType = 'prose';
-        this._fillProse(el, seg.lines);
+        this._fillProse(el, seg);
         this.container.appendChild(el);
       } else {
         const wrapper = document.createElement('div');
@@ -169,21 +188,63 @@ export class RenderCanvas {
 
   // ── prose patching ──────────────────────────────────────────
 
+  /** Update directive descriptors and fallbacks in-place. */
+  _patchDirectives(next) {
+    for (const seg of next) {
+      if (seg.type === 'directive') {
+        const lineStart = seg.descriptor.lineStart;
+        const widget = this.activeWidgets.get(lineStart);
+        if (widget) {
+          widget.descriptor = seg.descriptor;
+          const forceText = this.textModeWidgets.has(lineStart);
+
+          if (forceText && widget.live) {
+            this._deactivate(widget);
+          } else if (!forceText && !widget.live) {
+            // Mode switched back to widget — we could activate it here,
+            // but for performance we'll only do it if it's currently visible.
+            // Re-observing will trigger the IntersectionObserver to re-evaluate.
+            this.observer.unobserve(widget.element);
+            this.observer.observe(widget.element);
+          } else if (!widget.live) {
+            this._showFallback(widget.element, widget.descriptor);
+          }
+        }
+      }
+    }
+  }
+
   /** Update prose elements in-place without touching directive slots. */
   _patchProse(next) {
     const proseEls = this.container.querySelectorAll('[data-segment-type="prose"]');
     let idx = 0;
     for (const seg of next) {
       if (seg.type === 'prose' && idx < proseEls.length) {
-        this._fillProse(proseEls[idx], seg.lines);
+        // Only update if not currently focused
+        if (document.activeElement !== proseEls[idx]) {
+          this._fillProse(proseEls[idx], seg);
+        }
         idx++;
       }
     }
   }
 
   /** Render lines into paragraph elements inside a prose container. */
-  _fillProse(el, lines) {
+  _fillProse(el, seg) {
+    const { lines, startLine } = seg;
+    const lineCount = lines.length;
+    const text = lines.join('\n').trim();
+
     el.innerHTML = '';
+    el.contentEditable = 'true';
+    el.spellcheck = false;
+
+    if (!text) {
+      el.dataset.empty = 'true';
+    } else {
+      delete el.dataset.empty;
+    }
+
     let p = document.createElement('p');
     for (const line of lines) {
       if (line.trim() === '') {
@@ -199,6 +260,30 @@ export class RenderCanvas {
     if (p.textContent !== '') {
       el.appendChild(p);
     }
+
+    // Sync back on blur
+    el.onblur = () => {
+      const newText = el.innerText.trim();
+      const oldText = lines.join('\n').trim();
+      
+      if (newText !== oldText) {
+        this.syncBus.emit({
+          timestamp: new Date().toISOString(),
+          source: 'editor', // Use 'editor' source to trigger updates elsewhere
+          type: 'replace',
+          payload: {
+            targetDocId: 'current',
+            lineStart: startLine,
+            lineEnd: startLine + lineCount - 1,
+            text: newText
+          }
+        });
+      }
+    };
+
+    el.onfocus = () => {
+      delete el.dataset.empty;
+    };
   }
 
   // ── viewport observation ────────────────────────────────────
@@ -210,12 +295,28 @@ export class RenderCanvas {
       const widget = this.activeWidgets.get(lineStart);
       if (!widget) continue;
 
-      if (entry.isIntersecting && !widget.live) {
+      if (entry.isIntersecting && !widget.live && !this.textModeWidgets.has(lineStart)) {
         this._activate(widget);
       } else if (!entry.isIntersecting && widget.live) {
         this._deactivate(widget);
       }
     }
+  }
+
+  /** Toggle all widgets between text and live views. */
+  toggleAll(forceText) {
+    for (const seg of this.segments) {
+      if (seg.type === 'directive') {
+        if (forceText) {
+          this.textModeWidgets.add(seg.descriptor.lineStart);
+        } else {
+          this.textModeWidgets.delete(seg.descriptor.lineStart);
+        }
+      }
+    }
+    // Re-render to apply changes
+    const text = this.syncBus.store.getContents();
+    this.update(text, this.parser.parse(text), this.bridge);
   }
 
   /** Render the live widget for a directive. */
@@ -256,14 +357,58 @@ export class RenderCanvas {
    */
   _showFallback(element, descriptor) {
     element.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'directive-header';
+    header.style.borderStyle = 'dashed';
+
+    const tag = document.createElement('span');
+    tag.className = 'directive-tag';
+    tag.textContent = `::${descriptor.type}[${descriptor.id}]`;
+    header.appendChild(tag);
+
+    const pills = document.createElement('div');
+    pills.className = 'directive-pills';
+    header.appendChild(pills);
+
+    const switchBtn = document.createElement('button');
+    switchBtn.className = 'directive-pill';
+    switchBtn.title = 'Switch to Widget View';
+    switchBtn.innerHTML = '<i class="fa fa-eye"></i>';
+    switchBtn.onclick = () => {
+      element.dispatchEvent(new CustomEvent('toggle-view', { bubbles: true }));
+    };
+    pills.appendChild(switchBtn);
+
+    element.appendChild(header);
+
     const pre = document.createElement('pre');
     pre.className = 'directive-fallback';
+    pre.contentEditable = 'true';
+    pre.spellcheck = false;
 
     let text = descriptor.raw;
     if (descriptor.body && descriptor.body.length > 0) {
       text += '\n' + descriptor.body.join('\n') + '\n::end';
     }
     pre.textContent = text;
+
+    pre.addEventListener('blur', () => {
+      const newText = pre.innerText.trim();
+      if (newText === text) return;
+
+      this.syncBus.emit({
+        timestamp: new Date().toISOString(),
+        source: 'editor', // Use 'editor' to trigger canvas update
+        type: 'replace',
+        payload: {
+          targetDocId: 'current',
+          lineStart: descriptor.lineStart,
+          lineEnd: descriptor.lineEnd,
+          text: newText
+        }
+      });
+    });
 
     element.appendChild(pre);
   }
