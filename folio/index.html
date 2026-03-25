@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folio — The Document is the Computer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/shell/styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="header-left">
+                <div class="menu-wrap">
+                <button class="menu-btn" id="menu-btn" title="Menu">
+                    <span></span><span></span><span></span>
+                </button>
+                <div class="menu-dropdown" id="menu-dropdown">
+                    <button id="btn-new">New document</button>
+                    <button id="btn-save">Save to file</button>
+                    <button id="btn-load">Load from file</button>
+                    <div class="menu-sep"></div>
+                    <button id="help-manual">Usage manual</button>
+                    <a href="../books/ui/the-document-is-the-computer.html" target="_blank">Architecture document</a>
+                </div>
+                <input type="file" id="file-input" accept=".txt,.md,.folio" style="display:none">
+                </div>
+                <div class="logo">Folio</div>
+            </div>
+            <div class="status" id="status-bar">Substrate loaded</div>
+        </header>
+        <main>
+            <div id="editor-container"></div>
+            <div id="canvas-container">
+                <div class="document-page" id="render-canvas"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { DocumentStore } from './src/core/DocumentStore.js';
+        import { SyncBus } from './src/core/SyncBus.js';
+        import { DirectiveParser } from './src/core/DirectiveParser.js';
+        import { CapabilityRegistry } from './src/core/CapabilityRegistry.js';
+        import { NamespaceBridge } from './src/python/NamespaceBridge.js';
+        import { RenderCanvas } from './src/shell/RenderCanvas.js';
+        import { DocumentEditor } from './src/shell/DocumentEditor.js';
+        
+        // Renderers
+        import { NoteRenderer } from './src/renderers/NoteRenderer.js';
+        import { TaskRenderer } from './src/renderers/TaskRenderer.js';
+        import { CalRenderer } from './src/renderers/CalRenderer.js';
+        import { EmailRenderer } from './src/renderers/EmailRenderer.js';
+        import { TableRenderer } from './src/renderers/TableRenderer.js';
+        import { ContactRenderer } from './src/renderers/ContactRenderer.js';
+        import { FileRenderer } from './src/renderers/FileRenderer.js';
+        import { ChatRenderer } from './src/renderers/ChatRenderer.js';
+        import { WebRenderer } from './src/renderers/WebRenderer.js';
+        import { PyRenderer } from './src/renderers/mock/PyRenderer.js';
+
+        const seedDoc = `Monday, 23 March 2026.
+Picked up where Friday left off — the Q3 analysis is nearly done, just needs the hardware line clarified with finance before I can send it to Sara.
+
+::cal[today]{view=agenda}
+title="Q3 Hardware Sync" time=09:00 duration=60min type=internal status=pending
+title="Lunch with Sara" time=11:30 duration=60min type=external status=accepted
+title="Finance Review" time=14:00 duration=30min type=internal status=pending
+::end
+
+::email[inbox]{filter=unread priority=high}
+::end
+
+::email[thread-q3-budget]{limit=3}
+from=sara@example.com subject="Q3 Hardware Budget" date=2026-03-22T10:15
+from=finance@folio.local subject="Re: Q3 Hardware Budget" date=2026-03-22T14:30
+from=sara@example.com subject="Re: Q3 Hardware Budget" date=2026-03-23T09:00
+::end
+
+::contact[sara.chen]
+name = Sara Chen
+email = sara@example.com
+role = Head of Product
+org = Example Ltd
+notes = Needs Q3 numbers before Thursday board pack.
+::end
+
+::note[finance-contact]{email=finance@folio.local}
+Contact for Q3 budget queries.
+Phone: ext. 4102
+::end
+
+The hardware budget breakdown per region:
+
+::table[q3-budget-table]{source=q3-check editable=true}
+| Region | Q1 | Q2 | Q3 | Status |
+| North | 3500 | 4200 | 4200 | On Track |
+| South | 2000 | 2100 | 1850 | Under |
+| East | 5000 | 5800 | 6700 | Over |
+| West | 3000 | 3200 | 3100 | On Track |
+| Global | 1200 | 1100 | 950 | On Track |
+::end
+
+The hardware overrun from last week — I ran the numbers again this morning:
+
+::py[q3-check]{run=auto}
+data = table.query({'id': 'q3-budget-table'})
+actuals = [d['q3'] for d in data]
+budget  = [d['q1'] for d in data] # Simple comparison with Q1
+
+# Querying the 'note' namespace
+note_data = note.query({'id': 'finance-contact'})
+print(f"Contacting: {note_data['id']}")
+print(f"Total Overrun: {sum(a-b for a,b in zip(actuals,budget)):+,}")
+::end
+
+::task[call-finance]{due=today priority=high status=todo}
+::task[send-q3-sara]{due=2026-03-24 blocked-by=call-finance status=todo}
+
+::file[~/docs/q3-hardware-report.pdf]{preview=true}
+
+::chat[#finance]{limit=5}
+user=sara.chen text="Has anyone got the Q3 hardware numbers yet?" time=08:45
+user=rohan.m text="Working on it — the East region looks off" time=08:52
+user=sara.chen text="Let me know when it's ready, board deck deadline is Thursday" time=09:01
+::end
+
+::web[https://example.com/hardware-budget-variance]{view=reader}
+title = Understanding Hardware Budget Variance
+summary = An analysis of common causes for hardware budget overruns in enterprise Q3 reporting.
+---
+Relevant to the East region overrun we are investigating. The section on procurement lag matches our pattern.
+::end
+`;
+
+        // Bump version when the seed document structure changes
+        // (e.g., directives move from inline to block format).
+        const STORAGE_KEY = 'folio:document:v2';
+
+        // 1. Core Triad (auto-persists to localStorage)
+        const store = new DocumentStore(seedDoc, STORAGE_KEY);
+        const bus = new SyncBus(store);
+        const parser = new DirectiveParser();
+
+        // 2. Registry & Bridge
+        const registry = new CapabilityRegistry();
+        const bridge = new NamespaceBridge(registry);
+
+        registry.register('note', NoteRenderer);
+        registry.register('task', TaskRenderer);
+        registry.register('cal', CalRenderer);
+        registry.register('email', EmailRenderer);
+        registry.register('table', TableRenderer);
+        registry.register('contact', ContactRenderer);
+        registry.register('file', FileRenderer);
+        registry.register('chat', ChatRenderer);
+        registry.register('web', WebRenderer);
+        registry.register('py', PyRenderer);
+
+        // 3. Shell
+        const editor = new DocumentEditor(document.getElementById('editor-container'), bus);
+        const scrollRoot = document.getElementById('canvas-container');
+        const canvas = new RenderCanvas(
+            document.getElementById('render-canvas'), registry, bus, scrollRoot
+        );
+
+        // 4. Orchestration (with debounced editor updates)
+        let editorTimer = null;
+        const EDITOR_DEBOUNCE_MS = 300;
+        const statusBar = document.getElementById('status-bar');
+
+        bus.subscribe((event) => {
+            const text = store.getContents();
+            const index = parser.parse(text);
+
+            if (event.source !== 'editor') {
+                editor.update(text);
+            }
+
+            statusBar.textContent = `Sync: ${event.type} @ ${event.timestamp.split('T')[1].split('.')[0]}`;
+
+            if (event.source === 'editor') {
+                clearTimeout(editorTimer);
+                editorTimer = setTimeout(() => {
+                    canvas.update(text, index, bridge);
+                }, EDITOR_DEBOUNCE_MS);
+            } else if (event.source === 'widget') {
+                // Widget already updated its own DOM — don't rebuild canvas.
+            } else {
+                canvas.update(text, index, bridge);
+            }
+        });
+
+        // ── Full re-render helper (used by load/reset) ─────────
+        function renderDocument(text) {
+            store.load(text);
+            editor.update(text);
+            canvas.update(text, parser.parse(text), bridge);
+        }
+
+        // ── Toolbar: New / Save / Load ─────────────────────────
+        document.getElementById('btn-new').onclick = () => {
+            if (!confirm('Discard current document and start from the seed?')) return;
+            renderDocument(seedDoc);
+            statusBar.textContent = 'New document loaded';
+        };
+
+        document.getElementById('btn-save').onclick = () => {
+            const blob = new Blob([store.getContents()], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'document.folio.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            statusBar.textContent = 'Document saved to file';
+        };
+
+        const fileInput = document.getElementById('file-input');
+        document.getElementById('btn-load').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                renderDocument(reader.result);
+                statusBar.textContent = `Loaded: ${file.name}`;
+            };
+            reader.readAsText(file);
+            fileInput.value = '';
+        };
+
+        // ── Hamburger menu ────────────────────────────────────
+        const menuDropdown = document.getElementById('menu-dropdown');
+        const menuBtn = document.getElementById('menu-btn');
+        menuBtn.onclick = (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('open');
+            menuBtn.classList.toggle('open');
+        };
+        document.addEventListener('click', () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+        });
+        menuDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+        document.getElementById('help-manual').onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            document.getElementById('manual-overlay').classList.add('open');
+        };
+        document.getElementById('manual-close').onclick = () => {
+            document.getElementById('manual-overlay').classList.remove('open');
+        };
+
+        // ── Bootstrap ──────────────────────────────────────────
+        const initialText = store.getContents();
+        editor.init(initialText);
+
+        Promise.all([
+            registry.init(),
+            bridge.init()
+        ]).then(() => {
+            canvas.update(initialText, parser.parse(initialText), bridge);
+            if (DocumentStore.hasSaved(STORAGE_KEY)) {
+                statusBar.textContent = 'Restored from local storage';
+            }
+        });
+    </script>
+
+    <!-- Usage Manual overlay -->
+    <div class="manual-overlay" id="manual-overlay">
+        <div class="manual">
+            <div class="manual-header">
+                <span class="manual-title">Folio Usage Manual</span>
+                <button class="manual-close" id="manual-close">&times;</button>
+            </div>
+            <div class="manual-body">
+
+<h2>What is Folio?</h2>
+<p>Folio is a document-based personal computing environment. Instead of switching between separate apps for calendar, email, tasks, notes, and spreadsheets, everything lives in a single text document. The left pane shows the raw text; the right pane renders it as live, interactive widgets.</p>
+<p>Every change you make &mdash; checking a task, editing a table cell, sending an email reply &mdash; is a text edit. Your document is the source of truth, saved automatically to your browser, and downloadable as a plain text file.</p>
+
+<h2>Toolbar</h2>
+<dl>
+<dt>New</dt><dd>Reset to the example seed document.</dd>
+<dt>Save</dt><dd>Download the current document as a <code>.folio.txt</code> file.</dd>
+<dt>Load</dt><dd>Open a previously saved document from disk.</dd>
+</dl>
+
+<h2>Directives</h2>
+<p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer.</p>
+
+<h3>::cal &mdash; Calendar</h3>
+<p>Renders an agenda of events. Each event is a body line with <code>title=</code>, <code>time=</code>, <code>duration=</code>, <code>type=</code>, and <code>status=</code>. Pending events show <strong>accept</strong> / <strong>decline</strong> buttons; clicking one updates the event in the text and appends a log entry.</p>
+<pre>::cal[today]{view=agenda}
+title="Team sync" time=09:00 duration=30min type=internal status=pending
+::end</pre>
+
+<h3>::email &mdash; Email</h3>
+<p><strong>Inbox</strong> (<code>::email[inbox]{filter=unread}</code>) shows filtered messages with a <strong>file</strong> action that logs to the document. <strong>Thread</strong> (<code>::email[thread-id]{limit=3}</code>) renders a conversation with a reply bar. <strong>Draft</strong> (<code>::email[draft]{to=... subject=...}</code>) is a compose form whose body is the message text. Sending replaces the block with a sent log line; discarding deletes it.</p>
+
+<h3>::contact &mdash; Contacts</h3>
+<p>A contact card with <code>key = value</code> fields in the body (name, email, role, org, phone, notes). Click <strong>edit</strong> to modify fields inline. <strong>email</strong> and <strong>call</strong> buttons log actions to the document.</p>
+<pre>::contact[sara.chen]
+name = Sara Chen
+email = sara@example.com
+::end</pre>
+
+<h3>::note &mdash; Notes</h3>
+<p>An editable text block. The body is free-form prose; params hold structured metadata. Click inside to edit; changes save to the document on blur.</p>
+
+<h3>::table &mdash; Tables</h3>
+<p>A text-native table with pipe-delimited rows. If <code>editable=true</code>, click any cell to edit it. Edits are written back to the document text. If linked to a <code>::py</code> block via <code>source=</code>, the <strong>divergence protocol</strong> tracks whether cells have been manually edited:</p>
+<ul>
+<li><strong>Synchronised</strong> &mdash; table matches source output.</li>
+<li><strong>Diverged</strong> &mdash; cells edited, "edited" badge shown. Use <strong>re-sync</strong> to discard edits or <strong>detach</strong> to break the link.</li>
+</ul>
+<pre>::table[budget]{source=analysis editable=true}
+| Region | Q1 | Q2 |
+| North | 3500 | 4200 |
+::end</pre>
+
+<h3>::py &mdash; Python</h3>
+<p>A computation block that runs Python (via Pyodide) in the browser. Code can query any other directive type: <code>cal.query()</code>, <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>email.query()</code>, etc. Click <strong>run</strong> to evaluate; <code>run=auto</code> evaluates on page load.</p>
+<pre>::py[analysis]{run=auto}
+data = table.query({'id': 'budget'})
+print(sum(d['q1'] for d in data))
+::end</pre>
+
+<h3>::task &mdash; Tasks</h3>
+<p>A single-line directive with a checkbox. All metadata (<code>due=</code>, <code>priority=</code>, <code>blocked-by=</code>, <code>status=</code>) is preserved when you toggle it. Completed tasks get a <code>completed=</code> timestamp. A task with <code>blocked-by=other-task</code> is disabled until the blocker is done.</p>
+<pre>::task[call-finance]{due=today priority=high status=todo}</pre>
+
+<h3>::file &mdash; Files</h3>
+<p>A reference to a file on disk. Renders a card with filename, path, and type icon. Set <code>preview=true</code> for a preview area.</p>
+<pre>::file[~/docs/report.pdf]{preview=true}</pre>
+
+<h3>::chat &mdash; Chat</h3>
+<p>A slice of a chat channel. Messages are body lines with <code>user=</code>, <code>text=</code>, <code>time=</code>. Type a message and click <strong>Send</strong> to post (appends a log line). Hover a message and click <strong>promote</strong> to write it as prose below the embed.</p>
+<pre>::chat[#design]{limit=5}
+user=sara text="Ready for review?" time=09:15
+::end</pre>
+
+<h3>::web &mdash; Web Clips</h3>
+<p>Embeds a URL reference with reader-mode rendering. Body lines above <code>---</code> are metadata (<code>title =</code>, <code>summary =</code>); lines below are your annotations, editable inline.</p>
+<pre>::web[https://example.com/article]{view=reader}
+title = An Interesting Article
+summary = Key findings about...
+---
+My notes on this article.
+::end</pre>
+
+<h2>Key Principles</h2>
+<ul>
+<li><strong>Text is truth</strong> &mdash; the raw text in the left pane is always the canonical state.</li>
+<li><strong>Every action is a text edit</strong> &mdash; checking a task, sending a reply, filing an email all modify the document.</li>
+<li><strong>Graceful degradation</strong> &mdash; directives are readable as plain text, even without a renderer.</li>
+<li><strong>Auto-saved</strong> &mdash; every change persists to browser local storage automatically.</li>
+</ul>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
