@@ -73,6 +73,15 @@ export class RendererBase {
     pills.className = 'directive-pills';
     header.appendChild(pills);
 
+    const switchBtn = document.createElement('button');
+    switchBtn.className = 'directive-pill';
+    switchBtn.title = 'Switch to Text View';
+    switchBtn.innerHTML = '<i class="fa fa-code"></i>';
+    switchBtn.onclick = () => {
+      container.dispatchEvent(new CustomEvent('toggle-view', { bubbles: true }));
+    };
+    pills.appendChild(switchBtn);
+
     container.appendChild(header);
 
     const body = document.createElement('div');
