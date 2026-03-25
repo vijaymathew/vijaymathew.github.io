@@ -4,7 +4,7 @@
  */
 export class SyncBus {
   constructor(docStore) {
-    this.docStore = docStore;
+    this.store = docStore;
     this.subscribers = new Set();
   }
 
@@ -28,7 +28,7 @@ export class SyncBus {
     this.validate(event);
 
     // 2. Apply to the DocumentStore
-    this.docStore.applyMutation(event);
+    this.store.applyMutation(event);
 
     // 3. Notify subscribers
     for (const sub of this.subscribers) {
