@@ -36,6 +36,7 @@
             <div class="status" id="status-bar">Substrate loaded</div>
         </header>
         <main>
+            <div id="editor-container"></div>
             <div id="canvas-container">
                 <div class="document-page" id="render-canvas"></div>
             </div>
@@ -148,7 +149,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 
         // 2. Registry & Bridge
         const registry = new CapabilityRegistry();
-        const bridge = new NamespaceBridge(registry);
+        const bridge = new NamespaceBridge(registry, parser, store);
 
         registry.register('note', NoteRenderer);
         registry.register('task', TaskRenderer);
@@ -207,11 +208,15 @@ Relevant to the East region overrun we are investigating. The section on procure
             if (event.source === 'editor') {
                 clearTimeout(editorTimer);
                 editorTimer = setTimeout(() => {
+                    bridge.syncDocument(text, index);
                     canvas.update(text, index, bridge);
                 }, EDITOR_DEBOUNCE_MS);
             } else if (event.source === 'widget') {
-                // Widget already updated its own DOM — don't rebuild canvas.
+                bridge.syncDocument(text, index);
+                // Widget already updated its own DOM — active ::py blocks subscribe
+                // to runtime updates and refresh without a full canvas rebuild.
             } else {
+                bridge.syncDocument(text, index);
                 canvas.update(text, index, bridge);
             }
         });
@@ -220,6 +225,7 @@ Relevant to the East region overrun we are investigating. The section on procure
         function renderDocument(text) {
             store.load(text);
             editor.update(text);
+            bridge.syncDocument(text, parser.parse(text));
             canvas.update(text, parser.parse(text), bridge);
         }
 
@@ -285,6 +291,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             registry.init(),
             bridge.init()
         ]).then(() => {
+            bridge.syncDocument(initialText, parser.parse(initialText));
             canvas.update(initialText, parser.parse(initialText), bridge);
             if (DocumentStore.hasSaved(STORAGE_KEY)) {
                 statusBar.textContent = 'Restored from local storage';
@@ -346,7 +353,7 @@ email = sara@example.com
 ::end</pre>
 
 <h3>::py &mdash; Python</h3>
-<p>A computation block that runs Python (via Pyodide) in the browser. Code can query any other directive type: <code>cal.query()</code>, <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>email.query()</code>, etc. Click <strong>run</strong> to evaluate; <code>run=auto</code> evaluates on page load.</p>
+<p>A computation block that runs inside a document-scoped Python context. Blocks execute top to bottom, sharing state through one namespace for the document. By default, Python can read owned-state namespaces such as <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>note.query(...)</code>, and <code>task.query(...)</code>. Mirrored namespaces such as calendar or email require explicit grants. Click <strong>run</strong> to re-evaluate the document context through this block; <code>run=auto</code> evaluates automatically on load and after document changes.</p>
 <pre>::py[analysis]{run=auto}
 data = table.query({'id': 'budget'})
 print(sum(d['q1'] for d in data))

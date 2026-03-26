@@ -182,6 +182,12 @@ export class RenderCanvas {
   /** Disconnect observer, clear widget state, empty DOM. */
   _teardown() {
     this.observer.disconnect();
+    for (const widget of this.activeWidgets.values()) {
+      const root = widget.element.firstChild;
+      if (root && typeof root.__cleanup === 'function') {
+        root.__cleanup();
+      }
+    }
     this.activeWidgets.clear();
     this.container.innerHTML = '';
   }
@@ -345,6 +351,10 @@ export class RenderCanvas {
 
   /** Replace a live widget with its raw-text fallback. */
   _deactivate(widget) {
+    const root = widget.element.firstChild;
+    if (root && typeof root.__cleanup === 'function') {
+      root.__cleanup();
+    }
     this._showFallback(widget.element, widget.descriptor);
     widget.live = false;
   }

@@ -1,44 +1,87 @@
 /**
- * Orchestrates communication between the main thread and the Pyodide worker.
- * Handles the "Universal Query Layer" by injecting app data into Python.
+ * Document-scoped Python runtime.
+ *
+ * The runtime evaluates ::py blocks in document order against a single
+ * shared Python namespace. By default, only owned-state namespaces are
+ * exposed to Python. Mirrored-state namespaces require explicit grants.
  */
 export class NamespaceBridge {
-  constructor(registry) {
+  constructor(registry, parser, store) {
     this.registry = registry;
+    this.parser = parser;
+    this.store = store;
+
     this.worker = null;
     this.ready = false;
     this.pendingResolves = new Map();
+
+    this.results = new Map();
+    this.listeners = new Set();
+    this.lastText = '';
+    this.lastIndex = [];
+    this.evalSeq = 0;
+
+    this.ownedNamespaces = new Set(['task', 'note', 'table', 'contact', 'file', 'doc']);
+    this.mirroredNamespaces = new Set(['cal', 'email', 'chat', 'web']);
+    this.aliases = {
+      task: ['task', 'tasks'],
+      note: ['note', 'notes'],
+      table: ['table', 'tables'],
+      contact: ['contact', 'contacts'],
+      file: ['file', 'files'],
+      cal: ['cal'],
+      email: ['email'],
+      chat: ['chat'],
+      web: ['web'],
+      doc: ['doc']
+    };
   }
 
-  /**
-   * Initialise the worker and Pyodide.
-   */
+  subscribe(callback) {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  }
+
+  _notify() {
+    for (const cb of this.listeners) cb(this.results);
+  }
+
+  getBlockKey(descriptor) {
+    return descriptor.id
+      ? `${descriptor.type}:${descriptor.id}`
+      : `${descriptor.type}@${descriptor.lineStart}`;
+  }
+
+  getBlockState(descriptorOrKey) {
+    const key = typeof descriptorOrKey === 'string'
+      ? descriptorOrKey
+      : this.getBlockKey(descriptorOrKey);
+    return this.results.get(key) || null;
+  }
+
   async init() {
     if (this.ready) return;
     if (this._initPromise) return this._initPromise;
 
     this._initPromise = new Promise((resolve, reject) => {
-      // In a real browser environment, this path would point to the file.
       this.worker = new Worker(new URL('./PyodideWorker.js', import.meta.url), { type: 'module' });
-      
+
       this.worker.onmessage = (e) => {
-        const { type, result, error, stdout } = e.data;
+        const { type, error } = e.data;
         if (type === 'ready') {
           this.ready = true;
-          console.log('[NamespaceBridge] Worker ready.');
           resolve();
-        } else if (type === 'result') {
-          const resResolve = this.pendingResolves.get('last_run');
-          if (resResolve) {
-            resResolve({ stdout, result });
-            this.pendingResolves.delete('last_run');
+        } else if (type === 'eval_result') {
+          const resolveRun = this.pendingResolves.get(e.data.requestId);
+          if (resolveRun) {
+            resolveRun(e.data);
+            this.pendingResolves.delete(e.data.requestId);
           }
         } else if (type === 'error') {
-          console.error('[NamespaceBridge] Worker error:', error);
-          const resResolve = this.pendingResolves.get('last_run');
-          if (resResolve) {
-            resResolve({ error, stdout: `Error: ${error}` });
-            this.pendingResolves.delete('last_run');
+          const resolveRun = this.pendingResolves.get(e.data.requestId);
+          if (resolveRun) {
+            resolveRun({ error });
+            this.pendingResolves.delete(e.data.requestId);
           } else if (!this.ready) {
             reject(new Error(error));
           }
@@ -51,25 +94,257 @@ export class NamespaceBridge {
     return this._initPromise;
   }
 
-  /**
-   * Evaluate code in Pyodide with live app data.
-   * @param {string} code
-   * @param {string[]} requestedNamespaces - e.g., ['cal', 'tasks']
-   */
-  async run(code, requestedNamespaces = []) {
-    if (!this.ready) await this.init();
+  async syncDocument(text, index) {
+    this.lastText = text;
+    this.lastIndex = index;
 
-    // 1. Gather live data from the CapabilityRegistry
-    const globals = {};
-    for (const ns of requestedNamespaces) {
-      const data = await this.registry.query(ns, {});
-      if (data) globals[ns] = data;
+    const pyBlocks = index.filter(d => d.type === 'py');
+    if (pyBlocks.length === 0) {
+      if (this.results.size > 0) {
+        this.results.clear();
+        this._notify();
+      }
+      return;
     }
 
-    // 2. Post to worker
-    return new Promise((resolve) => {
-      this.pendingResolves.set('last_run', resolve);
-      this.worker.postMessage({ type: 'run', code, globals });
+    if (!pyBlocks.some(block => (block.params.run || 'manual') === 'auto')) {
+      const next = new Map();
+      for (const block of pyBlocks) {
+        next.set(this.getBlockKey(block), {
+          key: this.getBlockKey(block),
+          status: 'manual',
+          stdout: '',
+          error: null,
+          context: {},
+          lineStart: block.lineStart
+        });
+      }
+      this.results = next;
+      this._notify();
+      return;
+    }
+
+    await this.evaluateDocument();
+  }
+
+  async runBlock(descriptorOrKey) {
+    const triggerKey = typeof descriptorOrKey === 'string'
+      ? descriptorOrKey
+      : this.getBlockKey(descriptorOrKey);
+    return this.evaluateDocument({ triggerKey });
+  }
+
+  async evaluateDocument({ triggerKey = null } = {}) {
+    if (!this.ready) await this.init();
+
+    const text = this.lastText || this.store.getContents();
+    const index = this.lastIndex.length ? this.lastIndex : this.parser.parse(text);
+    const pyBlocks = index.filter(d => d.type === 'py');
+    const requestId = `eval-${++this.evalSeq}`;
+
+    if (pyBlocks.length === 0) {
+      this.results.clear();
+      this._notify();
+      return this.results;
+    }
+
+    const grantedMirrored = this._collectGrantedNamespaces(pyBlocks);
+    const globals = await this._buildGlobals(text, index, grantedMirrored);
+
+    const blocks = pyBlocks.map((descriptor) => {
+      const key = this.getBlockKey(descriptor);
+      const runMode = descriptor.params.run || 'manual';
+      const execute = runMode === 'auto' || key === triggerKey;
+      return {
+        key,
+        id: descriptor.id,
+        code: (descriptor.body || []).join('\n'),
+        execute
+      };
     });
+
+    const response = await new Promise((resolve) => {
+      this.pendingResolves.set(requestId, resolve);
+      this.worker.postMessage({
+        type: 'eval_document',
+        requestId,
+        blocks,
+        globals
+      });
+    });
+
+    if (requestId !== `eval-${this.evalSeq}`) {
+      return this.results;
+    }
+
+    if (response.error) {
+      const next = new Map();
+      for (const block of pyBlocks) {
+        next.set(this.getBlockKey(block), {
+          key: this.getBlockKey(block),
+          status: 'error',
+          stdout: '',
+          error: response.error,
+          context: {},
+          lineStart: block.lineStart
+        });
+      }
+      this.results = next;
+      this._notify();
+      return next;
+    }
+
+    const next = new Map();
+    for (const block of pyBlocks) {
+      const key = this.getBlockKey(block);
+      const result = response.results?.[key] || {};
+      const status = result.status || ((block.params.run || 'manual') === 'auto' ? 'ok' : 'manual');
+      next.set(key, {
+        key,
+        status,
+        stdout: result.stdout || '',
+        error: result.error || null,
+        context: result.context || {},
+        lineStart: block.lineStart
+      });
+    }
+
+    this.results = next;
+    this._notify();
+    return next;
+  }
+
+  _collectGrantedNamespaces(pyBlocks) {
+    const granted = new Set();
+
+    for (const block of pyBlocks) {
+      const raw = block.params.grants || block.params.allow || '';
+      if (!raw) continue;
+
+      for (const token of raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)) {
+        const canonical = this._canonicalNamespace(token);
+        if (canonical && this.mirroredNamespaces.has(canonical)) {
+          granted.add(canonical);
+        }
+      }
+    }
+
+    return granted;
+  }
+
+  _canonicalNamespace(name) {
+    for (const [canonical, aliases] of Object.entries(this.aliases)) {
+      if (aliases.includes(name)) return canonical;
+    }
+    return null;
+  }
+
+  async _buildGlobals(text, index, grantedMirrored) {
+    const globals = this._buildOwnedGlobals(text, index);
+
+    for (const ns of grantedMirrored) {
+      const data = await this.registry.query(ns, {});
+      if (data != null) {
+        for (const alias of this.aliases[ns] || [ns]) {
+          globals[alias] = data;
+        }
+      }
+    }
+
+    return globals;
+  }
+
+  _buildOwnedGlobals(text, index) {
+    const tasks = {};
+    const notes = {};
+    const tables = {};
+    const contacts = {};
+    const files = {};
+
+    for (const descriptor of index) {
+      if (descriptor.type === 'task') {
+        tasks[descriptor.id] = { id: descriptor.id, ...descriptor.params };
+      }
+
+      if (descriptor.type === 'note') {
+        notes[descriptor.id] = {
+          id: descriptor.id,
+          ...descriptor.params,
+          text: (descriptor.body || []).join('\n')
+        };
+      }
+
+      if (descriptor.type === 'table') {
+        tables[descriptor.id] = this._parseTableRows(descriptor.body || []);
+      }
+
+      if (descriptor.type === 'contact') {
+        contacts[descriptor.id] = this._parseContact(descriptor);
+      }
+
+      if (descriptor.type === 'file') {
+        files[descriptor.id] = { id: descriptor.id, path: descriptor.id, ...descriptor.params };
+      }
+    }
+
+    return {
+      task: tasks,
+      tasks,
+      note: notes,
+      notes,
+      table: tables,
+      tables,
+      contact: contacts,
+      contacts,
+      file: files,
+      files,
+      doc: {
+        line_count: text.split('\n').length,
+        directives: index.map(d => ({
+          type: d.type,
+          id: d.id,
+          line_start: d.lineStart,
+          line_end: d.lineEnd
+        }))
+      }
+    };
+  }
+
+  _parseTableRows(body) {
+    const rows = (body || [])
+      .map(line => line.trim())
+      .filter(line => line.startsWith('|'))
+      .map(line => line.split('|').slice(1, -1).map(cell => cell.trim()));
+
+    if (rows.length === 0) return [];
+
+    const [headers, ...dataRows] = rows;
+    return dataRows.map((row) => {
+      const obj = {};
+      headers.forEach((header, i) => {
+        const key = header.toLowerCase().replace(/\s+/g, '_');
+        const raw = row[i] ?? '';
+        const num = Number(raw.replace(/,/g, ''));
+        obj[key] = !Number.isNaN(num) && raw !== '' ? num : raw;
+      });
+      return obj;
+    });
+  }
+
+  _parseContact(descriptor) {
+    const fields = { id: descriptor.id };
+    const logs = [];
+
+    for (const line of (descriptor.body || [])) {
+      const match = line.match(/^(\w+)\s*=\s*(.+)$/);
+      if (match) {
+        fields[match[1]] = match[2].trim();
+      } else if (line.trim()) {
+        logs.push(line.trim());
+      }
+    }
+
+    if (logs.length > 0) fields.log = logs;
+    return fields;
   }
 }
