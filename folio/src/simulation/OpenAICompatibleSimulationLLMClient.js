@@ -128,12 +128,13 @@ export class OpenAICompatibleSimulationLLMClient extends SimulationLLMClient {
 
   _buildMessages(prompt) {
     const system = prompt?.system || 'Return strict JSON only.';
+    const schemaHint = prompt?.schemaHint || prompt?.schema_hint || {
+      keys: ['phase', 'facts', 'threads', 'open_loops', 'email', 'chat', 'calendar']
+    };
     const userPayload = {
       instruction: prompt?.user || '',
       context: prompt?.context || {},
-      schema_hint: {
-        keys: ['phase', 'facts', 'threads', 'open_loops', 'email', 'chat', 'calendar']
-      }
+      schema_hint: schemaHint
     };
     return [
       { role: 'system', content: system },

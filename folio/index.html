@@ -22,16 +22,19 @@
                     <button id="btn-save">Save to file</button>
                     <button id="btn-load">Load from file</button>
                     <button id="btn-clear-persisted">Clear persisted document</button>
-                    <button id="btn-generate-today">Generate today</button>
-                    <button id="btn-edit-profile">Simulation profile</button>
-                    <button id="btn-simulation-settings">Simulation settings</button>
+                    <button id="btn-new-generated-document">Generate document</button>
                     <div class="menu-sep"></div>
                     <button id="btn-toggle-trust">Trust document</button>
                     <div class="menu-sep"></div>
-                    <button id="help-manual">Usage manual</button>
-                    <a href="./docs/implementation-guide.html" target="_blank">Implementation guide</a>
-                    <a href="./docs/class-reference.html" target="_blank">Class reference</a>
-                    <a href="../books/ui/the-document-is-the-computer.html" target="_blank">Architecture document</a>
+                    <div class="menu-subwrap">
+                        <button class="menu-subtoggle" id="help-menu-toggle">Help <span class="menu-caret">›</span></button>
+                        <div class="menu-submenu">
+                            <button id="help-manual">Usage manual</button>
+                            <a href="./docs/implementation-guide.html" target="_blank">Implementation guide</a>
+                            <a href="./docs/class-reference.html" target="_blank">Class reference</a>
+                            <a href="../books/ui/the-document-is-the-computer.html" target="_blank">Architecture document</a>
+                        </div>
+                    </div>
                 </div>
                 <input type="file" id="file-input" accept=".txt,.md,.folio" style="display:none">
                 </div>
@@ -61,14 +64,12 @@
         import { NamespaceBridge } from './src/python/NamespaceBridge.js';
         import { RenderCanvas } from './src/shell/RenderCanvas.js';
         import { DocumentEditor } from './src/shell/DocumentEditor.js';
-        import { InMemorySimulationLLMClient } from './src/simulation/InMemorySimulationLLMClient.js';
         import { OpenAICompatibleSimulationLLMClient } from './src/simulation/OpenAICompatibleSimulationLLMClient.js';
         import { SimulationProfileStore } from './src/simulation/SimulationProfileStore.js';
         import { SimulationScenarioStore } from './src/simulation/SimulationScenarioStore.js';
         import { SimulationSecretsStore } from './src/simulation/SimulationSecretsStore.js';
         import { SimulationSettingsStore } from './src/simulation/SimulationSettingsStore.js';
         import { SimulationCoordinator } from './src/simulation/SimulationCoordinator.js';
-        import { WebLLMSimulationLLMClient } from './src/simulation/WebLLMSimulationLLMClient.js';
         
         // Renderers
         import { MetaRenderer } from './src/renderers/MetaRenderer.js';
@@ -105,7 +106,7 @@ Picked up where Friday left off — the Q3 analysis is nearly done, just needs t
 ::cal[today]{view=agenda}
 ::end
 
-::email[inbox]{filter=unread priority=high}
+::email[inbox]{filter=unread}
 ::end
 
 ::email[thread-q3-budget]{limit=3}
@@ -178,6 +179,64 @@ Relevant to the East region overrun we are investigating. The section on procure
 `;
         }
 
+        function buildDocumentExampleTemplate() {
+            return [
+                '[Heading]',
+                '[Intro paragraph 1]',
+                '[Intro paragraph 2]',
+                '',
+                '::meta[status]{value=active}',
+                '',
+                '::cal[today]{view=agenda}',
+                '::end',
+                '',
+                '::email[inbox]{filter=unread}',
+                '::end',
+                '',
+                '::email[primary-thread]{limit=3}',
+                '::end',
+                '',
+                '::contact[primary-contact]',
+                'name = ...',
+                'email = ...',
+                'role = ...',
+                'notes = ...',
+                '::end',
+                '',
+                '::note[primary-note]{source=contact:primary-contact field=notes}',
+                '::end',
+                '',
+                '[Analysis title]',
+                '',
+                '[Analysis intro]',
+                '',
+                '::py[profile-check]{run=auto}',
+                'result = [...]',
+                '::end',
+                '',
+                '::table[profile-table]{source=profile-check editable=true}',
+                '| ... |',
+                '::end',
+                '',
+                '::task[first-task]{due=today priority=high status=todo}',
+                '::task[second-task]{due=tomorrow blocked-by=first-task status=todo}',
+                '',
+                '::file[~/docs/reference.pdf]{preview=true}',
+                '',
+                '::chat[#primary]{limit=5}',
+                '::end',
+                '',
+                '::web[https://example.com/reference]{view=reader}',
+                'title = ...',
+                'summary = ...',
+                '---',
+                '[Annotation]',
+                '::end',
+                '',
+                '::spawn[next]{doc=daily:tomorrow title="Tomorrow" after-status=dormant}'
+            ].join('\n');
+        }
+
         const seedDoc = buildSeedDocument();
 
         // Bump version when the seed document structure changes
@@ -217,9 +276,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             simulationScenarioStore: scenarioStore,
             simulationSecretsStore,
             simulationSettingsStore,
-            InMemorySimulationLLMClient,
-            OpenAICompatibleSimulationLLMClient,
-            WebLLMSimulationLLMClient
+            OpenAICompatibleSimulationLLMClient
         };
 
         // 2. Registry & Bridge
@@ -268,12 +325,8 @@ Relevant to the East region overrun we are investigating. The section on procure
         const profileCloseBtn = document.getElementById('profile-close');
         const profileSkipBtn = document.getElementById('profile-skip');
         const profileSaveBtn = document.getElementById('profile-save');
-        const simulationSettingsOverlay = document.getElementById('simulation-settings-overlay');
-        const simulationSettingsCloseBtn = document.getElementById('simulation-settings-close');
-        const simulationSettingsCloseSecondaryBtn = document.getElementById('simulation-settings-close-secondary');
-        const simulationSettingsSaveBtn = document.getElementById('simulation-settings-save');
-        const simulationSettingsProvider = document.getElementById('simulation-provider');
-        const simulationSettingsModel = document.getElementById('simulation-webllm-model');
+        const profileContactsList = document.getElementById('profile-contacts-list');
+        const profileAddContactBtn = document.getElementById('profile-add-contact');
         const simulationRemoteEndpoint = document.getElementById('simulation-remote-endpoint');
         const simulationRemoteModel = document.getElementById('simulation-remote-model');
         const simulationRemoteApiKey = document.getElementById('simulation-remote-api-key');
@@ -307,29 +360,122 @@ Relevant to the East region overrun we are investigating. The section on procure
             return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
         }
 
+        function parseProfileList(value) {
+            return String(value || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean);
+        }
+
+        function clearProfileContacts() {
+            profileContactsList.innerHTML = '';
+        }
+
+        function appendProfileContact(contact = {}) {
+            const card = document.createElement('div');
+            card.className = 'profile-contact-card';
+
+            const grid = document.createElement('div');
+            grid.className = 'profile-contact-grid';
+
+            const fields = [
+                { key: 'name', label: 'Name', type: 'text', placeholder: 'Alex Rivera' },
+                { key: 'email', label: 'Email', type: 'email', placeholder: 'alex@example.com' },
+                { key: 'role', label: 'Role', type: 'text', placeholder: 'Curator, client, collaborator...' },
+                { key: 'relationship', label: 'Relationship', type: 'text', placeholder: 'friend, client, sibling...' }
+            ];
+
+            for (const field of fields) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'profile-field';
+
+                const label = document.createElement('label');
+                label.textContent = field.label;
+                wrapper.appendChild(label);
+
+                const input = document.createElement('input');
+                input.type = field.type;
+                input.placeholder = field.placeholder;
+                input.value = contact[field.key] || '';
+                input.dataset.contactField = field.key;
+                wrapper.appendChild(input);
+                grid.appendChild(wrapper);
+            }
+
+            card.appendChild(grid);
+
+            const actions = document.createElement('div');
+            actions.className = 'profile-contact-actions';
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'profile-contact-remove';
+            removeBtn.textContent = 'Remove contact';
+            removeBtn.onclick = () => {
+                card.remove();
+            };
+            actions.appendChild(removeBtn);
+            card.appendChild(actions);
+
+            profileContactsList.appendChild(card);
+        }
+
+        function readProfileContacts(domain) {
+            const cards = Array.from(profileContactsList.querySelectorAll('.profile-contact-card'));
+            const counts = new Map();
+            return cards
+                .map((card, index) => {
+                    const values = {};
+                    for (const input of card.querySelectorAll('[data-contact-field]')) {
+                        values[input.dataset.contactField] = input.value.trim();
+                    }
+                    const hasContent = Object.values(values).some(Boolean);
+                    if (!hasContent) return null;
+
+                    const baseId = slugify(values.name || values.role || values.relationship || `contact-${index + 1}`, `contact-${index + 1}`);
+                    const nextCount = (counts.get(baseId) || 0) + 1;
+                    counts.set(baseId, nextCount);
+                    const id = nextCount === 1 ? baseId : `${baseId}-${nextCount}`;
+
+                    return {
+                        id,
+                        name: values.name || `Contact ${index + 1}`,
+                        email: values.email || `${id}@${domain}`,
+                        role: values.role || 'Contact',
+                        relationship: values.relationship || 'contact'
+                    };
+                })
+                .filter(Boolean);
+        }
+
         function populateProfileForm(profile = profileStore.getCurrentProfile()) {
             const contacts = profile?.contacts || [];
-            const manager = contacts.find((contact) => contact.relationship === 'manager') || {};
-            const finance = contacts.find((contact) => /finance/i.test(contact.id || '') || /finance/i.test(contact.role || '')) || {};
             const project = profile?.projects?.[0] || {};
-            const financeChannel = profile?.channels?.find((channel) => /finance/i.test(channel.id || '')) || {};
-            const productChannel = profile?.channels?.find((channel) => /product/i.test(channel.id || '')) || {};
+            const primaryChannel = profile?.channels?.[0] || {};
+            const secondaryChannel = profile?.channels?.[1] || {};
 
             document.getElementById('profile-name').value = profile?.user?.name || '';
             document.getElementById('profile-email').value = profile?.user?.email || '';
             document.getElementById('profile-role').value = profile?.user?.role || '';
             document.getElementById('profile-org').value = profile?.organization?.name || '';
-            document.getElementById('profile-manager-name').value = manager.name || '';
-            document.getElementById('profile-manager-email').value = manager.email || '';
-            document.getElementById('profile-finance-name').value = finance.name || '';
-            document.getElementById('profile-finance-email').value = finance.email || '';
+            document.getElementById('profile-bio').value = profile?.user?.bio || '';
+            document.getElementById('profile-interests').value = Array.isArray(profile?.user?.interests)
+                ? profile.user.interests.join(', ')
+                : '';
             document.getElementById('profile-project').value = project.name || '';
-            document.getElementById('profile-finance-channel').value = financeChannel.id || '#finance';
-            document.getElementById('profile-product-channel').value = productChannel.id || '#product';
+            document.getElementById('profile-primary-channel').value = primaryChannel.id || '#general';
+            document.getElementById('profile-secondary-channel').value = secondaryChannel.id || '#updates';
+
+            clearProfileContacts();
+            if (contacts.length) {
+                contacts.forEach((contact) => appendProfileContact(contact));
+            } else {
+                appendProfileContact();
+            }
         }
 
         function openProfileSetup(firstRun = false) {
             populateProfileForm();
+            populateSimulationSettingsForm();
             profileOverlay.dataset.firstRun = firstRun ? 'true' : 'false';
             profileSkipBtn.style.display = firstRun ? 'inline-flex' : 'inline-flex';
             profileCloseBtn.style.display = firstRun ? 'none' : 'inline-block';
@@ -345,113 +491,130 @@ Relevant to the East region overrun we are investigating. The section on procure
             const email = document.getElementById('profile-email').value.trim();
             const role = document.getElementById('profile-role').value.trim();
             const org = document.getElementById('profile-org').value.trim();
-            const managerName = document.getElementById('profile-manager-name').value.trim();
-            const managerEmail = document.getElementById('profile-manager-email').value.trim();
-            const financeName = document.getElementById('profile-finance-name').value.trim();
-            const financeEmail = document.getElementById('profile-finance-email').value.trim();
+            const bio = document.getElementById('profile-bio').value.trim();
+            const interests = parseProfileList(document.getElementById('profile-interests').value);
             const projectName = document.getElementById('profile-project').value.trim();
-            const financeChannel = normalizeChannelId(document.getElementById('profile-finance-channel').value, '#finance');
-            const productChannel = normalizeChannelId(document.getElementById('profile-product-channel').value, '#product');
+            const primaryChannel = normalizeChannelId(document.getElementById('profile-primary-channel').value, '#general');
+            const secondaryChannel = normalizeChannelId(document.getElementById('profile-secondary-channel').value, '#updates');
 
-            const managerId = slugify(managerName || 'manager', 'manager');
-            const financeId = slugify(financeName || 'finance-team', 'finance-team');
             const projectId = slugify(projectName || 'primary-project', 'primary-project');
             const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-            const domain = email.includes('@') ? email.split('@')[1] : (existingProfile?.organization?.domain || 'folio.local');
+            const domain = email.includes('@') ? email.split('@')[1] : 'folio.local';
+            const rawContacts = readProfileContacts(domain);
+            const identityChanged = profileIdentityChanged(existingProfile, {
+                name,
+                email,
+                role,
+                bio,
+                org,
+                projectName,
+                interests
+            });
+            const contacts = identityChanged && contactsMatchExisting(rawContacts, existingProfile?.contacts || [])
+                ? []
+                : rawContacts;
+            const defaultChannels = [
+                { id: '#general', topic: 'Primary coordination space' },
+                { id: '#updates', topic: 'Secondary updates space' }
+            ];
+            const nextChannels = identityChanged && channelsMatchExisting([
+                { id: primaryChannel, topic: 'Primary coordination space' },
+                { id: secondaryChannel, topic: 'Secondary updates space' }
+            ], existingProfile?.channels || [])
+                ? defaultChannels
+                : [
+                    { id: primaryChannel, topic: 'Primary coordination space' },
+                    { id: secondaryChannel, topic: 'Secondary updates space' }
+                ];
+            const stakeholders = contacts.slice(0, 4).map((contact) => contact.id);
 
             return {
                 id: existingProfile?.id || 'profile:default',
                 label: `${name || 'Simulation'} profile`,
                 user: {
-                    name: name || existingProfile?.user?.name || 'User',
-                    email: email || existingProfile?.user?.email || 'user@folio.local',
-                    role: role || existingProfile?.user?.role || 'Knowledge worker',
+                    name: name || 'User',
+                    email: email || 'user@folio.local',
+                    role: role || 'Generalist',
+                    bio,
+                    interests,
                     timezone,
                     working_hours: existingProfile?.user?.working_hours || '09:00-18:00'
                 },
                 organization: {
-                    name: org || existingProfile?.organization?.name || 'Example Ltd',
+                    name: org || 'Personal',
                     domain,
-                    departments: existingProfile?.organization?.departments || ['Finance', 'Ops', 'Product']
+                    departments: []
                 },
-                contacts: [
-                    {
-                        id: managerId,
-                        name: managerName || existingProfile?.contacts?.find((contact) => contact.relationship === 'manager')?.name || 'Manager',
-                        email: managerEmail || existingProfile?.contacts?.find((contact) => contact.relationship === 'manager')?.email || 'manager@folio.local',
-                        role: 'Manager',
-                        relationship: 'manager'
-                    },
-                    {
-                        id: financeId,
-                        name: financeName || existingProfile?.contacts?.find((contact) => /finance/i.test(contact.id || '') || /finance/i.test(contact.role || ''))?.name || 'Finance Team',
-                        email: financeEmail || existingProfile?.contacts?.find((contact) => /finance/i.test(contact.id || '') || /finance/i.test(contact.role || ''))?.email || 'finance@folio.local',
-                        role: 'Finance',
-                        relationship: 'partner'
-                    },
-                    {
-                        id: 'ops.team',
-                        name: existingProfile?.contacts?.find((contact) => /ops/i.test(contact.id || '') || /ops/i.test(contact.role || ''))?.name || 'Ops',
-                        email: existingProfile?.contacts?.find((contact) => /ops/i.test(contact.id || '') || /ops/i.test(contact.role || ''))?.email || 'ops@folio.local',
-                        role: 'Operations',
-                        relationship: 'partner'
-                    },
-                    {
-                        id: 'rohan.m',
-                        name: existingProfile?.contacts?.find((contact) => contact.id === 'rohan.m')?.name || 'Rohan Mehta',
-                        email: existingProfile?.contacts?.find((contact) => contact.id === 'rohan.m')?.email || 'rohan@example.com',
-                        role: existingProfile?.contacts?.find((contact) => contact.id === 'rohan.m')?.role || 'Staff Engineer',
-                        relationship: 'peer'
-                    }
-                ],
+                contacts,
                 projects: [
                     {
                         id: projectId,
-                        name: projectName || existingProfile?.projects?.[0]?.name || 'Primary project',
-                        status: existingProfile?.projects?.[0]?.status || 'active',
-                        stakeholders: [managerId, financeId, 'ops.team', 'rohan.m'],
-                        deadlines: existingProfile?.projects?.[0]?.deadlines || []
+                        name: projectName || `${role || 'Current'} focus`,
+                        status: 'active',
+                        stakeholders,
+                        deadlines: []
                     }
                 ],
-                channels: [
-                    { id: financeChannel, topic: 'Budget review and approvals' },
-                    { id: productChannel, topic: 'Roadmap and coordination' }
-                ]
+                channels: nextChannels
             };
         }
 
-        function resolveSimulationProvider(settings = simulationSettings) {
-            if (settings.provider === 'webllm') return 'webllm';
-            if (settings.provider === 'remote-openai') return 'remote-openai';
-            if (settings.provider === 'in-memory') return 'in-memory';
-            return WebLLMSimulationLLMClient.browserSupportsWebGPU() ? 'webllm' : 'in-memory';
+        function profileIdentityChanged(existingProfile, next) {
+            if (!existingProfile) return false;
+            const previous = {
+                name: existingProfile.user?.name || '',
+                email: existingProfile.user?.email || '',
+                role: existingProfile.user?.role || '',
+                bio: existingProfile.user?.bio || '',
+                org: existingProfile.organization?.name || '',
+                projectName: existingProfile.projects?.[0]?.name || '',
+                interests: Array.isArray(existingProfile.user?.interests) ? existingProfile.user.interests : []
+            };
+            return JSON.stringify(previous) !== JSON.stringify({
+                name: next.name || '',
+                email: next.email || '',
+                role: next.role || '',
+                bio: next.bio || '',
+                org: next.org || '',
+                projectName: next.projectName || '',
+                interests: Array.isArray(next.interests) ? next.interests : []
+            });
+        }
+
+        function contactsMatchExisting(nextContacts, existingContacts) {
+            return JSON.stringify(normalizeContactsForComparison(nextContacts)) === JSON.stringify(normalizeContactsForComparison(existingContacts));
+        }
+
+        function channelsMatchExisting(nextChannels, existingChannels) {
+            return JSON.stringify(normalizeChannelsForComparison(nextChannels)) === JSON.stringify(normalizeChannelsForComparison(existingChannels));
+        }
+
+        function normalizeContactsForComparison(contacts) {
+            return (Array.isArray(contacts) ? contacts : []).map((contact) => ({
+                name: contact.name || '',
+                email: contact.email || '',
+                role: contact.role || '',
+                relationship: contact.relationship || ''
+            }));
+        }
+
+        function normalizeChannelsForComparison(channels) {
+            return (Array.isArray(channels) ? channels : []).map((channel) => ({
+                id: channel.id || '',
+                topic: channel.topic || ''
+            }));
         }
 
         function populateSimulationSettingsForm(settings = simulationSettingsStore.getSettings()) {
-            simulationSettingsProvider.value = settings.provider || 'auto';
-            simulationSettingsModel.value = settings.webllm?.model || '';
             simulationRemoteEndpoint.value = settings.remote?.endpoint || 'https://api.openai.com/v1/chat/completions';
             simulationRemoteModel.value = settings.remote?.model || 'gpt-4.1-mini';
             simulationRemoteApiKey.value = '';
             renderSimulationSettingsStatus(simulation.getClientStatus(), settings);
         }
 
-        function openSimulationSettings() {
-            populateSimulationSettingsForm();
-            simulationSettingsOverlay.classList.add('open');
-        }
-
-        function closeSimulationSettings() {
-            simulationSettingsOverlay.classList.remove('open');
-        }
-
         function readSimulationSettingsForm() {
             return {
-                provider: simulationSettingsProvider.value || 'auto',
-                webllm: {
-                    ...simulationSettings.webllm,
-                    model: simulationSettingsModel.value.trim()
-                },
+                provider: 'remote-openai',
                 remote: {
                     ...simulationSettings.remote,
                     endpoint: simulationRemoteEndpoint.value.trim() || simulationSettings.remote?.endpoint,
@@ -461,60 +624,29 @@ Relevant to the East region overrun we are investigating. The section on procure
         }
 
         function describeSimulationProvider(settings = simulationSettings) {
-            const resolved = resolveSimulationProvider(settings);
-            const labels = {
-                'auto': 'Auto',
-                'in-memory': 'In-memory',
-                'webllm': 'WebLLM',
-                'remote-openai': 'Remote API'
-            };
-            const requested = labels[settings.provider] || settings.provider;
-            const resolvedLabel = labels[resolved] || resolved;
             return {
-                requested,
-                resolved,
-                summary: settings.provider === 'auto'
-                    ? `Provider: Auto → ${resolvedLabel}`
-                    : `Provider: ${resolvedLabel}`
+                requested: 'Remote API',
+                resolved: 'remote-openai',
+                summary: 'Provider: Remote OpenAI-compatible API'
             };
         }
 
         function renderSimulationSettingsStatus(status = simulation.getClientStatus(), settings = simulationSettings) {
             const provider = describeSimulationProvider(settings);
             const info = simulation.getClientInfo();
-            const activeKind = info.kind || 'unknown';
-            const previewSwitch = provider.resolved !== activeKind;
-            const selectedModel = settings.webllm?.model || info.model || 'SmolLM2-135M-Instruct, then TinyLlama-1.1B';
             const remoteModel = settings.remote?.model || info.model || 'gpt-4.1-mini';
             const remoteEndpoint = settings.remote?.endpoint || info.endpoint || 'https://api.openai.com/v1/chat/completions';
-            const webGPUAvailable = WebLLMSimulationLLMClient.browserSupportsWebGPU();
             const hasRemoteSecret = simulationSecretsStore.hasSecret('remote-openai');
-            simulationSettingsModel.disabled = settings.provider === 'in-memory' || settings.provider === 'remote-openai';
-            simulationRemoteEndpoint.disabled = settings.provider === 'in-memory' || settings.provider === 'webllm';
-            simulationRemoteModel.disabled = settings.provider === 'in-memory' || settings.provider === 'webllm';
-            simulationRemoteApiKey.disabled = settings.provider === 'in-memory' || settings.provider === 'webllm';
+            simulationRemoteEndpoint.disabled = false;
+            simulationRemoteModel.disabled = false;
+            simulationRemoteApiKey.disabled = false;
             simulationRemoteClearKeyBtn.disabled = !hasRemoteSecret;
             simulationRemoteApiKeyStatus.textContent = hasRemoteSecret
                 ? 'Saved API key present. Leave the field blank to keep it.'
                 : 'No saved API key.';
             simulationSettingsSummary.textContent = provider.summary;
-            if (provider.resolved === 'webllm') {
-                const capability = webGPUAvailable ? 'WebGPU available' : 'WebGPU unavailable';
-                const suffix = previewSwitch
-                    ? 'Save settings to switch to WebLLM.'
-                    : (status?.message || 'WebLLM selected.');
-                simulationSettingsStatus.textContent = `${capability}. Model: ${selectedModel}. ${suffix}`;
-            } else if (provider.resolved === 'remote-openai') {
-                const capability = hasRemoteSecret ? 'API key saved' : 'API key missing';
-                const suffix = previewSwitch
-                    ? 'Save settings to switch to the remote provider.'
-                    : (status?.message || 'Remote provider selected.');
-                simulationSettingsStatus.textContent = `${capability}. Model: ${remoteModel}. Endpoint: ${remoteEndpoint}. ${suffix}`;
-            } else {
-                simulationSettingsStatus.textContent = previewSwitch
-                    ? 'Save settings to switch to the in-memory deterministic generator.'
-                    : (status?.message || 'Deterministic in-memory simulation ready.');
-            }
+            const capability = hasRemoteSecret ? 'API key saved' : 'API key missing';
+            simulationSettingsStatus.textContent = `${capability}. Model: ${remoteModel}. Endpoint: ${remoteEndpoint}. ${status?.message || 'Remote provider selected.'}`;
         }
 
         function subscribeSimulationClientStatus(client, settingsSnapshot) {
@@ -539,22 +671,13 @@ Relevant to the East region overrun we are investigating. The section on procure
                 ? simulationSettingsStore.saveSettings(nextSettings)
                 : nextSettings;
             simulationSettings = settingsToUse;
-            const resolvedProvider = resolveSimulationProvider(settingsToUse);
-            const client = resolvedProvider === 'webllm'
-                ? new WebLLMSimulationLLMClient({
-                    model: settingsToUse.webllm?.model || null,
-                    temperature: settingsToUse.webllm?.temperature,
-                    maxTokens: settingsToUse.webllm?.maxTokens
-                })
-                : resolvedProvider === 'remote-openai'
-                    ? new OpenAICompatibleSimulationLLMClient({
-                        endpoint: settingsToUse.remote?.endpoint,
-                        model: settingsToUse.remote?.model,
-                        apiKey: simulationSecretsStore.getSecret('remote-openai'),
-                        temperature: settingsToUse.remote?.temperature,
-                        maxTokens: settingsToUse.remote?.maxTokens
-                    })
-                : new InMemorySimulationLLMClient();
+            const client = new OpenAICompatibleSimulationLLMClient({
+                endpoint: settingsToUse.remote?.endpoint,
+                model: settingsToUse.remote?.model,
+                apiKey: simulationSecretsStore.getSecret('remote-openai'),
+                temperature: settingsToUse.remote?.temperature,
+                maxTokens: settingsToUse.remote?.maxTokens
+            });
 
             simulation.setLLMClient(client);
             window.folioDebug.simulationLLMClient = client;
@@ -565,26 +688,12 @@ Relevant to the East region overrun we are investigating. The section on procure
             renderSimulationSettingsStatus(simulation.getClientStatus(), settingsToUse);
 
             if (announce) {
-                const provider = describeSimulationProvider(settingsToUse);
-                statusBar.textContent = provider.resolved === 'webllm'
-                    ? `Simulation provider set to WebLLM${client.getClientInfo().model ? ` (${client.getClientInfo().model})` : ''}`
-                    : provider.resolved === 'remote-openai'
-                        ? `Simulation provider set to remote API${client.getClientInfo().model ? ` (${client.getClientInfo().model})` : ''}`
-                    : 'Simulation provider set to in-memory deterministic generator';
+                statusBar.textContent = `Simulation provider set to remote API${client.getClientInfo().model ? ` (${client.getClientInfo().model})` : ''}`;
             }
             return {
                 settings: settingsToUse,
-                resolvedProvider
+                resolvedProvider: 'remote-openai'
             };
-        }
-
-        function activateInMemoryFallback() {
-            const fallbackClient = new InMemorySimulationLLMClient();
-            simulation.setLLMClient(fallbackClient);
-            window.folioDebug.simulationLLMClient = fallbackClient;
-            subscribeSimulationClientStatus(fallbackClient, simulationSettings);
-            renderSimulationSettingsStatus(fallbackClient.getStatus(), simulationSettings);
-            return fallbackClient;
         }
 
         async function runGenerateToday() {
@@ -597,58 +706,94 @@ Relevant to the East region overrun we are investigating. The section on procure
                 }
             });
 
-            const preferredProvider = resolveSimulationProvider(simulationSettings);
-            if (preferredProvider !== 'in-memory' && simulation.getClientInfo().kind !== preferredProvider) {
+            if (simulation.getClientInfo().kind !== 'remote-openai') {
                 await applySimulationSettings(simulationSettings, { persist: false, announce: false });
             }
 
             let clientInfo = simulation.getClientInfo();
-            statusBar.textContent = clientInfo.kind === 'webllm'
-                ? 'Generating simulated workday with WebLLM...'
-                : clientInfo.kind === 'remote-openai'
-                    ? 'Generating simulated workday with remote provider...'
+            if (!simulationSecretsStore.hasSecret('remote-openai')) {
+                const message = 'Add a remote API key in Simulation settings to generate today.';
+                statusBar.textContent = message;
+                renderSimulationSettingsStatus(simulation.getClientStatus(), simulationSettings);
+                return {
+                    status: 'error',
+                    error: message
+                };
+            }
+
+            statusBar.textContent = clientInfo.kind === 'remote-openai'
+                ? 'Generating simulated workday with remote provider...'
                 : 'Generating simulated workday...';
             let result;
-            let fellBackToInMemory = false;
             try {
                 result = await simulation.generateDay();
             } catch (error) {
-                if (clientInfo.kind === 'webllm') {
-                    activateInMemoryFallback();
-                    clientInfo = simulation.getClientInfo();
-                    fellBackToInMemory = true;
-                    console.error('Folio WebLLM fallback:', error);
-                    statusBar.textContent = 'WebLLM failed; falling back to in-memory simulation.';
-                    result = await simulation.generateDay();
-                } else {
-                    statusBar.textContent = error?.message || 'Remote simulation generation failed.';
-                    return {
-                        status: 'error',
-                        error: error?.message || 'Remote simulation generation failed.'
-                    };
-                }
+                statusBar.textContent = error?.message || 'Remote simulation generation failed.';
+                return {
+                    status: 'error',
+                    error: error?.message || 'Remote simulation generation failed.'
+                };
             }
             if (result.status !== 'generated') {
-                if (clientInfo.kind === 'webllm') {
-                    activateInMemoryFallback();
-                    clientInfo = simulation.getClientInfo();
-                    fellBackToInMemory = true;
-                    console.error('Folio WebLLM fallback:', result.error || 'Unknown WebLLM generation failure');
-                    statusBar.textContent = 'WebLLM failed; falling back to in-memory simulation.';
-                    result = await simulation.generateDay();
-                } else {
-                    statusBar.textContent = result.error || 'Simulation generation failed';
-                    return result;
-                }
+                statusBar.textContent = result.error || 'Simulation generation failed';
+                return result;
             }
 
             syncDateHeading(result.scenario?.date);
+            syncMirroredProjectionTargets(result.profile, result);
             refreshCurrentDocument(true);
             const profileName = result.profile?.user?.name || result.profile?.label || 'profile';
             const providerLabel = simulation.getClientInfo().label || 'simulation provider';
-            statusBar.textContent = fellBackToInMemory
-                ? `Generated simulated workday for ${profileName} with ${providerLabel} after WebLLM fallback (${result.summary.counts.email} email, ${result.summary.counts.chat} chat, ${result.summary.counts.cal} calendar)`
-                : `Generated simulated workday for ${profileName} with ${providerLabel} (${result.summary.counts.email} email, ${result.summary.counts.chat} chat, ${result.summary.counts.cal} calendar)`;
+            statusBar.textContent = `Generated simulated workday for ${profileName} with ${providerLabel} (${result.summary.counts.email} email, ${result.summary.counts.chat} chat, ${result.summary.counts.cal} calendar)`;
+            return result;
+        }
+
+        async function runGenerateDocument() {
+            if (!policy.isTrusted()) {
+                policy.setTrusted(true);
+            }
+            ['email.read', 'chat.read', 'cal.read'].forEach((grant) => {
+                if (!policy.hasGrant(grant)) {
+                    policy.setGrant(grant, true);
+                }
+            });
+
+            if (simulation.getClientInfo().kind !== 'remote-openai') {
+                await applySimulationSettings(simulationSettings, { persist: false, announce: false });
+            }
+
+            if (!simulationSecretsStore.hasSecret('remote-openai')) {
+                const message = 'Add a remote API key in Simulation settings to generate a document.';
+                statusBar.textContent = message;
+                renderSimulationSettingsStatus(simulation.getClientStatus(), simulationSettings);
+                return {
+                    status: 'error',
+                    error: message
+                };
+            }
+
+            statusBar.textContent = 'Generating profile-specific document with remote provider...';
+            let result;
+            try {
+                result = await simulation.generateDocument({
+                    exampleDocument: buildDocumentExampleTemplate()
+                });
+            } catch (error) {
+                statusBar.textContent = error?.message || 'Document generation failed.';
+                return {
+                    status: 'error',
+                    error: error?.message || 'Document generation failed.'
+                };
+            }
+
+            if (result.status !== 'generated' || !result.text) {
+                statusBar.textContent = result.error || 'Document generation failed';
+                return result;
+            }
+
+            renderDocument(result.text, store.getDocumentId());
+            const profileName = result.profile?.user?.name || result.profile?.label || 'profile';
+            statusBar.textContent = `Generated profile-specific document for ${profileName}.`;
             return result;
         }
 
@@ -659,6 +804,55 @@ Relevant to the East region overrun we are investigating. The section on procure
             const day = value.getDate();
             const year = value.getFullYear();
             return `${weekday}, ${day} ${month} ${year}.`;
+        }
+
+        function serializeDirectiveLine(type, id, params = {}) {
+            const entries = Object.entries(params).filter(([_, value]) => value != null && value !== '');
+            if (!entries.length) return `::${type}[${id}]`;
+            const paramStr = entries
+                .map(([key, value]) => String(value).includes(' ') ? `${key}="${value}"` : `${key}=${value}`)
+                .join(' ');
+            return `::${type}[${id}]{${paramStr}}`;
+        }
+
+        function replaceDirectiveHeader(descriptor, nextLine) {
+            if (!descriptor || descriptor.raw === nextLine) return;
+            bus.emit({
+                timestamp: new Date().toISOString(),
+                source: 'simulation',
+                type: 'replace',
+                payload: {
+                    targetDocId: 'current',
+                    lineStart: descriptor.lineStart,
+                    lineEnd: descriptor.lineStart,
+                    text: nextLine
+                }
+            });
+        }
+
+        function syncMirroredProjectionTargets(profile, result) {
+            const index = parser.parse(store.getContents());
+            const firstChannel = Object.keys(result?.generated?.chat || {})[0]
+                || profile?.channels?.[0]?.id
+                || '#general';
+            const firstThread = result?.scenario?.threads?.[0]?.thread_id
+                || result?.generated?.email?.[0]?.threadId
+                || null;
+
+            const inboxDescriptor = index.find((descriptor) => descriptor.type === 'email' && descriptor.id === 'inbox');
+            if (inboxDescriptor) {
+                replaceDirectiveHeader(inboxDescriptor, serializeDirectiveLine('email', 'inbox', { filter: 'unread' }));
+            }
+
+            const threadDescriptor = index.find((descriptor) => descriptor.type === 'email' && descriptor.id && descriptor.id !== 'inbox' && descriptor.id !== 'draft');
+            if (threadDescriptor && firstThread) {
+                replaceDirectiveHeader(threadDescriptor, serializeDirectiveLine('email', firstThread, threadDescriptor.params));
+            }
+
+            const chatDescriptor = index.find((descriptor) => descriptor.type === 'chat');
+            if (chatDescriptor && firstChannel) {
+                replaceDirectiveHeader(chatDescriptor, serializeDirectiveLine('chat', firstChannel, chatDescriptor.params));
+            }
         }
 
         function syncDateHeading(date) {
@@ -804,40 +998,40 @@ Relevant to the East region overrun we are investigating. The section on procure
             location.reload();
         };
 
-        document.getElementById('btn-generate-today').onclick = async () => {
-            menuDropdown.classList.remove('open');
-            menuBtn.classList.remove('open');
-            await runGenerateToday();
-        };
-
         // ── Hamburger menu ────────────────────────────────────
         const menuDropdown = document.getElementById('menu-dropdown');
         const menuBtn = document.getElementById('menu-btn');
+        const helpMenuWrap = document.querySelector('.menu-subwrap');
+        const helpMenuToggle = document.getElementById('help-menu-toggle');
         menuBtn.onclick = (e) => {
             e.stopPropagation();
             menuDropdown.classList.toggle('open');
             menuBtn.classList.toggle('open');
+            if (!menuDropdown.classList.contains('open')) {
+                helpMenuWrap?.classList.remove('open');
+            }
         };
         document.addEventListener('click', () => {
             menuDropdown.classList.remove('open');
             menuBtn.classList.remove('open');
+            helpMenuWrap?.classList.remove('open');
         });
         menuDropdown.addEventListener('click', (e) => e.stopPropagation());
+        helpMenuToggle.onclick = (e) => {
+            e.stopPropagation();
+            helpMenuWrap.classList.toggle('open');
+        };
 
         document.getElementById('help-manual').onclick = () => {
             menuDropdown.classList.remove('open');
             menuBtn.classList.remove('open');
+            helpMenuWrap?.classList.remove('open');
             document.getElementById('manual-overlay').classList.add('open');
         };
-        document.getElementById('btn-edit-profile').onclick = () => {
+        document.getElementById('btn-new-generated-document').onclick = () => {
             menuDropdown.classList.remove('open');
             menuBtn.classList.remove('open');
             openProfileSetup(false);
-        };
-        document.getElementById('btn-simulation-settings').onclick = () => {
-            menuDropdown.classList.remove('open');
-            menuBtn.classList.remove('open');
-            openSimulationSettings();
         };
         trustBtn.onclick = () => {
             menuDropdown.classList.remove('open');
@@ -851,12 +1045,6 @@ Relevant to the East region overrun we are investigating. The section on procure
         profileCloseBtn.onclick = () => {
             closeProfileSetup();
         };
-        simulationSettingsCloseBtn.onclick = () => {
-            closeSimulationSettings();
-        };
-        simulationSettingsCloseSecondaryBtn.onclick = () => {
-            closeSimulationSettings();
-        };
         profileSkipBtn.onclick = () => {
             closeProfileSetup();
             statusBar.textContent = 'Using default simulation profile';
@@ -866,19 +1054,20 @@ Relevant to the East region overrun we are investigating. The section on procure
             try {
                 const profile = buildProfileFromForm();
                 profileStore.saveProfile(profile);
+                const nextSettings = readSimulationSettingsForm();
+                if (simulationRemoteApiKey.value.trim()) {
+                    simulationSecretsStore.setSecret('remote-openai', simulationRemoteApiKey.value.trim());
+                    simulationRemoteApiKey.value = '';
+                }
+                await applySimulationSettings(nextSettings, { persist: true, announce: false });
                 closeProfileSetup();
-                await runGenerateToday();
+                await runGenerateDocument();
             } finally {
                 profileSaveBtn.disabled = false;
             }
         };
-        simulationSettingsProvider.onchange = () => {
-            const next = readSimulationSettingsForm();
-            renderSimulationSettingsStatus(simulation.getClientStatus(), next);
-        };
-        simulationSettingsModel.oninput = () => {
-            const next = readSimulationSettingsForm();
-            renderSimulationSettingsStatus(simulation.getClientStatus(), next);
+        profileAddContactBtn.onclick = () => {
+            appendProfileContact();
         };
         simulationRemoteEndpoint.oninput = () => {
             const next = readSimulationSettingsForm();
@@ -892,20 +1081,6 @@ Relevant to the East region overrun we are investigating. The section on procure
             simulationSecretsStore.clearSecret('remote-openai');
             simulationRemoteApiKey.value = '';
             renderSimulationSettingsStatus(simulation.getClientStatus(), simulationSettings);
-        };
-        simulationSettingsSaveBtn.onclick = async () => {
-            simulationSettingsSaveBtn.disabled = true;
-            try {
-                const nextSettings = readSimulationSettingsForm();
-                if (simulationRemoteApiKey.value.trim()) {
-                    simulationSecretsStore.setSecret('remote-openai', simulationRemoteApiKey.value.trim());
-                    simulationRemoteApiKey.value = '';
-                }
-                await applySimulationSettings(nextSettings, { persist: true, announce: true });
-                closeSimulationSettings();
-            } finally {
-                simulationSettingsSaveBtn.disabled = false;
-            }
         };
 
         policy.subscribe(() => {
@@ -932,65 +1107,14 @@ Relevant to the East region overrun we are investigating. The section on procure
         });
     </script>
 
-    <div class="settings-overlay" id="simulation-settings-overlay">
-        <div class="settings-modal">
-            <div class="settings-header">
-                <span class="settings-title">Simulation Settings</span>
-                <button class="manual-close" id="simulation-settings-close">&times;</button>
-            </div>
-            <div class="settings-body">
-                <p>Select the simulation provider for generated email, chat, and calendar data. <strong>Auto</strong> uses WebLLM on WebGPU-capable browsers and falls back to the in-memory generator elsewhere.</p>
-                <div class="settings-grid">
-                    <div class="settings-field wide">
-                        <label for="simulation-provider">Provider</label>
-                        <select id="simulation-provider">
-                            <option value="auto">Auto</option>
-                            <option value="webllm">WebLLM</option>
-                            <option value="remote-openai">Remote OpenAI-compatible API</option>
-                            <option value="in-memory">In-memory deterministic generator</option>
-                        </select>
-                    </div>
-                    <div class="settings-field wide">
-                        <label for="simulation-webllm-model">Preferred WebLLM model</label>
-                        <input id="simulation-webllm-model" type="text" placeholder="Leave blank to try SmolLM2-135M-Instruct, then TinyLlama-1.1B">
-                    </div>
-                    <div class="settings-field wide">
-                        <label for="simulation-remote-endpoint">Remote endpoint</label>
-                        <input id="simulation-remote-endpoint" type="text" placeholder="https://api.openai.com/v1/chat/completions">
-                    </div>
-                    <div class="settings-field wide">
-                        <label for="simulation-remote-model">Remote model</label>
-                        <input id="simulation-remote-model" type="text" placeholder="gpt-4.1-mini">
-                    </div>
-                    <div class="settings-field wide">
-                        <label for="simulation-remote-api-key">Remote API key</label>
-                        <input id="simulation-remote-api-key" type="password" placeholder="Enter a new API key to save">
-                        <p class="settings-note" id="simulation-remote-api-key-status">No saved API key.</p>
-                        <button class="profile-btn inline" id="simulation-remote-clear-key" type="button">Clear saved key</button>
-                    </div>
-                </div>
-                <div class="settings-panel">
-                    <div class="settings-panel-title">Provider status</div>
-                    <p class="settings-summary" id="simulation-settings-summary"></p>
-                    <p class="settings-status" id="simulation-settings-status"></p>
-                    <p class="settings-note">Blank model selection now tries SmolLM2-135M-Instruct first, then TinyLlama-1.1B. If both fail, Folio falls back to the in-memory simulation path.</p>
-                </div>
-                <div class="profile-actions">
-                    <button class="profile-btn" id="simulation-settings-close-secondary">Close</button>
-                    <button class="profile-btn primary" id="simulation-settings-save">Save settings</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="profile-overlay" id="profile-overlay">
         <div class="profile-modal">
             <div class="profile-header">
-                <span class="profile-title">Simulation Profile</span>
+                <span class="profile-title">Generate Document</span>
                 <button class="manual-close" id="profile-close">&times;</button>
             </div>
             <div class="profile-body">
-                <p>Folio can personalize generated email, chat, and calendar data from a simple work profile. This only affects the simulation layer.</p>
+                <p>Describe the person and context you want Folio to generate for. Saving this form will immediately create a new profile-specific document.</p>
                 <div class="profile-grid">
                     <div class="profile-field">
                         <label for="profile-name">Your name</label>
@@ -1002,44 +1126,68 @@ Relevant to the East region overrun we are investigating. The section on procure
                     </div>
                     <div class="profile-field">
                         <label for="profile-role">Your role</label>
-                        <input id="profile-role" type="text" placeholder="Product Lead">
+                        <input id="profile-role" type="text" placeholder="Finance analyst, artist, parent, consultant...">
                     </div>
                     <div class="profile-field">
                         <label for="profile-org">Organization</label>
-                        <input id="profile-org" type="text" placeholder="Example Ltd">
-                    </div>
-                    <div class="profile-field">
-                        <label for="profile-manager-name">Manager name</label>
-                        <input id="profile-manager-name" type="text" placeholder="Sara Chen">
-                    </div>
-                    <div class="profile-field">
-                        <label for="profile-manager-email">Manager email</label>
-                        <input id="profile-manager-email" type="email" placeholder="sara@example.com">
-                    </div>
-                    <div class="profile-field">
-                        <label for="profile-finance-name">Finance contact</label>
-                        <input id="profile-finance-name" type="text" placeholder="Finance Team">
-                    </div>
-                    <div class="profile-field">
-                        <label for="profile-finance-email">Finance email</label>
-                        <input id="profile-finance-email" type="email" placeholder="finance@example.com">
+                        <input id="profile-org" type="text" placeholder="Company, studio, household, community...">
                     </div>
                     <div class="profile-field wide">
-                        <label for="profile-project">Primary project</label>
-                        <input id="profile-project" type="text" placeholder="Q3 Hardware Budget">
+                        <label for="profile-bio">Bio</label>
+                        <textarea id="profile-bio" placeholder="A short description of your work, routines, and what tends to fill your days."></textarea>
+                    </div>
+                    <div class="profile-field wide">
+                        <label for="profile-interests">Interests</label>
+                        <input id="profile-interests" type="text" placeholder="budgeting, illustration, school planning, gardening...">
+                    </div>
+                    <div class="profile-field wide">
+                        <label for="profile-project">Primary focus or project</label>
+                        <input id="profile-project" type="text" placeholder="Q3 budget, gallery show, family planning, client work...">
                     </div>
                     <div class="profile-field">
-                        <label for="profile-finance-channel">Finance channel</label>
-                        <input id="profile-finance-channel" type="text" placeholder="#finance">
+                        <label for="profile-primary-channel">Primary channel</label>
+                        <input id="profile-primary-channel" type="text" placeholder="#general">
                     </div>
                     <div class="profile-field">
-                        <label for="profile-product-channel">Coordination channel</label>
-                        <input id="profile-product-channel" type="text" placeholder="#product">
+                        <label for="profile-secondary-channel">Secondary channel</label>
+                        <input id="profile-secondary-channel" type="text" placeholder="#updates">
+                    </div>
+                </div>
+                <div class="profile-section">
+                    <div class="profile-section-title">Contacts</div>
+                    <p class="profile-section-copy">Add the people who shape your day: coworkers, clients, collaborators, family, teachers, friends, or community members. Their roles help the generator produce more realistic email, chat, and calendar activity.</p>
+                    <div class="profile-contacts-list" id="profile-contacts-list"></div>
+                    <button class="profile-btn inline" id="profile-add-contact" type="button">Add contact</button>
+                </div>
+                <div class="profile-section">
+                    <div class="profile-section-title">Remote Provider</div>
+                    <p class="profile-section-copy">Folio generates mirrored data and full documents through a remote OpenAI-compatible API. These settings are saved with the generation flow.</p>
+                    <div class="settings-grid">
+                        <div class="settings-field wide">
+                            <label for="simulation-remote-endpoint">Remote endpoint</label>
+                            <input id="simulation-remote-endpoint" type="text" placeholder="https://api.openai.com/v1/chat/completions">
+                        </div>
+                        <div class="settings-field wide">
+                            <label for="simulation-remote-model">Remote model</label>
+                            <input id="simulation-remote-model" type="text" placeholder="gpt-4.1-mini">
+                        </div>
+                        <div class="settings-field wide">
+                            <label for="simulation-remote-api-key">Remote API key</label>
+                            <input id="simulation-remote-api-key" type="password" placeholder="Enter a new API key to save">
+                            <p class="settings-note" id="simulation-remote-api-key-status">No saved API key.</p>
+                            <button class="profile-btn inline" id="simulation-remote-clear-key" type="button">Clear saved key</button>
+                        </div>
+                    </div>
+                    <div class="settings-panel">
+                        <div class="settings-panel-title">Provider status</div>
+                        <p class="settings-summary" id="simulation-settings-summary"></p>
+                        <p class="settings-status" id="simulation-settings-status"></p>
+                        <p class="settings-note">If no API key is saved, generation will stop and ask you to configure the remote provider first.</p>
                     </div>
                 </div>
                 <div class="profile-actions">
                     <button class="profile-btn" id="profile-skip">Skip for now</button>
-                    <button class="profile-btn primary" id="profile-save">Save profile</button>
+                    <button class="profile-btn primary" id="profile-save">Generate document</button>
                 </div>
             </div>
         </div>
@@ -1064,9 +1212,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 <dt>Save</dt><dd>Download the current document as a <code>.folio.txt</code> file.</dd>
 <dt>Load</dt><dd>Open a previously saved document from disk.</dd>
 <dt>Clear persisted document</dt><dd>Remove all Folio local state stored in this browser, including saved documents, history, snapshots, and trust grants, then reload the app.</dd>
-<dt>Generate today</dt><dd>Populate the mock email, chat, and calendar backends using the selected simulation provider. In Auto mode Folio prefers WebLLM on WebGPU-capable browsers and falls back to the deterministic in-memory generator elsewhere.</dd>
-<dt>Simulation profile</dt><dd>Create or edit the profile that drives generated mirrored data. On first run Folio opens this automatically.</dd>
-<dt>Simulation settings</dt><dd>Select the generation provider, WebLLM preferences, or a remote OpenAI-compatible endpoint and model. Remote API keys are stored separately from the profile in a local secrets store.</dd>
+<dt>Generate document</dt><dd>Open one modal for both profile and remote provider settings, save them together, and immediately generate a new profile-specific Folio document.</dd>
 <dt>Trust document</dt><dd>Toggle whether the current document may access mirrored capabilities. Untrusted documents open with all mirrored access denied.</dd>
 </dl>
 
@@ -1074,7 +1220,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 <p>Folio keeps a per-document trust policy. Owned-state directives always run from document text. Mirrored directives and mirrored namespaces inside <code>::py</code> require both a trusted document and an explicit read grant such as <code>email.read</code> or <code>cal.read</code>. Marking a document untrusted clears its mirrored grants.</p>
 
 <h2>Inspection</h2>
-<p>The prototype exposes <code>window.folioDebug.store</code>, <code>window.folioDebug.policy</code>, <code>window.folioDebug.simulation</code>, <code>window.folioDebug.simulationProfileStore</code>, <code>window.folioDebug.simulationScenarioStore</code>, <code>window.folioDebug.simulationSecretsStore</code>, <code>window.folioDebug.simulationSettingsStore</code>, <code>window.folioDebug.simulationLLMClient</code>, <code>window.folioDebug.WebLLMSimulationLLMClient</code>, <code>window.folioDebug.OpenAICompatibleSimulationLLMClient</code>, and <code>window.folioDebug.openDocument(id)</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, <code>store.getSnapshots()</code>, <code>simulation.exportState()</code>, <code>simulationScenarioStore.getLedger()</code>, <code>simulationScenarioStore.getSnapshot(profileId)</code>, <code>simulationScenarioStore.listSnapshots()</code>, and <code>simulation.getClientStatus()</code> to inspect persisted state, saved mirrored-backend snapshots, and the active generation provider.</p>
+<p>The prototype exposes <code>window.folioDebug.store</code>, <code>window.folioDebug.policy</code>, <code>window.folioDebug.simulation</code>, <code>window.folioDebug.simulationProfileStore</code>, <code>window.folioDebug.simulationScenarioStore</code>, <code>window.folioDebug.simulationSecretsStore</code>, <code>window.folioDebug.simulationSettingsStore</code>, <code>window.folioDebug.simulationLLMClient</code>, <code>window.folioDebug.OpenAICompatibleSimulationLLMClient</code>, and <code>window.folioDebug.openDocument(id)</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, <code>store.getSnapshots()</code>, <code>simulation.exportState()</code>, <code>simulationScenarioStore.getLedger()</code>, <code>simulationScenarioStore.getSnapshot(profileId)</code>, <code>simulationScenarioStore.listSnapshots()</code>, and <code>simulation.getClientStatus()</code> to inspect persisted state, saved mirrored-backend snapshots, and the active generation provider.</p>
 
 <h2>Directives</h2>
 <p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer.</p>

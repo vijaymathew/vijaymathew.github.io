@@ -1,10 +1,5 @@
 const DEFAULT_SETTINGS = {
-  provider: 'auto',
-  webllm: {
-    model: '',
-    temperature: 0.7,
-    maxTokens: 900
-  },
+  provider: 'remote-openai',
   remote: {
     endpoint: 'https://api.openai.com/v1/chat/completions',
     model: 'gpt-4.1-mini',
@@ -52,12 +47,7 @@ export class SimulationSettingsStore {
 function mergeSettings(base, incoming) {
   const next = incoming && typeof incoming === 'object' ? incoming : {};
   return {
-    provider: next.provider || base.provider,
-    webllm: {
-      model: next.webllm?.model ?? base.webllm.model,
-      temperature: next.webllm?.temperature ?? base.webllm.temperature,
-      maxTokens: next.webllm?.maxTokens ?? base.webllm.maxTokens
-    },
+    provider: 'remote-openai',
     remote: {
       endpoint: next.remote?.endpoint ?? base.remote.endpoint,
       model: next.remote?.model ?? base.remote.model,
