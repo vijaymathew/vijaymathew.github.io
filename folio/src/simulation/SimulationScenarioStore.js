@@ -128,6 +128,7 @@ function normalizeScenario(scenario) {
   return {
     id: scenario.id || `scenario:${scenario.profile_id}`,
     profile_id: scenario.profile_id,
+    profile_signature: scenario.profile_signature || null,
     date: scenario.date || '',
     phase: scenario.phase || 'generated',
     facts: Array.isArray(scenario.facts) ? [...scenario.facts] : [],
