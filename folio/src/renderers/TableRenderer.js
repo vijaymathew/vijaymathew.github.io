@@ -22,7 +22,8 @@ export class TableRenderer extends RendererBase {
   get manifest() {
     return {
       type: 'table',
-      capabilities: ['query', 'mutate']
+      capabilities: ['query', 'mutate'],
+      trust: 'owned'
     };
   }
 

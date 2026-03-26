@@ -11,7 +11,12 @@ import { MockChatBackend } from '../backends/MockChatBackend.js';
  */
 export class ChatRenderer extends RendererBase {
   get manifest() {
-    return { type: 'chat', capabilities: ['query', 'mutate'] };
+    return {
+      type: 'chat',
+      capabilities: ['query', 'mutate'],
+      trust: 'mirrored',
+      grants: { render: 'chat.read', query: 'chat.read' }
+    };
   }
 
   async render(ctx) {

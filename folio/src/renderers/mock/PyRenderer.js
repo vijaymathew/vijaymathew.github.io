@@ -7,12 +7,13 @@ export class PyRenderer extends RendererBase {
   get manifest() {
     return {
       type: 'py',
-      capabilities: ['exec']
+      capabilities: ['exec'],
+      trust: 'owned'
     };
   }
 
   async render(ctx) {
-    const { id, body, bridge, params } = ctx;
+    const { id, body, bridge, params, policy } = ctx;
     const key = bridge.getBlockKey(ctx);
     const container = this.createWidgetContainer(`::py[${id}]`);
     const content = container.querySelector('.directive-body');
@@ -31,6 +32,14 @@ export class PyRenderer extends RendererBase {
       grantPill.textContent = `grants=${params.grants || params.allow}`;
       pills.appendChild(grantPill);
     }
+
+    const securityBar = document.createElement('div');
+    securityBar.style.padding = '10px 12px';
+    securityBar.style.borderTop = '.5px solid var(--rule2)';
+    securityBar.style.display = 'none';
+    securityBar.style.gap = '8px';
+    securityBar.style.alignItems = 'center';
+    securityBar.style.flexWrap = 'wrap';
 
     const codeArea = document.createElement('pre');
     codeArea.style.padding = '12px';
@@ -52,13 +61,48 @@ export class PyRenderer extends RendererBase {
     output.style.color = 'var(--ink)';
     output.style.minHeight = '20px';
     container.appendChild(output);
+    container.appendChild(securityBar);
 
     const renderState = () => {
       const state = bridge.getBlockState(key);
+      const security = bridge.getBlockSecurity(ctx);
+      securityBar.innerHTML = '';
+      securityBar.style.display = security.requested.length > 0 ? 'flex' : 'none';
+
+      if (security.requested.length > 0) {
+        const label = document.createElement('span');
+        label.className = 'directive-pill';
+        label.textContent = security.trusted ? 'trusted doc' : 'untrusted doc';
+        securityBar.appendChild(label);
+
+        if (!security.trusted) {
+          const trustBtn = document.createElement('button');
+          trustBtn.className = 'directive-pill active';
+          trustBtn.textContent = 'trust document';
+          trustBtn.onclick = () => policy?.setTrusted(true);
+          securityBar.appendChild(trustBtn);
+        }
+
+        for (const denied of security.denied) {
+          const grantBtn = document.createElement('button');
+          grantBtn.className = 'directive-pill';
+          grantBtn.textContent = denied.grant ? `grant ${denied.grant}` : `allow ${denied.namespace}`;
+          grantBtn.disabled = !security.trusted;
+          grantBtn.onclick = () => {
+            if (denied.grant) policy?.setGrant(denied.grant, true);
+          };
+          securityBar.appendChild(grantBtn);
+        }
+      }
 
       output.style.color = 'var(--ink)';
       if (!state || state.status === 'manual') {
         output.textContent = '(manual block — click run to evaluate in document context)';
+        return;
+      }
+      if (state.status === 'denied') {
+        output.style.color = 'var(--warn-text)';
+        output.textContent = state.error || 'Capability access denied.';
         return;
       }
       if (state.status === 'blocked') {
@@ -74,10 +118,17 @@ export class PyRenderer extends RendererBase {
       output.textContent = state.stdout || '(no output)';
     };
 
-    const unsubscribe = bridge.subscribe(() => {
-      renderState();
-    });
-    container.__cleanup = unsubscribe;
+    const unsubscribes = [
+      bridge.subscribe(() => {
+        renderState();
+      }),
+      policy?.subscribe?.(() => {
+        renderState();
+      })
+    ].filter(Boolean);
+    container.__cleanup = () => {
+      unsubscribes.forEach((fn) => fn());
+    };
 
     runBtn.onclick = async () => {
       output.style.color = 'var(--ink)';

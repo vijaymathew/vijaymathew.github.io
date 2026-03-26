@@ -26,7 +26,12 @@ const webCache = new Map();
 
 export class WebRenderer extends RendererBase {
   get manifest() {
-    return { type: 'web', capabilities: ['query'] };
+    return {
+      type: 'web',
+      capabilities: ['query'],
+      trust: 'mirrored',
+      grants: { render: 'web.read', query: 'web.read' }
+    };
   }
 
   async render(ctx) {

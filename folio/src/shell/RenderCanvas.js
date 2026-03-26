@@ -70,11 +70,11 @@ export class RenderCanvas {
    * @param {DirectiveDescriptor[]} index
    * @param {NamespaceBridge} bridge
    */
-  update(text, index, bridge) {
+  update(text, index, bridge, forceRebuild = false) {
     this.bridge = bridge;
     const next = this._buildSegments(text, index);
 
-    if (this._structurallyEqual(next)) {
+    if (!forceRebuild && this._structurallyEqual(next)) {
       // Layout unchanged — patch prose and descriptors in-place, leave widgets alone.
       this._patchProse(next);
       this._patchDirectives(next);
@@ -335,10 +335,19 @@ export class RenderCanvas {
     const ctx = {
       ...descriptor,
       syncBus: this.syncBus,
-      bridge: this.bridge
+      bridge: this.bridge,
+      policy: this.registry.policy
     };
 
     try {
+      const auth = this.registry.authorize(descriptor.type, 'render');
+      if (!auth.allowed) {
+        element.innerHTML = '';
+        element.appendChild(this._buildCapabilityGate(descriptor, auth));
+        widget.live = true;
+        return;
+      }
+
       const liveEl = await renderer.render(ctx);
       element.innerHTML = '';
       element.appendChild(liveEl);
@@ -421,5 +430,68 @@ export class RenderCanvas {
     });
 
     element.appendChild(pre);
+  }
+
+  _buildCapabilityGate(descriptor, auth) {
+    const container = document.createElement('div');
+    container.className = 'directive-widget';
+
+    const header = document.createElement('div');
+    header.className = 'directive-header';
+
+    const tag = document.createElement('span');
+    tag.className = 'directive-tag';
+    tag.textContent = `::${descriptor.type}[${descriptor.id}]`;
+    header.appendChild(tag);
+
+    const pills = document.createElement('div');
+    pills.className = 'directive-pills';
+    header.appendChild(pills);
+    container.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'directive-body';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '10px';
+
+    const message = document.createElement('div');
+    message.style.fontFamily = 'var(--sans)';
+    message.style.fontSize = '13px';
+    message.style.color = 'var(--ink2)';
+    message.textContent = auth.reason === 'untrusted-document'
+      ? 'This directive is mirrored state. Trust the document before Folio will read remote data.'
+      : `Missing capability grant: ${auth.grant}.`;
+    body.appendChild(message);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+    actions.style.flexWrap = 'wrap';
+
+    if (auth.reason === 'untrusted-document') {
+      const trustBtn = document.createElement('button');
+      trustBtn.className = 'directive-pill active';
+      trustBtn.textContent = 'trust document';
+      trustBtn.onclick = () => {
+        this.registry.policy?.setTrusted(true);
+      };
+      actions.appendChild(trustBtn);
+    }
+
+    if (auth.grant) {
+      const grantBtn = document.createElement('button');
+      grantBtn.className = 'directive-pill';
+      grantBtn.textContent = `grant ${auth.grant}`;
+      grantBtn.disabled = auth.reason === 'untrusted-document';
+      grantBtn.onclick = () => {
+        this.registry.policy?.setGrant(auth.grant, true);
+      };
+      actions.appendChild(grantBtn);
+    }
+
+    body.appendChild(actions);
+    container.appendChild(body);
+    return container;
   }
 }
