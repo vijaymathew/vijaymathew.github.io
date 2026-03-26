@@ -1,6 +1,8 @@
 import { MockEmailBackend } from '../backends/MockEmailBackend.js';
 import { MockChatBackend } from '../backends/MockChatBackend.js';
 import { MockCalBackend } from '../backends/MockCalBackend.js';
+import { SimulationDocumentNormalizer } from './SimulationDocumentNormalizer.js';
+import { SimulationDocumentPromptBuilder } from './SimulationDocumentPromptBuilder.js';
 import { SimulationPromptBuilder } from './SimulationPromptBuilder.js';
 import { SimulationNormalizer } from './SimulationNormalizer.js';
 
@@ -20,6 +22,8 @@ export class SimulationCoordinator {
     this.scenarioStore = opts.scenarioStore || null;
     this.promptBuilder = opts.promptBuilder || new SimulationPromptBuilder();
     this.normalizer = opts.normalizer || new SimulationNormalizer();
+    this.documentPromptBuilder = opts.documentPromptBuilder || new SimulationDocumentPromptBuilder();
+    this.documentNormalizer = opts.documentNormalizer || new SimulationDocumentNormalizer();
     this.llmClient = opts.llmClient || null;
     this.now = opts.now || (() => new Date().toISOString());
   }
@@ -99,7 +103,8 @@ export class SimulationCoordinator {
     return this.exportState();
   }
 
-  applyNormalizedGeneration(result = {}) {
+  applyNormalizedGeneration(result = {}, options = {}) {
+    const replace = options.replace === true;
     const summary = {
       timestamp: this.now(),
       surfaces: [],
@@ -110,13 +115,24 @@ export class SimulationCoordinator {
       }
     };
 
-    if (result.email?.length) {
+    if (replace) {
+      this.emailBackend.reset(result.email || []);
+      this.chatBackend.reset(result.chat || {});
+      this.calBackend.reset(result.cal || []);
+    } else if (result.email?.length) {
       this.emailBackend.upsertMessages(result.email);
       summary.surfaces.push('email');
       summary.counts.email = result.email.length;
     }
 
-    if (result.chat) {
+    if (replace) {
+      summary.counts.email = Array.isArray(result.email) ? result.email.length : 0;
+      summary.counts.chat = Object.values(result.chat || {}).reduce((count, items) => count + items.length, 0);
+      summary.counts.cal = Array.isArray(result.cal) ? result.cal.length : 0;
+      if (summary.counts.email > 0) summary.surfaces.push('email');
+      if (summary.counts.chat > 0) summary.surfaces.push('chat');
+      if (summary.counts.cal > 0) summary.surfaces.push('cal');
+    } else if (result.chat) {
       let count = 0;
       for (const [channel, messages] of Object.entries(result.chat)) {
         this.chatBackend.upsertMessages(channel, messages);
@@ -128,7 +144,7 @@ export class SimulationCoordinator {
       }
     }
 
-    if (result.cal?.length) {
+    if (!replace && result.cal?.length) {
       this.calBackend.upsertEvents(result.cal);
       summary.surfaces.push('cal');
       summary.counts.cal = result.cal.length;
@@ -161,7 +177,7 @@ export class SimulationCoordinator {
     }
 
     const date = context.date || this._localDateString();
-    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const existing = this._getCompatibleScenario(profile);
     const prompt = this.promptBuilder.buildDayPrompt(profile, existing, {
       date,
       now: this.now()
@@ -185,7 +201,7 @@ export class SimulationCoordinator {
       date,
       prompt
     });
-    const applied = this.applyNormalizedGeneration(normalized);
+    const applied = this.applyNormalizedGeneration(normalized, { replace: true });
 
     this._recordGeneration(profile, normalized.scenario, applied, {
       operation: 'generateDay',
@@ -236,7 +252,7 @@ export class SimulationCoordinator {
     if (!profile) return this._missingProfile('generateInbox');
 
     const date = context.date || this._localDateString();
-    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const existing = this._getCompatibleScenario(profile);
     const prompt = this.promptBuilder.buildInboxPrompt(profile, existing, {
       date,
       now: this.now()
@@ -315,7 +331,7 @@ export class SimulationCoordinator {
     if (!profile) return this._missingProfile('generateChannel');
 
     const date = context.date || this._localDateString();
-    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const existing = this._getCompatibleScenario(profile);
     const prompt = this.promptBuilder.buildChatPrompt(profile, existing, {
       date,
       channelId,
@@ -395,7 +411,7 @@ export class SimulationCoordinator {
     if (!profile) return this._missingProfile('generateCalendar');
 
     const date = context.date || this._localDateString();
-    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const existing = this._getCompatibleScenario(profile);
     const prompt = this.promptBuilder.buildCalendarPrompt(profile, existing, {
       date,
       calendarId,
@@ -475,7 +491,7 @@ export class SimulationCoordinator {
     if (!profile) return this._missingProfile('generateDayPlan');
 
     const date = context.date || this._localDateString();
-    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const existing = this._getCompatibleScenario(profile);
     const prompt = this.promptBuilder.buildDayPlanPrompt(profile, existing, {
       date,
       now: this.now()
@@ -543,7 +559,7 @@ export class SimulationCoordinator {
     }
     if (!profile) return this._missingProfile('advanceTimeline');
 
-    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const existing = this._getCompatibleScenario(profile);
     const baseDate = context.date || existing?.date || this._localDateString();
     const nextDate = shiftDate(baseDate, delta);
     const prompt = this.promptBuilder.buildAdvanceTimelinePrompt(profile, existing, {
@@ -570,7 +586,7 @@ export class SimulationCoordinator {
       date: nextDate,
       prompt
     });
-    const applied = this.applyNormalizedGeneration(normalized);
+    const applied = this.applyNormalizedGeneration(normalized, { replace: true });
 
     this._recordGeneration(profile, normalized.scenario, applied, {
       operation: 'advanceTimeline',
@@ -610,11 +626,115 @@ export class SimulationCoordinator {
     };
   }
 
+  async generateDocument(context = {}) {
+    const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'generateDocument',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
+    if (!profile) return this._missingProfile('generateDocument');
+
+    const date = context.date || this._localDateString();
+    const available = typeof this.llmClient.isAvailable === 'function'
+      ? await this.llmClient.isAvailable()
+      : true;
+    if (!available) {
+      return {
+        status: 'error',
+        operation: 'generateDocument',
+        timestamp: this.now(),
+        error: `${this.getClientInfo().label || 'Selected client'} is not available in this environment.`
+      };
+    }
+
+    const dayResult = context.refreshMirrored === false
+      ? null
+      : await this.generateDay({ ...context, profile, date });
+    if (dayResult && dayResult.status !== 'generated') {
+      return dayResult;
+    }
+
+    const scenario = dayResult?.scenario
+      || this._getCompatibleScenario(profile)
+      || {
+        id: `scenario:${profile.id}:${date}`,
+        profile_id: profile.id,
+        profile_signature: profile.signature || null,
+        date,
+        phase: 'generated-document',
+        facts: [],
+        threads: [],
+        open_loops: []
+      };
+
+    const prompt = this.documentPromptBuilder.buildDocumentPrompt(profile, scenario, {
+      date,
+      exampleDocument: context.exampleDocument || ''
+    });
+    const raw = await this.llmClient.generate(prompt);
+    const documentSpec = this.documentNormalizer.normalizeDocumentResult(raw, {
+      profile,
+      scenario,
+      date,
+      prompt
+    });
+    const text = this.documentNormalizer.compileDocument(documentSpec, {
+      profile,
+      scenario,
+      date
+    });
+
+    this._recordOperation(profile, scenario, {
+      operation: 'generateDocument',
+      prompt,
+      surface: prompt.context?.surface || { kind: 'document' },
+      inputSummary: {
+        date,
+        contacts: (profile.contacts || []).length,
+        threadId: documentSpec.mirrored?.threadId || null,
+        chatChannel: documentSpec.mirrored?.chatChannel || null,
+        surface: prompt.context?.surface || { kind: 'document' }
+      },
+      outputIds: [
+        ...(documentSpec.contacts || []).map((contact) => contact.id),
+        ...(documentSpec.tasks || []).map((task) => task.id)
+      ],
+      outputCounts: {
+        email: dayResult?.summary?.counts?.email || 0,
+        chat: dayResult?.summary?.counts?.chat || 0,
+        cal: dayResult?.summary?.counts?.cal || 0
+      }
+    });
+
+    return {
+      status: 'generated',
+      operation: 'generateDocument',
+      timestamp: this.now(),
+      profile,
+      prompt,
+      raw,
+      scenario,
+      document: documentSpec,
+      text,
+      mirrored: dayResult?.generated || null,
+      summary: dayResult?.summary || null,
+      snapshot: dayResult?.snapshot || null
+    };
+  }
+
   _recordGeneration(profile, scenario, applied, details = {}) {
-    this.scenarioStore?.saveScenario?.(scenario);
+    const nextScenario = {
+      ...scenario,
+      profile_signature: profile.signature || scenario.profile_signature || null
+    };
+    this.scenarioStore?.saveScenario?.(nextScenario);
     const savedSnapshot = this.scenarioStore?.saveSnapshot?.({
       profile_id: profile.id,
-      scenario_id: scenario.id,
+      scenario_id: nextScenario.id,
       operation: details.operation,
       timestamp: this.now(),
       prompt_version: details.prompt?.promptVersion || null,
@@ -622,7 +742,7 @@ export class SimulationCoordinator {
       summary: details.summary || applied.summary || null,
       snapshot: applied.snapshot
     });
-    this._recordOperation(profile, scenario, {
+    this._recordOperation(profile, nextScenario, {
       ...details,
       snapshotId: savedSnapshot?.id || null
     });
@@ -630,7 +750,10 @@ export class SimulationCoordinator {
   }
 
   _recordOperation(profile, scenario, details = {}) {
-    this.scenarioStore?.saveScenario?.(scenario);
+    this.scenarioStore?.saveScenario?.({
+      ...scenario,
+      profile_signature: profile.signature || scenario.profile_signature || null
+    });
     this.scenarioStore?.appendLedger?.({
       profile_id: profile.id,
       scenario_id: scenario.id,
@@ -684,6 +807,14 @@ export class SimulationCoordinator {
 
   _localDateString() {
     return this.now().slice(0, 10);
+  }
+
+  _getCompatibleScenario(profile) {
+    const scenario = this.scenarioStore?.getScenario?.(profile.id);
+    if (!scenario) return null;
+    if (!profile?.signature) return scenario;
+    if (!scenario.profile_signature) return null;
+    return scenario.profile_signature === profile.signature ? scenario : null;
   }
 }
 
