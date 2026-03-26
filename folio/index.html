@@ -68,18 +68,12 @@
 Picked up where Friday left off — the Q3 analysis is nearly done, just needs the hardware line clarified with finance before I can send it to Sara.
 
 ::cal[today]{view=agenda}
-title="Q3 Hardware Sync" time=09:00 duration=60min type=internal status=pending
-title="Lunch with Sara" time=11:30 duration=60min type=external status=accepted
-title="Finance Review" time=14:00 duration=30min type=internal status=pending
 ::end
 
 ::email[inbox]{filter=unread priority=high}
 ::end
 
 ::email[thread-q3-budget]{limit=3}
-from=sara@example.com subject="Q3 Hardware Budget" date=2026-03-22T10:15
-from=finance@folio.local subject="Re: Q3 Hardware Budget" date=2026-03-22T14:30
-from=sara@example.com subject="Re: Q3 Hardware Budget" date=2026-03-23T09:00
 ::end
 
 ::contact[sara.chen]
@@ -125,9 +119,6 @@ print(f"Total Overrun: {sum(a-b for a,b in zip(actuals,budget)):+,}")
 ::file[~/docs/q3-hardware-report.pdf]{preview=true}
 
 ::chat[#finance]{limit=5}
-user=sara.chen text="Has anyone got the Q3 hardware numbers yet?" time=08:45
-user=rohan.m text="Working on it — the East region looks off" time=08:52
-user=sara.chen text="Let me know when it's ready, board deck deadline is Thursday" time=09:01
 ::end
 
 ::web[https://example.com/hardware-budget-variance]{view=reader}
@@ -309,8 +300,8 @@ Relevant to the East region overrun we are investigating. The section on procure
             <div class="manual-body">
 
 <h2>What is Folio?</h2>
-<p>Folio is a document-based personal computing environment. Instead of switching between separate apps for calendar, email, tasks, notes, and spreadsheets, everything lives in a single text document. The left pane shows the raw text; the right pane renders it as live, interactive widgets.</p>
-<p>Every change you make &mdash; checking a task, editing a table cell, sending an email reply &mdash; is a text edit. Your document is the source of truth, saved automatically to your browser, and downloadable as a plain text file.</p>
+<p>Folio is a document-based personal computing environment. Owned state such as tasks, notes, tables, and local computation lives directly in the text document. Mirrored state such as calendar, email, and chat is projected into that document so you can act on it in context without pretending the remote backend lives in the file.</p>
+<p>Every change you make &mdash; checking a task, editing a table cell, filing an email, accepting a calendar event &mdash; becomes a text edit. For owned state, the document is the system of record. For mirrored state, the document keeps the projection parameters, local notes, and a durable journal of what you did.</p>
 
 <h2>Toolbar</h2>
 <dl>
@@ -323,9 +314,8 @@ Relevant to the East region overrun we are investigating. The section on procure
 <p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer.</p>
 
 <h3>::cal &mdash; Calendar</h3>
-<p>Renders an agenda of events. Each event is a body line with <code>title=</code>, <code>time=</code>, <code>duration=</code>, <code>type=</code>, and <code>status=</code>. Pending events show <strong>accept</strong> / <strong>decline</strong> buttons; clicking one updates the event in the text and appends a log entry.</p>
+<p>Renders an agenda from the calendar backend. The directive line selects the projection; the body stores only local log lines and sync annotations. Pending events show <strong>accept</strong> / <strong>decline</strong> buttons; clicking one updates the backend first, then journals the confirmed action into the document.</p>
 <pre>::cal[today]{view=agenda}
-title="Team sync" time=09:00 duration=30min type=internal status=pending
 ::end</pre>
 
 <h3>::email &mdash; Email</h3>
@@ -368,9 +358,9 @@ print(sum(d['q1'] for d in data))
 <pre>::file[~/docs/report.pdf]{preview=true}</pre>
 
 <h3>::chat &mdash; Chat</h3>
-<p>A slice of a chat channel. Messages are body lines with <code>user=</code>, <code>text=</code>, <code>time=</code>. Type a message and click <strong>Send</strong> to post (appends a log line). Hover a message and click <strong>promote</strong> to write it as prose below the embed.</p>
+<p>A slice of a chat channel from the chat backend. The directive body stores only document-local log lines such as posted or promoted actions. Type a message and click <strong>Send</strong> to post to the backend and append a journal line; click <strong>promote</strong> to write a message out as prose below the embed.</p>
 <pre>::chat[#design]{limit=5}
-user=sara text="Ready for review?" time=09:15
+posted to #design: "Ready for review?" — 09:15
 ::end</pre>
 
 <h3>::web &mdash; Web Clips</h3>
@@ -384,7 +374,8 @@ My notes on this article.
 
 <h2>Key Principles</h2>
 <ul>
-<li><strong>Text is truth</strong> &mdash; the raw text in the left pane is always the canonical state.</li>
+<li><strong>Owned state lives in text</strong> &mdash; tasks, notes, tables, and local computation are canonical in the document.</li>
+<li><strong>Mirrored state is journaled in text</strong> &mdash; calendar, email, and chat remain canonical in their backends while the document records your context and actions.</li>
 <li><strong>Every action is a text edit</strong> &mdash; checking a task, sending a reply, filing an email all modify the document.</li>
 <li><strong>Graceful degradation</strong> &mdash; directives are readable as plain text, even without a renderer.</li>
 <li><strong>Auto-saved</strong> &mdash; every change persists to browser local storage automatically.</li>
