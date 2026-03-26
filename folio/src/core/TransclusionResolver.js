@@ -1,10 +1,12 @@
 const BLOCK_TYPES = new Set(['py', 'table', 'email', 'cal', 'note', 'contact', 'chat', 'web']);
 
-export function resolveNoteTransclusion(descriptor, text, index, visited = new Set()) {
+export function resolveNoteTransclusion(descriptor, text, index, options = {}, visited = new Set()) {
+  const currentDocumentId = options.currentDocumentId || 'current';
   const inlineText = (descriptor.body || []).join('\n');
   const sourceRef = descriptor.params.source || descriptor.params.target || '';
+  const sourceDocumentId = descriptor.params['source-doc'] || currentDocumentId;
   const field = descriptor.params.field || '';
-  const visitKey = `${descriptor.type}:${descriptor.id}@${descriptor.lineStart}`;
+  const visitKey = `${currentDocumentId}:${descriptor.type}:${descriptor.id}@${descriptor.lineStart}`;
 
   if (visited.has(visitKey)) {
     return {
@@ -13,6 +15,7 @@ export function resolveNoteTransclusion(descriptor, text, index, visited = new S
       text: '',
       error: `Transclusion cycle detected at ${descriptor.type}:${descriptor.id}`,
       source: sourceRef || null,
+      sourceDocumentId,
       field: field || null,
       sourceDescriptor: null,
       location: null
@@ -26,6 +29,7 @@ export function resolveNoteTransclusion(descriptor, text, index, visited = new S
       text: inlineText,
       error: null,
       source: null,
+      sourceDocumentId: currentDocumentId,
       field: null,
       sourceDescriptor: descriptor,
       location: { kind: 'body' }
@@ -40,13 +44,35 @@ export function resolveNoteTransclusion(descriptor, text, index, visited = new S
       text: '',
       error: `Invalid transclusion source "${sourceRef}". Use type:id.`,
       source: sourceRef,
+      sourceDocumentId,
       field: field || null,
       sourceDescriptor: null,
       location: null
     };
   }
 
-  const target = index.find((item) => item.type === source.type && item.id === source.id);
+  let targetText = text;
+  let targetIndex = index;
+  if (sourceDocumentId !== currentDocumentId) {
+    const targetDoc = options.store?.getDocument(sourceDocumentId);
+    if (!targetDoc) {
+      return {
+        id: descriptor.id,
+        mode: 'error',
+        text: '',
+        error: `Missing source document ${sourceDocumentId}.`,
+        source: sourceRef,
+        sourceDocumentId,
+        field: field || null,
+        sourceDescriptor: null,
+        location: null
+      };
+    }
+    targetText = targetDoc.text;
+    targetIndex = options.parser.parse(targetDoc.text);
+  }
+
+  const target = targetIndex.find((item) => item.type === source.type && item.id === source.id);
   if (!target) {
     return {
       id: descriptor.id,
@@ -54,6 +80,7 @@ export function resolveNoteTransclusion(descriptor, text, index, visited = new S
       text: '',
       error: `Missing transclusion source ${sourceRef}.`,
       source: sourceRef,
+      sourceDocumentId,
       field: field || null,
       sourceDescriptor: null,
       location: null
@@ -61,11 +88,18 @@ export function resolveNoteTransclusion(descriptor, text, index, visited = new S
   }
 
   if (target.type === 'note' && !field) {
-    const nested = resolveNoteTransclusion(target, text, index, new Set([...visited, visitKey]));
+    const nested = resolveNoteTransclusion(
+      target,
+      targetText,
+      targetIndex,
+      { ...options, currentDocumentId: sourceDocumentId },
+      new Set([...visited, visitKey])
+    );
     return {
       ...nested,
       id: descriptor.id,
       source: sourceRef,
+      sourceDocumentId,
       field: field || nested.field || null,
       targetType: target.type,
       targetId: target.id
@@ -79,6 +113,7 @@ export function resolveNoteTransclusion(descriptor, text, index, visited = new S
     text: resolved.text,
     error: resolved.error || null,
     source: sourceRef,
+    sourceDocumentId,
     field: field || null,
     sourceDescriptor: target,
     location: resolved.location,
@@ -92,11 +127,13 @@ export function buildTransclusionPatch(resolved, newText) {
 
   const target = resolved.sourceDescriptor;
   const nextText = newText ?? '';
+  const targetDocId = resolved.sourceDocumentId || 'current';
 
   switch (resolved.location.kind) {
     case 'body': {
       const nextBody = nextText.split('\n');
       return {
+        targetDocId,
         lineStart: target.lineStart,
         lineEnd: target.lineEnd,
         text: serializeBlockDirective(target, nextBody)
@@ -105,6 +142,7 @@ export function buildTransclusionPatch(resolved, newText) {
     case 'param': {
       const nextParams = { ...target.params, [resolved.location.field]: flattenToInlineValue(nextText) };
       return {
+        targetDocId,
         lineStart: target.lineStart,
         lineEnd: target.lineEnd,
         text: serializeDescriptor(target, nextParams, target.body || [])
@@ -114,9 +152,18 @@ export function buildTransclusionPatch(resolved, newText) {
       const lines = [...(target.body || [])];
       lines[resolved.location.lineOffset] = `${resolved.location.field} = ${flattenToInlineValue(nextText)}`;
       return {
+        targetDocId,
         lineStart: target.lineStart,
         lineEnd: target.lineEnd,
         text: serializeDescriptor(target, target.params, lines)
+      };
+    }
+    case 'raw-line': {
+      return {
+        targetDocId,
+        lineStart: target.lineStart,
+        lineEnd: target.lineEnd,
+        text: nextText
       };
     }
     default:
@@ -150,8 +197,15 @@ function extractTranscludedText(target, field) {
 
     return {
       text: target.raw || '',
-      error: `Source ${target.type}:${target.id} has no editable body.`,
-      location: null
+      error: null,
+      location: { kind: 'raw-line' }
+    };
+  }
+
+  if (field === 'raw') {
+    return {
+      text: target.raw || '',
+      location: { kind: 'raw-line' }
     };
   }
 
