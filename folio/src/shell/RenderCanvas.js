@@ -293,7 +293,6 @@ export class RenderCanvas {
     editor.spellcheck = false;
     editor.value = text;
     editor.placeholder = '(empty)';
-    this._autosizeTextSurface(editor);
 
     editor.addEventListener('input', () => {
       this._autosizeTextSurface(editor);
@@ -321,6 +320,7 @@ export class RenderCanvas {
     });
 
     el.appendChild(editor);
+    this._mountAutosizedTextSurface(editor);
   }
 
   // ── viewport observation ────────────────────────────────────
@@ -447,7 +447,6 @@ export class RenderCanvas {
       text += '\n' + descriptor.body.join('\n') + '\n::end';
     }
     textarea.value = text;
-    this._autosizeTextSurface(textarea);
 
     textarea.addEventListener('input', () => {
       this._autosizeTextSurface(textarea);
@@ -471,11 +470,21 @@ export class RenderCanvas {
     });
 
     element.appendChild(textarea);
+    this._mountAutosizedTextSurface(textarea);
   }
 
   _autosizeTextSurface(el) {
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
+  }
+
+  _mountAutosizedTextSurface(el) {
+    this._autosizeTextSurface(el);
+    requestAnimationFrame(() => {
+      if (el.isConnected) {
+        this._autosizeTextSurface(el);
+      }
+    });
   }
 
   _buildCapabilityGate(descriptor, auth) {

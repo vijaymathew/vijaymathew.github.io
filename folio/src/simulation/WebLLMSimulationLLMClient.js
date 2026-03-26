@@ -1,7 +1,7 @@
 import { SimulationLLMClient } from './SimulationLLMClient.js';
 
 const WEBLLM_CDN_URL = 'https://esm.run/@mlc-ai/web-llm';
-const DEFAULT_MODEL_LABEL = 'lightweight default prebuilt model';
+const DEFAULT_MODEL_LABEL = 'SmolLM2-135M-Instruct, then TinyLlama-1.1B';
 
 /**
  * Browser-native local inference client using WebLLM.
@@ -191,7 +191,7 @@ export class WebLLMSimulationLLMClient extends SimulationLLMClient {
         }
       }
 
-      throw new Error(errors.join(' | '));
+      throw new Error(`WebLLM default candidates failed. ${errors.join(' | ')}`);
     } catch (err) {
       this._setStatus({
         phase: 'error',
@@ -207,20 +207,8 @@ export class WebLLMSimulationLLMClient extends SimulationLLMClient {
   _pickDefaultModels(webllm) {
     const modelList = webllm?.prebuiltAppConfig?.model_list || [];
     const preferredSubstrings = [
-      'Qwen2.5-0.5B-Instruct-q4f32_1',
-      'Qwen2.5-0.5B-Instruct-q4f16_1',
-      'Qwen2.5-0.5B-Instruct',
-      'Phi-3-mini-4k-instruct-q4f32_1',
-      'Phi-3-mini-4k-instruct-q4f16_1',
-      'Phi-3-mini',
-      'Qwen2.5-1.5B-Instruct-q4f32_1',
-      'Qwen2.5-1.5B-Instruct-q4f16_1',
-      'Qwen2.5-1.5B-Instruct',
-      'Llama-3.2-1B-Instruct-q4f32_1',
-      'Llama-3.2-1B-Instruct-q4f16_1',
-      'Llama-3.2-1B-Instruct',
-      'Phi-3.5-mini',
-      'Gemma-2-2B'
+      'SmolLM2-135M-Instruct',
+      'TinyLlama-1.1B'
     ];
     const picked = [];
     const seen = new Set();
@@ -236,15 +224,10 @@ export class WebLLMSimulationLLMClient extends SimulationLLMClient {
       }
     }
 
-    const first = modelList[0];
-    const firstModel = first?.model_id || first?.model;
     if (picked.length > 0) {
       return picked;
     }
-    if (!firstModel) {
-      throw new Error('WebLLM did not expose any prebuilt models.');
-    }
-    return [firstModel];
+    throw new Error('WebLLM did not expose SmolLM2-135M-Instruct or TinyLlama-1.1B as prebuilt models.');
   }
 
   _buildMessages(prompt) {
