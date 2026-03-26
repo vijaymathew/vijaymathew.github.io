@@ -1,6 +1,7 @@
 import { SimulationLLMClient } from './SimulationLLMClient.js';
 
 const WEBLLM_CDN_URL = 'https://esm.run/@mlc-ai/web-llm';
+const DEFAULT_MODEL_LABEL = 'lightweight default prebuilt model';
 
 /**
  * Browser-native local inference client using WebLLM.
@@ -20,6 +21,12 @@ export class WebLLMSimulationLLMClient extends SimulationLLMClient {
     this.webllm = null;
     this.engine = null;
     this.activeModel = null;
+    this._setStatus({
+      phase: 'idle',
+      ready: false,
+      available: null,
+      message: 'WebLLM selected. Model loads on first generation.'
+    });
   }
 
   getClientInfo() {
@@ -32,75 +39,212 @@ export class WebLLMSimulationLLMClient extends SimulationLLMClient {
     };
   }
 
-  async isAvailable() {
+  static browserSupportsWebGPU() {
     return typeof window !== 'undefined'
       && typeof navigator !== 'undefined'
       && !!navigator.gpu;
   }
 
+  async isAvailable() {
+    const available = WebLLMSimulationLLMClient.browserSupportsWebGPU();
+    this._setStatus({
+      phase: available ? (this.engine ? 'ready' : 'idle') : 'unavailable',
+      ready: !!this.engine,
+      available,
+      message: available
+        ? (this.engine
+          ? `WebLLM ready with ${this.activeModel || this.model || 'selected model'}.`
+          : `WebLLM available. ${this.model || DEFAULT_MODEL_LABEL} will initialize on first generation.`)
+        : 'WebLLM requires a browser with WebGPU support.'
+    });
+    return available;
+  }
+
   async generate(prompt) {
     if (!(await this.isAvailable())) {
+      this._setStatus({
+        phase: 'error',
+        ready: false,
+        available: false,
+        message: 'WebLLM requires a browser with WebGPU support.'
+      });
       throw new Error('WebLLM requires a browser with WebGPU support.');
     }
 
     await this._ensureEngine();
-    const messages = this._buildMessages(prompt);
-    const reply = await this.engine.chat.completions.create({
-      messages,
-      temperature: this.temperature,
-      max_tokens: this.maxTokens,
-      response_format: { type: 'json_object' }
+    this._setStatus({
+      phase: 'generating',
+      ready: true,
+      available: true,
+      message: `Generating with WebLLM (${this.activeModel}).`
     });
-
-    const text = reply?.choices?.[0]?.message?.content || '{}';
+    const messages = this._buildMessages(prompt);
     try {
-      return JSON.parse(text);
+      const reply = await this.engine.chat.completions.create({
+        messages,
+        temperature: this.temperature,
+        max_tokens: this.maxTokens,
+        response_format: { type: 'json_object' }
+      });
+
+      const text = reply?.choices?.[0]?.message?.content || '{}';
+      const parsed = JSON.parse(text);
+      this._setStatus({
+        phase: 'ready',
+        ready: true,
+        available: true,
+        message: `WebLLM ready with ${this.activeModel}.`
+      });
+      return parsed;
     } catch (err) {
-      throw new Error(`WebLLM returned non-JSON output: ${err.message}`);
+      this._setStatus({
+        phase: 'error',
+        ready: false,
+        available: true,
+        message: `WebLLM generation failed: ${err.message}`
+      });
+      throw err.message?.includes('JSON')
+        ? err
+        : new Error(`WebLLM generation failed: ${err.message}`);
     }
   }
 
   async _ensureEngine() {
-    if (this.engine) return this.engine;
-
-    if (!this.webllm) {
-      this.webllm = await import(/* @vite-ignore */ this.cdnUrl);
+    if (this.engine) {
+      this._setStatus({
+        phase: 'ready',
+        ready: true,
+        available: true,
+        message: `WebLLM ready with ${this.activeModel}.`
+      });
+      return this.engine;
     }
 
-    const model = this.model || this._pickDefaultModel(this.webllm);
-    this.activeModel = model;
-    this.engine = await this.webllm.CreateMLCEngine(model, {
-      ...this.engineConfig,
-      initProgressCallback: this.initProgressCallback || this.engineConfig.initProgressCallback
-    });
-    return this.engine;
+    try {
+      if (!this.webllm) {
+        this._setStatus({
+          phase: 'loading-runtime',
+          ready: false,
+          available: true,
+          message: 'Loading WebLLM runtime.'
+        });
+        this.webllm = await import(/* @vite-ignore */ this.cdnUrl);
+      }
+
+      const candidates = this.model
+        ? [this.model]
+        : this._pickDefaultModels(this.webllm);
+      const errors = [];
+
+      for (let index = 0; index < candidates.length; index++) {
+        const model = candidates[index];
+        this.activeModel = model;
+        this._setStatus({
+          phase: 'initializing',
+          ready: false,
+          available: true,
+          model,
+          message: `Initializing WebLLM model ${model}${candidates.length > 1 ? ` (${index + 1}/${candidates.length})` : ''}.`
+        });
+        try {
+          this.engine = await this.webllm.CreateMLCEngine(model, {
+            ...this.engineConfig,
+            initProgressCallback: (progress) => {
+              const message = this._formatProgress(progress, model, index, candidates.length);
+              this._setStatus({
+                phase: 'initializing',
+                ready: false,
+                available: true,
+                model,
+                progress,
+                message
+              });
+              if (typeof this.initProgressCallback === 'function') {
+                this.initProgressCallback(progress);
+              }
+              if (typeof this.engineConfig.initProgressCallback === 'function') {
+                this.engineConfig.initProgressCallback(progress);
+              }
+            }
+          });
+          this._setStatus({
+            phase: 'ready',
+            ready: true,
+            available: true,
+            model,
+            message: `WebLLM ready with ${model}.`
+          });
+          return this.engine;
+        } catch (err) {
+          errors.push(`${model}: ${err.message}`);
+          this.engine = null;
+          if (index < candidates.length - 1) {
+            this._setStatus({
+              phase: 'initializing',
+              ready: false,
+              available: true,
+              model,
+              message: `WebLLM initialization failed for ${model}. Retrying with a different lightweight model.`
+            });
+            continue;
+          }
+        }
+      }
+
+      throw new Error(errors.join(' | '));
+    } catch (err) {
+      this._setStatus({
+        phase: 'error',
+        ready: false,
+        available: true,
+        model: this.activeModel || this.model || null,
+        message: `WebLLM initialization failed: ${err.message}`
+      });
+      throw err;
+    }
   }
 
-  _pickDefaultModel(webllm) {
+  _pickDefaultModels(webllm) {
     const modelList = webllm?.prebuiltAppConfig?.model_list || [];
     const preferredSubstrings = [
-      'Llama-3.2-1B-Instruct',
-      'Llama-3.2-3B-Instruct',
-      'Phi-3.5-mini',
-      'Phi-3-mini',
-      'Qwen2.5-1.5B-Instruct',
+      'Qwen2.5-0.5B-Instruct-q4f32_1',
+      'Qwen2.5-0.5B-Instruct-q4f16_1',
       'Qwen2.5-0.5B-Instruct',
+      'Phi-3-mini-4k-instruct-q4f32_1',
+      'Phi-3-mini-4k-instruct-q4f16_1',
+      'Phi-3-mini',
+      'Qwen2.5-1.5B-Instruct-q4f32_1',
+      'Qwen2.5-1.5B-Instruct-q4f16_1',
+      'Qwen2.5-1.5B-Instruct',
+      'Llama-3.2-1B-Instruct-q4f32_1',
+      'Llama-3.2-1B-Instruct-q4f16_1',
+      'Llama-3.2-1B-Instruct',
+      'Phi-3.5-mini',
       'Gemma-2-2B'
     ];
+    const picked = [];
+    const seen = new Set();
 
     for (const needle of preferredSubstrings) {
       const match = modelList.find((item) => String(item?.model_id || item?.model || '').includes(needle));
       if (match) {
-        return match.model_id || match.model;
+        const modelId = match.model_id || match.model;
+        if (!seen.has(modelId)) {
+          seen.add(modelId);
+          picked.push(modelId);
+        }
       }
     }
 
     const first = modelList[0];
     const firstModel = first?.model_id || first?.model;
+    if (picked.length > 0) {
+      return picked;
+    }
     if (!firstModel) {
       throw new Error('WebLLM did not expose any prebuilt models.');
     }
-    return firstModel;
+    return [firstModel];
   }
 
   _buildMessages(prompt) {
@@ -117,5 +261,19 @@ export class WebLLMSimulationLLMClient extends SimulationLLMClient {
       { role: 'system', content: system },
       { role: 'user', content: JSON.stringify(userPayload) }
     ];
+  }
+
+  _formatProgress(progress, model, index = 0, total = 1) {
+    const prefix = total > 1 ? `[${index + 1}/${total}] ` : '';
+    if (!progress) {
+      return `${prefix}Initializing WebLLM model ${model}.`;
+    }
+    if (typeof progress.text === 'string' && progress.text.trim()) {
+      return `${prefix}${progress.text.trim()}`;
+    }
+    if (typeof progress.progress === 'number') {
+      return `${prefix}Initializing WebLLM model ${model} (${Math.round(progress.progress * 100)}%).`;
+    }
+    return `${prefix}Initializing WebLLM model ${model}.`;
   }
 }

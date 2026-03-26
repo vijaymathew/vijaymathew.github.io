@@ -3,7 +3,6 @@ import { MockChatBackend } from '../backends/MockChatBackend.js';
 import { MockCalBackend } from '../backends/MockCalBackend.js';
 import { SimulationPromptBuilder } from './SimulationPromptBuilder.js';
 import { SimulationNormalizer } from './SimulationNormalizer.js';
-import { InMemorySimulationLLMClient } from './InMemorySimulationLLMClient.js';
 
 /**
  * First slice of the simulation layer.
@@ -21,7 +20,7 @@ export class SimulationCoordinator {
     this.scenarioStore = opts.scenarioStore || null;
     this.promptBuilder = opts.promptBuilder || new SimulationPromptBuilder();
     this.normalizer = opts.normalizer || new SimulationNormalizer();
-    this.llmClient = opts.llmClient || new InMemorySimulationLLMClient();
+    this.llmClient = opts.llmClient || null;
     this.now = opts.now || (() => new Date().toISOString());
   }
 
@@ -38,6 +37,18 @@ export class SimulationCoordinator {
       return { kind: 'unknown', label: 'Unknown simulation client' };
     }
     return this.llmClient.getClientInfo();
+  }
+
+  getClientStatus() {
+    if (!this.llmClient || typeof this.llmClient.getStatus !== 'function') {
+      return {
+        phase: 'idle',
+        ready: false,
+        available: null,
+        message: 'No simulation provider configured.'
+      };
+    }
+    return this.llmClient.getStatus();
   }
 
   exportState() {
@@ -132,6 +143,14 @@ export class SimulationCoordinator {
 
   async generateDay(context = {}) {
     const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'generateDay',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
     if (!profile) {
       return {
         status: 'error',
@@ -168,23 +187,21 @@ export class SimulationCoordinator {
     });
     const applied = this.applyNormalizedGeneration(normalized);
 
-    this.scenarioStore?.saveScenario?.(normalized.scenario);
-    this.scenarioStore?.appendLedger?.({
-      profile_id: profile.id,
-      scenario_id: normalized.scenario.id,
+    this._recordGeneration(profile, normalized.scenario, applied, {
       operation: 'generateDay',
-      prompt_version: prompt.promptVersion,
-      seed: prompt.seed,
-      input_summary: {
-        date,
-        contacts: (profile.contacts || []).length,
-        threads: (normalized.scenario.threads || []).length
-      },
-      output_ids: normalized.outputIds,
-      output_counts: {
+      prompt,
+      surface: prompt.context?.surface || { kind: 'day' },
+      outputIds: normalized.outputIds,
+      outputCounts: {
         email: normalized.email.length,
         chat: Object.values(normalized.chat).reduce((sum, items) => sum + items.length, 0),
         cal: normalized.cal.length
+      },
+      inputSummary: {
+        date,
+        contacts: (profile.contacts || []).length,
+        threads: (normalized.scenario.threads || []).length,
+        surface: prompt.context?.surface || { kind: 'day' }
       }
     });
 
@@ -208,6 +225,14 @@ export class SimulationCoordinator {
 
   async generateInbox(context = {}) {
     const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'generateInbox',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
     if (!profile) return this._missingProfile('generateInbox');
 
     const date = context.date || this._localDateString();
@@ -241,18 +266,21 @@ export class SimulationCoordinator {
       cal: []
     });
 
-    this.scenarioStore?.saveScenario?.(normalized.scenario);
-    this.scenarioStore?.appendLedger?.({
-      profile_id: profile.id,
-      scenario_id: normalized.scenario.id,
+    this._recordGeneration(profile, normalized.scenario, applied, {
       operation: 'generateInbox',
-      prompt_version: prompt.promptVersion,
-      seed: prompt.seed,
-      output_ids: normalized.email.map((item) => item.id),
-      output_counts: {
+      prompt,
+      surface: prompt.context?.surface || { kind: 'inbox' },
+      outputIds: normalized.email.map((item) => item.id),
+      outputCounts: {
         email: normalized.email.length,
         chat: 0,
         cal: 0
+      },
+      inputSummary: {
+        date,
+        contacts: (profile.contacts || []).length,
+        threads: (normalized.scenario.threads || []).length,
+        surface: prompt.context?.surface || { kind: 'inbox' }
       }
     });
 
@@ -275,15 +303,364 @@ export class SimulationCoordinator {
   }
 
   async generateChannel(channelId, context = {}) {
-    return this._stub('generateChannel', { channelId, ...context });
+    const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'generateChannel',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
+    if (!profile) return this._missingProfile('generateChannel');
+
+    const date = context.date || this._localDateString();
+    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const prompt = this.promptBuilder.buildChatPrompt(profile, existing, {
+      date,
+      channelId,
+      now: this.now()
+    });
+    const available = typeof this.llmClient.isAvailable === 'function'
+      ? await this.llmClient.isAvailable()
+      : true;
+    if (!available) {
+      return {
+        status: 'error',
+        operation: 'generateChannel',
+        timestamp: this.now(),
+        error: `${this.getClientInfo().label || 'Selected client'} is not available in this environment.`
+      };
+    }
+
+    const raw = await this.llmClient.generate(prompt);
+    const normalized = this.normalizer.normalizeDayResult(raw, {
+      profile,
+      existingScenario: existing,
+      date,
+      prompt
+    });
+    const applied = this.applyNormalizedGeneration({
+      email: [],
+      chat: normalized.chat,
+      cal: []
+    });
+
+    this._recordGeneration(profile, normalized.scenario, applied, {
+      operation: 'generateChannel',
+      prompt,
+      surface: prompt.context?.surface || { kind: 'chat', channelId },
+      outputIds: Object.values(normalized.chat).flat().map((item) => item.id),
+      outputCounts: {
+        email: 0,
+        chat: Object.values(normalized.chat).reduce((sum, items) => sum + items.length, 0),
+        cal: 0
+      },
+      inputSummary: {
+        date,
+        contacts: (profile.contacts || []).length,
+        channelId: prompt.context?.surface?.channelId || channelId,
+        surface: prompt.context?.surface || { kind: 'chat', channelId }
+      }
+    });
+
+    return {
+      status: 'generated',
+      operation: 'generateChannel',
+      timestamp: this.now(),
+      profile,
+      prompt,
+      raw,
+      scenario: normalized.scenario,
+      generated: {
+        email: [],
+        chat: normalized.chat,
+        cal: []
+      },
+      summary: applied.summary,
+      snapshot: applied.snapshot
+    };
   }
 
   async generateCalendar(calendarId = 'today', context = {}) {
-    return this._stub('generateCalendar', { calendarId, ...context });
+    const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'generateCalendar',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
+    if (!profile) return this._missingProfile('generateCalendar');
+
+    const date = context.date || this._localDateString();
+    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const prompt = this.promptBuilder.buildCalendarPrompt(profile, existing, {
+      date,
+      calendarId,
+      now: this.now()
+    });
+    const available = typeof this.llmClient.isAvailable === 'function'
+      ? await this.llmClient.isAvailable()
+      : true;
+    if (!available) {
+      return {
+        status: 'error',
+        operation: 'generateCalendar',
+        timestamp: this.now(),
+        error: `${this.getClientInfo().label || 'Selected client'} is not available in this environment.`
+      };
+    }
+
+    const raw = await this.llmClient.generate(prompt);
+    const normalized = this.normalizer.normalizeDayResult(raw, {
+      profile,
+      existingScenario: existing,
+      date,
+      prompt
+    });
+    const applied = this.applyNormalizedGeneration({
+      email: [],
+      chat: {},
+      cal: normalized.cal
+    });
+
+    this._recordGeneration(profile, normalized.scenario, applied, {
+      operation: 'generateCalendar',
+      prompt,
+      surface: prompt.context?.surface || { kind: 'calendar', calendarId },
+      outputIds: normalized.cal.map((item) => item.id),
+      outputCounts: {
+        email: 0,
+        chat: 0,
+        cal: normalized.cal.length
+      },
+      inputSummary: {
+        date,
+        contacts: (profile.contacts || []).length,
+        calendarId: prompt.context?.surface?.calendarId || calendarId,
+        surface: prompt.context?.surface || { kind: 'calendar', calendarId }
+      }
+    });
+
+    return {
+      status: 'generated',
+      operation: 'generateCalendar',
+      timestamp: this.now(),
+      profile,
+      prompt,
+      raw,
+      scenario: normalized.scenario,
+      generated: {
+        email: [],
+        chat: {},
+        cal: normalized.cal
+      },
+      summary: applied.summary,
+      snapshot: applied.snapshot
+    };
+  }
+
+  async generateDayPlan(context = {}) {
+    const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'generateDayPlan',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
+    if (!profile) return this._missingProfile('generateDayPlan');
+
+    const date = context.date || this._localDateString();
+    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const prompt = this.promptBuilder.buildDayPlanPrompt(profile, existing, {
+      date,
+      now: this.now()
+    });
+    const available = typeof this.llmClient.isAvailable === 'function'
+      ? await this.llmClient.isAvailable()
+      : true;
+    if (!available) {
+      return {
+        status: 'error',
+        operation: 'generateDayPlan',
+        timestamp: this.now(),
+        error: `${this.getClientInfo().label || 'Selected client'} is not available in this environment.`
+      };
+    }
+
+    const raw = await this.llmClient.generate(prompt);
+    const normalized = this.normalizer.normalizeDayResult(raw, {
+      profile,
+      existingScenario: existing,
+      date,
+      prompt
+    });
+    this._recordOperation(profile, normalized.scenario, {
+      operation: 'generateDayPlan',
+      prompt,
+      surface: prompt.context?.surface || { kind: 'day-plan' },
+      inputSummary: {
+        date,
+        contacts: (profile.contacts || []).length,
+        threads: (normalized.scenario.threads || []).length,
+        surface: prompt.context?.surface || { kind: 'day-plan' }
+      },
+      outputIds: [],
+      outputCounts: { email: 0, chat: 0, cal: 0 }
+    });
+
+    return {
+      status: 'generated',
+      operation: 'generateDayPlan',
+      timestamp: this.now(),
+      profile,
+      prompt,
+      raw,
+      scenario: normalized.scenario,
+      generated: {
+        email: [],
+        chat: {},
+        cal: []
+      },
+      summary: null,
+      snapshot: null
+    };
   }
 
   async advanceTimeline(delta, context = {}) {
-    return this._stub('advanceTimeline', { delta, ...context });
+    const profile = context.profile || this.profileStore?.getCurrentProfile?.();
+    if (!this.llmClient) {
+      return {
+        status: 'error',
+        operation: 'advanceTimeline',
+        timestamp: this.now(),
+        error: 'No simulation provider configured.'
+      };
+    }
+    if (!profile) return this._missingProfile('advanceTimeline');
+
+    const existing = this.scenarioStore?.getScenario?.(profile.id);
+    const baseDate = context.date || existing?.date || this._localDateString();
+    const nextDate = shiftDate(baseDate, delta);
+    const prompt = this.promptBuilder.buildAdvanceTimelinePrompt(profile, existing, {
+      date: nextDate,
+      delta,
+      now: this.now()
+    });
+    const available = typeof this.llmClient.isAvailable === 'function'
+      ? await this.llmClient.isAvailable()
+      : true;
+    if (!available) {
+      return {
+        status: 'error',
+        operation: 'advanceTimeline',
+        timestamp: this.now(),
+        error: `${this.getClientInfo().label || 'Selected client'} is not available in this environment.`
+      };
+    }
+
+    const raw = await this.llmClient.generate(prompt);
+    const normalized = this.normalizer.normalizeDayResult(raw, {
+      profile,
+      existingScenario: existing,
+      date: nextDate,
+      prompt
+    });
+    const applied = this.applyNormalizedGeneration(normalized);
+
+    this._recordGeneration(profile, normalized.scenario, applied, {
+      operation: 'advanceTimeline',
+      prompt,
+      surface: prompt.context?.surface || { kind: 'timeline', delta, targetDate: nextDate },
+      outputIds: normalized.outputIds,
+      outputCounts: {
+        email: normalized.email.length,
+        chat: Object.values(normalized.chat).reduce((sum, items) => sum + items.length, 0),
+        cal: normalized.cal.length
+      },
+      inputSummary: {
+        baseDate,
+        targetDate: nextDate,
+        delta,
+        contacts: (profile.contacts || []).length,
+        threads: (normalized.scenario.threads || []).length,
+        surface: prompt.context?.surface || { kind: 'timeline', delta, targetDate: nextDate }
+      }
+    });
+
+    return {
+      status: 'generated',
+      operation: 'advanceTimeline',
+      timestamp: this.now(),
+      profile,
+      prompt,
+      raw,
+      scenario: normalized.scenario,
+      generated: {
+        email: normalized.email,
+        chat: normalized.chat,
+        cal: normalized.cal
+      },
+      summary: applied.summary,
+      snapshot: applied.snapshot
+    };
+  }
+
+  _recordGeneration(profile, scenario, applied, details = {}) {
+    this.scenarioStore?.saveScenario?.(scenario);
+    const savedSnapshot = this.scenarioStore?.saveSnapshot?.({
+      profile_id: profile.id,
+      scenario_id: scenario.id,
+      operation: details.operation,
+      timestamp: this.now(),
+      prompt_version: details.prompt?.promptVersion || null,
+      seed: details.prompt?.seed || null,
+      summary: details.summary || applied.summary || null,
+      snapshot: applied.snapshot
+    });
+    this._recordOperation(profile, scenario, {
+      ...details,
+      snapshotId: savedSnapshot?.id || null
+    });
+    return savedSnapshot;
+  }
+
+  _recordOperation(profile, scenario, details = {}) {
+    this.scenarioStore?.saveScenario?.(scenario);
+    this.scenarioStore?.appendLedger?.({
+      profile_id: profile.id,
+      scenario_id: scenario.id,
+      snapshot_id: details.snapshotId || null,
+      surface: details.surface || details.prompt?.context?.surface || null,
+      operation: details.operation,
+      prompt_version: details.prompt?.promptVersion || null,
+      seed: details.prompt?.seed || null,
+      prompt_summary: this._buildPromptSummary(details.prompt),
+      input_summary: details.inputSummary || null,
+      output_ids: details.outputIds || [],
+      output_counts: details.outputCounts || {
+        email: 0,
+        chat: 0,
+        cal: 0
+      }
+    });
+  }
+
+  _buildPromptSummary(prompt) {
+    if (!prompt) return null;
+    return {
+      operation: prompt.operation || null,
+      prompt_version: prompt.promptVersion || null,
+      seed: prompt.seed || null,
+      surface: prompt.context?.surface || null,
+      date: prompt.context?.date || null,
+      user: prompt.user || '',
+      system: prompt.system || ''
+    };
   }
 
   _stub(operation, context) {
@@ -308,4 +685,11 @@ export class SimulationCoordinator {
   _localDateString() {
     return this.now().slice(0, 10);
   }
+}
+
+function shiftDate(dateString, delta) {
+  const value = new Date(`${dateString}T00:00:00Z`);
+  const offset = Number.isFinite(Number(delta)) ? Number(delta) : 1;
+  value.setUTCDate(value.getUTCDate() + offset);
+  return value.toISOString().slice(0, 10);
 }
