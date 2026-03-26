@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folio Class Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./docs.css">
+</head>
+<body>
+  <main class="page">
+    <div class="eyebrow">Folio Docs</div>
+    <h1>Class Reference</h1>
+    <p class="lede">This is a practical map of the main JavaScript classes in Folio: what each class owns, what it should not own, and how the pieces cooperate at runtime.</p>
+
+    <nav class="nav">
+      <a href="./implementation-guide.html">Implementation Guide</a>
+      <a href="../index.html">Open Folio</a>
+      <a href="../../books/ui/the-document-is-the-computer.html">Architecture Document</a>
+    </nav>
+
+    <h2>Top-Level Wiring</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class / module</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>index.html</code> bootstrap</td>
+          <td><span class="path">folio/index.html</span></td>
+          <td>Creates the store, bus, parser, policy, registry, bridge, editor, and canvas; registers renderers; owns top-level menu and document loading logic.</td>
+        </tr>
+        <tr>
+          <td><code>DocumentStore</code></td>
+          <td><span class="path">folio/src/core/DocumentStore.js</span></td>
+          <td>Persistent multi-document text store with stable ids, history, snapshots, and mutation application.</td>
+        </tr>
+        <tr>
+          <td><code>SyncBus</code></td>
+          <td><span class="path">folio/src/core/SyncBus.js</span></td>
+          <td>Validates mutation events, applies them to the store, then notifies subscribers.</td>
+        </tr>
+        <tr>
+          <td><code>DirectiveParser</code></td>
+          <td><span class="path">folio/src/core/DirectiveParser.js</span></td>
+          <td>Parses plain text into directive descriptors. This is the structural read layer for the entire runtime.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Security And Capability Layer</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>DocumentSecurityPolicy</code></td>
+          <td><span class="path">folio/src/core/DocumentSecurityPolicy.js</span></td>
+          <td>Stores per-document trust state and explicit grants in local storage. Changing the current document swaps the active security state.</td>
+        </tr>
+        <tr>
+          <td><code>CapabilityRegistry</code></td>
+          <td><span class="path">folio/src/core/CapabilityRegistry.js</span></td>
+          <td>Registers renderer classes, instantiates them, normalizes manifests, and authorizes render/query operations based on trust domain and grants.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="callout">Important boundary: registry lookup alone is not authorization. Mirrored renderers and mirrored Python namespaces are supposed to pass through capability checks first.</div>
+
+    <h2>Python Runtime Layer</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>NamespaceBridge</code></td>
+          <td><span class="path">folio/src/python/NamespaceBridge.js</span></td>
+          <td>Builds document-scoped globals from current text, computes mirrored namespace permissions, orchestrates evaluation, and caches per-block results.</td>
+        </tr>
+        <tr>
+          <td><code>PyodideWorker</code></td>
+          <td><span class="path">folio/src/python/PyodideWorker.js</span></td>
+          <td>Owns the isolated Python execution environment. Rebuilds a fresh shared namespace per evaluation and executes blocks in document order.</td>
+        </tr>
+        <tr>
+          <td><code>PyRenderer</code></td>
+          <td><span class="path">folio/src/renderers/mock/PyRenderer.js</span></td>
+          <td>UI wrapper for <code>::py</code> blocks. Displays code, stdout, denied-capability controls, and manual run actions.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Simulation Layer</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>SimulationProfileStore</code></td>
+          <td><span class="path">folio/src/simulation/SimulationProfileStore.js</span></td>
+          <td>Persists authored simulation profiles in local storage: user identity, contacts, projects, channels, and organization context.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationScenarioStore</code></td>
+          <td><span class="path">folio/src/simulation/SimulationScenarioStore.js</span></td>
+          <td>Persists generated scenario state, a richer generation ledger with surface and prompt/input summaries, and the last generated mirrored-backend snapshot per profile so simulated worlds can be inspected and restored independently of live backend memory.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationSettingsStore</code></td>
+          <td><span class="path">folio/src/simulation/SimulationSettingsStore.js</span></td>
+          <td>Persists simulation provider choice and non-secret provider settings such as WebLLM preferences or remote endpoint/model configuration.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationSecretsStore</code></td>
+          <td><span class="path">folio/src/simulation/SimulationSecretsStore.js</span></td>
+          <td>Persists provider secrets separately from profiles and ordinary settings, such as the API key for a remote simulation provider.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationPromptBuilder</code></td>
+          <td><span class="path">folio/src/simulation/SimulationPromptBuilder.js</span></td>
+          <td>Builds structured prompt objects from the current profile, scenario seed, and generation intent. It now covers day, inbox, chat, calendar, and day-plan surfaces as the handoff boundary for real LLM calls.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationNormalizer</code></td>
+          <td><span class="path">folio/src/simulation/SimulationNormalizer.js</span></td>
+          <td>Validates and normalizes generated output into backend-native email, chat, calendar, and scenario shapes.</td>
+        </tr>
+        <tr>
+          <td><code>InMemorySimulationLLMClient</code></td>
+          <td><span class="path">folio/src/simulation/InMemorySimulationLLMClient.js</span></td>
+          <td>Deterministic fake generation client used to exercise the prompt and normalization pipeline before a real provider is introduced.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationLLMClient</code></td>
+          <td><span class="path">folio/src/simulation/SimulationLLMClient.js</span></td>
+          <td>Abstraction for simulation generation providers. Concrete clients implement availability checks, metadata, status subscriptions, and <code>generate(prompt)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>WebLLMSimulationLLMClient</code></td>
+          <td><span class="path">folio/src/simulation/WebLLMSimulationLLMClient.js</span></td>
+          <td>Browser-native local inference client built on WebLLM. Lazily downloads and initializes a local model, emits initialization/download status, and returns structured JSON for the simulation pipeline.</td>
+        </tr>
+        <tr>
+          <td><code>OpenAICompatibleSimulationLLMClient</code></td>
+          <td><span class="path">folio/src/simulation/OpenAICompatibleSimulationLLMClient.js</span></td>
+          <td>Concrete remote provider client that calls an OpenAI-compatible chat-completions endpoint with a separately stored API key and returns structured JSON for the simulation pipeline.</td>
+        </tr>
+        <tr>
+          <td><code>SimulationCoordinator</code></td>
+          <td><span class="path">folio/src/simulation/SimulationCoordinator.js</span></td>
+          <td>Integration point for the simulation layer. Orchestrates profile/scenario lookup, prompt building, generation, normalization, backend application, timeline advancement, snapshot persistence, richer ledger recording, and provider selection via <code>setLLMClient()</code> and <code>getClientStatus()</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Shell Layer</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>RenderCanvas</code></td>
+          <td><span class="path">folio/src/shell/RenderCanvas.js</span></td>
+          <td>Primary reading and interaction surface. Segments prose vs directives, mounts text fallbacks, lazily activates widgets, supports global text mode, and preserves exact prose/fallback text on edits.</td>
+        </tr>
+        <tr>
+          <td><code>DocumentEditor</code></td>
+          <td><span class="path">folio/src/shell/DocumentEditor.js</span></td>
+          <td>Hidden textarea-based editor wrapper used for full-text editing and synchronization. It is currently a lightweight placeholder for a richer editor.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Transclusion And Lifecycle</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TransclusionResolver</code></td>
+          <td><span class="path">folio/src/core/TransclusionResolver.js</span></td>
+          <td>Resolves <code>::note</code> sources, supports cross-document references, detects cycles, and builds writeback patches into the source block.</td>
+        </tr>
+        <tr>
+          <td><code>MetaRenderer</code></td>
+          <td><span class="path">folio/src/renderers/MetaRenderer.js</span></td>
+          <td>UI for document lifecycle status. Mutates the underlying <code>::meta[status]</code> line in text.</td>
+        </tr>
+        <tr>
+          <td><code>SpawnRenderer</code></td>
+          <td><span class="path">folio/src/renderers/SpawnRenderer.js</span></td>
+          <td>Creates next documents and roll-up documents, compacts completed tasks, and carries open tasks forward by reference.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Directive Renderer Base</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>RendererBase</code></td>
+          <td><span class="path">folio/src/renderers/RendererBase.js</span></td>
+          <td>Common widget shell helpers used by concrete renderers. Concrete subclasses provide <code>manifest</code>, <code>render()</code>, and optionally <code>query()</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Owned-State Renderers</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Renderer</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TaskRenderer</code></td>
+          <td><span class="path">folio/src/renderers/TaskRenderer.js</span></td>
+          <td>Checkbox UI for text-native tasks. Rewrites the directive line on toggle and resolves simple blocked-by dependencies.</td>
+        </tr>
+        <tr>
+          <td><code>TableRenderer</code></td>
+          <td><span class="path">folio/src/renderers/TableRenderer.js</span></td>
+          <td>Editable table widget with derived-source linking to Python blocks, divergence tracking, re-sync, and detach behavior.</td>
+        </tr>
+        <tr>
+          <td><code>NoteRenderer</code></td>
+          <td><span class="path">folio/src/renderers/NoteRenderer.js</span></td>
+          <td>Transclusion UI for <code>::note</code>, including writeback to local or cross-document source blocks and freeze-to-literal behavior.</td>
+        </tr>
+        <tr>
+          <td><code>ContactRenderer</code></td>
+          <td><span class="path">folio/src/renderers/ContactRenderer.js</span></td>
+          <td>Structured contact block editor with action logging.</td>
+        </tr>
+        <tr>
+          <td><code>FileRenderer</code></td>
+          <td><span class="path">folio/src/renderers/FileRenderer.js</span></td>
+          <td>Reference card for local files and simple preview hints.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Mirrored-State Renderers</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Renderer</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>CalRenderer</code></td>
+          <td><span class="path">folio/src/renderers/CalRenderer.js</span></td>
+          <td>Renders projected calendar state from the mock backend and journals RSVP actions into text.</td>
+        </tr>
+        <tr>
+          <td><code>EmailRenderer</code></td>
+          <td><span class="path">folio/src/renderers/EmailRenderer.js</span></td>
+          <td>Inbox, thread, and draft UIs over the mock mail backend. The document owns local logs and draft text, not canonical messages.</td>
+        </tr>
+        <tr>
+          <td><code>ChatRenderer</code></td>
+          <td><span class="path">folio/src/renderers/ChatRenderer.js</span></td>
+          <td>Projected chat slice with send and promote actions. Backend messages remain canonical.</td>
+        </tr>
+        <tr>
+          <td><code>WebRenderer</code></td>
+          <td><span class="path">folio/src/renderers/WebRenderer.js</span></td>
+          <td>URL reference plus local annotations. Treated as mirrored read state with user-owned notes.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Mock Backends</h2>
+    <table class="class-table">
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Path</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>MockCalBackend</code></td>
+          <td><span class="path">folio/src/backends/MockCalBackend.js</span></td>
+          <td>In-memory event source and RSVP mutation surface for calendar widgets, now with import/export/reset support for simulation seeding.</td>
+        </tr>
+        <tr>
+          <td><code>MockEmailBackend</code></td>
+          <td><span class="path">folio/src/backends/MockEmailBackend.js</span></td>
+          <td>In-memory inbox, threads, send, and file actions used by email widgets, now with import/export/reset support for simulation seeding.</td>
+        </tr>
+        <tr>
+          <td><code>MockChatBackend</code></td>
+          <td><span class="path">folio/src/backends/MockChatBackend.js</span></td>
+          <td>In-memory chat history and post actions used by chat widgets, now with import/export/reset support for simulation seeding.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Design Boundaries</h2>
+    <ul>
+      <li><code>DocumentStore</code> owns persisted text and history, not rendering.</li>
+      <li><code>RenderCanvas</code> owns presentation and activation policy, not canonical data.</li>
+      <li><code>NamespaceBridge</code> owns Python globals and evaluation orchestration, not document mutation.</li>
+      <li>Renderers own directive-specific UI and mutation intent, but they should emit sync events instead of editing store text directly.</li>
+      <li>Mock backends stand in for remote systems, but the ownership boundary already matches the revised manuscript.</li>
+    </ul>
+  </main>
+</body>
+</html>

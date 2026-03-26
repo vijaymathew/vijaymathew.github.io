@@ -1,6 +1,8 @@
 /**
- * Web Worker for running Pyodide.
- * Keeps heavy computation off the main UI thread.
+ * Web Worker for document-scoped Pyodide evaluation.
+ *
+ * Each evaluation rebuilds a fresh shared namespace and executes all
+ * requested ::py blocks in document order.
  */
 
 import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.mjs';
@@ -9,75 +11,136 @@ let pyodide = null;
 
 async function initPyodide() {
   if (pyodide) return;
-  try {
-    console.log('[PyodideWorker] Initialising Pyodide...');
-    pyodide = await loadPyodide();
-    console.log('[PyodideWorker] Pyodide ready.');
-    self.postMessage({ type: 'ready' });
-  } catch (err) {
-    console.error('[PyodideWorker] Init failed:', err);
-    self.postMessage({ type: 'error', error: `Pyodide Init Failed: ${err.message}` });
-  }
-}
 
-self.onmessage = async (e) => {
-  const { type, code, globals } = e.data;
+  pyodide = await loadPyodide();
+  await pyodide.runPythonAsync(`
+import io
+import contextlib
+import traceback
 
-  if (type === 'init') {
-    await initPyodide();
-    return;
-  }
-
-  if (type === 'run') {
-    if (!pyodide) {
-      self.postMessage({ type: 'error', error: 'Pyodide not initialised' });
-      return;
-    }
-
-    try {
-      // 1. Define the Proxy class if not already defined
-      await pyodide.runPythonAsync(`
 class NamespaceProxy:
     def __init__(self, data):
         self._data = data
+
     def query(self, params=None):
-        # If data is a dict-of-collections keyed by id (e.g. table
-        # renderer: {'q3-budget': [rows...]}), look up the requested id.
-        if (params and isinstance(self._data, dict) and 'id' in params):
+        if params and isinstance(self._data, dict) and 'id' in params:
             key = params['id']
             val = self._data.get(key)
             if val is not None:
                 return val
         return self._data
-`);
 
-      // 2. Inject globals as Proxies
-      if (globals) {
-        for (const [key, value] of Object.entries(globals)) {
-          // Set the raw data in a temporary variable
-          pyodide.globals.set(`__raw_${key}`, pyodide.toPy(value));
-          // Wrap it in a NamespaceProxy
-          await pyodide.runPythonAsync(`${key} = NamespaceProxy(__raw_${key})`);
+def _folio_export(value, depth=0):
+    if depth > 2:
+        return repr(value)
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, list):
+        return [_folio_export(v, depth + 1) for v in value[:12]]
+    if isinstance(value, tuple):
+        return [_folio_export(v, depth + 1) for v in value[:12]]
+    if isinstance(value, dict):
+        return {
+            str(k): _folio_export(v, depth + 1)
+            for k, v in list(value.items())[:12]
         }
+    return repr(value)
+
+def _folio_run_document(blocks, globals_payload):
+    shared = {"__builtins__": __builtins__}
+
+    for key, value in globals_payload.items():
+        shared[key] = NamespaceProxy(value)
+
+    results = {}
+    halted = False
+
+    for block in blocks:
+        key = block["key"]
+        if halted:
+            results[key] = {
+                "status": "blocked",
+                "stdout": "",
+                "error": "Skipped because an earlier block failed.",
+                "context": {}
+            }
+            continue
+
+        if not block.get("execute", False):
+            results[key] = {
+                "status": "manual",
+                "stdout": "",
+                "error": None,
+                "context": {}
+            }
+            continue
+
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                exec(block["code"], shared)
+
+            exported = {
+                name: _folio_export(value)
+                for name, value in shared.items()
+                if not name.startswith("__")
+                and name not in globals_payload
+                and not isinstance(value, NamespaceProxy)
+            }
+
+            results[key] = {
+                "status": "ok",
+                "stdout": buf.getvalue().rstrip(),
+                "error": None,
+                "context": exported
+            }
+        except Exception:
+            halted = True
+            results[key] = {
+                "status": "error",
+                "stdout": buf.getvalue().rstrip(),
+                "error": traceback.format_exc(),
+                "context": {}
+            }
+
+    return results
+`);
+}
+
+self.onmessage = async (e) => {
+  const { type, requestId, blocks, globals } = e.data;
+
+  try {
+    if (type === 'init') {
+      await initPyodide();
+      self.postMessage({ type: 'ready' });
+      return;
+    }
+
+    if (type === 'eval_document') {
+      if (!pyodide) {
+        throw new Error('Pyodide not initialised');
       }
 
-      // 3. Capture stdout
-      let stdout = "";
-      pyodide.setStdout({
-        batched: (str) => { stdout += str + "\n"; }
-      });
+      pyodide.globals.set('__folio_blocks', pyodide.toPy(blocks || []));
+      pyodide.globals.set('__folio_globals', pyodide.toPy(globals || {}));
 
-      // 3. Run the code
-      await pyodide.runPythonAsync(code);
+      const results = await pyodide.runPythonAsync(
+        '_folio_run_document(__folio_blocks, __folio_globals)'
+      );
 
-      // 4. Return the result
-      self.postMessage({ 
-        type: 'result', 
-        stdout: stdout.trim(),
-        vars: {} // In a real app, we'd extract modified globals here
+      self.postMessage({
+        type: 'eval_result',
+        requestId,
+        results: results.toJs({ dict_converter: Object.fromEntries })
       });
-    } catch (err) {
-      self.postMessage({ type: 'error', error: err.message });
+      return;
     }
+  } catch (err) {
+    self.postMessage({
+      type: 'error',
+      requestId,
+      error: err.message
+    });
   }
 };
