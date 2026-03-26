@@ -27,6 +27,8 @@ export class RenderCanvas {
     this.registry = registry;
     this.syncBus = syncBus;
     this.parser = parser;
+    this.appApi = opts.appApi || null;
+    this.lifecycleStatus = 'active';
 
     /** Currently built segment model. */
     this.segments = [];
@@ -72,6 +74,7 @@ export class RenderCanvas {
    */
   update(text, index, bridge, forceRebuild = false) {
     this.bridge = bridge;
+    this.lifecycleStatus = this._resolveLifecycleStatus(index);
     const next = this._buildSegments(text, index);
 
     if (!forceRebuild && this._structurallyEqual(next)) {
@@ -295,7 +298,9 @@ export class RenderCanvas {
       if (!widget) continue;
 
       if (entry.isIntersecting && !widget.live && !this.textModeWidgets.has(lineStart)) {
-        this._activate(widget);
+        if (this._canAutoActivate(widget.descriptor)) {
+          this._activate(widget);
+        }
       } else if (!entry.isIntersecting && widget.live) {
         this._deactivate(widget);
       }
@@ -325,12 +330,13 @@ export class RenderCanvas {
 
     if (!renderer) return; // keep fallback
 
-    const ctx = {
-      ...descriptor,
-      syncBus: this.syncBus,
-      bridge: this.bridge,
-      policy: this.registry.policy
-    };
+      const ctx = {
+        ...descriptor,
+        syncBus: this.syncBus,
+        bridge: this.bridge,
+        policy: this.registry.policy,
+        app: this.appApi
+      };
 
     try {
       const auth = this.registry.authorize(descriptor.type, 'render');
@@ -495,5 +501,23 @@ export class RenderCanvas {
     body.appendChild(actions);
     container.appendChild(body);
     return container;
+  }
+
+  _resolveLifecycleStatus(index) {
+    const meta = index.find((descriptor) => descriptor.type === 'meta' && descriptor.id === 'status');
+    return meta?.params?.value || meta?.params?.status || 'active';
+  }
+
+  _canAutoActivate(descriptor) {
+    if (this.lifecycleStatus === 'archived') {
+      return false;
+    }
+
+    if (this.lifecycleStatus === 'dormant') {
+      const manifest = this.registry.getManifest(descriptor.type);
+      return manifest?.trust !== 'mirrored';
+    }
+
+    return true;
   }
 }

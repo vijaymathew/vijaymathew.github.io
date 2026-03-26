@@ -57,7 +57,9 @@
         import { DocumentEditor } from './src/shell/DocumentEditor.js';
         
         // Renderers
+        import { MetaRenderer } from './src/renderers/MetaRenderer.js';
         import { NoteRenderer } from './src/renderers/NoteRenderer.js';
+        import { SpawnRenderer } from './src/renderers/SpawnRenderer.js';
         import { TaskRenderer } from './src/renderers/TaskRenderer.js';
         import { CalRenderer } from './src/renderers/CalRenderer.js';
         import { EmailRenderer } from './src/renderers/EmailRenderer.js';
@@ -70,6 +72,8 @@
 
         const seedDoc = `Monday, 23 March 2026.
 Picked up where Friday left off — the Q3 analysis is nearly done, just needs the hardware line clarified with finance before I can send it to Sara.
+
+::meta[status]{value=active}
 
 ::cal[today]{view=agenda}
 ::end
@@ -142,12 +146,14 @@ summary = An analysis of common causes for hardware budget overruns in enterpris
 ---
 Relevant to the East region overrun we are investigating. The section on procurement lag matches our pattern.
 ::end
+
+::spawn[next]{doc=daily:2026-03-24 title="Tuesday, 24 March 2026." after-status=dormant}
 `;
 
         // Bump version when the seed document structure changes
         // (e.g., directives move from inline to block format).
-        const STORAGE_KEY = 'folio:document:v5';
-        const SEED_DOCUMENT_ID = 'seed:v5';
+        const STORAGE_KEY = 'folio:document:v6';
+        const SEED_DOCUMENT_ID = 'seed:v6';
 
         function hashText(text) {
             let hash = 0;
@@ -172,8 +178,22 @@ Relevant to the East region overrun we are investigating. The section on procure
         // 2. Registry & Bridge
         const registry = new CapabilityRegistry(policy);
         const bridge = new NamespaceBridge(registry, parser, store, policy);
+        const appApi = {
+            parser,
+            openDocument: (documentId) => {
+                const doc = store.getDocument(documentId);
+                if (!doc) return;
+                renderDocument(doc.text, documentId);
+            },
+            setStatus: (text) => {
+                statusBar.textContent = text;
+            }
+        };
+        window.folioDebug.openDocument = appApi.openDocument;
 
+        registry.register('meta', MetaRenderer);
         registry.register('note', NoteRenderer);
+        registry.register('spawn', SpawnRenderer);
         registry.register('task', TaskRenderer);
         registry.register('cal', CalRenderer);
         registry.register('email', EmailRenderer);
@@ -188,7 +208,7 @@ Relevant to the East region overrun we are investigating. The section on procure
         const editor = new DocumentEditor(document.getElementById('editor-container'), bus);
         const scrollRoot = document.getElementById('canvas-container');
         const canvas = new RenderCanvas(
-            document.getElementById('render-canvas'), registry, bus, parser, scrollRoot
+            document.getElementById('render-canvas'), registry, bus, parser, scrollRoot, { appApi }
         );
 
         // 4. Orchestration (with debounced editor updates)
@@ -374,10 +394,17 @@ Relevant to the East region overrun we are investigating. The section on procure
 <p>Folio keeps a per-document trust policy. Owned-state directives always run from document text. Mirrored directives and mirrored namespaces inside <code>::py</code> require both a trusted document and an explicit read grant such as <code>email.read</code> or <code>cal.read</code>. Marking a document untrusted clears its mirrored grants.</p>
 
 <h2>Inspection</h2>
-<p>The prototype exposes <code>window.folioDebug.store</code> and <code>window.folioDebug.policy</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, and <code>store.getSnapshots()</code> to inspect persisted document state.</p>
+<p>The prototype exposes <code>window.folioDebug.store</code>, <code>window.folioDebug.policy</code>, and <code>window.folioDebug.openDocument(id)</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, and <code>store.getSnapshots()</code> to inspect persisted document state.</p>
 
 <h2>Directives</h2>
 <p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer.</p>
+
+<h3>::meta &mdash; Lifecycle Metadata</h3>
+<p>An owned-state directive for document metadata. <code>::meta[status]{value=active}</code> controls lifecycle state. <code>active</code> allows normal widget activation, <code>dormant</code> keeps mirrored widgets in fallback text unless opened manually, and <code>archived</code> leaves the document in text-first mode by default.</p>
+
+<h3>::spawn &mdash; Next Document</h3>
+<p>Creates the next document and a roll-up document by reference. The generated next document carries open tasks forward as cross-document <code>::note</code> transclusions instead of copying them. <strong>compact done</strong> removes completed tasks from the current document as an explicit text mutation.</p>
+<pre>::spawn[next]{doc=daily:2026-03-24 title="Tuesday, 24 March 2026." after-status=dormant}</pre>
 
 <h3>::cal &mdash; Calendar</h3>
 <p>Renders an agenda from the calendar backend. The directive line selects the projection; the body stores only local log lines and sync annotations. Pending events show <strong>accept</strong> / <strong>decline</strong> buttons; clicking one updates the backend first, then journals the confirmed action into the document.</p>

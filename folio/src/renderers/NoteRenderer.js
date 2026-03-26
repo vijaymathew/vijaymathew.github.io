@@ -23,14 +23,20 @@ export class NoteRenderer extends RendererBase {
 
   async render(ctx) {
     const { id, params, syncBus, lineStart, lineEnd, bridge } = ctx;
-    const text = bridge?.lastText || syncBus.store.getContents();
+    const currentDocumentId = syncBus.store.getDocumentId();
+    const text = bridge?.lastText || syncBus.store.getContents(currentDocumentId);
     const index = bridge?.lastIndex?.length ? bridge.lastIndex : bridge?.parser?.parse(text) || [];
-    const resolved = resolveNoteTransclusion(ctx, text, index);
+    const resolved = resolveNoteTransclusion(ctx, text, index, {
+      store: syncBus.store,
+      parser: bridge?.parser,
+      currentDocumentId
+    });
 
     noteCache.set(id, {
       id,
       ...params,
       source: resolved.source,
+      sourceDocumentId: resolved.sourceDocumentId,
       field: resolved.field,
       text: resolved.text,
       error: resolved.error
@@ -42,6 +48,9 @@ export class NoteRenderer extends RendererBase {
     bodyEl.style.padding = '0';
 
     if (resolved.source) this._pill(pills, `source=${resolved.source}`);
+    if (resolved.sourceDocumentId && resolved.sourceDocumentId !== currentDocumentId) {
+      this._pill(pills, `doc=${resolved.sourceDocumentId}`);
+    }
     if (resolved.field) this._pill(pills, `field=${resolved.field}`);
     if (resolved.mode === 'inline') this._pill(pills, 'legacy-inline');
 
@@ -97,7 +106,7 @@ export class NoteRenderer extends RendererBase {
           source: 'note',
           type: 'replace',
           payload: {
-            targetDocId: 'current',
+            targetDocId: patch.targetDocId,
             lineStart: patch.lineStart,
             lineEnd: patch.lineEnd,
             text: patch.text

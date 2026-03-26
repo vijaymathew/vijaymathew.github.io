@@ -344,11 +344,16 @@ export class NamespaceBridge {
       }
 
       if (descriptor.type === 'note') {
-        const resolved = resolveNoteTransclusion(descriptor, text, index);
+        const resolved = resolveNoteTransclusion(descriptor, text, index, {
+          store: this.store,
+          parser: this.parser,
+          currentDocumentId: this.store.getDocumentId()
+        });
         notes[descriptor.id] = {
           id: descriptor.id,
           ...descriptor.params,
           source: resolved.source,
+          sourceDocumentId: resolved.sourceDocumentId,
           field: resolved.field,
           text: resolved.text,
           error: resolved.error
