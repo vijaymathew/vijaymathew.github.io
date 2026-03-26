@@ -21,6 +21,7 @@
                     <button id="btn-new">New document</button>
                     <button id="btn-save">Save to file</button>
                     <button id="btn-load">Load from file</button>
+                    <button id="btn-clear-persisted">Clear persisted document</button>
                     <div class="menu-sep"></div>
                     <button id="btn-toggle-trust">Trust document</button>
                     <div class="menu-sep"></div>
@@ -231,24 +232,32 @@ Relevant to the East region overrun we are investigating. The section on procure
 
         // Global view toggle
         const globalToggle = document.getElementById('global-view-toggle');
-        let fullTextView = false;
 
-        globalToggle.onclick = () => {
-            fullTextView = !fullTextView;
-            canvas.toggleAll(fullTextView);
-            
+        function syncGlobalToggleUI() {
+            const fullTextView = canvas.isGlobalTextMode();
             if (fullTextView) {
                 globalToggle.classList.add('active');
                 globalToggle.title = 'Switch to Live Widgets View';
                 globalToggle.innerHTML = '<i class="fa fa-eye"></i>';
-                statusBar.textContent = 'Switched to Full Text View';
             } else {
                 globalToggle.classList.remove('active');
                 globalToggle.title = 'Switch to Full Text View';
                 globalToggle.innerHTML = '<i class="fa fa-code"></i>';
+            }
+        }
+
+        globalToggle.onclick = () => {
+            const nextMode = !canvas.isGlobalTextMode();
+            canvas.toggleAll(nextMode);
+            syncGlobalToggleUI();
+
+            if (nextMode) {
+                statusBar.textContent = 'Switched to Full Text View';
+            } else {
                 statusBar.textContent = 'Switched to Live Widgets View';
             }
         };
+        syncGlobalToggleUI();
 
         bus.subscribe((event) => {
             const text = store.getContents();
@@ -283,6 +292,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             editor.update(text);
             bridge.syncDocument(text, parser.parse(text));
             canvas.update(text, parser.parse(text), bridge);
+            syncGlobalToggleUI();
         }
 
         // ── Toolbar: New / Save / Load ─────────────────────────
@@ -314,6 +324,18 @@ Relevant to the East region overrun we are investigating. The section on procure
             };
             reader.readAsText(file);
             fileInput.value = '';
+        };
+
+        document.getElementById('btn-clear-persisted').onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            if (!confirm('Clear all Folio persisted documents, history, and trust grants from this browser, then reload?')) return;
+
+            Object.keys(localStorage)
+                .filter((key) => key.startsWith('folio:'))
+                .forEach((key) => localStorage.removeItem(key));
+
+            location.reload();
         };
 
         // ── Hamburger menu ────────────────────────────────────
@@ -351,6 +373,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             const index = parser.parse(text);
             bridge.syncDocument(text, index);
             canvas.update(text, index, bridge, true);
+            syncGlobalToggleUI();
         });
 
         // ── Bootstrap ──────────────────────────────────────────
@@ -363,6 +386,7 @@ Relevant to the East region overrun we are investigating. The section on procure
         ]).then(() => {
             bridge.syncDocument(initialText, parser.parse(initialText));
             canvas.update(initialText, parser.parse(initialText), bridge);
+            syncGlobalToggleUI();
             if (DocumentStore.hasSaved(STORAGE_KEY)) {
                 statusBar.textContent = 'Restored from local storage';
             }
@@ -387,6 +411,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 <dt>New</dt><dd>Reset to the example seed document.</dd>
 <dt>Save</dt><dd>Download the current document as a <code>.folio.txt</code> file.</dd>
 <dt>Load</dt><dd>Open a previously saved document from disk.</dd>
+<dt>Clear persisted document</dt><dd>Remove all Folio local state stored in this browser, including saved documents, history, snapshots, and trust grants, then reload the app.</dd>
 <dt>Trust document</dt><dd>Toggle whether the current document may access mirrored capabilities. Untrusted documents open with all mirrored access denied.</dd>
 </dl>
 
