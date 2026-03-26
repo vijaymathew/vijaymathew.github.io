@@ -4,6 +4,12 @@ const DEFAULT_SETTINGS = {
     model: '',
     temperature: 0.7,
     maxTokens: 900
+  },
+  remote: {
+    endpoint: 'https://api.openai.com/v1/chat/completions',
+    model: 'gpt-4.1-mini',
+    temperature: 0.7,
+    maxTokens: 1800
   }
 };
 
@@ -51,6 +57,14 @@ function mergeSettings(base, incoming) {
       model: next.webllm?.model ?? base.webllm.model,
       temperature: next.webllm?.temperature ?? base.webllm.temperature,
       maxTokens: next.webllm?.maxTokens ?? base.webllm.maxTokens
+    },
+    remote: {
+      endpoint: next.remote?.endpoint ?? base.remote.endpoint,
+      model: next.remote?.model ?? base.remote.model,
+      temperature: next.remote?.temperature ?? base.remote.temperature,
+      maxTokens: next.remote?.maxTokens == null || next.remote?.maxTokens === 900
+        ? base.remote.maxTokens
+        : next.remote.maxTokens
     }
   };
 }
