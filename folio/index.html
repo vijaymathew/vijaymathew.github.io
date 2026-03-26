@@ -84,12 +84,36 @@ org = Example Ltd
 notes = Needs Q3 numbers before Thursday board pack.
 ::end
 
-::note[finance-contact]{email=finance@folio.local}
-Contact for Q3 budget queries.
-Phone: ext. 4102
+::contact[finance.team]
+name = Finance Team
+email = finance@folio.local
+phone = ext. 4102
+notes = Contact for Q3 budget queries.
+::end
+
+::note[finance-contact]{source=contact:finance.team field=notes}
 ::end
 
 The hardware budget breakdown per region:
+
+The hardware overrun from last week — I ran the numbers again this morning:
+
+::py[q3-check]{run=auto}
+result = [
+    {'region': 'North', 'q1': 3500, 'q2': 4200, 'q3': 4200, 'status': 'On Track'},
+    {'region': 'South', 'q1': 2000, 'q2': 2100, 'q3': 1850, 'status': 'Under'},
+    {'region': 'East', 'q1': 5000, 'q2': 5800, 'q3': 6700, 'status': 'Over'},
+    {'region': 'West', 'q1': 3000, 'q2': 3200, 'q3': 3100, 'status': 'On Track'},
+    {'region': 'Global', 'q1': 1200, 'q2': 1100, 'q3': 950, 'status': 'On Track'},
+]
+actuals = [d['q3'] for d in result]
+budget  = [d['q1'] for d in result]
+
+# Querying the 'note' namespace
+note_data = note.query({'id': 'finance-contact'})
+print(f"Contacting: {note_data['id']}")
+print(f"Total Overrun: {sum(a-b for a,b in zip(actuals,budget)):+,}")
+::end
 
 ::table[q3-budget-table]{source=q3-check editable=true}
 | Region | Q1 | Q2 | Q3 | Status |
@@ -98,19 +122,6 @@ The hardware budget breakdown per region:
 | East | 5000 | 5800 | 6700 | Over |
 | West | 3000 | 3200 | 3100 | On Track |
 | Global | 1200 | 1100 | 950 | On Track |
-::end
-
-The hardware overrun from last week — I ran the numbers again this morning:
-
-::py[q3-check]{run=auto}
-data = table.query({'id': 'q3-budget-table'})
-actuals = [d['q3'] for d in data]
-budget  = [d['q1'] for d in data] # Simple comparison with Q1
-
-# Querying the 'note' namespace
-note_data = note.query({'id': 'finance-contact'})
-print(f"Contacting: {note_data['id']}")
-print(f"Total Overrun: {sum(a-b for a,b in zip(actuals,budget)):+,}")
 ::end
 
 ::task[call-finance]{due=today priority=high status=todo}
@@ -131,7 +142,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 
         // Bump version when the seed document structure changes
         // (e.g., directives move from inline to block format).
-        const STORAGE_KEY = 'folio:document:v2';
+        const STORAGE_KEY = 'folio:document:v4';
 
         // 1. Core Triad (auto-persists to localStorage)
         const store = new DocumentStore(seedDoc, STORAGE_KEY);
@@ -300,7 +311,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             <div class="manual-body">
 
 <h2>What is Folio?</h2>
-<p>Folio is a document-based personal computing environment. Owned state such as tasks, notes, tables, and local computation lives directly in the text document. Mirrored state such as calendar, email, and chat is projected into that document so you can act on it in context without pretending the remote backend lives in the file.</p>
+<p>Folio is a document-based personal computing environment. Owned state such as tasks, source blocks, tables, and local computation lives directly in the text document. Mirrored state such as calendar, email, and chat is projected into that document so you can act on it in context without pretending the remote backend lives in the file.</p>
 <p>Every change you make &mdash; checking a task, editing a table cell, filing an email, accepting a calendar event &mdash; becomes a text edit. For owned state, the document is the system of record. For mirrored state, the document keeps the projection parameters, local notes, and a durable journal of what you did.</p>
 
 <h2>Toolbar</h2>
@@ -329,10 +340,12 @@ email = sara@example.com
 ::end</pre>
 
 <h3>::note &mdash; Notes</h3>
-<p>An editable text block. The body is free-form prose; params hold structured metadata. Click inside to edit; changes save to the document on blur.</p>
+<p>A transclusion block. <code>source=type:id</code> points at another block in the document, and optional <code>field=...</code> selects a structured field from that block. Editing the rendered note writes back to the source block; <strong>freeze</strong> replaces the transclusion with literal text.</p>
+<pre>::note[finance-contact]{source=contact:finance.team field=notes}
+::end</pre>
 
 <h3>::table &mdash; Tables</h3>
-<p>A text-native table with pipe-delimited rows. If <code>editable=true</code>, click any cell to edit it. Edits are written back to the document text. If linked to a <code>::py</code> block via <code>source=</code>, the <strong>divergence protocol</strong> tracks whether cells have been manually edited:</p>
+<p>A text-native table with pipe-delimited rows. If <code>editable=true</code>, click any cell to edit it. Edits are written back to the document text. If linked to a <code>::py</code> block via <code>source=</code>, the linked computation should export <code>result</code> (or <code>table_result</code>) as a list of row objects. <strong>re-sync</strong> re-runs the source block and rewrites the table body from the latest computed output; the <strong>divergence protocol</strong> tracks manual edits against that computed source:</p>
 <ul>
 <li><strong>Synchronised</strong> &mdash; table matches source output.</li>
 <li><strong>Diverged</strong> &mdash; cells edited, "edited" badge shown. Use <strong>re-sync</strong> to discard edits or <strong>detach</strong> to break the link.</li>
@@ -345,8 +358,11 @@ email = sara@example.com
 <h3>::py &mdash; Python</h3>
 <p>A computation block that runs inside a document-scoped Python context. Blocks execute top to bottom, sharing state through one namespace for the document. By default, Python can read owned-state namespaces such as <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>note.query(...)</code>, and <code>task.query(...)</code>. Mirrored namespaces such as calendar or email require explicit grants. Click <strong>run</strong> to re-evaluate the document context through this block; <code>run=auto</code> evaluates automatically on load and after document changes.</p>
 <pre>::py[analysis]{run=auto}
-data = table.query({'id': 'budget'})
-print(sum(d['q1'] for d in data))
+result = [
+  {'region': 'North', 'q1': 3500, 'q2': 4200},
+  {'region': 'South', 'q1': 2000, 'q2': 2100}
+]
+print(sum(d['q1'] for d in result))
 ::end</pre>
 
 <h3>::task &mdash; Tasks</h3>

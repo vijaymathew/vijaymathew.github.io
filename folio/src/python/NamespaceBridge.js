@@ -1,3 +1,5 @@
+import { resolveNoteTransclusion } from '../core/TransclusionResolver.js';
+
 /**
  * Document-scoped Python runtime.
  *
@@ -267,10 +269,14 @@ export class NamespaceBridge {
       }
 
       if (descriptor.type === 'note') {
+        const resolved = resolveNoteTransclusion(descriptor, text, index);
         notes[descriptor.id] = {
           id: descriptor.id,
           ...descriptor.params,
-          text: (descriptor.body || []).join('\n')
+          source: resolved.source,
+          field: resolved.field,
+          text: resolved.text,
+          error: resolved.error
         };
       }
 
