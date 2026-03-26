@@ -22,6 +22,7 @@
                     <button id="btn-save">Save to file</button>
                     <button id="btn-load">Load from file</button>
                     <button id="btn-clear-persisted">Clear persisted document</button>
+                    <button id="btn-generate-today">Generate today</button>
                     <div class="menu-sep"></div>
                     <button id="btn-toggle-trust">Trust document</button>
                     <div class="menu-sep"></div>
@@ -58,6 +59,10 @@
         import { NamespaceBridge } from './src/python/NamespaceBridge.js';
         import { RenderCanvas } from './src/shell/RenderCanvas.js';
         import { DocumentEditor } from './src/shell/DocumentEditor.js';
+        import { SimulationProfileStore } from './src/simulation/SimulationProfileStore.js';
+        import { SimulationScenarioStore } from './src/simulation/SimulationScenarioStore.js';
+        import { SimulationCoordinator } from './src/simulation/SimulationCoordinator.js';
+        import { WebLLMSimulationLLMClient } from './src/simulation/WebLLMSimulationLLMClient.js';
         
         // Renderers
         import { MetaRenderer } from './src/renderers/MetaRenderer.js';
@@ -175,8 +180,18 @@ Relevant to the East region overrun we are investigating. The section on procure
         const bus = new SyncBus(store);
         const parser = new DirectiveParser();
         const policy = new DocumentSecurityPolicy('folio:policy');
+        const profileStore = new SimulationProfileStore('folio:simulation');
+        const scenarioStore = new SimulationScenarioStore('folio:simulation');
+        const simulation = new SimulationCoordinator({ profileStore, scenarioStore });
         policy.setDocument(store.getDocumentId());
-        window.folioDebug = { store, policy };
+        window.folioDebug = {
+            store,
+            policy,
+            simulation,
+            simulationProfileStore: profileStore,
+            simulationScenarioStore: scenarioStore,
+            WebLLMSimulationLLMClient
+        };
 
         // 2. Registry & Bridge
         const registry = new CapabilityRegistry(policy);
@@ -220,6 +235,14 @@ Relevant to the East region overrun we are investigating. The section on procure
         const statusBar = document.getElementById('status-bar');
         const securityBar = document.getElementById('security-bar');
         const trustBtn = document.getElementById('btn-toggle-trust');
+
+        function refreshCurrentDocument(forceRebuild = true) {
+            const text = store.getContents();
+            const index = parser.parse(text);
+            bridge.syncDocument(text, index);
+            canvas.update(text, index, bridge, forceRebuild);
+            syncGlobalToggleUI();
+        }
 
         function updateSecurityUI() {
             const state = policy.getState();
@@ -340,6 +363,21 @@ Relevant to the East region overrun we are investigating. The section on procure
             location.reload();
         };
 
+        document.getElementById('btn-generate-today').onclick = async () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            const result = await simulation.generateDay();
+
+            if (result.status !== 'generated') {
+                statusBar.textContent = result.error || 'Simulation generation failed';
+                return;
+            }
+
+            refreshCurrentDocument(true);
+            const profileName = result.profile?.user?.name || result.profile?.label || 'profile';
+            statusBar.textContent = `Generated simulated workday for ${profileName} (${result.summary.counts.email} email, ${result.summary.counts.chat} chat, ${result.summary.counts.cal} calendar)`;
+        };
+
         // ── Hamburger menu ────────────────────────────────────
         const menuDropdown = document.getElementById('menu-dropdown');
         const menuBtn = document.getElementById('menu-btn');
@@ -371,11 +409,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 
         policy.subscribe(() => {
             updateSecurityUI();
-            const text = store.getContents();
-            const index = parser.parse(text);
-            bridge.syncDocument(text, index);
-            canvas.update(text, index, bridge, true);
-            syncGlobalToggleUI();
+            refreshCurrentDocument(true);
         });
 
         // ── Bootstrap ──────────────────────────────────────────
@@ -386,9 +420,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             registry.init(),
             bridge.init()
         ]).then(() => {
-            bridge.syncDocument(initialText, parser.parse(initialText));
-            canvas.update(initialText, parser.parse(initialText), bridge);
-            syncGlobalToggleUI();
+            refreshCurrentDocument(true);
             if (DocumentStore.hasSaved(STORAGE_KEY)) {
                 statusBar.textContent = 'Restored from local storage';
             }
@@ -414,6 +446,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 <dt>Save</dt><dd>Download the current document as a <code>.folio.txt</code> file.</dd>
 <dt>Load</dt><dd>Open a previously saved document from disk.</dd>
 <dt>Clear persisted document</dt><dd>Remove all Folio local state stored in this browser, including saved documents, history, snapshots, and trust grants, then reload the app.</dd>
+<dt>Generate today</dt><dd>Populate the mock email, chat, and calendar backends with a deterministic simulated workday based on the current simulation profile.</dd>
 <dt>Trust document</dt><dd>Toggle whether the current document may access mirrored capabilities. Untrusted documents open with all mirrored access denied.</dd>
 </dl>
 
@@ -421,7 +454,7 @@ Relevant to the East region overrun we are investigating. The section on procure
 <p>Folio keeps a per-document trust policy. Owned-state directives always run from document text. Mirrored directives and mirrored namespaces inside <code>::py</code> require both a trusted document and an explicit read grant such as <code>email.read</code> or <code>cal.read</code>. Marking a document untrusted clears its mirrored grants.</p>
 
 <h2>Inspection</h2>
-<p>The prototype exposes <code>window.folioDebug.store</code>, <code>window.folioDebug.policy</code>, and <code>window.folioDebug.openDocument(id)</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, and <code>store.getSnapshots()</code> to inspect persisted document state.</p>
+<p>The prototype exposes <code>window.folioDebug.store</code>, <code>window.folioDebug.policy</code>, <code>window.folioDebug.simulation</code>, <code>window.folioDebug.simulationProfileStore</code>, <code>window.folioDebug.simulationScenarioStore</code>, <code>window.folioDebug.WebLLMSimulationLLMClient</code>, and <code>window.folioDebug.openDocument(id)</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, <code>store.getSnapshots()</code>, <code>simulation.exportState()</code>, and <code>simulationScenarioStore.getLedger()</code> to inspect persisted state. To try WebLLM manually, construct a client and pass it to <code>simulation.setLLMClient(...)</code>.</p>
 
 <h2>Directives</h2>
 <p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer.</p>

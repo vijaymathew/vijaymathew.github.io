@@ -137,6 +137,28 @@ SyncBus event
       <li><code>::chat</code> renders recent channel messages from <code>MockChatBackend</code>; send posts to the backend and journals the action, while promote writes selected messages into surrounding prose.</li>
       <li><code>::web</code> is a mirrored read surface for URL references plus local annotations.</li>
     </ul>
+    <p>The mock backends now also expose <code>exportState()</code>, <code>importState(...)</code>, <code>reset(...)</code>, and seeding/upsert helpers. This is the first implementation slice for a future LLM-backed simulation layer.</p>
+
+    <h2>Simulation Slice</h2>
+    <p>Folio now includes a first-pass simulation stack under <span class="path">folio/src/simulation/</span>. <code>SimulationProfileStore</code> persists authored profile data, <code>SimulationScenarioStore</code> persists generated scenario state and ledger entries, and <code>SimulationCoordinator</code> turns those inputs into backend state.</p>
+    <p>The first concrete action is <code>Generate today</code> from the menu. It still uses a deterministic in-memory client, but it now runs through the same architecture intended for future LLM integration:</p>
+    <pre>profile + scenario
+  -> SimulationPromptBuilder
+  -> InMemorySimulationLLMClient
+  -> SimulationNormalizer
+  -> SimulationCoordinator.applyNormalizedGeneration(...)
+  -> mirrored backends</pre>
+    <p>This means the prototype already exercises the prompt and normalization boundaries that a real provider will need later.</p>
+    <p>The first real-provider implementation also exists now: <code>WebLLMSimulationLLMClient</code>. It is not the default client, because it requires browser WebGPU support and a local model download, but the coordinator can be switched to it explicitly through <code>simulation.setLLMClient(new WebLLMSimulationLLMClient(...))</code>.</p>
+    <p>The coordinator provides the backend orchestration boundary for future LLM generation by:</p>
+    <ul>
+      <li>exporting current mirrored backend state</li>
+      <li>importing full backend snapshots</li>
+      <li>resetting backends to defaults or provided snapshots</li>
+      <li>seeding or upserting normalized generated records</li>
+      <li>exposing generation methods such as <code>generateDay()</code> and stub follow-ons such as <code>advanceTimeline()</code></li>
+    </ul>
+    <p>This keeps future LLM generation on the backend side of the architecture rather than inside renderer code.</p>
 
     <h2>Capability And Trust Model</h2>
     <p>Each renderer declares a manifest with a trust domain. Owned renderers are available by default. Mirrored renderers require two conditions:</p>
