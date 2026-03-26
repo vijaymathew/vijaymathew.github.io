@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folio Implementation Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./docs.css">
+</head>
+<body>
+  <main class="page">
+    <div class="eyebrow">Folio Docs</div>
+    <h1>Implementation Guide</h1>
+    <p class="lede">This document explains how the ideas in <a href="../../books/ui/the-document-is-the-computer.html">The Document is the Computer</a> are currently realized in the Folio prototype. It is implementation-facing: what exists, which classes carry the design, how data moves, and where the prototype is still intentionally incomplete.</p>
+
+    <nav class="nav">
+      <a href="./class-reference.html">Class Reference</a>
+      <a href="../index.html">Open Folio</a>
+      <a href="../../books/ui/the-document-is-the-computer.html">Architecture Document</a>
+    </nav>
+
+    <h2>Prototype Scope</h2>
+    <p>Folio is not trying to implement the entire book at once. The prototype is strongest in the owned-state path: <code>::task</code>, <code>::py</code>, <code>::table</code>, <code>::note</code>, lifecycle metadata, and multi-document storage. It also includes a mirrored-state path for <code>::cal</code>, <code>::email</code>, <code>::chat</code>, and <code>::web</code>, but those are explicitly projections over mock backends rather than text-owned databases.</p>
+    <div class="callout">The key architectural split is: owned state is canonical in document text; mirrored state remains canonical in a backend while the document stores projection parameters, local annotations, and a durable action journal.</div>
+
+    <h2>High-Level Architecture</h2>
+    <p>Folio is built as a document runtime around a small core loop:</p>
+    <ol>
+      <li>Raw document text is stored in <code>DocumentStore</code>.</li>
+      <li><code>DirectiveParser</code> parses the text into directive descriptors.</li>
+      <li><code>RenderCanvas</code> turns those descriptors into a text-first reading surface with lazy widget activation.</li>
+      <li>Each widget emits explicit mutations through <code>SyncBus</code>.</li>
+      <li><code>DocumentStore</code> applies those mutations to the target document and persists the result.</li>
+      <li><code>NamespaceBridge</code> rebuilds document-scoped Python state from the latest text.</li>
+    </ol>
+    <p>Nothing in the system is supposed to mutate hidden widget state and then treat the document as a secondary export. The document remains the substrate, and the runtime is a projection over that substrate.</p>
+
+    <h2>Runtime Flow</h2>
+    <pre>index.html
+  -> DocumentStore(seedDoc, storageKey, seedDocumentId)
+  -> SyncBus(store)
+  -> DirectiveParser()
+  -> DocumentSecurityPolicy()
+  -> CapabilityRegistry(policy)
+  -> NamespaceBridge(registry, parser, store, policy)
+  -> RenderCanvas(renderCanvasEl, registry, bus, parser, scrollRoot, { appApi })
+
+SyncBus event
+  -> DocumentStore.applyMutation(event)
+  -> parser.parse(text)
+  -> bridge.syncDocument(text, index)
+  -> canvas.update(text, index, bridge)</pre>
+    <p>This orchestration currently lives in <span class="path">folio/index.html</span>. The prototype does not yet have a separate application controller class; <code>index.html</code> is still the bootstrap and wiring layer.</p>
+
+    <h2>How The Manuscript Maps To Code</h2>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>Manuscript idea</th>
+          <th>Current realization in Folio</th>
+          <th>Primary classes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>The document is the substrate</td>
+          <td>Document text is the only persisted artifact. Widgets emit text mutations through the bus.</td>
+          <td><code>DocumentStore</code>, <code>SyncBus</code>, renderers</td>
+        </tr>
+        <tr>
+          <td>Owned state vs mirrored state</td>
+          <td>Renderer manifests declare <code>trust: 'owned'</code> or <code>trust: 'mirrored'</code>. Mirrored renderers are gated by document trust and capability grants.</td>
+          <td><code>CapabilityRegistry</code>, <code>DocumentSecurityPolicy</code></td>
+        </tr>
+        <tr>
+          <td>Python as document-scoped computation</td>
+          <td>All <code>::py</code> blocks execute top-to-bottom in one shared worker namespace rebuilt from current document text.</td>
+          <td><code>NamespaceBridge</code>, <code>PyodideWorker</code>, <code>PyRenderer</code></td>
+        </tr>
+        <tr>
+          <td>Transclusion as the note primitive</td>
+          <td><code>::note</code> resolves a source block, including cross-document references via <code>source-doc=...</code>, and writes back to the source on edit.</td>
+          <td><code>TransclusionResolver</code>, <code>NoteRenderer</code></td>
+        </tr>
+        <tr>
+          <td>Derived tables from computation</td>
+          <td><code>::table source=py-block</code> reads exported <code>result</code>/<code>table_result</code>, tracks divergence, and can re-sync to latest computed output.</td>
+          <td><code>TableRenderer</code>, <code>NamespaceBridge</code></td>
+        </tr>
+        <tr>
+          <td>Lifecycle and carry-forward</td>
+          <td><code>::meta[status]</code> affects activation policy; <code>::spawn</code> creates next and roll-up documents and carries open tasks forward by reference.</td>
+          <td><code>MetaRenderer</code>, <code>SpawnRenderer</code>, <code>DocumentStore</code></td>
+        </tr>
+        <tr>
+          <td>Graceful degradation</td>
+          <td>Every directive can fall back to raw text; the shell starts from text and upgrades nearby directives into widgets.</td>
+          <td><code>RenderCanvas</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Core Data Structures</h2>
+    <h3>Document Text</h3>
+    <p>The source artifact is always plain text. The parser recognizes single-line directives such as <code>::task[id]{...}</code> and block directives such as <code>::py</code>, <code>::table</code>, <code>::email</code>, <code>::note</code>, and <code>::web</code>.</p>
+
+    <h3>Directive Descriptors</h3>
+    <p><code>DirectiveParser</code> turns text into an index of descriptors with <code>type</code>, <code>id</code>, <code>params</code>, <code>lineStart</code>, <code>lineEnd</code>, <code>raw</code>, and optional <code>body</code>. The rest of the system works from these descriptors rather than reparsing arbitrary DOM.</p>
+
+    <h3>Sync Events</h3>
+    <p>Widget actions, text editing, spawn operations, compaction, and transclusion writebacks all travel through <code>SyncBus</code> as explicit events. Folio currently supports <code>append</code>, <code>replace</code>, and <code>delete</code> mutations. <code>DocumentStore</code> normalizes these events against a concrete document id and records the resulting history entry.</p>
+
+    <h2>Owned State In Folio</h2>
+    <h3><code>::task</code></h3>
+    <p>Tasks are true owned state. The directive line is the task. Toggling a checkbox rewrites that directive line with updated <code>status</code> and optional <code>completed</code> metadata. Blocking relationships are resolved from the in-memory task cache built during rendering.</p>
+
+    <h3><code>::note</code> and transclusion</h3>
+    <p>Notes now implement the transclusion architecture rather than acting as isolated inline note blocks. A note can point at another block in the current document or in another document via <code>source-doc</code>. When a transcluded note is edited, the writeback patch targets the source block, not the transcluding block.</p>
+    <pre>::note[finance-contact]{source=contact:finance.team field=notes}
+::end
+
+::note[carry-call-finance]{source=task:call-finance source-doc=daily:2026-03-23 field=raw}
+::end</pre>
+
+    <h3><code>::py</code></h3>
+    <p>Python is document-scoped, not widget-scoped. <code>NamespaceBridge</code> rebuilds globals from document text, then asks <code>PyodideWorker</code> to execute all Python blocks in document order. Auto blocks evaluate during document sync; manual blocks are held until the user runs them. Exported Python variables are captured per block and exposed to dependent renderers such as <code>::table</code>.</p>
+
+    <h3><code>::table</code></h3>
+    <p>Tables are stored in text as pipe-delimited rows. If linked to a <code>::py</code> block, Folio treats the table body as a derived owned snapshot: it can be re-synced from computation, manually edited, detached from the source, and queried from Python as structured row objects.</p>
+
+    <h2>Mirrored State In Folio</h2>
+    <p>Mirrored directives render data from mock backends. The backend remains canonical. The document stores projection parameters and a local journal of actions. This is the prototype realization of the manuscript’s “durable orchestration layer above apps” claim.</p>
+    <ul>
+      <li><code>::cal</code> renders events from <code>MockCalBackend</code>; RSVP actions update the backend and append a log line to the document.</li>
+      <li><code>::email</code> renders inboxes, threads, and drafts from <code>MockEmailBackend</code>; file, send, and discard actions rewrite document text appropriately.</li>
+      <li><code>::chat</code> renders recent channel messages from <code>MockChatBackend</code>; send posts to the backend and journals the action, while promote writes selected messages into surrounding prose.</li>
+      <li><code>::web</code> is a mirrored read surface for URL references plus local annotations.</li>
+    </ul>
+
+    <h2>Capability And Trust Model</h2>
+    <p>Each renderer declares a manifest with a trust domain. Owned renderers are available by default. Mirrored renderers require two conditions:</p>
+    <ol>
+      <li>The current document must be marked trusted.</li>
+      <li>The required read grant for that renderer or mirrored namespace must be present.</li>
+    </ol>
+    <p><code>CapabilityRegistry</code> enforces this policy both when a renderer tries to render and when <code>NamespaceBridge</code> tries to expose mirrored namespaces to Python. This is how Folio avoids ambient access to mail, calendar, chat, or web state.</p>
+    <pre>// Example manifest shape
+{
+  type: 'email',
+  trust: 'mirrored',
+  grants: { render: 'email.read', query: 'email.read' }
+}</pre>
+
+    <h2>Shell Architecture</h2>
+    <p>The visible UI is the reading surface in <code>RenderCanvas</code>. The hidden editor exists, but the prototype currently presents the document through a text-first canvas instead of a split editor by default.</p>
+    <p><code>RenderCanvas</code> builds a segment model from prose and directives, mounts fallback text first, and lazily activates nearby widgets. It also supports:</p>
+    <ul>
+      <li>global full-text mode</li>
+      <li>per-widget text fallback mode</li>
+      <li>lifecycle-aware auto-activation</li>
+      <li>line-preserving prose and fallback editing surfaces</li>
+      <li>post-mount activation sweeps so reload/bootstrap does not depend entirely on observer timing</li>
+    </ul>
+
+    <h2>Lifecycle Layer</h2>
+    <p><code>::meta[status]</code> and <code>::spawn</code> are Folio’s first pass at the document lifecycle described in the manuscript.</p>
+    <ul>
+      <li><code>active</code>: normal auto-activation rules apply.</li>
+      <li><code>dormant</code>: mirrored widgets stay in fallback text unless manually opened.</li>
+      <li><code>archived</code>: all widgets stay in fallback text unless manually opened.</li>
+    </ul>
+    <p><code>::spawn</code> creates the next document and a roll-up document in <code>DocumentStore</code>, then rewrites the current document’s status. Open tasks are carried forward by cross-document <code>::note</code> references rather than copied into disconnected duplicates.</p>
+
+    <h2>Persistence And Inspection</h2>
+    <p><code>DocumentStore</code> now supports multiple documents, stable document ids, event history, and snapshots. That makes lifecycle, carry-forward, and transclusion operate on real document objects instead of only one text buffer called “current”. In the browser console you can inspect:</p>
+    <ul>
+      <li><code>window.folioDebug.store.listDocuments()</code></li>
+      <li><code>window.folioDebug.store.getHistory(documentId)</code></li>
+      <li><code>window.folioDebug.store.getSnapshots(documentId)</code></li>
+      <li><code>window.folioDebug.openDocument(documentId)</code></li>
+    </ul>
+
+    <h2>Known Limits</h2>
+    <ul>
+      <li>Python output is kept in runtime state and widget UI; it is not yet written back into text as an explicit derived block.</li>
+      <li>The backends are mocks. There is no real network sync, backend reconciliation, or offline recovery protocol yet.</li>
+      <li>The app bootstrap and top-level orchestration still live directly in <code>index.html</code>.</li>
+      <li>Some domain renderers still use contenteditable surfaces internally even though the shell itself now preserves prose text exactly.</li>
+      <li>The parser is intentionally simple and line-oriented; it is sufficient for the prototype but not yet a full robust document grammar.</li>
+    </ul>
+  </main>
+</body>
+</html>
