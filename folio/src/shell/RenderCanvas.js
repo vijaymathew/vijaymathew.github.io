@@ -27,6 +27,7 @@ export class RenderCanvas {
     this.registry = registry;
     this.syncBus = syncBus;
     this.parser = parser;
+    this.scrollRoot = scrollRoot;
     this.appApi = opts.appApi || null;
     this.lifecycleStatus = 'active';
 
@@ -34,12 +35,15 @@ export class RenderCanvas {
     this.segments = [];
     /** Map lineStart → { element, descriptor, live } */
     this.activeWidgets = new Map();
+    /** Global full-text mode for the entire canvas. */
+    this.globalTextMode = false;
     /** Set of lineStart in explicit text view mode. */
     this.textModeWidgets = new Set();
     /** Most-recent bridge reference. */
     this.bridge = null;
 
     const margin = opts.proximityPx ?? 600;
+    this.proximityPx = margin;
     this.observer = new IntersectionObserver(
       this._onIntersection.bind(this),
       {
@@ -50,6 +54,8 @@ export class RenderCanvas {
     );
 
     this.container.addEventListener('toggle-view', (e) => {
+      if (this.globalTextMode) return;
+
       const lineStart = parseInt(e.target.closest('[data-line-start]').dataset.lineStart, 10);
       const widget = this.activeWidgets.get(lineStart);
       if (widget) {
@@ -82,6 +88,7 @@ export class RenderCanvas {
       this._patchProse(next);
       this._patchDirectives(next);
       this.segments = next;
+      this._scheduleActivationSweep();
       return;
     }
 
@@ -89,6 +96,7 @@ export class RenderCanvas {
     this._teardown();
     this.segments = next;
     this._mount();
+    this._scheduleActivationSweep();
   }
 
   // ── segment model ───────────────────────────────────────────
@@ -195,6 +203,33 @@ export class RenderCanvas {
     this.container.innerHTML = '';
   }
 
+  _scheduleActivationSweep() {
+    if (this.globalTextMode) return;
+
+    requestAnimationFrame(() => {
+      this._activateNearbyWidgets();
+    });
+  }
+
+  _activateNearbyWidgets() {
+    if (this.globalTextMode || !this.scrollRoot) return;
+
+    const rootRect = this.scrollRoot.getBoundingClientRect();
+    const topBound = rootRect.top - this.proximityPx;
+    const bottomBound = rootRect.bottom + this.proximityPx;
+
+    for (const [lineStart, widget] of this.activeWidgets.entries()) {
+      if (widget.live || this.textModeWidgets.has(lineStart)) continue;
+      if (!this._canAutoActivate(widget.descriptor)) continue;
+
+      const rect = widget.element.getBoundingClientRect();
+      const isNearViewport = rect.bottom >= topBound && rect.top <= bottomBound;
+      if (isNearViewport) {
+        this._activate(widget);
+      }
+    }
+  }
+
   // ── prose patching ──────────────────────────────────────────
 
   /** Update directive descriptors and fallbacks in-place. */
@@ -205,7 +240,7 @@ export class RenderCanvas {
         const widget = this.activeWidgets.get(lineStart);
         if (widget) {
           widget.descriptor = seg.descriptor;
-          const forceText = this.textModeWidgets.has(lineStart);
+          const forceText = this.globalTextMode || this.textModeWidgets.has(lineStart);
 
           if (forceText && widget.live) {
             this._deactivate(widget);
@@ -297,7 +332,7 @@ export class RenderCanvas {
       const widget = this.activeWidgets.get(lineStart);
       if (!widget) continue;
 
-      if (entry.isIntersecting && !widget.live && !this.textModeWidgets.has(lineStart)) {
+      if (entry.isIntersecting && !widget.live && !this.globalTextMode && !this.textModeWidgets.has(lineStart)) {
         if (this._canAutoActivate(widget.descriptor)) {
           this._activate(widget);
         }
@@ -309,18 +344,20 @@ export class RenderCanvas {
 
   /** Toggle all widgets between text and live views. */
   toggleAll(forceText) {
-    for (const seg of this.segments) {
-      if (seg.type === 'directive') {
-        if (forceText) {
-          this.textModeWidgets.add(seg.descriptor.lineStart);
-        } else {
-          this.textModeWidgets.delete(seg.descriptor.lineStart);
-        }
-      }
+    this.globalTextMode = Boolean(forceText);
+    if (!this.globalTextMode) {
+      // Leaving global text mode should restore the normal live-widget canvas.
+      this.textModeWidgets.clear();
     }
-    // Re-render to apply changes
+
+    // Reconcile against the current document so the mode applies to
+    // existing widgets and persists across future canvas updates.
     const text = this.syncBus.store.getContents();
     this.update(text, this.parser.parse(text), this.bridge);
+  }
+
+  isGlobalTextMode() {
+    return this.globalTextMode;
   }
 
   /** Render the live widget for a directive. */
@@ -391,8 +428,9 @@ export class RenderCanvas {
 
     const switchBtn = document.createElement('button');
     switchBtn.className = 'directive-pill';
-    switchBtn.title = 'Switch to Widget View';
+    switchBtn.title = this.globalTextMode ? 'Full Text View is active' : 'Switch to Widget View';
     switchBtn.innerHTML = '<i class="fa fa-eye"></i>';
+    switchBtn.disabled = this.globalTextMode;
     switchBtn.onclick = () => {
       element.dispatchEvent(new CustomEvent('toggle-view', { bubbles: true }));
     };
