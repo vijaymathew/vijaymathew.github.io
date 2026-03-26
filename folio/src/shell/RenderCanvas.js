@@ -27,17 +27,23 @@ export class RenderCanvas {
     this.registry = registry;
     this.syncBus = syncBus;
     this.parser = parser;
+    this.scrollRoot = scrollRoot;
+    this.appApi = opts.appApi || null;
+    this.lifecycleStatus = 'active';
 
     /** Currently built segment model. */
     this.segments = [];
     /** Map lineStart → { element, descriptor, live } */
     this.activeWidgets = new Map();
+    /** Global full-text mode for the entire canvas. */
+    this.globalTextMode = false;
     /** Set of lineStart in explicit text view mode. */
     this.textModeWidgets = new Set();
     /** Most-recent bridge reference. */
     this.bridge = null;
 
     const margin = opts.proximityPx ?? 600;
+    this.proximityPx = margin;
     this.observer = new IntersectionObserver(
       this._onIntersection.bind(this),
       {
@@ -48,6 +54,8 @@ export class RenderCanvas {
     );
 
     this.container.addEventListener('toggle-view', (e) => {
+      if (this.globalTextMode) return;
+
       const lineStart = parseInt(e.target.closest('[data-line-start]').dataset.lineStart, 10);
       const widget = this.activeWidgets.get(lineStart);
       if (widget) {
@@ -70,15 +78,17 @@ export class RenderCanvas {
    * @param {DirectiveDescriptor[]} index
    * @param {NamespaceBridge} bridge
    */
-  update(text, index, bridge) {
+  update(text, index, bridge, forceRebuild = false) {
     this.bridge = bridge;
+    this.lifecycleStatus = this._resolveLifecycleStatus(index);
     const next = this._buildSegments(text, index);
 
-    if (this._structurallyEqual(next)) {
+    if (!forceRebuild && this._structurallyEqual(next)) {
       // Layout unchanged — patch prose and descriptors in-place, leave widgets alone.
       this._patchProse(next);
       this._patchDirectives(next);
       this.segments = next;
+      this._scheduleActivationSweep();
       return;
     }
 
@@ -86,6 +96,7 @@ export class RenderCanvas {
     this._teardown();
     this.segments = next;
     this._mount();
+    this._scheduleActivationSweep();
   }
 
   // ── segment model ───────────────────────────────────────────
@@ -182,8 +193,41 @@ export class RenderCanvas {
   /** Disconnect observer, clear widget state, empty DOM. */
   _teardown() {
     this.observer.disconnect();
+    for (const widget of this.activeWidgets.values()) {
+      const root = widget.element.firstChild;
+      if (root && typeof root.__cleanup === 'function') {
+        root.__cleanup();
+      }
+    }
     this.activeWidgets.clear();
     this.container.innerHTML = '';
+  }
+
+  _scheduleActivationSweep() {
+    if (this.globalTextMode) return;
+
+    requestAnimationFrame(() => {
+      this._activateNearbyWidgets();
+    });
+  }
+
+  _activateNearbyWidgets() {
+    if (this.globalTextMode || !this.scrollRoot) return;
+
+    const rootRect = this.scrollRoot.getBoundingClientRect();
+    const topBound = rootRect.top - this.proximityPx;
+    const bottomBound = rootRect.bottom + this.proximityPx;
+
+    for (const [lineStart, widget] of this.activeWidgets.entries()) {
+      if (widget.live || this.textModeWidgets.has(lineStart)) continue;
+      if (!this._canAutoActivate(widget.descriptor)) continue;
+
+      const rect = widget.element.getBoundingClientRect();
+      const isNearViewport = rect.bottom >= topBound && rect.top <= bottomBound;
+      if (isNearViewport) {
+        this._activate(widget);
+      }
+    }
   }
 
   // ── prose patching ──────────────────────────────────────────
@@ -196,7 +240,7 @@ export class RenderCanvas {
         const widget = this.activeWidgets.get(lineStart);
         if (widget) {
           widget.descriptor = seg.descriptor;
-          const forceText = this.textModeWidgets.has(lineStart);
+          const forceText = this.globalTextMode || this.textModeWidgets.has(lineStart);
 
           if (forceText && widget.live) {
             this._deactivate(widget);
@@ -221,7 +265,7 @@ export class RenderCanvas {
     for (const seg of next) {
       if (seg.type === 'prose' && idx < proseEls.length) {
         // Only update if not currently focused
-        if (document.activeElement !== proseEls[idx]) {
+        if (!proseEls[idx].contains(document.activeElement)) {
           this._fillProse(proseEls[idx], seg);
         }
         idx++;
@@ -229,44 +273,34 @@ export class RenderCanvas {
     }
   }
 
-  /** Render lines into paragraph elements inside a prose container. */
+  /** Render a line-preserving prose editor into the segment container. */
   _fillProse(el, seg) {
     const { lines, startLine } = seg;
     const lineCount = lines.length;
-    const text = lines.join('\n').trim();
+    const text = lines.join('\n');
 
     el.innerHTML = '';
-    el.contentEditable = 'true';
-    el.spellcheck = false;
+    el.dataset.segmentType = 'prose';
 
-    if (!text) {
+    if (text === '') {
       el.dataset.empty = 'true';
     } else {
       delete el.dataset.empty;
     }
 
-    let p = document.createElement('p');
-    for (const line of lines) {
-      if (line.trim() === '') {
-        if (p.textContent !== '') {
-          el.appendChild(p);
-          p = document.createElement('p');
-        }
-      } else {
-        if (p.textContent) p.textContent += ' ';
-        p.textContent += line;
-      }
-    }
-    if (p.textContent !== '') {
-      el.appendChild(p);
-    }
+    const editor = document.createElement('textarea');
+    editor.className = 'prose-editor';
+    editor.spellcheck = false;
+    editor.value = text;
+    editor.placeholder = '(empty)';
 
-    // Sync back on blur
-    el.onblur = () => {
-      const newText = el.innerText.trim();
-      const oldText = lines.join('\n').trim();
-      
-      if (newText !== oldText) {
+    editor.addEventListener('input', () => {
+      this._autosizeTextSurface(editor);
+    });
+
+    editor.addEventListener('blur', () => {
+      const newText = editor.value;
+      if (newText !== text) {
         this.syncBus.emit({
           timestamp: new Date().toISOString(),
           source: 'editor', // Use 'editor' source to trigger updates elsewhere
@@ -279,11 +313,14 @@ export class RenderCanvas {
           }
         });
       }
-    };
+    });
 
-    el.onfocus = () => {
+    editor.addEventListener('focus', () => {
       delete el.dataset.empty;
-    };
+    });
+
+    el.appendChild(editor);
+    this._mountAutosizedTextSurface(editor);
   }
 
   // ── viewport observation ────────────────────────────────────
@@ -295,8 +332,10 @@ export class RenderCanvas {
       const widget = this.activeWidgets.get(lineStart);
       if (!widget) continue;
 
-      if (entry.isIntersecting && !widget.live && !this.textModeWidgets.has(lineStart)) {
-        this._activate(widget);
+      if (entry.isIntersecting && !widget.live && !this.globalTextMode && !this.textModeWidgets.has(lineStart)) {
+        if (this._canAutoActivate(widget.descriptor)) {
+          this._activate(widget);
+        }
       } else if (!entry.isIntersecting && widget.live) {
         this._deactivate(widget);
       }
@@ -305,18 +344,20 @@ export class RenderCanvas {
 
   /** Toggle all widgets between text and live views. */
   toggleAll(forceText) {
-    for (const seg of this.segments) {
-      if (seg.type === 'directive') {
-        if (forceText) {
-          this.textModeWidgets.add(seg.descriptor.lineStart);
-        } else {
-          this.textModeWidgets.delete(seg.descriptor.lineStart);
-        }
-      }
+    this.globalTextMode = Boolean(forceText);
+    if (!this.globalTextMode) {
+      // Leaving global text mode should restore the normal live-widget canvas.
+      this.textModeWidgets.clear();
     }
-    // Re-render to apply changes
+
+    // Reconcile against the current document so the mode applies to
+    // existing widgets and persists across future canvas updates.
     const text = this.syncBus.store.getContents();
     this.update(text, this.parser.parse(text), this.bridge);
+  }
+
+  isGlobalTextMode() {
+    return this.globalTextMode;
   }
 
   /** Render the live widget for a directive. */
@@ -326,13 +367,23 @@ export class RenderCanvas {
 
     if (!renderer) return; // keep fallback
 
-    const ctx = {
-      ...descriptor,
-      syncBus: this.syncBus,
-      bridge: this.bridge
-    };
+      const ctx = {
+        ...descriptor,
+        syncBus: this.syncBus,
+        bridge: this.bridge,
+        policy: this.registry.policy,
+        app: this.appApi
+      };
 
     try {
+      const auth = this.registry.authorize(descriptor.type, 'render');
+      if (!auth.allowed) {
+        element.innerHTML = '';
+        element.appendChild(this._buildCapabilityGate(descriptor, auth));
+        widget.live = true;
+        return;
+      }
+
       const liveEl = await renderer.render(ctx);
       element.innerHTML = '';
       element.appendChild(liveEl);
@@ -345,6 +396,10 @@ export class RenderCanvas {
 
   /** Replace a live widget with its raw-text fallback. */
   _deactivate(widget) {
+    const root = widget.element.firstChild;
+    if (root && typeof root.__cleanup === 'function') {
+      root.__cleanup();
+    }
     this._showFallback(widget.element, widget.descriptor);
     widget.live = false;
   }
@@ -373,8 +428,9 @@ export class RenderCanvas {
 
     const switchBtn = document.createElement('button');
     switchBtn.className = 'directive-pill';
-    switchBtn.title = 'Switch to Widget View';
+    switchBtn.title = this.globalTextMode ? 'Full Text View is active' : 'Switch to Widget View';
     switchBtn.innerHTML = '<i class="fa fa-eye"></i>';
+    switchBtn.disabled = this.globalTextMode;
     switchBtn.onclick = () => {
       element.dispatchEvent(new CustomEvent('toggle-view', { bubbles: true }));
     };
@@ -382,19 +438,22 @@ export class RenderCanvas {
 
     element.appendChild(header);
 
-    const pre = document.createElement('pre');
-    pre.className = 'directive-fallback';
-    pre.contentEditable = 'true';
-    pre.spellcheck = false;
+    const textarea = document.createElement('textarea');
+    textarea.className = 'directive-fallback directive-fallback-editor';
+    textarea.spellcheck = false;
 
     let text = descriptor.raw;
     if (descriptor.body && descriptor.body.length > 0) {
       text += '\n' + descriptor.body.join('\n') + '\n::end';
     }
-    pre.textContent = text;
+    textarea.value = text;
 
-    pre.addEventListener('blur', () => {
-      const newText = pre.innerText.trim();
+    textarea.addEventListener('input', () => {
+      this._autosizeTextSurface(textarea);
+    });
+
+    textarea.addEventListener('blur', () => {
+      const newText = textarea.value;
       if (newText === text) return;
 
       this.syncBus.emit({
@@ -410,6 +469,102 @@ export class RenderCanvas {
       });
     });
 
-    element.appendChild(pre);
+    element.appendChild(textarea);
+    this._mountAutosizedTextSurface(textarea);
+  }
+
+  _autosizeTextSurface(el) {
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }
+
+  _mountAutosizedTextSurface(el) {
+    this._autosizeTextSurface(el);
+    requestAnimationFrame(() => {
+      if (el.isConnected) {
+        this._autosizeTextSurface(el);
+      }
+    });
+  }
+
+  _buildCapabilityGate(descriptor, auth) {
+    const container = document.createElement('div');
+    container.className = 'directive-widget';
+
+    const header = document.createElement('div');
+    header.className = 'directive-header';
+
+    const tag = document.createElement('span');
+    tag.className = 'directive-tag';
+    tag.textContent = `::${descriptor.type}[${descriptor.id}]`;
+    header.appendChild(tag);
+
+    const pills = document.createElement('div');
+    pills.className = 'directive-pills';
+    header.appendChild(pills);
+    container.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'directive-body';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '10px';
+
+    const message = document.createElement('div');
+    message.style.fontFamily = 'var(--sans)';
+    message.style.fontSize = '13px';
+    message.style.color = 'var(--ink2)';
+    message.textContent = auth.reason === 'untrusted-document'
+      ? 'This directive is mirrored state. Trust the document before Folio will read remote data.'
+      : `Missing capability grant: ${auth.grant}.`;
+    body.appendChild(message);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+    actions.style.flexWrap = 'wrap';
+
+    if (auth.reason === 'untrusted-document') {
+      const trustBtn = document.createElement('button');
+      trustBtn.className = 'directive-pill active';
+      trustBtn.textContent = 'trust document';
+      trustBtn.onclick = () => {
+        this.registry.policy?.setTrusted(true);
+      };
+      actions.appendChild(trustBtn);
+    }
+
+    if (auth.grant) {
+      const grantBtn = document.createElement('button');
+      grantBtn.className = 'directive-pill';
+      grantBtn.textContent = `grant ${auth.grant}`;
+      grantBtn.disabled = auth.reason === 'untrusted-document';
+      grantBtn.onclick = () => {
+        this.registry.policy?.setGrant(auth.grant, true);
+      };
+      actions.appendChild(grantBtn);
+    }
+
+    body.appendChild(actions);
+    container.appendChild(body);
+    return container;
+  }
+
+  _resolveLifecycleStatus(index) {
+    const meta = index.find((descriptor) => descriptor.type === 'meta' && descriptor.id === 'status');
+    return meta?.params?.value || meta?.params?.status || 'active';
+  }
+
+  _canAutoActivate(descriptor) {
+    if (this.lifecycleStatus === 'archived') {
+      return false;
+    }
+
+    if (this.lifecycleStatus === 'dormant') {
+      const manifest = this.registry.getManifest(descriptor.type);
+      return manifest?.trust !== 'mirrored';
+    }
+
+    return true;
   }
 }

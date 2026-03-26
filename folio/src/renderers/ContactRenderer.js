@@ -22,7 +22,7 @@ const contactCache = new Map();
 
 export class ContactRenderer extends RendererBase {
   get manifest() {
-    return { type: 'contact', capabilities: ['query', 'mutate'] };
+    return { type: 'contact', capabilities: ['query', 'mutate'], trust: 'owned' };
   }
 
   async render(ctx) {

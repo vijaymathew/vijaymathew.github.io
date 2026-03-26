@@ -30,7 +30,7 @@ const FILE_ICONS = {
 
 export class FileRenderer extends RendererBase {
   get manifest() {
-    return { type: 'file', capabilities: ['query'] };
+    return { type: 'file', capabilities: ['query'], trust: 'owned' };
   }
 
   async render(ctx) {

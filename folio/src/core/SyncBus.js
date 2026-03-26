@@ -28,11 +28,11 @@ export class SyncBus {
     this.validate(event);
 
     // 2. Apply to the DocumentStore
-    this.store.applyMutation(event);
+    const appliedEvent = this.store.applyMutation(event);
 
     // 3. Notify subscribers
     for (const sub of this.subscribers) {
-      sub(event);
+      sub(appliedEvent);
     }
   }
 
@@ -45,5 +45,8 @@ export class SyncBus {
     if (!event.source) throw new Error('SyncEvent: Missing source');
     if (!event.type) throw new Error('SyncEvent: Missing type');
     if (!event.payload) throw new Error('SyncEvent: Missing payload');
+    if (!['append', 'replace', 'delete'].includes(event.type)) {
+      throw new Error(`SyncEvent: Unsupported type ${event.type}`);
+    }
   }
 }

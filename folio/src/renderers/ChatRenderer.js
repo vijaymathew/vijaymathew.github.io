@@ -1,54 +1,30 @@
 import { RendererBase } from './RendererBase.js';
+import { MockChatBackend } from '../backends/MockChatBackend.js';
 
 /**
  * Text-native chat renderer (mirrored state).
  *
- * A chat embed renders a slice of a channel inline:
- *
- *   ::chat[#design-team]{limit=5}
- *   user=sara.chen text="Has anyone reviewed the Q3 mockups?" time=09:15
- *   user=rohan.m text="Looking at them now" time=09:18
- *   posted to #design-team: "Will update today" — 14:47
- *   ::end
- *
- * Message lines start with user=.  Everything else is a log entry
- * (posted, promoted).
- *
- * Actions:
- *   Post — compose bar sends to channel + appends log line
- *   Promote — one-click to write a message as prose below the embed
+ * The backend owns channel messages. The document owns only:
+ * - projection parameters on the directive line
+ * - user action logs in the directive body
+ * - any prose promoted out of the channel into the document
  */
-
-const chatCache = new Map();
-
 export class ChatRenderer extends RendererBase {
   get manifest() {
-    return { type: 'chat', capabilities: ['query', 'mutate'] };
+    return {
+      type: 'chat',
+      capabilities: ['query', 'mutate'],
+      trust: 'mirrored',
+      grants: { render: 'chat.read', query: 'chat.read' }
+    };
   }
 
   async render(ctx) {
     const { id, params, body, syncBus, lineStart, lineEnd } = ctx;
     const channel = id;
-    const limit = parseInt(params.limit) || 20;
+    const messages = MockChatBackend.listMessages(channel, params);
+    const logLines = (body || []).map((line) => line.trim()).filter(Boolean);
 
-    // Parse body into messages and log entries.
-    const messages = [];
-    const logLines = [];
-    for (const line of (body || [])) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      if (trimmed.startsWith('user=')) {
-        messages.push(this._parseKV(trimmed));
-      } else {
-        logLines.push(trimmed);
-      }
-    }
-
-    chatCache.set(id, messages.map(m => ({ ...m })));
-
-    const displayed = messages.slice(-limit);
-
-    // ── widget shell ────────────────────────────────────────
     const container = this.createWidgetContainer(`::chat[${channel}]`);
     const pills = container.querySelector('.directive-pills');
     const bodyEl = container.querySelector('.directive-body');
@@ -58,11 +34,10 @@ export class ChatRenderer extends RendererBase {
     if (params.limit) this._pill(pills, `limit=${params.limit}`);
     if (params.since) this._pill(pills, `since=${params.since}`);
 
-    // ── message list ────────────────────────────────────────
     const msgList = document.createElement('div');
     msgList.className = 'chat-messages';
 
-    displayed.forEach((msg, idx) => {
+    messages.forEach((msg) => {
       const row = document.createElement('div');
       row.className = 'chat-message';
 
@@ -83,22 +58,16 @@ export class ChatRenderer extends RendererBase {
       text.className = 'chat-msg-text';
       text.textContent = msg.text || '';
 
-      // Promote button
       const promoteBtn = document.createElement('button');
       promoteBtn.className = 'directive-pill chat-promote';
       promoteBtn.textContent = 'promote';
       promoteBtn.title = 'Write this message to the document as prose';
       promoteBtn.onclick = () => {
         const promoted = `[${channel}] ${msg.user}: "${msg.text}" — ${msg.time}`;
-        const logLine = `promoted: ${msg.user} "${(msg.text || '').slice(0, 40)}..." — ${this._fmtNow()}`;
-        logLines.push(logLine);
-
-        // Rebuild body with new log line
-        const msgLines = messages.map(m => this._serializeKV(m));
-        const allBody = [...msgLines, ...logLines];
+        const logLine = `promoted from ${channel}: "${(msg.text || '').slice(0, 48)}" — ${this._fmtNow()}`;
+        const nextBody = [...logLines, logLine];
         const directiveLine = this._serializeDirectiveLine(id, params);
-        // Append the promoted text as prose AFTER the ::end
-        const blockText = [directiveLine, ...allBody, '::end', '', promoted].join('\n');
+        const blockText = [directiveLine, ...nextBody, '::end', '', promoted].join('\n');
 
         syncBus.emit({
           timestamp: new Date().toISOString(),
@@ -106,9 +75,6 @@ export class ChatRenderer extends RendererBase {
           type: 'replace',
           payload: { targetDocId: 'current', lineStart, lineEnd, text: blockText }
         });
-
-        promoteBtn.textContent = 'promoted';
-        promoteBtn.disabled = true;
       };
 
       row.append(header, text, promoteBtn);
@@ -116,19 +82,8 @@ export class ChatRenderer extends RendererBase {
     });
 
     bodyEl.appendChild(msgList);
+    this._appendLogArea(bodyEl, logLines);
 
-    // ── log area ────────────────────────────────────────────
-    const logArea = document.createElement('div');
-    logArea.className = 'chat-log-area';
-    logLines.forEach(l => {
-      const entry = document.createElement('div');
-      entry.className = 'chat-log';
-      entry.textContent = l;
-      logArea.appendChild(entry);
-    });
-    bodyEl.appendChild(logArea);
-
-    // ── compose bar ─────────────────────────────────────────
     const composeBar = document.createElement('div');
     composeBar.className = 'chat-compose';
 
@@ -145,15 +100,11 @@ export class ChatRenderer extends RendererBase {
       const text = input.value.trim();
       if (!text) return;
 
-      const now = this._fmtNow();
-      const logLine = `posted to ${channel}: "${text}" — ${now}`;
-      logLines.push(logLine);
-
-      // Rebuild body
-      const msgLines = messages.map(m => this._serializeKV(m));
-      const allBody = [...msgLines, ...logLines];
+      const sent = MockChatBackend.postMessage(channel, text);
+      const logLine = `posted to ${channel}: "${sent.text}" — ${sent.time}`;
+      const nextBody = [...logLines, logLine];
       const directiveLine = this._serializeDirectiveLine(id, params);
-      const blockText = [directiveLine, ...allBody, '::end'].join('\n');
+      const blockText = [directiveLine, ...nextBody, '::end'].join('\n');
 
       syncBus.emit({
         timestamp: new Date().toISOString(),
@@ -161,17 +112,11 @@ export class ChatRenderer extends RendererBase {
         type: 'replace',
         payload: { targetDocId: 'current', lineStart, lineEnd, text: blockText }
       });
-
-      // Show log entry
-      const entry = document.createElement('div');
-      entry.className = 'chat-log';
-      entry.textContent = logLine;
-      logArea.appendChild(entry);
-
-      input.value = '';
     };
 
-    input.onkeydown = (e) => { if (e.key === 'Enter') sendBtn.onclick(); };
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') sendBtn.onclick();
+    };
 
     composeBar.append(input, sendBtn);
     bodyEl.appendChild(composeBar);
@@ -179,30 +124,30 @@ export class ChatRenderer extends RendererBase {
     return container;
   }
 
-  async query(params) {
-    if (params && params.id) return chatCache.get(params.id) || [];
-    const all = {};
-    for (const [id, data] of chatCache) all[id] = data;
-    return all;
-  }
+  async query(params = {}) {
+    const channel = params.id || params.channel;
+    if (channel) return MockChatBackend.listMessages(channel, params);
 
-  // ── parsing / serialisation ───────────────────────────────
-
-  _parseKV(line) {
-    const obj = {};
-    const re = /([\w-]+)=(?:"([^"]*)"|(\S+))/g;
-    let m;
-    while ((m = re.exec(line)) !== null) {
-      obj[m[1]] = m[2] !== undefined ? m[2] : m[3];
+    const grouped = {};
+    for (const item of MockChatBackend.queryAll()) {
+      if (!grouped[item.channel]) grouped[item.channel] = [];
+      grouped[item.channel].push(item);
     }
-    return obj;
+    return grouped;
   }
 
-  _serializeKV(obj) {
-    return Object.entries(obj)
-      .filter(([_, v]) => v != null)
-      .map(([k, v]) => String(v).includes(' ') ? `${k}="${v}"` : `${k}=${v}`)
-      .join(' ');
+  _appendLogArea(bodyEl, logLines) {
+    if (logLines.length === 0) return;
+
+    const logArea = document.createElement('div');
+    logArea.className = 'chat-log-area';
+    logLines.forEach((line) => {
+      const entry = document.createElement('div');
+      entry.className = 'chat-log';
+      entry.textContent = line;
+      logArea.appendChild(entry);
+    });
+    bodyEl.appendChild(logArea);
   }
 
   _serializeDirectiveLine(id, params) {
