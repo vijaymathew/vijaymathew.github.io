@@ -140,20 +140,17 @@ SyncBus event
     <p>The mock backends now also expose <code>exportState()</code>, <code>importState(...)</code>, <code>reset(...)</code>, and seeding/upsert helpers. This is the first implementation slice for a future LLM-backed simulation layer.</p>
 
     <h2>Simulation Slice</h2>
-    <p>Folio now includes a first-pass simulation stack under <span class="path">folio/src/simulation/</span>. <code>SimulationProfileStore</code> persists authored profile data, <code>SimulationScenarioStore</code> persists generated scenario state, richer ledger entries, and the last generated backend snapshot per profile, <code>SimulationSettingsStore</code> persists provider choice and non-secret config, <code>SimulationSecretsStore</code> persists provider secrets separately, and <code>SimulationCoordinator</code> turns those inputs into backend state.</p>
-    <p>The concrete action is <code>Generate today</code> from the menu. It now runs through a selectable provider path: <strong>Auto</strong> prefers WebLLM on WebGPU-capable browsers and falls back to the deterministic in-memory client elsewhere, while <strong>Remote OpenAI-compatible API</strong> uses a saved API key plus endpoint/model settings from the simulation settings modal.</p>
+    <p>Folio now includes a first-pass simulation stack under <span class="path">folio/src/simulation/</span>. <code>SimulationProfileStore</code> persists authored profile data, <code>SimulationScenarioStore</code> persists generated scenario state, richer ledger entries, and the last generated backend snapshot per profile, <code>SimulationSettingsStore</code> persists remote endpoint/model configuration, <code>SimulationSecretsStore</code> persists the remote API key separately, and <code>SimulationCoordinator</code> turns those inputs into backend state.</p>
+    <p>The concrete action is <code>Generate today</code> from the menu. It now runs through a single remote provider path: <strong>Remote OpenAI-compatible API</strong>. If no API key has been saved, generation stops with a configuration message instead of falling back to a local simulator.</p>
     <pre>profile + scenario
   -> SimulationPromptBuilder
-  -> selected SimulationLLMClient
-     -> WebLLMSimulationLLMClient (preferred when available)
-     -> OpenAICompatibleSimulationLLMClient (explicit remote provider)
-     -> InMemorySimulationLLMClient (fallback)
+  -> OpenAICompatibleSimulationLLMClient
   -> SimulationNormalizer
   -> SimulationCoordinator.applyNormalizedGeneration(...)
   -> mirrored backends</pre>
-    <p>The prototype also surfaces provider status in the product: the settings UI shows whether WebGPU is available, which model will be used, and the live WebLLM initialization/download state while generation runs.</p>
+    <p>The prototype also surfaces provider status in the product: the settings UI shows whether a remote API key is present, which endpoint and model will be used, and the live remote provider status while generation runs.</p>
     <p><code>SimulationPromptBuilder</code> now covers the main surface types described in the design: <code>buildDayPrompt(...)</code>, <code>buildInboxPrompt(...)</code>, <code>buildChatPrompt(...)</code>, <code>buildCalendarPrompt(...)</code>, <code>buildDayPlanPrompt(...)</code>, and <code>buildAdvanceTimelinePrompt(...)</code>. The coordinator uses the day, inbox, chat, calendar, and timeline prompts directly, persists a backend snapshot whenever one of those generation paths mutates mirrored state, and records a richer ledger entry with surface metadata and prompt/input summaries.</p>
-    <p>This means the prototype now exercises the same prompt and normalization boundaries for both deterministic and real local-LLM generation.</p>
+    <p>This means the prototype now exercises the same prompt and normalization boundaries against the real remote generation path used by the product.</p>
     <p>The coordinator provides the backend orchestration boundary for future LLM generation by:</p>
     <ul>
       <li>exporting current mirrored backend state</li>
