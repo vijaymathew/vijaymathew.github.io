@@ -5,6 +5,8 @@ const DEFAULT_PROFILE = {
     name: 'John Doe',
     email: 'john@folio.local',
     role: 'Product Lead',
+    bio: 'Leads planning, stakeholder communication, and day-to-day coordination for a small product team.',
+    interests: ['planning', 'roadmapping', 'team coordination'],
     timezone: 'Asia/Kolkata',
     working_hours: '09:00-18:00'
   },
@@ -161,17 +163,74 @@ export class SimulationProfileStore {
 }
 
 function normalizeProfile(profile) {
-  return {
+  const user = { ...(profile.user || {}) };
+  const normalized = {
     id: profile.id,
-    label: profile.label || profile.user?.name || profile.id,
-    user: { ...(profile.user || {}) },
+    label: profile.label || user.name || profile.id,
+    user: {
+      ...user,
+      bio: user.bio || '',
+      interests: normalizeInterests(user.interests)
+    },
     organization: { ...(profile.organization || {}) },
     contacts: Array.isArray(profile.contacts) ? profile.contacts.map((item) => ({ ...item })) : [],
     projects: Array.isArray(profile.projects) ? profile.projects.map((item) => ({ ...item })) : [],
     channels: Array.isArray(profile.channels) ? profile.channels.map((item) => ({ ...item })) : []
   };
+  return {
+    ...normalized,
+    signature: profile.signature || buildProfileSignature(normalized)
+  };
 }
 
 function cloneProfile(profile) {
   return normalizeProfile(profile);
+}
+
+function normalizeInterests(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function buildProfileSignature(profile) {
+  const payload = JSON.stringify({
+    user: {
+      name: profile.user?.name || '',
+      email: profile.user?.email || '',
+      role: profile.user?.role || '',
+      bio: profile.user?.bio || '',
+      interests: profile.user?.interests || []
+    },
+    organization: {
+      name: profile.organization?.name || '',
+      domain: profile.organization?.domain || ''
+    },
+    contacts: (profile.contacts || []).map((contact) => ({
+      id: contact.id || '',
+      name: contact.name || '',
+      email: contact.email || '',
+      role: contact.role || '',
+      relationship: contact.relationship || ''
+    })),
+    projects: (profile.projects || []).map((project) => ({
+      id: project.id || '',
+      name: project.name || '',
+      status: project.status || ''
+    })),
+    channels: (profile.channels || []).map((channel) => ({
+      id: channel.id || '',
+      topic: channel.topic || ''
+    }))
+  });
+
+  let hash = 0;
+  for (let i = 0; i < payload.length; i++) {
+    hash = ((hash << 5) - hash + payload.charCodeAt(i)) | 0;
+  }
+  return `sig:${Math.abs(hash).toString(36)}`;
 }
