@@ -22,6 +22,8 @@
                     <button id="btn-save">Save to file</button>
                     <button id="btn-load">Load from file</button>
                     <div class="menu-sep"></div>
+                    <button id="btn-toggle-trust">Trust document</button>
+                    <div class="menu-sep"></div>
                     <button id="help-manual">Usage manual</button>
                     <a href="../books/ui/the-document-is-the-computer.html" target="_blank">Architecture document</a>
                 </div>
@@ -34,6 +36,7 @@
                 </button>
             </div>
             <div class="status" id="status-bar">Substrate loaded</div>
+            <div class="status" id="security-bar">Untrusted document</div>
         </header>
         <main>
             <div id="editor-container"></div>
@@ -45,6 +48,7 @@
 
     <script type="module">
         import { DocumentStore } from './src/core/DocumentStore.js';
+        import { DocumentSecurityPolicy } from './src/core/DocumentSecurityPolicy.js';
         import { SyncBus } from './src/core/SyncBus.js';
         import { DirectiveParser } from './src/core/DirectiveParser.js';
         import { CapabilityRegistry } from './src/core/CapabilityRegistry.js';
@@ -142,16 +146,31 @@ Relevant to the East region overrun we are investigating. The section on procure
 
         // Bump version when the seed document structure changes
         // (e.g., directives move from inline to block format).
-        const STORAGE_KEY = 'folio:document:v4';
+        const STORAGE_KEY = 'folio:document:v5';
+        const SEED_DOCUMENT_ID = 'seed:v5';
+
+        function hashText(text) {
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        function makeLoadedDocumentId(name, text) {
+            return `file:${name}:${hashText(text)}`;
+        }
 
         // 1. Core Triad (auto-persists to localStorage)
-        const store = new DocumentStore(seedDoc, STORAGE_KEY);
+        const store = new DocumentStore(seedDoc, STORAGE_KEY, SEED_DOCUMENT_ID);
         const bus = new SyncBus(store);
         const parser = new DirectiveParser();
+        const policy = new DocumentSecurityPolicy('folio:policy');
+        policy.setDocument(store.getDocumentId());
 
         // 2. Registry & Bridge
-        const registry = new CapabilityRegistry();
-        const bridge = new NamespaceBridge(registry, parser, store);
+        const registry = new CapabilityRegistry(policy);
+        const bridge = new NamespaceBridge(registry, parser, store, policy);
 
         registry.register('note', NoteRenderer);
         registry.register('task', TaskRenderer);
@@ -175,6 +194,19 @@ Relevant to the East region overrun we are investigating. The section on procure
         let editorTimer = null;
         const EDITOR_DEBOUNCE_MS = 300;
         const statusBar = document.getElementById('status-bar');
+        const securityBar = document.getElementById('security-bar');
+        const trustBtn = document.getElementById('btn-toggle-trust');
+
+        function updateSecurityUI() {
+            const state = policy.getState();
+            const grants = Object.keys(state.grants).sort();
+            securityBar.textContent = state.trusted
+                ? `Trusted document${grants.length ? ` · ${grants.join(', ')}` : ''}`
+                : 'Untrusted document';
+            trustBtn.textContent = state.trusted ? 'Mark untrusted' : 'Trust document';
+        }
+
+        updateSecurityUI();
 
         // Global view toggle
         const globalToggle = document.getElementById('global-view-toggle');
@@ -224,8 +256,9 @@ Relevant to the East region overrun we are investigating. The section on procure
         });
 
         // ── Full re-render helper (used by load/reset) ─────────
-        function renderDocument(text) {
-            store.load(text);
+        function renderDocument(text, documentId = store.getDocumentId()) {
+            store.load(text, documentId);
+            policy.setDocument(documentId);
             editor.update(text);
             bridge.syncDocument(text, parser.parse(text));
             canvas.update(text, parser.parse(text), bridge);
@@ -234,7 +267,7 @@ Relevant to the East region overrun we are investigating. The section on procure
         // ── Toolbar: New / Save / Load ─────────────────────────
         document.getElementById('btn-new').onclick = () => {
             if (!confirm('Discard current document and start from the seed?')) return;
-            renderDocument(seedDoc);
+            renderDocument(seedDoc, SEED_DOCUMENT_ID);
             statusBar.textContent = 'New document loaded';
         };
 
@@ -255,7 +288,7 @@ Relevant to the East region overrun we are investigating. The section on procure
             if (!file) return;
             const reader = new FileReader();
             reader.onload = () => {
-                renderDocument(reader.result);
+                renderDocument(reader.result, makeLoadedDocumentId(file.name, reader.result));
                 statusBar.textContent = `Loaded: ${file.name}`;
             };
             reader.readAsText(file);
@@ -281,9 +314,23 @@ Relevant to the East region overrun we are investigating. The section on procure
             menuBtn.classList.remove('open');
             document.getElementById('manual-overlay').classList.add('open');
         };
+        trustBtn.onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            policy.setTrusted(!policy.isTrusted());
+            statusBar.textContent = policy.isTrusted() ? 'Document marked trusted' : 'Document marked untrusted';
+        };
         document.getElementById('manual-close').onclick = () => {
             document.getElementById('manual-overlay').classList.remove('open');
         };
+
+        policy.subscribe(() => {
+            updateSecurityUI();
+            const text = store.getContents();
+            const index = parser.parse(text);
+            bridge.syncDocument(text, index);
+            canvas.update(text, index, bridge, true);
+        });
 
         // ── Bootstrap ──────────────────────────────────────────
         const initialText = store.getContents();
@@ -319,7 +366,11 @@ Relevant to the East region overrun we are investigating. The section on procure
 <dt>New</dt><dd>Reset to the example seed document.</dd>
 <dt>Save</dt><dd>Download the current document as a <code>.folio.txt</code> file.</dd>
 <dt>Load</dt><dd>Open a previously saved document from disk.</dd>
+<dt>Trust document</dt><dd>Toggle whether the current document may access mirrored capabilities. Untrusted documents open with all mirrored access denied.</dd>
 </dl>
+
+<h2>Security</h2>
+<p>Folio keeps a per-document trust policy. Owned-state directives always run from document text. Mirrored directives and mirrored namespaces inside <code>::py</code> require both a trusted document and an explicit read grant such as <code>email.read</code> or <code>cal.read</code>. Marking a document untrusted clears its mirrored grants.</p>
 
 <h2>Directives</h2>
 <p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer.</p>
@@ -356,7 +407,7 @@ email = sara@example.com
 ::end</pre>
 
 <h3>::py &mdash; Python</h3>
-<p>A computation block that runs inside a document-scoped Python context. Blocks execute top to bottom, sharing state through one namespace for the document. By default, Python can read owned-state namespaces such as <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>note.query(...)</code>, and <code>task.query(...)</code>. Mirrored namespaces such as calendar or email require explicit grants. Click <strong>run</strong> to re-evaluate the document context through this block; <code>run=auto</code> evaluates automatically on load and after document changes.</p>
+<p>A computation block that runs inside a document-scoped Python context. Blocks execute top to bottom, sharing state through one namespace for the document. By default, Python can read owned-state namespaces such as <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>note.query(...)</code>, and <code>task.query(...)</code>. Mirrored namespaces such as calendar or email require both a trusted document and explicit grants. Click <strong>run</strong> to re-evaluate the document context through this block; <code>run=auto</code> evaluates automatically on load and after document changes.</p>
 <pre>::py[analysis]{run=auto}
 result = [
   {'region': 'North', 'q1': 3500, 'q2': 4200},

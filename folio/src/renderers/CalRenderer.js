@@ -10,7 +10,12 @@ import { MockCalBackend } from '../backends/MockCalBackend.js';
  */
 export class CalRenderer extends RendererBase {
   get manifest() {
-    return { type: 'cal', capabilities: ['query', 'mutate'] };
+    return {
+      type: 'cal',
+      capabilities: ['query', 'mutate'],
+      trust: 'mirrored',
+      grants: { render: 'cal.read', query: 'cal.read' }
+    };
   }
 
   async render(ctx) {

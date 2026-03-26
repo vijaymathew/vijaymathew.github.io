@@ -11,7 +11,12 @@ import { MockEmailBackend } from '../backends/MockEmailBackend.js';
  */
 export class EmailRenderer extends RendererBase {
   get manifest() {
-    return { type: 'email', capabilities: ['query', 'mutate'] };
+    return {
+      type: 'email',
+      capabilities: ['query', 'mutate'],
+      trust: 'mirrored',
+      grants: { render: 'email.read', query: 'email.read' }
+    };
   }
 
   async render(ctx) {

@@ -24,7 +24,7 @@ const taskCache = new Map();
 
 export class TaskRenderer extends RendererBase {
   get manifest() {
-    return { type: 'task', capabilities: ['query', 'mutate'] };
+    return { type: 'task', capabilities: ['query', 'mutate'], trust: 'owned' };
   }
 
   async render(ctx) {

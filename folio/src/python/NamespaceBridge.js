@@ -8,10 +8,11 @@ import { resolveNoteTransclusion } from '../core/TransclusionResolver.js';
  * exposed to Python. Mirrored-state namespaces require explicit grants.
  */
 export class NamespaceBridge {
-  constructor(registry, parser, store) {
+  constructor(registry, parser, store, policy = null) {
     this.registry = registry;
     this.parser = parser;
     this.store = store;
+    this.policy = policy;
 
     this.worker = null;
     this.ready = false;
@@ -59,6 +60,41 @@ export class NamespaceBridge {
       ? descriptorOrKey
       : this.getBlockKey(descriptorOrKey);
     return this.results.get(key) || null;
+  }
+
+  getBlockSecurity(descriptorOrKey) {
+    const descriptor = typeof descriptorOrKey === 'string'
+      ? this.lastIndex.find((item) => this.getBlockKey(item) === descriptorOrKey) || null
+      : descriptorOrKey;
+
+    if (!descriptor || descriptor.type !== 'py') {
+      return {
+        trusted: this.policy?.isTrusted?.() || false,
+        requested: [],
+        allowed: [],
+        denied: []
+      };
+    }
+
+    const requested = this._requestedNamespaces(descriptor);
+    const allowed = [];
+    const denied = [];
+
+    for (const ns of requested) {
+      const auth = this.registry.authorize(ns, 'query');
+      if (auth.allowed) {
+        allowed.push(ns);
+      } else {
+        denied.push({ namespace: ns, ...auth });
+      }
+    }
+
+    return {
+      trusted: this.policy?.isTrusted?.() || false,
+      requested,
+      allowed,
+      denied
+    };
   }
 
   async init() {
@@ -150,13 +186,15 @@ export class NamespaceBridge {
       return this.results;
     }
 
-    const grantedMirrored = this._collectGrantedNamespaces(pyBlocks);
+    const securityByKey = new Map();
+    const grantedMirrored = this._collectGrantedNamespaces(pyBlocks, securityByKey);
     const globals = await this._buildGlobals(text, index, grantedMirrored);
 
     const blocks = pyBlocks.map((descriptor) => {
       const key = this.getBlockKey(descriptor);
       const runMode = descriptor.params.run || 'manual';
-      const execute = runMode === 'auto' || key === triggerKey;
+      const security = securityByKey.get(key) || this.getBlockSecurity(descriptor);
+      const execute = (runMode === 'auto' || key === triggerKey) && security.denied.length === 0;
       return {
         key,
         id: descriptor.id,
@@ -200,14 +238,25 @@ export class NamespaceBridge {
     for (const block of pyBlocks) {
       const key = this.getBlockKey(block);
       const result = response.results?.[key] || {};
-      const status = result.status || ((block.params.run || 'manual') === 'auto' ? 'ok' : 'manual');
+      const security = securityByKey.get(key) || this.getBlockSecurity(block);
+      let status = result.status || ((block.params.run || 'manual') === 'auto' ? 'ok' : 'manual');
+      let error = result.error || null;
+
+      if (security.denied.length > 0) {
+        status = 'denied';
+        error = this._formatDeniedMessage(security);
+      }
+
       next.set(key, {
         key,
         status,
         stdout: result.stdout || '',
-        error: result.error || null,
+        error,
         context: result.context || {},
-        lineStart: block.lineStart
+        lineStart: block.lineStart,
+        requestedMirrored: security.requested,
+        allowedMirrored: security.allowed,
+        deniedMirrored: security.denied
       });
     }
 
@@ -216,22 +265,34 @@ export class NamespaceBridge {
     return next;
   }
 
-  _collectGrantedNamespaces(pyBlocks) {
+  _collectGrantedNamespaces(pyBlocks, securityByKey = new Map()) {
     const granted = new Set();
 
     for (const block of pyBlocks) {
-      const raw = block.params.grants || block.params.allow || '';
-      if (!raw) continue;
-
-      for (const token of raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)) {
-        const canonical = this._canonicalNamespace(token);
-        if (canonical && this.mirroredNamespaces.has(canonical)) {
-          granted.add(canonical);
-        }
+      const key = this.getBlockKey(block);
+      const security = this.getBlockSecurity(block);
+      securityByKey.set(key, security);
+      for (const ns of security.allowed) {
+        granted.add(ns);
       }
     }
 
     return granted;
+  }
+
+  _requestedNamespaces(block) {
+    const requested = [];
+    const raw = block.params.grants || block.params.allow || '';
+    if (!raw) return requested;
+
+    for (const token of raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)) {
+      const canonical = this._canonicalNamespace(token);
+      if (canonical && this.mirroredNamespaces.has(canonical) && !requested.includes(canonical)) {
+        requested.push(canonical);
+      }
+    }
+
+    return requested;
   }
 
   _canonicalNamespace(name) {
@@ -239,6 +300,20 @@ export class NamespaceBridge {
       if (aliases.includes(name)) return canonical;
     }
     return null;
+  }
+
+  _formatDeniedMessage(security) {
+    if (!security.trusted) {
+      return 'Document is untrusted. Trust it and grant mirrored capabilities before running this block.';
+    }
+
+    const grants = security.denied
+      .map((item) => item.grant)
+      .filter(Boolean)
+      .join(', ');
+    return grants
+      ? `Missing capability grants: ${grants}.`
+      : 'Capability access denied.';
   }
 
   async _buildGlobals(text, index, grantedMirrored) {

@@ -9,14 +9,21 @@ export class DocumentStore {
   /**
    * @param {string} initialText - Fallback text if nothing is persisted.
    * @param {string} [storageKey] - localStorage key for auto-save.
+   * @param {string} [initialDocumentId] - stable id for the working document.
    */
-  constructor(initialText = '', storageKey = null) {
+  constructor(initialText = '', storageKey = null, initialDocumentId = 'seed') {
     this.storageKey = storageKey;
     this.history = [];
+    this.documentId = initialDocumentId;
+    this.metaStorageKey = storageKey ? `${storageKey}:meta` : null;
 
     if (storageKey) {
       const saved = localStorage.getItem(storageKey);
+      const meta = this._loadMeta();
       this.text = saved !== null ? saved : initialText;
+      if (meta?.documentId) {
+        this.documentId = meta.documentId;
+      }
     } else {
       this.text = initialText;
     }
@@ -28,6 +35,15 @@ export class DocumentStore {
    */
   getContents() {
     return this.text;
+  }
+
+  getDocumentId() {
+    return this.documentId;
+  }
+
+  setDocumentId(documentId) {
+    this.documentId = documentId;
+    this._persistMeta();
   }
 
   /**
@@ -66,12 +82,14 @@ export class DocumentStore {
   _persist() {
     if (this.storageKey) {
       localStorage.setItem(this.storageKey, this.text);
+      this._persistMeta();
     }
   }
 
   /** Replace the entire document and persist. */
-  load(text) {
+  load(text, documentId = this.documentId) {
     this.text = text;
+    this.documentId = documentId;
     this.history = [];
     this._persist();
   }
@@ -84,5 +102,24 @@ export class DocumentStore {
   /** Check whether a persisted document exists for a key. */
   static hasSaved(storageKey) {
     return localStorage.getItem(storageKey) !== null;
+  }
+
+  _loadMeta() {
+    if (!this.metaStorageKey) return null;
+    const raw = localStorage.getItem(this.metaStorageKey);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  _persistMeta() {
+    if (!this.metaStorageKey) return;
+    localStorage.setItem(this.metaStorageKey, JSON.stringify({
+      documentId: this.documentId
+    }));
   }
 }

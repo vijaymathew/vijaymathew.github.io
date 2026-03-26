@@ -18,7 +18,7 @@ const noteCache = new Map();
 
 export class NoteRenderer extends RendererBase {
   get manifest() {
-    return { type: 'note', capabilities: ['query', 'mutate'] };
+    return { type: 'note', capabilities: ['query', 'mutate'], trust: 'owned' };
   }
 
   async render(ctx) {
