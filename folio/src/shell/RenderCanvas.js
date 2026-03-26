@@ -227,7 +227,7 @@ export class RenderCanvas {
     for (const seg of next) {
       if (seg.type === 'prose' && idx < proseEls.length) {
         // Only update if not currently focused
-        if (document.activeElement !== proseEls[idx]) {
+        if (!proseEls[idx].contains(document.activeElement)) {
           this._fillProse(proseEls[idx], seg);
         }
         idx++;
@@ -235,44 +235,35 @@ export class RenderCanvas {
     }
   }
 
-  /** Render lines into paragraph elements inside a prose container. */
+  /** Render a line-preserving prose editor into the segment container. */
   _fillProse(el, seg) {
     const { lines, startLine } = seg;
     const lineCount = lines.length;
-    const text = lines.join('\n').trim();
+    const text = lines.join('\n');
 
     el.innerHTML = '';
-    el.contentEditable = 'true';
-    el.spellcheck = false;
+    el.dataset.segmentType = 'prose';
 
-    if (!text) {
+    if (text === '') {
       el.dataset.empty = 'true';
     } else {
       delete el.dataset.empty;
     }
 
-    let p = document.createElement('p');
-    for (const line of lines) {
-      if (line.trim() === '') {
-        if (p.textContent !== '') {
-          el.appendChild(p);
-          p = document.createElement('p');
-        }
-      } else {
-        if (p.textContent) p.textContent += ' ';
-        p.textContent += line;
-      }
-    }
-    if (p.textContent !== '') {
-      el.appendChild(p);
-    }
+    const editor = document.createElement('textarea');
+    editor.className = 'prose-editor';
+    editor.spellcheck = false;
+    editor.value = text;
+    editor.placeholder = '(empty)';
+    this._autosizeTextSurface(editor);
 
-    // Sync back on blur
-    el.onblur = () => {
-      const newText = el.innerText.trim();
-      const oldText = lines.join('\n').trim();
-      
-      if (newText !== oldText) {
+    editor.addEventListener('input', () => {
+      this._autosizeTextSurface(editor);
+    });
+
+    editor.addEventListener('blur', () => {
+      const newText = editor.value;
+      if (newText !== text) {
         this.syncBus.emit({
           timestamp: new Date().toISOString(),
           source: 'editor', // Use 'editor' source to trigger updates elsewhere
@@ -285,11 +276,13 @@ export class RenderCanvas {
           }
         });
       }
-    };
+    });
 
-    el.onfocus = () => {
+    editor.addEventListener('focus', () => {
       delete el.dataset.empty;
-    };
+    });
+
+    el.appendChild(editor);
   }
 
   // ── viewport observation ────────────────────────────────────
@@ -401,19 +394,23 @@ export class RenderCanvas {
 
     element.appendChild(header);
 
-    const pre = document.createElement('pre');
-    pre.className = 'directive-fallback';
-    pre.contentEditable = 'true';
-    pre.spellcheck = false;
+    const textarea = document.createElement('textarea');
+    textarea.className = 'directive-fallback directive-fallback-editor';
+    textarea.spellcheck = false;
 
     let text = descriptor.raw;
     if (descriptor.body && descriptor.body.length > 0) {
       text += '\n' + descriptor.body.join('\n') + '\n::end';
     }
-    pre.textContent = text;
+    textarea.value = text;
+    this._autosizeTextSurface(textarea);
 
-    pre.addEventListener('blur', () => {
-      const newText = pre.innerText.trim();
+    textarea.addEventListener('input', () => {
+      this._autosizeTextSurface(textarea);
+    });
+
+    textarea.addEventListener('blur', () => {
+      const newText = textarea.value;
       if (newText === text) return;
 
       this.syncBus.emit({
@@ -429,7 +426,12 @@ export class RenderCanvas {
       });
     });
 
-    element.appendChild(pre);
+    element.appendChild(textarea);
+  }
+
+  _autosizeTextSurface(el) {
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
   }
 
   _buildCapabilityGate(descriptor, auth) {
