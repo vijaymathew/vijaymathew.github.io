@@ -5,6 +5,16 @@ import { SimulationLLMClient } from './SimulationLLMClient.js';
  * prompt -> client -> normalizer pipeline before a real LLM exists.
  */
 export class InMemorySimulationLLMClient extends SimulationLLMClient {
+  constructor() {
+    super();
+    this._setStatus({
+      phase: 'ready',
+      ready: true,
+      available: true,
+      message: 'Deterministic in-memory simulation ready.'
+    });
+  }
+
   getClientInfo() {
     return {
       kind: 'in-memory',
@@ -15,13 +25,27 @@ export class InMemorySimulationLLMClient extends SimulationLLMClient {
   }
 
   async generate(prompt) {
+    this._setStatus({
+      phase: 'generating',
+      ready: true,
+      available: true,
+      message: 'Generating deterministic simulated workday.'
+    });
     switch (prompt?.operation) {
       case 'generateDay':
-        return this._generateDay(prompt);
+        return this._completeGenerate(this._generateDay(prompt));
       case 'generateInbox':
-        return this._generateInbox(prompt);
+        return this._completeGenerate(this._generateInbox(prompt));
+      case 'generateChannel':
+        return this._completeGenerate(this._generateChannel(prompt));
+      case 'generateCalendar':
+        return this._completeGenerate(this._generateCalendar(prompt));
+      case 'generateDayPlan':
+        return this._completeGenerate(this._generateDayPlan(prompt));
+      case 'advanceTimeline':
+        return this._completeGenerate(this._advanceTimeline(prompt));
       default:
-        return {
+        return this._completeGenerate({
           phase: 'generated-workday',
           facts: prompt?.context?.scenarioSeed?.facts || [],
           threads: prompt?.context?.scenarioSeed?.threads || [],
@@ -29,8 +53,18 @@ export class InMemorySimulationLLMClient extends SimulationLLMClient {
           email: [],
           chat: {},
           calendar: []
-        };
+        });
     }
+  }
+
+  _completeGenerate(result) {
+    this._setStatus({
+      phase: 'ready',
+      ready: true,
+      available: true,
+      message: 'Deterministic in-memory simulation ready.'
+    });
+    return result;
   }
 
   _generateDay(prompt) {
@@ -47,7 +81,7 @@ export class InMemorySimulationLLMClient extends SimulationLLMClient {
     const financeChannel = first(profile.channels, { id: '#finance' }, (channel) => /finance/i.test(channel.id || '')).id;
     const productChannel = first(profile.channels, { id: '#product' }, (channel) => /product/i.test(channel.id || '')).id;
     const compactDate = date.replace(/-/g, '');
-    const threadId = `thread-${project.id}`;
+    const threadId = scenarioSeed.threads?.[0]?.thread_id || `thread-${project.id}`;
 
     return {
       phase: scenarioSeed.phase,
@@ -164,6 +198,64 @@ export class InMemorySimulationLLMClient extends SimulationLLMClient {
       ...day,
       chat: {},
       calendar: []
+    };
+  }
+
+  _generateChannel(prompt) {
+    const day = this._generateDay(prompt);
+    const channelId = prompt?.context?.surface?.channelId || Object.keys(day.chat)[0] || '#general';
+    return {
+      ...day,
+      email: [],
+      chat: {
+        [channelId]: Array.isArray(day.chat[channelId]) ? day.chat[channelId] : []
+      },
+      calendar: []
+    };
+  }
+
+  _generateCalendar(prompt) {
+    const day = this._generateDay(prompt);
+    const calendarId = prompt?.context?.surface?.calendarId || 'today';
+    return {
+      ...day,
+      email: [],
+      chat: {},
+      calendar: day.calendar.filter((item) => (item.calendarId || 'today') === calendarId)
+    };
+  }
+
+  _generateDayPlan(prompt) {
+    const day = this._generateDay(prompt);
+    const project = first(prompt?.context?.profile?.projects, { name: 'Active project' });
+    return {
+      ...day,
+      email: [],
+      chat: {},
+      day_plan: {
+        priorities: [
+          `Close the loop on ${project.name}.`,
+          'Reply to the manager with the final status update.'
+        ],
+        risks: ['Finance clarification may slip the afternoon checkpoint.'],
+        proposed_schedule: day.calendar.map((item) => ({
+          time: item.time,
+          focus: item.title
+        }))
+      }
+    };
+  }
+
+  _advanceTimeline(prompt) {
+    const day = this._generateDay(prompt);
+    const timeline = prompt?.context?.surface || {};
+    const delta = Number.isFinite(Number(timeline.delta)) ? Number(timeline.delta) : 1;
+    return {
+      ...day,
+      facts: [
+        ...day.facts,
+        `Timeline advanced by ${delta} day(s).`
+      ]
     };
   }
 }

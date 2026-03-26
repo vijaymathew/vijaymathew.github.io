@@ -2,8 +2,8 @@ const DEFAULT_PROFILE = {
   id: 'profile:default',
   label: 'Default work profile',
   user: {
-    name: 'Vijay Mathew',
-    email: 'vijay@folio.local',
+    name: 'John Doe',
+    email: 'john@folio.local',
     role: 'Product Lead',
     timezone: 'Asia/Kolkata',
     working_hours: '09:00-18:00'
@@ -153,6 +153,10 @@ export class SimulationProfileStore {
       JSON.stringify(Array.from(this.profiles.values()).map(cloneProfile))
     );
     localStorage.setItem(this.currentKey, this.currentProfileId);
+  }
+
+  static hasSaved(storagePrefix = 'folio:simulation') {
+    return localStorage.getItem(`${storagePrefix}:profiles`) !== null;
   }
 }
 

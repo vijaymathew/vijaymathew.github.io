@@ -140,16 +140,19 @@ SyncBus event
     <p>The mock backends now also expose <code>exportState()</code>, <code>importState(...)</code>, <code>reset(...)</code>, and seeding/upsert helpers. This is the first implementation slice for a future LLM-backed simulation layer.</p>
 
     <h2>Simulation Slice</h2>
-    <p>Folio now includes a first-pass simulation stack under <span class="path">folio/src/simulation/</span>. <code>SimulationProfileStore</code> persists authored profile data, <code>SimulationScenarioStore</code> persists generated scenario state and ledger entries, and <code>SimulationCoordinator</code> turns those inputs into backend state.</p>
-    <p>The first concrete action is <code>Generate today</code> from the menu. It still uses a deterministic in-memory client, but it now runs through the same architecture intended for future LLM integration:</p>
+    <p>Folio now includes a first-pass simulation stack under <span class="path">folio/src/simulation/</span>. <code>SimulationProfileStore</code> persists authored profile data, <code>SimulationScenarioStore</code> persists generated scenario state, richer ledger entries, and the last generated backend snapshot per profile, <code>SimulationSettingsStore</code> persists provider choice, and <code>SimulationCoordinator</code> turns those inputs into backend state.</p>
+    <p>The concrete action is <code>Generate today</code> from the menu. It now runs through a selectable provider path: <strong>Auto</strong> prefers WebLLM on WebGPU-capable browsers and falls back to the deterministic in-memory client elsewhere. Provider selection and preferred WebLLM model live in the new <strong>Simulation settings</strong> modal.</p>
     <pre>profile + scenario
   -> SimulationPromptBuilder
-  -> InMemorySimulationLLMClient
+  -> selected SimulationLLMClient
+     -> WebLLMSimulationLLMClient (preferred when available)
+     -> InMemorySimulationLLMClient (fallback)
   -> SimulationNormalizer
   -> SimulationCoordinator.applyNormalizedGeneration(...)
   -> mirrored backends</pre>
-    <p>This means the prototype already exercises the prompt and normalization boundaries that a real provider will need later.</p>
-    <p>The first real-provider implementation also exists now: <code>WebLLMSimulationLLMClient</code>. It is not the default client, because it requires browser WebGPU support and a local model download, but the coordinator can be switched to it explicitly through <code>simulation.setLLMClient(new WebLLMSimulationLLMClient(...))</code>.</p>
+    <p>The prototype also surfaces provider status in the product: the settings UI shows whether WebGPU is available, which model will be used, and the live WebLLM initialization/download state while generation runs.</p>
+    <p><code>SimulationPromptBuilder</code> now covers the main surface types described in the design: <code>buildDayPrompt(...)</code>, <code>buildInboxPrompt(...)</code>, <code>buildChatPrompt(...)</code>, <code>buildCalendarPrompt(...)</code>, <code>buildDayPlanPrompt(...)</code>, and <code>buildAdvanceTimelinePrompt(...)</code>. The coordinator uses the day, inbox, chat, calendar, and timeline prompts directly, persists a backend snapshot whenever one of those generation paths mutates mirrored state, and records a richer ledger entry with surface metadata and prompt/input summaries.</p>
+    <p>This means the prototype now exercises the same prompt and normalization boundaries for both deterministic and real local-LLM generation.</p>
     <p>The coordinator provides the backend orchestration boundary for future LLM generation by:</p>
     <ul>
       <li>exporting current mirrored backend state</li>
