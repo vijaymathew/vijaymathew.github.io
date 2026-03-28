@@ -597,8 +597,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#what-a-letter-requires" id="toc-what-a-letter-requires" class="nav-link active" data-scroll-target="#what-a-letter-requires"><span class="header-section-number">20.1</span> What a letter requires</a></li>
-  <li><a href="#the-latex-letter-class-as-baseline-reference" id="toc-the-latex-letter-class-as-baseline-reference" class="nav-link" data-scroll-target="#the-latex-letter-class-as-baseline-reference"><span class="header-section-number">20.2</span> The LaTeX <code>letter</code> class as baseline reference</a></li>
-  <li><a href="#koma-script-scrlttr2" id="toc-koma-script-scrlttr2" class="nav-link" data-scroll-target="#koma-script-scrlttr2"><span class="header-section-number">20.3</span> KOMA-Script: <code>scrlttr2</code></a></li>
+  <li><a href="#typst-as-the-default-formal-letter-template" id="toc-typst-as-the-default-formal-letter-template" class="nav-link" data-scroll-target="#typst-as-the-default-formal-letter-template"><span class="header-section-number">20.2</span> Typst as the default formal-letter template</a></li>
+  <li><a href="#postal-compliance-edge-cases" id="toc-postal-compliance-edge-cases" class="nav-link" data-scroll-target="#postal-compliance-edge-cases"><span class="header-section-number">20.3</span> Postal-compliance edge cases</a></li>
   <li><a href="#cover-letters-with-a-personal-header" id="toc-cover-letters-with-a-personal-header" class="nav-link" data-scroll-target="#cover-letters-with-a-personal-header"><span class="header-section-number">20.4</span> Cover letters with a personal header</a></li>
   <li><a href="#a-markdown-source-for-flexible-formats" id="toc-a-markdown-source-for-flexible-formats" class="nav-link" data-scroll-target="#a-markdown-source-for-flexible-formats"><span class="header-section-number">20.5</span> A Markdown source for flexible formats</a></li>
   <li><a href="#mail-merge-one-letter-per-recipient" id="toc-mail-merge-one-letter-per-recipient" class="nav-link" data-scroll-target="#mail-merge-one-letter-per-recipient"><span class="header-section-number">20.6</span> Mail merge: one letter per recipient</a></li>
@@ -632,306 +632,141 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <p>Part IV turns from tools to documents. The next five chapters produce real documents — letters, résumés, articles, presentations, and books — using the tools and techniques from Parts I through III. Each chapter covers one document type, examines what it requires typographically, and provides working examples in at least two tool pipelines.</p>
 <p>The letter is the oldest document type in continuous use. A formal business letter from 2024 shares its basic structure with a formal letter from 1924: sender’s address, date, recipient’s address, salutation, body, complimentary close, signature. The typographic conventions are stable and well-understood, which makes the letter an ideal first document in this gallery — the requirements are clear, the expected output is recognisable, and the implementation illuminates techniques that scale to more complex documents.</p>
-<p>This chapter covers three variants: the formal business letter (a submission letter to a journal), the cover letter with a personal letterhead (for job applications), and mail merge (generating one letter per recipient from a CSV file). The general pattern follows the rest of the book: keep the source in Markdown when multiple formats matter, prefer Typst for PDF-only output, and reach for LaTeX only when a postal or institutional requirement makes its letter classes worth the friction.</p>
+<p>This chapter covers three variants: the formal business letter (a submission letter to a journal), the cover letter with a personal letterhead (for job applications), and mail merge (generating one letter per recipient from a CSV file). The general pattern follows the rest of the book: keep the source in Markdown when multiple formats matter, prefer Typst for PDF-only output, and treat specialised postal templates as edge cases rather than the default path.</p>
 <section id="what-a-letter-requires" class="level2" data-number="20.1">
 <h2 data-number="20.1" class="anchored" data-anchor-id="what-a-letter-requires"><span class="header-section-number">20.1</span> What a letter requires</h2>
 <p>A letter’s typographic requirements are modest but precise. The key elements:</p>
 <p><strong>Address alignment</strong> varies by convention. British and international practice uses <em>full block</em> format: every element left-aligned, with blank lines separating each block (sender address, date, recipient address, salutation, body, close). American practice is similar but uses a colon after the salutation rather than a comma. Older <em>semi-block</em> format uses a right-aligned sender block and date, with indented first lines in body paragraphs.</p>
 <p><strong>Spacing</strong> in a letter is vertical — the blank lines between elements carry as much meaning as the text. The date must be visually separated from the recipient address; the salutation must be separated from the body. This vertical rhythm is what makes a letter look like a letter rather than a document that happens to contain an address.</p>
-<p><strong>Font selection</strong> for correspondence should feel neutral and professional. Serif typefaces — Garamond, Palatino, Charter, or the LaTeX default Computer Modern — suit formal business correspondence. A humanist sans-serif is acceptable for contemporary contexts, particularly for letters in creative fields.</p>
+<p><strong>Font selection</strong> for correspondence should feel neutral and professional. Serif typefaces — Garamond, Palatino, Charter, or Source Serif — suit formal business correspondence. A humanist sans-serif is acceptable for contemporary contexts, particularly for letters in creative fields.</p>
 <p><strong>Page rules</strong>: letters are single-spaced with a blank line between paragraphs. Body text is not indented (in full block format). Headers and footers are typically absent; page numbers appear only when the letter runs to multiple pages, and then only from the second page.</p>
 </section>
-<section id="the-latex-letter-class-as-baseline-reference" class="level2" data-number="20.2">
-<h2 data-number="20.2" class="anchored" data-anchor-id="the-latex-letter-class-as-baseline-reference"><span class="header-section-number">20.2</span> The LaTeX <code>letter</code> class as baseline reference</h2>
-<p>LaTeX’s built-in <code>letter</code> document class provides a simple interface for correspondence. It handles the structural elements — sender, recipient, date, salutation, close, signature, enclosures — through dedicated commands. Treat it as a reference path rather than the default recommendation:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[12pt,a4paper]{<span class="ex">letter</span>}</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">% Sender information</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\signature</span>{A. N. Author<span class="fu">\\</span>Senior Typographer}</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\address</span>{742 Evergreen Terrace<span class="fu">\\</span>Springfield, SS 12345}</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">letter</span>}{The Editor<span class="fu">\\</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  Journal of Typographic Practice<span class="fu">\\</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  1 Publisher's Row<span class="fu">\\</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  London, EC1A 1AA}</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\opening</span>{Dear Editor,}</span>
+<section id="typst-as-the-default-formal-letter-template" class="level2" data-number="20.2">
+<h2 data-number="20.2" class="anchored" data-anchor-id="typst-as-the-default-formal-letter-template"><span class="header-section-number">20.2</span> Typst as the default formal-letter template</h2>
+<p>For PDF-only correspondence, Typst is the cleaner default. The structure of a formal letter maps directly to a Typst function: sender block, date, recipient block, subject, salutation, body, close, and optional enclosure line.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">formal-letter</span><span class="op">(</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  from-name<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  from-address<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  from-email<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  to-name<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  to-address<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  date<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  subject<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  opening<span class="op">:</span> <span class="st">"Dear Sir or Madam,"</span><span class="op">,</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  closing<span class="op">:</span> <span class="st">"Yours faithfully,"</span><span class="op">,</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  enclosures<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  body<span class="op">,</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>top: <span class="fl">25mm</span><span class="op">,</span> bottom: <span class="fl">30mm</span><span class="op">,</span> left: <span class="fl">30mm</span><span class="op">,</span> right: <span class="fl">25mm</span><span class="op">))</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>I am writing to submit the manuscript ``On the Typographic Quality</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>of CLI-Produced Documents'' for consideration in the</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="fu">\textit</span>{Journal of Typographic Practice}.</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>The manuscript presents a systematic comparison of documents</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>produced using command-line tools against those produced using</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>graphical desktop publishing applications.</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>I would be grateful for your consideration.</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="fu">\closing</span>{Yours sincerely,}</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="fu">\encl</span>{Manuscript (2 copies)<span class="fu">\\</span>Curriculum vitae}</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">letter</span>}</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Compile with pdflatex:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pdflatex</span> letter.tex</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>letter</code> class places the sender’s address (<code>\address{...}</code>) at the top right, the date below it, the recipient address at the left, and the signature at the close, with appropriate vertical spacing between each element. The <code>\encl{...}</code> command produces an “Enc.” notation.</p>
-<p>The standard <code>letter</code> class is functional but dated in appearance. Its default output has the visual character of a 1980s LaTeX document. For modern correspondence, the KOMA-Script <code>scrlttr2</code> class is substantially more capable and produces a more contemporary result — and remains relevant mainly where precise postal conventions or window-envelope layouts matter.</p>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>right<span class="op">)[</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>from-name<span class="sc">\</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>from-address</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span><span class="cf">if</span> from-email <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span><span class="kw">#</span>raw<span class="op">(</span>from-email<span class="op">)]</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">1.5em</span><span class="op">)</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>right<span class="op">)[</span><span class="kw">#</span>date<span class="op">]</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">2em</span><span class="op">)</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  #to-name\</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  #to-address</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">1.5em</span><span class="op">)</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> subject <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span>*Subject:* <span class="kw">#</span>subject <span class="kw">#</span>v<span class="op">(</span><span class="fl">0.8em</span><span class="op">)]</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  #opening</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">0.8em</span><span class="op">)</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  #body</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">1.5em</span><span class="op">)</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  #closing</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">3em</span><span class="op">)</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  #from-name</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> enclosures <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    v(1.2em)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    *Enclosures:* <span class="kw">#</span>enclosures</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That covers the typographic logic most letters actually need. The sender block is right-aligned, the address blocks are vertically separated, and the body remains plain prose.</p>
 </section>
-<section id="koma-script-scrlttr2" class="level2" data-number="20.3">
-<h2 data-number="20.3" class="anchored" data-anchor-id="koma-script-scrlttr2"><span class="header-section-number">20.3</span> KOMA-Script: <code>scrlttr2</code></h2>
-<p>The <code>scrlttr2</code> class from the KOMA-Script bundle provides a sophisticated letter layout with extensive customisation through a key-value system. Sender information is set through <code>\setkomavar</code> commands, and the class handles all the layout — including the placement of a window area for windowed envelopes, the position of fold marks, and the arrangement of header and footer elements.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  fontsize=11pt,</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  paper=a4,</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  parskip=half,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  fromalign=right,</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>]{<span class="ex">scrlttr2</span>}</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromname}{A. N. Author}</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromaddress}{742 Evergreen Terrace<span class="fu">\\</span>Springfield, SS 12345}</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromphone}{+44 1234 567890}</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromemail}{author@example.edu}</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{subject}{Submission: On the Typographic Quality of CLI Documents}</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">letter</span>}{<span class="co">%</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  The Editor<span class="fu">\\</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  Journal of Typographic Practice<span class="fu">\\</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  1 Publisher's Row<span class="fu">\\</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  London, EC1A 1AA</span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="fu">\opening</span>{Dear Editor,}</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>I am writing to submit the enclosed manuscript for consideration in</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>the <span class="fu">\textit</span>{Journal of Typographic Practice}.</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>The manuscript presents a systematic comparison of documents</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>produced using command-line tools against those produced using</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>graphical applications.</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>I would be grateful for your consideration.</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="fu">\closing</span>{Yours sincerely,}</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="fu">\ps</span>{P.S.<span class="fu">\ </span>Electronic copies of all figures are available on request.}</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="fu">\encl</span>{Manuscript (2 copies)<span class="fu">\\</span>Curriculum vitae}</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">letter</span>}</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>scrlttr2</code> variables worth knowing:</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Variable</th>
-<th>Sets</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>fromname</code></td>
-<td>Sender’s name</td>
-</tr>
-<tr class="even">
-<td><code>fromaddress</code></td>
-<td>Sender’s address</td>
-</tr>
-<tr class="odd">
-<td><code>fromphone</code></td>
-<td>Phone number</td>
-</tr>
-<tr class="even">
-<td><code>fromemail</code></td>
-<td>Email address</td>
-</tr>
-<tr class="odd">
-<td><code>fromurl</code></td>
-<td>Website</td>
-</tr>
-<tr class="even">
-<td><code>subject</code></td>
-<td>Subject line</td>
-</tr>
-<tr class="odd">
-<td><code>date</code></td>
-<td>Date (default: <code>\today</code>)</td>
-</tr>
-<tr class="even">
-<td><code>signature</code></td>
-<td>Signature text (default: <code>fromname</code>)</td>
-</tr>
-<tr class="odd">
-<td><code>backaddress</code></td>
-<td>Return address for window envelopes</td>
-</tr>
-</tbody>
-</table>
-<p>The class option <code>fromalign=right</code> right-aligns the sender block; <code>fromalign=left</code> left-aligns it; <code>fromalign=center</code> centres it. The <code>parskip=half</code> option adds half a line of space between paragraphs rather than using first-line indentation, which is conventional for business letters.</p>
-<p>KOMA-Script also provides letter styles (<em>letter class option files</em>, <code>.lco</code> files) that can set multiple variables at once. A reusable personal style file:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">% personal.lco</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\ProvidesFile</span>{personal.lco}</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromname}{A. N. Author}</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromaddress}{742 Evergreen Terrace<span class="fu">\\</span>Springfield, SS 12345}</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\setkomavar</span>{fromemail}{author@example.edu}</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\KOMAoption</span>{fromalign}{right}</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\KOMAoption</span>{fromrule}{afteraddress}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Load it in any letter:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[personal, fontsize=11pt]{<span class="ex">scrlttr2</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This separates the personal information from the document content entirely — the <code>.lco</code> file contains everything about the sender, and individual letters contain only the recipient and body.</p>
+<section id="postal-compliance-edge-cases" class="level2" data-number="20.3">
+<h2 data-number="20.3" class="anchored" data-anchor-id="postal-compliance-edge-cases"><span class="header-section-number">20.3</span> Postal-compliance edge cases</h2>
+<p>The one place older letter systems still matter is postal compliance: window-envelope positioning, fold marks, and organisation-specific stationery rules. If a department or institution already has a locked-down letter system for those cases, treat it as a compatibility path. For ordinary professional correspondence, that should be the exception rather than the chapter’s organising model.</p>
 </section>
 <section id="cover-letters-with-a-personal-header" class="level2" data-number="20.4">
 <h2 data-number="20.4" class="anchored" data-anchor-id="cover-letters-with-a-personal-header"><span class="header-section-number">20.4</span> Cover letters with a personal header</h2>
-<p>A cover letter for a job application has different conventions from a formal business letter. It is more personal, often contains design elements that reflect the applicant’s aesthetic judgment, and typically uses a custom letterhead rather than the letter class’s standard address layout.</p>
-<p>The approach: write the letter in LaTeX as a plain <code>article</code> document, add a custom header command that positions the applicant’s name and contact information, and use <code>\pagestyle{empty}</code> to suppress the default headers and footers.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper]{<span class="ex">article</span>}</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">fontspec</span>}</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\setmainfont</span>{EB Garamond}</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\setsansfont</span>{Fira Sans}[Scale=MatchLowercase]</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{top=20mm, bottom=25mm, left=25mm, right=25mm}</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true]{<span class="ex">microtype</span>}</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">xcolor</span>}</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">parskip</span>}</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="fu">\pagestyle</span>{empty}</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\newcommand</span>{<span class="ex">\letterhead</span>}{<span class="co">%</span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\begin</span>{<span class="ex">center</span>}</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    {<span class="fu">\large\sffamily\bfseries</span> A. N. AUTHOR}<span class="fu">\\</span>[4pt]</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    {<span class="fu">\small\color</span>{gray}</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>      742 Evergreen Terrace <span class="fu">\quad</span>|<span class="fu">\quad</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>      Springfield, SS 12345 <span class="fu">\quad</span>|<span class="fu">\quad</span></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>      <span class="fu">\texttt</span>{author@example.edu}}<span class="fu">\\</span>[6pt]</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    {<span class="fu">\color</span>{gray!60}<span class="fu">\rule</span>{0.8<span class="fu">\linewidth</span>}{0.4pt}}</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\end</span>{<span class="ex">center</span>}</span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\vspace</span>{1.5em}</span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="fu">\letterhead</span></span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">flushright</span>}</span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>15 March 2024</span>
-<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">flushright</span>}</span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{1em}</span>
-<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>Dr Sarah Mitchell<span class="fu">\\</span></span>
-<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>Head of Typography<span class="fu">\\</span></span>
-<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>Design Institute<span class="fu">\\</span></span>
-<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>London, WC2A 2AE</span>
-<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{1.5em}</span>
-<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>Dear Dr Mitchell,</span>
-<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>I am applying for the position of Senior Document Architect</span>
-<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>(Reference: DA-2024-03), as advertised on the Design Institute's</span>
-<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>website.</span>
-<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>My eight years of experience in CLI-based typesetting and document</span>
-<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>automation make me well-suited to this role. I have built production</span>
-<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>pipelines in Pandoc, <span class="fu">\LaTeX</span>{}, and Typst that produce publication-ready</span>
-<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>output in multiple formats from a single Markdown source, substantially</span>
-<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>reducing production time.</span>
-<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>I would welcome the opportunity to discuss my application.</span>
-<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{1.5em}</span>
-<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>Yours sincerely,</span>
-<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{3em}</span>
-<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>A. N. Author</span>
-<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Compile with XeLaTeX for the <code>fontspec</code> font access:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xelatex</span> cover-letter.tex</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>For a cover letter that will be sent digitally, adding a hyperlinked email address improves usability:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">hyperref</span>}</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\hypersetup</span>{hidelinks, colorlinks=false}</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">% In the letterhead:</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\href</span>{mailto:author@example.edu}{<span class="fu">\texttt</span>{author@example.edu}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>hidelinks</code> removes the coloured box that hyperref draws around links by default, making the link visible only by cursor behaviour in a PDF viewer — appropriate for a printed letter where ink-coloured link boxes would look wrong.</p>
+<p>A cover letter for a job application has different conventions from a formal business letter. It is more personal, often contains design elements that reflect the applicant’s aesthetic judgment, and typically uses a custom letterhead rather than a rigid institutional layout.</p>
+<p>In Typst, that is simply a different header function:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">letterhead</span><span class="op">(</span>name<span class="op">,</span> details<span class="op">)</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>align<span class="op">(</span>center<span class="op">)[</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>text<span class="op">(</span>font<span class="op">:</span> <span class="st">"Source Sans 3"</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">14pt</span><span class="op">)[</span><span class="kw">#</span>upper<span class="op">(</span>name<span class="op">)]</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>v<span class="op">(</span><span class="fl">4pt</span><span class="op">)</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">110</span><span class="op">))[</span><span class="kw">#</span>details<span class="op">]</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>v<span class="op">(</span><span class="fl">6pt</span><span class="op">)</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>line<span class="op">(</span>length<span class="op">:</span> <span class="fl">80%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">0.4pt</span> <span class="op">+</span> luma<span class="op">(</span><span class="dv">180</span><span class="op">))</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">1.4em</span><span class="op">)</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Used in a cover letter:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>letterhead<span class="op">(</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"A. N. Author"</span><span class="op">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>742 Evergreen Terrace | Springfield, SS 12345 | <span class="kw">#</span>link<span class="op">(</span><span class="st">"mailto:author@example.edu"</span><span class="op">)[</span>author<span class="va">@example</span>.edu<span class="op">]],</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>align<span class="op">(</span>right<span class="op">)[</span>15 March 2024<span class="op">]</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>v<span class="op">(</span><span class="fl">1em</span><span class="op">)</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>Dr Sarah Mitchell<span class="sc">\</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>Head of Typography<span class="sc">\</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>Design Institute<span class="sc">\</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>London, WC2A 2AE</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>v<span class="op">(</span><span class="fl">1.5em</span><span class="op">)</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>Dear Dr Mitchell,</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The body remains ordinary prose. The header is the only distinctive design element, which is exactly where the applicant’s visual judgment should appear.</p>
 </section>
 <section id="a-markdown-source-for-flexible-formats" class="level2" data-number="20.5">
 <h2 data-number="20.5" class="anchored" data-anchor-id="a-markdown-source-for-flexible-formats"><span class="header-section-number">20.5</span> A Markdown source for flexible formats</h2>
 <p>For correspondence that needs to be produced in multiple formats — PDF for printing, HTML for email, ODT for editing — writing the letter in Pandoc Markdown with a custom template separates the content from the format entirely. This is the canonical approach when the same letter may need to travel through several systems.</p>
 <p>The letter body in Markdown, with metadata:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="an">from-name:</span><span class="co"> "A. N. Author"</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="an">from-address:</span><span class="co"> "742 Evergreen Terrace, Springfield, SS 12345"</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="an">from-email:</span><span class="co"> "author@example.edu"</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="an">to-name:</span><span class="co"> "The Editor"</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="an">to-company:</span><span class="co"> "Journal of Typographic Practice"</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="an">to-address:</span><span class="co"> "1 Publisher's Row, London, EC1A 1AA"</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "15 March 2024"</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="an">subject:</span><span class="co"> "Manuscript Submission"</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="an">opening:</span><span class="co"> "Dear Editor,"</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="an">closing:</span><span class="co"> "Yours sincerely,"</span></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>I am writing to submit the manuscript *"On the Typographic Quality</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>of CLI-Produced Documents"* for consideration in the *Journal of</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>Typographic Practice*.</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>The manuscript presents a systematic comparison of documents</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>produced using command-line tools against those produced using</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>graphical desktop publishing applications.</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>I would be grateful for your consideration.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>If the PDF output still needs a LaTeX-specific house style, the fallback template <code>letter.latex</code> can be used:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper]{<span class="ex">article</span>}</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{top=25mm, bottom=30mm, left=30mm, right=25mm}</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">parskip</span>}</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\pagestyle</span>{empty}</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(from-address)$</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">flushright</span>}</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="ss">$from-address$</span> <span class="fu">\\</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(from-email)$</span><span class="fu">\texttt</span>{<span class="ss">$from-email$</span>}<span class="ss">$endif$</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">flushright</span>}</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="fu">\medskip</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">flushright</span>}<span class="ss">$date$</span><span class="kw">\end</span>{<span class="ex">flushright</span>}</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="fu">\bigskip</span></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(to-name)$$to-name$</span><span class="fu">\\</span><span class="ss">$endif$</span></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(to-company)$$to-company$</span><span class="fu">\\</span><span class="ss">$endif$</span></span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(to-address)$$to-address$$endif$</span></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="fu">\bigskip</span></span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(subject)$</span><span class="fu">\textbf</span>{Subject: <span class="ss">$subject$</span>}<span class="fu">\medskip</span><span class="ss">$endif$</span></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="ss">$opening$</span></span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="fu">\medskip</span></span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="ss">$body$</span></span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{1.5em}</span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="ss">$closing$</span></span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{3em}</span>
-<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="ss">$from-name$</span></span>
-<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Render to PDF through the LaTeX compatibility path:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> letter.md <span class="at">--template</span><span class="op">=</span>letter.latex <span class="at">-o</span> letter.pdf <span class="at">--pdf-engine</span><span class="op">=</span>pdflatex</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="an">from-name:</span><span class="co"> "A. N. Author"</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="an">from-address:</span><span class="co"> "742 Evergreen Terrace, Springfield, SS 12345"</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="an">from-email:</span><span class="co"> "author@example.edu"</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="an">to-name:</span><span class="co"> "The Editor"</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="an">to-company:</span><span class="co"> "Journal of Typographic Practice"</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="an">to-address:</span><span class="co"> "1 Publisher's Row, London, EC1A 1AA"</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "15 March 2024"</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="an">subject:</span><span class="co"> "Manuscript Submission"</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="an">opening:</span><span class="co"> "Dear Editor,"</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="an">closing:</span><span class="co"> "Yours sincerely,"</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>I am writing to submit the manuscript *"On the Typographic Quality</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>of CLI-Produced Documents"* for consideration in the *Journal of</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>Typographic Practice*.</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>The manuscript presents a systematic comparison of documents</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>produced using command-line tools against those produced using</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>graphical desktop publishing applications.</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>I would be grateful for your consideration.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For PDF output, a Typst template can read the same metadata and keep the formatting logic out of the source:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">render</span><span class="op">(</span>meta<span class="op">,</span> body<span class="op">)</span> <span class="op">=</span> formal-letter<span class="op">(</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  from-name<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"from-name"</span><span class="op">),</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  from-address<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"from-address"</span><span class="op">),</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  from-email<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"from-email"</span><span class="op">,</span> default<span class="op">:</span> <span class="bu">none</span><span class="op">),</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  to-name<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"to-name"</span><span class="op">),</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  to-address<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"to-company"</span><span class="op">)</span> <span class="op">+</span> <span class="st">"</span><span class="sc">\n</span><span class="st">"</span> <span class="op">+</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"to-address"</span><span class="op">),</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  date<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"date"</span><span class="op">),</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  subject<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"subject"</span><span class="op">,</span> default<span class="op">:</span> <span class="bu">none</span><span class="op">),</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  opening<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"opening"</span><span class="op">),</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  closing<span class="op">:</span> meta<span class="op">.</span>at<span class="op">(</span><span class="st">"closing"</span><span class="op">),</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  body<span class="op">,</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Render to PDF through the Typst path:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> letter.md <span class="at">--template</span><span class="op">=</span>letter.typ <span class="at">--pdf-engine</span><span class="op">=</span>typst <span class="at">-o</span> letter.pdf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Render to HTML with an equivalent HTML template for the same letter in email-friendly format, or to plain text for quick review. The content never needs to change; only the template changes with the output format.</p>
 </section>
 <section id="mail-merge-one-letter-per-recipient" class="level2" data-number="20.6">
@@ -943,152 +778,152 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 "Prof James Chen","Prof","Institute of Print","24 Press Lane","Edinburgh EH1 2AB","Technical Writer","TW-2024-07"
 "Ms Rebecca Okonkwo","Ms","Typesetting Ltd","56 Compositor Street","Bristol BS1 3CD","Document Engineer","DE-2024-12"</code></pre>
 <p>A Python script that reads the CSV and calls Pandoc for each row:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env python3</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">"""mailmerge.py: generate one PDF per recipient from CSV + Pandoc template."""</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> csv</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> subprocess</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sanitize(name):</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> name.replace(<span class="st">' '</span>, <span class="st">'_'</span>).replace(<span class="st">'.'</span>, <span class="st">''</span>).replace(<span class="st">','</span>, <span class="st">''</span>)</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate(template, latex_tmpl, recipient, output_path):</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    cmd <span class="op">=</span> [<span class="st">'pandoc'</span>, template,</span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>           <span class="st">'--template'</span>, latex_tmpl,</span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>           <span class="st">'--pdf-engine'</span>, <span class="st">'pdflatex'</span>,</span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>           <span class="st">'-o'</span>, <span class="bu">str</span>(output_path)]</span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> key, value <span class="kw">in</span> recipient.items():</span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>        cmd.extend([<span class="st">'-M'</span>, <span class="ss">f'</span><span class="sc">{</span>key<span class="sc">}</span><span class="ss">=</span><span class="sc">{</span>value<span class="sc">}</span><span class="ss">'</span>])</span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> subprocess.run(cmd, capture_output<span class="op">=</span><span class="va">True</span>).returncode <span class="op">==</span> <span class="dv">0</span></span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
-<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    csv_file   <span class="op">=</span> sys.argv[<span class="dv">1</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="st">'recipients.csv'</span></span>
-<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    template   <span class="op">=</span> sys.argv[<span class="dv">2</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">2</span> <span class="cf">else</span> <span class="st">'letter.md'</span></span>
-<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>    output_dir <span class="op">=</span> Path(sys.argv[<span class="dv">3</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">3</span> <span class="cf">else</span> <span class="st">'output'</span>)</span>
-<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    latex_tmpl <span class="op">=</span> <span class="st">'letter.latex'</span></span>
-<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>    output_dir.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>    success <span class="op">=</span> failures <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(csv_file, newline<span class="op">=</span><span class="st">''</span>, encoding<span class="op">=</span><span class="st">'utf-8'</span>) <span class="im">as</span> f:</span>
-<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> row <span class="kw">in</span> csv.DictReader(f):</span>
-<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>            name <span class="op">=</span> row.get(<span class="st">'name'</span>, <span class="st">'recipient'</span>)</span>
-<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>            out  <span class="op">=</span> output_dir <span class="op">/</span> <span class="ss">f"letter-</span><span class="sc">{</span>sanitize(name)<span class="sc">}</span><span class="ss">.pdf"</span></span>
-<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="st">'OK  '</span> <span class="cf">if</span> generate(template, latex_tmpl, row, out) <span class="cf">else</span> <span class="st">'FAIL'</span><span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>            success <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>success<span class="sc">}</span><span class="ss"> letters generated in </span><span class="sc">{</span>output_dir<span class="sc">}</span><span class="ss">/"</span>)</span>
-<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">'__main__'</span>:</span>
-<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>    main()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env python3</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co">"""mailmerge.py: generate one PDF per recipient from CSV + Pandoc template."""</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> csv</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> subprocess</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sanitize(name):</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> name.replace(<span class="st">' '</span>, <span class="st">'_'</span>).replace(<span class="st">'.'</span>, <span class="st">''</span>).replace(<span class="st">','</span>, <span class="st">''</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> generate(template, typst_tmpl, recipient, output_path):</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    cmd <span class="op">=</span> [<span class="st">'pandoc'</span>, template,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>           <span class="st">'--template'</span>, typst_tmpl,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>           <span class="st">'--pdf-engine'</span>, <span class="st">'typst'</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>           <span class="st">'-o'</span>, <span class="bu">str</span>(output_path)]</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> key, value <span class="kw">in</span> recipient.items():</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>        cmd.extend([<span class="st">'-M'</span>, <span class="ss">f'</span><span class="sc">{</span>key<span class="sc">}</span><span class="ss">=</span><span class="sc">{</span>value<span class="sc">}</span><span class="ss">'</span>])</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> subprocess.run(cmd, capture_output<span class="op">=</span><span class="va">True</span>).returncode <span class="op">==</span> <span class="dv">0</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    csv_file   <span class="op">=</span> sys.argv[<span class="dv">1</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="st">'recipients.csv'</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    template   <span class="op">=</span> sys.argv[<span class="dv">2</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">2</span> <span class="cf">else</span> <span class="st">'letter.md'</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    output_dir <span class="op">=</span> Path(sys.argv[<span class="dv">3</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">3</span> <span class="cf">else</span> <span class="st">'output'</span>)</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    typst_tmpl <span class="op">=</span> <span class="st">'letter.typ'</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    output_dir.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    success <span class="op">=</span> failures <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(csv_file, newline<span class="op">=</span><span class="st">''</span>, encoding<span class="op">=</span><span class="st">'utf-8'</span>) <span class="im">as</span> f:</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> row <span class="kw">in</span> csv.DictReader(f):</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>            name <span class="op">=</span> row.get(<span class="st">'name'</span>, <span class="st">'recipient'</span>)</span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>            out  <span class="op">=</span> output_dir <span class="op">/</span> <span class="ss">f"letter-</span><span class="sc">{</span>sanitize(name)<span class="sc">}</span><span class="ss">.pdf"</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="st">'OK  '</span> <span class="cf">if</span> generate(template, typst_tmpl, row, out) <span class="cf">else</span> <span class="st">'FAIL'</span><span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>            success <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>success<span class="sc">}</span><span class="ss"> letters generated in </span><span class="sc">{</span>output_dir<span class="sc">}</span><span class="ss">/"</span>)</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">'__main__'</span>:</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>    main()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Run the merge:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> mailmerge.py recipients.csv letter.md output/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> mailmerge.py recipients.csv letter.md output/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <pre><code>  OK  : Dr Sarah Mitchell
   OK  : Prof James Chen
   OK  : Ms Rebecca Okonkwo
 
 3 letters generated in output/</code></pre>
-<p>Each recipient’s data is passed to Pandoc via <code>-M key=value</code> flags, which override and supplement the metadata in the template Markdown file. The <code>name</code>, <code>title</code>, <code>company</code>, <code>address</code>, <code>city</code>, <code>role</code>, and <code>ref</code> fields from the CSV row are injected into the template as metadata variables, where the LaTeX template reads them with <code>$name$</code>, <code>$title$</code>, and so on.</p>
+<p>Each recipient’s data is passed to Pandoc via <code>-M key=value</code> flags, which override and supplement the metadata in the template Markdown file. The <code>name</code>, <code>title</code>, <code>company</code>, <code>address</code>, <code>city</code>, <code>role</code>, and <code>ref</code> fields from the CSV row are injected into the template as metadata variables, where the Typst template reads them and lays out the final PDF.</p>
 <p>For a pure-shell alternative without Python:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/sh</span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-n</span> +2 recipients.csv <span class="kw">|</span> <span class="cf">while</span> <span class="va">IFS</span><span class="op">=</span>, <span class="bu">read</span> <span class="va">name</span> <span class="va">title</span> <span class="va">company</span> <span class="va">address</span> <span class="va">city</span> <span class="va">role</span> <span class="va">ref</span><span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">name</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$name</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span></span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">title</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$title</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="va">slug</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$name</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="st">' '</span> <span class="st">'_'</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'.'</span><span class="va">)</span></span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="ex">pandoc</span> letter.md <span class="dt">\</span></span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">--template</span><span class="op">=</span>letter.latex <span class="dt">\</span></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">--pdf-engine</span><span class="op">=</span>pdflatex <span class="dt">\</span></span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"name=</span><span class="va">$name</span><span class="st">"</span> <span class="at">-M</span> <span class="st">"title=</span><span class="va">$title</span><span class="st">"</span> <span class="dt">\</span></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"company=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$company</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"address=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$address</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"city=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$city</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"role=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$role</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"ref=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$ref</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">-o</span> <span class="st">"output/letter-</span><span class="va">${slug}</span><span class="st">.pdf"</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="dt">\</span></span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">"OK: </span><span class="va">$name</span><span class="st">"</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">"FAIL: </span><span class="va">$name</span><span class="st">"</span></span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/sh</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-n</span> +2 recipients.csv <span class="kw">|</span> <span class="cf">while</span> <span class="va">IFS</span><span class="op">=</span>, <span class="bu">read</span> <span class="va">name</span> <span class="va">title</span> <span class="va">company</span> <span class="va">address</span> <span class="va">city</span> <span class="va">role</span> <span class="va">ref</span><span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">name</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$name</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">title</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$title</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="va">slug</span><span class="op">=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$name</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="st">' '</span> <span class="st">'_'</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'.'</span><span class="va">)</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="ex">pandoc</span> letter.md <span class="dt">\</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">--template</span><span class="op">=</span>letter.typ <span class="dt">\</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">--pdf-engine</span><span class="op">=</span>typst <span class="dt">\</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"name=</span><span class="va">$name</span><span class="st">"</span> <span class="at">-M</span> <span class="st">"title=</span><span class="va">$title</span><span class="st">"</span> <span class="dt">\</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"company=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$company</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"address=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$address</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"city=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$city</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"role=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$role</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">-M</span> <span class="st">"ref=</span><span class="va">$(</span><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$ref</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">'"'</span><span class="va">)</span><span class="st">"</span> <span class="dt">\</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">-o</span> <span class="st">"output/letter-</span><span class="va">${slug}</span><span class="st">.pdf"</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="dt">\</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">"OK: </span><span class="va">$name</span><span class="st">"</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">"FAIL: </span><span class="va">$name</span><span class="st">"</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The shell approach is simpler but less robust for CSV fields that contain commas or newlines within quoted values. Python’s <code>csv</code> module handles these edge cases correctly; the shell approach requires that no field value contains a comma or newline.</p>
 </section>
 <section id="the-typst-letter-template" class="level2" data-number="20.7">
 <h2 data-number="20.7" class="anchored" data-anchor-id="the-typst-letter-template"><span class="header-section-number">20.7</span> The Typst letter template</h2>
-<p>For projects using Typst as the primary tool, the same letter can be written as a Typst document. For PDF-only correspondence this is usually the cleaner default. The advantage over the LaTeX approach is that the template is written in Typst’s native function syntax, which is more readable and easier to modify:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">letter</span><span class="op">(</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  from-name<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  from-address<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  from-email<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  to-name<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  to-address<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  date<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  subject<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  opening<span class="op">:</span> <span class="st">"Dear Sir or Madam,"</span><span class="op">,</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  closing<span class="op">:</span> <span class="st">"Yours faithfully,"</span><span class="op">,</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  body</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    margin<span class="op">:</span> <span class="op">(</span>top: <span class="fl">25mm</span><span class="op">,</span> bottom: <span class="fl">30mm</span><span class="op">,</span> left: <span class="fl">30mm</span><span class="op">,</span> right: <span class="fl">25mm</span><span class="op">))</span></span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">par</span><span class="op">(</span>justify<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Sender block</span></span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>right<span class="op">)[</span></span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>from-address <span class="sc">\</span></span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span><span class="cf">if</span> from-email <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> raw<span class="op">(</span>from-email<span class="op">)</span> <span class="op">}</span></span>
-<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">0.5em</span><span class="op">)</span></span>
-<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>right<span class="op">,</span> <span class="cf">if</span> date <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> date <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
-<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>    datetime<span class="op">.</span>today<span class="op">().</span>display<span class="op">(</span><span class="st">"[day] [month repr:long] [year]"</span><span class="op">)</span></span>
-<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="op">})</span></span>
-<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">2em</span><span class="op">)</span></span>
-<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Recipient</span></span>
-<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>  to-name \</span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>  to-address</span>
-<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">2em</span><span class="op">)</span></span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> subject <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> strong<span class="op">(</span><span class="st">"Subject: "</span> <span class="op">+</span> subject<span class="op">)</span>; v<span class="op">(</span><span class="fl">0.5em</span><span class="op">)</span> <span class="op">}</span></span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>  opening</span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">0.5em</span><span class="op">)</span></span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>  body</span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">1.5em</span><span class="op">)</span></span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>  closing</span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">3em</span><span class="op">)</span></span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>  from-name</span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a><span class="co">// Using the template</span></span>
-<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a><span class="kw">#show</span><span class="op">:</span> letter<span class="op">.</span>with<span class="op">(</span></span>
-<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>  from-name<span class="op">:</span> <span class="st">"A. N. Author"</span><span class="op">,</span></span>
-<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>  from-address<span class="op">:</span> <span class="st">"742 Evergreen Terrace</span><span class="sc">\n</span><span class="st">Springfield, SS 12345"</span><span class="op">,</span></span>
-<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>  from-email<span class="op">:</span> <span class="st">"author@example.edu"</span><span class="op">,</span></span>
-<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>  to-name<span class="op">:</span> <span class="st">"The Editor"</span><span class="op">,</span></span>
-<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>  to-address<span class="op">:</span> <span class="st">"Journal of Typographic Practice</span><span class="sc">\n</span><span class="st">1 Publisher's Row</span><span class="sc">\n</span><span class="st">London, EC1A 1AA"</span><span class="op">,</span></span>
-<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>  date<span class="op">:</span> <span class="st">"15 March 2024"</span><span class="op">,</span></span>
-<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>  subject<span class="op">:</span> <span class="st">"Manuscript Submission"</span><span class="op">,</span></span>
-<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>  opening<span class="op">:</span> <span class="st">"Dear Editor,"</span><span class="op">,</span></span>
-<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>  closing<span class="op">:</span> <span class="st">"Yours sincerely,"</span><span class="op">,</span></span>
-<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span>
-<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a>I am writing to submit the manuscript _"On the Typographic Quality</span>
-<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>of CLI-Produced Documents"_ for consideration in the _Journal of</span>
-<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>Typographic Practice_.</span>
-<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>The manuscript presents a systematic comparison of documents</span>
-<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a>produced using command-line tools. I would be grateful for your</span>
-<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a>consideration.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="ex">typst</span> compile letter.typ</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Typst has no equivalent of <code>scrlttr2</code>’s window-envelope positioning, fold marks, and postal format compliance features. For letters that need to fit a windowed envelope precisely, the LaTeX KOMA approach remains the more capable option.</p>
+<p>For projects using Typst as the primary tool, the same letter can be written as a Typst document. For PDF-only correspondence this is usually the cleaner default. The advantage is that the template is written in Typst’s native function syntax, which is more readable and easier to modify:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">letter</span><span class="op">(</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  from-name<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  from-address<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  from-email<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  to-name<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  to-address<span class="op">:</span> <span class="st">""</span><span class="op">,</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  date<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  subject<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  opening<span class="op">:</span> <span class="st">"Dear Sir or Madam,"</span><span class="op">,</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  closing<span class="op">:</span> <span class="st">"Yours faithfully,"</span><span class="op">,</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  body</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    margin<span class="op">:</span> <span class="op">(</span>top: <span class="fl">25mm</span><span class="op">,</span> bottom: <span class="fl">30mm</span><span class="op">,</span> left: <span class="fl">30mm</span><span class="op">,</span> right: <span class="fl">25mm</span><span class="op">))</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">par</span><span class="op">(</span>justify<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Sender block</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>right<span class="op">)[</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>from-address <span class="sc">\</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span><span class="cf">if</span> from-email <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> raw<span class="op">(</span>from-email<span class="op">)</span> <span class="op">}</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">0.5em</span><span class="op">)</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>right<span class="op">,</span> <span class="cf">if</span> date <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> date <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    datetime<span class="op">.</span>today<span class="op">().</span>display<span class="op">(</span><span class="st">"[day] [month repr:long] [year]"</span><span class="op">)</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>  <span class="op">})</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">2em</span><span class="op">)</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Recipient</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>  to-name \</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>  to-address</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">2em</span><span class="op">)</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> subject <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> strong<span class="op">(</span><span class="st">"Subject: "</span> <span class="op">+</span> subject<span class="op">)</span>; v<span class="op">(</span><span class="fl">0.5em</span><span class="op">)</span> <span class="op">}</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>  opening</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">0.5em</span><span class="op">)</span></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>  body</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">1.5em</span><span class="op">)</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>  closing</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">3em</span><span class="op">)</span></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>  from-name</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="co">// Using the template</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="kw">#show</span><span class="op">:</span> letter<span class="op">.</span>with<span class="op">(</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>  from-name<span class="op">:</span> <span class="st">"A. N. Author"</span><span class="op">,</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>  from-address<span class="op">:</span> <span class="st">"742 Evergreen Terrace</span><span class="sc">\n</span><span class="st">Springfield, SS 12345"</span><span class="op">,</span></span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>  from-email<span class="op">:</span> <span class="st">"author@example.edu"</span><span class="op">,</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>  to-name<span class="op">:</span> <span class="st">"The Editor"</span><span class="op">,</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>  to-address<span class="op">:</span> <span class="st">"Journal of Typographic Practice</span><span class="sc">\n</span><span class="st">1 Publisher's Row</span><span class="sc">\n</span><span class="st">London, EC1A 1AA"</span><span class="op">,</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>  date<span class="op">:</span> <span class="st">"15 March 2024"</span><span class="op">,</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>  subject<span class="op">:</span> <span class="st">"Manuscript Submission"</span><span class="op">,</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>  opening<span class="op">:</span> <span class="st">"Dear Editor,"</span><span class="op">,</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>  closing<span class="op">:</span> <span class="st">"Yours sincerely,"</span><span class="op">,</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>I am writing to submit the manuscript _"On the Typographic Quality</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>of CLI-Produced Documents"_ for consideration in the _Journal of</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>Typographic Practice_.</span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>The manuscript presents a systematic comparison of documents</span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>produced using command-line tools. I would be grateful for your</span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>consideration.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">typst</span> compile letter.typ</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Typst does not yet offer the same built-in postal-specialty ecosystem as older institutional letter workflows. For letters that must fit a windowed envelope precisely or satisfy a rigid stationery standard, an inherited template may still be useful.</p>
 </section>
 <section id="choosing-the-approach" class="level2" data-number="20.8">
 <h2 data-number="20.8" class="anchored" data-anchor-id="choosing-the-approach"><span class="header-section-number">20.8</span> Choosing the approach</h2>
 <p>The right tool for a letter depends on how the letter will be used:</p>
-<p><strong>For a one-off formal letter</strong> where typographic quality matters and the document will be printed: Typst is the first choice for a new PDF-only workflow. Keep <code>scrlttr2</code> in reserve for cases where postal conventions, fold marks, or window-envelope positioning are non-negotiable.</p>
+<p><strong>For a one-off formal letter</strong> where typographic quality matters and the document will be printed: Typst is the first choice for a new PDF-only workflow. Keep legacy postal templates in reserve only for cases where window-envelope positioning or institutional stationery requirements are non-negotiable.</p>
 <p><strong>For a template-driven letter produced across multiple formats</strong>: the Pandoc or Quarto approach separates content from presentation cleanly, enables multiple output formats from one source, and keeps the letter content in Markdown where it is easy to read and edit.</p>
 <p><strong>For mail merge</strong> producing many letters from a data file: the Python + Pandoc approach handles the CSV correctly, produces one file per recipient, and requires no specialised mail merge infrastructure.</p>
-<p><strong>For Typst-based projects</strong>: the native Typst function approach is clean and readable, with fast compilation and easy modification, and should be considered the default PDF path unless a LaTeX-specific requirement blocks it.</p>
+<p><strong>For Typst-based projects</strong>: the native Typst function approach is clean and readable, with fast compilation and easy modification, and should be considered the default PDF path unless an inherited postal template blocks it.</p>
 <p>The letter is a simple document, but it illustrates the template-and-separation-of-concerns pattern that scales to the more complex documents in the next chapters. The résumé, covered in Chapter 19, extends these patterns significantly.</p>
 
 
