@@ -2,25 +2,29 @@
 
 A PDF intended for professional printing is not simply a PDF that opens in a viewer. It is a document that meets a precise set of technical requirements: fonts fully embedded, colour values in the correct space, bleed and crop marks in position, image resolution adequate for the output dpi, no encryption, no transparency that the RIP cannot process. A PDF that looks perfect on screen but violates any of these requirements may produce unacceptable output on press — or be rejected by the printer outright before it reaches the machine.
 
-This chapter covers the complete pipeline from Markdown source to a PDF you can hand to a printer with confidence: the LaTeX-based path, the web-engine path via wkhtmltopdf, page geometry and margins, headers and footers, font embedding, colour management, and the preflight checks that verify a file is press-ready.
+This chapter covers the complete pipeline from Markdown source to a PDF you can hand to a printer with confidence: the Typst-backed path, the web-engine path via wkhtmltopdf or WeasyPrint, and the LaTeX path when a legacy class or package stack is unavoidable. It also covers page geometry and margins, headers and footers, font embedding, colour management, and the preflight checks that verify a file is press-ready.
 
 For documents that will be read on screen rather than printed — reports distributed as PDFs, ebooks in PDF format, technical documentation — many of the print-specific requirements (bleed, CMYK, crop marks) do not apply, but font embedding, metadata, and internal link behaviour remain important. The chapter covers both cases.
 
 
-## The two PDF pipelines
+## The three PDF pipelines
 
-Pandoc can produce PDF through two fundamentally different routes, each with different strengths.
+Pandoc and Quarto can produce PDF through three fundamentally different routes, each with different strengths.
 
-The **LaTeX pipeline** converts Markdown to LaTeX and invokes a TeX engine (pdfLaTeX, XeLaTeX, or LuaLaTeX) to produce the PDF. The TeX engine handles all typesetting: paragraph composition, line breaking, hyphenation, spacing, page layout, footnotes, and everything else. The output is typeset by the best freely available paragraph-composition system in existence. This pipeline is the right choice for documents where typographic quality matters — academic papers, books, technical reports, formal correspondence, anything that will be read carefully.
+The **Typst pipeline** converts Markdown to Typst and lets Typst produce the PDF. For many print-oriented projects this is now the cleanest default: it preserves the Markdown-first authoring model, produces strong PDF output, and avoids pushing the author into TeX macro programming. This is the first route to try for books, reports, and other documents that need deliberate page design without inheriting a full LaTeX stack.
+
+The **LaTeX pipeline** converts Markdown to LaTeX and invokes a TeX engine (pdfLaTeX, XeLaTeX, or LuaLaTeX) to produce the PDF. The TeX engine handles all typesetting: paragraph composition, line breaking, hyphenation, spacing, page layout, footnotes, and everything else. This pipeline remains valuable when a publisher supplies a class file, when specific packages are required, or when an existing house style is already encoded in LaTeX.
 
 The **web-engine pipeline** converts Markdown to HTML and invokes wkhtmltopdf (or WeasyPrint) to render the HTML page and produce a PDF. The output looks like a browser rendering printed to PDF — which may be exactly what you want if your document is primarily styled in CSS and the visual design is driven by web conventions. This pipeline suits documents that have more in common with web pages than with typeset books: marketing materials, dashboards, browser-rendered reports.
 
-The practical consequence is that these pipelines cannot be mixed. You cannot apply TeX's paragraph optimisation to a CSS-styled document, and you cannot apply CSS flexbox layout to a LaTeX document. Choose the pipeline that suits the document type, and apply the appropriate tools within it.
+The practical consequence is that these pipelines cannot be mixed casually. You cannot apply TeX's paragraph optimisation to a CSS-styled document, and you cannot apply CSS flexbox layout to a LaTeX document. Choose the pipeline that suits the document type, and apply the appropriate tools within it. In a modern workflow, that usually means Markdown source first, Typst for print-first PDF by default, web-engine PDF when CSS is the real design language, and LaTeX only when its ecosystem is specifically needed.
 
 
-## Page geometry with the LaTeX pipeline
+## Page geometry in print-oriented PDF workflows
 
-The `geometry` package controls all physical dimensions of the page: size, margins, header and footer space, binding offset, and the relationship between the text area and the page boundaries.
+Every serious print workflow must control the physical dimensions of the page: size, margins, header and footer space, binding offset, and the relationship between the text area and the page boundaries. In Markdown-first projects, these values belong in metadata or a backend template, not scattered through the manuscript source.
+
+When the backend is LaTeX, the `geometry` package controls these dimensions.
 
 In Pandoc, geometry is configured via the `geometry` metadata variable, which is passed directly to the `geometry` package:
 
@@ -77,7 +81,7 @@ Remove `showframe` before the final build.
 
 ## Headers and footers
 
-Pandoc's default LaTeX output uses the `plain` page style, which provides a page number at the bottom centre and nothing else. For most professional documents, a custom header or footer is appropriate.
+Pandoc's default output is intentionally plain. For most professional documents, a custom header or footer is appropriate. In Typst or HTML-based workflows, this belongs in the backend template or stylesheet. In LaTeX, Pandoc's default output uses the `plain` page style, which provides a page number at the bottom centre and nothing else.
 
 The `fancyhdr` package is the standard tool for this. It is configured in the `header-includes` metadata field, which inserts LaTeX commands into the document preamble:
 
@@ -127,7 +131,7 @@ For the title page specifically, the `\thispagestyle{empty}` command suppresses 
 
 A PDF that will be professionally printed must have all fonts embedded. A font that is not embedded is identified by name in the PDF but not defined — the viewer or RIP substitutes a different font when it encounters the name, producing output that differs from the intended design.
 
-In XeLaTeX and LuaLaTeX, all fonts loaded via `fontspec` are automatically embedded and subset in the PDF output. *Subsetting* means that only the glyphs actually used in the document are included in the embedded font data, which reduces file size substantially without affecting fidelity. This is the default and correct behaviour.
+In Typst, fonts used in the document are embedded in the generated PDF. In XeLaTeX and LuaLaTeX, all fonts loaded via `fontspec` are automatically embedded and subset in the PDF output. *Subsetting* means that only the glyphs actually used in the document are included in the embedded font data, which reduces file size substantially without affecting fidelity. This is the default and correct behaviour.
 
 In pdfLaTeX, embedding depends on the font package used. Type 1 fonts from well-maintained packages are embedded by default; bitmap fonts (Type 3) from older installations may not be. To verify that all fonts in a PDF are properly embedded, use `pdffonts`:
 
@@ -163,20 +167,20 @@ pdfinfo output.pdf
 Title:    The CLI Typographer
 Author:   A. N. Author
 Subject:  Typography and document production
-Keywords: typography, CLI, pandoc, LaTeX
-Creator:  LaTeX via pandoc
+Keywords: typography, CLI, pandoc, Typst
+Creator:  Pandoc
 Producer: xdvipdfmx (20220710)
 Pages:    247
 Page size: 595.28 x 841.89 pts (A4)
 PDF version: 1.5
 ```
 
-Pandoc writes the `title`, `author`, `subject`, and `keywords` metadata to the PDF's document information dictionary via `hyperref`. These fields are populated from the YAML metadata block automatically.
+Pandoc writes the `title`, `author`, `subject`, and `keywords` metadata to the PDF's document information dictionary through the selected PDF backend. These fields are populated from the YAML metadata block automatically.
 
 
-## Hyperref and PDF metadata
+## PDF metadata and links
 
-The `hyperref` package, which Pandoc loads by default in LaTeX output, does two things: it adds navigational hyperlinks to the PDF (from citations to bibliography entries, from the table of contents to sections, from cross-references to their targets), and it writes document metadata into the PDF information dictionary.
+Every print-ready PDF still needs correct metadata and predictable link behaviour. In LaTeX output, Pandoc handles this through `hyperref`, which adds navigational hyperlinks to the PDF (from citations to bibliography entries, from the table of contents to sections, from cross-references to their targets) and writes document metadata into the PDF information dictionary.
 
 The most important `hyperref` options for print-ready PDF are controlled through Pandoc metadata variables:
 
@@ -202,7 +206,7 @@ The `subject` and `keywords` fields in the YAML metadata are written to the PDF 
 
 ```yaml
 subject: "A guide to CLI-based typesetting tools and typography"
-keywords: [typography, CLI, Pandoc, LaTeX, Typst]
+keywords: [typography, CLI, Pandoc, Typst]
 ```
 
 These fields are indexed by PDF readers' document search functions and may be used by document management systems. They are not shown in the document body — they are metadata only.
@@ -210,7 +214,7 @@ These fields are indexed by PDF readers' document search functions and may be us
 
 ## Colour management for print
 
-Print production uses CMYK colour (Chapter 3). Most LaTeX PDF output is RGB by default, which is acceptable for office printing and screen-viewed PDFs but may not meet the requirements of a professional printing service — particularly for documents with coloured design elements, photographs, or backgrounds.
+Print production uses CMYK colour (Chapter 3). Most PDF backends in this book produce RGB output by default, which is acceptable for office printing and screen-viewed PDFs but may not meet the requirements of a professional printing service — particularly for documents with coloured design elements, photographs, or backgrounds.
 
 For documents with no colour beyond black text, this is not a concern: black in RGB (`#000000`) and black in CMYK (`0 0 0 100`) produce identical output, and the printer's workflow will handle the conversion transparently.
 
@@ -235,7 +239,7 @@ The `colorspace` package provides more comprehensive CMYK support, including the
 \usepackage[cmyk, profiles]{colorspace}
 ```
 
-For most Markdown-sourced documents, the practical approach is simpler: accept RGB output from LaTeX, and if the printer requires CMYK, convert the final PDF using Ghostscript:
+For most Markdown-sourced documents, the practical approach is simpler: accept RGB output from Typst, LaTeX, or the web-engine pipeline, and if the printer requires CMYK, convert the final PDF using Ghostscript:
 
 ```sh
 gs -dBATCH -dNOPAUSE -dNOPROMPT \
@@ -253,7 +257,7 @@ This Ghostscript command converts all RGB colours in the PDF to CMYK equivalents
 
 Documents printed professionally on sheets larger than the final trimmed size require bleed — content extended beyond the intended trim edge — and crop marks that tell the cutting machine where to trim.
 
-Bleed is typically 3mm on all sides (the printer may specify a different amount). To add bleed in LaTeX, use the `geometry` package with a slightly oversized page and the `includeheadfoot` option, combined with the `cropmarks` package or equivalent:
+Bleed is typically 3mm on all sides (the printer may specify a different amount). The exact mechanism depends on the PDF backend. In LaTeX, use the `geometry` package with a slightly oversized page and the `includeheadfoot` option, combined with the `cropmarks` package or equivalent:
 
 ```yaml
 geometry: >
@@ -362,7 +366,9 @@ wkhtmltopdf replaces the class `page` with the current page number and `topage` 
 Verify font embedding in the output with `pdffonts`, as described earlier.
 
 
-## Debugging LaTeX errors
+## Debugging backend-specific PDF failures
+
+When PDF generation fails, diagnose the backend you actually chose. Typst failures are usually simpler and closer to the source. Web-engine failures are usually CSS or asset-path problems. LaTeX failures remain the most opaque, so they deserve special treatment here.
 
 LaTeX errors are notoriously opaque. A missing closing brace five lines earlier produces an error on line 200; a package conflict manifests as an incomprehensible "dimension too large" message. Some practical strategies.
 
@@ -405,7 +411,7 @@ latexmk -xelatex -interaction=nonstopmode output.tex
 
 ## A complete print-ready PDF workflow
 
-Combining the elements above, here is a complete Pandoc invocation for a print-ready PDF from Markdown:
+Combining the elements above, here is a complete Pandoc invocation for a print-ready PDF from Markdown. This example uses Typst as the default PDF backend; switch to LaTeX only when the print workflow requires LaTeX-specific templates or packages:
 
 ```sh
 pandoc \
@@ -421,7 +427,7 @@ Where `book-defaults.yaml` contains:
 ```yaml
 from: markdown
 to: pdf
-pdf-engine: xelatex
+pdf-engine: typst
 filter:
   - pandoc-crossref
 citeproc: true
@@ -429,29 +435,13 @@ number-sections: true
 toc: true
 toc-depth: 2
 highlight-style: monochrome
-template: templates/book.latex
 metadata:
-  documentclass: book
-  classoption:
-    - 12pt
-    - twoside
-    - openright
-  mainfont: "EB Garamond"
-  sansfont: "Fira Sans"
-  monofont: "JetBrains Mono"
-  geometry: >
-    a4paper,
-    top=30mm,
-    bottom=25mm,
-    outer=25mm,
-    inner=30mm,
-    bindingoffset=10mm
-  linestretch: 1.3
-  colorlinks: false
-  hidelinks: true
   bibliography: references.bib
   csl: chicago-notes.csl
+  keywords: [typography, CLI, Pandoc, Typst]
 ```
+
+If the job requires a LaTeX class or package stack, keep the same Markdown source and switch the defaults file to `pdf-engine: xelatex` plus the required `template:` and LaTeX-specific metadata.
 
 After generating the PDF, run the standard verification checks:
 

@@ -4,7 +4,7 @@ Text alone cannot do everything a technical document needs. Flowcharts, architec
 
 The answer is a set of text-based diagram tools: programs that take a description of what the diagram should contain and produce an image. The description might be a graph in DOT language, a script in Python, a drawing in TikZ, or a flowchart in Mermaid syntax. In every case, the diagram is a file that can be committed to version control, diffed, reviewed, and automated — not a binary blob dropped from a drawing application.
 
-This chapter covers the main tools and their niches, the formats that work best for each output medium, and the workflows for integrating generated figures into Pandoc, LaTeX, and Typst documents.
+This chapter covers the main tools and their niches, the formats that work best for each output medium, and the workflows for integrating generated figures into Markdown-first, Typst, and LaTeX compatibility workflows.
 
 
 ## Choosing the right format
@@ -13,13 +13,13 @@ Before choosing a diagram tool, choose the output format. The diagram's purpose 
 
 **SVG** is the right format for diagrams in HTML output. It is resolution-independent (the diagram looks sharp at any screen density), its text content is selectable and searchable, and it integrates naturally with CSS. The file size is typically small for line diagrams. SVG can also be used in PDF output when converted to PDF format first, or embedded directly in PDF by some engines.
 
-**PDF** is the right format for diagrams in LaTeX PDF output. TikZ produces PDF natively (as part of the document); Graphviz and other tools can output PDF directly; SVG files can be converted to PDF with `pdftocairo`, `inkscape`, or `rsvg-convert`. Embedded PDFs in a LaTeX document are rendered at full resolution.
+**PDF** is the right format for diagrams in print-oriented PDF workflows. TikZ produces PDF natively (as part of the document); Graphviz and other tools can output PDF directly; SVG files can be converted to PDF with `pdftocairo`, `inkscape`, or `rsvg-convert`. Embedded PDFs in Typst or LaTeX are rendered at full resolution.
 
 **PNG** at adequate resolution (150–300 dpi for screen, 300–600 dpi for print) works for both HTML and PDF output. It is raster rather than vector, so it does not scale cleanly, but it is universally supported and is the right choice for diagrams with complex gradients or photographic content that SVG cannot represent well.
 
 **EPS** (Encapsulated PostScript) is the older format for LaTeX figures. It is still accepted by some publishers and older LaTeX workflows. Graphviz can output EPS; `pdftocairo -eps` converts PDFs to EPS. For new work, PDF is preferable.
 
-The practical default for CLI diagram production: generate SVG for HTML output, PDF for LaTeX output. If a tool produces only one format, convert as needed.
+The practical default for CLI diagram production: generate SVG for HTML output, PDF for print-oriented PDF backends such as Typst or LaTeX. If a tool produces only one format, convert as needed.
 
 
 ## Graphviz: graphs and networks
@@ -343,7 +343,7 @@ ax.set_xticklabels(typefaces)
 ax.set_ylabel("Words per minute")
 ax.legend(frameon=False, title="Size")
 
-# Save as SVG for HTML, PDF for LaTeX
+# Save as SVG for HTML, PDF for print workflows
 fig.savefig("reading-speeds.svg", format="svg", bbox_inches="tight")
 fig.savefig("reading-speeds.pdf", format="pdf", bbox_inches="tight")
 ```
@@ -363,7 +363,7 @@ For HTML output, SVG and PNG figures work directly:
 
 The `{width=80%}` attribute is translated to `style="width:80%"` in HTML and `[width=0.8\textwidth]` in LaTeX (via Pandoc's automatic translation).
 
-For PDF output via LaTeX, vector figures should be in PDF format. The simplest approach is to maintain both versions and use a Lua filter to select the right format:
+For PDF output via a print-oriented backend, vector figures should be in PDF format. The simplest approach is to maintain both versions and use a Lua filter to select the right format:
 
 ```lua
 -- figures-filter.lua: use .pdf for LaTeX, .svg for HTML

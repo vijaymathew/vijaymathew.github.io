@@ -13,7 +13,7 @@ Org Mode is genuinely excellent. Its outline-based editing is elegant. Its table
 
 The caveat is the Emacs prerequisite. Emacs has a learning curve unlike almost any other piece of software in current use. Its default keybindings predate the GUI conventions that have governed software interfaces since the 1980s. Its configuration is written in Emacs Lisp, a dialect of Lisp that is not casually approachable. Its documentation, while extensive, assumes a level of familiarity with the environment that newcomers cannot have. Getting Emacs to behave like a modern text editor for general use — sensible defaults, mouse support, sane keybindings — requires hours of configuration work before you can be productive.
 
-None of these are criticisms. They are features for the people who have made the investment. But for someone who currently works in VS Code, Vim, or any other text editor, adopting Emacs for the sake of Org Mode means acquiring an entire new environment to gain capabilities that Pandoc, Quarto, and LaTeX already provide. The tradeoff is rarely worth it for document production alone.
+None of these are criticisms. They are features for the people who have made the investment. But for someone who currently works in VS Code, Vim, or any other text editor, adopting Emacs for the sake of Org Mode means acquiring an entire new environment to gain capabilities that Pandoc, Quarto, Typst, and LaTeX already cover in other ways. The tradeoff is rarely worth it for document production alone.
 
 If you are already an Emacs user, read on: Org Mode deserves your serious attention.
 

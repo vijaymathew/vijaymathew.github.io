@@ -4,7 +4,7 @@ Part IV turns from tools to documents. The next five chapters produce real docum
 
 The letter is the oldest document type in continuous use. A formal business letter from 2024 shares its basic structure with a formal letter from 1924: sender's address, date, recipient's address, salutation, body, complimentary close, signature. The typographic conventions are stable and well-understood, which makes the letter an ideal first document in this gallery — the requirements are clear, the expected output is recognisable, and the implementation illuminates techniques that scale to more complex documents.
 
-This chapter covers three variants: the formal business letter (a submission letter to a journal), the cover letter with a personal letterhead (for job applications), and mail merge (generating one letter per recipient from a CSV file).
+This chapter covers three variants: the formal business letter (a submission letter to a journal), the cover letter with a personal letterhead (for job applications), and mail merge (generating one letter per recipient from a CSV file). The general pattern follows the rest of the book: keep the source in Markdown when multiple formats matter, prefer Typst for PDF-only output, and reach for LaTeX only when a postal or institutional requirement makes its letter classes worth the friction.
 
 
 ## What a letter requires
@@ -20,9 +20,9 @@ A letter's typographic requirements are modest but precise. The key elements:
 **Page rules**: letters are single-spaced with a blank line between paragraphs. Body text is not indented (in full block format). Headers and footers are typically absent; page numbers appear only when the letter runs to multiple pages, and then only from the second page.
 
 
-## The LaTeX `letter` class
+## The LaTeX `letter` class as baseline reference
 
-LaTeX's built-in `letter` document class provides a simple interface for correspondence. It handles the structural elements — sender, recipient, date, salutation, close, signature, enclosures — through dedicated commands:
+LaTeX's built-in `letter` document class provides a simple interface for correspondence. It handles the structural elements — sender, recipient, date, salutation, close, signature, enclosures — through dedicated commands. Treat it as a reference path rather than the default recommendation:
 
 ```latex
 \documentclass[12pt,a4paper]{letter}
@@ -67,7 +67,7 @@ pdflatex letter.tex
 
 The `letter` class places the sender's address (`\address{...}`) at the top right, the date below it, the recipient address at the left, and the signature at the close, with appropriate vertical spacing between each element. The `\encl{...}` command produces an "Enc." notation.
 
-The standard `letter` class is functional but dated in appearance. Its default output has the visual character of a 1980s LaTeX document. For modern correspondence, the KOMA-Script `scrlttr2` class is substantially more capable and produces a more contemporary result.
+The standard `letter` class is functional but dated in appearance. Its default output has the visual character of a 1980s LaTeX document. For modern correspondence, the KOMA-Script `scrlttr2` class is substantially more capable and produces a more contemporary result — and remains relevant mainly where precise postal conventions or window-envelope layouts matter.
 
 
 ## KOMA-Script: `scrlttr2`
@@ -246,9 +246,9 @@ For a cover letter that will be sent digitally, adding a hyperlinked email addre
 `hidelinks` removes the coloured box that hyperref draws around links by default, making the link visible only by cursor behaviour in a PDF viewer — appropriate for a printed letter where ink-coloured link boxes would look wrong.
 
 
-## A Pandoc approach for flexible formats
+## A Markdown source for flexible formats
 
-For correspondence that needs to be produced in multiple formats — PDF for printing, HTML for email, ODT for editing — writing the letter in Pandoc Markdown with a custom template separates the content from the format entirely.
+For correspondence that needs to be produced in multiple formats — PDF for printing, HTML for email, ODT for editing — writing the letter in Pandoc Markdown with a custom template separates the content from the format entirely. This is the canonical approach when the same letter may need to travel through several systems.
 
 The letter body in Markdown, with metadata:
 
@@ -277,7 +277,7 @@ graphical desktop publishing applications.
 I would be grateful for your consideration.
 ```
 
-The LaTeX template `letter.latex`:
+If the PDF output still needs a LaTeX-specific house style, the fallback template `letter.latex` can be used:
 
 ```latex
 \documentclass[11pt,a4paper]{article}
@@ -323,7 +323,7 @@ $from-name$
 \end{document}
 ```
 
-Render to PDF:
+Render to PDF through the LaTeX compatibility path:
 
 ```sh
 pandoc letter.md --template=letter.latex -o letter.pdf --pdf-engine=pdflatex
@@ -434,7 +434,7 @@ The shell approach is simpler but less robust for CSV fields that contain commas
 
 ## The Typst letter template
 
-For projects using Typst as the primary tool, the same letter can be written as a Typst document. The advantage over the LaTeX approach is that the template is written in Typst's native function syntax, which is more readable and easier to modify:
+For projects using Typst as the primary tool, the same letter can be written as a Typst document. For PDF-only correspondence this is usually the cleaner default. The advantage over the LaTeX approach is that the template is written in Typst's native function syntax, which is more readable and easier to modify:
 
 ```typst
 #let letter(
@@ -514,12 +514,12 @@ Typst has no equivalent of `scrlttr2`'s window-envelope positioning, fold marks,
 
 The right tool for a letter depends on how the letter will be used:
 
-**For a one-off formal letter** where typographic quality matters and the document will be printed: XeLaTeX with a custom header or `scrlttr2` produces the best output with direct control over every element.
+**For a one-off formal letter** where typographic quality matters and the document will be printed: Typst is the first choice for a new PDF-only workflow. Keep `scrlttr2` in reserve for cases where postal conventions, fold marks, or window-envelope positioning are non-negotiable.
 
-**For a template-driven letter produced across multiple formats**: the Pandoc + LaTeX template approach separates content from presentation cleanly, enables multiple output formats from one source, and keeps the letter content in Markdown where it is easy to read and edit.
+**For a template-driven letter produced across multiple formats**: the Pandoc or Quarto approach separates content from presentation cleanly, enables multiple output formats from one source, and keeps the letter content in Markdown where it is easy to read and edit.
 
 **For mail merge** producing many letters from a data file: the Python + Pandoc approach handles the CSV correctly, produces one file per recipient, and requires no specialised mail merge infrastructure.
 
-**For Typst-based projects**: the native Typst function approach is clean and readable, with fast compilation and easy modification.
+**For Typst-based projects**: the native Typst function approach is clean and readable, with fast compilation and easy modification, and should be considered the default PDF path unless a LaTeX-specific requirement blocks it.
 
 The letter is a simple document, but it illustrates the template-and-separation-of-concerns pattern that scales to the more complex documents in the next chapters. The résumé, covered in Chapter 19, extends these patterns significantly.

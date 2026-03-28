@@ -1,6 +1,6 @@
 # LaTeX
 
-LaTeX is the tool that serious document production ultimately leads to. Not for every document — Chapter 11 laid out the cases where simpler tools are the right choice — but for the category of documents where typographic quality is paramount, where mathematical notation is central, where a document must remain reproducible over decades, or where a publisher or conference requires it, LaTeX is irreplaceable. Understanding it deeply, rather than just knowing enough to make Pandoc produce PDFs, pays dividends across every kind of technical writing.
+LaTeX is the historical centre of modern technical typesetting, not the inevitable destination of all serious document work. For new PDF-only projects, this book generally prefers Typst; for multi-format work, it prefers Markdown with Pandoc or Quarto. LaTeX remains important because publishers, conferences, long-lived institutional workflows, and specialised mathematical packages still depend on it. Understanding it deeply, rather than just knowing enough to make Pandoc produce PDFs, pays dividends whenever you hit those compatibility boundaries.
 
 This chapter covers LaTeX as a direct authoring tool: the document structure, the engine choices, the essential packages, the mathematics system, bibliography management, and the techniques for building reusable document classes. It assumes you have a TeX Live installation; if not, the first section explains how to get one.
 
@@ -545,4 +545,4 @@ The `$out_dir = 'build'` setting keeps the source directory uncluttered — all 
 
 ---
 
-LaTeX is a large system and this chapter covers only its core. The document examples in Part IV — the letter in Chapter 18, the academic article in Chapter 20, and especially the book in Chapter 22 — demonstrate these techniques in context, with complete working examples. Chapter 26 returns to LaTeX for microtypography, covering `microtype`'s protrusion and expansion settings in detail and the techniques for eliminating widows, orphans, and bad line breaks in production-quality documents.
+LaTeX is a large system and this chapter covers only its core. The document examples in Part IV — especially where publisher requirements or established classes still matter — demonstrate these techniques in context. Chapter 26 returns to LaTeX for microtypography, covering `microtype`'s protrusion and expansion settings in detail and the techniques for eliminating widows, orphans, and bad line breaks in production-quality documents. The point is not that every new project should start in LaTeX; it is that when the ecosystem demands LaTeX, you should know what it is doing and how to use it well.

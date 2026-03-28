@@ -94,16 +94,17 @@ pandoc input.md -o output.pdf --toc --toc-depth=2
 pandoc input.md -o output.pdf --number-sections
 ```
 
-**`--pdf-engine`** selects the LaTeX engine (or other PDF renderer) when the output format is PDF:
+**`--pdf-engine`** selects the PDF renderer when the output format is PDF:
 
 ```sh
+pandoc input.md -o output.pdf --pdf-engine=typst
 pandoc input.md -o output.pdf --pdf-engine=xelatex
 pandoc input.md -o output.pdf --pdf-engine=lualatex
 pandoc input.md -o output.pdf --pdf-engine=pdflatex
 pandoc input.md -o output.pdf --pdf-engine=wkhtmltopdf
 ```
 
-If you are using `mainfont`, `sansfont`, or `monofont` in your metadata, you must use `xelatex` or `lualatex` — pdfLaTeX does not support `fontspec`. If your document contains only standard Latin text and uses only font packages available in pdfLaTeX, either engine will work. We discuss the tradeoffs in Chapter 8.
+For PDF-only print work, `typst` is now the best default unless you are tied to a LaTeX class or package stack. If you are using `mainfont`, `sansfont`, or `monofont` with a LaTeX backend, you must use `xelatex` or `lualatex` — pdfLaTeX does not support `fontspec`. We discuss the tradeoffs in Chapter 8.
 
 **`--highlight-style`** controls syntax highlighting in code blocks. Pandoc uses the KDE syntax highlighting library internally and ships with several built-in themes:
 
@@ -149,6 +150,8 @@ This is often the right approach for modest customisations. Custom templates (co
 
 When the output format is PDF, Pandoc converts the document to an intermediate format and then invokes an external tool to produce the final PDF. The choice of PDF engine is one of the most consequential decisions in a Pandoc workflow.
 
+**Typst** is the best default for PDF-only print-oriented work when you are not constrained by legacy infrastructure. It gives you a modern PDF composition engine, strong typography, fast compilation, and a cleaner template story than LaTeX. If your goal is a print-ready PDF and not a publisher-mandated `.tex` file, start here.
+
 **pdfLaTeX** is the oldest and most portable of the LaTeX PDF engines. It uses 8-bit input encoding (UTF-8 with the `inputenc` package), produces highly compatible PDF output, and compiles faster than the Unicode engines. Its primary limitation is font access: it can only use fonts that have been prepared in LaTeX's internal format, which in practice means the packaged fonts available through TeX Live (Palatino, Times, Helvetica, Charter, and many others via packages like `mathpazo`, `tgpagella`, `helvet`, and `charter`). If your document's font requirements are covered by these packages, pdfLaTeX is a fine choice. If you need a specific OTF or TTF font — anything you would install via fontconfig — you need XeLaTeX or LuaLaTeX.
 
 **XeLaTeX** uses Unicode input natively, supports OpenType and TrueType fonts directly via the `fontspec` package, and handles right-to-left scripts and complex script rendering through the HarfBuzz shaping engine. It is the standard choice for documents that use non-Latin scripts, require specific professional typefaces, or need access to advanced OpenType features. XeLaTeX compiles somewhat more slowly than pdfLaTeX and produces slightly larger PDF files.
@@ -159,7 +162,7 @@ When the output format is PDF, Pandoc converts the document to an intermediate f
 
 **WeasyPrint** is a Python-based alternative to wkhtmltopdf, using a cleaner implementation of CSS Print and Paged Media standards. It is actively maintained, supports CSS features that wkhtmltopdf does not, and is the subject of Chapter 8's section on web-engine PDF generation.
 
-The practical decision tree: start with pdfLaTeX if you are using standard LaTeX font packages; switch to XeLaTeX when you need system fonts or OpenType features; consider LuaLaTeX if you need Lua scripting within the document; reach for wkhtmltopdf or WeasyPrint when your document is designed in HTML/CSS and does not need TeX's typographic capabilities.
+The practical decision tree: start with Typst for PDF-only print work; switch to XeLaTeX or LuaLaTeX when you need a LaTeX-specific class, package, or submission format; use pdfLaTeX only for established compatibility workflows; reach for wkhtmltopdf or WeasyPrint when your document is designed in HTML/CSS and does not need a print-focused composition engine.
 
 
 ## Templates

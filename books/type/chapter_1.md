@@ -73,7 +73,7 @@ This is the fundamental tension that runs through everything in this book. Print
 
 Web typography assumes a variable canvas. The text column might be 400 pixels wide or 1200 pixels wide. The user might have changed the default font size. The device might not even have a screen in the usual sense. Typographic decisions must be robust to a range of conditions you cannot fully control or predict.
 
-When you generate a PDF from Markdown using Pandoc and a LaTeX backend, you are working in the print tradition: fixed canvas, precise control, every detail in your hands. When you generate HTML from the same Markdown file, you are working in the web tradition: reflow, approximation, deference to the reader's environment. Both are legitimate. They are not the same.
+When you generate a PDF from Markdown using Typst or a LaTeX backend, you are working in the print tradition: fixed canvas, precise control, every detail in your hands. When you generate HTML from the same Markdown file, you are working in the web tradition: reflow, approximation, deference to the reader's environment. Both are legitimate. They are not the same.
 
 The proliferation of formats that defines the current landscape — HTML, PDF, EPUB, DOCX, man pages, slides — is a direct consequence of this fracture. Each format embodies a set of assumptions about where and how the text will be read. EPUB is HTML that pretends, imperfectly, to be a book. DOCX is a format that tries to preserve some print-style layout while remaining editable. PDF is PostScript's descendant: a fixed-canvas, device-independent representation of a page, designed to look identical everywhere it is opened. Each has its place. None is universally best.
 
