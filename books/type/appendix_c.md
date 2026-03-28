@@ -79,16 +79,16 @@ Which tools can read each source format:
 | Situation | Recommended tool | Reason |
 |:----------|:----------------|:-------|
 | Academic paper with maths | LaTeX | Unsurpassed math quality; publisher requires it |
-| Academic paper, no maths | Pandoc + LaTeX | Markdown source; multiple output formats |
+| Academic paper, no maths | Pandoc + Typst | Markdown source; multiple output formats with a modern PDF backend |
 | Journal submission (must be .tex) | LaTeX | Publisher requirement |
 | New document, no LaTeX requirement | Typst | Modern syntax; fast compilation |
 | Computational report (Python/R) | Quarto | Code execution and reproducibility |
 | API documentation site | Pandoc + HTML | Multi-page HTML; version-controllable |
-| Book (print + ebook) | LaTeX or Pandoc | Depends on complexity; see Chapter 22 |
+| Book (print + ebook) | Pandoc or Quarto + Typst | Markdown source; HTML/EPUB plus print-ready PDF |
 | Presentation slides (print) | Beamer (native or via Pandoc) | PDF; math support |
 | Presentation slides (online) | Reveal.js via Pandoc | HTML; interactive; shareable URL |
-| Cover letter or correspondence | LaTeX or Pandoc | See Chapter 18 |
-| Résumé / CV | LaTeX (single-column or two-column) | See Chapter 19 |
+| Cover letter or correspondence | Pandoc or Typst | Markdown for multi-format; Typst for PDF-only |
+| Résumé / CV | Markdown + Typst, or LaTeX fallback | See Chapter 19 |
 | Unix man page | groff -man | Standard; always available |
 | Simple document, no dependencies | groff -ms | No LaTeX needed; always available |
 | Emacs-based workflow | Org Mode | Native to Emacs ecosystem |

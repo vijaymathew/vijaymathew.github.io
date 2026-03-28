@@ -596,12 +596,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#the-table-package-stack" id="toc-the-table-package-stack" class="nav-link active" data-scroll-target="#the-table-package-stack"><span class="header-section-number">25.1</span> The table package stack</a>
+  <li><a href="#markdown-and-backend-aware-table-workflows" id="toc-markdown-and-backend-aware-table-workflows" class="nav-link active" data-scroll-target="#markdown-and-backend-aware-table-workflows"><span class="header-section-number">25.1</span> Markdown and backend-aware table workflows</a>
   <ul class="collapse">
-  <li><a href="#booktabs-professional-table-rules" id="toc-booktabs-professional-table-rules" class="nav-link" data-scroll-target="#booktabs-professional-table-rules"><span class="header-section-number">25.1.1</span> booktabs: professional table rules</a></li>
+  <li><a href="#simple-tables-and-grouped-headers" id="toc-simple-tables-and-grouped-headers" class="nav-link" data-scroll-target="#simple-tables-and-grouped-headers"><span class="header-section-number">25.1.1</span> Simple tables and grouped headers</a></li>
   <li><a href="#cells-spanning-multiple-rows" id="toc-cells-spanning-multiple-rows" class="nav-link" data-scroll-target="#cells-spanning-multiple-rows"><span class="header-section-number">25.1.2</span> Cells spanning multiple rows</a></li>
   <li><a href="#tables-that-fill-the-text-width" id="toc-tables-that-fill-the-text-width" class="nav-link" data-scroll-target="#tables-that-fill-the-text-width"><span class="header-section-number">25.1.3</span> Tables that fill the text width</a></li>
-  <li><a href="#multi-page-tables-with-longtable" id="toc-multi-page-tables-with-longtable" class="nav-link" data-scroll-target="#multi-page-tables-with-longtable"><span class="header-section-number">25.1.4</span> Multi-page tables with longtable</a></li>
+  <li><a href="#multi-page-tables" id="toc-multi-page-tables" class="nav-link" data-scroll-target="#multi-page-tables"><span class="header-section-number">25.1.4</span> Multi-page tables</a></li>
   </ul></li>
   <li><a href="#table-alignment-in-css" id="toc-table-alignment-in-css" class="nav-link" data-scroll-target="#table-alignment-in-css"><span class="header-section-number">25.2</span> Table alignment in CSS</a></li>
   <li><a href="#sidebars-and-callout-boxes" id="toc-sidebars-and-callout-boxes" class="nav-link" data-scroll-target="#sidebars-and-callout-boxes"><span class="header-section-number">25.3</span> Sidebars and callout boxes</a>
@@ -635,243 +635,127 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Tables are among the most typographically demanding elements in document production. They involve simultaneous decisions about column widths, alignment, spacing, rules, captions, and placement — and they must remain readable, not merely correct. LaTeX’s table system is powerful but complex; Markdown’s table syntax is simple but limited; the gap between what authors want and what the tools produce by default is wider for tables than for almost any other element.</p>
-<p>This chapter covers the main table packages and techniques, along with the related challenges of spanning layouts: sidebars, marginalia, callout boxes, and wrapfigures.</p>
-<section id="the-table-package-stack" class="level2" data-number="25.1">
-<h2 data-number="25.1" class="anchored" data-anchor-id="the-table-package-stack"><span class="header-section-number">25.1</span> The table package stack</h2>
-<p>Every serious LaTeX document with tables should load at least three packages: <code>booktabs</code>, <code>longtable</code>, and <code>multirow</code>. Together they cover the majority of table requirements. For tables that must stretch to fill the text width, add <code>tabularx</code> or <code>tabularray</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">booktabs</span>}    <span class="co">% professional rules</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">longtable</span>}   <span class="co">% multi-page tables</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">multirow</span>}    <span class="co">% cells spanning multiple rows</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">tabularx</span>}    <span class="co">% auto-width columns</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">array</span>}       <span class="co">% enhanced column specifications</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<section id="booktabs-professional-table-rules" class="level3" data-number="25.1.1">
-<h3 data-number="25.1.1" class="anchored" data-anchor-id="booktabs-professional-table-rules"><span class="header-section-number">25.1.1</span> booktabs: professional table rules</h3>
-<p>The <code>booktabs</code> package provides four rule commands that replace LaTeX’s <code>\hline</code>:</p>
+<p>Tables are among the most typographically demanding elements in document production. They involve simultaneous decisions about column widths, alignment, spacing, rules, captions, and placement — and they must remain readable, not merely correct. In a Markdown-first workflow, tables are also where authors are most tempted to abandon the source-neutral path too early. The right response is not to jump straight into raw LaTeX, but to decide carefully which layer should own the complexity: Markdown or CSV for simple data, CSS or Quarto for web presentation, and Typst or another PDF backend only when page-specific control is truly needed.</p>
+<p>This chapter therefore treats Markdown, HTML/CSS, and Typst-style backend logic as the default path, with LaTeX packages covered as backend-specific techniques when you are already committed to a LaTeX template. The same principle applies to spanning layouts such as sidebars, marginalia, callout boxes, and wrapfigures.</p>
+<section id="markdown-and-backend-aware-table-workflows" class="level2" data-number="25.1">
+<h2 data-number="25.1" class="anchored" data-anchor-id="markdown-and-backend-aware-table-workflows"><span class="header-section-number">25.1</span> Markdown and backend-aware table workflows</h2>
+<p>Start with the simplest representation that preserves the data cleanly. Plain Markdown tables and CSV-backed generation are easiest to maintain in Git; when the PDF needs spanning cells, repeated headers, or strict width control, move the table logic into the print backend instead of abandoning the whole workflow. Typst’s table primitives are often a better next step than backend-specific macro work.</p>
+<section id="simple-tables-and-grouped-headers" class="level3" data-number="25.1.1">
+<h3 data-number="25.1.1" class="anchored" data-anchor-id="simple-tables-and-grouped-headers"><span class="header-section-number">25.1.1</span> Simple tables and grouped headers</h3>
+<p>For most documents, the source should begin as a plain Markdown table:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Tool   <span class="pp">|</span> Primary output <span class="pp">|</span> Math      <span class="pp">|</span> Compilation speed <span class="pp">|</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="pp">|:-------|:---------------|:----------|------------------:|</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Typst  <span class="pp">|</span> PDF            <span class="pp">|</span> Good      <span class="pp">|</span> Fast              <span class="pp">|</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pandoc <span class="pp">|</span> Many formats   <span class="pp">|</span> Moderate  <span class="pp">|</span> Fast              <span class="pp">|</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Quarto <span class="pp">|</span> Many formats   <span class="pp">|</span> Moderate  <span class="pp">|</span> Moderate          <span class="pp">|</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>: CLI typesetting tools {#tbl-tools}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The important design rules are the same regardless of backend:</p>
 <ul>
-<li><code>\toprule</code> — thick rule at the top of the table</li>
-<li><code>\midrule</code> — medium rule within the table (above data rows)</li>
-<li><code>\bottomrule</code> — thick rule at the bottom of the table</li>
-<li><code>\cmidrule{m-n}</code> — partial rule spanning columns <code>m</code> through <code>n</code></li>
+<li>no vertical rules</li>
+<li>strong distinction between header and body</li>
+<li>right alignment for numeric data</li>
+<li>consistent spacing rather than decorative lines</li>
 </ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">table</span>}[ht]</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\centering</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\caption</span>{CLI typesetting tools}</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">\label</span>{<span class="ex">tab:tools</span>}</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">tabular</span>}{llcc}</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\toprule</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>Tool   <span class="op">&amp;</span> Primary output <span class="op">&amp;</span> Math      <span class="op">&amp;</span> Compilation speed <span class="fu">\\</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>LaTeX  <span class="op">&amp;</span> PDF            <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> Slow              <span class="fu">\\</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>Typst  <span class="op">&amp;</span> PDF            <span class="op">&amp;</span> Good      <span class="op">&amp;</span> Fast              <span class="fu">\\</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>Pandoc <span class="op">&amp;</span> Many formats   <span class="op">&amp;</span> Moderate  <span class="op">&amp;</span> Fast              <span class="fu">\\</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>Quarto <span class="op">&amp;</span> Many formats   <span class="op">&amp;</span> Via LaTeX <span class="op">&amp;</span> Moderate          <span class="fu">\\</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="fu">\bottomrule</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">tabular</span>}</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">table</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The spacing around <code>booktabs</code> rules is set by <code>\aboverulesep</code> and <code>\belowrulesep</code> — the package’s defaults are carefully chosen. Do not add <code>\hline</code> or extra <code>\\[...]</code> spacing between rows; the <code>booktabs</code> rules handle all the spacing. The central rule of <code>booktabs</code> usage: <strong>no vertical rules</strong>. Vertical rules in tables add visual noise without adding information. Column separation is achieved through spacing alone.</p>
-<p><code>\cmidrule</code> spans a subset of columns and is used to separate grouped headers:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">tabular</span>}{llll}</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\toprule</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\multicolumn</span>{2}{c}{Source} <span class="op">&amp;</span> <span class="fu">\multicolumn</span>{2}{c}{Output} <span class="fu">\\</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\cmidrule</span>(lr){1-2}<span class="fu">\cmidrule</span>(lr){3-4}</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>Format   <span class="op">&amp;</span> Engine        <span class="op">&amp;</span> PDF       <span class="op">&amp;</span> HTML <span class="fu">\\</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>Markdown <span class="op">&amp;</span> Pandoc+LaTeX  <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> Good <span class="fu">\\</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>Markdown <span class="op">&amp;</span> Pandoc+Typst  <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> n/a  <span class="fu">\\</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\LaTeX</span>   <span class="op">&amp;</span> pdfLaTeX      <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> Poor <span class="fu">\\</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">\bottomrule</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">tabular</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>(lr)</code> option on <code>\cmidrule</code> trims the rule slightly at left and right, preventing it from touching adjacent rules — a refinement that the booktabs documentation recommends.</p>
+<p>When grouped headers are needed, move the layout into Typst:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>table<span class="op">(</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="op">(</span><span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">),</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  align<span class="op">:</span> <span class="op">(</span>left<span class="op">,</span> left<span class="op">,</span> right<span class="op">,</span> right<span class="op">),</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  table<span class="op">.</span>header<span class="op">(</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    table<span class="op">.</span>cell<span class="op">(</span>colspan<span class="op">:</span> <span class="dv">2</span><span class="op">)[</span>*Source*<span class="op">],</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    table<span class="op">.</span>cell<span class="op">(</span>colspan<span class="op">:</span> <span class="dv">2</span><span class="op">)[</span>*Output*<span class="op">],</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">),</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Format<span class="op">],</span> <span class="op">[</span>Engine<span class="op">],</span> <span class="op">[</span>PDF<span class="op">],</span> <span class="op">[</span>HTML<span class="op">],</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Markdown<span class="op">],</span> <span class="op">[</span>Pandoc + Typst<span class="op">],</span> <span class="op">[</span>Excellent<span class="op">],</span> <span class="op">[</span>n/a<span class="op">],</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Markdown<span class="op">],</span> <span class="op">[</span>Pandoc + HTML<span class="op">],</span> <span class="op">[</span>Good<span class="op">],</span> <span class="op">[</span>Excellent<span class="op">],</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Typst<span class="op">],</span> <span class="op">[</span>Native<span class="op">],</span> <span class="op">[</span>Excellent<span class="op">],</span> <span class="op">[</span>n/a<span class="op">],</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="cells-spanning-multiple-rows" class="level3" data-number="25.1.2">
 <h3 data-number="25.1.2" class="anchored" data-anchor-id="cells-spanning-multiple-rows"><span class="header-section-number">25.1.2</span> Cells spanning multiple rows</h3>
-<p>The <code>multirow</code> package provides <code>\multirow{n}{width}{text}</code> for cells that span <code>n</code> rows:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">multirow</span>}</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">tabular</span>}{llll}</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\toprule</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>Source <span class="op">&amp;</span> Engine <span class="op">&amp;</span> PDF <span class="op">&amp;</span> HTML <span class="fu">\\</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\multirow</span>{3}{*}{Markdown}</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;</span> Pandoc + pdfLaTeX <span class="op">&amp;</span> Good      <span class="op">&amp;</span> Good <span class="fu">\\</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;</span> Pandoc + XeLaTeX  <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> Good <span class="fu">\\</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">&amp;</span> Pandoc + Typst    <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> n/a  <span class="fu">\\</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\LaTeX</span> <span class="op">&amp;</span> pdfLaTeX <span class="op">&amp;</span> Excellent <span class="op">&amp;</span> Poor <span class="fu">\\</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">\bottomrule</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">tabular</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>{*}</code> width argument tells <code>\multirow</code> to size the cell automatically. The cells in rows 2 and 3 of the first column are left empty — <code>\multirow</code> spans them visually.</p>
+<p>Spanning rows is a layout feature, so it belongs in the PDF backend rather than in ad hoc source hacks:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>table<span class="op">(</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="op">(</span><span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">),</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  table<span class="op">.</span>header<span class="op">([</span>Source<span class="op">],</span> <span class="op">[</span>Engine<span class="op">],</span> <span class="op">[</span>PDF<span class="op">],</span> <span class="op">[</span>HTML<span class="op">]),</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  table<span class="op">.</span>cell<span class="op">(</span>rowspan<span class="op">:</span> <span class="dv">3</span><span class="op">)[</span>Markdown<span class="op">],</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Pandoc + HTML<span class="op">],</span> <span class="op">[</span>Good<span class="op">],</span> <span class="op">[</span>Excellent<span class="op">],</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Pandoc + Typst<span class="op">],</span> <span class="op">[</span>Excellent<span class="op">],</span> <span class="op">[</span>n/a<span class="op">],</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Pandoc + DOCX<span class="op">],</span> <span class="op">[</span>n/a<span class="op">],</span> <span class="op">[</span>n/a<span class="op">],</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Typst<span class="op">],</span> <span class="op">[</span>Native<span class="op">],</span> <span class="op">[</span>Excellent<span class="op">],</span> <span class="op">[</span>n/a<span class="op">],</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The table data still originates cleanly in Markdown, CSV, or YAML; the spanning behaviour is introduced only where the final page geometry is known.</p>
 </section>
 <section id="tables-that-fill-the-text-width" class="level3" data-number="25.1.3">
 <h3 data-number="25.1.3" class="anchored" data-anchor-id="tables-that-fill-the-text-width"><span class="header-section-number">25.1.3</span> Tables that fill the text width</h3>
-<p>Standard <code>tabular</code> columns are only as wide as their content. For tables that should span the full text width — particularly for tables with descriptive text in a column — <code>tabularx</code> provides an <code>X</code> column type that automatically adjusts to fill the remaining space:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">tabularx</span>}</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">tabularx</span>}{<span class="fu">\textwidth</span>}{lX}</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\toprule</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>Package <span class="op">&amp;</span> Description <span class="fu">\\</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>booktabs  <span class="op">&amp;</span> Professional rules without vertical lines. Provides</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="fu">\texttt</span>{<span class="fu">\textbackslash</span> toprule}, <span class="fu">\texttt</span>{<span class="fu">\textbackslash</span> midrule},</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>            and <span class="fu">\texttt</span>{<span class="fu">\textbackslash</span> bottomrule}. <span class="fu">\\</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>longtable <span class="op">&amp;</span> Tables that span multiple pages with automatic header</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>            repetition on each subsequent page. <span class="fu">\\</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>tabularx  <span class="op">&amp;</span> Extends the standard tabular to stretch to a specified</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>            width using automatically sized <span class="fu">\texttt</span>{X} columns. <span class="fu">\\</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="fu">\bottomrule</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">tabularx</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Multiple <code>X</code> columns divide the available space equally. For unequal widths, the <code>tabularray</code> package (available in recent TeX Live) provides <code>Q[co=2]</code> and similar proportional specifications.</p>
+<p>When a table needs one descriptive column and one short label column, Typst’s fractional widths are usually enough:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>table<span class="op">(</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="op">(</span><span class="fl">1fr</span><span class="op">,</span> <span class="fl">3fr</span><span class="op">),</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  table<span class="op">.</span>header<span class="op">([</span>*Package*<span class="op">],</span> <span class="op">[</span>*Description*<span class="op">]),</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>table<span class="op">],</span> <span class="op">[</span>Structured tables with explicit column sizing and alignment.<span class="op">],</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>grid<span class="op">],</span> <span class="op">[</span>Useful when the content is logically tabular but visually irregular.<span class="op">],</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>figure<span class="op">],</span> <span class="op">[</span>A better wrapper when the table needs a caption and cross-reference.<span class="op">],</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For HTML output, use CSS <code>table-layout: fixed</code> or a <code>colgroup</code> only when the browser’s default sizing produces bad results. Most tables improve more from better content and shorter prose than from heavier width control.</p>
 </section>
-<section id="multi-page-tables-with-longtable" class="level3" data-number="25.1.4">
-<h3 data-number="25.1.4" class="anchored" data-anchor-id="multi-page-tables-with-longtable"><span class="header-section-number">25.1.4</span> Multi-page tables with longtable</h3>
-<p>When a table may span multiple pages, use <code>longtable</code>. It handles the header repetition automatically:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">longtable</span>}</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">longtable</span>}{lll}</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\caption</span>{Package loading order}</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">\label</span>{<span class="ex">tab:packages</span>} <span class="fu">\\</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\toprule</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>Package    <span class="op">&amp;</span> Purpose            <span class="op">&amp;</span> Load when <span class="fu">\\</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\endfirsthead</span>                   <span class="co">% end of first-page header</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">% Header repeated on subsequent pages:</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\multicolumn</span>{3}{c}{<span class="fu">\tablename</span>~<span class="fu">\thetable</span>{} — continued} <span class="fu">\\</span></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\toprule</span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>Package    <span class="op">&amp;</span> Purpose            <span class="op">&amp;</span> Load when <span class="fu">\\</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\endhead</span>                        <span class="co">% end of repeated header</span></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co">% Footer on all pages except last:</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="fu">\midrule</span></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="fu">\multicolumn</span>{3}{r}{Continued on next page} <span class="fu">\\</span></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">\endfoot</span>                        <span class="co">% end of repeated footer</span></span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="co">% Footer on last page only:</span></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="fu">\bottomrule</span></span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="fu">\endlastfoot</span>                    <span class="co">% end of last-page footer</span></span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>geometry   <span class="op">&amp;</span> Page dimensions    <span class="op">&amp;</span> Preamble <span class="fu">\\</span></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>fontspec   <span class="op">&amp;</span> Font selection     <span class="op">&amp;</span> Early     <span class="fu">\\</span></span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>microtype  <span class="op">&amp;</span> Microtypography    <span class="op">&amp;</span> Early     <span class="fu">\\</span></span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>booktabs   <span class="op">&amp;</span> Table rules        <span class="op">&amp;</span> Any       <span class="fu">\\</span></span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>longtable  <span class="op">&amp;</span> Multi-page tables  <span class="op">&amp;</span> Any       <span class="fu">\\</span></span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>hyperref   <span class="op">&amp;</span> PDF links          <span class="op">&amp;</span> Last      <span class="fu">\\</span></span>
-<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>cleveref   <span class="op">&amp;</span> Smart references   <span class="op">&amp;</span> After hyperref <span class="fu">\\</span></span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">longtable</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>longtable</code> does not go inside a <code>table</code> float — it handles its own placement and captioning. The four header/footer commands (<code>\endfirsthead</code>, <code>\endhead</code>, <code>\endfoot</code>, <code>\endlastfoot</code>) define what appears on the first page, subsequent pages, all-but-last footers, and the last page footer respectively.</p>
-<p>Pandoc renders all Markdown tables as <code>longtable</code> environments, which is why <code>\usepackage{longtable}</code> must appear in any custom LaTeX template.</p>
+<section id="multi-page-tables" class="level3" data-number="25.1.4">
+<h3 data-number="25.1.4" class="anchored" data-anchor-id="multi-page-tables"><span class="header-section-number">25.1.4</span> Multi-page tables</h3>
+<p>When a table may span multiple pages, the best strategy is usually to keep the data outside the prose source and generate the table from CSV or JSON. In practice that means a data file such as <code>package-order.csv</code> plus a build step in Quarto or Pandoc that reads the data and renders it as a table for the target format.</p>
+<p>A <code>.qmd</code> chapter might include an executable cell that reads the CSV and labels the resulting table; a plain Pandoc workflow can do the same with a preprocessing step that emits Markdown. The important point is that the data stays tabular and editable outside the prose manuscript.</p>
+<p>For PDF, the template or execution layer is responsible for repeating headers and splitting pages cleanly. That keeps the source data maintainable and avoids hand-editing large tables in prose files.</p>
 </section>
 </section>
 <section id="table-alignment-in-css" class="level2" data-number="25.2">
 <h2 data-number="25.2" class="anchored" data-anchor-id="table-alignment-in-css"><span class="header-section-number">25.2</span> Table alignment in CSS</h2>
 <p>In HTML output from Pandoc, table alignment follows the Markdown syntax: <code>:---</code> for left, <code>:---:</code> for centre, <code>---:</code> for right. The CSS for these tables should reinforce the booktabs aesthetic:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>table {</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-collapse</span><span class="ch">:</span> <span class="dv">collapse</span><span class="op">;</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">width</span><span class="ch">:</span> <span class="dv">100</span><span class="dt">%</span><span class="op">;</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">0.95</span><span class="dt">em</span><span class="op">;</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>thead tr {</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-top</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="dv">currentColor</span><span class="op">;</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">px</span> <span class="dv">solid</span> <span class="dv">currentColor</span><span class="op">;</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>tbody tr<span class="in">:last-child</span> {</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="dv">currentColor</span><span class="op">;</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>th<span class="op">,</span> td {</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding</span><span class="ch">:</span> <span class="dv">0.4</span><span class="dt">em</span> <span class="dv">0.75</span><span class="dt">em</span><span class="op">;</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="kw">text-align</span><span class="ch">:</span> <span class="dv">left</span><span class="op">;</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>th { <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">600</span><span class="op">;</span> }</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="co">/* Numeric columns */</span></span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>td<span class="in">:has(</span><span class="op">+</span> td<span class="in">)</span><span class="op">,</span> th<span class="in">:has(</span><span class="op">+</span> th<span class="in">)</span> { }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>table {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-collapse</span><span class="ch">:</span> <span class="dv">collapse</span><span class="op">;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">width</span><span class="ch">:</span> <span class="dv">100</span><span class="dt">%</span><span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">0.95</span><span class="dt">em</span><span class="op">;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>thead tr {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-top</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="dv">currentColor</span><span class="op">;</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">px</span> <span class="dv">solid</span> <span class="dv">currentColor</span><span class="op">;</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>tbody tr<span class="in">:last-child</span> {</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="dv">currentColor</span><span class="op">;</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>th<span class="op">,</span> td {</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding</span><span class="ch">:</span> <span class="dv">0.4</span><span class="dt">em</span> <span class="dv">0.75</span><span class="dt">em</span><span class="op">;</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="kw">text-align</span><span class="ch">:</span> <span class="dv">left</span><span class="op">;</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>th { <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">600</span><span class="op">;</span> }</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co">/* Numeric columns */</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>td<span class="in">:has(</span><span class="op">+</span> td<span class="in">)</span><span class="op">,</span> th<span class="in">:has(</span><span class="op">+</span> th<span class="in">)</span> { }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>For the <code>text-align: right</code> convention on numeric columns, target specific column indices in CSS or use Pandoc’s attribute mechanism to add classes to specific columns.</p>
 </section>
 <section id="sidebars-and-callout-boxes" class="level2" data-number="25.3">
 <h2 data-number="25.3" class="anchored" data-anchor-id="sidebars-and-callout-boxes"><span class="header-section-number">25.3</span> Sidebars and callout boxes</h2>
-<p>Sidebars — blocks of supplementary text set apart from the main column — appear in technical books, textbooks, and reference manuals. The <code>tcolorbox</code> package provides the most flexible implementation:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">tcolorbox</span>}</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\tcbuselibrary</span>{skins, breakable}</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">% Define a "note" callout</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\newtcolorbox</span>{notebox}[1][]{</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  enhanced,</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  breakable,</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  colback=blue!5,</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  colframe=blue!60!black,</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  fonttitle=<span class="fu">\bfseries\sffamily</span>,</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  title={Note},</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  #1</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co">% Define a "warning" callout</span></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">\newtcolorbox</span>{warnbox}[1][]{</span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  enhanced,</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  breakable,</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  colback=orange!10,</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  colframe=orange!80!black,</span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  fonttitle=<span class="fu">\bfseries\sffamily</span>,</span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  title={Warning},</span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  #1</span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="co">% Usage:</span></span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">notebox</span>}</span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>The <span class="fu">\texttt</span>{fontspec} package requires XeLaTeX or LuaLaTeX.</span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>Using it with pdfLaTeX produces an error.</span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">notebox</span>}</span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">warnbox</span>}[title={Critical}]</span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>Always verify font embedding before sending a PDF to a printer.</span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">warnbox</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>breakable</code> library option allows boxes to split across page boundaries — essential for callouts that contain more than a few lines.</p>
-<p>For Pandoc Markdown documents, callout boxes are created with fenced divs and a Lua filter that maps them to the appropriate LaTeX environments:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>::: {.note}</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>The <span class="in">`fontspec`</span> package requires XeLaTeX or LuaLaTeX.</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- callouts-filter.lua</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> Div<span class="op">(</span><span class="va">el</span><span class="op">)</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="cn">FORMAT</span><span class="op">:</span><span class="fu">match</span><span class="op">(</span><span class="st">"latex"</span><span class="op">)</span> <span class="cf">then</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">local</span> <span class="va">env</span> <span class="op">=</span> <span class="va">el</span><span class="op">.</span><span class="va">classes</span><span class="op">[</span><span class="dv">1</span><span class="op">]</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="va">env</span> <span class="op">==</span> <span class="st">"note"</span> <span class="kw">or</span> <span class="va">env</span> <span class="op">==</span> <span class="st">"warning"</span> <span class="kw">or</span> <span class="va">env</span> <span class="op">==</span> <span class="st">"tip"</span> <span class="cf">then</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      <span class="kw">local</span> <span class="va">begin</span> <span class="op">=</span> <span class="va">pandoc</span><span class="op">.</span>RawBlock<span class="op">(</span><span class="st">"latex"</span><span class="op">,</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"</span><span class="sc">\\</span><span class="st">begin{"</span> <span class="op">..</span> <span class="va">env</span> <span class="op">..</span> <span class="st">"box}"</span><span class="op">)</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      <span class="kw">local</span> <span class="va">ending</span> <span class="op">=</span> <span class="va">pandoc</span><span class="op">.</span>RawBlock<span class="op">(</span><span class="st">"latex"</span><span class="op">,</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"</span><span class="sc">\\</span><span class="st">end{"</span> <span class="op">..</span> <span class="va">env</span> <span class="op">..</span> <span class="st">"box}"</span><span class="op">)</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>      <span class="cf">return</span> <span class="op">{</span><span class="va">begin</span><span class="op">,</span> <span class="fu">table.unpack</span><span class="op">(</span><span class="va">el</span><span class="op">.</span><span class="va">content</span><span class="op">),</span> <span class="va">ending</span><span class="op">}</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Sidebars — blocks of supplementary text set apart from the main column — appear in technical books, textbooks, and reference manuals. In a Markdown-first workflow, the source should normally express them as fenced divs or Quarto callouts and leave the presentation to the backend:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>::: {.note}</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>Choose a PDF engine and font stack that actually support the scripts in your document.</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In HTML, CSS can render that as a sidebar or callout. In Typst, the same semantic class can map to a boxed block with a pale fill and stronger border. The key decision is that the source says “this is a note”, not “draw a blue rectangle here”.</p>
 <section id="marginalia" class="level3" data-number="25.3.1">
 <h3 data-number="25.3.1" class="anchored" data-anchor-id="marginalia"><span class="header-section-number">25.3.1</span> Marginalia</h3>
-<p>The <code>marginnote</code> package provides <code>\marginnote{text}</code> for notes in the margin:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">marginnote</span>}</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{marginparwidth=30mm, marginparsep=5mm}</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">% In the text:</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>The baseline<span class="fu">\marginnote</span>{<span class="fu">\small\textit</span>{The invisible line on which</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>letters rest.}} is the fundamental reference for vertical alignment.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>\marginnote</code> places the note at the vertical position of the command in the text, regardless of the current page’s margin state. The <code>marginfix</code> package prevents marginnotes from overlapping each other when multiple notes appear close together.</p>
-<p>For Tufte-style documents — where wide margins contain running notes, citations, and figure captions — the <code>tufte-book</code> and <code>tufte-handout</code> classes provide a complete implementation. The Tufte classes significantly change the document geometry and the float system; they are not a drop-in replacement for <code>book</code> or <code>article</code>.</p>
+<p>Margin notes are best treated as a layout variant of an aside. In Quarto, the source can mark them with margin classes:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>The baseline <span class="co">[</span><span class="ot">The invisible line on which letters rest.</span><span class="co">]</span>{.column-margin}</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>is the fundamental reference for vertical alignment.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In HTML, CSS places that content in the margin at wide breakpoints and in the body flow at narrow ones. In PDF, a Typst template can position the aside in the outer margin when the page size permits it.</p>
 </section>
 <section id="wrapping-text-around-figures" class="level3" data-number="25.3.2">
 <h3 data-number="25.3.2" class="anchored" data-anchor-id="wrapping-text-around-figures"><span class="header-section-number">25.3.2</span> Wrapping text around figures</h3>
-<p>The <code>wrapfig</code> package allows text to flow around a figure:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">wrapfig</span>}</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">wrapfigure</span>}{r}{0.4<span class="fu">\textwidth</span>}</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\centering</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="bu">\includegraphics</span>[width=0.38<span class="fu">\textwidth</span>]{<span class="ex">figure</span>}</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\caption</span>{A wrapped figure}</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">wrapfigure</span>}</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>Body text that flows around the figure on the left side.</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>The text continues for enough lines to clear the figure.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The first argument <code>{r}</code> places the figure at the right; <code>{l}</code> places it at the left. The second argument sets the width of the figure area including any separation from the text.</p>
-<p><code>wrapfig</code> is fragile: it does not interact well with <code>\clearpage</code>, <code>\newpage</code>, footnotes, or very tall figures. Use it only for short figures (four to eight lines) in body paragraphs, never at section boundaries or near other floats. For figures that must appear in a specific position, <code>wrapfig</code> is appropriate; for figures that can float to convenient positions, the standard <code>figure</code> environment is safer.</p>
+<p>Wrapped figures are usually better handled in HTML with <code>float</code> or grid-based CSS than in print PDFs, where they often create awkward white space. When you do need the effect in a web publication:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.wrap-figure</span> {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">float</span><span class="ch">:</span> <span class="dv">right</span><span class="op">;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">width</span><span class="ch">:</span> <span class="dv">38</span><span class="dt">%</span><span class="op">;</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0.8</span><span class="dt">rem</span> <span class="dv">1</span><span class="dt">rem</span><span class="op">;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Use wrapped figures only for short illustrations embedded in running text. For anything substantial, a normal block figure is almost always cleaner.</p>
 
 
 </section>

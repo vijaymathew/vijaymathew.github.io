@@ -84,6 +84,7 @@
 
 **Chapter 12 — LaTeX**
 - TeX distributions: TeX Live, MiKTeX, TinyTeX
+- LaTeX as historical standard and compatibility layer
 - Document classes and packages
 - Math typesetting
 - Custom class and style files
@@ -97,7 +98,7 @@
 
 **Chapter 14 — Quarto**
 - Quarto as a publishing system
-- Notebooks, reports, presentations, and books
+- Notebooks, reports, presentations, and books from one Markdown source
 - Code execution and reproducible documents
 - Themes and extensions
 
@@ -114,7 +115,7 @@
 - groff for simple documents today
 
 **Chapter 17 — Diagrams and figures from the CLI**
-- TikZ and PGF in LaTeX
+- TikZ and PGF in LaTeX compatibility workflows
 - Graphviz: DOT language for graphs
 - gnuplot for data plots
 - Mermaid and D2 for architecture diagrams
@@ -125,7 +126,7 @@
 ### Part IV — Document Gallery: Real Examples
 
 **Chapter 18 — Letters and correspondence**
-- Formal business letter in LaTeX and Typst
+- Markdown, Typst, and LaTeX compatibility paths for letters
 - Cover letters with a personal header
 - Mail merge from CSV with Pandoc
 
@@ -162,8 +163,8 @@
 - Sidebars, marginalia, and callout boxes
 
 **Chapter 24 — Templates and style systems**
-- Building reusable LaTeX document classes
-- Pandoc HTML and LaTeX templates
+- Building reusable PDF style layers
+- Pandoc and Quarto templates
 - CSS custom properties for typographic systems
 - House style and brand consistency
 

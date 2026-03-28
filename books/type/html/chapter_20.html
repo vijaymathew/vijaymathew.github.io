@@ -113,35 +113,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 }</script>
 <style>html{ scroll-behavior: smooth; }</style>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -627,7 +598,7 @@ window.Quarto = {
   <ul>
   <li><a href="#a-journal-style-article" id="toc-a-journal-style-article" class="nav-link active" data-scroll-target="#a-journal-style-article"><span class="header-section-number">22.1</span> A journal-style article</a>
   <ul class="collapse">
-  <li><a href="#document-class-and-packages" id="toc-document-class-and-packages" class="nav-link" data-scroll-target="#document-class-and-packages"><span class="header-section-number">22.1.1</span> Document class and packages</a></li>
+  <li><a href="#document-structure-and-metadata" id="toc-document-structure-and-metadata" class="nav-link" data-scroll-target="#document-structure-and-metadata"><span class="header-section-number">22.1.1</span> Document structure and metadata</a></li>
   <li><a href="#title-and-authorship" id="toc-title-and-authorship" class="nav-link" data-scroll-target="#title-and-authorship"><span class="header-section-number">22.1.2</span> Title and authorship</a></li>
   <li><a href="#abstract-and-keywords" id="toc-abstract-and-keywords" class="nav-link" data-scroll-target="#abstract-and-keywords"><span class="header-section-number">22.1.3</span> Abstract and keywords</a></li>
   <li><a href="#mathematics" id="toc-mathematics" class="nav-link" data-scroll-target="#mathematics"><span class="header-section-number">22.1.4</span> Mathematics</a></li>
@@ -635,7 +606,7 @@ window.Quarto = {
   <li><a href="#cross-references" id="toc-cross-references" class="nav-link" data-scroll-target="#cross-references"><span class="header-section-number">22.1.6</span> Cross-references</a></li>
   <li><a href="#bibliography" id="toc-bibliography" class="nav-link" data-scroll-target="#bibliography"><span class="header-section-number">22.1.7</span> Bibliography</a></li>
   </ul></li>
-  <li><a href="#a-pandoc-article" id="toc-a-pandoc-article" class="nav-link" data-scroll-target="#a-pandoc-article"><span class="header-section-number">22.2</span> A Pandoc article</a></li>
+  <li><a href="#the-primary-pandoc-or-quarto-article-workflow" id="toc-the-primary-pandoc-or-quarto-article-workflow" class="nav-link" data-scroll-target="#the-primary-pandoc-or-quarto-article-workflow"><span class="header-section-number">22.2</span> The primary Pandoc or Quarto article workflow</a></li>
   <li><a href="#a-technical-report" id="toc-a-technical-report" class="nav-link" data-scroll-target="#a-technical-report"><span class="header-section-number">22.3</span> A technical report</a>
   <ul class="collapse">
   <li><a href="#document-structure" id="toc-document-structure" class="nav-link" data-scroll-target="#document-structure"><span class="header-section-number">22.3.1</span> Document structure</a></li>
@@ -654,7 +625,7 @@ window.Quarto = {
   <li><a href="#column-balance" id="toc-column-balance" class="nav-link" data-scroll-target="#column-balance"><span class="header-section-number">22.4.4</span> Column balance</a></li>
   <li><a href="#drop-caps" id="toc-drop-caps" class="nav-link" data-scroll-target="#drop-caps"><span class="header-section-number">22.4.5</span> Drop caps</a></li>
   </ul></li>
-  <li><a href="#building-articles-from-pandoc-markdown" id="toc-building-articles-from-pandoc-markdown" class="nav-link" data-scroll-target="#building-articles-from-pandoc-markdown"><span class="header-section-number">22.5</span> Building articles from Pandoc Markdown</a></li>
+  <li><a href="#building-articles-from-markdown-with-typst-or-latex" id="toc-building-articles-from-markdown-with-typst-or-latex" class="nav-link" data-scroll-target="#building-articles-from-markdown-with-typst-or-latex"><span class="header-section-number">22.5</span> Building articles from Markdown with Typst or LaTeX</a></li>
   </ul>
 </nav>
     </div>
@@ -682,141 +653,163 @@ window.Quarto = {
 
 
 <p>The article and the report are the workhorses of technical and academic publishing. Between them, they cover the range from a four-page conference paper to a two-hundred-page internal report, from a single-author journal submission to a multi-author technical specification. The typographic requirements of these documents are well understood — decades of published guidelines and house styles have codified what a professional article looks like — which makes them ideal territory for demonstrating how CLI tools handle the full complexity of real documents.</p>
-<p>This chapter builds three examples. The first is a journal-style article with an abstract, numbered sections, mathematical equations, a table, cross-references, and a bibliography. The second is a technical report with a title page, table of contents, list of figures, code listings, appendices, and a two-sided layout. The third is a two-column magazine-style layout using LaTeX’s <code>twocolumn</code> mode with full-width title treatment.</p>
+<p>This chapter builds three examples from a Markdown-first source tree. The first is a journal-style article with an abstract, numbered sections, mathematical equations, a table, cross-references, and a bibliography. The second is a technical report with a title page, table of contents, list of figures, code listings, appendices, and a two-sided layout. The third is a two-column magazine-style layout where a Typst or Pandoc PDF path is the first choice and LaTeX’s <code>twocolumn</code> mode remains a fallback when a legacy class or package stack is required.</p>
 <section id="a-journal-style-article" class="level2" data-number="22.1">
 <h2 data-number="22.1" class="anchored" data-anchor-id="a-journal-style-article"><span class="header-section-number">22.1</span> A journal-style article</h2>
-<p>A journal article in LaTeX typically uses the <code>article</code> class, occasionally a publisher-supplied class, with a standard set of packages for typography, mathematics, bibliographies, and cross-references.</p>
-<section id="document-class-and-packages" class="level3" data-number="22.1.1">
-<h3 data-number="22.1.1" class="anchored" data-anchor-id="document-class-and-packages"><span class="header-section-number">22.1.1</span> Document class and packages</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper]{<span class="ex">article</span>}</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{margin=25mm}</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">amsmath,amssymb,amsthm</span>}</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">booktabs</span>}</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">graphicx</span>}</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">cleveref</span>}</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">natbib</span>}</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">hyperref</span>}</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\hypersetup</span>{</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  colorlinks=true,</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  linkcolor=blue!60!black,</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  citecolor=blue!60!black,</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  urlcolor=blue!60!black</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">abstract</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>abstract</code> package refines the default abstract environment — narrower margins, smaller text, bold label. The <code>cleveref</code> package provides <code>\cref{}</code> and <code>\Cref{}</code> commands that automatically prepend the reference type (“Equation”, “Table”, “Figure”) and must be loaded after <code>hyperref</code>.</p>
-<p>Theorem environments from <code>amsthm</code> are configured in the preamble:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\newtheorem</span>{theorem}{Theorem}[section]</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\newtheorem</span>{lemma}[theorem]{Lemma}</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\theoremstyle</span>{definition}</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\newtheorem</span>{definition}[theorem]{Definition}</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\theoremstyle</span>{remark}</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\newtheorem*</span>{remark}{Remark}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The default workflow for an article should begin with Markdown plus metadata, not with a handwritten TeX preamble. That keeps HTML, DOCX, EPUB, and PDF available from one source, keeps the manuscript readable in Git, and makes Quarto or Pandoc the controlling layer rather than the PDF backend. Typst is the natural PDF-first companion for this workflow: it handles page layout, maths, figures, and bibliography cleanly without forcing the author to write TeX macros. LaTeX still matters when a journal mandates a class file or when a specific package ecosystem is unavoidable.</p>
+<p>When a LaTeX backend is required, the article typically uses the <code>article</code> class, occasionally a publisher-supplied class, with a standard set of packages for typography, mathematics, bibliographies, and cross-references.</p>
+<section id="document-structure-and-metadata" class="level3" data-number="22.1.1">
+<h3 data-number="22.1.1" class="anchored" data-anchor-id="document-structure-and-metadata"><span class="header-section-number">22.1.1</span> Document structure and metadata</h3>
+<p>For a Markdown-first article, the equivalent of the old preamble is the metadata block plus a small PDF template. The metadata should describe structure, bibliographic resources, and numbering rules:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"On the Typographic Quality of CLI-Produced Documents"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">subtitle</span><span class="kw">:</span><span class="at"> </span><span class="st">"A Systematic Comparison"</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">author</span><span class="kw">:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"A. N. Author"</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">affiliation</span><span class="kw">:</span><span class="at"> </span><span class="st">"Department of Information Design, University of Example"</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">email</span><span class="kw">:</span><span class="at"> </span><span class="st">"author@example.edu"</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"B. M. Collaborator"</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">affiliation</span><span class="kw">:</span><span class="at"> </span><span class="st">"Institute of Typography, Townsley University"</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span><span class="kw">:</span><span class="at"> </span><span class="st">"2024-03-15"</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">abstract</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  This paper presents a systematic comparison of documents produced</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  using CLI-based typesetting tools against those produced using</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  graphical desktop publishing applications.</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">keywords</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">typography</span><span class="kw">,</span><span class="at"> CLI</span><span class="kw">,</span><span class="at"> Pandoc</span><span class="kw">,</span><span class="at"> Typst</span><span class="kw">,</span><span class="at"> reproducibility</span><span class="kw">]</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> references.bib</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">numbersections</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That is enough information for Pandoc or Quarto to generate HTML, EPUB, or PDF. The PDF-specific styling then lives in Typst, where page geometry, heading style, theorem blocks, and figure captions can be expressed directly.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">25mm</span><span class="op">,</span> y: <span class="fl">25mm</span><span class="op">))</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"Libertinus Serif"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">par</span><span class="op">(</span>justify<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">#show</span> heading<span class="op">.</span>where<span class="op">(</span>level<span class="op">:</span> <span class="dv">1</span><span class="op">):</span> it =&gt; block(above: 1.4em, below: 0.7em)[</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">18pt</span><span class="op">)</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>it</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">theorem</span><span class="op">(</span>kind<span class="op">,</span> title<span class="op">,</span> body<span class="op">)</span> <span class="op">=</span> block<span class="op">(</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  inset<span class="op">:</span> <span class="fl">10pt</span><span class="op">,</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  radius<span class="op">:</span> <span class="fl">4pt</span><span class="op">,</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  stroke<span class="op">:</span> <span class="fl">0.4pt</span> <span class="op">+</span> rgb<span class="op">(</span><span class="st">"#9aa7b2"</span><span class="op">),</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  fill<span class="op">:</span> rgb<span class="op">(</span><span class="st">"#f8fafc"</span><span class="op">),</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="op">)[</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  *<span class="kw">#</span>kind<span class="op">.</span><span class="er">* #title</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">4pt</span><span class="op">)</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>body</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="title-and-authorship" class="level3" data-number="22.1.2">
 <h3 data-number="22.1.2" class="anchored" data-anchor-id="title-and-authorship"><span class="header-section-number">22.1.2</span> Title and authorship</h3>
-<p>The <code>\maketitle</code> command formats the title block from the <code>\title</code>, <code>\author</code>, and <code>\date</code> declarations. For multi-author articles with affiliations:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\title</span>{On the Typographic Quality of CLI-Produced Documents:<span class="fu">\\</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\large</span> A Systematic Comparison}</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\author</span>{A. N. Author<span class="fu">\\</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\small</span> Department of Information Design, University of Example<span class="fu">\\</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\small</span> <span class="fu">\texttt</span>{author@example.edu}</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\and</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  B. M. Collaborator<span class="fu">\\</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\small</span> Institute of Typography, Townsley University}</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\date</span>{Received 1 January 2024; Accepted 15 March 2024}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>\and</code> command separates multiple authors. Line breaks within an author block use <code>\\</code>. The <code>\small</code> size for affiliations and email addresses keeps them visually subordinate to the author name.</p>
-<p>For more complex author formatting — affiliations numbered by superscript, corresponding author marked with a dagger, multiple institutions — the <code>authblk</code> package provides a dedicated interface:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">authblk</span>}</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\author</span>[1]{A. N. Author}</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\author</span>[2]{B. M. Collaborator}</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\affil</span>[1]{Department of Information Design, University of Example}</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\affil</span>[2]{Institute of Typography, Townsley University}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The title block belongs in metadata, not in backend markup. When you need a more formal multi-author rendering, keep the data structured and let the template format it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">author</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"A. N. Author"</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">affiliation</span><span class="kw">:</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="st">"Department of Information Design, University of Example"</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">email</span><span class="kw">:</span><span class="at"> </span><span class="st">"author@example.edu"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">corresponding</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"B. M. Collaborator"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">affiliation</span><span class="kw">:</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="st">"Institute of Typography, Townsley University"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In Typst, the title block can be a small helper function that formats names prominently and affiliations secondarily:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">article-title</span><span class="op">(</span>meta<span class="op">)</span> <span class="op">=</span> align<span class="op">(</span>center<span class="op">)[</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">20pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span><span class="kw">#</span>meta<span class="op">.</span>title<span class="op">]</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span><span class="cf">if</span> meta<span class="op">.</span>subtitle <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>v<span class="op">(</span><span class="fl">5pt</span><span class="op">)</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">12pt</span><span class="op">,</span> style<span class="op">:</span> <span class="st">"italic"</span><span class="op">)[</span><span class="kw">#</span>meta<span class="op">.</span>subtitle<span class="op">]</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">10pt</span><span class="op">)</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span><span class="cf">for</span> person <span class="cf">in</span> meta<span class="op">.</span>author <span class="op">[</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    *<span class="kw">#</span>person<span class="op">.</span>name*<span class="sc">\</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span><span class="cf">for</span> line <span class="cf">in</span> person<span class="op">.</span>affiliation <span class="op">[</span><span class="kw">#</span>line<span class="sc">\ </span><span class="op">]</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span><span class="cf">if</span> person<span class="op">.</span>email <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span><span class="kw">#</span>link<span class="op">(</span><span class="st">"mailto:"</span> <span class="op">+</span> person<span class="op">.</span>email<span class="op">)[</span><span class="kw">#</span>person<span class="op">.</span>email<span class="op">]]</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>v<span class="op">(</span><span class="fl">8pt</span><span class="op">)</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="abstract-and-keywords" class="level3" data-number="22.1.3">
 <h3 data-number="22.1.3" class="anchored" data-anchor-id="abstract-and-keywords"><span class="header-section-number">22.1.3</span> Abstract and keywords</h3>
-<p>The <code>abstract</code> environment places the abstract between the title and the body:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">abstract</span>}</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>This paper presents a systematic comparison of documents produced</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>using CLI-based typesetting tools against those produced using</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>graphical desktop publishing applications. Our principal finding is</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>that CLI-produced documents, when configured appropriately, match or</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>exceed the quality of graphical alternatives in all measured dimensions.</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">abstract</span>}</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\noindent\textbf</span>{Keywords:} typography; CLI tools; Pandoc; <span class="fu">\LaTeX</span>{};</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>reproducibility</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The keyword line is placed immediately below the abstract with <code>\noindent</code> to ensure it does not inherit paragraph indentation.</p>
+<p>Abstracts and keywords are best expressed directly in the front matter and rendered consistently by the article template. In Markdown:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">abstract</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  This paper presents a systematic comparison of documents produced</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  using CLI-based typesetting tools against those produced using</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  graphical desktop publishing applications. Our principal finding is</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  that CLI-produced documents match or exceed the quality of graphical</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  alternatives when the workflow is configured deliberately.</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">keywords</span><span class="kw">:</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> typography</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> CLI tools</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> Pandoc</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> Typst</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> reproducibility</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The template can then decide whether the abstract is centred, narrower than the body text, or separated by a rule. That keeps the source portable while preserving print discipline.</p>
 </section>
 <section id="mathematics" class="level3" data-number="22.1.4">
 <h3 data-number="22.1.4" class="anchored" data-anchor-id="mathematics"><span class="header-section-number">22.1.4</span> Mathematics</h3>
-<p>Mathematical content uses the <code>amsmath</code> environments. Inline mathematics appears in <code>$...$</code>; displayed equations use <code>\[...\]</code> for single equations and <code>align</code> for multi-line work:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>Following <span class="kw">\citet</span>{<span class="ex">bringhurst2012</span>}, we define quality as:</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">equation</span>}</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ss">  Q = </span><span class="sc">\sum</span><span class="ss">_{i=1}^{5} w_i q_i </span><span class="sc">\label</span><span class="ss">{eq:quality}</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">equation</span>}</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>where <span class="ss">$q_i$</span> are the individual dimension scores and <span class="ss">$w_i$</span> are the</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>weights derived from expert panel assessment. <span class="kw">\Cref</span>{<span class="ex">eq:quality</span>} shows</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>that overall quality is a weighted linear combination.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>\citet{}</code> produces “Bringhurst (2012)” — the author name incorporated grammatically into the sentence. <code>\citep{}</code> produces “(Bringhurst, 2012)” — the citation in parentheses at the end of a clause. Use <code>\citet{}</code> when the author is the grammatical subject; use <code>\citep{}</code> when the citation is a parenthetical reference.</p>
+<p>Keep mathematics in the Markdown body so it survives every output target. Quarto-style labels or <code>pandoc-crossref</code> labels make equations referenceable without handwritten backend commands:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>Following <span class="co">[</span><span class="ot">@bringhurst2012</span><span class="co">]</span>, we define quality as:</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>Q = \sum_{i=1}^{5} w_i q_i</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>$$ {#eq-quality}</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>where $q_i$ are the individual dimension scores and $w_i$ are the</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>weights derived from expert assessment. Equation @eq-quality shows that</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>overall quality is a weighted linear combination.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That same equation can be rendered by HTML math support, Typst, or a LaTeX fallback without changing the source.</p>
 </section>
 <section id="tables" class="level3" data-number="22.1.5">
 <h3 data-number="22.1.5" class="anchored" data-anchor-id="tables"><span class="header-section-number">22.1.5</span> Tables</h3>
-<p>A simple two-dimensional table with <code>booktabs</code> rules:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">table</span>}[ht]</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\centering</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\caption</span>{Document corpus composition}</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\label</span>{<span class="ex">tab:corpus</span>}</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\begin</span>{<span class="ex">tabular</span>}{lcc}</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\toprule</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    Category          <span class="op">&amp;</span> Count <span class="op">&amp;</span> Mean pages <span class="fu">\\</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\midrule</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    Academic articles <span class="op">&amp;</span>    42 <span class="op">&amp;</span>       14.3 <span class="fu">\\</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    Technical reports <span class="op">&amp;</span>    35 <span class="op">&amp;</span>       28.7 <span class="fu">\\</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    Correspondence    <span class="op">&amp;</span>    28 <span class="op">&amp;</span>        2.1 <span class="fu">\\</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    Reference manuals <span class="op">&amp;</span>    15 <span class="op">&amp;</span>       67.4 <span class="fu">\\</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\midrule</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    Total             <span class="op">&amp;</span>   120 <span class="op">&amp;</span>       19.8 <span class="fu">\\</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\bottomrule</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\end</span>{<span class="ex">tabular</span>}</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">table</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>[ht]</code> placement specifier asks LaTeX to place the table <em>here</em> if it fits, or at the <em>top</em> of the next page if not. Avoid <code>[H]</code> (the <code>float</code> package’s forced-here placement) in articles: it causes tables to disrupt text flow rather than floating to appropriate positions. Let LaTeX handle placement; adjust the body text to reference tables correctly rather than forcing them into specific positions.</p>
+<p>Simple article tables should begin as Markdown, because the same source then works in HTML, EPUB, and PDF:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Category          <span class="pp">|</span> Count <span class="pp">|</span> Mean pages <span class="pp">|</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="pp">|:------------------|------:|-----------:|</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Academic articles <span class="pp">|</span>    42 <span class="pp">|</span>       14.3 <span class="pp">|</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Technical reports <span class="pp">|</span>    35 <span class="pp">|</span>       28.7 <span class="pp">|</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Correspondence    <span class="pp">|</span>    28 <span class="pp">|</span>        2.1 <span class="pp">|</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Reference manuals <span class="pp">|</span>    15 <span class="pp">|</span>       67.4 <span class="pp">|</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Total             <span class="pp">|</span>   120 <span class="pp">|</span>       19.8 <span class="pp">|</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>: Document corpus composition {#tbl-corpus}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If the print layout needs stronger control, move the table styling into Typst rather than rewriting the data in a different source language:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>table<span class="op">(</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="op">(</span><span class="fl">2fr</span><span class="op">,</span> <span class="bu">auto</span><span class="op">,</span> <span class="bu">auto</span><span class="op">),</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  stroke<span class="op">:</span> <span class="bu">none</span><span class="op">,</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  table<span class="op">.</span>header<span class="op">(</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">[</span>*Category*<span class="op">],</span> <span class="op">[</span>*Count*<span class="op">],</span> <span class="op">[</span>*Mean pages*<span class="op">],</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">),</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Academic articles<span class="op">],</span> <span class="op">[</span>42<span class="op">],</span> <span class="op">[</span>14.3<span class="op">],</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Technical reports<span class="op">],</span> <span class="op">[</span>35<span class="op">],</span> <span class="op">[</span>28.7<span class="op">],</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Correspondence<span class="op">],</span> <span class="op">[</span>28<span class="op">],</span> <span class="op">[</span>2.1<span class="op">],</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>Reference manuals<span class="op">],</span> <span class="op">[</span>15<span class="op">],</span> <span class="op">[</span>67.4<span class="op">],</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  table<span class="op">.</span>hline<span class="op">(),</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span>*Total*<span class="op">],</span> <span class="op">[</span>*120*<span class="op">],</span> <span class="op">[</span>*19.8*<span class="op">],</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="cross-references" class="level3" data-number="22.1.6">
 <h3 data-number="22.1.6" class="anchored" data-anchor-id="cross-references"><span class="header-section-number">22.1.6</span> Cross-references</h3>
-<p>With <code>cleveref</code> loaded, cross-references write themselves:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\cref</span>{<span class="ex">tab:corpus</span>}    <span class="co">% produces "Table 1"</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">\cref</span>{<span class="ex">eq:quality</span>}    <span class="co">% produces "Equation (1)"</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\cref</span>{<span class="ex">fig:results</span>}   <span class="co">% produces "Figure 2"</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">\Cref</span>{<span class="ex">tab:corpus</span>}    <span class="co">% produces "Table 1" (capitalised, for sentence start)</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">% Multiple references:</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">\cref</span>{<span class="ex">eq:quality,tab:corpus</span>}  <span class="co">% produces "Equation (1) and Table 1"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This is the correct approach for all cross-references. Hard-coded numbers (“see Table 2”) break when the document is reorganised; <code>\ref{tab:corpus}</code> works but produces only the number without the type label, requiring the author to maintain “Table~<span class="math inline">\(\ref{}\)</span>” throughout the document. <code>\cref</code> is the cleanest solution.</p>
+<p>Cross-references should live at the source level, not in backend commands. With Quarto or <code>pandoc-crossref</code>, the body text stays readable:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>As shown in @tbl-corpus, our dataset contains 120 documents.</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>The quality equation (@eq-quality) defines the scoring metric.</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>See also @fig-results for the final comparison.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This is the right habit for every backend. Hard-coded numbers break as soon as the document is reorganised.</p>
 </section>
 <section id="bibliography" class="level3" data-number="22.1.7">
 <h3 data-number="22.1.7" class="anchored" data-anchor-id="bibliography"><span class="header-section-number">22.1.7</span> Bibliography</h3>
-<p>The bibliography requires a <code>.bib</code> file and a compilation sequence. With <code>natbib</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="va">@book</span>{<span class="ot">lamport1994</span>,</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>    = {Lamport, Leslie},</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>     = {{<span class="ch">\LaTeX</span>}: A Document Preparation System},</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">publisher</span> = {Addison-Wesley},</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>      = {1994},</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">edition</span>   = {2}</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>In the document:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\bibliographystyle</span>{<span class="ex">plainnat</span>}</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\bibliography</span>{<span class="ex">references</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Compile sequence: <code>pdflatex</code> → <code>bibtex</code> → <code>pdflatex</code> → <code>pdflatex</code>. With <code>latexmk</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">latexmk</span> <span class="at">-pdf</span> article.tex</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>latexmk</code> runs the correct sequence automatically, detecting whether BibTeX needs to run and whether additional LaTeX passes are needed to resolve all references.</p>
+<p>Bibliographic data should stay in a citation database and be cited from the Markdown source:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>Typography was defined by <span class="co">[</span><span class="ot">@bringhurst2012</span><span class="co">]</span> as the craft of endowing</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>human language with a durable visual form.</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>The line-breaking algorithm discussed in <span class="co">[</span><span class="ot">@knuth1984</span><span class="co">]</span> considers the</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>paragraph as a whole rather than individual lines.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In a direct Typst workflow, the bibliography can be attached explicitly:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>bibliography<span class="op">(</span><span class="st">"references.bib"</span><span class="op">,</span> style<span class="op">:</span> <span class="st">"apa"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In a Pandoc or Quarto workflow, <code>--citeproc</code> or Quarto’s built-in citation processing resolves the same keys for HTML, EPUB, and PDF.</p>
 </section>
 </section>
-<section id="a-pandoc-article" class="level2" data-number="22.2">
-<h2 data-number="22.2" class="anchored" data-anchor-id="a-pandoc-article"><span class="header-section-number">22.2</span> A Pandoc article</h2>
-<p>For articles that need multiple output formats — HTML for a preprint server, PDF for the journal, DOCX for a co-author who uses Word — Pandoc Markdown with a custom LaTeX template provides the same structure from a single source.</p>
+<section id="the-primary-pandoc-or-quarto-article-workflow" class="level2" data-number="22.2">
+<h2 data-number="22.2" class="anchored" data-anchor-id="the-primary-pandoc-or-quarto-article-workflow"><span class="header-section-number">22.2</span> The primary Pandoc or Quarto article workflow</h2>
+<p>For articles that need multiple output formats — HTML for a preprint server, PDF for review or print, DOCX for a co-author who uses Word — Pandoc Markdown or Quarto should be the canonical source. Use Typst for PDF when you want a programmable print layout with less template overhead; keep a LaTeX template only for venues that depend on LaTeX packages or class files.</p>
 <p>The Markdown front matter replicates the LaTeX title block:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"On the Typographic Quality of CLI-Produced Documents"</span></span>
@@ -831,59 +824,41 @@ window.Quarto = {
 <span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  graphical desktop publishing applications. Our principal finding is</span>
 <span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  that CLI-produced documents, when configured appropriately, match or</span>
 <span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  exceed the quality of graphical alternatives.</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="fu">keywords</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">typography</span><span class="kw">,</span><span class="at"> CLI</span><span class="kw">,</span><span class="at"> Pandoc</span><span class="kw">,</span><span class="at"> LaTeX</span><span class="kw">,</span><span class="at"> reproducibility</span><span class="kw">]</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="fu">keywords</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">typography</span><span class="kw">,</span><span class="at"> CLI</span><span class="kw">,</span><span class="at"> Pandoc</span><span class="kw">,</span><span class="at"> Typst</span><span class="kw">,</span><span class="at"> reproducibility</span><span class="kw">]</span></span>
 <span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> references.bib</span></span>
 <span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="fu">numbersections</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
 <span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The LaTeX template must declare all packages the body uses:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper]{<span class="ex">article</span>}</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{margin=25mm}</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">amsmath,amssymb</span>}</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">booktabs,longtable</span>}</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">natbib</span>}</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">hyperref</span>}</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="fu">\hypersetup</span>{colorlinks=true, linkcolor=blue!60!black,</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>            citecolor=blue!60!black}</span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">abstract</span>}</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="fu">\renewcommand</span>{<span class="ex">\abstractnamefont</span>}{<span class="fu">\normalfont\bfseries</span>}</span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="fu">\setlength</span>{<span class="fu">\absleftindent</span>}{10mm}</span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\setlength</span>{<span class="fu">\absrightindent</span>}{10mm}</span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="co">% Required by Pandoc for tight lists</span></span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="fu">\providecommand</span>{<span class="ex">\tightlist</span>}{<span class="co">%</span></span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\setlength</span>{<span class="fu">\itemsep</span>}{0pt}<span class="fu">\setlength</span>{<span class="fu">\parskip</span>}{0pt}}</span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="fu">\title</span>{<span class="ss">$title$$if(subtitle)$</span><span class="fu">\\</span>[0.3em]<span class="fu">\large</span> <span class="ss">$subtitle$$endif$</span>}</span>
-<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="fu">\author</span>{<span class="ss">$for(author)$$author$$sep$</span><span class="fu">\\</span><span class="ss">$endfor$</span>}</span>
-<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="fu">\date</span>{<span class="ss">$date$</span>}</span>
-<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a><span class="fu">\maketitle</span></span>
-<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(abstract)$</span></span>
-<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">abstract</span>}<span class="ss">$abstract$</span><span class="kw">\end</span>{<span class="ex">abstract</span>}</span>
-<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(keywords)$</span></span>
-<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="fu">\noindent\textbf</span>{Keywords:} <span class="ss">$for(keywords)$$keywords$$sep$</span>; <span class="ss">$endfor$</span></span>
-<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a><span class="ss">$body$</span></span>
-<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="bu">\bibliographystyle</span>{<span class="ex">plainnat</span>}</span>
-<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a><span class="bu">\bibliography</span>{<span class="ex">references</span>}</span>
-<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Note the <code>longtable</code> package declaration: Pandoc renders Markdown tables as LaTeX <code>longtable</code> environments, which can span multiple pages. A template that does not include <code>\usepackage{longtable}</code> fails to compile any document containing tables.</p>
-<p>Render to HTML and PDF:</p>
+<p>The equivalent Typst template can stay much thinner because the layout logic is built into the language rather than spread across a preamble:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">article</span><span class="op">(</span>meta<span class="op">,</span> body<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">25mm</span><span class="op">,</span> y: <span class="fl">25mm</span><span class="op">))</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"Libertinus Serif"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">par</span><span class="op">(</span>justify<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  article-title<span class="op">(</span>meta<span class="op">)</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> meta<span class="op">.</span>abstract <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    v(10pt, weak: true)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    block(inset: 10pt, fill: rgb("<span class="kw">#</span>f8fafc"))[</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>      *Abstract.* <span class="kw">#</span>meta<span class="op">.</span>abstract</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>      if meta.keywords != none [</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">#</span>v<span class="op">(</span><span class="fl">5pt</span><span class="op">)</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>        *Keywords:* <span class="kw">#</span>meta<span class="op">.</span>keywords<span class="op">.</span>join<span class="op">(</span><span class="st">", "</span><span class="op">)</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>      ]</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">12pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>  body</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>  bibliography<span class="op">(</span><span class="st">"references.bib"</span><span class="op">)</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The important design principle is that the template consumes metadata and body content without forcing the author to duplicate structure in the PDF layer.</p>
+<p>Render to HTML and a default Typst-backed PDF:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> article.md <span class="at">--standalone</span> <span class="at">--toc</span> <span class="at">--number-sections</span> <span class="dt">\</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--citeproc</span> <span class="at">-o</span> article.html</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> article.md <span class="at">--template</span><span class="op">=</span>article.latex <span class="dt">\</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--pdf-engine</span><span class="op">=</span>pdflatex <span class="at">--number-sections</span> <span class="dt">\</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">-o</span> article.pdf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> article.md <span class="at">--citeproc</span> <span class="at">--number-sections</span> <span class="dt">\</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--pdf-engine</span><span class="op">=</span>typst <span class="at">-o</span> article.pdf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If a venue requires a legacy PDF backend, switch only the PDF command and keep the Markdown source unchanged.</p>
 <p>For cross-references within the Pandoc workflow, the <code>pandoc-crossref</code> filter adds <code>@fig-label</code>, <code>@tbl-label</code>, and <code>@eq-label</code> syntax analogous to Quarto’s built-in cross-references:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> article.md <span class="at">--filter</span><span class="op">=</span>pandoc-crossref <span class="at">--citeproc</span> <span class="at">-o</span> article.pdf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>With <code>pandoc-crossref</code> installed, references in Markdown become:</p>
@@ -893,216 +868,204 @@ window.Quarto = {
 </section>
 <section id="a-technical-report" class="level2" data-number="22.3">
 <h2 data-number="22.3" class="anchored" data-anchor-id="a-technical-report"><span class="header-section-number">22.3</span> A technical report</h2>
-<p>A technical report differs from a journal article in scale and structure: it typically has a formal title page, a table of contents, a list of figures and tables, multiple chapters, code listings, appendices, and a two-sided layout for printing.</p>
+<p>A technical report differs from a journal article in scale and structure: it typically has a formal title page, a table of contents, a list of figures and tables, multiple chapters, code listings, appendices, and a two-sided layout for printing. The source should still stay in Markdown chapters plus defaults files. For most house styles, Typst is a better PDF-first target than a large report preamble; a native LaTeX report backend is mainly justified when an institution already owns a class file or requires specific packages.</p>
 <section id="document-structure" class="level3" data-number="22.3.1">
 <h3 data-number="22.3.1" class="anchored" data-anchor-id="document-structure"><span class="header-section-number">22.3.1</span> Document structure</h3>
-<p>Use the <code>report</code> class rather than <code>article</code>. The <code>report</code> class provides <code>\chapter{}</code>, treats chapters as the top structural level, and generates appropriate running headers.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper,twoside]{<span class="ex">report</span>}</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{a4paper, top=30mm, bottom=25mm, left=30mm, right=25mm,</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>          bindingoffset=10mm, twoside}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>twoside</code> class option and geometry option enable different inner and outer margins for recto and verso pages. The <code>bindingoffset=10mm</code> adds extra space at the spine.</p>
+<p>For reports, keep the source split into Markdown chapters and let the PDF backend add the title page, table of contents, appendices, and running heads. A typical project:</p>
+<pre class="text"><code>report/
+├── report.qmd
+├── sections/
+│   ├── 01-summary.md
+│   ├── 02-method.md
+│   └── 03-results.md
+├── references.bib
+└── styles/
+    ├── report.typ
+    └── report.css</code></pre>
+<p>The source files remain content-first. Page geometry, front matter, and print-specific rules live in <code>report.typ</code>.</p>
 </section>
 <section id="title-page" class="level3" data-number="22.3.2">
 <h3 data-number="22.3.2" class="anchored" data-anchor-id="title-page"><span class="header-section-number">22.3.2</span> Title page</h3>
-<p>A manually constructed title page gives more control than <code>\maketitle</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">titlepage</span>}</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\centering</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace*</span>{2cm}</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\Large\bfseries</span> Technical Report TR-2024-03}<span class="fu">\\</span>[1em]</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\huge\bfseries</span> CLI-Based Document Production:<span class="fu">\\</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  Automation and Quality in Practice}<span class="fu">\\</span>[2em]</span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\large</span> A. N. Author and B. M. Collaborator}<span class="fu">\\</span>[0.5em]</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\normalsize</span> Department of Information Design<span class="fu">\\</span></span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  University of Example}<span class="fu">\\</span>[2em]</span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\normalsize</span> March 2024}<span class="fu">\\</span>[3em]</span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\vfill</span></span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\small</span> This report describes the design and evaluation of an automated</span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>document production system. The system reduces production time by</span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>60<span class="fu">\%</span> while maintaining typographic quality.}</span>
-<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">titlepage</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The report’s front matter can be described in metadata and formatted in Typst:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"CLI-Based Document Production"</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">subtitle</span><span class="kw">:</span><span class="at"> </span><span class="st">"Automation and Quality in Practice"</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="fu">report-number</span><span class="kw">:</span><span class="at"> </span><span class="st">"TR-2024-03"</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="fu">author</span><span class="kw">:</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="st">"A. N. Author"</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="st">"B. M. Collaborator"</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="fu">institution</span><span class="kw">:</span><span class="at"> </span><span class="st">"Department of Information Design, University of Example"</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span><span class="kw">:</span><span class="at"> </span><span class="st">"March 2024"</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  This report describes the design and evaluation of an automated</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  document production system that reduces production time by 60%</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  while maintaining typographic quality.</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>align<span class="op">(</span>center<span class="op">)[</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">14pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span>TR-2024-03<span class="op">]</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">16pt</span><span class="op">)</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">24pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span>CLI-Based Document Production<span class="op">]</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">6pt</span><span class="op">)</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">13pt</span><span class="op">,</span> style<span class="op">:</span> <span class="st">"italic"</span><span class="op">)[</span>Automation and Quality in Practice<span class="op">]</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">18pt</span><span class="op">)</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  A. N. Author and B. M. Collaborator<span class="sc">\</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  Department of Information Design<span class="sc">\</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  University of Example</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">18pt</span><span class="op">)</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  March 2024</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="front-matter" class="level3" data-number="22.3.3">
 <h3 data-number="22.3.3" class="anchored" data-anchor-id="front-matter"><span class="header-section-number">22.3.3</span> Front matter</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\tableofcontents</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\listoffigures</span></span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\listoftables</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>These commands generate the standard prefatory lists. They require at least two compilation passes to populate correctly. <code>\listoffigures</code> and <code>\listoftables</code> are optional but expected in formal technical reports.</p>
+<p>The report template should generate the standard prefatory material automatically:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>outline<span class="op">(</span>title<span class="op">:</span> <span class="op">[</span>Contents<span class="op">])</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>pagebreak<span class="op">()</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>outline<span class="op">(</span>title<span class="op">:</span> <span class="op">[</span>Figures<span class="op">],</span> target<span class="op">:</span> figure<span class="op">.</span>where<span class="op">(</span>kind<span class="op">:</span> image<span class="op">))</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>pagebreak<span class="op">()</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>outline<span class="op">(</span>title<span class="op">:</span> <span class="op">[</span>Tables<span class="op">],</span> target<span class="op">:</span> figure<span class="op">.</span>where<span class="op">(</span>kind<span class="op">:</span> table<span class="op">))</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>These lists are optional in short reports but expected in formal, print-oriented work.</p>
 </section>
 <section id="code-listings" class="level3" data-number="22.3.4">
 <h3 data-number="22.3.4" class="anchored" data-anchor-id="code-listings"><span class="header-section-number">22.3.4</span> Code listings</h3>
-<p>The <code>listings</code> package typesets source code with syntax highlighting, line numbers, and a frame:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">listings</span>}</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">xcolor</span>}</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\lstset</span>{</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  basicstyle=<span class="fu">\small\ttfamily</span>,</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  breaklines=true,</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  frame=single,</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  backgroundcolor=<span class="fu">\color</span>{gray!5},</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  numberstyle=<span class="fu">\tiny\color</span>{gray},</span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  numbers=left,</span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  xleftmargin=2em,</span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  framexleftmargin=1.5em,</span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  captionpos=b</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A code listing with a caption and label:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">lstlisting</span>}[language=yaml,</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>                   caption={Production defaults file}<span class="er">,</span></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="at">                   </span>label={lst:config}]</span>
+<p>Code listings should remain ordinary fenced code blocks in the Markdown source:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="in">```yaml</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: lst-config</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: Production defaults file</span></span>
 <span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>
 <span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="fu">to</span><span class="kw">:</span><span class="at"> pdf</span></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> xelatex</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> typst</span></span>
 <span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="fu">mainfont</span><span class="kw">:</span><span class="at"> </span><span class="st">"EB Garamond"</span></span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">geometry</span><span class="kw">:</span><span class="at"> </span><span class="st">"margin=25mm"</span></span>
-<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="fu">toc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">lstlisting</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>minted</code> package is an alternative that uses Pygments for higher-quality syntax highlighting, but it requires Python and Pygments to be installed and the LaTeX run invoked with <code>--shell-escape</code>. For reports that will be built in controlled environments, <code>minted</code> produces better-looking code; for portable reports where the build environment is uncertain, <code>listings</code> is more reliable.</p>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">toc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Quarto and Pandoc can style those listings for HTML automatically, while the Typst template controls code font, background, numbering, and caption spacing for PDF output.</p>
 </section>
 <section id="subfigures" class="level3" data-number="22.3.5">
 <h3 data-number="22.3.5" class="anchored" data-anchor-id="subfigures"><span class="header-section-number">22.3.5</span> Subfigures</h3>
-<p>Technical reports often need multiple related figures placed side by side. The <code>subcaption</code> package handles this:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">subcaption</span>}</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">figure</span>}[ht]</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\centering</span></span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\begin</span>{<span class="ex">subfigure</span>}[b]{0.48<span class="fu">\textwidth</span>}</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">\includegraphics</span>[width=<span class="fu">\textwidth</span>]{<span class="ex">fig-before</span>}</span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\caption</span>{Before optimisation}</span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">\label</span>{<span class="ex">fig:before</span>}</span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\end</span>{<span class="ex">subfigure</span>}</span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\hfill</span></span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\begin</span>{<span class="ex">subfigure</span>}[b]{0.48<span class="fu">\textwidth</span>}</span>
-<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">\includegraphics</span>[width=<span class="fu">\textwidth</span>]{<span class="ex">fig-after</span>}</span>
-<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\caption</span>{After optimisation}</span>
-<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">\label</span>{<span class="ex">fig:after</span>}</span>
-<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\end</span>{<span class="ex">subfigure</span>}</span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\caption</span>{Line-breaking quality before and after microtype}</span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\label</span>{<span class="ex">fig:comparison</span>}</span>
-<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">figure</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>\cref{fig:comparison}</code> produces “Figure 2”; <code>\cref{fig:before}</code> produces “Figure 2a”. Subcaption integrates correctly with <code>cleveref</code>.</p>
+<p>Related figures can be grouped in source with a layout div or a Typst grid:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>figure<span class="op">(</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  caption<span class="op">:</span> <span class="op">[</span>Line-breaking quality before and after optimisation<span class="op">],</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  grid<span class="op">(</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    columns<span class="op">:</span> <span class="dv">2</span><span class="op">,</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    gutter<span class="op">:</span> <span class="fl">10pt</span><span class="op">,</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    figure<span class="op">(</span>image<span class="op">(</span><span class="st">"fig-before.png"</span><span class="op">),</span> caption<span class="op">:</span> <span class="op">[</span>Before optimisation<span class="op">]),</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    figure<span class="op">(</span>image<span class="op">(</span><span class="st">"fig-after.png"</span><span class="op">),</span> caption<span class="op">:</span> <span class="op">[</span>After optimisation<span class="op">]),</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">),</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="va">&lt;fig-comparison&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In the text, refer to <code>@fig-comparison</code> from Markdown or Quarto source.</p>
 </section>
 <section id="appendices" class="level3" data-number="22.3.6">
 <h3 data-number="22.3.6" class="anchored" data-anchor-id="appendices"><span class="header-section-number">22.3.6</span> Appendices</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\appendix</span></span>
+<p>Appendices should be ordinary Markdown chapters flagged as appendices in the build order:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Appendix: Installation Guide {#app-install}</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\chapter</span>{Installation Guide}</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="kw">\label</span>{<span class="ex">app:install</span>}</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="kw">\section</span>{Prerequisites}</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>\appendix</code> command switches chapter numbering from Arabic to uppercase Roman letters. All chapters after <code>\appendix</code> are labelled Appendix A, Appendix B, and so on. Cross-references before <code>\appendix</code> work normally; cross-references to appendix content use <code>\cref{app:install}</code>, which produces “Appendix A”.</p>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Prerequisites</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If the PDF template needs lettered appendices, that numbering rule belongs in the template, not in the chapter source.</p>
 </section>
 <section id="running-headers-for-reports" class="level3" data-number="22.3.7">
 <h3 data-number="22.3.7" class="anchored" data-anchor-id="running-headers-for-reports"><span class="header-section-number">22.3.7</span> Running headers for reports</h3>
-<p>With <code>fancyhdr</code>, two-sided reports get chapter and section information in their headers:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">fancyhdr</span>}</span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\pagestyle</span>{fancy}</span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyhf</span>{}</span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyhead</span>[LE]{<span class="fu">\small\leftmark</span>}      <span class="co">% chapter on left of even pages</span></span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyhead</span>[RO]{<span class="fu">\small\rightmark</span>}     <span class="co">% section on right of odd pages</span></span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyfoot</span>[C]{<span class="fu">\small\thepage</span>}</span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\renewcommand</span>{<span class="ex">\headrulewidth</span>}{0.4pt}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The macros <code>\leftmark</code> and <code>\rightmark</code> contain the current chapter and section names respectively, updated automatically as the document progresses. The <code>LE</code>/<code>RO</code> specifiers mean “Left on Even pages” and “Right on Odd pages” — the standard arrangement for two-sided documents.</p>
+<p>Running headers are another backend concern. In Typst, the page setup can pull the current heading into the header area:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">page</span><span class="op">(</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  header<span class="op">:</span> context <span class="op">{</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="va">here</span> <span class="op">=</span> counter<span class="op">(</span>heading<span class="op">).</span>get<span class="op">()</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>    align<span class="op">(</span>center<span class="op">)[</span><span class="kw">#</span>smallcaps<span class="op">[</span>Section <span class="kw">#</span>here<span class="op">.</span>at<span class="op">(</span><span class="dv">0</span><span class="op">)]]</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">},</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>  footer<span class="op">:</span> context align<span class="op">(</span>center<span class="op">)[</span><span class="kw">#</span>counter<span class="op">(</span>page<span class="op">).</span>display<span class="op">()],</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The principle is the same whatever backend you use: the content source should not carry page furniture.</p>
 </section>
 </section>
 <section id="a-two-column-magazine-layout" class="level2" data-number="22.4">
 <h2 data-number="22.4" class="anchored" data-anchor-id="a-two-column-magazine-layout"><span class="header-section-number">22.4</span> A two-column magazine layout</h2>
-<p>The two-column layout is the standard for many academic journals and some technical magazines. LaTeX’s <code>twocolumn</code> class option enables it globally; the challenge is handling the title, abstract, and wide elements that must span both columns.</p>
+<p>The two-column layout is the standard for many academic journals and some technical magazines. In a Markdown-first workflow, this is usually the point where Typst becomes more attractive than raw LaTeX: columns, placed figures, and headline styling can live in a PDF template instead of in an expanding preamble. LaTeX’s <code>twocolumn</code> option is still worth understanding because some institutional workflows still depend on it, but it should be treated as a compatibility path rather than the default starting point.</p>
 <section id="the-twocolumn-class-option" class="level3" data-number="22.4.1">
 <h3 data-number="22.4.1" class="anchored" data-anchor-id="the-twocolumn-class-option"><span class="header-section-number">22.4.1</span> The <code>twocolumn</code> class option</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[10pt,a4paper,twocolumn]{<span class="ex">article</span>}</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{a4paper, top=20mm, bottom=20mm,</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>          left=15mm, right=15mm, columnsep=6mm}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>columnsep</code> geometry option sets the gap between columns. Six millimetres is a typical value for 10-point text on A4; for wider columns or larger text, eight or ten millimetres may be more comfortable.</p>
+<p>For a modern two-column article, it is usually cleaner to define the columns in Typst or CSS rather than rely on an old document-class switch. In Typst:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">15mm</span><span class="op">,</span> y: <span class="fl">20mm</span><span class="op">))</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"Source Serif 4"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">10pt</span><span class="op">)</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">par</span><span class="op">(</span>justify<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="kw">#show</span> heading<span class="op">.</span>where<span class="op">(</span>level<span class="op">:</span> <span class="dv">1</span><span class="op">):</span> it =&gt; block(columns: 2, above: 1em, below: 0.6em)[</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>size<span class="op">:</span> <span class="fl">18pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>it</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The column gap is a design choice, not a source-level concern. On A4 with 10-point type, six to eight millimetres is a useful starting range.</p>
 </section>
 <section id="a-full-width-title-block" class="level3" data-number="22.4.2">
 <h3 data-number="22.4.2" class="anchored" data-anchor-id="a-full-width-title-block"><span class="header-section-number">22.4.2</span> A full-width title block</h3>
-<p>In two-column mode, all content is set in columns by default. To place the title, abstract, and any other prefatory material at full page width, use the <code>\twocolumn[{...}]</code> command at the beginning of the document body:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\twocolumn</span>[{<span class="co">%</span></span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">center</span>}</span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\huge\bfseries\color</span>{magazineblue}</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>   Typography at the Command Line}<span class="fu">\\</span>[8pt]</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\large</span> Why serious document production belongs in a terminal}<span class="fu">\\</span>[4pt]</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\small\itshape</span> A. N. Author <span class="fu">\quad</span>|<span class="fu">\quad</span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>   <span class="fu">\textit</span>{The CLI Typographer} <span class="fu">\quad</span>|<span class="fu">\quad</span> March 2024}<span class="fu">\\</span>[6pt]</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\rule</span>{<span class="fu">\linewidth</span>}{1pt}</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">center</span>}</span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{8pt}</span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Everything inside the <code>[{...}]</code> argument is typeset at full width before the two-column body begins. The closing <code>\vspace{8pt}</code> adds space between the title block and the first column text.</p>
-<p>For a full-width abstract as well — the standard practice in many journals — include it in the <code>\twocolumn[{...}]</code> argument:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\twocolumn</span>[{<span class="co">%</span></span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\maketitle</span></span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">abstract</span>}</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  The abstract text, which spans the full width of the page</span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  before the two-column body begins.</span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">abstract</span>}</span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\rule</span>{<span class="fu">\linewidth</span>}{0.4pt}</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{6pt}</span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Two-column layouts still need a full-width title block and abstract. In Typst, place those before the body columns begin:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>align<span class="op">(</span>center<span class="op">)[</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">22pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> fill<span class="op">:</span> rgb<span class="op">(</span><span class="st">"#12436d"</span><span class="op">))[</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    Typography at the Command Line</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">5pt</span><span class="op">)</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">12pt</span><span class="op">,</span> style<span class="op">:</span> <span class="st">"italic"</span><span class="op">)[</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    Why serious document production belongs in a terminal</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">8pt</span><span class="op">)</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">0.6pt</span> <span class="op">+</span> rgb<span class="op">(</span><span class="st">"#12436d"</span><span class="op">))</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>block<span class="op">(</span>inset<span class="op">:</span> <span class="op">(</span>x: <span class="fl">8mm</span><span class="op">,</span> y: <span class="fl">5mm</span><span class="op">),</span> fill<span class="op">:</span> rgb<span class="op">(</span><span class="st">"#f8fafc"</span><span class="op">))[</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>  *Abstract.* The abstract spans the full page width before the</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>  two-column body begins.</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="wide-figures-and-tables-in-two-column-mode" class="level3" data-number="22.4.3">
 <h3 data-number="22.4.3" class="anchored" data-anchor-id="wide-figures-and-tables-in-two-column-mode"><span class="header-section-number">22.4.3</span> Wide figures and tables in two-column mode</h3>
-<p>The starred environments <code>figure*</code> and <code>table*</code> produce full-width floats in two-column mode:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">figure*</span>}[t]</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\centering</span></span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="bu">\includegraphics</span>[width=0.9<span class="fu">\textwidth</span>]{<span class="ex">wide-figure</span>}</span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\caption</span>{A wide figure spanning both columns}</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\label</span>{<span class="ex">fig:wide</span>}</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">figure*</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The starred float environments can only be placed at the top (<code>[t]</code>) or bottom (<code>[b]</code>) of a page, not inline. This is a fundamental constraint of LaTeX’s two-column float algorithm. Plan wide figures to appear at page boundaries, or use the <code>stfloats</code> package which allows bottom placement.</p>
+<p>Wide figures should be treated as explicit layout events. Put them between columned sections rather than forcing the engine to guess:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>figure<span class="op">(</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  image<span class="op">(</span><span class="st">"wide-figure.png"</span><span class="op">,</span> width<span class="op">:</span> <span class="fl">90%</span><span class="op">),</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  caption<span class="op">:</span> <span class="op">[</span>A wide figure spanning both columns<span class="op">],</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="va">&lt;fig-wide&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In HTML output, the same effect is often better achieved with CSS grid and a figure that spans all columns.</p>
 </section>
 <section id="column-balance" class="level3" data-number="22.4.4">
 <h3 data-number="22.4.4" class="anchored" data-anchor-id="column-balance"><span class="header-section-number">22.4.4</span> Column balance</h3>
-<p>By default, the last page of a two-column document may have unequal columns if the text does not fill both evenly. The <code>balance</code> package corrects this:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">balance</span>}</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="co">% At the end of the document, before the bibliography:</span></span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\balance</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>\balance</code> forces equal-length columns on the final page. For a magazine layout where visual balance matters, this is almost always desirable.</p>
+<p>The last page of a two-column article should not end with one long column and one stub unless there is a strong editorial reason. In practice, balance is handled by editing: cut or expand the text slightly, move a figure, or move a note to the following page. That is easier to reason about in a Typst or CSS layout than in a float-heavy legacy workflow.</p>
 </section>
 <section id="drop-caps" class="level3" data-number="22.4.5">
 <h3 data-number="22.4.5" class="anchored" data-anchor-id="drop-caps"><span class="header-section-number">22.4.5</span> Drop caps</h3>
-<p>A drop capital at the start of the first paragraph is a classic magazine convention. The <code>lettrine</code> package implements it:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">lettrine</span>}</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\lettrine</span>[lines=2]{T}{he} graphical interface revolution of the 1980s</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>convinced a generation that document production should look like design.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>[lines=2]</code> option sets the drop capital to span two lines of body text. The capital itself and the continuation of the first word are given as the two mandatory arguments. <code>lettrine</code> can be configured for specific fonts, raised capitals rather than dropped, and small caps continuation text.</p>
+<p>A drop capital at the start of the first paragraph is a classic magazine convention. In HTML it is a CSS concern:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.lede</span><span class="in">::first-letter</span> {</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">float</span><span class="ch">:</span> <span class="dv">left</span><span class="op">;</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">3.2</span><span class="dt">em</span><span class="op">;</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">line-height</span><span class="ch">:</span> <span class="dv">0.9</span><span class="op">;</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding-right</span><span class="ch">:</span> <span class="dv">0.08</span><span class="dt">em</span><span class="op">;</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-family</span><span class="ch">:</span> <span class="st">"Source Serif 4"</span><span class="op">,</span> <span class="dv">serif</span><span class="op">;</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For PDF, the same treatment belongs in the Typst template or style module, not in the article’s source text.</p>
 </section>
 </section>
-<section id="building-articles-from-pandoc-markdown" class="level2" data-number="22.5">
-<h2 data-number="22.5" class="anchored" data-anchor-id="building-articles-from-pandoc-markdown"><span class="header-section-number">22.5</span> Building articles from Pandoc Markdown</h2>
-<p>The same Markdown source can drive both the journal-style and the two-column outputs with different templates. A defaults file for each:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># article-defaults.yaml</span></span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="fu">to</span><span class="kw">:</span><span class="at"> pdf</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> pdflatex</span></span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span><span class="at"> article-template.latex</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="fu">citeproc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="fu">number-sections</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="fu">toc</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># twocol-defaults.yaml</span></span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">to</span><span class="kw">:</span><span class="at"> pdf</span></span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> pdflatex</span></span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span><span class="at"> twocol-template.latex</span></span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="fu">citeproc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="fu">number-sections</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The two-column template adds <code>twocolumn</code> to the <code>\documentclass</code> options and wraps the title block in <code>\twocolumn[{...}]</code>.</p>
+<section id="building-articles-from-markdown-with-typst-or-latex" class="level2" data-number="22.5">
+<h2 data-number="22.5" class="anchored" data-anchor-id="building-articles-from-markdown-with-typst-or-latex"><span class="header-section-number">22.5</span> Building articles from Markdown with Typst or LaTeX</h2>
+<p>The same Markdown source can drive both the journal-style and the two-column outputs with different PDF backends. In a modern workflow, keep Typst as the default PDF target and swap away only when a legacy class or package requirement forces the change.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># article-defaults.yaml</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">to</span><span class="kw">:</span><span class="at"> pdf</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> typst</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span><span class="at"> styles/article.typ</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="fu">citeproc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="fu">number-sections</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="fu">toc</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># twocol-defaults.yaml</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="fu">to</span><span class="kw">:</span><span class="at"> pdf</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> typst</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span><span class="at"> styles/twocol.typ</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="fu">citeproc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="fu">number-sections</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The two-column template changes only the page geometry, title treatment, and article body layout. The source content remains identical.</p>
 <p>For the Makefile:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="dv">article.pdf:</span><span class="dt"> article.md article-template.latex references.bib</span></span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc --defaults=article-defaults.yaml <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="dv">twocol.pdf:</span><span class="dt"> article.md twocol-template.latex references.bib</span></span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc --defaults=twocol-defaults.yaml <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="dv">article.html:</span><span class="dt"> article.md</span></span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc --standalone --citeproc --number-sections <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="dv">article.pdf:</span><span class="dt"> article.md styles/article.typ references.bib</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc --defaults=article-defaults.yaml <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="dv">twocol.pdf:</span><span class="dt"> article.md styles/twocol.typ references.bib</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc --defaults=twocol-defaults.yaml <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="dv">article.html:</span><span class="dt"> article.md</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc --standalone --citeproc --number-sections <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The same <code>article.md</code> produces three different outputs: a single-column PDF, a two-column PDF, and an HTML version — all from one source, all rebuilt automatically when the content changes.</p>
 <hr>
 <p>The three document types in this chapter — journal article, technical report, two-column layout — cover the range of what academic and technical writers produce most often. The patterns established here recur in Chapter 22 (Books), where the same approaches scale up to book-length projects with chapters, an index, and a complete front and back matter apparatus.</p>

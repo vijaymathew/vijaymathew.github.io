@@ -4,84 +4,69 @@ The preceding chapters have covered what must be done to produce a correct docum
 
 None of this is visible at a glance. A reader does not notice that a paragraph's lines are justified to within a hair's breadth of perfection, or that the hanging punctuation extends slightly into the margin to maintain the visual alignment of the text block. What they notice is an absence — an absence of friction, of awkward line breaks, of the tiny disturbances that accumulate, in poorly typeset text, into a generalised sense of difficulty. Fine typography removes those disturbances.
 
+In a Markdown-first workflow, fine typography is layered. Some decisions belong in the source itself: smart punctuation, non-breaking spaces, disciplined heading structure, and restraint about manual overrides. Some belong in CSS or the HTML template. Some belong in the PDF backend, where Typst can refine justification, line breaking, and spacing for print. The point of this chapter is to show where each layer earns its keep.
 
-## Microtypography with `microtype`
+## Backend-specific microtypography
 
-The `microtype` package enables three microtypographic features: character protrusion, font expansion, and tracking. Together they improve the visual texture of justified text substantially — reducing the number of lines that must be hyphenated, tightening the spacing variation across lines, and producing a more even grey mass.
+The available controls differ by engine. Typst, print-oriented CSS, and browser layout engines do not expose the same knobs, and that is acceptable: the workflow should stay source-centred even when the backends diverge. In a modern workflow, the main microtypographic decisions are:
 
-### Character protrusion (hanging punctuation)
+- choosing a good text face with real italics, small caps, and ligatures
+- enabling justified text only when the measure is suitable
+- tagging the document language correctly for hyphenation
+- applying tracking only to display text, small caps, and running heads
 
-Character protrusion allows certain characters — primarily punctuation marks — to extend slightly into the margin, so that the visual edge of the text column is straight rather than the typographic edge. A line ending with a comma, for instance, has the comma protruding fractionally beyond the margin; the eye sees the text block as rectangular rather than slightly indented at punctuation characters.
+### Edge alignment and hanging punctuation
 
-```latex
-\usepackage[protrusion=true]{microtype}
+The visual edge of a paragraph should look straight even when lines end with commas or quotation marks. On the web, the only standard control is CSS hanging punctuation:
+
+```css
+p,
+blockquote {
+  hanging-punctuation: first last;
+}
 ```
 
-The `protrusion=true` option enables protrusion. No additional configuration is needed for most fonts; `microtype` includes pre-configured protrusion settings for all major font families. The settings for custom fonts can be added via `\SetProtrusion{fontname}{...}`.
+Support is still uneven, so this should be treated as an enhancement rather than a guarantee.
 
-Protrusion works with pdfLaTeX, XeLaTeX, and LuaLaTeX. It is the `microtype` feature most universally applicable and most visually significant.
+In Typst, edge handling is mostly implicit. The more important practical decision is to avoid bad measures and badly chosen fonts, which create visible edge noise that no low-level setting can rescue.
 
-### Font expansion
+### Justification quality
 
-Font expansion allows the width of each glyph to vary slightly — by a configurable percentage, typically 2–3% — to improve the quality of justification. When a line is slightly too short or too long for perfect justification, font expansion fills the gap by stretching or shrinking the glyphs rather than by increasing or decreasing word spacing. The result is more even word spacing across all lines.
+Typst does not ask the author to micromanage glyph expansion. The right equivalent is to set up the paragraph environment correctly and then inspect the pages:
 
-```latex
-\usepackage[protrusion=true,expansion=true]{microtype}
+```typst
+#set page(margin: (x: 28mm, y: 24mm))
+#set text(font: "New Computer Modern", size: 11pt, lang: "en")
+#set par(justify: true)
 ```
 
-Font expansion requires scalable (Type 1 or OpenType) fonts. It works with pdfLaTeX and LuaLaTeX; XeLaTeX supports a limited form via the HarfBuzz path. The `stretch` and `shrink` parameters control the maximum expansion:
-
-```latex
-\usepackage[
-  protrusion=true,
-  expansion=true,
-  stretch=10,
-  shrink=10
-]{microtype}
-```
-
-The values `stretch=10` and `shrink=10` allow ±1% variation (the values are in thousandths). The default values are sufficient for most documents; increasing them beyond 15 may produce visible glyph distortion in display-size text.
+If justification looks uneven, solve the problem at the layout level first: shorten the measure, revise the copy, or choose a more suitable typeface. That is usually more effective than hunting for backend-specific tuning parameters.
 
 ### Tracking
 
-Tracking is the uniform adjustment of letter-spacing for specific text elements. `microtype` allows tracking to be applied to small capitals, headings, or other specific contexts:
+Tracking is the uniform adjustment of letter-spacing for specific text elements. It should be applied narrowly, not globally:
 
-```latex
-\usepackage[tracking=true]{microtype}
-\SetTracking{encoding=*, family=sc}{30}  % slight tracking on small caps
+```typst
+#show smallcaps: set text(tracking: 0.03em)
+
+#set heading(numbering: "1.")
+#show heading.where(level: 1): set text(tracking: -0.01em)
 ```
 
-Tracking small capitals by 25–50 units (thousandths of an em) is a classical typographic convention: the reduced x-height of small capitals means their default spacing is relatively tight, and a small positive track opens them to a more comfortable reading texture.
+Tracking small capitals slightly more openly is a classical typographic convention. Large headings often benefit from a very slight negative track.
 
-### A full `microtype` configuration
+### A practical Typst baseline
 
-A reasonable production configuration for XeLaTeX:
+A reasonable print baseline for prose:
 
-```latex
-\usepackage[
-  protrusion=true,
-  expansion=false,   % expansion limited in XeLaTeX
-  tracking=true,
-  kerning=true,
-  spacing=true
-]{microtype}
-\microtypesetup{expansion=false}
-
-% Slight tracking for small capitals
-\SetTracking{encoding=*, family=sc}{25}
+```typst
+#set text(font: "Source Serif 4", size: 11pt, lang: "en")
+#set par(justify: true, leading: 0.68em)
+#set heading(numbering: "1.")
+#show smallcaps: set text(tracking: 0.025em)
 ```
 
-For pdfLaTeX with Computer Modern or Latin Modern, full expansion is available:
-
-```latex
-\usepackage[
-  protrusion=true,
-  expansion=true,
-  stretch=10,
-  shrink=10,
-  tracking=true
-]{microtype}
-```
+That is not a magic formula. It is simply a sensible starting point that assumes a good text face, a comfortable measure, and language metadata that allows the engine to hyphenate correctly.
 
 
 ## Optical margin alignment
@@ -92,7 +77,7 @@ Optical margin alignment is the practice of hanging punctuation and certain char
 - Hyphens in compound words that break at line endings
 - Periods, commas, and other punctuation at line ends
 
-`microtype`'s protrusion feature handles this automatically for body text. For display-size text — large headings where individual characters have significant visual weight — manual fine-tuning may be needed.
+In dedicated PDF engines, this is mostly handled by the compositor rather than by source markup. For display-size text — large headings where individual characters have significant visual weight — manual fine-tuning may still be needed.
 
 In CSS, `hanging-punctuation: first last` enables hanging punctuation for browsers that support it. Support is currently limited to Safari, but the property degrades gracefully:
 
@@ -109,19 +94,7 @@ The `first` value hangs punctuation at the start of the first line of a block; `
 
 A *widow* is the last line of a paragraph stranded alone at the top of a page. An *orphan* is the first line of a paragraph stranded alone at the bottom. Both are typographic failures: they interrupt the reading flow and leave an awkward amount of white space either before or after the isolated line.
 
-LaTeX controls widows and orphans through two parameters:
-
-```latex
-\widowpenalty=10000    % maximum penalty for widows
-\clubpenalty=10000     % maximum penalty for orphans (club lines)
-\displaywidowpenalty=10000
-```
-
-The penalty values range from 0 (no penalty) to 10000 (forbidden). Setting both to 10000 prevents widows and orphans but occasionally forces LaTeX to produce pages with insufficient content — a lesser evil. In practice, values around 3000–5000 produce good results: LaTeX strongly avoids widows and orphans but can override the preference when the alternative would be worse.
-
-These parameters should be set globally in the preamble and refined manually for specific pages that remain problematic after global adjustment.
-
-In CSS, the equivalent properties are:
+In CSS, the available controls are:
 
 ```css
 p {
@@ -132,64 +105,44 @@ p {
 
 CSS `widows` and `orphans` are respected in print stylesheets and PDF generation via WeasyPrint, though not by all PDF engines.
 
+For Typst and other PDF engines, the practical workflow is editorial rather than parametric: inspect the pages, adjust the text, or insert a small amount of vertical flexibility in the layout. Widows and orphans are usually symptoms of a page-design problem, not just a penalty-setting problem.
+
 
 ## Hyphenation control
 
-LaTeX's automatic hyphenation is excellent but not infallible. Technical terms, proper nouns, and words in minority languages may be hyphenated incorrectly or not at all.
+Automatic hyphenation in dedicated layout engines is usually excellent but not infallible. Technical terms, proper nouns, and words in minority languages may be hyphenated incorrectly or not at all.
 
-**Suppressing hyphenation** for a word or phrase:
+**Suppressing bad breaks** for a word or phrase:
 
-```latex
-\mbox{unhyphenatable}       % prevents line break entirely
-\hbox{unhyphenatable}       % lower-level equivalent
-\nohyphens{unhyphenatable}  % from the hyphenat package
+```markdown
+Dr&nbsp;Smith
+11&nbsp;pt
 ```
 
-**Specifying correct hyphenation** for a word that LaTeX does not know:
+For HTML, a non-breaking space is often the right fix. For PDF-oriented workflows, the better fix is usually to rewrite the line rather than force the engine into narrower rules.
 
-```latex
-\hyphenation{ty-pog-ra-phy mi-cro-type}  % global dictionary
-% or inline:
-ty\-pog\-ra\-phy  % manual hyphenation hints
+**Suggesting a break point** for difficult words:
+
+```markdown
+typo&shy;graphy
+micro&shy;type
 ```
 
-The `\-` command marks a potential hyphenation point without preventing hyphenation at other points (unlike `\mbox`).
-
-**Controlling the minimum word length for hyphenation** via `babel`'s or `polyglossia`'s options, or through TeX primitives:
-
-```latex
-\lefthyphenmin=3   % minimum characters before hyphen
-\righthyphenmin=3  % minimum characters after hyphen
-```
-
-The defaults are language-dependent. English uses 2 and 3; German uses 2 and 2. Setting both to 3 produces fewer but cleaner hyphenations.
+The soft hyphen becomes visible only if the line actually breaks there.
 
 
 ## The paragraph as the unit of design
 
-TeX's paragraph-level line-breaking algorithm — described in Chapter 1 — considers all possible ways to break the paragraph into lines and chooses the arrangement that minimises total badness across all lines simultaneously. This global optimisation is what produces the better justification quality of LaTeX output compared to word processors.
+Paragraph-level line breaking is one of the clearest advantages of dedicated layout engines over ordinary word processors. Good layout engines consider the paragraph as a whole rather than choosing each line in isolation, which is one reason high-quality PDF workflows justify better than office software.
 
-The algorithm's parameters can be adjusted when the defaults produce unsatisfactory results. The `\tolerance` and `\emergencystretch` parameters control how much visual deviation from ideal spacing is permitted before the algorithm gives up and produces an overfull line:
+The point is not to tune hidden engine thresholds unless you are debugging a specific backend. The point is to think paragraph by paragraph: if the measure is too narrow, the font too large, or the wording too rigid, the paragraph will look bad regardless of the engine.
 
-```latex
-\tolerance=1000        % default (max underfull/overfull before warning)
-\emergencystretch=3em  % additional stretch allowed in emergencies
-```
+In practice, the best fixes are usually:
 
-The `\tolerance` value controls when the algorithm considers a line acceptable. The default of 200 is strict; increasing it to 1000 allows more variation in word spacing before producing warnings. This reduces the number of lines that require manual adjustment at the cost of slightly less even spacing.
-
-`\emergencystretch` provides an additional reserve of stretch that the algorithm can use when no acceptable break points exist. Setting it to `3em` prevents most overfull boxes at the cost of occasional loose lines. For documents with many technical terms, URLs, or code snippets that cannot be hyphenated, this is often the right trade-off.
-
-For specific paragraphs that stubbornly resist good line breaking:
-
-```latex
-\begin{sloppypar}
-A paragraph that contains \texttt{very-long-unhyphenatable-technical-terms}
-and benefits from slightly relaxed spacing constraints.
-\end{sloppypar}
-```
-
-`\begin{sloppypar}` applies a high tolerance locally, allowing the paragraph to space loosely rather than producing an overfull box.
+- shorten or rewrite the sentence
+- widen the measure slightly
+- reduce heading clutter above the paragraph
+- move an image or note that is constraining the text block
 
 
 ## Letterspacing and small capitals
@@ -201,13 +154,6 @@ Letterspacing (tracking) is appropriate in specific contexts:
 - **Running headers**: tight small capitals or tracked uppercase text is conventional for running headers in serious typographic work.
 
 Do not letterspace body text. The claim that letterspacing improves legibility for lowercase body text is not supported by reading research, and letterspacing lowercase breaks the visual cohesion of words. Track display text; leave body text at its designed tracking.
-
-In LaTeX, use `microtype` with `\SetTracking`:
-
-```latex
-\SetTracking{encoding=*, shape=sc}{30}    % small caps
-\SetTracking{encoding=*, family=sf}{50}   % sans-serif headings
-```
 
 In CSS, `letter-spacing` applies tracking in `em` units:
 
@@ -226,7 +172,7 @@ h1, h2 {
 Note that large headings typically benefit from *negative* tracking — slightly tighter than the font's default — because at display sizes the normal spacing appears too loose.
 
 
-## Typographic details in Pandoc output
+## Typographic details in Markdown and Pandoc output
 
 Several typographic refinements apply to Pandoc's output specifically.
 
@@ -242,7 +188,7 @@ Or set it in a defaults file:
 from: markdown+smart
 ```
 
-**Non-breaking spaces**: In running text, certain character combinations should not be broken across lines: a number and its unit ("11 pt"), a title and a name ("Dr Smith"), the last two words of a paragraph. Pandoc passes through HTML non-breaking spaces (`&nbsp;`) and LaTeX `~` characters from Markdown source. For HTML output, CSS `white-space: nowrap` can be applied to specific spans.
+**Non-breaking spaces**: In running text, certain character combinations should not be broken across lines: a number and its unit ("11 pt"), a title and a name ("Dr Smith"), the last two words of a paragraph. Pandoc passes through HTML non-breaking spaces (`&nbsp;`) from Markdown source. For HTML output, CSS `white-space: nowrap` can be applied to specific spans.
 
 **Dashes**: Pandoc's smart extension converts double hyphens (`--`) to en dashes (–) and triple hyphens (`---`) to em dashes (—). This is the correct handling: never use double hyphens where an en dash or em dash is intended, and never use the minus sign key where a dash is intended.
 
