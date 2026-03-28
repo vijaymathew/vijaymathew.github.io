@@ -267,7 +267,7 @@ format:
 
 Slide breaks are created with `##` headings (level 2). The presentation body uses the same Markdown constructs as any Quarto document, plus a few presentation-specific features:
 
-```markdown
+````markdown
 ## The problem {.smaller}
 
 ::: {.incremental}
@@ -294,7 +294,7 @@ Main content in the larger column.
 Supporting content in the narrower column.
 :::
 ::::
-```
+````
 
 The `.incremental` class on a list makes items appear one at a time in the HTML presentation. 
 The `{background-color}` attribute sets the slide's background. The `{.smaller}` class reduces 
@@ -328,7 +328,7 @@ The callout type determines the styling: `note` is blue, `tip` is green, `warnin
 
 Panel tabsets produce content in multiple tabs in HTML output and as sequential sections in PDF:
 
-```markdown
+````markdown
 ::: {.panel-tabset}
 ### Python
 ```python
@@ -347,7 +347,7 @@ print(result)
 python3 -c "print(sum(range(100)))"
 ```
 :::
-```
+````
 
 
 ## Themes and customisation
