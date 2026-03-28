@@ -2,138 +2,97 @@
 
 Most of this book has assumed documents written in a single language using the Latin alphabet. That assumption covers a wide range of practical work, but not all of it. Technical documentation is routinely produced in German, French, Arabic, Chinese, Japanese, and dozens of other languages. Academic papers cite sources in non-Latin scripts. Books are translated. The CLI typographer working in an international context needs to know how to handle scripts beyond Latin, bidirectional text, and documents that mix multiple languages.
 
-This chapter covers the three main contexts: multilingual Latin-script documents (multiple Western European languages), bidirectional text (Arabic and Hebrew), and CJK typesetting (Chinese, Japanese, Korean).
+This chapter covers the three main contexts: multilingual Latin-script documents (multiple Western European languages), bidirectional text (Arabic and Hebrew), and CJK typesetting (Chinese, Japanese, Korean). The source-level rule is simple: keep language and direction metadata in the Markdown, then choose a PDF backend with the right fonts and shaping support. Typst and modern browser engines alike depend on correct OpenType fonts; neither can rescue a source file that fails to mark language boundaries clearly.
 
 
 ## Multilingual Latin-script documents
 
-When a document mixes English with French, German, Spanish, or other Latin-script languages, the primary concern is hyphenation. LaTeX's hyphenation patterns are language-specific; the wrong patterns produce incorrect hyphenation. A document with German text using English hyphenation rules will hyphenate words incorrectly, and a document with French text will miss the French convention of not hyphenating before a single vowel.
+When a document mixes English with French, German, Spanish, or other Latin-script languages, the primary concern is correct language metadata and hyphenation across the whole pipeline. In a Markdown-first workflow, set the document language in front matter and tag inline spans or divs when the language changes.
 
-### Babel
-
-The `babel` package is the standard LaTeX solution for multilingual documents. It loads language-specific hyphenation patterns, typographic conventions (such as French spacing before punctuation), and localised names for chapter headings, table of contents, and similar elements.
-
-```latex
-\usepackage[main=english, french, german, spanish]{babel}
+```yaml
+---
+lang: en-GB
+---
 ```
 
-The `main=english` option sets English as the primary language. Other languages are available through `\selectlanguage{french}` or the `otherlanguage` environment:
+For block-level switches:
 
-```latex
-Main English text with correct hyphenation.
+```markdown
+English body text with the document's default language.
 
-\begin{otherlanguage}{french}
-Ce texte est en français. La césure utilise les règles françaises.
-Les guillemets français sont différents des guillemets anglais.
-\end{otherlanguage}
-
-Back to English text.
+::: {lang=fr}
+Ce texte est en français. La césure et les règles de ponctuation
+doivent suivre les conventions françaises.
+:::
 ```
 
-For inline language switches without environment overhead:
+For inline switches:
 
-```latex
-The French term \foreignlanguage{french}{mise en page} refers to
-the layout of a printed page.
+```markdown
+The French term [mise en page]{lang=fr} refers to the layout of a
+printed page.
 ```
 
-`babel` also localises the typographic conventions of each language. French, for instance, requires a thin non-breaking space before colons, semicolons, question marks, and exclamation marks — `babel` inserts this automatically when the French language is active.
+The PDF backend then needs fonts and shaping support that match the declared languages. In Typst, that usually means setting a fallback font family list rather than switching the source language:
 
-The document's date, chapter names, and other automatic text also localise:
-
-```latex
-\selectlanguage{german}
-% \today now produces "18. März 2024"
-% \chaptername produces "Kapitel"
-% \contentsname produces "Inhaltsverzeichnis"
-```
-
-### Polyglossia
-
-For XeLaTeX and LuaLaTeX documents, `polyglossia` is a more modern alternative to `babel`. It has better support for non-Latin scripts and integrates naturally with `fontspec`:
-
-```latex
-\usepackage{fontspec}
-\usepackage{polyglossia}
-\setdefaultlanguage{english}
-\setotherlanguages{french, german, arabic}
-
-% Per-language font settings:
-\newfontfamily\arabicfont{Amiri}[Script=Arabic]
-```
-
-The interface is similar to `babel`:
-
-```latex
-\begin{french}
-Ce texte est typographié selon les règles françaises.
-\end{french}
-
-\textfrench{Un seul paragraphe en français.}
+```typst
+#set text(
+  font: ("EB Garamond", "Source Serif 4", "Noto Serif"),
+  lang: "en",
+)
 ```
 
 ### Smart quotation marks
 
-Different languages use different quotation marks: English uses "double curly quotes" and 'single curly quotes'; German uses „Gänsefüßchen" (goose feet); French uses «guillemets»; Finnish uses "a peculiar form".
+Different languages use different quotation marks: English uses “double curly quotes” and ‘single curly quotes’; German uses „Gänsefüßchen“; French uses « guillemets ».
 
-The `csquotes` package provides language-aware quotation commands:
+Pandoc's smart typography or Quarto's default reader extensions handle the document's primary language well. For inline language switches, mark the language in the source and verify the output manually:
 
-```latex
-\usepackage{csquotes}
-\SetLanguageKey{english}{quotestyle=english}
-\SetLanguageKey{german}{quotestyle=german}
-\SetLanguageKey{french}{quotestyle=french}
+```markdown
+English quotation: “This is an English quotation.”
 
-\textquote{This is an English quotation.}
-
-\begin{otherlanguage}{german}
-\textquote{Das ist ein deutsches Zitat.}
-\end{otherlanguage}
+German quotation: [„Das ist ein deutsches Zitat.“]{lang=de}
 ```
-
-`\textquote` inserts the correct quotation marks for the current language automatically.
-
-For Pandoc documents, the `--smart` flag (or `+smart` extension) converts straight quotes to typographic quotes based on the document's primary language. For inline language switches, the quotes must be set correctly in the Markdown source or handled by a Lua filter.
 
 
 ## Bidirectional text: Arabic and Hebrew
 
-Arabic and Hebrew are written right-to-left. When mixed with left-to-right text (Latin script, numbers), the result is *bidirectional text* — a layout challenge that requires both the font shaping engine and the layout engine to understand Unicode's bidirectional algorithm.
+Arabic and Hebrew are written right-to-left. When mixed with left-to-right text (Latin script, numbers), the result is *bidirectional text* — a layout challenge that requires both the font shaping engine and the layout engine to understand Unicode's bidirectional algorithm. In a Markdown-first workflow, the first responsibility is still source metadata: get `lang` and `dir` right before you worry about backend-specific commands.
 
-In LaTeX, bidirectional text is handled by XeLaTeX with the `bidi` package and `polyglossia`:
+In a Markdown-first workflow, the first responsibility is still metadata:
 
-```latex
-\documentclass{article}
-\usepackage{fontspec}
-\usepackage{polyglossia}
-\setdefaultlanguage{english}
-\setotherlanguage{arabic}
-
-% Arabic font with the Arabic script tag
-\newfontfamily\arabicfont{Amiri}[Script=Arabic, Scale=1.1]
-
-\begin{document}
-
-This is English text. The following is Arabic:
-
-\begin{Arabic}
-هذا النص مكتوب باللغة العربية، ويُقرأ من اليمين إلى اليسار.
-\end{Arabic}
-
-Mixing \textArabic{العربية} inline with English.
-
-\end{document}
+```yaml
+---
+lang: ar
+dir: rtl
+---
 ```
 
-The `Arabic` environment reverses the paragraph direction. `\textArabic{}` provides inline Arabic within an otherwise left-to-right paragraph.
+For mixed-direction documents, mark the local direction and language where they change:
+
+```markdown
+This is English text. The following is Arabic:
+
+::: {lang=ar dir=rtl}
+هذا النص مكتوب باللغة العربية، ويُقرأ من اليمين إلى اليسار.
+:::
+
+Mixing [العربية]{lang=ar dir=rtl} inline with English.
+```
+
+In Typst, choose an Arabic-capable font and set the language on the relevant span or block:
+
+```typst
+#set text(font: ("Amiri", "Noto Naskh Arabic", "EB Garamond"))
+```
 
 Arabic and Hebrew typesetting additionally require:
 
-**Text shaping**: Arabic letters are context-sensitive — the same letter has different forms at the start, middle, and end of a word, and when isolated. Correct shaping is handled by HarfBuzz, which XeLaTeX uses via the `fontspec` package. Any OpenType Arabic font with a complete glyph set will shape correctly.
+**Text shaping**: Arabic letters are context-sensitive — the same letter has different forms at the start, middle, and end of a word, and when isolated. Correct shaping is handled by modern shaping engines such as HarfBuzz. Any OpenType Arabic font with a complete glyph set will shape correctly.
 
 **Appropriate fonts**: Free options include Amiri (classical calligraphic Arabic), Scheherazade (for diacritical texts), and Noto Sans Arabic. These are designed to the standards of Arabic typography and include all required ligatures.
 
-**Numbers**: Arabic text typically uses Arabic-Indic numerals (٠١٢٣٤٥٦٧٨٩) or Western-Arabic numerals depending on context and register. The font and `polyglossia` handle this automatically when the language is active.
+**Numbers**: Arabic text typically uses Arabic-Indic numerals (٠١٢٣٤٥٦٧٨٩) or Western-Arabic numerals depending on context and register. The chosen layout engine and font stack should respect the language and script metadata when selecting numeral forms.
 
 For Pandoc documents in Arabic, set the language and direction in the metadata:
 
@@ -144,82 +103,38 @@ dir: rtl
 ---
 ```
 
-Pandoc generates the appropriate HTML `dir="rtl"` attribute and passes the language information to the LaTeX backend.
+Pandoc generates the appropriate HTML `dir="rtl"` attribute and passes the language information through to the selected output backend.
 
 
 ## CJK typesetting: Chinese, Japanese, Korean
 
 CJK (Chinese, Japanese, Korean) typesetting involves a set of challenges distinct from both Latin and bidirectional typesetting: the character sets are large (tens of thousands of glyphs), the spacing rules differ from Western practice, and the line-breaking rules prohibit certain characters from appearing at the start or end of a line.
 
-### XeLaTeX with fontspec and CJK fonts
-
-For documents with occasional CJK characters embedded in primarily Latin text, `fontspec` with an appropriate fallback font handles most cases:
-
-```latex
-\usepackage{fontspec}
-\setmainfont{EB Garamond}
-
-% CJK characters fall back to Noto Serif CJK:
-\newfontfamily\cjkfont{Noto Serif CJK SC}[Scale=MatchLowercase]
-```
-
-For documents that are primarily Chinese, Japanese, or Korean, dedicated packages provide the appropriate spacing rules.
-
-### LuaLaTeX with luatexja
-
-`luatexja` is the standard package for Japanese typesetting with LuaLaTeX. It implements the JIS X 4051 standard for Japanese typographic line composition, including the forbidden-character rules (prohibited characters that cannot start or end a line), inter-character spacing between CJK and Latin text, and correct spacing between different character classes.
-
-```latex
-\documentclass{article}
-\usepackage{luatexja}
-\usepackage{luatexja-fontspec}
-
-\setmainfont{TeX Gyre Termes}
-\setmainjfont{IPAexMincho}   % Japanese serif font
-
-\begin{document}
-
-日本語のテキストと English text が混在する文書。
-
-\end{document}
-```
-
-`luatexja-fontspec` provides `\setmainjfont` and `\setsansjfont` for setting Japanese main and sans-serif fonts, parallel to `fontspec`'s `\setmainfont` and `\setsansfont`.
-
-### XeLaTeX with xeCJK
-
-`xeCJK` is the XeLaTeX equivalent for CJK typesetting:
-
-```latex
-\documentclass{article}
-\usepackage{fontspec}
-\usepackage{xeCJK}
-
-\setmainfont{TeX Gyre Termes}
-\setCJKmainfont{Noto Serif CJK SC}  % Chinese Simplified
-
-\begin{document}
-
-中文与 English 混排。字体的选择非常重要。
-
-\end{document}
-```
-
-For documents in Traditional Chinese, use `Noto Serif CJK TC` or `Noto Serif CJK HK`. For Japanese, `Noto Serif CJK JP`. For Korean, `Noto Serif CJK KR`.
-
-### Pandoc and CJK
-
-For Pandoc documents with CJK content, the metadata block specifies the CJK font:
+For documents with occasional CJK characters embedded in primarily Latin text, the main requirement is a font stack with appropriate fallback:
 
 ```yaml
 ---
 lang: zh-Hans
-CJKmainfont: "Noto Serif CJK SC"
-pdf-engine: xelatex
+mainfont: "EB Garamond"
+cjkfont: "Noto Serif CJK SC"
 ---
 ```
 
-The `CJKmainfont` variable is supported by Pandoc's default LaTeX template when the engine is XeLaTeX. Pandoc automatically loads `xeCJK` when `CJKmainfont` is set.
+In Typst, declare a fallback list that includes the relevant CJK family:
+
+```typst
+#set text(font: ("EB Garamond", "Noto Serif CJK SC"))
+```
+
+For Japanese or Korean documents, switch the primary language metadata and choose the corresponding font family:
+
+```yaml
+---
+lang: ja
+mainfont: "Source Serif 4"
+cjkfont: "Noto Serif CJK JP"
+---
+```
 
 For HTML output, CJK text requires no special handling beyond the `lang` attribute (which Pandoc sets from the metadata): web browsers select appropriate system fonts for CJK characters automatically.
 
@@ -228,13 +143,13 @@ For HTML output, CJK text requires no special handling beyond the `lang` attribu
 
 Beyond script support, OpenType fonts provide language-specific typographic features activated by the BCP 47 language tag. For example, some Cyrillic characters have different glyph forms for Russian versus Bulgarian; some Latin characters have language-specific alternates for Dutch, Romanian, and Catalan.
 
-In XeLaTeX with `fontspec`:
+In Typst and modern browser engines, language tagging is the primary trigger:
 
-```latex
-\setmainfont{Gentium Plus}[Language=Dutch]
+```typst
+#set text(font: ("Gentium Plus", "Noto Serif"), lang: "nl")
 ```
 
-The `Language=` option activates the language-specific OpenType features for that language within `fontspec`. This affects glyph selection, not hyphenation (which is controlled by `babel` or `polyglossia`).
+That affects glyph selection only when the font actually ships language-specific alternates. Hyphenation remains a separate responsibility controlled by the language metadata and the layout engine.
 
 In CSS, language-specific OpenType features use `font-language-override`:
 
@@ -248,4 +163,4 @@ In CSS, language-specific OpenType features use `font-language-override`:
 }
 ```
 
-The four-character OpenType language system tags differ from BCP 47 language codes. The full mapping is in the OpenType specification; `fontspec`'s `Language=` argument accepts human-readable language names from a built-in list.
+The four-character OpenType language system tags differ from BCP 47 language codes. The full mapping is in the OpenType specification; the important practical point is to keep the source language tagging correct and then verify that the chosen font actually contains the expected language-specific forms.

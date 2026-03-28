@@ -2,187 +2,208 @@
 
 The article and the report are the workhorses of technical and academic publishing. Between them, they cover the range from a four-page conference paper to a two-hundred-page internal report, from a single-author journal submission to a multi-author technical specification. The typographic requirements of these documents are well understood — decades of published guidelines and house styles have codified what a professional article looks like — which makes them ideal territory for demonstrating how CLI tools handle the full complexity of real documents.
 
-This chapter builds three examples. The first is a journal-style article with an abstract, numbered sections, mathematical equations, a table, cross-references, and a bibliography. The second is a technical report with a title page, table of contents, list of figures, code listings, appendices, and a two-sided layout. The third is a two-column magazine-style layout using LaTeX's `twocolumn` mode with full-width title treatment.
+This chapter builds three examples from a Markdown-first source tree. The first is a journal-style article with an abstract, numbered sections, mathematical equations, a table, cross-references, and a bibliography. The second is a technical report with a title page, table of contents, list of figures, code listings, appendices, and a two-sided layout. The third is a two-column magazine-style layout where a Typst or Pandoc PDF path is the first choice and LaTeX's `twocolumn` mode remains a fallback when a legacy class or package stack is required.
 
 
 ## A journal-style article
 
-A journal article in LaTeX typically uses the `article` class, occasionally a publisher-supplied class, with a standard set of packages for typography, mathematics, bibliographies, and cross-references.
+The default workflow for an article should begin with Markdown plus metadata, not with a handwritten TeX preamble. That keeps HTML, DOCX, EPUB, and PDF available from one source, keeps the manuscript readable in Git, and makes Quarto or Pandoc the controlling layer rather than the PDF backend. Typst is the natural PDF-first companion for this workflow: it handles page layout, maths, figures, and bibliography cleanly without forcing the author to write TeX macros. LaTeX still matters when a journal mandates a class file or when a specific package ecosystem is unavoidable.
 
-### Document class and packages
+When a LaTeX backend is required, the article typically uses the `article` class, occasionally a publisher-supplied class, with a standard set of packages for typography, mathematics, bibliographies, and cross-references.
 
-```latex
-\documentclass[11pt,a4paper]{article}
-\usepackage[T1]{fontenc}
-\usepackage[protrusion=true,expansion=false]{microtype}
-\usepackage{geometry}
-\geometry{margin=25mm}
-\usepackage{amsmath,amssymb,amsthm}
-\usepackage{booktabs}
-\usepackage{graphicx}
-\usepackage{cleveref}
-\usepackage{natbib}
-\usepackage{hyperref}
-\hypersetup{
-  colorlinks=true,
-  linkcolor=blue!60!black,
-  citecolor=blue!60!black,
-  urlcolor=blue!60!black
-}
-\usepackage{abstract}
+### Document structure and metadata
+
+For a Markdown-first article, the equivalent of the old preamble is the metadata block plus a small PDF template. The metadata should describe structure, bibliographic resources, and numbering rules:
+
+```yaml
+---
+title: "On the Typographic Quality of CLI-Produced Documents"
+subtitle: "A Systematic Comparison"
+author:
+  - name: "A. N. Author"
+    affiliation: "Department of Information Design, University of Example"
+    email: "author@example.edu"
+  - name: "B. M. Collaborator"
+    affiliation: "Institute of Typography, Townsley University"
+date: "2024-03-15"
+abstract: |
+  This paper presents a systematic comparison of documents produced
+  using CLI-based typesetting tools against those produced using
+  graphical desktop publishing applications.
+keywords: [typography, CLI, Pandoc, Typst, reproducibility]
+bibliography: references.bib
+numbersections: true
+---
 ```
 
-The `abstract` package refines the default abstract environment — narrower margins, smaller text, bold label. The `cleveref` package provides `\cref{}` and `\Cref{}` commands that automatically prepend the reference type ("Equation", "Table", "Figure") and must be loaded after `hyperref`.
+That is enough information for Pandoc or Quarto to generate HTML, EPUB, or PDF. The PDF-specific styling then lives in Typst, where page geometry, heading style, theorem blocks, and figure captions can be expressed directly.
 
-Theorem environments from `amsthm` are configured in the preamble:
+```typst
+#set page(paper: "a4", margin: (x: 25mm, y: 25mm))
+#set text(font: "Libertinus Serif", size: 11pt)
+#set par(justify: true)
 
-```latex
-\newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}[theorem]{Lemma}
-\theoremstyle{definition}
-\newtheorem{definition}[theorem]{Definition}
-\theoremstyle{remark}
-\newtheorem*{remark}{Remark}
+#show heading.where(level: 1): it => block(above: 1.4em, below: 0.7em)[
+  #set text(weight: "bold", size: 18pt)
+  #it
+]
+
+#let theorem(kind, title, body) = block(
+  inset: 10pt,
+  radius: 4pt,
+  stroke: 0.4pt + rgb("#9aa7b2"),
+  fill: rgb("#f8fafc"),
+)[
+  *#kind.* #title
+  #v(4pt)
+  #body
+]
 ```
 
 ### Title and authorship
 
-The `\maketitle` command formats the title block from the `\title`, `\author`, and `\date` declarations. For multi-author articles with affiliations:
+The title block belongs in metadata, not in backend markup. When you need a more formal multi-author rendering, keep the data structured and let the template format it:
 
-```latex
-\title{On the Typographic Quality of CLI-Produced Documents:\\
-  \large A Systematic Comparison}
-\author{A. N. Author\\
-  \small Department of Information Design, University of Example\\
-  \small \texttt{author@example.edu}
-  \and
-  B. M. Collaborator\\
-  \small Institute of Typography, Townsley University}
-\date{Received 1 January 2024; Accepted 15 March 2024}
+```yaml
+author:
+  - name: "A. N. Author"
+    affiliation:
+      - "Department of Information Design, University of Example"
+    email: "author@example.edu"
+    corresponding: true
+  - name: "B. M. Collaborator"
+    affiliation:
+      - "Institute of Typography, Townsley University"
 ```
 
-The `\and` command separates multiple authors. Line breaks within an author block use `\\`. The `\small` size for affiliations and email addresses keeps them visually subordinate to the author name.
+In Typst, the title block can be a small helper function that formats names prominently and affiliations secondarily:
 
-For more complex author formatting — affiliations numbered by superscript, corresponding author marked with a dagger, multiple institutions — the `authblk` package provides a dedicated interface:
-
-```latex
-\usepackage{authblk}
-\author[1]{A. N. Author}
-\author[2]{B. M. Collaborator}
-\affil[1]{Department of Information Design, University of Example}
-\affil[2]{Institute of Typography, Townsley University}
+```typst
+#let article-title(meta) = align(center)[
+  #text(size: 20pt, weight: "bold")[#meta.title]
+  #if meta.subtitle != none [
+    #v(5pt)
+    #text(size: 12pt, style: "italic")[#meta.subtitle]
+  ]
+  #v(10pt)
+  #for person in meta.author [
+    *#person.name*\
+    #for line in person.affiliation [#line\ ]
+    #if person.email != none [#link("mailto:" + person.email)[#person.email]]
+    #v(8pt)
+  ]
+]
 ```
 
 ### Abstract and keywords
 
-The `abstract` environment places the abstract between the title and the body:
+Abstracts and keywords are best expressed directly in the front matter and rendered consistently by the article template. In Markdown:
 
-```latex
-\begin{abstract}
-This paper presents a systematic comparison of documents produced
-using CLI-based typesetting tools against those produced using
-graphical desktop publishing applications. Our principal finding is
-that CLI-produced documents, when configured appropriately, match or
-exceed the quality of graphical alternatives in all measured dimensions.
-\end{abstract}
-
-\noindent\textbf{Keywords:} typography; CLI tools; Pandoc; \LaTeX{};
-reproducibility
+```yaml
+abstract: |
+  This paper presents a systematic comparison of documents produced
+  using CLI-based typesetting tools against those produced using
+  graphical desktop publishing applications. Our principal finding is
+  that CLI-produced documents match or exceed the quality of graphical
+  alternatives when the workflow is configured deliberately.
+keywords:
+  - typography
+  - CLI tools
+  - Pandoc
+  - Typst
+  - reproducibility
 ```
 
-The keyword line is placed immediately below the abstract with `\noindent` to ensure it does not inherit paragraph indentation.
+The template can then decide whether the abstract is centred, narrower than the body text, or separated by a rule. That keeps the source portable while preserving print discipline.
 
 ### Mathematics
 
-Mathematical content uses the `amsmath` environments. Inline mathematics appears in `$...$`; displayed equations use `\[...\]` for single equations and `align` for multi-line work:
+Keep mathematics in the Markdown body so it survives every output target. Quarto-style labels or `pandoc-crossref` labels make equations referenceable without handwritten backend commands:
 
-```latex
-Following \citet{bringhurst2012}, we define quality as:
-\begin{equation}
-  Q = \sum_{i=1}^{5} w_i q_i \label{eq:quality}
-\end{equation}
+```markdown
+Following [@bringhurst2012], we define quality as:
+
+$$
+Q = \sum_{i=1}^{5} w_i q_i
+$$ {#eq-quality}
+
 where $q_i$ are the individual dimension scores and $w_i$ are the
-weights derived from expert panel assessment. \Cref{eq:quality} shows
-that overall quality is a weighted linear combination.
+weights derived from expert assessment. Equation @eq-quality shows that
+overall quality is a weighted linear combination.
 ```
 
-`\citet{}` produces "Bringhurst (2012)" — the author name incorporated grammatically into the sentence. `\citep{}` produces "(Bringhurst, 2012)" — the citation in parentheses at the end of a clause. Use `\citet{}` when the author is the grammatical subject; use `\citep{}` when the citation is a parenthetical reference.
+That same equation can be rendered by HTML math support, Typst, or a LaTeX fallback without changing the source.
 
 ### Tables
 
-A simple two-dimensional table with `booktabs` rules:
+Simple article tables should begin as Markdown, because the same source then works in HTML, EPUB, and PDF:
 
-```latex
-\begin{table}[ht]
-  \centering
-  \caption{Document corpus composition}
-  \label{tab:corpus}
-  \begin{tabular}{lcc}
-    \toprule
-    Category          & Count & Mean pages \\
-    \midrule
-    Academic articles &    42 &       14.3 \\
-    Technical reports &    35 &       28.7 \\
-    Correspondence    &    28 &        2.1 \\
-    Reference manuals &    15 &       67.4 \\
-    \midrule
-    Total             &   120 &       19.8 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+```markdown
+| Category          | Count | Mean pages |
+|:------------------|------:|-----------:|
+| Academic articles |    42 |       14.3 |
+| Technical reports |    35 |       28.7 |
+| Correspondence    |    28 |        2.1 |
+| Reference manuals |    15 |       67.4 |
+| Total             |   120 |       19.8 |
+
+: Document corpus composition {#tbl-corpus}
 ```
 
-The `[ht]` placement specifier asks LaTeX to place the table *here* if it fits, or at the *top* of the next page if not. Avoid `[H]` (the `float` package's forced-here placement) in articles: it causes tables to disrupt text flow rather than floating to appropriate positions. Let LaTeX handle placement; adjust the body text to reference tables correctly rather than forcing them into specific positions.
+If the print layout needs stronger control, move the table styling into Typst rather than rewriting the data in a different source language:
+
+```typst
+#table(
+  columns: (2fr, auto, auto),
+  stroke: none,
+  table.header(
+    [*Category*], [*Count*], [*Mean pages*],
+  ),
+  [Academic articles], [42], [14.3],
+  [Technical reports], [35], [28.7],
+  [Correspondence], [28], [2.1],
+  [Reference manuals], [15], [67.4],
+  table.hline(),
+  [*Total*], [*120*], [*19.8*],
+)
+```
 
 ### Cross-references
 
-With `cleveref` loaded, cross-references write themselves:
+Cross-references should live at the source level, not in backend commands. With Quarto or `pandoc-crossref`, the body text stays readable:
 
-```latex
-\cref{tab:corpus}    % produces "Table 1"
-\cref{eq:quality}    % produces "Equation (1)"
-\cref{fig:results}   % produces "Figure 2"
-\Cref{tab:corpus}    % produces "Table 1" (capitalised, for sentence start)
-
-% Multiple references:
-\cref{eq:quality,tab:corpus}  % produces "Equation (1) and Table 1"
+```markdown
+As shown in @tbl-corpus, our dataset contains 120 documents.
+The quality equation (@eq-quality) defines the scoring metric.
+See also @fig-results for the final comparison.
 ```
 
-This is the correct approach for all cross-references. Hard-coded numbers ("see Table 2") break when the document is reorganised; `\ref{tab:corpus}` works but produces only the number without the type label, requiring the author to maintain "Table~\ref{}" throughout the document. `\cref` is the cleanest solution.
+This is the right habit for every backend. Hard-coded numbers break as soon as the document is reorganised.
 
 ### Bibliography
 
-The bibliography requires a `.bib` file and a compilation sequence. With `natbib`:
+Bibliographic data should stay in a citation database and be cited from the Markdown source:
 
-```bibtex
-@book{lamport1994,
-  author    = {Lamport, Leslie},
-  title     = {{\LaTeX}: A Document Preparation System},
-  publisher = {Addison-Wesley},
-  year      = {1994},
-  edition   = {2}
-}
+```markdown
+Typography was defined by [@bringhurst2012] as the craft of endowing
+human language with a durable visual form.
+
+The line-breaking algorithm discussed in [@knuth1984] considers the
+paragraph as a whole rather than individual lines.
 ```
 
-In the document:
+In a direct Typst workflow, the bibliography can be attached explicitly:
 
-```latex
-\bibliographystyle{plainnat}
-\bibliography{references}
+```typst
+#bibliography("references.bib", style: "apa")
 ```
 
-Compile sequence: `pdflatex` → `bibtex` → `pdflatex` → `pdflatex`. With `latexmk`:
-
-```sh
-latexmk -pdf article.tex
-```
-
-`latexmk` runs the correct sequence automatically, detecting whether BibTeX needs to run and whether additional LaTeX passes are needed to resolve all references.
+In a Pandoc or Quarto workflow, `--citeproc` or Quarto's built-in citation processing resolves the same keys for HTML, EPUB, and PDF.
 
 
-## A Pandoc article
+## The primary Pandoc or Quarto article workflow
 
-For articles that need multiple output formats — HTML for a preprint server, PDF for the journal, DOCX for a co-author who uses Word — Pandoc Markdown with a custom LaTeX template provides the same structure from a single source.
+For articles that need multiple output formats — HTML for a preprint server, PDF for review or print, DOCX for a co-author who uses Word — Pandoc Markdown or Quarto should be the canonical source. Use Typst for PDF when you want a programmable print layout with less template overhead; keep a LaTeX template only for venues that depend on LaTeX packages or class files.
 
 The Markdown front matter replicates the LaTeX title block:
 
@@ -200,69 +221,52 @@ abstract: |
   graphical desktop publishing applications. Our principal finding is
   that CLI-produced documents, when configured appropriately, match or
   exceed the quality of graphical alternatives.
-keywords: [typography, CLI, Pandoc, LaTeX, reproducibility]
+keywords: [typography, CLI, Pandoc, Typst, reproducibility]
 bibliography: references.bib
 numbersections: true
 ---
 ```
 
-The LaTeX template must declare all packages the body uses:
+The equivalent Typst template can stay much thinner because the layout logic is built into the language rather than spread across a preamble:
 
-```latex
-\documentclass[11pt,a4paper]{article}
-\usepackage[T1]{fontenc}
-\usepackage[protrusion=true,expansion=false]{microtype}
-\usepackage{geometry}
-\geometry{margin=25mm}
-\usepackage{amsmath,amssymb}
-\usepackage{booktabs,longtable}
-\usepackage{natbib}
-\usepackage{hyperref}
-\hypersetup{colorlinks=true, linkcolor=blue!60!black,
-            citecolor=blue!60!black}
-\usepackage{abstract}
-\renewcommand{\abstractnamefont}{\normalfont\bfseries}
-\setlength{\absleftindent}{10mm}
-\setlength{\absrightindent}{10mm}
+```typst
+#let article(meta, body) = {
+  set page(paper: "a4", margin: (x: 25mm, y: 25mm))
+  set text(font: "Libertinus Serif", size: 11pt)
+  set par(justify: true)
 
-% Required by Pandoc for tight lists
-\providecommand{\tightlist}{%
-  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+  article-title(meta)
 
-\title{$title$$if(subtitle)$\\[0.3em]\large $subtitle$$endif$}
-\author{$for(author)$$author$$sep$\\$endfor$}
-\date{$date$}
+  if meta.abstract != none [
+    v(10pt, weak: true)
+    block(inset: 10pt, fill: rgb("#f8fafc"))[
+      *Abstract.* #meta.abstract
+      if meta.keywords != none [
+        #v(5pt)
+        *Keywords:* #meta.keywords.join(", ")
+      ]
+    ]
+  ]
 
-\begin{document}
-\maketitle
-
-$if(abstract)$
-\begin{abstract}$abstract$\end{abstract}
-$if(keywords)$
-\noindent\textbf{Keywords:} $for(keywords)$$keywords$$sep$; $endfor$
-$endif$
-$endif$
-
-$body$
-
-\bibliographystyle{plainnat}
-\bibliography{references}
-
-\end{document}
+  v(12pt, weak: true)
+  body
+  bibliography("references.bib")
+}
 ```
 
-Note the `longtable` package declaration: Pandoc renders Markdown tables as LaTeX `longtable` environments, which can span multiple pages. A template that does not include `\usepackage{longtable}` fails to compile any document containing tables.
+The important design principle is that the template consumes metadata and body content without forcing the author to duplicate structure in the PDF layer.
 
-Render to HTML and PDF:
+Render to HTML and a default Typst-backed PDF:
 
 ```sh
 pandoc article.md --standalone --toc --number-sections \
   --citeproc -o article.html
 
-pandoc article.md --template=article.latex \
-  --pdf-engine=pdflatex --number-sections \
-  -o article.pdf
+pandoc article.md --citeproc --number-sections \
+  --pdf-engine=typst -o article.pdf
 ```
+
+If a venue requires a legacy PDF backend, switch only the PDF command and keep the Markdown source unchanged.
 
 For cross-references within the Pandoc workflow, the `pandoc-crossref` filter adds `@fig-label`, `@tbl-label`, and `@eq-label` syntax analogous to Quarto's built-in cross-references:
 
@@ -282,252 +286,233 @@ which produces "as shown in Table 1" and "the quality equation (Equation 1)" in 
 
 ## A technical report
 
-A technical report differs from a journal article in scale and structure: it typically has a formal title page, a table of contents, a list of figures and tables, multiple chapters, code listings, appendices, and a two-sided layout for printing.
+A technical report differs from a journal article in scale and structure: it typically has a formal title page, a table of contents, a list of figures and tables, multiple chapters, code listings, appendices, and a two-sided layout for printing. The source should still stay in Markdown chapters plus defaults files. For most house styles, Typst is a better PDF-first target than a large report preamble; a native LaTeX report backend is mainly justified when an institution already owns a class file or requires specific packages.
 
 ### Document structure
 
-Use the `report` class rather than `article`. The `report` class provides `\chapter{}`, treats chapters as the top structural level, and generates appropriate running headers.
+For reports, keep the source split into Markdown chapters and let the PDF backend add the title page, table of contents, appendices, and running heads. A typical project:
 
-```latex
-\documentclass[11pt,a4paper,twoside]{report}
-\usepackage{geometry}
-\geometry{a4paper, top=30mm, bottom=25mm, left=30mm, right=25mm,
-          bindingoffset=10mm, twoside}
+```text
+report/
+├── report.qmd
+├── sections/
+│   ├── 01-summary.md
+│   ├── 02-method.md
+│   └── 03-results.md
+├── references.bib
+└── styles/
+    ├── report.typ
+    └── report.css
 ```
 
-The `twoside` class option and geometry option enable different inner and outer margins for recto and verso pages. The `bindingoffset=10mm` adds extra space at the spine.
+The source files remain content-first. Page geometry, front matter, and print-specific rules live in `report.typ`.
 
 ### Title page
 
-A manually constructed title page gives more control than `\maketitle`:
+The report's front matter can be described in metadata and formatted in Typst:
 
-```latex
-\begin{titlepage}
-\centering
-\vspace*{2cm}
-{\Large\bfseries Technical Report TR-2024-03}\\[1em]
-{\huge\bfseries CLI-Based Document Production:\\
-  Automation and Quality in Practice}\\[2em]
-{\large A. N. Author and B. M. Collaborator}\\[0.5em]
-{\normalsize Department of Information Design\\
-  University of Example}\\[2em]
-{\normalsize March 2024}\\[3em]
-\vfill
-{\small This report describes the design and evaluation of an automated
-document production system. The system reduces production time by
-60\% while maintaining typographic quality.}
-\end{titlepage}
+```yaml
+---
+title: "CLI-Based Document Production"
+subtitle: "Automation and Quality in Practice"
+report-number: "TR-2024-03"
+author:
+  - "A. N. Author"
+  - "B. M. Collaborator"
+institution: "Department of Information Design, University of Example"
+date: "March 2024"
+summary: |
+  This report describes the design and evaluation of an automated
+  document production system that reduces production time by 60%
+  while maintaining typographic quality.
+---
+```
+
+```typst
+#align(center)[
+  #text(size: 14pt, weight: "bold")[TR-2024-03]
+  #v(16pt)
+  #text(size: 24pt, weight: "bold")[CLI-Based Document Production]
+  #v(6pt)
+  #text(size: 13pt, style: "italic")[Automation and Quality in Practice]
+  #v(18pt)
+  A. N. Author and B. M. Collaborator\
+  Department of Information Design\
+  University of Example
+  #v(18pt)
+  March 2024
+]
 ```
 
 ### Front matter
 
-```latex
-\tableofcontents
-\listoffigures
-\listoftables
+The report template should generate the standard prefatory material automatically:
+
+```typst
+#outline(title: [Contents])
+#pagebreak()
+#outline(title: [Figures], target: figure.where(kind: image))
+#pagebreak()
+#outline(title: [Tables], target: figure.where(kind: table))
 ```
 
-These commands generate the standard prefatory lists. They require at least two compilation passes to populate correctly. `\listoffigures` and `\listoftables` are optional but expected in formal technical reports.
+These lists are optional in short reports but expected in formal, print-oriented work.
 
 ### Code listings
 
-The `listings` package typesets source code with syntax highlighting, line numbers, and a frame:
+Code listings should remain ordinary fenced code blocks in the Markdown source:
 
-```latex
-\usepackage{listings}
-\usepackage{xcolor}
-
-\lstset{
-  basicstyle=\small\ttfamily,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!5},
-  numberstyle=\tiny\color{gray},
-  numbers=left,
-  xleftmargin=2em,
-  framexleftmargin=1.5em,
-  captionpos=b
-}
-```
-
-A code listing with a caption and label:
-
-```latex
-\begin{lstlisting}[language=yaml,
-                   caption={Production defaults file},
-                   label={lst:config}]
+````markdown
+```yaml
+#| label: lst-config
+#| tbl-cap: Production defaults file
 from: markdown
 to: pdf
-pdf-engine: xelatex
+pdf-engine: typst
 mainfont: "EB Garamond"
-geometry: "margin=25mm"
 toc: true
-\end{lstlisting}
 ```
+````
 
-The `minted` package is an alternative that uses Pygments for higher-quality syntax highlighting, but it requires Python and Pygments to be installed and the LaTeX run invoked with `--shell-escape`. For reports that will be built in controlled environments, `minted` produces better-looking code; for portable reports where the build environment is uncertain, `listings` is more reliable.
+Quarto and Pandoc can style those listings for HTML automatically, while the Typst template controls code font, background, numbering, and caption spacing for PDF output.
 
 ### Subfigures
 
-Technical reports often need multiple related figures placed side by side. The `subcaption` package handles this:
+Related figures can be grouped in source with a layout div or a Typst grid:
 
-```latex
-\usepackage{subcaption}
-
-\begin{figure}[ht]
-  \centering
-  \begin{subfigure}[b]{0.48\textwidth}
-    \includegraphics[width=\textwidth]{fig-before}
-    \caption{Before optimisation}
-    \label{fig:before}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.48\textwidth}
-    \includegraphics[width=\textwidth]{fig-after}
-    \caption{After optimisation}
-    \label{fig:after}
-  \end{subfigure}
-  \caption{Line-breaking quality before and after microtype}
-  \label{fig:comparison}
-\end{figure}
+```typst
+#figure(
+  caption: [Line-breaking quality before and after optimisation],
+  grid(
+    columns: 2,
+    gutter: 10pt,
+    figure(image("fig-before.png"), caption: [Before optimisation]),
+    figure(image("fig-after.png"), caption: [After optimisation]),
+  ),
+) <fig-comparison>
 ```
 
-`\cref{fig:comparison}` produces "Figure 2"; `\cref{fig:before}` produces "Figure 2a". Subcaption integrates correctly with `cleveref`.
+In the text, refer to `@fig-comparison` from Markdown or Quarto source.
 
 ### Appendices
 
-```latex
-\appendix
+Appendices should be ordinary Markdown chapters flagged as appendices in the build order:
 
-\chapter{Installation Guide}
-\label{app:install}
+```markdown
+# Appendix: Installation Guide {#app-install}
 
-\section{Prerequisites}
+## Prerequisites
 
 ...
 ```
 
-The `\appendix` command switches chapter numbering from Arabic to uppercase Roman letters. All chapters after `\appendix` are labelled Appendix A, Appendix B, and so on. Cross-references before `\appendix` work normally; cross-references to appendix content use `\cref{app:install}`, which produces "Appendix A".
+If the PDF template needs lettered appendices, that numbering rule belongs in the template, not in the chapter source.
 
 ### Running headers for reports
 
-With `fancyhdr`, two-sided reports get chapter and section information in their headers:
+Running headers are another backend concern. In Typst, the page setup can pull the current heading into the header area:
 
-```latex
-\usepackage{fancyhdr}
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[LE]{\small\leftmark}      % chapter on left of even pages
-\fancyhead[RO]{\small\rightmark}     % section on right of odd pages
-\fancyfoot[C]{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+```typst
+#set page(
+  header: context {
+    let here = counter(heading).get()
+    align(center)[#smallcaps[Section #here.at(0)]]
+  },
+  footer: context align(center)[#counter(page).display()],
+)
 ```
 
-The macros `\leftmark` and `\rightmark` contain the current chapter and section names respectively, updated automatically as the document progresses. The `LE`/`RO` specifiers mean "Left on Even pages" and "Right on Odd pages" — the standard arrangement for two-sided documents.
+The principle is the same whatever backend you use: the content source should not carry page furniture.
 
 
 ## A two-column magazine layout
 
-The two-column layout is the standard for many academic journals and some technical magazines. LaTeX's `twocolumn` class option enables it globally; the challenge is handling the title, abstract, and wide elements that must span both columns.
+The two-column layout is the standard for many academic journals and some technical magazines. In a Markdown-first workflow, this is usually the point where Typst becomes more attractive than raw LaTeX: columns, placed figures, and headline styling can live in a PDF template instead of in an expanding preamble. LaTeX's `twocolumn` option is still worth understanding because some institutional workflows still depend on it, but it should be treated as a compatibility path rather than the default starting point.
 
 ### The `twocolumn` class option
 
-```latex
-\documentclass[10pt,a4paper,twocolumn]{article}
-\usepackage{geometry}
-\geometry{a4paper, top=20mm, bottom=20mm,
-          left=15mm, right=15mm, columnsep=6mm}
+For a modern two-column article, it is usually cleaner to define the columns in Typst or CSS rather than rely on an old document-class switch. In Typst:
+
+```typst
+#set page(paper: "a4", margin: (x: 15mm, y: 20mm))
+#set text(font: "Source Serif 4", size: 10pt)
+
+#set par(justify: true)
+#show heading.where(level: 1): it => block(columns: 2, above: 1em, below: 0.6em)[
+  #set text(size: 18pt, weight: "bold")
+  #it
+]
 ```
 
-The `columnsep` geometry option sets the gap between columns. Six millimetres is a typical value for 10-point text on A4; for wider columns or larger text, eight or ten millimetres may be more comfortable.
+The column gap is a design choice, not a source-level concern. On A4 with 10-point type, six to eight millimetres is a useful starting range.
 
 ### A full-width title block
 
-In two-column mode, all content is set in columns by default. To place the title, abstract, and any other prefatory material at full page width, use the `\twocolumn[{...}]` command at the beginning of the document body:
+Two-column layouts still need a full-width title block and abstract. In Typst, place those before the body columns begin:
 
-```latex
-\begin{document}
+```typst
+#align(center)[
+  #text(size: 22pt, weight: "bold", fill: rgb("#12436d"))[
+    Typography at the Command Line
+  ]
+  #v(5pt)
+  #text(size: 12pt, style: "italic")[
+    Why serious document production belongs in a terminal
+  ]
+  #v(8pt)
+  #line(length: 100%, stroke: 0.6pt + rgb("#12436d"))
+]
 
-\twocolumn[{%
-\begin{center}
-  {\huge\bfseries\color{magazineblue}
-   Typography at the Command Line}\\[8pt]
-  {\large Why serious document production belongs in a terminal}\\[4pt]
-  {\small\itshape A. N. Author \quad|\quad
-   \textit{The CLI Typographer} \quad|\quad March 2024}\\[6pt]
-  \rule{\linewidth}{1pt}
-\end{center}
-\vspace{8pt}
-}]
-```
-
-Everything inside the `[{...}]` argument is typeset at full width before the two-column body begins. The closing `\vspace{8pt}` adds space between the title block and the first column text.
-
-For a full-width abstract as well — the standard practice in many journals — include it in the `\twocolumn[{...}]` argument:
-
-```latex
-\twocolumn[{%
-\maketitle
-\begin{abstract}
-  The abstract text, which spans the full width of the page
-  before the two-column body begins.
-\end{abstract}
-\rule{\linewidth}{0.4pt}
-\vspace{6pt}
-}]
+#block(inset: (x: 8mm, y: 5mm), fill: rgb("#f8fafc"))[
+  *Abstract.* The abstract spans the full page width before the
+  two-column body begins.
+]
 ```
 
 ### Wide figures and tables in two-column mode
 
-The starred environments `figure*` and `table*` produce full-width floats in two-column mode:
+Wide figures should be treated as explicit layout events. Put them between columned sections rather than forcing the engine to guess:
 
-```latex
-\begin{figure*}[t]
-  \centering
-  \includegraphics[width=0.9\textwidth]{wide-figure}
-  \caption{A wide figure spanning both columns}
-  \label{fig:wide}
-\end{figure*}
+```typst
+#figure(
+  image("wide-figure.png", width: 90%),
+  caption: [A wide figure spanning both columns],
+) <fig-wide>
 ```
 
-The starred float environments can only be placed at the top (`[t]`) or bottom (`[b]`) of a page, not inline. This is a fundamental constraint of LaTeX's two-column float algorithm. Plan wide figures to appear at page boundaries, or use the `stfloats` package which allows bottom placement.
+In HTML output, the same effect is often better achieved with CSS grid and a figure that spans all columns.
 
 ### Column balance
 
-By default, the last page of a two-column document may have unequal columns if the text does not fill both evenly. The `balance` package corrects this:
-
-```latex
-\usepackage{balance}
-% At the end of the document, before the bibliography:
-\balance
-```
-
-`\balance` forces equal-length columns on the final page. For a magazine layout where visual balance matters, this is almost always desirable.
+The last page of a two-column article should not end with one long column and one stub unless there is a strong editorial reason. In practice, balance is handled by editing: cut or expand the text slightly, move a figure, or move a note to the following page. That is easier to reason about in a Typst or CSS layout than in a float-heavy legacy workflow.
 
 ### Drop caps
 
-A drop capital at the start of the first paragraph is a classic magazine convention. The `lettrine` package implements it:
+A drop capital at the start of the first paragraph is a classic magazine convention. In HTML it is a CSS concern:
 
-```latex
-\usepackage{lettrine}
-
-\lettrine[lines=2]{T}{he} graphical interface revolution of the 1980s
-convinced a generation that document production should look like design.
+```css
+.lede::first-letter {
+  float: left;
+  font-size: 3.2em;
+  line-height: 0.9;
+  padding-right: 0.08em;
+  font-family: "Source Serif 4", serif;
+}
 ```
 
-The `[lines=2]` option sets the drop capital to span two lines of body text. The capital itself and the continuation of the first word are given as the two mandatory arguments. `lettrine` can be configured for specific fonts, raised capitals rather than dropped, and small caps continuation text.
+For PDF, the same treatment belongs in the Typst template or style module, not in the article's source text.
 
 
-## Building articles from Pandoc Markdown
+## Building articles from Markdown with Typst or LaTeX
 
-The same Markdown source can drive both the journal-style and the two-column outputs with different templates. A defaults file for each:
+The same Markdown source can drive both the journal-style and the two-column outputs with different PDF backends. In a modern workflow, keep Typst as the default PDF target and swap away only when a legacy class or package requirement forces the change.
 
 ```yaml
 # article-defaults.yaml
 from: markdown
 to: pdf
-pdf-engine: pdflatex
-template: article-template.latex
+pdf-engine: typst
+template: styles/article.typ
 citeproc: true
 number-sections: true
 toc: false
@@ -537,21 +522,21 @@ toc: false
 # twocol-defaults.yaml
 from: markdown
 to: pdf
-pdf-engine: pdflatex
-template: twocol-template.latex
+pdf-engine: typst
+template: styles/twocol.typ
 citeproc: true
 number-sections: false
 ```
 
-The two-column template adds `twocolumn` to the `\documentclass` options and wraps the title block in `\twocolumn[{...}]`.
+The two-column template changes only the page geometry, title treatment, and article body layout. The source content remains identical.
 
 For the Makefile:
 
 ```makefile
-article.pdf: article.md article-template.latex references.bib
+article.pdf: article.md styles/article.typ references.bib
 	pandoc --defaults=article-defaults.yaml $< -o $@
 
-twocol.pdf: article.md twocol-template.latex references.bib
+twocol.pdf: article.md styles/twocol.typ references.bib
 	pandoc --defaults=twocol-defaults.yaml $< -o $@
 
 article.html: article.md

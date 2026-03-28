@@ -170,7 +170,15 @@ pandoc input.md --standalone --toc --number-sections \
   --css=style.css -o output.html
 ```
 
-**PDF via XeLaTeX with custom fonts:**
+**PDF via Typst:**
+```sh
+pandoc input.md --pdf-engine=typst \
+  -M mainfont="EB Garamond" \
+  -M geometry="margin=25mm" \
+  -o output.pdf
+```
+
+**PDF via XeLaTeX with custom fonts when LaTeX compatibility is required:**
 ```sh
 pandoc input.md --pdf-engine=xelatex \
   -M mainfont="EB Garamond" \
@@ -191,7 +199,7 @@ pandoc input.md --toc --split-level=1 \
 ```sh
 pandoc metadata.yaml chapters/*.md \
   --citeproc --bibliography=refs.bib \
-  --pdf-engine=xelatex \
+  --pdf-engine=typst \
   --toc --number-sections \
   -o book.pdf
 ```
