@@ -1,156 +1,93 @@
 # Tables and Complex Layouts
 
-Tables are among the most typographically demanding elements in document production. They involve simultaneous decisions about column widths, alignment, spacing, rules, captions, and placement — and they must remain readable, not merely correct. LaTeX's table system is powerful but complex; Markdown's table syntax is simple but limited; the gap between what authors want and what the tools produce by default is wider for tables than for almost any other element.
+Tables are among the most typographically demanding elements in document production. They involve simultaneous decisions about column widths, alignment, spacing, rules, captions, and placement — and they must remain readable, not merely correct. In a Markdown-first workflow, tables are also where authors are most tempted to abandon the source-neutral path too early. The right response is not to jump straight into raw LaTeX, but to decide carefully which layer should own the complexity: Markdown or CSV for simple data, CSS or Quarto for web presentation, and Typst or another PDF backend only when page-specific control is truly needed.
 
-This chapter covers the main table packages and techniques, along with the related challenges of spanning layouts: sidebars, marginalia, callout boxes, and wrapfigures.
+This chapter therefore treats Markdown, HTML/CSS, and Typst-style backend logic as the default path, with LaTeX packages covered as backend-specific techniques when you are already committed to a LaTeX template. The same principle applies to spanning layouts such as sidebars, marginalia, callout boxes, and wrapfigures.
 
 
-## The table package stack
+## Markdown and backend-aware table workflows
 
-Every serious LaTeX document with tables should load at least three packages: `booktabs`, `longtable`, and `multirow`. Together they cover the majority of table requirements. For tables that must stretch to fill the text width, add `tabularx` or `tabularray`.
+Start with the simplest representation that preserves the data cleanly. Plain Markdown tables and CSV-backed generation are easiest to maintain in Git; when the PDF needs spanning cells, repeated headers, or strict width control, move the table logic into the print backend instead of abandoning the whole workflow. Typst's table primitives are often a better next step than backend-specific macro work.
 
-```latex
-\usepackage{booktabs}    % professional rules
-\usepackage{longtable}   % multi-page tables
-\usepackage{multirow}    % cells spanning multiple rows
-\usepackage{tabularx}    % auto-width columns
-\usepackage{array}       % enhanced column specifications
+### Simple tables and grouped headers
+
+For most documents, the source should begin as a plain Markdown table:
+
+```markdown
+| Tool   | Primary output | Math      | Compilation speed |
+|:-------|:---------------|:----------|------------------:|
+| Typst  | PDF            | Good      | Fast              |
+| Pandoc | Many formats   | Moderate  | Fast              |
+| Quarto | Many formats   | Moderate  | Moderate          |
+
+: CLI typesetting tools {#tbl-tools}
 ```
 
-### booktabs: professional table rules
+The important design rules are the same regardless of backend:
 
-The `booktabs` package provides four rule commands that replace LaTeX's `\hline`:
+- no vertical rules
+- strong distinction between header and body
+- right alignment for numeric data
+- consistent spacing rather than decorative lines
 
-- `\toprule` — thick rule at the top of the table
-- `\midrule` — medium rule within the table (above data rows)
-- `\bottomrule` — thick rule at the bottom of the table
-- `\cmidrule{m-n}` — partial rule spanning columns `m` through `n`
+When grouped headers are needed, move the layout into Typst:
 
-```latex
-\begin{table}[ht]
-\centering
-\caption{CLI typesetting tools}
-\label{tab:tools}
-\begin{tabular}{llcc}
-\toprule
-Tool   & Primary output & Math      & Compilation speed \\
-\midrule
-LaTeX  & PDF            & Excellent & Slow              \\
-Typst  & PDF            & Good      & Fast              \\
-Pandoc & Many formats   & Moderate  & Fast              \\
-Quarto & Many formats   & Via LaTeX & Moderate          \\
-\bottomrule
-\end{tabular}
-\end{table}
+```typst
+#table(
+  columns: (auto, auto, auto, auto),
+  align: (left, left, right, right),
+  table.header(
+    table.cell(colspan: 2)[*Source*],
+    table.cell(colspan: 2)[*Output*],
+  ),
+  [Format], [Engine], [PDF], [HTML],
+  [Markdown], [Pandoc + Typst], [Excellent], [n/a],
+  [Markdown], [Pandoc + HTML], [Good], [Excellent],
+  [Typst], [Native], [Excellent], [n/a],
+)
 ```
-
-The spacing around `booktabs` rules is set by `\aboverulesep` and `\belowrulesep` — the package's defaults are carefully chosen. Do not add `\hline` or extra `\\[...]` spacing between rows; the `booktabs` rules handle all the spacing. The central rule of `booktabs` usage: **no vertical rules**. Vertical rules in tables add visual noise without adding information. Column separation is achieved through spacing alone.
-
-`\cmidrule` spans a subset of columns and is used to separate grouped headers:
-
-```latex
-\begin{tabular}{llll}
-\toprule
-\multicolumn{2}{c}{Source} & \multicolumn{2}{c}{Output} \\
-\cmidrule(lr){1-2}\cmidrule(lr){3-4}
-Format   & Engine        & PDF       & HTML \\
-\midrule
-Markdown & Pandoc+LaTeX  & Excellent & Good \\
-Markdown & Pandoc+Typst  & Excellent & n/a  \\
-\LaTeX   & pdfLaTeX      & Excellent & Poor \\
-\bottomrule
-\end{tabular}
-```
-
-The `(lr)` option on `\cmidrule` trims the rule slightly at left and right, preventing it from touching adjacent rules — a refinement that the booktabs documentation recommends.
 
 ### Cells spanning multiple rows
 
-The `multirow` package provides `\multirow{n}{width}{text}` for cells that span `n` rows:
+Spanning rows is a layout feature, so it belongs in the PDF backend rather than in ad hoc source hacks:
 
-```latex
-\usepackage{multirow}
-
-\begin{tabular}{llll}
-\toprule
-Source & Engine & PDF & HTML \\
-\midrule
-\multirow{3}{*}{Markdown}
-  & Pandoc + pdfLaTeX & Good      & Good \\
-  & Pandoc + XeLaTeX  & Excellent & Good \\
-  & Pandoc + Typst    & Excellent & n/a  \\
-\midrule
-\LaTeX & pdfLaTeX & Excellent & Poor \\
-\bottomrule
-\end{tabular}
+```typst
+#table(
+  columns: (auto, auto, auto, auto),
+  table.header([Source], [Engine], [PDF], [HTML]),
+  table.cell(rowspan: 3)[Markdown],
+  [Pandoc + HTML], [Good], [Excellent],
+  [Pandoc + Typst], [Excellent], [n/a],
+  [Pandoc + DOCX], [n/a], [n/a],
+  [Typst], [Native], [Excellent], [n/a],
+)
 ```
 
-The `{*}` width argument tells `\multirow` to size the cell automatically. The cells in rows 2 and 3 of the first column are left empty — `\multirow` spans them visually.
+The table data still originates cleanly in Markdown, CSV, or YAML; the spanning behaviour is introduced only where the final page geometry is known.
 
 ### Tables that fill the text width
 
-Standard `tabular` columns are only as wide as their content. For tables that should span the full text width — particularly for tables with descriptive text in a column — `tabularx` provides an `X` column type that automatically adjusts to fill the remaining space:
+When a table needs one descriptive column and one short label column, Typst's fractional widths are usually enough:
 
-```latex
-\usepackage{tabularx}
-
-\begin{tabularx}{\textwidth}{lX}
-\toprule
-Package & Description \\
-\midrule
-booktabs  & Professional rules without vertical lines. Provides
-            \texttt{\textbackslash toprule}, \texttt{\textbackslash midrule},
-            and \texttt{\textbackslash bottomrule}. \\
-longtable & Tables that span multiple pages with automatic header
-            repetition on each subsequent page. \\
-tabularx  & Extends the standard tabular to stretch to a specified
-            width using automatically sized \texttt{X} columns. \\
-\bottomrule
-\end{tabularx}
+```typst
+#table(
+  columns: (1fr, 3fr),
+  table.header([*Package*], [*Description*]),
+  [table], [Structured tables with explicit column sizing and alignment.],
+  [grid], [Useful when the content is logically tabular but visually irregular.],
+  [figure], [A better wrapper when the table needs a caption and cross-reference.],
+)
 ```
 
-Multiple `X` columns divide the available space equally. For unequal widths, the `tabularray` package (available in recent TeX Live) provides `Q[co=2]` and similar proportional specifications.
+For HTML output, use CSS `table-layout: fixed` or a `colgroup` only when the browser's default sizing produces bad results. Most tables improve more from better content and shorter prose than from heavier width control.
 
-### Multi-page tables with longtable
+### Multi-page tables
 
-When a table may span multiple pages, use `longtable`. It handles the header repetition automatically:
+When a table may span multiple pages, the best strategy is usually to keep the data outside the prose source and generate the table from CSV or JSON. In practice that means a data file such as `package-order.csv` plus a build step in Quarto or Pandoc that reads the data and renders it as a table for the target format.
 
-```latex
-\usepackage{longtable}
+A `.qmd` chapter might include an executable cell that reads the CSV and labels the resulting table; a plain Pandoc workflow can do the same with a preprocessing step that emits Markdown. The important point is that the data stays tabular and editable outside the prose manuscript.
 
-\begin{longtable}{lll}
-\caption{Package loading order}
-\label{tab:packages} \\
-\toprule
-Package    & Purpose            & Load when \\
-\midrule
-\endfirsthead                   % end of first-page header
-% Header repeated on subsequent pages:
-\multicolumn{3}{c}{\tablename~\thetable{} — continued} \\
-\toprule
-Package    & Purpose            & Load when \\
-\midrule
-\endhead                        % end of repeated header
-% Footer on all pages except last:
-\midrule
-\multicolumn{3}{r}{Continued on next page} \\
-\endfoot                        % end of repeated footer
-% Footer on last page only:
-\bottomrule
-\endlastfoot                    % end of last-page footer
-geometry   & Page dimensions    & Preamble \\
-fontspec   & Font selection     & Early     \\
-microtype  & Microtypography    & Early     \\
-booktabs   & Table rules        & Any       \\
-longtable  & Multi-page tables  & Any       \\
-hyperref   & PDF links          & Last      \\
-cleveref   & Smart references   & After hyperref \\
-\end{longtable}
-```
-
-`longtable` does not go inside a `table` float — it handles its own placement and captioning. The four header/footer commands (`\endfirsthead`, `\endhead`, `\endfoot`, `\endlastfoot`) define what appears on the first page, subsequent pages, all-but-last footers, and the last page footer respectively.
-
-Pandoc renders all Markdown tables as `longtable` environments, which is why `\usepackage{longtable}` must appear in any custom LaTeX template.
+For PDF, the template or execution layer is responsible for repeating headers and splitting pages cleanly. That keeps the source data maintainable and avoids hand-editing large tables in prose files.
 
 
 ## Table alignment in CSS
@@ -189,106 +126,37 @@ For the `text-align: right` convention on numeric columns, target specific colum
 
 ## Sidebars and callout boxes
 
-Sidebars — blocks of supplementary text set apart from the main column — appear in technical books, textbooks, and reference manuals. The `tcolorbox` package provides the most flexible implementation:
-
-```latex
-\usepackage{tcolorbox}
-\tcbuselibrary{skins, breakable}
-
-% Define a "note" callout
-\newtcolorbox{notebox}[1][]{
-  enhanced,
-  breakable,
-  colback=blue!5,
-  colframe=blue!60!black,
-  fonttitle=\bfseries\sffamily,
-  title={Note},
-  #1
-}
-
-% Define a "warning" callout
-\newtcolorbox{warnbox}[1][]{
-  enhanced,
-  breakable,
-  colback=orange!10,
-  colframe=orange!80!black,
-  fonttitle=\bfseries\sffamily,
-  title={Warning},
-  #1
-}
-
-% Usage:
-\begin{notebox}
-The \texttt{fontspec} package requires XeLaTeX or LuaLaTeX.
-Using it with pdfLaTeX produces an error.
-\end{notebox}
-
-\begin{warnbox}[title={Critical}]
-Always verify font embedding before sending a PDF to a printer.
-\end{warnbox}
-```
-
-The `breakable` library option allows boxes to split across page boundaries — essential for callouts that contain more than a few lines.
-
-For Pandoc Markdown documents, callout boxes are created with fenced divs and a Lua filter that maps them to the appropriate LaTeX environments:
+Sidebars — blocks of supplementary text set apart from the main column — appear in technical books, textbooks, and reference manuals. In a Markdown-first workflow, the source should normally express them as fenced divs or Quarto callouts and leave the presentation to the backend:
 
 ```markdown
 ::: {.note}
-The `fontspec` package requires XeLaTeX or LuaLaTeX.
+Choose a PDF engine and font stack that actually support the scripts in your document.
 :::
 ```
 
-```lua
--- callouts-filter.lua
-function Div(el)
-  if FORMAT:match("latex") then
-    local env = el.classes[1]
-    if env == "note" or env == "warning" or env == "tip" then
-      local begin = pandoc.RawBlock("latex",
-        "\\begin{" .. env .. "box}")
-      local ending = pandoc.RawBlock("latex",
-        "\\end{" .. env .. "box}")
-      return {begin, table.unpack(el.content), ending}
-    end
-  end
-end
-```
+In HTML, CSS can render that as a sidebar or callout. In Typst, the same semantic class can map to a boxed block with a pale fill and stronger border. The key decision is that the source says "this is a note", not "draw a blue rectangle here".
 
 ### Marginalia
 
-The `marginnote` package provides `\marginnote{text}` for notes in the margin:
+Margin notes are best treated as a layout variant of an aside. In Quarto, the source can mark them with margin classes:
 
-```latex
-\usepackage{marginnote}
-\usepackage{geometry}
-\geometry{marginparwidth=30mm, marginparsep=5mm}
-
-% In the text:
-The baseline\marginnote{\small\textit{The invisible line on which
-letters rest.}} is the fundamental reference for vertical alignment.
+```markdown
+The baseline [The invisible line on which letters rest.]{.column-margin}
+is the fundamental reference for vertical alignment.
 ```
 
-`\marginnote` places the note at the vertical position of the command in the text, regardless of the current page's margin state. The `marginfix` package prevents marginnotes from overlapping each other when multiple notes appear close together.
-
-For Tufte-style documents — where wide margins contain running notes, citations, and figure captions — the `tufte-book` and `tufte-handout` classes provide a complete implementation. The Tufte classes significantly change the document geometry and the float system; they are not a drop-in replacement for `book` or `article`.
+In HTML, CSS places that content in the margin at wide breakpoints and in the body flow at narrow ones. In PDF, a Typst template can position the aside in the outer margin when the page size permits it.
 
 ### Wrapping text around figures
 
-The `wrapfig` package allows text to flow around a figure:
+Wrapped figures are usually better handled in HTML with `float` or grid-based CSS than in print PDFs, where they often create awkward white space. When you do need the effect in a web publication:
 
-```latex
-\usepackage{wrapfig}
-
-\begin{wrapfigure}{r}{0.4\textwidth}
-  \centering
-  \includegraphics[width=0.38\textwidth]{figure}
-  \caption{A wrapped figure}
-\end{wrapfigure}
-
-Body text that flows around the figure on the left side.
-The text continues for enough lines to clear the figure.
+```css
+.wrap-figure {
+  float: right;
+  width: 38%;
+  margin: 0 0 0.8rem 1rem;
+}
 ```
 
-The first argument `{r}` places the figure at the right; `{l}` places it at the left. The second argument sets the width of the figure area including any separation from the text.
-
-`wrapfig` is fragile: it does not interact well with `\clearpage`, `\newpage`, footnotes, or very tall figures. Use it only for short figures (four to eight lines) in body paragraphs, never at section boundaries or near other floats. For figures that must appear in a specific position, `wrapfig` is appropriate; for figures that can float to convenient positions, the standard `figure` environment is safer.
+Use wrapped figures only for short illustrations embedded in running text. For anything substantial, a normal block figure is almost always cleaner.

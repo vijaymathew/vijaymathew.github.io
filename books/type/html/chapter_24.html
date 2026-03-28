@@ -596,15 +596,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#building-a-reusable-latex-document-class" id="toc-building-a-reusable-latex-document-class" class="nav-link active" data-scroll-target="#building-a-reusable-latex-document-class"><span class="header-section-number">26.1</span> Building a reusable LaTeX document class</a>
+  <li><a href="#building-a-reusable-pdf-style-layer" id="toc-building-a-reusable-pdf-style-layer" class="nav-link active" data-scroll-target="#building-a-reusable-pdf-style-layer"><span class="header-section-number">26.1</span> Building a reusable PDF style layer</a>
   <ul class="collapse">
-  <li><a href="#class-file-structure" id="toc-class-file-structure" class="nav-link" data-scroll-target="#class-file-structure"><span class="header-section-number">26.1.1</span> Class file structure</a></li>
-  <li><a href="#adding-class-options" id="toc-adding-class-options" class="nav-link" data-scroll-target="#adding-class-options"><span class="header-section-number">26.1.2</span> Adding class options</a></li>
-  <li><a href="#the-requirepackage-vs-usepackage-distinction" id="toc-the-requirepackage-vs-usepackage-distinction" class="nav-link" data-scroll-target="#the-requirepackage-vs-usepackage-distinction"><span class="header-section-number">26.1.3</span> The <code>\RequirePackage</code> vs <code>\usepackage</code> distinction</a></li>
+  <li><a href="#module-structure" id="toc-module-structure" class="nav-link" data-scroll-target="#module-structure"><span class="header-section-number">26.1.1</span> Module structure</a></li>
+  <li><a href="#adding-controlled-options" id="toc-adding-controlled-options" class="nav-link" data-scroll-target="#adding-controlled-options"><span class="header-section-number">26.1.2</span> Adding controlled options</a></li>
+  <li><a href="#imports-and-responsibilities" id="toc-imports-and-responsibilities" class="nav-link" data-scroll-target="#imports-and-responsibilities"><span class="header-section-number">26.1.3</span> Imports and responsibilities</a></li>
   </ul></li>
   <li><a href="#pandoc-templates" id="toc-pandoc-templates" class="nav-link" data-scroll-target="#pandoc-templates"><span class="header-section-number">26.2</span> Pandoc templates</a>
   <ul class="collapse">
-  <li><a href="#the-latex-template-as-a-style-controller" id="toc-the-latex-template-as-a-style-controller" class="nav-link" data-scroll-target="#the-latex-template-as-a-style-controller"><span class="header-section-number">26.2.1</span> The LaTeX template as a style controller</a></li>
+  <li><a href="#backend-templates-as-style-controllers" id="toc-backend-templates-as-style-controllers" class="nav-link" data-scroll-target="#backend-templates-as-style-controllers"><span class="header-section-number">26.2.1</span> Backend templates as style controllers</a></li>
   <li><a href="#the-html-template-as-a-site-framework" id="toc-the-html-template-as-a-site-framework" class="nav-link" data-scroll-target="#the-html-template-as-a-site-framework"><span class="header-section-number">26.2.2</span> The HTML template as a site framework</a></li>
   </ul></li>
   <li><a href="#css-custom-property-systems-for-web-typography" id="toc-css-custom-property-systems-for-web-typography" class="nav-link" data-scroll-target="#css-custom-property-systems-for-web-typography"><span class="header-section-number">26.3</span> CSS custom property systems for web typography</a>
@@ -641,157 +641,101 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>The most valuable investment in any document production workflow is the template: the system that encodes typographic decisions once and applies them everywhere. A well-designed template means that producing a new document in an established style requires no design decisions — the document inherits its appearance from the template, the author focuses on content, and the result is consistent across every document the template produces.</p>
-<p>This chapter covers template development at three levels: LaTeX document classes, Pandoc HTML and LaTeX templates, and CSS custom property systems for web output.</p>
-<section id="building-a-reusable-latex-document-class" class="level2" data-number="26.1">
-<h2 data-number="26.1" class="anchored" data-anchor-id="building-a-reusable-latex-document-class"><span class="header-section-number">26.1</span> Building a reusable LaTeX document class</h2>
-<p>A document class is LaTeX’s highest-level reuse mechanism. Everything in the preamble — package loading, option handling, layout settings, custom commands — can be encoded in a <code>.cls</code> file that any document invokes with a single <code>\documentclass</code> declaration.</p>
-<section id="class-file-structure" class="level3" data-number="26.1.1">
-<h3 data-number="26.1.1" class="anchored" data-anchor-id="class-file-structure"><span class="header-section-number">26.1.1</span> Class file structure</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">% myarticle.cls</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\NeedsTeXFormat</span>{LaTeX2e}[2020/02/02]</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\ProvidesClass</span>{myarticle}[2024/01/01 v1.0 Custom article class]</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">% === Option handling ===</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">% Pass unknown options to the base class</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">\DeclareOption*</span>{<span class="fu">\PassOptionsToClass</span>{<span class="fu">\CurrentOption</span>}{article}}</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\ProcessOptions\relax</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">% === Base class ===</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\LoadClass</span>[11pt,a4paper]{article}</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">% === Required packages ===</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>[T1]{fontenc}</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{geometry}</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>[protrusion=true,expansion=false]{microtype}</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{fancyhdr}</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{titlesec}</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{booktabs}</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{longtable}</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{hyperref}</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="fu">\RequirePackage</span>{cleveref}</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co">% === Page geometry ===</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  a4paper,</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  top=30mm, bottom=25mm,</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  left=30mm, right=25mm</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="co">% === Section heading style ===</span></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="fu">\titleformat</span>{<span class="kw">\section</span>}</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\normalfont\large\bfseries</span>}</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\thesection</span>}{1em}{}</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="fu">\titleformat</span>{<span class="kw">\subsection</span>}</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\normalfont\normalsize\bfseries</span>}</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\thesubsection</span>}{1em}{}</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="co">% === Page style ===</span></span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="fu">\pagestyle</span>{fancy}</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyhf</span>{}</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyhead</span>[L]{<span class="fu">\small\textit</span>{<span class="fu">\leftmark</span>}}</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancyhead</span>[R]{<span class="fu">\small\thepage</span>}</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a><span class="fu">\renewcommand</span>{<span class="ex">\headrulewidth</span>}{0.4pt}</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="fu">\fancypagestyle</span>{plain}{<span class="co">%</span></span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\fancyhf</span>{}</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\fancyfoot</span>[C]{<span class="fu">\small\thepage</span>}</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\renewcommand</span>{<span class="ex">\headrulewidth</span>}{0pt}</span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co">% === Paragraph settings ===</span></span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="fu">\setlength</span>{<span class="fu">\parindent</span>}{1.5em}</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a><span class="fu">\setlength</span>{<span class="fu">\parskip</span>}{0pt}</span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a><span class="co">% === Hyperref defaults ===</span></span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="fu">\hypersetup</span>{</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>  colorlinks=true,</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>  linkcolor=blue!60!black,</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  citecolor=blue!60!black,</span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>  urlcolor=blue!60!black</span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a><span class="co">% === Custom commands ===</span></span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a><span class="fu">\newcommand</span>{<span class="ex">\cli</span>}[1]{<span class="fu">\texttt</span>{#1}}</span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a><span class="fu">\newcommand</span>{<span class="ex">\pkg</span>}[1]{<span class="fu">\textsf</span>{#1}}</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a><span class="fu">\newcommand</span>{<span class="ex">\file</span>}[1]{<span class="fu">\texttt</span>{#1}}</span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a><span class="fu">\endinput</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Placement: save as <code>myarticle.cls</code> in the same directory as the document, or in a local TeX tree (<code>~/texmf/tex/latex/myarticle/</code>). Documents then use:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>{<span class="ex">myarticle</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>All preamble decisions are centralised. To change the heading style for every document that uses this class, change <code>titlesec</code> settings in the class file once.</p>
+<p>This chapter covers template development at three levels: reusable PDF style layers, Pandoc or Quarto templates and defaults, and CSS custom property systems for web output. For a modern CLI workflow, the order of preference should usually be Markdown source first, Typst for print-ready PDF work second, and HTML/CSS or EPUB stylesheets for the web-facing formats.</p>
+<section id="building-a-reusable-pdf-style-layer" class="level2" data-number="26.1">
+<h2 data-number="26.1" class="anchored" data-anchor-id="building-a-reusable-pdf-style-layer"><span class="header-section-number">26.1</span> Building a reusable PDF style layer</h2>
+<p>If your PDF path is Typst, the equivalent of a house style is an imported module or package that sets page, text, heading, figure, and table defaults once and exposes only a few controlled parameters. The principle matters more than the backend: authors should edit Markdown and metadata, not layout code.</p>
+<section id="module-structure" class="level3" data-number="26.1.1">
+<h3 data-number="26.1.1" class="anchored" data-anchor-id="module-structure"><span class="header-section-number">26.1.1</span> Module structure</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// house.typ</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">palette</span> <span class="op">=</span> <span class="op">(</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  text: rgb<span class="op">(</span><span class="st">"#1c1c1c"</span><span class="op">),</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  accent: rgb<span class="op">(</span><span class="st">"#1a4e8c"</span><span class="op">),</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  border: rgb<span class="op">(</span><span class="st">"#d7dce2"</span><span class="op">),</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">article-style</span><span class="op">(</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">30mm</span><span class="op">,</span> y: <span class="fl">25mm</span><span class="op">),</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  size<span class="op">:</span> <span class="fl">11pt</span><span class="op">,</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> paper<span class="op">,</span> margin<span class="op">:</span> margin<span class="op">)</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> font<span class="op">,</span> size<span class="op">:</span> size<span class="op">,</span> fill<span class="op">:</span> palette<span class="op">.</span>text<span class="op">)</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">par</span><span class="op">(</span>justify<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="kw">show</span> heading<span class="op">.</span>where<span class="op">(</span>level<span class="op">:</span> <span class="dv">1</span><span class="op">):</span> it <span class="op">=&gt;</span> block<span class="op">(</span>above<span class="op">:</span> <span class="fl">1.5em</span><span class="op">,</span> below<span class="op">:</span> <span class="fl">0.6em</span><span class="op">)[</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">18pt</span><span class="op">,</span> fill<span class="op">:</span> palette<span class="op">.</span>accent<span class="op">)</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>it</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> columns <span class="op">==</span> <span class="dv">2</span> <span class="op">{</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>columns<span class="op">:</span> <span class="dv">2</span><span class="op">)</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cli</span><span class="op">(</span>text<span class="op">)</span> <span class="op">=</span> raw<span class="op">(</span>text<span class="op">)</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">pkg</span><span class="op">(</span>text<span class="op">)</span> <span class="op">=</span> text<span class="op">(</span>font<span class="op">:</span> <span class="st">"Source Sans 3"</span><span class="op">,</span> text<span class="op">)</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">file</span><span class="op">(</span>text<span class="op">)</span> <span class="op">=</span> text<span class="op">(</span>font<span class="op">:</span> <span class="st">"JetBrains Mono"</span><span class="op">,</span> text<span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Save this in <code>styles/house.typ</code> and import it from individual templates or one-off documents:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span><span class="im">import</span> <span class="st">"styles/house.typ"</span><span class="op">:</span> article-style<span class="op">,</span> cli<span class="op">,</span> pkg<span class="op">,</span> file</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>article-style<span class="op">()</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>All typographic defaults are centralised. To change the heading style for every document using the house module, edit <code>article-style</code> once.</p>
 </section>
-<section id="adding-class-options" class="level3" data-number="26.1.2">
-<h3 data-number="26.1.2" class="anchored" data-anchor-id="adding-class-options"><span class="header-section-number">26.1.2</span> Adding class options</h3>
-<p>Custom class options allow per-document variations without breaking the central design:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">% Boolean options</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\newif\if@twocolumn</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\@twocolumnfalse</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\DeclareOption</span>{twocol}{<span class="fu">\@twocolumntrue</span>}</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">% At the end of option processing:</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\if@twocolumn</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\AtBeginDocument</span>{<span class="fu">\twocolumn</span>}</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">\fi</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>With this option, <code>\documentclass[twocol]{myarticle}</code> switches to two-column layout; the default remains single-column.</p>
+<section id="adding-controlled-options" class="level3" data-number="26.1.2">
+<h3 data-number="26.1.2" class="anchored" data-anchor-id="adding-controlled-options"><span class="header-section-number">26.1.2</span> Adding controlled options</h3>
+<p>Per-document variations should be explicit parameters rather than ad hoc template edits:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>article-style<span class="op">(</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  font<span class="op">:</span> <span class="st">"Source Serif 4"</span><span class="op">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="dv">2</span><span class="op">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">18mm</span><span class="op">,</span> y: <span class="fl">20mm</span><span class="op">),</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That is the right style discipline for any modern template system: narrow, documented, and intentionally limited.</p>
 </section>
-<section id="the-requirepackage-vs-usepackage-distinction" class="level3" data-number="26.1.3">
-<h3 data-number="26.1.3" class="anchored" data-anchor-id="the-requirepackage-vs-usepackage-distinction"><span class="header-section-number">26.1.3</span> The <code>\RequirePackage</code> vs <code>\usepackage</code> distinction</h3>
-<p>In class files, use <code>\RequirePackage</code> rather than <code>\usepackage</code>. The difference is technical but important: <code>\RequirePackage</code> can be used before <code>\documentclass</code> in a class file and handles package options correctly during class loading. <code>\usepackage</code> is for use in documents and preambles only.</p>
+<section id="imports-and-responsibilities" class="level3" data-number="26.1.3">
+<h3 data-number="26.1.3" class="anchored" data-anchor-id="imports-and-responsibilities"><span class="header-section-number">26.1.3</span> Imports and responsibilities</h3>
+<p>A shared style module should set defaults and expose a small public API. Individual documents should import it and supply content. That division of labour matters more than the syntax of any one backend.</p>
 </section>
 </section>
 <section id="pandoc-templates" class="level2" data-number="26.2">
 <h2 data-number="26.2" class="anchored" data-anchor-id="pandoc-templates"><span class="header-section-number">26.2</span> Pandoc templates</h2>
-<p>Pandoc templates are text files that control the structure of the output document. They are covered in Chapter 6, but their role in style systems deserves elaboration here.</p>
-<p>A template for a custom Pandoc workflow should be treated as a versioned, maintained artifact — not a one-time customisation. Store it alongside the class files and stylesheets:</p>
+<p>Pandoc templates are text files that control the structure of the output document. Quarto defaults and format blocks play a similar role. They are covered in Chapter 6, but their role in style systems deserves elaboration here.</p>
+<p>A template for a custom Pandoc workflow should be treated as a versioned, maintained artifact — not a one-time customisation. Store it alongside the Typst modules and stylesheets:</p>
 <pre><code>styles/
-├── article.latex       ← LaTeX template for Pandoc
-├── book.latex          ← LaTeX template for books
+├── article.typ         ← Typst template for PDF
+├── book.typ            ← Typst template for books
 ├── web.html            ← HTML template
 └── epub.css            ← EPUB stylesheet</code></pre>
-<section id="the-latex-template-as-a-style-controller" class="level3" data-number="26.2.1">
-<h3 data-number="26.2.1" class="anchored" data-anchor-id="the-latex-template-as-a-style-controller"><span class="header-section-number">26.2.1</span> The LaTeX template as a style controller</h3>
-<p>The Pandoc LaTeX template’s job is to translate YAML metadata into a coherent LaTeX preamble. For a style system, this means the template should load the house document class and expose only the variables that should be customisable per-document:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="ss">$if(fontsize)$$fontsize$</span>,<span class="ss">$endif$</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="ss">$for(classoption)$$classoption$$sep$</span>,<span class="ss">$endfor$</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>]{<span class="ex">myarticle</span>}</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">% Per-document font override (optional)</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(mainfont)$</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">fontspec</span>}</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\setmainfont</span>{<span class="ss">$mainfont$</span>}</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">% Per-document geometry override (optional)</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(geometry)$</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{<span class="ss">$geometry$</span>}</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co">% Required for Pandoc's tight lists</span></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="fu">\providecommand</span>{<span class="ex">\tightlist</span>}{<span class="co">%</span></span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\setlength</span>{<span class="fu">\itemsep</span>}{0pt}<span class="fu">\setlength</span>{<span class="fu">\parskip</span>}{0pt}}</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(title)$</span></span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="fu">\title</span>{<span class="ss">$title$$if(subtitle)$</span><span class="fu">\\</span>[0.5em]<span class="fu">\large</span> <span class="ss">$subtitle$$endif$</span>}</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(author)$</span></span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="fu">\author</span>{<span class="ss">$for(author)$$author$$sep$</span><span class="fu">\\</span><span class="ss">$endfor$</span>}</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(date)$</span><span class="fu">\date</span>{<span class="ss">$date$</span>}<span class="ss">$endif$</span></span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(title)$</span><span class="fu">\maketitle</span><span class="ss">$endif$</span></span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(abstract)$</span></span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">abstract</span>}<span class="ss">$abstract$</span><span class="kw">\end</span>{<span class="ex">abstract</span>}</span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(toc)$</span><span class="fu">\tableofcontents</span><span class="ss">$endif$</span></span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="ss">$body$</span></span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(bibliography)$</span></span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="bu">\bibliographystyle</span>{<span class="ex">plainnat</span>}</span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a><span class="bu">\bibliography</span>{<span class="ss">$for(bibliography)$$bibliography$$sep$</span><span class="ex">,</span><span class="ss">$endfor$</span>}</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="ss">$endif$</span></span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This template delegates all design decisions to <code>myarticle.cls</code> while exposing only <code>fontsize</code>, <code>mainfont</code>, and <code>geometry</code> as per-document overrides. Authors who want the standard look simply write their document in Markdown; authors with specific requirements can override individual settings.</p>
+<section id="backend-templates-as-style-controllers" class="level3" data-number="26.2.1">
+<h3 data-number="26.2.1" class="anchored" data-anchor-id="backend-templates-as-style-controllers"><span class="header-section-number">26.2.1</span> Backend templates as style controllers</h3>
+<p>A Pandoc or Quarto template’s job is to translate metadata into a coherent backend-specific document. In Typst, that usually means importing a shared module and binding metadata to a small public API. For a style system, the template should load the house layer and expose only the variables that should be customisable per-document:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span><span class="im">import</span> <span class="st">"house.typ"</span><span class="op">:</span> article-style</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">render</span><span class="op">(</span>meta<span class="op">,</span> body<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  article-style<span class="op">(</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    font<span class="op">:</span> meta<span class="op">.</span>mainfont<span class="op">.</span>or<span class="op">(</span><span class="st">"EB Garamond"</span><span class="op">),</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    size<span class="op">:</span> meta<span class="op">.</span>fontsize<span class="op">.</span>or<span class="op">(</span><span class="fl">11pt</span><span class="op">),</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">)</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> meta<span class="op">.</span>title <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    align(center)[</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">22pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span><span class="kw">#</span>meta<span class="op">.</span>title<span class="op">]</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span><span class="cf">if</span> meta<span class="op">.</span>subtitle <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">#</span>v<span class="op">(</span><span class="fl">4pt</span><span class="op">)</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">12pt</span><span class="op">,</span> style<span class="op">:</span> <span class="st">"italic"</span><span class="op">)[</span><span class="kw">#</span>meta<span class="op">.</span>subtitle<span class="op">]</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>      <span class="op">]</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>v<span class="op">(</span><span class="fl">6pt</span><span class="op">)</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>meta<span class="op">.</span>author</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>v<span class="op">(</span><span class="fl">12pt</span><span class="op">)</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  body</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This template delegates design decisions to <code>house.typ</code> while exposing only a few deliberate overrides. Authors who want the standard look simply write in Markdown; authors with specific requirements can override individual settings in metadata.</p>
 </section>
 <section id="the-html-template-as-a-site-framework" class="level3" data-number="26.2.2">
 <h3 data-number="26.2.2" class="anchored" data-anchor-id="the-html-template-as-a-site-framework"><span class="header-section-number">26.2.2</span> The HTML template as a site framework</h3>
@@ -929,7 +873,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="house-style-consistency" class="level3" data-number="26.3.4">
 <h3 data-number="26.3.4" class="anchored" data-anchor-id="house-style-consistency"><span class="header-section-number">26.3.4</span> House style consistency</h3>
 <p>A style system is only as good as its enforcement. For a team or organisation producing multiple documents, enforcing house style requires:</p>
-<p><strong>A shared template repository</strong>: store <code>.cls</code> files, Pandoc templates, and CSS in a shared Git repository. Documents import from this repository rather than copying files locally.</p>
+<p><strong>A shared template repository</strong>: store <code>.typ</code> files, Pandoc templates, and CSS in a shared Git repository. Documents import from this repository rather than copying files locally.</p>
 <p><strong>A defaults file per document type</strong>: the Pandoc defaults file specifies the template, the CSS, and the allowed metadata variables:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># defaults/house-article.yaml</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>

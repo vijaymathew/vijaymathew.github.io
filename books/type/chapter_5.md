@@ -97,16 +97,12 @@ author:
     affiliation: "Institute of Advanced Typography"
 ```
 
-Whether these sub-fields are used depends on the Pandoc template for your output format. The default LaTeX template uses `name` and `affiliation`; custom templates can use any fields you define.
+Whether these sub-fields are used depends on the Pandoc or Quarto template for your output format. Backend-specific templates may use `name` and `affiliation` directly; custom templates can use any fields you define.
 
-**Document class and font settings** for LaTeX output are set in the metadata block, allowing you to control the entire LaTeX preamble without writing a separate `.tex` file:
+**PDF backend and font settings** are set in the metadata block, allowing you to control the PDF layer without scattering those decisions through the manuscript source:
 
 ```yaml
-documentclass: article
-classoption:
-  - 12pt
-  - a4paper
-  - twoside
+pdf-engine: typst
 geometry: "margin=25mm, bindingoffset=10mm"
 mainfont: "EB Garamond"
 sansfont: "Fira Sans"
@@ -115,7 +111,7 @@ fontsize: 12pt
 linestretch: 1.25
 ```
 
-The `mainfont`, `sansfont`, and `monofont` fields are used by the XeLaTeX and LuaLaTeX engines via the `fontspec` package. If you are using pdfLaTeX, use `fontfamily` and the appropriate LaTeX package name instead.
+The `mainfont`, `sansfont`, and `monofont` fields are used directly by modern PDF backends such as Typst and by Unicode-capable LaTeX engines via `fontspec`. If you are using pdfLaTeX for compatibility reasons, use `fontfamily` and the appropriate LaTeX package name instead.
 
 **Table of contents** generation is controlled by the `toc` flag:
 
@@ -535,7 +531,8 @@ book/
 ├── metadata.yaml       # Document-wide settings and metadata
 ├── references.bib      # Bibliography
 ├── styles/
-│   ├── book.latex      # Custom LaTeX template
+│   ├── book.typ        # Custom Typst template
+│   ├── book.latex      # LaTeX fallback template
 │   └── book.css        # CSS for HTML output
 ├── figures/
 │   ├── ch01-timeline.pdf

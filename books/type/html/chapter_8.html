@@ -596,15 +596,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#the-two-pdf-pipelines" id="toc-the-two-pdf-pipelines" class="nav-link active" data-scroll-target="#the-two-pdf-pipelines"><span class="header-section-number">10.1</span> The two PDF pipelines</a></li>
-  <li><a href="#page-geometry-with-the-latex-pipeline" id="toc-page-geometry-with-the-latex-pipeline" class="nav-link" data-scroll-target="#page-geometry-with-the-latex-pipeline"><span class="header-section-number">10.2</span> Page geometry with the LaTeX pipeline</a></li>
+  <li><a href="#the-three-pdf-pipelines" id="toc-the-three-pdf-pipelines" class="nav-link active" data-scroll-target="#the-three-pdf-pipelines"><span class="header-section-number">10.1</span> The three PDF pipelines</a></li>
+  <li><a href="#page-geometry-in-print-oriented-pdf-workflows" id="toc-page-geometry-in-print-oriented-pdf-workflows" class="nav-link" data-scroll-target="#page-geometry-in-print-oriented-pdf-workflows"><span class="header-section-number">10.2</span> Page geometry in print-oriented PDF workflows</a></li>
   <li><a href="#headers-and-footers" id="toc-headers-and-footers" class="nav-link" data-scroll-target="#headers-and-footers"><span class="header-section-number">10.3</span> Headers and footers</a></li>
   <li><a href="#font-embedding-and-verification" id="toc-font-embedding-and-verification" class="nav-link" data-scroll-target="#font-embedding-and-verification"><span class="header-section-number">10.4</span> Font embedding and verification</a></li>
-  <li><a href="#hyperref-and-pdf-metadata" id="toc-hyperref-and-pdf-metadata" class="nav-link" data-scroll-target="#hyperref-and-pdf-metadata"><span class="header-section-number">10.5</span> Hyperref and PDF metadata</a></li>
+  <li><a href="#pdf-metadata-and-links" id="toc-pdf-metadata-and-links" class="nav-link" data-scroll-target="#pdf-metadata-and-links"><span class="header-section-number">10.5</span> PDF metadata and links</a></li>
   <li><a href="#colour-management-for-print" id="toc-colour-management-for-print" class="nav-link" data-scroll-target="#colour-management-for-print"><span class="header-section-number">10.6</span> Colour management for print</a></li>
   <li><a href="#bleed-and-crop-marks" id="toc-bleed-and-crop-marks" class="nav-link" data-scroll-target="#bleed-and-crop-marks"><span class="header-section-number">10.7</span> Bleed and crop marks</a></li>
   <li><a href="#the-wkhtmltopdf-pipeline" id="toc-the-wkhtmltopdf-pipeline" class="nav-link" data-scroll-target="#the-wkhtmltopdf-pipeline"><span class="header-section-number">10.8</span> The wkhtmltopdf pipeline</a></li>
-  <li><a href="#debugging-latex-errors" id="toc-debugging-latex-errors" class="nav-link" data-scroll-target="#debugging-latex-errors"><span class="header-section-number">10.9</span> Debugging LaTeX errors</a></li>
+  <li><a href="#debugging-backend-specific-pdf-failures" id="toc-debugging-backend-specific-pdf-failures" class="nav-link" data-scroll-target="#debugging-backend-specific-pdf-failures"><span class="header-section-number">10.9</span> Debugging backend-specific PDF failures</a></li>
   <li><a href="#a-complete-print-ready-pdf-workflow" id="toc-a-complete-print-ready-pdf-workflow" class="nav-link" data-scroll-target="#a-complete-print-ready-pdf-workflow"><span class="header-section-number">10.10</span> A complete print-ready PDF workflow</a></li>
   </ul>
 </nav>
@@ -633,18 +633,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>A PDF intended for professional printing is not simply a PDF that opens in a viewer. It is a document that meets a precise set of technical requirements: fonts fully embedded, colour values in the correct space, bleed and crop marks in position, image resolution adequate for the output dpi, no encryption, no transparency that the RIP cannot process. A PDF that looks perfect on screen but violates any of these requirements may produce unacceptable output on press — or be rejected by the printer outright before it reaches the machine.</p>
-<p>This chapter covers the complete pipeline from Markdown source to a PDF you can hand to a printer with confidence: the LaTeX-based path, the web-engine path via wkhtmltopdf, page geometry and margins, headers and footers, font embedding, colour management, and the preflight checks that verify a file is press-ready.</p>
+<p>This chapter covers the complete pipeline from Markdown source to a PDF you can hand to a printer with confidence: the Typst-backed path, the web-engine path via wkhtmltopdf or WeasyPrint, and the LaTeX path when a legacy class or package stack is unavoidable. It also covers page geometry and margins, headers and footers, font embedding, colour management, and the preflight checks that verify a file is press-ready.</p>
 <p>For documents that will be read on screen rather than printed — reports distributed as PDFs, ebooks in PDF format, technical documentation — many of the print-specific requirements (bleed, CMYK, crop marks) do not apply, but font embedding, metadata, and internal link behaviour remain important. The chapter covers both cases.</p>
-<section id="the-two-pdf-pipelines" class="level2" data-number="10.1">
-<h2 data-number="10.1" class="anchored" data-anchor-id="the-two-pdf-pipelines"><span class="header-section-number">10.1</span> The two PDF pipelines</h2>
-<p>Pandoc can produce PDF through two fundamentally different routes, each with different strengths.</p>
-<p>The <strong>LaTeX pipeline</strong> converts Markdown to LaTeX and invokes a TeX engine (pdfLaTeX, XeLaTeX, or LuaLaTeX) to produce the PDF. The TeX engine handles all typesetting: paragraph composition, line breaking, hyphenation, spacing, page layout, footnotes, and everything else. The output is typeset by the best freely available paragraph-composition system in existence. This pipeline is the right choice for documents where typographic quality matters — academic papers, books, technical reports, formal correspondence, anything that will be read carefully.</p>
+<section id="the-three-pdf-pipelines" class="level2" data-number="10.1">
+<h2 data-number="10.1" class="anchored" data-anchor-id="the-three-pdf-pipelines"><span class="header-section-number">10.1</span> The three PDF pipelines</h2>
+<p>Pandoc and Quarto can produce PDF through three fundamentally different routes, each with different strengths.</p>
+<p>The <strong>Typst pipeline</strong> converts Markdown to Typst and lets Typst produce the PDF. For many print-oriented projects this is now the cleanest default: it preserves the Markdown-first authoring model, produces strong PDF output, and avoids pushing the author into TeX macro programming. This is the first route to try for books, reports, and other documents that need deliberate page design without inheriting a full LaTeX stack.</p>
+<p>The <strong>LaTeX pipeline</strong> converts Markdown to LaTeX and invokes a TeX engine (pdfLaTeX, XeLaTeX, or LuaLaTeX) to produce the PDF. The TeX engine handles all typesetting: paragraph composition, line breaking, hyphenation, spacing, page layout, footnotes, and everything else. This pipeline remains valuable when a publisher supplies a class file, when specific packages are required, or when an existing house style is already encoded in LaTeX.</p>
 <p>The <strong>web-engine pipeline</strong> converts Markdown to HTML and invokes wkhtmltopdf (or WeasyPrint) to render the HTML page and produce a PDF. The output looks like a browser rendering printed to PDF — which may be exactly what you want if your document is primarily styled in CSS and the visual design is driven by web conventions. This pipeline suits documents that have more in common with web pages than with typeset books: marketing materials, dashboards, browser-rendered reports.</p>
-<p>The practical consequence is that these pipelines cannot be mixed. You cannot apply TeX’s paragraph optimisation to a CSS-styled document, and you cannot apply CSS flexbox layout to a LaTeX document. Choose the pipeline that suits the document type, and apply the appropriate tools within it.</p>
+<p>The practical consequence is that these pipelines cannot be mixed casually. You cannot apply TeX’s paragraph optimisation to a CSS-styled document, and you cannot apply CSS flexbox layout to a LaTeX document. Choose the pipeline that suits the document type, and apply the appropriate tools within it. In a modern workflow, that usually means Markdown source first, Typst for print-first PDF by default, web-engine PDF when CSS is the real design language, and LaTeX only when its ecosystem is specifically needed.</p>
 </section>
-<section id="page-geometry-with-the-latex-pipeline" class="level2" data-number="10.2">
-<h2 data-number="10.2" class="anchored" data-anchor-id="page-geometry-with-the-latex-pipeline"><span class="header-section-number">10.2</span> Page geometry with the LaTeX pipeline</h2>
-<p>The <code>geometry</code> package controls all physical dimensions of the page: size, margins, header and footer space, binding offset, and the relationship between the text area and the page boundaries.</p>
+<section id="page-geometry-in-print-oriented-pdf-workflows" class="level2" data-number="10.2">
+<h2 data-number="10.2" class="anchored" data-anchor-id="page-geometry-in-print-oriented-pdf-workflows"><span class="header-section-number">10.2</span> Page geometry in print-oriented PDF workflows</h2>
+<p>Every serious print workflow must control the physical dimensions of the page: size, margins, header and footer space, binding offset, and the relationship between the text area and the page boundaries. In Markdown-first projects, these values belong in metadata or a backend template, not scattered through the manuscript source.</p>
+<p>When the backend is LaTeX, the <code>geometry</code> package controls these dimensions.</p>
 <p>In Pandoc, geometry is configured via the <code>geometry</code> metadata variable, which is passed directly to the <code>geometry</code> package:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">geometry</span><span class="kw">:</span><span class="at"> </span><span class="st">"a4paper, margin=25mm"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>For more precise control, specify dimensions individually:</p>
@@ -677,7 +679,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="headers-and-footers" class="level2" data-number="10.3">
 <h2 data-number="10.3" class="anchored" data-anchor-id="headers-and-footers"><span class="header-section-number">10.3</span> Headers and footers</h2>
-<p>Pandoc’s default LaTeX output uses the <code>plain</code> page style, which provides a page number at the bottom centre and nothing else. For most professional documents, a custom header or footer is appropriate.</p>
+<p>Pandoc’s default output is intentionally plain. For most professional documents, a custom header or footer is appropriate. In Typst or HTML-based workflows, this belongs in the backend template or stylesheet. In LaTeX, Pandoc’s default output uses the <code>plain</code> page style, which provides a page number at the bottom centre and nothing else.</p>
 <p>The <code>fancyhdr</code> package is the standard tool for this. It is configured in the <code>header-includes</code> metadata field, which inserts LaTeX commands into the document preamble:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">header-includes</span><span class="kw">: </span><span class="ch">|</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  \usepackage{fancyhdr}</span>
@@ -710,7 +712,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="font-embedding-and-verification" class="level2" data-number="10.4">
 <h2 data-number="10.4" class="anchored" data-anchor-id="font-embedding-and-verification"><span class="header-section-number">10.4</span> Font embedding and verification</h2>
 <p>A PDF that will be professionally printed must have all fonts embedded. A font that is not embedded is identified by name in the PDF but not defined — the viewer or RIP substitutes a different font when it encounters the name, producing output that differs from the intended design.</p>
-<p>In XeLaTeX and LuaLaTeX, all fonts loaded via <code>fontspec</code> are automatically embedded and subset in the PDF output. <em>Subsetting</em> means that only the glyphs actually used in the document are included in the embedded font data, which reduces file size substantially without affecting fidelity. This is the default and correct behaviour.</p>
+<p>In Typst, fonts used in the document are embedded in the generated PDF. In XeLaTeX and LuaLaTeX, all fonts loaded via <code>fontspec</code> are automatically embedded and subset in the PDF output. <em>Subsetting</em> means that only the glyphs actually used in the document are included in the embedded font data, which reduces file size substantially without affecting fidelity. This is the default and correct behaviour.</p>
 <p>In pdfLaTeX, embedding depends on the font package used. Type 1 fonts from well-maintained packages are embedded by default; bitmap fonts (Type 3) from older installations may not be. To verify that all fonts in a PDF are properly embedded, use <code>pdffonts</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pdffonts</span> output.pdf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The output reports, for each font in the document: its name, type, encoding, and whether it is embedded (<code>emb</code>) and subsetted (<code>sub</code>). A print-ready PDF should show <code>yes</code> in both columns for every font:</p>
@@ -731,17 +733,17 @@ GXKDWJ+DejaVuSansMono        CID TrueType yes yes yes</code></pre>
 <pre><code>Title:    The CLI Typographer
 Author:   A. N. Author
 Subject:  Typography and document production
-Keywords: typography, CLI, pandoc, LaTeX
-Creator:  LaTeX via pandoc
+Keywords: typography, CLI, pandoc, Typst
+Creator:  Pandoc
 Producer: xdvipdfmx (20220710)
 Pages:    247
 Page size: 595.28 x 841.89 pts (A4)
 PDF version: 1.5</code></pre>
-<p>Pandoc writes the <code>title</code>, <code>author</code>, <code>subject</code>, and <code>keywords</code> metadata to the PDF’s document information dictionary via <code>hyperref</code>. These fields are populated from the YAML metadata block automatically.</p>
+<p>Pandoc writes the <code>title</code>, <code>author</code>, <code>subject</code>, and <code>keywords</code> metadata to the PDF’s document information dictionary through the selected PDF backend. These fields are populated from the YAML metadata block automatically.</p>
 </section>
-<section id="hyperref-and-pdf-metadata" class="level2" data-number="10.5">
-<h2 data-number="10.5" class="anchored" data-anchor-id="hyperref-and-pdf-metadata"><span class="header-section-number">10.5</span> Hyperref and PDF metadata</h2>
-<p>The <code>hyperref</code> package, which Pandoc loads by default in LaTeX output, does two things: it adds navigational hyperlinks to the PDF (from citations to bibliography entries, from the table of contents to sections, from cross-references to their targets), and it writes document metadata into the PDF information dictionary.</p>
+<section id="pdf-metadata-and-links" class="level2" data-number="10.5">
+<h2 data-number="10.5" class="anchored" data-anchor-id="pdf-metadata-and-links"><span class="header-section-number">10.5</span> PDF metadata and links</h2>
+<p>Every print-ready PDF still needs correct metadata and predictable link behaviour. In LaTeX output, Pandoc handles this through <code>hyperref</code>, which adds navigational hyperlinks to the PDF (from citations to bibliography entries, from the table of contents to sections, from cross-references to their targets) and writes document metadata into the PDF information dictionary.</p>
 <p>The most important <code>hyperref</code> options for print-ready PDF are controlled through Pandoc metadata variables:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colorlinks</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="co">       # colour links instead of boxing them</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">linkcolor</span><span class="kw">:</span><span class="at"> NavyBlue</span><span class="co">    # colour for internal links</span></span>
@@ -754,12 +756,12 @@ PDF version: 1.5</code></pre>
 <p>For screen-optimised PDF, coloured links improve navigation. A commonly used palette for professional documents uses <code>linkcolor: NavyBlue</code> for internal links and <code>urlcolor: Maroon</code> for external URLs — both colours are defined in the <code>xcolor</code> package’s <code>dvipsnames</code> option set, which Pandoc’s default template loads.</p>
 <p>The <code>subject</code> and <code>keywords</code> fields in the YAML metadata are written to the PDF as document properties:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">subject</span><span class="kw">:</span><span class="at"> </span><span class="st">"A guide to CLI-based typesetting tools and typography"</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">keywords</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">typography</span><span class="kw">,</span><span class="at"> CLI</span><span class="kw">,</span><span class="at"> Pandoc</span><span class="kw">,</span><span class="at"> LaTeX</span><span class="kw">,</span><span class="at"> Typst</span><span class="kw">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">keywords</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">typography</span><span class="kw">,</span><span class="at"> CLI</span><span class="kw">,</span><span class="at"> Pandoc</span><span class="kw">,</span><span class="at"> Typst</span><span class="kw">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>These fields are indexed by PDF readers’ document search functions and may be used by document management systems. They are not shown in the document body — they are metadata only.</p>
 </section>
 <section id="colour-management-for-print" class="level2" data-number="10.6">
 <h2 data-number="10.6" class="anchored" data-anchor-id="colour-management-for-print"><span class="header-section-number">10.6</span> Colour management for print</h2>
-<p>Print production uses CMYK colour (Chapter 3). Most LaTeX PDF output is RGB by default, which is acceptable for office printing and screen-viewed PDFs but may not meet the requirements of a professional printing service — particularly for documents with coloured design elements, photographs, or backgrounds.</p>
+<p>Print production uses CMYK colour (Chapter 3). Most PDF backends in this book produce RGB output by default, which is acceptable for office printing and screen-viewed PDFs but may not meet the requirements of a professional printing service — particularly for documents with coloured design elements, photographs, or backgrounds.</p>
 <p>For documents with no colour beyond black text, this is not a concern: black in RGB (<code>#000000</code>) and black in CMYK (<code>0 0 0 100</code>) produce identical output, and the printer’s workflow will handle the conversion transparently.</p>
 <p>For documents with spot colour — a specific accent colour, a brand colour used for headings or rules — the correct approach is to define colours explicitly in CMYK values. The <code>xcolor</code> package supports CMYK colour specification:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[cmyk]{<span class="ex">xcolor</span>}</span>
@@ -770,7 +772,7 @@ PDF version: 1.5</code></pre>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  \definecolor{accent}{cmyk}{0.85, 0.50, 0.00, 0.10}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>colorspace</code> package provides more comprehensive CMYK support, including the ability to convert the entire PDF to CMYK output using a specified ICC profile:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[cmyk, profiles]{<span class="ex">colorspace</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>For most Markdown-sourced documents, the practical approach is simpler: accept RGB output from LaTeX, and if the printer requires CMYK, convert the final PDF using Ghostscript:</p>
+<p>For most Markdown-sourced documents, the practical approach is simpler: accept RGB output from Typst, LaTeX, or the web-engine pipeline, and if the printer requires CMYK, convert the final PDF using Ghostscript:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gs</span> <span class="at">-dBATCH</span> <span class="at">-dNOPAUSE</span> <span class="at">-dNOPROMPT</span> <span class="dt">\</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>   <span class="at">-sDEVICE</span><span class="op">=</span>pdfwrite <span class="dt">\</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>   <span class="at">-sColorConversionStrategy</span><span class="op">=</span>CMYK <span class="dt">\</span></span>
@@ -782,7 +784,7 @@ PDF version: 1.5</code></pre>
 <section id="bleed-and-crop-marks" class="level2" data-number="10.7">
 <h2 data-number="10.7" class="anchored" data-anchor-id="bleed-and-crop-marks"><span class="header-section-number">10.7</span> Bleed and crop marks</h2>
 <p>Documents printed professionally on sheets larger than the final trimmed size require bleed — content extended beyond the intended trim edge — and crop marks that tell the cutting machine where to trim.</p>
-<p>Bleed is typically 3mm on all sides (the printer may specify a different amount). To add bleed in LaTeX, use the <code>geometry</code> package with a slightly oversized page and the <code>includeheadfoot</code> option, combined with the <code>cropmarks</code> package or equivalent:</p>
+<p>Bleed is typically 3mm on all sides (the printer may specify a different amount). The exact mechanism depends on the PDF backend. In LaTeX, use the <code>geometry</code> package with a slightly oversized page and the <code>includeheadfoot</code> option, combined with the <code>cropmarks</code> package or equivalent:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">geometry</span><span class="kw">: </span><span class="ch">&gt;</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  paperwidth=216mm,</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  paperheight=303mm,</span>
@@ -856,8 +858,9 @@ PDF version: 1.5</code></pre>
 <span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Verify font embedding in the output with <code>pdffonts</code>, as described earlier.</p>
 </section>
-<section id="debugging-latex-errors" class="level2" data-number="10.9">
-<h2 data-number="10.9" class="anchored" data-anchor-id="debugging-latex-errors"><span class="header-section-number">10.9</span> Debugging LaTeX errors</h2>
+<section id="debugging-backend-specific-pdf-failures" class="level2" data-number="10.9">
+<h2 data-number="10.9" class="anchored" data-anchor-id="debugging-backend-specific-pdf-failures"><span class="header-section-number">10.9</span> Debugging backend-specific PDF failures</h2>
+<p>When PDF generation fails, diagnose the backend you actually chose. Typst failures are usually simpler and closer to the source. Web-engine failures are usually CSS or asset-path problems. LaTeX failures remain the most opaque, so they deserve special treatment here.</p>
 <p>LaTeX errors are notoriously opaque. A missing closing brace five lines earlier produces an error on line 200; a package conflict manifests as an incomprehensible “dimension too large” message. Some practical strategies.</p>
 <p><strong>Read the <code>.log</code> file.</strong> When Pandoc reports “Error producing PDF,” it often shows only the last few lines of the LaTeX log. The full log — written to a <code>.tex.log</code> file in a temporary directory, or obtainable by adding <code>--verbose</code> to the Pandoc invocation — contains the complete error context. Look for the first error (<code>!</code>) in the log, not the last.</p>
 <p><strong>Generate intermediate LaTeX.</strong> When debugging, stop Pandoc before the PDF stage and inspect the generated <code>.tex</code> file:</p>
@@ -879,7 +882,7 @@ PDF version: 1.5</code></pre>
 </section>
 <section id="a-complete-print-ready-pdf-workflow" class="level2" data-number="10.10">
 <h2 data-number="10.10" class="anchored" data-anchor-id="a-complete-print-ready-pdf-workflow"><span class="header-section-number">10.10</span> A complete print-ready PDF workflow</h2>
-<p>Combining the elements above, here is a complete Pandoc invocation for a print-ready PDF from Markdown:</p>
+<p>Combining the elements above, here is a complete Pandoc invocation for a print-ready PDF from Markdown. This example uses Typst as the default PDF backend; switch to LaTeX only when the print workflow requires LaTeX-specific templates or packages:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pandoc</span> <span class="dt">\</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--defaults</span><span class="op">=</span>book-defaults.yaml <span class="dt">\</span></span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  metadata.yaml <span class="dt">\</span></span>
@@ -889,7 +892,7 @@ PDF version: 1.5</code></pre>
 <p>Where <code>book-defaults.yaml</code> contains:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">from</span><span class="kw">:</span><span class="at"> markdown</span></span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">to</span><span class="kw">:</span><span class="at"> pdf</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> xelatex</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="fu">pdf-engine</span><span class="kw">:</span><span class="at"> typst</span></span>
 <span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="fu">filter</span><span class="kw">:</span></span>
 <span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> pandoc-crossref</span></span>
 <span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="fu">citeproc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
@@ -897,28 +900,11 @@ PDF version: 1.5</code></pre>
 <span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="fu">toc</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
 <span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="fu">toc-depth</span><span class="kw">:</span><span class="at"> </span><span class="dv">2</span></span>
 <span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="fu">highlight-style</span><span class="kw">:</span><span class="at"> monochrome</span></span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span><span class="at"> templates/book.latex</span></span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a><span class="fu">metadata</span><span class="kw">:</span></span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">documentclass</span><span class="kw">:</span><span class="at"> book</span></span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">classoption</span><span class="kw">:</span></span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> 12pt</span></span>
-<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> twoside</span></span>
-<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> openright</span></span>
-<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">mainfont</span><span class="kw">:</span><span class="at"> </span><span class="st">"EB Garamond"</span></span>
-<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">sansfont</span><span class="kw">:</span><span class="at"> </span><span class="st">"Fira Sans"</span></span>
-<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">monofont</span><span class="kw">:</span><span class="at"> </span><span class="st">"JetBrains Mono"</span></span>
-<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a><span class="fu">  geometry</span><span class="kw">: </span><span class="ch">&gt;</span></span>
-<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>    a4paper,</span>
-<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>    top=30mm,</span>
-<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>    bottom=25mm,</span>
-<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>    outer=25mm,</span>
-<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>    inner=30mm,</span>
-<span id="cb31-27"><a href="#cb31-27" aria-hidden="true" tabindex="-1"></a>    bindingoffset=10mm</span>
-<span id="cb31-28"><a href="#cb31-28" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">linestretch</span><span class="kw">:</span><span class="at"> </span><span class="fl">1.3</span></span>
-<span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">colorlinks</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
-<span id="cb31-30"><a href="#cb31-30" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">hidelinks</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb31-31"><a href="#cb31-31" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> references.bib</span></span>
-<span id="cb31-32"><a href="#cb31-32" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">csl</span><span class="kw">:</span><span class="at"> chicago-notes.csl</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="fu">metadata</span><span class="kw">:</span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> references.bib</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">csl</span><span class="kw">:</span><span class="at"> chicago-notes.csl</span></span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">keywords</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">typography</span><span class="kw">,</span><span class="at"> CLI</span><span class="kw">,</span><span class="at"> Pandoc</span><span class="kw">,</span><span class="at"> Typst</span><span class="kw">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If the job requires a LaTeX class or package stack, keep the same Markdown source and switch the defaults file to <code>pdf-engine: xelatex</code> plus the required <code>template:</code> and LaTeX-specific metadata.</p>
 <p>After generating the PDF, run the standard verification checks:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify font embedding</span></span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pdffonts</span> build/output.pdf <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-v</span> <span class="st">"^name\|^---"</span></span>

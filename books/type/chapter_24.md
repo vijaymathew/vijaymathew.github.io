@@ -2,180 +2,124 @@
 
 The most valuable investment in any document production workflow is the template: the system that encodes typographic decisions once and applies them everywhere. A well-designed template means that producing a new document in an established style requires no design decisions — the document inherits its appearance from the template, the author focuses on content, and the result is consistent across every document the template produces.
 
-This chapter covers template development at three levels: LaTeX document classes, Pandoc HTML and LaTeX templates, and CSS custom property systems for web output.
+This chapter covers template development at three levels: reusable PDF style layers, Pandoc or Quarto templates and defaults, and CSS custom property systems for web output. For a modern CLI workflow, the order of preference should usually be Markdown source first, Typst for print-ready PDF work second, and HTML/CSS or EPUB stylesheets for the web-facing formats.
 
 
-## Building a reusable LaTeX document class
+## Building a reusable PDF style layer
 
-A document class is LaTeX's highest-level reuse mechanism. Everything in the preamble — package loading, option handling, layout settings, custom commands — can be encoded in a `.cls` file that any document invokes with a single `\documentclass` declaration.
+If your PDF path is Typst, the equivalent of a house style is an imported module or package that sets page, text, heading, figure, and table defaults once and exposes only a few controlled parameters. The principle matters more than the backend: authors should edit Markdown and metadata, not layout code.
 
-### Class file structure
+### Module structure
 
-```latex
-% myarticle.cls
-\NeedsTeXFormat{LaTeX2e}[2020/02/02]
-\ProvidesClass{myarticle}[2024/01/01 v1.0 Custom article class]
+```typst
+// house.typ
 
-% === Option handling ===
-% Pass unknown options to the base class
-\DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
-\ProcessOptions\relax
+#let palette = (
+  text: rgb("#1c1c1c"),
+  accent: rgb("#1a4e8c"),
+  border: rgb("#d7dce2"),
+)
 
-% === Base class ===
-\LoadClass[11pt,a4paper]{article}
+#let article-style(
+  paper: "a4",
+  margin: (x: 30mm, y: 25mm),
+  font: "EB Garamond",
+  size: 11pt,
+  columns: 1,
+) = {
+  set page(paper: paper, margin: margin)
+  set text(font: font, size: size, fill: palette.text)
+  set par(justify: true)
 
-% === Required packages ===
-\RequirePackage[T1]{fontenc}
-\RequirePackage{geometry}
-\RequirePackage[protrusion=true,expansion=false]{microtype}
-\RequirePackage{fancyhdr}
-\RequirePackage{titlesec}
-\RequirePackage{booktabs}
-\RequirePackage{longtable}
-\RequirePackage{hyperref}
-\RequirePackage{cleveref}
+  show heading.where(level: 1): it => block(above: 1.5em, below: 0.6em)[
+    #set text(weight: "bold", size: 18pt, fill: palette.accent)
+    #it
+  ]
 
-% === Page geometry ===
-\geometry{
-  a4paper,
-  top=30mm, bottom=25mm,
-  left=30mm, right=25mm
+  if columns == 2 {
+    set page(columns: 2)
+  }
 }
 
-% === Section heading style ===
-\titleformat{\section}
-  {\normalfont\large\bfseries}
-  {\thesection}{1em}{}
-\titleformat{\subsection}
-  {\normalfont\normalsize\bfseries}
-  {\thesubsection}{1em}{}
-
-% === Page style ===
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[L]{\small\textit{\leftmark}}
-\fancyhead[R]{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\fancypagestyle{plain}{%
-  \fancyhf{}
-  \fancyfoot[C]{\small\thepage}
-  \renewcommand{\headrulewidth}{0pt}
-}
-
-% === Paragraph settings ===
-\setlength{\parindent}{1.5em}
-\setlength{\parskip}{0pt}
-
-% === Hyperref defaults ===
-\hypersetup{
-  colorlinks=true,
-  linkcolor=blue!60!black,
-  citecolor=blue!60!black,
-  urlcolor=blue!60!black
-}
-
-% === Custom commands ===
-\newcommand{\cli}[1]{\texttt{#1}}
-\newcommand{\pkg}[1]{\textsf{#1}}
-\newcommand{\file}[1]{\texttt{#1}}
-
-\endinput
+#let cli(text) = raw(text)
+#let pkg(text) = text(font: "Source Sans 3", text)
+#let file(text) = text(font: "JetBrains Mono", text)
 ```
 
-Placement: save as `myarticle.cls` in the same directory as the document, or in a local TeX tree (`~/texmf/tex/latex/myarticle/`). Documents then use:
+Save this in `styles/house.typ` and import it from individual templates or one-off documents:
 
-```latex
-\documentclass{myarticle}
+```typst
+#import "styles/house.typ": article-style, cli, pkg, file
+
+#article-style()
 ```
 
-All preamble decisions are centralised. To change the heading style for every document that uses this class, change `titlesec` settings in the class file once.
+All typographic defaults are centralised. To change the heading style for every document using the house module, edit `article-style` once.
 
-### Adding class options
+### Adding controlled options
 
-Custom class options allow per-document variations without breaking the central design:
+Per-document variations should be explicit parameters rather than ad hoc template edits:
 
-```latex
-% Boolean options
-\newif\if@twocolumn
-\@twocolumnfalse
-
-\DeclareOption{twocol}{\@twocolumntrue}
-
-% At the end of option processing:
-\if@twocolumn
-  \AtBeginDocument{\twocolumn}
-\fi
+```typst
+#article-style(
+  font: "Source Serif 4",
+  columns: 2,
+  margin: (x: 18mm, y: 20mm),
+)
 ```
 
-With this option, `\documentclass[twocol]{myarticle}` switches to two-column layout; the default remains single-column.
+That is the right style discipline for any modern template system: narrow, documented, and intentionally limited.
 
-### The `\RequirePackage` vs `\usepackage` distinction
+### Imports and responsibilities
 
-In class files, use `\RequirePackage` rather than `\usepackage`. The difference is technical but important: `\RequirePackage` can be used before `\documentclass` in a class file and handles package options correctly during class loading. `\usepackage` is for use in documents and preambles only.
+A shared style module should set defaults and expose a small public API. Individual documents should import it and supply content. That division of labour matters more than the syntax of any one backend.
 
 
 ## Pandoc templates
 
-Pandoc templates are text files that control the structure of the output document. They are covered in Chapter 6, but their role in style systems deserves elaboration here.
+Pandoc templates are text files that control the structure of the output document. Quarto defaults and format blocks play a similar role. They are covered in Chapter 6, but their role in style systems deserves elaboration here.
 
-A template for a custom Pandoc workflow should be treated as a versioned, maintained artifact — not a one-time customisation. Store it alongside the class files and stylesheets:
+A template for a custom Pandoc workflow should be treated as a versioned, maintained artifact — not a one-time customisation. Store it alongside the Typst modules and stylesheets:
 
 ```
 styles/
-├── article.latex       ← LaTeX template for Pandoc
-├── book.latex          ← LaTeX template for books
+├── article.typ         ← Typst template for PDF
+├── book.typ            ← Typst template for books
 ├── web.html            ← HTML template
 └── epub.css            ← EPUB stylesheet
 ```
 
-### The LaTeX template as a style controller
+### Backend templates as style controllers
 
-The Pandoc LaTeX template's job is to translate YAML metadata into a coherent LaTeX preamble. For a style system, this means the template should load the house document class and expose only the variables that should be customisable per-document:
+A Pandoc or Quarto template's job is to translate metadata into a coherent backend-specific document. In Typst, that usually means importing a shared module and binding metadata to a small public API. For a style system, the template should load the house layer and expose only the variables that should be customisable per-document:
 
-```latex
-\documentclass[
-  $if(fontsize)$$fontsize$,$endif$
-  $for(classoption)$$classoption$$sep$,$endfor$
-]{myarticle}
+```typst
+#import "house.typ": article-style
 
-% Per-document font override (optional)
-$if(mainfont)$
-\usepackage{fontspec}
-\setmainfont{$mainfont$}
-$endif$
+#let render(meta, body) = {
+  article-style(
+    font: meta.mainfont.or("EB Garamond"),
+    size: meta.fontsize.or(11pt),
+  )
 
-% Per-document geometry override (optional)
-$if(geometry)$
-\geometry{$geometry$}
-$endif$
+  if meta.title != none [
+    align(center)[
+      #text(size: 22pt, weight: "bold")[#meta.title]
+      #if meta.subtitle != none [
+        #v(4pt)
+        #text(size: 12pt, style: "italic")[#meta.subtitle]
+      ]
+      #v(6pt)
+      #meta.author
+    ]
+    #v(12pt)
+  ]
 
-% Required for Pandoc's tight lists
-\providecommand{\tightlist}{%
-  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-
-$if(title)$
-\title{$title$$if(subtitle)$\\[0.5em]\large $subtitle$$endif$}
-$endif$
-$if(author)$
-\author{$for(author)$$author$$sep$\\$endfor$}
-$endif$
-$if(date)$\date{$date$}$endif$
-
-\begin{document}
-$if(title)$\maketitle$endif$
-$if(abstract)$
-\begin{abstract}$abstract$\end{abstract}
-$endif$
-$if(toc)$\tableofcontents$endif$
-$body$
-$if(bibliography)$
-\bibliographystyle{plainnat}
-\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
-$endif$
-\end{document}
+  body
+}
 ```
 
-This template delegates all design decisions to `myarticle.cls` while exposing only `fontsize`, `mainfont`, and `geometry` as per-document overrides. Authors who want the standard look simply write their document in Markdown; authors with specific requirements can override individual settings.
+This template delegates design decisions to `house.typ` while exposing only a few deliberate overrides. Authors who want the standard look simply write in Markdown; authors with specific requirements can override individual settings in metadata.
 
 ### The HTML template as a site framework
 
@@ -327,7 +271,7 @@ All component rules remain unchanged — they reference variables, not colours d
 
 A style system is only as good as its enforcement. For a team or organisation producing multiple documents, enforcing house style requires:
 
-**A shared template repository**: store `.cls` files, Pandoc templates, and CSS in a shared Git repository. Documents import from this repository rather than copying files locally.
+**A shared template repository**: store `.typ` files, Pandoc templates, and CSS in a shared Git repository. Documents import from this repository rather than copying files locally.
 
 **A defaults file per document type**: the Pandoc defaults file specifies the template, the CSS, and the allowed metadata variables:
 

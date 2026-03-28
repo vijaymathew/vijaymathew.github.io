@@ -597,10 +597,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#what-a-cv-requires-typographically" id="toc-what-a-cv-requires-typographically" class="nav-link active" data-scroll-target="#what-a-cv-requires-typographically"><span class="header-section-number">21.1</span> What a CV requires typographically</a></li>
-  <li><a href="#a-single-column-résumé-in-latex" id="toc-a-single-column-résumé-in-latex" class="nav-link" data-scroll-target="#a-single-column-résumé-in-latex"><span class="header-section-number">21.2</span> A single-column résumé in LaTeX</a></li>
+  <li><a href="#a-single-column-résumé-markdown-source-typst-pdf" id="toc-a-single-column-résumé-markdown-source-typst-pdf" class="nav-link" data-scroll-target="#a-single-column-résumé-markdown-source-typst-pdf"><span class="header-section-number">21.2</span> A single-column résumé: Markdown source, Typst PDF</a></li>
   <li><a href="#a-two-column-layout" id="toc-a-two-column-layout" class="nav-link" data-scroll-target="#a-two-column-layout"><span class="header-section-number">21.3</span> A two-column layout</a></li>
   <li><a href="#the-academic-cv" id="toc-the-academic-cv" class="nav-link" data-scroll-target="#the-academic-cv"><span class="header-section-number">21.4</span> The academic CV</a></li>
-  <li><a href="#single-source-multiple-outputs" id="toc-single-source-multiple-outputs" class="nav-link" data-scroll-target="#single-source-multiple-outputs"><span class="header-section-number">21.5</span> Single source, multiple outputs</a></li>
+  <li><a href="#the-primary-workflow-single-source-multiple-outputs" id="toc-the-primary-workflow-single-source-multiple-outputs" class="nav-link" data-scroll-target="#the-primary-workflow-single-source-multiple-outputs"><span class="header-section-number">21.5</span> The primary workflow: single source, multiple outputs</a></li>
   <li><a href="#the-typst-cv" id="toc-the-typst-cv" class="nav-link" data-scroll-target="#the-typst-cv"><span class="header-section-number">21.6</span> The Typst CV</a></li>
   <li><a href="#choosing-the-approach" id="toc-choosing-the-approach" class="nav-link" data-scroll-target="#choosing-the-approach"><span class="header-section-number">21.7</span> Choosing the approach</a></li>
   </ul>
@@ -630,13 +630,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>The résumé and the curriculum vitae are, by definition, documents about the person who produces them. This creates a dynamic unlike most other document types: the author is their own client, the typographic decisions reflect on the author’s taste and judgment, and the document will be read by people who are simultaneously evaluating its content and its form. A résumé that is well-typeset signals something about the person it describes. A résumé that is poorly typeset — inconsistent spacing, mismatched fonts, rivers of white space — signals something too.</p>
-<p>This chapter covers three variants: the single-column professional résumé, the two-column layout used in design and technology contexts, and the academic CV with a publications section. All three examples are built directly from LaTeX source for the PDF output; the chapter also covers how to maintain a single Markdown source that renders to PDF, HTML, and DOCX, which is valuable when the same information needs to appear in different contexts.</p>
+<p>This chapter covers three variants: the single-column professional résumé, the two-column layout used in design and technology contexts, and the academic CV with a publications section. The default workflow should be to maintain the content in Markdown and render it through Pandoc or Quarto to the formats required by the application process. For PDF output, Typst is often the cleanest backend because its templates remain readable and maintainable. LaTeX is still useful for highly customised layouts and publication-heavy academic CVs, but it should be treated as a backend-specific path rather than the default starting point.</p>
 <section id="what-a-cv-requires-typographically" class="level2" data-number="21.1">
 <h2 data-number="21.1" class="anchored" data-anchor-id="what-a-cv-requires-typographically"><span class="header-section-number">21.1</span> What a CV requires typographically</h2>
-<p>Before writing a line of LaTeX, it is worth establishing what a CV actually needs to do.</p>
+<p>Before choosing a backend, it is worth establishing what a CV actually needs to do.</p>
 <p>A CV must be <strong>scannable</strong>. Hiring managers and admissions committees spend thirty seconds to two minutes on an initial read. The document structure must communicate instantly: where are the jobs, where is the education, how long was each role. This is a hierarchy problem — the same problem of making structure visible that was addressed in Chapter 2 — but with the added constraint that the document must communicate quickly under time pressure.</p>
 <p>A CV must <strong>fit the expected format</strong>. A one-page résumé is conventional for most industry applications; two pages for more senior roles. An academic CV is typically multiple pages and grows over a career as publications accumulate. Deviating from the expected format without a reason creates friction.</p>
-<p>A CV must be <strong>technically correct</strong> when submitted digitally. A PDF with unembedded fonts may be garbled by applicant tracking systems. A PDF that is not accessible (no text layer, wrong reading order) fails accessibility requirements increasingly demanded by large employers. A DOCX generated from LaTeX that loses formatting when opened in Word is a practical failure.</p>
+<p>A CV must be <strong>technically correct</strong> when submitted digitally. A PDF with unembedded fonts may be garbled by applicant tracking systems. A PDF that is not accessible (no text layer, wrong reading order) fails accessibility requirements increasingly demanded by large employers. A DOCX generated from an over-specialised PDF workflow that loses structure when opened in Word is a practical failure.</p>
 <p>The key typographic relationships in a CV:</p>
 <ul>
 <li>The candidate’s name is the document’s primary visual element. It should be notably larger than everything else — not decoratively large, but unambiguously the top of the hierarchy.</li>
@@ -645,345 +645,303 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Bullet points should be genuine bullets — brief, parallel, beginning with active verbs — not sentences.</li>
 </ul>
 </section>
-<section id="a-single-column-résumé-in-latex" class="level2" data-number="21.2">
-<h2 data-number="21.2" class="anchored" data-anchor-id="a-single-column-résumé-in-latex"><span class="header-section-number">21.2</span> A single-column résumé in LaTeX</h2>
-<p>The single-column format is the most widely applicable: appropriate for industry applications across almost every sector, readable as a printed document, and compatible with applicant tracking systems.</p>
-<p>The structure of the LaTeX document: an <code>article</code> class base, <code>titlesec</code> for section heading formatting, <code>enumitem</code> for bullet list control, and a custom <code>\cventry</code> command that handles the four-column entry layout (job title, dates, organisation, location).</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper]{<span class="ex">article</span>}</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{top=20mm, bottom=20mm, left=25mm, right=25mm}</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">titlesec</span>}</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">enumitem</span>}</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">hyperref</span>}</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\hypersetup</span>{hidelinks}</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">parskip</span>}</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">xcolor</span>}</span>
+<section id="a-single-column-résumé-markdown-source-typst-pdf" class="level2" data-number="21.2">
+<h2 data-number="21.2" class="anchored" data-anchor-id="a-single-column-résumé-markdown-source-typst-pdf"><span class="header-section-number">21.2</span> A single-column résumé: Markdown source, Typst PDF</h2>
+<p>The single-column format is the most widely applicable: appropriate for industry applications across almost every sector, readable as a printed document, and compatible with applicant tracking systems. It is also the format best suited to a Markdown-first workflow, because the visual structure is simple and the same source can usually serve PDF, HTML, and DOCX without distortion.</p>
+<p>The source should describe structure, not page mechanics. A minimal résumé source in Markdown:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> "A. N. Author"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="an">tagline:</span><span class="co"> "Document Engineer &amp; Typographer"</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="an">email:</span><span class="co"> "author@example.edu"</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="an">phone:</span><span class="co"> "+44 1234 567890"</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="an">website:</span><span class="co"> "www.example.edu/~author"</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Experience</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">### Senior Document Engineer | Typeset Ltd | London | 2020–present</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">\definecolor</span>{accent}{RGB}{26,78,140}</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\titleformat</span>{<span class="kw">\section</span>}</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\normalfont\large\bfseries\color</span>{accent}}</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  {}{0em}{}</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  [<span class="fu">\textcolor</span>{accent!50}{<span class="fu">\titlerule</span>}]</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="fu">\titlespacing*</span>{<span class="kw">\section</span>}{0pt}{1.5ex}{0.8ex}</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="fu">\pagestyle</span>{empty}</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="fu">\newcommand</span>{<span class="ex">\cventry</span>}[5]{<span class="co">%</span></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\noindent</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\begin</span>{<span class="ex">tabular*</span>}{<span class="fu">\linewidth</span>}{<span class="ch">@{}</span>l<span class="ch">@{\extracolsep{\fill}}</span>r<span class="ch">@{}</span>}</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\textbf</span>{#2} <span class="op">&amp;</span> <span class="fu">\textit</span>{#1} <span class="fu">\\</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\textit</span>{#3} <span class="op">&amp;</span> <span class="fu">\textit</span>{#4}</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="kw">\end</span>{<span class="ex">tabular*</span>}<span class="co">%</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\ifx</span>&amp;#5&amp;<span class="fu">\else</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">\begin</span>{<span class="ex">itemize</span>}[noitemsep, leftmargin=1.5em, topsep=2pt]</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>      #5</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">\end</span>{<span class="ex">itemize</span>}</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\fi</span></span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\vspace</span>{4pt}</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>\cventry</code> command takes five arguments: dates, title, organisation, location, and bullet points. The date appears right-aligned using <code>tabular*</code> with <code>\extracolsep{\fill}</code> — the standard LaTeX idiom for right-aligning text on the same line as left-aligned text without knowing the line width in advance. The <code>\ifx&amp;#5&amp;\else</code> test skips the <code>itemize</code> block entirely when no bullet points are provided — useful for education entries that do not need bullets.</p>
-<p>The name header is placed outside any command, with direct formatting:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Developed Pandoc pipeline producing PDF, HTML, and EPUB from one source</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Maintained internal publication templates and PDF preflight checks</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Reduced production time by 60%</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">### Technical Writer | Documentation Co. | Edinburgh | 2016–2020</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Wrote API documentation for three major software releases</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Introduced Git-based review workflow for documentation</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That source is already the résumé’s logical structure: section headings, dated entries, and short achievement bullets. The PDF-specific work belongs in a Typst template:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">accent</span> <span class="op">=</span> rgb<span class="op">(</span><span class="st">"#1a4e8c"</span><span class="op">)</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\noindent</span>{<span class="fu">\Huge\bfseries</span> A. N. Author}<span class="fu">\hfill</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\small\color</span>{gray}</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  author@example.edu <span class="fu">\textbar\ </span>+44 1234 567890 <span class="fu">\textbar\</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  www.example.edu/<span class="fu">\textasciitilde</span> author}</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{0.5em}</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\color</span>{gray}<span class="fu">\rule</span>{<span class="fu">\linewidth</span>}{1pt}}</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{1em}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>\hfill</code> pushes the contact information to the right margin on the same line as the name. The horizontal rule below creates the visual break between the header and the body.</p>
-<p>Entries then use the <code>\cventry</code> command:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\section</span>{Experience}</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">\cventry</span>{2020--present}{Senior Document Engineer}{Typeset Ltd}{London}{<span class="co">%</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Developed Pandoc pipeline producing PDF, HTML, and EPUB</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        from single source, reducing production time by 60<span class="fu">\%</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Maintained house <span class="fu">\LaTeX</span>{} document class (200+ publications)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Introduced automated PDF preflight and font verification</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">\cventry</span>{2016--2020}{Technical Writer}{Documentation Co.}{Edinburgh}{<span class="co">%</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> API documentation for three major software releases</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Introduced git-based version control for documentation projects</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>%</code> after each <code>\cventry{...}{</code> argument prevents unwanted whitespace from being introduced by the line break in the source.</p>
-<p>Compile with pdfLaTeX for compatibility, or XeLaTeX for system font access:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pdflatex</span> cv.tex</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or, with system fonts:</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">xelatex</span> cv.tex</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cv-section</span><span class="op">(</span>title<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">8pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  text<span class="op">(</span>fill<span class="op">:</span> accent<span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">12pt</span><span class="op">,</span> title<span class="op">)</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">0.5pt</span> <span class="op">+</span> accent<span class="op">.</span>lighten<span class="op">(</span><span class="fl">40%</span><span class="op">))</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">4pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cv-entry</span><span class="op">(</span>title<span class="op">,</span> org<span class="op">,</span> location<span class="op">,</span> dates<span class="op">,</span> body<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  grid<span class="op">(</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    columns<span class="op">:</span> <span class="op">(</span><span class="fl">1fr</span><span class="op">,</span> <span class="bu">auto</span><span class="op">),</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    gutter<span class="op">:</span> <span class="fl">6pt</span><span class="op">,</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">[</span>*<span class="kw">#</span>title*<span class="op">],</span> text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> style<span class="op">:</span> <span class="st">"italic"</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">110</span><span class="op">),</span> dates<span class="op">),</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    text<span class="op">(</span>style<span class="op">:</span> <span class="st">"italic"</span><span class="op">,</span> org<span class="op">),</span> text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">110</span><span class="op">),</span> location<span class="op">),</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="op">)</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  body</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">5pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">25mm</span><span class="op">,</span> y: <span class="fl">20mm</span><span class="op">))</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>align<span class="op">(</span>center<span class="op">)[</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">22pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span>A. N. Author<span class="op">]</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">3pt</span><span class="op">)</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9.5pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">105</span><span class="op">))[</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>link<span class="op">(</span><span class="st">"mailto:author@example.edu"</span><span class="op">)[</span>author<span class="va">@example</span>.edu<span class="op">]</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    | +44 1234 567890 | www.example.edu/~author</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="op">]</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">1pt</span> <span class="op">+</span> accent<span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The important point is the separation of concerns. Markdown owns the career data. Typst owns the page geometry, the right-aligned dates, the header rule, and the section styling. The template is short because Typst’s grid and text primitives express the layout directly instead of forcing the author to build helper macros first.</p>
 </section>
 <section id="a-two-column-layout" class="level2" data-number="21.3">
 <h2 data-number="21.3" class="anchored" data-anchor-id="a-two-column-layout"><span class="header-section-number">21.3</span> A two-column layout</h2>
-<p>The two-column CV places primary content (experience, education) in a wide left column and secondary content (skills, contact information, languages) in a narrower right column — a layout common in design, technology, and creative fields.</p>
-<p>The implementation uses <code>minipage</code> environments rather than LaTeX’s <code>twocolumn</code> mode. The <code>twocolumn</code> mode balances columns across the page, which is wrong for a CV where the two columns have different content and different lengths. <code>minipage</code> with <code>[t]</code> alignment (top-aligned) places both columns at the same vertical starting position and lets them run to their natural lengths independently.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">minipage</span>}[t]{0.63<span class="fu">\linewidth</span>}</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co">% Main column content: experience, education</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">\section</span>{Experience}</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\entry</span>{Senior Document Engineer}{2020--present}{Typeset Ltd}{London}</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">itemize</span>}[...]</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Pandoc pipeline: PDF, HTML, EPUB from single source</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">itemize</span>}</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">minipage</span>}<span class="co">%           ← % prevents whitespace between minipages</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\hfill</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">minipage</span>}[t]{0.33<span class="fu">\linewidth</span>}</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co">% Sidebar content: skills, contact</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\colorbox</span>{lightgray}{<span class="kw">\begin</span>{<span class="ex">minipage</span>}{<span class="fu">\linewidth</span>}</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{6pt}</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="kw">\section</span>{Skills}</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>...</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">minipage</span>}}</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">minipage</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>%</code> at the end of the first <code>\end{minipage}</code> line is critical: without it, the whitespace between the <code>\end{minipage}</code> and the <code>\hfill</code> causes a paragraph break, which inserts vertical space and misaligns the columns.</p>
-<p>The sidebar is typically given a light background — <code>\colorbox{lightgray}{...}</code> — to visually distinguish it from the main column. The exact shade depends on the design: too light and the distinction is invisible; too dark and the text becomes hard to read. A value around <code>gray!10</code> to <code>gray!15</code> produces a subtle but legible result.</p>
-<p>A <code>\entry</code> command for two-column layouts is similar to <code>\cventry</code> but simpler — the dates appear as a small right-aligned element on the same line as the title:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\newcommand</span>{<span class="ex">\entry</span>}[4]{<span class="co">%</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\small\textbf</span>{#1}}<span class="fu">\hfill</span>{<span class="fu">\small\textit</span>{<span class="fu">\color</span>{gray}#2}}<span class="fu">\\</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\small\textit</span>{#3}}<span class="fu">\hfill</span>{<span class="fu">\small\color</span>{gray}#4}</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\vspace</span>{2pt}</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Arguments: title, dates, organisation, location. This produces a two-line entry with title and dates on the first line, organisation and location on the second.</p>
+<p>The two-column CV places primary content (experience, education) in a wide left column and secondary content (skills, contact information, languages) in a narrower right column — a layout common in design, technology, and creative fields. This is where a source-neutral workflow becomes harder: the design depends more heavily on page-specific composition, so Typst or LaTeX usually becomes the better PDF path.</p>
+<p>In Typst, the implementation is explicit: a wide left column for the main narrative and a narrow right column for contact details, skills, and languages. The two columns should not be balanced automatically, because a CV’s sidebar almost never has the same height as the main content.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>grid<span class="op">(</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  columns<span class="op">:</span> <span class="op">(</span><span class="fl">2.1fr</span><span class="op">,</span> <span class="fl">0.9fr</span><span class="op">),</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  gutter<span class="op">:</span> <span class="fl">14pt</span><span class="op">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>cv-section<span class="op">(</span><span class="st">"Experience"</span><span class="op">)</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>cv-entry<span class="op">(</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Senior Document Engineer"</span><span class="op">,</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Typeset Ltd"</span><span class="op">,</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      <span class="st">"London"</span><span class="op">,</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>      <span class="st">"2020--present"</span><span class="op">,</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>      <span class="op">[</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>        - Pandoc pipeline: PDF, HTML, EPUB from one source</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>        - Automated PDF preflight and font verification</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>      <span class="op">],</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">)</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>cv-section<span class="op">(</span><span class="st">"Education"</span><span class="op">)</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    *MSc Information Design*<span class="sc">\</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    University of Example, 2016</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="op">],</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>block<span class="op">(</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>      inset<span class="op">:</span> <span class="fl">10pt</span><span class="op">,</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>      fill<span class="op">:</span> rgb<span class="op">(</span><span class="st">"#f2f4f7"</span><span class="op">),</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>      radius<span class="op">:</span> <span class="fl">4pt</span><span class="op">,</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">)[</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>cv-section<span class="op">(</span><span class="st">"Skills"</span><span class="op">)</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>      *Typesetting*<span class="sc">\</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>      Typst, Pandoc, Quarto</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>cv-section<span class="op">(</span><span class="st">"Languages"</span><span class="op">)</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>      English, French</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    <span class="op">]</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="op">],</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The sidebar’s pale background is not decorative; it creates a second visual zone so the eye distinguishes supporting information from the main employment narrative. The key compositional decision is top alignment: both columns begin together, then run independently.</p>
 </section>
 <section id="the-academic-cv" class="level2" data-number="21.4">
 <h2 data-number="21.4" class="anchored" data-anchor-id="the-academic-cv"><span class="header-section-number">21.4</span> The academic CV</h2>
-<p>An academic CV differs from an industry résumé in several important respects. It is longer — sometimes much longer, as it accumulates over a career. It has sections that do not appear on a short résumé: publications, grants, teaching, conference presentations, professional service, and sometimes administrative roles. The publications section in particular requires careful formatting, because publications are the primary evidence of academic productivity and must follow the citation conventions of the relevant field.</p>
-<p>The <code>etaremune</code> package provides a reverse-numbered list that counts down from the most recent publication — a convention that makes the total count visible while presenting the most recent work first:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">etaremune</span>}</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">\section</span>{Publications}</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">\subsection*</span>{Journal Articles}</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">etaremune</span>}</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Author, A.N. <span class="fu">\&amp;</span> Collaborator, B.M. (2023).</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    Typographic quality in CLI-produced documents.</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\textit</span>{Journal of Information Design}, 12(3), 45--67.</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">\texttt</span>{doi:10.1234/jid.2023.45}</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\item</span> Author, A.N. (2022). Reproducible document workflows</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    with Pandoc and Make. <span class="fu">\textit</span>{TUGboat}, 43(1), 12--18.</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">etaremune</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>etaremune</code> environment works exactly like <code>enumerate</code> but numbers items in reverse. It accepts the same <code>[label=...]</code> and spacing options from <code>enumitem</code>.</p>
-<p>For a publications list driven from a BibTeX file — which is the right approach once the list reaches more than a handful of entries — the <code>biblatex</code> package with the <code>category</code> filter can print selected entries without processing the full bibliography:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[style=authoryear, backend=biber]{<span class="ex">biblatex</span>}</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\addbibresource</span>{publications.bib}</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">% Categorise entries</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\DeclareBibliographyCategory</span>{articles}</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">\addtocategory</span>{articles}{author2023typographic, author2022reproducible}</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">% In the document:</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="kw">\section</span>{Publications}</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="kw">\subsection*</span>{Journal Articles}</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">\printbibliography</span>[category=articles, heading=none]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This approach keeps the publication data in BibTeX format (consistent with other tools) and uses the bibliography engine for formatting — no manual entry of author names, journal names, and DOIs. When a new paper is published, add it to the <code>.bib</code> file and add its key to the appropriate category.</p>
-<p>The academic CV header should include ORCID, institutional affiliation, and office location in addition to personal contact information:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">center</span>}</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\huge\bfseries</span> A. N. Author, MSc}<span class="fu">\\</span>[6pt]</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\small</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  Department of Information Design, University of Example<span class="fu">\\</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  Springfield, SS 12345 <span class="fu">\textbar\ </span>Room 3.42<span class="fu">\\</span>[3pt]</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\texttt</span>{author@example.edu} <span class="fu">\textbar\</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  +44 1234 567890 <span class="fu">\textbar\</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\href</span>{https://orcid.org/0000-0000-0000-0001}{orcid.org/0000-0000-0000-0001}</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">center</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>ORCID (Open Researcher and Contributor ID) is the standard persistent identifier for researchers. Including it as a hyperlink to the ORCID profile connects the CV to a maintained online record of publications and affiliations.</p>
+<p>An academic CV differs from an industry résumé in several important respects. It is longer — sometimes much longer, as it accumulates over a career. It has sections that do not appear on a short résumé: publications, grants, teaching, conference presentations, professional service, and sometimes administrative roles. The publications section in particular requires careful formatting, because publications are the primary evidence of academic productivity and must follow the citation conventions of the relevant field. A Markdown source remains valuable here, but the PDF backend often needs stronger bibliography support than a minimal résumé template.</p>
+<p>For most academic CVs, keep the publication data in a bibliography database and render selected entries into the Markdown source. Pandoc’s citation pipeline or Quarto’s bibliography support is usually enough:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> publications.bib</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="an">csl:</span><span class="co"> apa.csl</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">## Publications</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">### Journal Articles</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>@author2023typographic</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>@author2022reproducible</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">### Conference Papers</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>@author2024workflow</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That structure is maintainable because the citation data lives in one place and the CV controls only grouping and order. If you need reverse chronology, put the newest key first in the Markdown list. If you need a more complex publication taxonomy, keep one Markdown file per category and include them in the build.</p>
+<p>The academic header should include institutional affiliation, office location, and ORCID in addition to the usual contact line:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> "A. N. Author, MSc"</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="an">affiliation:</span><span class="co"> "Department of Information Design, University of Example"</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="an">office:</span><span class="co"> "Room 3.42, Springfield, SS 12345"</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="an">orcid:</span><span class="co"> "https://orcid.org/0000-0000-0000-0001"</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>ORCID (Open Researcher and Contributor ID) is the standard persistent identifier for researchers. Linking it in the PDF or HTML output connects the CV to a maintained public record of publications and affiliations.</p>
 </section>
-<section id="single-source-multiple-outputs" class="level2" data-number="21.5">
-<h2 data-number="21.5" class="anchored" data-anchor-id="single-source-multiple-outputs"><span class="header-section-number">21.5</span> Single source, multiple outputs</h2>
-<p>A CV maintained as a LaTeX file is easy to produce as a PDF but awkward to send as an editable document (some employers request this), to publish as a web page, or to share in a format that non-LaTeX users can update. The solution is to maintain the CV content in Pandoc Markdown and generate the final formats from that source.</p>
+<section id="the-primary-workflow-single-source-multiple-outputs" class="level2" data-number="21.5">
+<h2 data-number="21.5" class="anchored" data-anchor-id="the-primary-workflow-single-source-multiple-outputs"><span class="header-section-number">21.5</span> The primary workflow: single source, multiple outputs</h2>
+<p>A CV maintained as a LaTeX file is easy to produce as a PDF but awkward to send as an editable document (some employers request this), to publish as a web page, or to share in a format that non-LaTeX users can update. The better default is to maintain the content in Pandoc Markdown or Quarto and generate the final formats from that source.</p>
 <p>The Markdown source uses the CV’s natural structure:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> "A. N. Author"</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="an">tagline:</span><span class="co"> "Document Engineer &amp; Typographer"</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="an">email:</span><span class="co"> "author@example.edu"</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="an">phone:</span><span class="co"> "+44 1234 567890"</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="an">website:</span><span class="co"> "www.example.edu/~author"</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Experience</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="fu">### Senior Document Engineer | Typeset Ltd | 2020–present</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Pandoc pipeline: PDF, HTML, EPUB from single source (60% time saving)</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Maintained house LaTeX document class (200+ publications)</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Automated PDF preflight and font verification</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="fu">## Education</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="fu">### MSc Information Design | University of Example | 2016</span></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>*Distinction. Dissertation: Legibility of Serif Typefaces at Small Sizes*</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="fu">## Skills</span></span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>**Typesetting:** LaTeX, Typst, Pandoc, groff  </span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>**Scripting:** Python, Bash, Make  </span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>**Formats:** PDF, HTML, EPUB, DOCX, man pages</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A minimal LaTeX template reads the metadata variables and renders the body:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode latex code-with-copy"><code class="sourceCode latex"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">\documentclass</span>[11pt,a4paper]{<span class="ex">article</span>}</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[T1]{<span class="ex">fontenc</span>}</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>[protrusion=true,expansion=false]{<span class="ex">microtype</span>}</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">geometry</span>}</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">\geometry</span>{top=20mm, bottom=20mm, left=25mm, right=25mm}</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">titlesec</span>}</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">enumitem</span>}</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">hyperref</span>}</span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="fu">\hypersetup</span>{hidelinks}</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">parskip</span>}</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="bu">\usepackage</span>{<span class="ex">xcolor</span>}</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="fu">\definecolor</span>{accent}{RGB}{26,78,140}</span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co">% Required for Pandoc's \tightlist</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="fu">\providecommand</span>{<span class="ex">\tightlist</span>}{<span class="co">%</span></span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">\setlength</span>{<span class="fu">\itemsep</span>}{0pt}<span class="fu">\setlength</span>{<span class="fu">\parskip</span>}{0pt}}</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="fu">\titleformat</span>{<span class="kw">\section</span>}</span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>  {<span class="fu">\normalfont\large\bfseries\color</span>{accent}}{}{0em}{}</span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>  [<span class="fu">\textcolor</span>{accent!50}{<span class="fu">\titlerule</span>}]</span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="fu">\titlespacing*</span>{<span class="kw">\section</span>}{0pt}{1.5ex}{0.8ex}</span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a><span class="fu">\pagestyle</span>{empty}</span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">document</span>}</span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a><span class="kw">\begin</span>{<span class="ex">center</span>}</span>
-<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\Huge\bfseries</span> <span class="ss">$name$</span>}<span class="fu">\\</span>[4pt]</span>
-<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a><span class="ss">$if(tagline)$</span>{<span class="fu">\normalsize\itshape</span> <span class="ss">$tagline$</span>}<span class="fu">\\</span>[4pt]<span class="ss">$endif$</span></span>
-<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\small\color</span>{gray}</span>
-<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>  <span class="ss">$if(email)$</span><span class="fu">\texttt</span>{<span class="ss">$email$</span>}<span class="ss">$if(phone)$</span> <span class="fu">\textbar\ </span><span class="ss">$endif$$endif$</span><span class="co">%</span></span>
-<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>  <span class="ss">$if(phone)$$phone$$endif$</span><span class="co">%</span></span>
-<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>  <span class="ss">$if(website)$</span> <span class="fu">\textbar\ \texttt</span>{<span class="ss">$website$</span>}<span class="ss">$endif$</span></span>
-<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">center</span>}</span>
-<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{0.5em}</span>
-<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>{<span class="fu">\color</span>{accent}<span class="fu">\rule</span>{<span class="fu">\linewidth</span>}{1.2pt}}</span>
-<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a><span class="fu">\vspace</span>{0.5em}</span>
-<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a><span class="ss">$body$</span></span>
-<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a><span class="kw">\end</span>{<span class="ex">document</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>\providecommand{\tightlist}</code> declaration is necessary when Pandoc generates the LaTeX — Pandoc inserts <code>\tightlist</code> calls into tight list environments, and the template must define it if it is not provided by the document class or packages.</p>
-<p>Render to all formats with a Makefile:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">NAME</span>   <span class="ch">:=</span><span class="st"> cv-author</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="dt">SOURCE</span> <span class="ch">:=</span><span class="st"> cv-source.md</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="dt">TMPL</span>   <span class="ch">:=</span><span class="st"> cv-template.latex</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="dt">BUILD</span>  <span class="ch">:=</span><span class="st"> build</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="ot">.PHONY:</span><span class="dt"> all pdf html docx clean</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="dv">all:</span><span class="dt"> pdf html docx</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD):</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>mkdir -p <span class="ch">$@</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD)/$(NAME).pdf:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">SOURCE</span><span class="ch">)</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">TMPL</span><span class="ch">)</span><span class="dt"> | </span><span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc <span class="ch">$&lt;</span> --template=<span class="ch">$(</span><span class="dt">TMPL</span><span class="ch">)</span> --pdf-engine=pdflatex -o <span class="ch">$@</span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD)/$(NAME).html:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">SOURCE</span><span class="ch">)</span><span class="dt"> | </span><span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc <span class="ch">$&lt;</span> --standalone --css=cv.css -o <span class="ch">$@</span></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD)/$(NAME).docx:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">SOURCE</span><span class="ch">)</span><span class="dt"> | </span><span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="dv">clean:</span></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>rm -rf <span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> "A. N. Author"</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="an">tagline:</span><span class="co"> "Document Engineer &amp; Typographer"</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="an">email:</span><span class="co"> "author@example.edu"</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="an">phone:</span><span class="co"> "+44 1234 567890"</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="an">website:</span><span class="co"> "www.example.edu/~author"</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Experience</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">### Senior Document Engineer | Typeset Ltd | 2020–present</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Pandoc pipeline: PDF, HTML, EPUB from single source (60% time saving)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Maintained house LaTeX document class (200+ publications)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Automated PDF preflight and font verification</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="fu">## Education</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">### MSc Information Design | University of Example | 2016</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>*Distinction. Dissertation: Legibility of Serif Typefaces at Small Sizes*</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="fu">## Skills</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>**Typesetting:** LaTeX, Typst, Pandoc, groff  </span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>**Scripting:** Python, Bash, Make  </span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>**Formats:** PDF, HTML, EPUB, DOCX, man pages</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For the PDF target, a small Typst template can read the same metadata and body content:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span><span class="im">import</span> <span class="st">"@preview/cmarker:0.1.5"</span><span class="op">:</span> render</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">resume</span><span class="op">(</span>meta<span class="op">,</span> body<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">25mm</span><span class="op">,</span> y: <span class="fl">20mm</span><span class="op">))</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  align<span class="op">(</span>center<span class="op">)[</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">22pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span><span class="kw">#</span>meta<span class="op">.</span>name<span class="op">]</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span><span class="cf">if</span> meta<span class="op">.</span>tagline <span class="op">!=</span> <span class="bu">none</span> <span class="op">[</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>v<span class="op">(</span><span class="fl">3pt</span><span class="op">)</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>emph<span class="op">[</span><span class="kw">#</span>meta<span class="op">.</span>tagline<span class="op">]</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">]</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>v<span class="op">(</span><span class="fl">3pt</span><span class="op">)</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9.5pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">105</span><span class="op">))[</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>      <span class="kw">#</span>meta<span class="op">.</span>email | <span class="kw">#</span>meta<span class="op">.</span>phone | <span class="kw">#</span>meta<span class="op">.</span>website</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">]</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">6pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">1pt</span> <span class="op">+</span> rgb<span class="op">(</span><span class="st">"#1a4e8c"</span><span class="op">))</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">6pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  render<span class="op">(</span>body<span class="op">)</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The goal is the same as the Markdown source: keep the template thin. It should set page size, fonts, spacing, and header treatment once, then leave the content structure alone.</p>
+<p>Render to all formats with a Makefile. In a modern workflow, the PDF target should prefer Typst when the design permits it and fall back to LaTeX only when the template requires LaTeX-specific layout control:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="dt">NAME</span>   <span class="ch">:=</span><span class="st"> cv-author</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="dt">SOURCE</span> <span class="ch">:=</span><span class="st"> cv-source.md</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="dt">TMPL</span>   <span class="ch">:=</span><span class="st"> styles/cv.typ</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="dt">BUILD</span>  <span class="ch">:=</span><span class="st"> build</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="ot">.PHONY:</span><span class="dt"> all pdf html docx clean</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="dv">all:</span><span class="dt"> pdf html docx</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD):</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>mkdir -p <span class="ch">$@</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD)/$(NAME).pdf:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">SOURCE</span><span class="ch">)</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">TMPL</span><span class="ch">)</span><span class="dt"> | </span><span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc <span class="ch">$&lt;</span> --template=<span class="ch">$(</span><span class="dt">TMPL</span><span class="ch">)</span> --pdf-engine=typst -o <span class="ch">$@</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD)/$(NAME).html:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">SOURCE</span><span class="ch">)</span><span class="dt"> | </span><span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc <span class="ch">$&lt;</span> --standalone --css=cv.css -o <span class="ch">$@</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="dv">$(BUILD)/$(NAME).docx:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">SOURCE</span><span class="ch">)</span><span class="dt"> | </span><span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>pandoc <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="dv">clean:</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="er">    </span>rm -rf <span class="ch">$(</span><span class="dt">BUILD</span><span class="ch">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Running <code>make all</code> produces <code>build/cv-author.pdf</code>, <code>build/cv-author.html</code>, and <code>build/cv-author.docx</code> — three formats from a single source, rebuilt automatically when the source changes.</p>
 <p>The HTML output benefits from a small stylesheet:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* cv.css */</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>body {</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-family</span><span class="ch">:</span> <span class="st">'EB Garamond'</span><span class="op">,</span> <span class="dv">Georgia</span><span class="op">,</span> <span class="dv">serif</span><span class="op">;</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">1.05</span><span class="dt">rem</span><span class="op">;</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">line-height</span><span class="ch">:</span> <span class="dv">1.55</span><span class="op">;</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">color</span><span class="ch">:</span> <span class="cn">#1c1c1c</span><span class="op">;</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">max-width</span><span class="ch">:</span> <span class="dv">800</span><span class="dt">px</span><span class="op">;</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">margin</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">rem</span> <span class="bu">auto</span><span class="op">;</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding</span><span class="ch">:</span> <span class="dv">0</span> <span class="dv">1.5</span><span class="dt">rem</span><span class="op">;</span></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>h1 { <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">rem</span><span class="op">;</span> <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">700</span><span class="op">;</span></span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>     <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="cn">#1a4e8c</span><span class="op">;</span> <span class="kw">padding-bottom</span><span class="ch">:</span> <span class="dv">0.3</span><span class="dt">rem</span><span class="op">;</span> }</span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>h2 { <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">1.1</span><span class="dt">rem</span><span class="op">;</span> <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">700</span><span class="op">;</span> <span class="kw">color</span><span class="ch">:</span> <span class="cn">#1a4e8c</span><span class="op">;</span></span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>     <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">px</span> <span class="dv">solid</span> <span class="cn">#b0c4de</span><span class="op">;</span> <span class="kw">text-transform</span><span class="ch">:</span> <span class="dv">uppercase</span><span class="op">;</span></span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>     <span class="kw">letter-spacing</span><span class="ch">:</span> <span class="dv">0.04</span><span class="dt">em</span><span class="op">;</span> <span class="kw">margin</span><span class="ch">:</span> <span class="dv">1.5</span><span class="dt">rem</span> <span class="dv">0</span> <span class="dv">0.5</span><span class="dt">rem</span><span class="op">;</span> }</span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>h3 { <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">rem</span><span class="op">;</span> <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">700</span><span class="op">;</span> <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0.75</span><span class="dt">rem</span> <span class="dv">0</span> <span class="dv">0.1</span><span class="dt">rem</span><span class="op">;</span> }</span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>ul { <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0.3</span><span class="dt">rem</span> <span class="dv">0</span><span class="op">;</span> <span class="kw">padding-left</span><span class="ch">:</span> <span class="dv">1.5</span><span class="dt">rem</span><span class="op">;</span> }</span>
-<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>li { <span class="kw">margin-bottom</span><span class="ch">:</span> <span class="dv">0.15</span><span class="dt">rem</span><span class="op">;</span> }</span>
-<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a><span class="im">@media</span> <span class="an">print</span> {</span>
-<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>  body { <span class="kw">max-width</span><span class="ch">:</span> <span class="dv">none</span><span class="op">;</span> <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0</span><span class="op">;</span> <span class="kw">padding</span><span class="ch">:</span> <span class="dv">0</span><span class="op">;</span> <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">10</span><span class="dt">pt</span><span class="op">;</span> }</span>
-<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode css code-with-copy"><code class="sourceCode css"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* cv.css */</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>body {</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-family</span><span class="ch">:</span> <span class="st">'EB Garamond'</span><span class="op">,</span> <span class="dv">Georgia</span><span class="op">,</span> <span class="dv">serif</span><span class="op">;</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">1.05</span><span class="dt">rem</span><span class="op">;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">line-height</span><span class="ch">:</span> <span class="dv">1.55</span><span class="op">;</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">color</span><span class="ch">:</span> <span class="cn">#1c1c1c</span><span class="op">;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">max-width</span><span class="ch">:</span> <span class="dv">800</span><span class="dt">px</span><span class="op">;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">margin</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">rem</span> <span class="bu">auto</span><span class="op">;</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">padding</span><span class="ch">:</span> <span class="dv">0</span> <span class="dv">1.5</span><span class="dt">rem</span><span class="op">;</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>h1 { <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">rem</span><span class="op">;</span> <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">700</span><span class="op">;</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>     <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="cn">#1a4e8c</span><span class="op">;</span> <span class="kw">padding-bottom</span><span class="ch">:</span> <span class="dv">0.3</span><span class="dt">rem</span><span class="op">;</span> }</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>h2 { <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">1.1</span><span class="dt">rem</span><span class="op">;</span> <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">700</span><span class="op">;</span> <span class="kw">color</span><span class="ch">:</span> <span class="cn">#1a4e8c</span><span class="op">;</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>     <span class="kw">border-bottom</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">px</span> <span class="dv">solid</span> <span class="cn">#b0c4de</span><span class="op">;</span> <span class="kw">text-transform</span><span class="ch">:</span> <span class="dv">uppercase</span><span class="op">;</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>     <span class="kw">letter-spacing</span><span class="ch">:</span> <span class="dv">0.04</span><span class="dt">em</span><span class="op">;</span> <span class="kw">margin</span><span class="ch">:</span> <span class="dv">1.5</span><span class="dt">rem</span> <span class="dv">0</span> <span class="dv">0.5</span><span class="dt">rem</span><span class="op">;</span> }</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>h3 { <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">1</span><span class="dt">rem</span><span class="op">;</span> <span class="kw">font-weight</span><span class="ch">:</span> <span class="dv">700</span><span class="op">;</span> <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0.75</span><span class="dt">rem</span> <span class="dv">0</span> <span class="dv">0.1</span><span class="dt">rem</span><span class="op">;</span> }</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>ul { <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0.3</span><span class="dt">rem</span> <span class="dv">0</span><span class="op">;</span> <span class="kw">padding-left</span><span class="ch">:</span> <span class="dv">1.5</span><span class="dt">rem</span><span class="op">;</span> }</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>li { <span class="kw">margin-bottom</span><span class="ch">:</span> <span class="dv">0.15</span><span class="dt">rem</span><span class="op">;</span> }</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="im">@media</span> <span class="an">print</span> {</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  body { <span class="kw">max-width</span><span class="ch">:</span> <span class="dv">none</span><span class="op">;</span> <span class="kw">margin</span><span class="ch">:</span> <span class="dv">0</span><span class="op">;</span> <span class="kw">padding</span><span class="ch">:</span> <span class="dv">0</span><span class="op">;</span> <span class="kw">font-size</span><span class="ch">:</span> <span class="dv">10</span><span class="dt">pt</span><span class="op">;</span> }</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The DOCX output requires a reference document (<code>--reference-doc=cv-reference.docx</code>) to apply consistent styles. Create the reference document by opening the DOCX output in LibreOffice or Word, adjusting the heading and paragraph styles, and saving it as a template. On subsequent builds, <code>pandoc --reference-doc=cv-reference.docx cv-source.md -o cv.docx</code> applies those styles to the new content.</p>
-<p>A limitation of the single-source approach is that complex two-column layouts, coloured sidebars, and ORCID-enhanced academic headers are difficult to achieve in Pandoc Markdown templates — the template mechanism works best for structural layouts, not highly visual ones. For an academic CV or a highly designed two-column résumé, native LaTeX remains the better choice. The single-source approach is most valuable for a straightforward professional résumé where the visual design is secondary to the content.</p>
+<p>A limitation of the single-source approach is that complex two-column layouts, coloured sidebars, and publication-heavy academic headers are difficult to achieve through a thin Pandoc template alone. For those cases, keep the Markdown as the content source and give the PDF target a dedicated Typst layout. The single-source approach is most valuable for a straightforward professional résumé where the visual design is secondary to the content.</p>
 </section>
 <section id="the-typst-cv" class="level2" data-number="21.6">
 <h2 data-number="21.6" class="anchored" data-anchor-id="the-typst-cv"><span class="header-section-number">21.6</span> The Typst CV</h2>
-<p>For projects already using Typst, a CV template in Typst is clean and maintainable. The key advantage is readability of the template itself: the helper functions that define entries and sections are written in Typst’s functional style rather than LaTeX’s macro language.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">accent</span> <span class="op">=</span> rgb<span class="op">(</span><span class="st">"#1a4e8c"</span><span class="op">)</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cv-section</span><span class="op">(</span>title<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">8pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  text<span class="op">(</span>fill<span class="op">:</span> accent<span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">12pt</span><span class="op">,</span> title<span class="op">)</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">0.5pt</span> <span class="op">+</span> accent<span class="op">.</span>lighten<span class="op">(</span><span class="fl">40%</span><span class="op">))</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cv-entry</span><span class="op">(</span>title<span class="op">,</span> dates<span class="op">,</span> org<span class="op">,</span> location<span class="op">,</span> details<span class="op">:</span> <span class="bu">none</span><span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  grid<span class="op">(</span></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    columns<span class="op">:</span> <span class="op">(</span><span class="fl">1fr</span><span class="op">,</span> <span class="bu">auto</span><span class="op">),</span></span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">[</span>*<span class="kw">#</span>title*<span class="op">],</span> text<span class="op">(</span>style<span class="op">:</span> <span class="st">"italic"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> dates<span class="op">),</span></span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    text<span class="op">(</span>style<span class="op">:</span> <span class="st">"italic"</span><span class="op">,</span> org<span class="op">),</span> text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">120</span><span class="op">),</span> location<span class="op">),</span></span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>  <span class="op">)</span></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> details <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> details <span class="op">}</span></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">4pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Document setup</span></span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">25mm</span><span class="op">,</span> y: <span class="fl">20mm</span><span class="op">))</span></span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a><span class="co">// Header</span></span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>align(center)[</span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">22pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span>A.<span class="kw">#</span>h<span class="op">(</span><span class="fl">0.1em</span><span class="op">)</span>N. Author<span class="op">]</span></span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">3pt</span><span class="op">)</span></span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9.5pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">100</span><span class="op">))[</span></span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>link<span class="op">(</span><span class="st">"mailto:author@example.edu"</span><span class="op">)[</span>author<span class="sc">\@</span>example.edu<span class="op">]</span></span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    | +44 1234 567890 | www.example.edu</span>
-<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
-<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">1.2pt</span> <span class="op">+</span> accent<span class="op">)</span></span>
-<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a><span class="co">// Experience section</span></span>
-<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>cv-section<span class="op">(</span><span class="st">"Experience"</span><span class="op">)</span></span>
-<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>cv-entry<span class="op">(</span></span>
-<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Senior Document Engineer"</span><span class="op">,</span> <span class="st">"2020--present"</span><span class="op">,</span></span>
-<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Typeset Ltd"</span><span class="op">,</span> <span class="st">"London"</span><span class="op">,</span></span>
-<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>  details<span class="op">:</span> <span class="op">[</span></span>
-<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>    - Pandoc pipeline: PDF, HTML, EPUB from single source</span>
-<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    - Maintained LaTeX class for 200+ publications</span>
-<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
-<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For projects already using Typst, a CV template in Typst is clean and maintainable. In many cases it should be the preferred PDF path even when the source content begins in Markdown, because the helper functions that define entries and sections are written in Typst’s functional style rather than LaTeX’s macro language.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode typst code-with-copy"><code class="sourceCode typst"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">accent</span> <span class="op">=</span> rgb<span class="op">(</span><span class="st">"#1a4e8c"</span><span class="op">)</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cv-section</span><span class="op">(</span>title<span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">8pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  text<span class="op">(</span>fill<span class="op">:</span> accent<span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">12pt</span><span class="op">,</span> title<span class="op">)</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">0.5pt</span> <span class="op">+</span> accent<span class="op">.</span>lighten<span class="op">(</span><span class="fl">40%</span><span class="op">))</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="kw">#let</span> <span class="va">cv-entry</span><span class="op">(</span>title<span class="op">,</span> dates<span class="op">,</span> org<span class="op">,</span> location<span class="op">,</span> details<span class="op">:</span> <span class="bu">none</span><span class="op">)</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  grid<span class="op">(</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    columns<span class="op">:</span> <span class="op">(</span><span class="fl">1fr</span><span class="op">,</span> <span class="bu">auto</span><span class="op">),</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">[</span>*<span class="kw">#</span>title*<span class="op">],</span> text<span class="op">(</span>style<span class="op">:</span> <span class="st">"italic"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> dates<span class="op">),</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    text<span class="op">(</span>style<span class="op">:</span> <span class="st">"italic"</span><span class="op">,</span> org<span class="op">),</span> text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">120</span><span class="op">),</span> location<span class="op">),</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="op">)</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> details <span class="op">!=</span> <span class="bu">none</span> <span class="op">{</span> details <span class="op">}</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  v<span class="op">(</span><span class="fl">4pt</span><span class="op">,</span> weak<span class="op">:</span> <span class="bu">true</span><span class="op">)</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Document setup</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">page</span><span class="op">(</span>paper<span class="op">:</span> <span class="st">"a4"</span><span class="op">,</span> margin<span class="op">:</span> <span class="op">(</span>x: <span class="fl">25mm</span><span class="op">,</span> y: <span class="fl">20mm</span><span class="op">))</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"EB Garamond"</span><span class="op">,</span> size<span class="op">:</span> <span class="fl">11pt</span><span class="op">)</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="co">// Header</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>align(center)[</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">22pt</span><span class="op">,</span> weight<span class="op">:</span> <span class="st">"bold"</span><span class="op">)[</span>A.<span class="kw">#</span>h<span class="op">(</span><span class="fl">0.1em</span><span class="op">)</span>N. Author<span class="op">]</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>v<span class="op">(</span><span class="fl">3pt</span><span class="op">)</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="kw">#</span>text<span class="op">(</span>size<span class="op">:</span> <span class="fl">9.5pt</span><span class="op">,</span> fill<span class="op">:</span> luma<span class="op">(</span><span class="dv">100</span><span class="op">))[</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">#</span>link<span class="op">(</span><span class="st">"mailto:author@example.edu"</span><span class="op">)[</span>author<span class="sc">\@</span>example.edu<span class="op">]</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    | +44 1234 567890 | www.example.edu</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>line<span class="op">(</span>length<span class="op">:</span> <span class="fl">100%</span><span class="op">,</span> stroke<span class="op">:</span> <span class="fl">1.2pt</span> <span class="op">+</span> accent<span class="op">)</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">// Experience section</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>cv-section<span class="op">(</span><span class="st">"Experience"</span><span class="op">)</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="kw">#</span>cv-entry<span class="op">(</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Senior Document Engineer"</span><span class="op">,</span> <span class="st">"2020--present"</span><span class="op">,</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Typeset Ltd"</span><span class="op">,</span> <span class="st">"London"</span><span class="op">,</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>  details<span class="op">:</span> <span class="op">[</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>    - Pandoc pipeline: PDF, HTML, EPUB from single source</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>    - Maintained LaTeX class for 200+ publications</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>  <span class="op">]</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>cv-entry</code> function uses a <code>grid</code> with <code>1fr</code> for the title column and <code>auto</code> for the dates column, which automatically right-aligns the dates to the line width — the same effect as <code>tabular*</code> with <code>\extracolsep{\fill}</code> in LaTeX, but expressed directly.</p>
 <p>Compile:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">typst</span> compile cv.typ</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">typst</span> compile cv.typ</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="choosing-the-approach" class="level2" data-number="21.7">
 <h2 data-number="21.7" class="anchored" data-anchor-id="choosing-the-approach"><span class="header-section-number">21.7</span> Choosing the approach</h2>
-<p><strong>For an industry résumé</strong> (one or two pages, clean professional appearance): the single-source Markdown approach with a LaTeX template produces good results with the lowest maintenance overhead. Keep the design simple enough to work in the LaTeX template, and you get PDF, HTML, and DOCX from one command.</p>
-<p><strong>For a designed two-column résumé</strong>: write it in LaTeX directly, using the <code>minipage</code> approach described above. The design elements that make two-column layouts work — coloured sidebars, <code>\colorbox</code> backgrounds, per-column section formatting — are difficult to manage through a Pandoc template.</p>
-<p><strong>For an academic CV</strong> with a publications section: write it in LaTeX with <code>etaremune</code> for the publications list. If the publications list will grow over years, use <code>biblatex</code> with the <code>category</code> mechanism so new papers can be added to the <code>.bib</code> file and pulled into the CV automatically. If the list is currently short and unlikely to grow, manual <code>etaremune</code> entries are simpler.</p>
-<p><strong>For Typst projects</strong>: the Typst approach produces equivalent output to LaTeX with cleaner source, but does not yet have an equivalent of <code>etaremune</code> or <code>biblatex</code>’s category filtering. Academic CVs with long publications lists are better in LaTeX for now.</p>
+<p><strong>For an industry résumé</strong> (one or two pages, clean professional appearance): keep the source in Markdown and generate PDF, HTML, and DOCX from it. Prefer Typst for PDF if you want a proper print layout without giving up the shared source.</p>
+<p><strong>For a designed two-column résumé</strong>: keep the content in Markdown if possible, but expect the PDF output to move into a dedicated Typst layout. That is the right place to solve columns, sidebars, and spacing.</p>
+<p><strong>For an academic CV</strong> with a publications section: keep the data source structured and reproducible. Put the publication data in a bibliography file, group entries in Markdown, and render the final PDF through Typst or Pandoc according to the complexity of the design.</p>
+<p><strong>For legacy workflows</strong>: use LaTeX only when a department, journal, or inherited template stack leaves no realistic alternative.</p>
 <p>The résumé is a document that will be revised regularly throughout a career. Whatever approach you choose, it should be one you can maintain without friction — one where updating a job title or adding a new publication is a matter of editing a line, not navigating a complex template structure.</p>
 
 

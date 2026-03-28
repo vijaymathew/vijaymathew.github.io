@@ -32,7 +32,7 @@ pandoc --toc --split-level=1 \
   "$META" $CHAPTERS \
   -o "$BUILD/$BOOK.epub"
 
-pandoc --pdf-engine=xelatex --toc \
+pandoc --pdf-engine=typst --toc \
   "$META" $CHAPTERS \
   -o "$BUILD/$BOOK.pdf"
 ```
@@ -62,7 +62,7 @@ set -e  # exit immediately if any command fails
 set -e
 
 # Check that required tools are present
-for cmd in pandoc xelatex; do
+for cmd in pandoc typst; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "Error: '$cmd' is required but not installed." >&2
     exit 1
@@ -96,7 +96,7 @@ info() { printf '==> %s\n' "$*"; }
 
 # Prerequisites
 command -v pandoc    >/dev/null || die "pandoc not found"
-command -v xelatex   >/dev/null || die "xelatex not found (install texlive-xetex)"
+command -v typst     >/dev/null || die "typst not found"
 
 CHAPTERS=$(find chapters -name "*.md" | sort)
 [ -n "$CHAPTERS" ] || die "No chapter files found in chapters/"
@@ -301,6 +301,7 @@ book/
 │   ├── epub.css
 │   └── web.css
 ├── templates/
+│   ├── book.typ
 │   └── book.latex
 ├── assets/
 │   ├── cover.jpg
@@ -450,12 +451,10 @@ jobs:
           pandoc-3.1.3-1-amd64.deb
           sudo dpkg -i pandoc-3.1.3-1-amd64.deb
 
-      - name: Install LaTeX
+      - name: Install Typst
         run: |
-          sudo apt-get install -y --no-install-recommends \
-            texlive-xetex \
-            texlive-fonts-recommended \
-            texlive-latex-extra
+          curl -fsSL https://typst.community/typst-install/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install fonts
         run: |
@@ -474,9 +473,9 @@ jobs:
           retention-days: 90
 ```
 
-On every push to `main`, this workflow checks out the repository, installs Pandoc and a minimal LaTeX distribution, builds all formats, and uploads the results as downloadable artifacts. Team members and reviewers can access the latest PDF from the Actions tab without needing to install any tools.
+On every push to `main`, this workflow checks out the repository, installs Pandoc and Typst, builds all formats, and uploads the results as downloadable artifacts. Team members and reviewers can access the latest PDF from the Actions tab without needing to install any tools. If your PDF path still depends on a LaTeX backend, replace the Typst installation step with the relevant TeX packages.
 
-**Caching the LaTeX installation** dramatically reduces build time. Without caching, installing `texlive-xetex` and friends takes several minutes on every run. With caching, the packages are restored from cache on subsequent runs and the total time drops to under a minute:
+**Caching large tool installations** dramatically reduces build time. If your workflow still depends on a TeX distribution, caching it avoids reinstalling hundreds of megabytes of packages on every run:
 
 ```yaml
       - name: Cache LaTeX packages
@@ -568,6 +567,7 @@ book/
 │   ├── web.css
 │   └── epub.css
 ├── templates/
+│   ├── book.typ
 │   └── book.latex
 ├── assets/
 │   ├── cover.jpg

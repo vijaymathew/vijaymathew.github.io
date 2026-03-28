@@ -2,7 +2,7 @@
 
 A book is the most complex document type a typographer works with. It is not simply a long article. It has a front matter apparatus — half title, title page, copyright notice, dedication, table of contents, list of figures, preface — and a back matter apparatus — bibliography, index, colophon — that frame the main text. It is structured as a hierarchy of parts, chapters, and sections. It has running headers that reflect the current chapter and section. It may have an index with thousands of entries cross-referenced to specific pages. Its bibliography may contain hundreds of sources formatted to a specific style. And all of this must work simultaneously in PDF, EPUB, and HTML, each format imposing different constraints.
 
-This chapter builds the complete book production pipeline: a LaTeX-based native book for maximum typographic quality, and a Pandoc-based multi-format build from Markdown sources. It covers every element of the book apparatus, the index and bibliography workflows, and the Makefile that ties it together.
+This chapter builds the complete book production pipeline from Markdown chapters, shared metadata, and reproducible build commands. The default path is multi-format: HTML and EPUB from the same sources, plus PDF through a dedicated print backend such as Typst. A native LaTeX book remains useful for print-only projects or publisher-mandated workflows, but it should be the exception rather than the organising principle. The chapter therefore treats the Markdown source tree as canonical and the PDF backend as a replaceable implementation detail.
 
 
 ## Project structure
@@ -14,14 +14,14 @@ book/
 ├── Makefile                 ← build system
 ├── metadata.yaml            ← document-wide metadata
 ├── references.bib           ← bibliography database
-├── book.tex                 ← native LaTeX (optional)
 ├── chapters/
 │   ├── 00-preface.md
 │   ├── 01-history.md
 │   ├── 02-fundamentals.md
 │   └── ...
 ├── styles/
-│   ├── book-template.latex  ← LaTeX template for PDF
+│   ├── book.typ             ← Typst template for PDF
+│   ├── book-template.latex  ← LaTeX fallback template
 │   ├── web.css              ← CSS for HTML output
 │   └── epub.css             ← CSS for EPUB output
 ├── assets/
@@ -36,7 +36,7 @@ book/
 └── .gitignore
 ```
 
-The `chapters/` directory contains one Markdown file per chapter, numbered with leading zeros to ensure correct alphabetical sort order. The `metadata.yaml` file holds the title, author, bibliography settings, and format-specific options that apply to the entire book. The `build/` directory is generated and is excluded from version control.
+The `chapters/` directory contains one Markdown file per chapter, numbered with leading zeros to ensure correct alphabetical sort order. The `metadata.yaml` file holds the title, author, bibliography settings, and format-specific options that apply to the entire book. The PDF template can be Typst or LaTeX; the source tree stays the same either way. The `build/` directory is generated and is excluded from version control.
 
 `.gitignore` for the book project:
 
@@ -59,325 +59,175 @@ build/
 ```
 
 
-## The LaTeX book
+## The PDF backend: Typst first, LaTeX when needed
 
-For maximum typographic control — a book intended for professional printing — the native LaTeX approach using the `book` document class is the standard:
+For a Markdown-first book, the PDF layer should be swappable. Typst is the cleaner default when you want a programmable print layout without inheriting TeX's macro language. The book template should own geometry, running heads, chapter openings, and front and back matter conventions.
 
-```latex
-\documentclass[11pt,a4paper,twoside,openright]{book}
-\usepackage[T1]{fontenc}
-\usepackage[protrusion=true,expansion=false]{microtype}
-\usepackage{geometry}
-\geometry{
-  a4paper,
-  top=30mm, bottom=25mm,
-  inner=30mm, outer=25mm,
-  bindingoffset=10mm,
-  twoside
-}
+```typst
+#set page(
+  paper: "a4",
+  margin: (
+    inside: 30mm,
+    outside: 25mm,
+    top: 30mm,
+    bottom: 25mm,
+  ),
+)
+#set text(font: "EB Garamond", size: 11pt, lang: "en")
+#set par(justify: true)
 ```
 
-The `twoside` option and `inner`/`outer` margin specification give different margins for the gutter (spine) and fore-edge sides of the page. The `bindingoffset` adds extra space at the spine for the physical binding. The `openright` option forces chapters to begin on right-hand (recto) pages, which is standard for professionally typeset books.
+The inside and outside margins matter in the same way that gutter and fore-edge margins matter in traditional book work. The source files should not know about any of this; they should remain chapter files.
 
 ### Front matter
 
-The book begins with front matter — content before the first main chapter, typically paginated in Roman numerals:
+The book begins with front matter — content before the first main chapter, typically paginated separately and laid out more quietly than the main text. In a Typst template, this is usually one function per front-matter element:
 
-```latex
-\begin{document}
-\frontmatter   ← switches to Roman numeral page numbering
+```typst
+#let title-page(meta) = pagebreak(to: "odd") + align(center)[
+  #v(35%)
+  #text(size: 26pt, weight: "bold")[#meta.title]
+  #v(8pt)
+  #text(size: 14pt)[#meta.subtitle]
+  #v(18pt)
+  #meta.author
+  #v(24pt)
+  #meta.publisher
+]
 
-\begin{titlepage}
-\thispagestyle{empty}
-\centering
-\vspace*{2cm}
-{\huge\bfseries The CLI Typographer}\\[1em]
-{\Large Typography, Typesetting, and Document Production\\
-from the Command Line}\\[3em]
-{\large A. N. Author}\\[5em]
-\vfill
-{\normalsize Self-Published \\ Springfield \\ 2024}
-\end{titlepage}
+#let copyright-page(meta) = pagebreak(to: "odd") + block[
+  Copyright © #meta.year #meta.author.
+  All rights reserved.
+]
 
-% Copyright page
-\thispagestyle{empty}
-\vspace*{\fill}
-{\small
-Copyright \copyright\ 2024 A. N. Author. All rights reserved.
+#let dedication(text) = pagebreak(to: "odd") + align(center + horizon)[
+  #emph[text]
+]
 
-First published 2024. Typeset in EB Garamond using \LaTeX.
-}
-\cleardoublepage
-
-% Dedication
-\thispagestyle{empty}
-\vspace*{\fill}
-\begin{center}
-\textit{For everyone who types \texttt{make} and waits.}
-\end{center}
-\vspace*{\fill}
-\cleardoublepage
-
-\tableofcontents
-\listoffigures     ← omit if no figures
-\listoftables      ← omit if few tables
-
-\chapter*{Preface}
-\addcontentsline{toc}{chapter}{Preface}
-\markboth{Preface}{Preface}
-
-Preface text...
-
-\mainmatter   ← switches to Arabic page numbering, resets to 1
+#outline(title: [Contents])
 ```
 
-The `\cleardoublepage` command ends the current page and advances to the next right-hand page (adding a blank page if necessary, as in a two-sided layout). This is how standard book publishing ensures odd-numbered pages are always right-hand pages.
-
-`\addcontentsline{toc}{chapter}{Preface}` manually adds the unnumbered Preface to the table of contents — necessary because starred commands like `\chapter*` do not automatically appear in the TOC.
-
-`\markboth{Preface}{Preface}` sets both the left and right running header marks, so the Preface appears correctly in headers on both recto and verso pages.
+The point is not that these exact helper functions are universal. The point is that front matter is a template responsibility, not something the author should retype in every manuscript.
 
 ### Main matter and parts
 
-```latex
-\mainmatter
+```markdown
+# Part: Foundations
 
-\part{Foundations}
-\label{part:foundations}
+# A Brief History of Typesetting {#ch-history}
 
-\chapter{A Brief History of Typesetting}
-\label{ch:history}
+Body text with index markers and citations.
 
-Body text...\index{typography}...
-
-\section{Hot Metal to Digital}
+## Hot Metal to Digital
 
 More text...
 
-\part{The Toolbox}
+# Part: The Toolbox
 
-\chapter{Pandoc: The Universal Converter}
+# Pandoc: The Universal Converter
 ```
 
-The `\part{}` command creates part-level divisions. LaTeX's `book` class provides `\part`, `\chapter`, `\section`, `\subsection`, `\subsubsection`, and `\paragraph` — six levels, though using all six in one book is unusual and typically indicates structural problems in the outline.
+The source should reflect the book's logical outline only. Whether part openings begin on recto pages, whether chapter titles occupy a full spread, and how running heads are updated are all template decisions.
 
 ### Back matter
 
-```latex
-\backmatter   ← unnumbered chapters, no section numbering
+```markdown
+# Bibliography
 
-\chapter*{Bibliography}
-\addcontentsline{toc}{chapter}{Bibliography}
-\bibliographystyle{plainnat}
-\bibliography{references}
+# Index
 
-\printindex
-
-% Colophon: last page, no page number
-\clearpage
-\thispagestyle{empty}
-\vspace*{\fill}
-{\small\centering
-This book was typeset using \LaTeX{} with the \texttt{book} class.
-Body text is set in EB Garamond 11/14. The book was compiled with
-\texttt{latexmk} using XeLaTeX. Index entries were processed with
-\texttt{makeindex}.
-}
-\vspace*{\fill}
-\end{document}
+# Colophon
 ```
 
-The colophon — a brief note about how the book was produced — appears on the final page. It is a typographic tradition that dates to the early days of printing, when the printer's information appeared at the end of a book rather than the beginning. For a technically produced book, the colophon is the natural place to note the tools, typefaces, and workflow.
+In the source tree, these can be generated sections or included back-matter files. The colophon — a brief note about how the book was produced — appears on the final page. It is the natural place to record the toolchain, typefaces, and workflow.
 
 
-## Running headers with fancyhdr
+## Running headers
 
 Running headers display context-sensitive information as the reader navigates the book. The standard book convention:
 
 - **Left (verso) pages**: chapter title in small italic, page number at outer edge
 - **Right (recto) pages**: section title in small italic, page number at outer edge
 
-```latex
-\usepackage{fancyhdr}
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[LE]{\small\leftmark}
-\fancyhead[RO]{\small\rightmark}
-\fancyfoot[C]{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+```typst
+#set page(
+  header: context {
+    let loc = here()
+    align(center)[#smallcaps[Chapter] #query(heading.where(level: 1)).last().body]
+  },
+  footer: context align(center)[#counter(page).display()],
+)
 ```
 
-`\leftmark` contains the current chapter name; `\rightmark` contains the current section name. The `LE`/`RO` notation means "Left on Even pages, Right on Odd pages."
-
-By default, `\leftmark` contains the chapter name in all capitals. To use sentence case:
-
-```latex
-\renewcommand{\chaptermark}[1]{%
-  \markboth{\thechapter\ #1}{}}
-\renewcommand{\sectionmark}[1]{%
-  \markright{\thesection\ #1}}
-```
-
-These commands redefine how `\chaptermark` and `\sectionmark` populate `\leftmark` and `\rightmark`, removing the default uppercasing.
-
-Chapter-opening pages in the `book` class use the `plain` page style (page number only, no header). Customise it to match the standard style:
-
-```latex
-\fancypagestyle{plain}{%
-  \fancyhf{}
-  \fancyfoot[C]{\small\thepage}
-  \renewcommand{\headrulewidth}{0pt}
-}
-```
+The details vary by template, but the principle is stable: running heads belong to the page layer, not the chapter source. Chapter-opening pages can use a separate page style with the header suppressed.
 
 
 ## Index generation
 
-An index is built in two passes. In the first pass, `\index{entry}` commands in the source create entries in a `.idx` file. In the second pass, `makeindex` sorts the entries and generates a formatted `.ind` file, which `\printindex` includes in the document.
+An index is still a multi-step process, but the source should remain Markdown. The usual pattern is to mark terms in the source and let a filter or generator collect them into an index file.
 
 ### Marking index entries
 
-Place `\index{}` commands immediately after the relevant text, with no space:
+Mark indexable terms semantically:
 
-```latex
-Typography\index{typography} is the craft of endowing language
+```markdown
+Typography [typography]{.index} is the craft of endowing language
 with a durable visual form.
 
-The baseline\index{baseline} is the invisible line on which letters rest.
+The baseline [baseline]{.index} is the invisible line on which
+letters rest.
 ```
 
-The entry syntax:
+For subentries or see-also references, use attributes:
 
-```latex
-\index{typography}              % simple entry: "typography, N"
-\index{typeface!serif}          % sub-entry: "typeface, serif, N"
-\index{typography!spacing!kerning}  % sub-sub-entry (three levels)
-
-% Cross-references (no page number)
-\index{TeX|see{LaTeX}}          % "TeX, see LaTeX"
-\index{xelatex|seealso{LaTeX}}  % "xelatex, see also LaTeX"
-
-% Page ranges
-\index{microtype|(}             % start of multi-page discussion
-...several pages of content...
-\index{microtype|)}             % end of discussion → "microtype, N–M"
-
-% People's names (alphabetised by surname)
-\index{Knuth, Donald E.}
-\index{Bringhurst, Robert}
+```markdown
+[serif]{.index main="typeface" sub="serif"}
+[LaTeX]{.index see="TeX"}
 ```
 
 ### Running makeindex
 
-After the first `pdflatex` or `xelatex` pass:
+After the main render step, run the index generator on the collected terms:
 
 ```sh
-makeindex book.idx
+pandoc metadata.yaml chapters/*.md \
+  --lua-filter=filters/index.lua \
+  -o build/book-index.json
+
+typst compile styles/book.typ build/book.pdf
 ```
 
-This generates `book.ind`, which the next LaTeX pass includes via `\printindex`. The full compilation sequence for a book with an index and bibliography:
-
-```sh
-pdflatex book.tex       # first pass: generates .aux, .idx
-bibtex book             # processes bibliography
-makeindex book.idx      # sorts index entries
-pdflatex book.tex       # second pass: includes bibliography
-pdflatex book.tex       # third pass: resolves all references
-```
-
-With `latexmk`, this sequence is automated:
-
-```perl
-# .latexmkrc
-$pdf_mode = 1;
-$makeindex = 'makeindex %O -o %D %S';
-$pdflatex = 'pdflatex -interaction=nonstopmode %O %S';
-```
-
-```sh
-latexmk book.tex
-```
-
-`latexmk` runs the correct sequence automatically, detects whether the index needs reprocessing, and stops when the output is stable.
+The exact mechanics depend on the indexing tool you choose, but the goal is the same as everywhere else in this book: keep the manuscript human-readable and let the build step assemble the machinery.
 
 ### `xindy` as an alternative
 
-`xindy` is a more sophisticated indexing tool than `makeindex`, with better support for non-Latin alphabets, locale-specific sorting rules, and customisable output formats. It is the better choice for multilingual books:
+If the book is multilingual, use an indexing tool that understands locale-aware sorting and Unicode. The important requirement is not the historical tool name but correct alphabetical order in the finished index.
 
-```sh
-xindy -L english -C utf8 -I latex book.idx
+
+## Bibliography
+
+For a Markdown-first book, bibliography data should stay in `references.bib` or another citation database, and the manuscript should cite keys directly:
+
+```markdown
+Typography was defined by [@bringhurst2012] as the craft of endowing
+human language with a durable visual form.
+
+The line-breaking algorithm discussed in [@knuth1984] considers the
+paragraph as a whole rather than individual lines.
 ```
 
-The `-L english` option sets the language for sorting; `-C utf8` sets the input encoding. `xindy` produces the same `.ind` output format as `makeindex`, so the rest of the pipeline is unchanged.
+In Typst, the bibliography is attached at the template level:
 
-
-## Bibliography with BibLaTeX
-
-BibLaTeX is the modern bibliography system, superseding the older BibTeX workflow. It provides more flexibility in citation styles, better Unicode support, and a cleaner interface through the `\textcite` and `\parencite` commands.
-
-Install the required packages (when available):
-
-```latex
-\usepackage[
-  style=authoryear,
-  backend=biber,
-  sortlocale=en-GB,
-  uniquelist=false
-]{biblatex}
-\addbibresource{references.bib}
+```typst
+#bibliography("references.bib", style: "chicago-author-date")
 ```
 
-In the text:
-
-```latex
-Typography was defined by \textcite{bringhurst2012} as the craft of
-endowing human language with a durable visual form.
-
-The TeX line-breaking algorithm \parencite{knuth1984} considers the
-entire paragraph rather than individual lines.
-
-Multiple sources \parencite{bringhurst2012, lamport1994} agree on
-the importance of consistent spacing.
-```
-
-The bibliography:
-
-```latex
-\backmatter
-\printbibliography[heading=bibintoc]
-```
-
-The `heading=bibintoc` option adds the bibliography to the table of contents automatically — no `\addcontentsline` needed.
-
-Compile with Biber:
-
-```sh
-xelatex book.tex
-biber book
-xelatex book.tex
-xelatex book.tex
-```
-
-Or with `latexmk`:
-
-```perl
-# .latexmkrc for BibLaTeX
-$pdf_mode = 5;  # xelatex
-$biber = 'biber %O %S';
-```
-
-When BibLaTeX is unavailable (on minimal installations), `natbib` with `bibtex` provides similar functionality for standard citation styles:
-
-```latex
-\usepackage{natbib}
-\bibliographystyle{plainnat}
-\bibliography{references}
-```
+In Pandoc or Quarto, `--citeproc` performs the same job for HTML, EPUB, and PDF.
 
 
 ## The Pandoc multi-format build
 
-For books that need simultaneous PDF, HTML, and EPUB output, Pandoc Markdown provides the source-neutral authoring path. Each chapter is a separate `.md` file; the book's structure and metadata live in `metadata.yaml`.
+For books that need simultaneous PDF, HTML, and EPUB output, Pandoc Markdown provides the source-neutral authoring path. Each chapter is a separate `.md` file; the book's structure and metadata live in `metadata.yaml`. This is the path that should dominate the workflow. The PDF backend can be Typst by default and changed later if a print requirement forces a LaTeX-specific template.
 
 ```yaml
 # metadata.yaml
@@ -387,12 +237,9 @@ author: "A. N. Author"
 date: "2024"
 lang: en-GB
 documentclass: book
-classoption:
-  - 11pt
-  - a4paper
-  - twoside
-  - openright
-geometry: "top=30mm, bottom=25mm, inner=30mm, outer=25mm, bindingoffset=10mm"
+mainfont: "EB Garamond"
+sansfont: "Source Sans 3"
+monofont: "JetBrains Mono"
 toc: true
 toc-depth: 2
 numbersections: true
@@ -415,11 +262,10 @@ The transition began in the 1950s...
 Build all three formats:
 
 ```sh
-# PDF
+# PDF via Typst
 pandoc --citeproc \
   --bibliography=references.bib \
-  --template=styles/book-template.latex \
-  --pdf-engine=xelatex \
+  --pdf-engine=typst \
   --toc --toc-depth=2 \
   --number-sections \
   metadata.yaml chapters/*.md \
@@ -464,8 +310,7 @@ $(BUILD):
 $(BUILD)/$(BOOK).pdf: $(META) $(CHAPTERS) $(BIB) | $(BUILD)
 	$(PANDOC) --citeproc \
 	  --bibliography=$(BIB) \
-	  --template=styles/book-template.latex \
-	  --pdf-engine=xelatex \
+	  --pdf-engine=typst \
 	  --toc --toc-depth=2 \
 	  --number-sections \
 	  $(META) $(CHAPTERS) \
@@ -505,9 +350,9 @@ clean:
 Running `make all` produces all three formats; running `make pdf` produces only the PDF. When any chapter file or the metadata changes, only the dependent outputs are rebuilt.
 
 
-## Heading levels and the `\shift-heading-level-by` option
+## Heading levels and `shift-heading-level-by`
 
-When the Pandoc source uses `#` for chapter-level headings and the LaTeX template uses the `book` class, the heading levels map correctly by default: `#` becomes `\chapter`, `##` becomes `\section`, `###` becomes `\subsection`.
+When the Pandoc source uses `#` for chapter-level headings, the mapping is already sensible for books: `#` is the chapter level, `##` the section level, `###` the subsection level.
 
 If the source uses `##` for the top level (as in an article structure), shift the heading levels with:
 
@@ -525,7 +370,7 @@ The colophon is the book's closing statement about its own production. It is a c
 ```
 Colophon
 
-This book was typeset using Pandoc 3.1 and XeLaTeX from TeX Live 2024.
+This book was set from Markdown using Pandoc and Typst.
 Body text is set in EB Garamond 11 point with 14 points of leading.
 Section headings use Fira Sans. Code examples are set in JetBrains Mono.
 
@@ -535,14 +380,15 @@ It runs in under ninety seconds on a contemporary laptop.
 Source files are available at https://github.com/example/cli-typographer.
 ```
 
-In a LaTeX book, the colophon appears as the final element of the back matter, on its own page with no page number:
+In a Typst-backed book, the colophon is simply a final unnumbered page styled by the template:
 
-```latex
-\clearpage
-\thispagestyle{empty}
-\vspace*{\fill}
-{\small\noindent\textit{Colophon.}\enspace ...colophon text...}
-\vspace*{\fill}
+```typst
+#pagebreak(to: "odd")
+#align(center + horizon)[
+  #text(size: 9pt, style: "italic")[Colophon.]
+  #v(6pt)
+  This book was set from Markdown using Pandoc and Typst.
+]
 ```
 
 ---
