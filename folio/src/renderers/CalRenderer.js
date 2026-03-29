@@ -19,6 +19,7 @@ export class CalRenderer extends RendererBase {
   }
 
   async render(ctx) {
+    await this._ensureCalendarData(ctx);
     const { id, params, body } = ctx;
     const logLines = (body || []).map(line => line.trim()).filter(Boolean);
     const events = MockCalBackend.listEvents(id, params);
@@ -32,6 +33,13 @@ export class CalRenderer extends RendererBase {
 
     const list = document.createElement('div');
     list.className = 'cal-list';
+
+    if (events.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'cal-log';
+      empty.textContent = `No events found for calendar ${id}.`;
+      bodyEl.appendChild(empty);
+    }
 
     events.forEach((evt) => {
       const row = document.createElement('div');
@@ -93,6 +101,26 @@ export class CalRenderer extends RendererBase {
     }
 
     return container;
+  }
+
+  async _ensureCalendarData(ctx) {
+    const existing = MockCalBackend.listEvents(ctx.id, ctx.params);
+    if (existing.length > 0) return;
+
+    const simulation = ctx.app?.simulation;
+    if (!simulation || typeof simulation.generateCalendar !== 'function') return;
+    const status = simulation.getClientStatus?.() || {};
+    if (status.ready === false) return;
+
+    ctx.app?.setStatus?.(`Generating simulated calendar for ${ctx.id}...`);
+    try {
+      const result = await simulation.generateCalendar(ctx.id);
+      if (result?.status === 'generated') {
+        ctx.app?.setStatus?.(`Generated simulated calendar for ${ctx.id}.`);
+      }
+    } catch (error) {
+      console.error('[CalRenderer] Failed to generate mirrored calendar:', error);
+    }
   }
 
   _rsvp(ctx, eventId, title, status) {

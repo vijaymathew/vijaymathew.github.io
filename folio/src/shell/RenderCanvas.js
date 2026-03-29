@@ -293,26 +293,43 @@ export class RenderCanvas {
     editor.spellcheck = false;
     editor.value = text;
     editor.placeholder = '(empty)';
+    let lastCommitted = text;
+    let commitOnNextInput = false;
+
+    const commitEditorValue = () => {
+      const newText = editor.value;
+      if (newText === lastCommitted) return;
+      lastCommitted = newText;
+      this.syncBus.emit({
+        timestamp: new Date().toISOString(),
+        source: 'editor', // Use 'editor' source to trigger updates elsewhere
+        type: 'replace',
+        payload: {
+          targetDocId: 'current',
+          lineStart: startLine,
+          lineEnd: startLine + lineCount - 1,
+          text: newText
+        }
+      });
+    };
 
     editor.addEventListener('input', () => {
       this._autosizeTextSurface(editor);
+      if (commitOnNextInput) {
+        commitOnNextInput = false;
+        commitEditorValue();
+      }
+    });
+
+    editor.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        commitOnNextInput = true;
+      }
     });
 
     editor.addEventListener('blur', () => {
-      const newText = editor.value;
-      if (newText !== text) {
-        this.syncBus.emit({
-          timestamp: new Date().toISOString(),
-          source: 'editor', // Use 'editor' source to trigger updates elsewhere
-          type: 'replace',
-          payload: {
-            targetDocId: 'current',
-            lineStart: startLine,
-            lineEnd: startLine + lineCount - 1,
-            text: newText
-          }
-        });
-      }
+      commitOnNextInput = false;
+      commitEditorValue();
     });
 
     editor.addEventListener('focus', () => {
@@ -321,6 +338,7 @@ export class RenderCanvas {
 
     el.appendChild(editor);
     this._mountAutosizedTextSurface(editor);
+    this.appApi?.directiveAssistant?.bind(editor, { mode: 'textarea' });
   }
 
   // ── viewport observation ────────────────────────────────────
@@ -447,14 +465,13 @@ export class RenderCanvas {
       text += '\n' + descriptor.body.join('\n') + '\n::end';
     }
     textarea.value = text;
+    let lastCommitted = text;
+    let commitOnNextInput = false;
 
-    textarea.addEventListener('input', () => {
-      this._autosizeTextSurface(textarea);
-    });
-
-    textarea.addEventListener('blur', () => {
+    const commitTextareaValue = () => {
       const newText = textarea.value;
-      if (newText === text) return;
+      if (newText === lastCommitted) return;
+      lastCommitted = newText;
 
       this.syncBus.emit({
         timestamp: new Date().toISOString(),
@@ -467,10 +484,30 @@ export class RenderCanvas {
           text: newText
         }
       });
+    };
+
+    textarea.addEventListener('input', () => {
+      this._autosizeTextSurface(textarea);
+      if (commitOnNextInput) {
+        commitOnNextInput = false;
+        commitTextareaValue();
+      }
+    });
+
+    textarea.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        commitOnNextInput = true;
+      }
+    });
+
+    textarea.addEventListener('blur', () => {
+      commitOnNextInput = false;
+      commitTextareaValue();
     });
 
     element.appendChild(textarea);
     this._mountAutosizedTextSurface(textarea);
+    this.appApi?.directiveAssistant?.bind(textarea, { mode: 'textarea' });
   }
 
   _autosizeTextSurface(el) {
