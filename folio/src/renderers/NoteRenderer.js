@@ -127,6 +127,7 @@ export class NoteRenderer extends RendererBase {
       });
     });
 
+    ctx.app?.directiveAssistant?.bind(content, { mode: 'contenteditable' });
     bodyEl.appendChild(content);
     return container;
   }

@@ -201,6 +201,7 @@ export class SimulationCoordinator {
       date,
       prompt
     });
+    normalized.email = this._ensureInboxMessages(normalized.email, profile, existing, date);
     const applied = this.applyNormalizedGeneration(normalized, { replace: true });
 
     this._recordGeneration(profile, normalized.scenario, applied, {
@@ -276,6 +277,7 @@ export class SimulationCoordinator {
       date,
       prompt
     });
+    normalized.email = this._ensureInboxMessages(normalized.email, profile, existing, date);
     const applied = this.applyNormalizedGeneration({
       email: normalized.email,
       chat: {},
@@ -651,15 +653,7 @@ export class SimulationCoordinator {
       };
     }
 
-    const dayResult = context.refreshMirrored === false
-      ? null
-      : await this.generateDay({ ...context, profile, date });
-    if (dayResult && dayResult.status !== 'generated') {
-      return dayResult;
-    }
-
-    const scenario = dayResult?.scenario
-      || this._getCompatibleScenario(profile)
+    const scenario = this._getCompatibleScenario(profile)
       || {
         id: `scenario:${profile.id}:${date}`,
         profile_id: profile.id,
@@ -672,8 +666,7 @@ export class SimulationCoordinator {
       };
 
     const prompt = this.documentPromptBuilder.buildDocumentPrompt(profile, scenario, {
-      date,
-      exampleDocument: context.exampleDocument || ''
+      date
     });
     const raw = await this.llmClient.generate(prompt);
     const documentSpec = this.documentNormalizer.normalizeDocumentResult(raw, {
@@ -687,6 +680,11 @@ export class SimulationCoordinator {
       scenario,
       date
     });
+    const emptyMirroredSnapshot = this.resetState({
+      email: [],
+      chat: {},
+      cal: []
+    });
 
     this._recordOperation(profile, scenario, {
       operation: 'generateDocument',
@@ -695,18 +693,13 @@ export class SimulationCoordinator {
       inputSummary: {
         date,
         contacts: (profile.contacts || []).length,
-        threadId: documentSpec.mirrored?.threadId || null,
-        chatChannel: documentSpec.mirrored?.chatChannel || null,
         surface: prompt.context?.surface || { kind: 'document' }
       },
-      outputIds: [
-        ...(documentSpec.contacts || []).map((contact) => contact.id),
-        ...(documentSpec.tasks || []).map((task) => task.id)
-      ],
+      outputIds: [],
       outputCounts: {
-        email: dayResult?.summary?.counts?.email || 0,
-        chat: dayResult?.summary?.counts?.chat || 0,
-        cal: dayResult?.summary?.counts?.cal || 0
+        email: 0,
+        chat: 0,
+        cal: 0
       }
     });
 
@@ -720,9 +713,13 @@ export class SimulationCoordinator {
       scenario,
       document: documentSpec,
       text,
-      mirrored: dayResult?.generated || null,
-      summary: dayResult?.summary || null,
-      snapshot: dayResult?.snapshot || null
+      mirrored: null,
+      summary: {
+        timestamp: this.now(),
+        surfaces: [],
+        counts: { email: 0, chat: 0, cal: 0 }
+      },
+      snapshot: emptyMirroredSnapshot
     };
   }
 
@@ -816,6 +813,11 @@ export class SimulationCoordinator {
     if (!scenario.profile_signature) return null;
     return scenario.profile_signature === profile.signature ? scenario : null;
   }
+
+  _ensureInboxMessages(email, profile, existingScenario, date) {
+    if (Array.isArray(email) && email.length > 0) return email;
+    return buildFallbackInbox(profile, existingScenario, date);
+  }
 }
 
 function shiftDate(dateString, delta) {
@@ -823,4 +825,63 @@ function shiftDate(dateString, delta) {
   const offset = Number.isFinite(Number(delta)) ? Number(delta) : 1;
   value.setUTCDate(value.getUTCDate() + offset);
   return value.toISOString().slice(0, 10);
+}
+
+function buildFallbackInbox(profile = {}, scenario = null, date) {
+  const contacts = Array.isArray(profile.contacts) ? profile.contacts : [];
+  const project = Array.isArray(profile.projects) && profile.projects.length > 0
+    ? profile.projects[0]
+    : null;
+  const primary = contacts[0] || {
+    id: 'primary-contact',
+    name: 'Primary Contact',
+    email: 'contact@folio.local',
+    role: 'Collaborator'
+  };
+  const secondary = contacts[1] || {
+    id: 'ops-contact',
+    name: 'Operations',
+    email: 'ops@folio.local',
+    role: 'Operations'
+  };
+  const threadId = Array.isArray(scenario?.threads) && scenario.threads[0]?.thread_id
+    ? scenario.threads[0].thread_id
+    : `thread-${slugify(project?.id || project?.name || primary.id || 'focus')}`;
+  const focus = project?.name || profile?.user?.role || 'today’s work';
+  const safeDate = date || new Date().toISOString().slice(0, 10);
+
+  return [
+    {
+      id: `msg-${safeDate.replace(/-/g, '')}-1`,
+      threadId,
+      mailbox: 'inbox',
+      from: primary.email || `${slugify(primary.name || primary.id)}@folio.local`,
+      fromName: primary.name || 'Primary Contact',
+      subject: `Urgent: ${focus} needs a final pass`,
+      date: `${safeDate}T09:15:00Z`,
+      priority: 'high',
+      unread: true,
+      body: `Can you send the latest ${focus} update this morning? I want to move it forward once the final details are clear.`
+    },
+    {
+      id: `msg-${safeDate.replace(/-/g, '')}-2`,
+      threadId: `thread-${slugify(secondary.id || secondary.name || 'ops')}`,
+      mailbox: 'inbox',
+      from: secondary.email || `${slugify(secondary.name || secondary.id)}@folio.local`,
+      fromName: secondary.name || 'Operations',
+      subject: `${focus}: one open question to resolve`,
+      date: `${safeDate}T10:00:00Z`,
+      priority: 'normal',
+      unread: true,
+      body: `I left one note on ${focus}. Once you review it, we can treat this thread as resolved.`
+    }
+  ];
+}
+
+function slugify(value) {
+  return String(value || 'item')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'item';
 }

@@ -129,6 +129,7 @@ export class WebRenderer extends RendererBase {
         });
       });
 
+      ctx.app?.directiveAssistant?.bind(annoContent, { mode: 'contenteditable' });
       annoSection.appendChild(annoContent);
       bodyEl.appendChild(annoSection);
     }

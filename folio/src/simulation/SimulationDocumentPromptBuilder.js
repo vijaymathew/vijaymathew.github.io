@@ -6,63 +6,44 @@ export class SimulationDocumentPromptBuilder {
   buildDocumentPrompt(profile, scenario = null, options = {}) {
     const date = options.date || new Date().toISOString().slice(0, 10);
     const profileSummary = summarizeProfile(profile);
-    const exampleDocument = String(options.exampleDocument || '').trim();
     const scenarioSummary = summarizeScenario(scenario);
-    const tomorrow = shiftDate(date, 1);
 
     return {
       operation: 'generateDocument',
       promptVersion: this.promptVersion,
       seed: `generate-document:${profile.id}:${date}`,
       system: [
-        'You are generating a profile-specific Folio document spec.',
+        'You are generating the opening text for a profile-specific Folio document.',
         'Return strict JSON only.',
-        'Use the provided example document for structure and tone, but do not copy its domain content unless the profile implies it.',
+        'Write in first person, as if this is the user opening today’s document and resuming the day in context.',
+        'Keep it compact, concrete, and plausible.',
         'Do not reuse nouns, professions, collaborators, projects, or themes from any prior document unless they are explicitly present in the current profile or scenario.',
-        'The user may be a professional, artist, student, caregiver, or something else entirely.',
-        'Make the document feel coherent: contacts, mirrored block ids, prose, tasks, analysis dataset, and references should point at the same day and the same life context.',
-        'Prefer compact, plausible, specific details over generic filler.'
+        'The user may be a professional, artist, student, caregiver, or something else entirely.'
       ].join(' '),
       user: [
-        `Generate a complete Folio document spec for ${profileSummary.user.name} (${profileSummary.user.role || 'user'}) on ${date}.`,
+        `Generate the opening text for ${profileSummary.user.name} (${profileSummary.user.role || 'user'}) on ${date}.`,
         profileSummary.user.bio ? `Bio: ${profileSummary.user.bio}.` : '',
         profileSummary.user.interests?.length ? `Interests: ${profileSummary.user.interests.join(', ')}.` : '',
         profileSummary.primaryProject ? `Primary focus: ${profileSummary.primaryProject.name}.` : '',
         `The output domain must match the current role, bio, interests, contacts, and project. If the profile is for a programmer, do not include musician-specific content. If it is for a musician, do not include software-team content unless the profile explicitly includes both.`,
         profileSummary.contacts.length
           ? `Known contacts: ${profileSummary.contacts.map((contact) => `${contact.name} (${contact.role || contact.relationship || 'contact'})`).join(', ')}.`
-          : 'No predefined contacts are required; invent only plausible ones if needed.',
-        profileSummary.channels.length
-          ? `Available channels: ${profileSummary.channels.map((channel) => channel.id).join(', ')}.`
-          : '',
-        scenarioSummary.threadId ? `Primary email thread id should be ${scenarioSummary.threadId}.` : '',
-        scenarioSummary.chatChannel ? `Primary chat channel should be ${scenarioSummary.chatChannel}.` : '',
-        `Return keys: heading, contacts, primary_contact_id, analysis, tasks, file_reference, web_reference, mirrored, lifecycle.`,
-        `Analysis must include columns and rows for a small 5-row table using numeric values suitable for a simple Python calculation.`,
-        `Lifecycle should target tomorrow (${tomorrow}) for the next daily document.`,
-        'Do not return introductory paragraphs; Folio will synthesize those locally from the current profile and scenario.',
+          : 'No predefined contacts are required; avoid inventing named people unless necessary.',
+        scenarioSummary.facts?.length ? `Current context: ${scenarioSummary.facts.join(' ')}` : '',
+        'Return keys: heading, intro_paragraphs.',
+        'heading may be omitted if you prefer Folio to use the local date heading.',
+        'intro_paragraphs should contain one or two short paragraphs only.',
+        'Do not include any directives, bullet lists, or markup.',
         'Do not return prose outside the JSON object.'
       ].filter(Boolean).join(' '),
       schemaHint: {
-        keys: [
-          'heading',
-          'contacts',
-          'primary_contact_id',
-          'analysis',
-          'tasks',
-          'file_reference',
-          'web_reference',
-          'mirrored',
-          'lifecycle'
-        ]
+        keys: ['heading', 'intro_paragraphs']
       },
       context: {
         date,
-        tomorrow,
         surface: { kind: 'document' },
         profile: profileSummary,
-        scenario: scenarioSummary,
-        example_document: exampleDocument
+        scenario: scenarioSummary
       }
     };
   }
@@ -117,10 +98,4 @@ function inferChannelFromLoops(openLoops) {
   const loops = Array.isArray(openLoops) ? openLoops : [];
   const chatLoop = loops.find((loop) => loop.kind === 'chat' && typeof loop.owner === 'string');
   return chatLoop?.channel || null;
-}
-
-function shiftDate(dateString, delta) {
-  const value = new Date(`${dateString}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + delta);
-  return value.toISOString().slice(0, 10);
 }
