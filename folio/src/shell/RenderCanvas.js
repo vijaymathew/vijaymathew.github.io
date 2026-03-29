@@ -302,7 +302,7 @@ export class RenderCanvas {
       lastCommitted = newText;
       this.syncBus.emit({
         timestamp: new Date().toISOString(),
-        source: 'editor', // Use 'editor' source to trigger updates elsewhere
+        source: 'canvas-editor',
         type: 'replace',
         payload: {
           targetDocId: 'current',
@@ -315,6 +315,11 @@ export class RenderCanvas {
 
     editor.addEventListener('input', () => {
       this._autosizeTextSurface(editor);
+      if (editor.__directiveAssistantWrite) {
+        editor.__directiveAssistantWrite = false;
+        commitOnNextInput = false;
+        return;
+      }
       if (commitOnNextInput) {
         commitOnNextInput = false;
         commitEditorValue();
@@ -475,7 +480,7 @@ export class RenderCanvas {
 
       this.syncBus.emit({
         timestamp: new Date().toISOString(),
-        source: 'editor', // Use 'editor' to trigger canvas update
+        source: 'canvas-editor',
         type: 'replace',
         payload: {
           targetDocId: 'current',
@@ -488,6 +493,11 @@ export class RenderCanvas {
 
     textarea.addEventListener('input', () => {
       this._autosizeTextSurface(textarea);
+      if (textarea.__directiveAssistantWrite) {
+        textarea.__directiveAssistantWrite = false;
+        commitOnNextInput = false;
+        return;
+      }
       if (commitOnNextInput) {
         commitOnNextInput = false;
         commitTextareaValue();

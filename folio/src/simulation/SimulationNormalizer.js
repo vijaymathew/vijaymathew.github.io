@@ -6,7 +6,7 @@ export class SimulationNormalizer {
     const scenarioSeed = prompt.context?.scenarioSeed || {};
 
     const email = normalizeEmail(rawResult.email, date);
-    const chat = normalizeChat(rawResult.chat, date);
+    const chat = normalizeChat(rawResult.chat, date, profile);
     const cal = normalizeCalendar(rawResult.calendar || rawResult.cal, date);
     const facts = normalizeStrings(rawResult.facts, scenarioSeed.facts || []);
     const threads = normalizeObjects(rawResult.threads, scenarioSeed.threads || []);
@@ -50,14 +50,14 @@ function normalizeEmail(items, date) {
   }));
 }
 
-function normalizeChat(input, date) {
+function normalizeChat(input, date, profile = {}) {
   const grouped = {};
 
   if (Array.isArray(input)) {
     for (const item of input) {
       const channel = item?.channel || '#general';
       if (!grouped[channel]) grouped[channel] = [];
-      grouped[channel].push(normalizeChatMessage(item, grouped[channel].length, date, channel));
+      grouped[channel].push(normalizeChatMessage(item, grouped[channel].length, date, channel, profile));
     }
     return grouped;
   }
@@ -68,18 +68,18 @@ function normalizeChat(input, date) {
 
   for (const [channel, items] of Object.entries(input)) {
     grouped[channel] = Array.isArray(items)
-      ? items.map((item, index) => normalizeChatMessage(item, index, date, channel))
+      ? items.map((item, index) => normalizeChatMessage(item, index, date, channel, profile))
       : [];
   }
 
   return grouped;
 }
 
-function normalizeChatMessage(item, index, date, channel) {
+function normalizeChatMessage(item, index, date, channel, profile = {}) {
   return {
     id: item?.id || `chat-${date.replace(/-/g, '')}-${safeChannel(channel)}-${index + 1}`,
-    user: item?.user || 'unknown',
-    text: item?.text || '',
+    user: resolveChatUser(item, profile, index),
+    text: resolveChatText(item),
     time: item?.time || fallbackTime(index)
   };
 }
@@ -145,6 +145,64 @@ function resolveSenderName(item = {}) {
   }
 
   return 'Unknown';
+}
+
+function resolveChatUser(item = {}, profile = {}, index = 0) {
+  const explicit = item?.user
+    || item?.user_name
+    || item?.userName
+    || item?.sender_name
+    || item?.senderName
+    || item?.author
+    || item?.author_name
+    || item?.authorName
+    || item?.name
+    || item?.display_name
+    || item?.displayName
+    || item?.sender?.name
+    || item?.author?.name
+    || item?.sender?.displayName
+    || item?.author?.displayName;
+
+  if (explicit) return String(explicit).trim();
+
+  const address = item?.user_email
+    || item?.userEmail
+    || item?.sender_email
+    || item?.senderEmail
+    || item?.author_email
+    || item?.authorEmail
+    || item?.sender?.email
+    || item?.author?.email
+    || null;
+
+  if (address) {
+    const localPart = String(address).split('@')[0];
+    if (localPart) {
+      return localPart
+        .replace(/[._-]+/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+  }
+
+  const contacts = Array.isArray(profile?.contacts) ? profile.contacts.filter(Boolean) : [];
+  const fallbackContact = contacts.length > 0 ? contacts[index % contacts.length] : null;
+  if (fallbackContact?.name) return String(fallbackContact.name).trim();
+  if (fallbackContact?.id) {
+    return String(fallbackContact.id)
+      .replace(/[._-]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  return 'Unknown';
+}
+
+function resolveChatText(item = {}) {
+  return item?.text
+    || item?.message
+    || item?.body
+    || item?.content
+    || '';
 }
 
 function safeChannel(channel) {

@@ -358,6 +358,7 @@ export class SimulationCoordinator {
       date,
       prompt
     });
+    normalized.chat = this._ensureChannelMessages(normalized.chat, channelId, profile, existing, date);
     const applied = this.applyNormalizedGeneration({
       email: [],
       chat: normalized.chat,
@@ -818,6 +819,15 @@ export class SimulationCoordinator {
     if (Array.isArray(email) && email.length > 0) return email;
     return buildFallbackInbox(profile, existingScenario, date);
   }
+
+  _ensureChannelMessages(chat, channelId, profile, existingScenario, date) {
+    const grouped = chat && typeof chat === 'object' ? { ...chat } : {};
+    if (Array.isArray(grouped[channelId]) && grouped[channelId].length > 0) {
+      return grouped;
+    }
+    grouped[channelId] = buildFallbackChannel(channelId, profile, existingScenario, date);
+    return grouped;
+  }
 }
 
 function shiftDate(dateString, delta) {
@@ -876,6 +886,53 @@ function buildFallbackInbox(profile = {}, scenario = null, date) {
       body: `I left one note on ${focus}. Once you review it, we can treat this thread as resolved.`
     }
   ];
+}
+
+function buildFallbackChannel(channelId, profile = {}, scenario = null, date) {
+  const contacts = Array.isArray(profile.contacts) ? profile.contacts : [];
+  const primary = contacts[0] || {
+    id: 'primary-contact',
+    name: 'Primary Contact',
+    role: 'Collaborator'
+  };
+  const secondary = contacts[1] || {
+    id: 'second-contact',
+    name: 'Second Contact',
+    role: 'Collaborator'
+  };
+  const channelMeta = Array.isArray(profile.channels)
+    ? profile.channels.find((channel) => channel?.id === channelId)
+    : null;
+  const focus = channelMeta?.topic
+    || inferChannelTopic(channelId)
+    || (Array.isArray(profile.projects) && profile.projects[0]?.name)
+    || profile?.user?.role
+    || 'today';
+  const safeDate = date || new Date().toISOString().slice(0, 10);
+  const safeChannel = String(channelId || '#general');
+
+  return [
+    {
+      id: `chat-${safeDate.replace(/-/g, '')}-${slugify(safeChannel)}-1`,
+      user: primary.name || 'Primary Contact',
+      text: `I dropped a note here about ${focus}. Can you take a look when you have a minute?`,
+      time: '09:00'
+    },
+    {
+      id: `chat-${safeDate.replace(/-/g, '')}-${slugify(safeChannel)}-2`,
+      user: secondary.name || 'Second Contact',
+      text: `Yes, I can pick it up after lunch if we still need to move ${focus} forward.`,
+      time: '09:12'
+    }
+  ];
+}
+
+function inferChannelTopic(channelId) {
+  const raw = String(channelId || '').replace(/^#/, '').trim();
+  if (!raw) return '';
+  return raw
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function slugify(value) {
