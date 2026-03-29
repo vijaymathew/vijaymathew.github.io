@@ -317,6 +317,8 @@ Relevant to the East region overrun we are investigating. The section on procure
         // 4. Orchestration (with debounced editor updates)
         let editorTimer = null;
         const EDITOR_DEBOUNCE_MS = 300;
+        const editorContainer = document.getElementById('editor-container');
+        const canvasContainer = document.getElementById('canvas-container');
         const statusBar = document.getElementById('status-bar');
         const securityBar = document.getElementById('security-bar');
         const trustBtn = document.getElementById('btn-toggle-trust');
@@ -960,6 +962,20 @@ Relevant to the East region overrun we are investigating. The section on procure
         // Global view toggle
         const globalToggle = document.getElementById('global-view-toggle');
 
+        function syncWorkspaceView() {
+            const fullTextView = canvas.isGlobalTextMode();
+            editorContainer.classList.toggle('active', fullTextView);
+            canvasContainer.classList.toggle('hidden', fullTextView);
+
+            if (fullTextView && editor.textarea) {
+                requestAnimationFrame(() => {
+                    if (canvas.isGlobalTextMode() && editor.textarea) {
+                        editor.textarea.focus({ preventScroll: true });
+                    }
+                });
+            }
+        }
+
         function syncGlobalToggleUI() {
             const fullTextView = canvas.isGlobalTextMode();
             if (fullTextView) {
@@ -971,6 +987,7 @@ Relevant to the East region overrun we are investigating. The section on procure
                 globalToggle.title = 'Switch to Full Text View';
                 globalToggle.innerHTML = '<i class="fa fa-code"></i>';
             }
+            syncWorkspaceView();
         }
 
         globalToggle.onclick = () => {
