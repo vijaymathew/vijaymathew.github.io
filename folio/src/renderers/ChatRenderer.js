@@ -20,6 +20,7 @@ export class ChatRenderer extends RendererBase {
   }
 
   async render(ctx) {
+    await this._ensureChannelData(ctx);
     const { id, params, body, syncBus, lineStart, lineEnd } = ctx;
     const channel = id;
     const messages = MockChatBackend.listMessages(channel, params);
@@ -36,6 +37,13 @@ export class ChatRenderer extends RendererBase {
 
     const msgList = document.createElement('div');
     msgList.className = 'chat-messages';
+
+    if (messages.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'chat-log';
+      empty.textContent = `No messages found for ${channel}.`;
+      bodyEl.appendChild(empty);
+    }
 
     messages.forEach((msg) => {
       const row = document.createElement('div');
@@ -122,6 +130,26 @@ export class ChatRenderer extends RendererBase {
     bodyEl.appendChild(composeBar);
 
     return container;
+  }
+
+  async _ensureChannelData(ctx) {
+    const existing = MockChatBackend.listMessages(ctx.id, ctx.params);
+    if (existing.length > 0) return;
+
+    const simulation = ctx.app?.simulation;
+    if (!simulation || typeof simulation.generateChannel !== 'function') return;
+    const status = simulation.getClientStatus?.() || {};
+    if (status.ready === false) return;
+
+    ctx.app?.setStatus?.(`Generating simulated chat for ${ctx.id}...`);
+    try {
+      const result = await simulation.generateChannel(ctx.id);
+      if (result?.status === 'generated') {
+        ctx.app?.setStatus?.(`Generated simulated chat for ${ctx.id}.`);
+      }
+    } catch (error) {
+      console.error('[ChatRenderer] Failed to generate mirrored chat:', error);
+    }
   }
 
   async query(params = {}) {
