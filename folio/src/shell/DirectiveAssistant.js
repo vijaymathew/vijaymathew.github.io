@@ -100,12 +100,12 @@ const DIRECTIVE_METADATA = {
   },
   task: {
     summary: 'Single task stored as a directive line.',
-    identifiers: (ctx) => withExamples(getIdsByType(ctx.index, 'task'), ['follow-up', 'call-finance']),
+    identifiers: (ctx) => withExamples(getIdsByType(ctx.index, 'task'), ['task-1', 'next-step']),
     params: (ctx) => [
       defineParam('due', ['today', 'tomorrow', todayIso()], 'Due date or relative day token.'),
       defineParam('priority', ['low', 'medium', 'high'], 'Task priority.'),
       defineParam('status', ['todo', 'doing', 'done', 'blocked'], 'Task state.'),
-      defineParam('blocked-by', withExamples(getIdsByType(ctx.index, 'task'), ['call-finance']), 'Blocking task id.'),
+      defineParam('blocked-by', getIdsByType(ctx.index, 'task'), 'Blocking task id.'),
       defineParam('completed', [`${todayIso()}T09:30`], 'Completion timestamp for done tasks.')
     ]
   },
@@ -118,7 +118,10 @@ const DIRECTIVE_METADATA = {
   },
   chat: {
     summary: 'Channel slice rendered inline.',
-    identifiers: (ctx) => withExamples(unique(MockChatBackend.queryAll().map((item) => item.channel)), ['#general', '#finance']),
+    identifiers: (ctx) => withExamples([
+      ...profileChannelIds(ctx),
+      ...unique(MockChatBackend.queryAll().map((item) => item.channel))
+    ], ['#general', '#finance']),
     params: () => [
       defineParam('limit', ['5', '8', '10'], 'Maximum number of chat messages to show.'),
       defineParam('since', ['today', 'yesterday', todayIso()], 'Lower time bound for the slice.')
@@ -134,10 +137,11 @@ const DIRECTIVE_METADATA = {
 };
 
 export class DirectiveAssistant {
-  constructor({ registry, store, parser }) {
+  constructor({ registry, store, parser, profileStore = null }) {
     this.registry = registry;
     this.store = store;
     this.parser = parser;
+    this.profileStore = profileStore;
     this.bindings = new WeakMap();
     this.activeBinding = null;
     this.activeContext = null;
@@ -508,7 +512,8 @@ export class DirectiveAssistant {
       text,
       index: this.parser.parse(text),
       currentDocumentId: this.store.getDocumentId(),
-      documentIds: this.store.listDocuments().map((doc) => doc.id)
+      documentIds: this.store.listDocuments().map((doc) => doc.id),
+      currentProfile: this.profileStore?.getCurrentProfile?.() || null
     };
   }
 
@@ -609,12 +614,14 @@ function writeSurfaceState(binding, text, caretOffset) {
   if (mode === 'contenteditable') {
     element.textContent = text;
     setContentEditableCaret(element, caretOffset);
+    element.__directiveAssistantWrite = true;
     element.dispatchEvent(new Event('input', { bubbles: true }));
     return;
   }
 
   element.value = text;
   element.setSelectionRange(caretOffset, caretOffset);
+  element.__directiveAssistantWrite = true;
   element.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
@@ -752,6 +759,10 @@ function transclusionSources(ctx) {
 
 function documentIds(ctx) {
   return withExamples(ctx.documentIds, [ctx.currentDocumentId]);
+}
+
+function profileChannelIds(ctx) {
+  return unique((ctx.currentProfile?.channels || []).map((channel) => channel?.id).filter(Boolean));
 }
 
 function contactEmails(ctx) {

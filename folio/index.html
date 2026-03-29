@@ -253,7 +253,7 @@ Relevant to the East region overrun we are investigating. The section on procure
         registry.register('py', PyRenderer);
         parser.setKnownTypes(Array.from(registry.classes.keys()));
 
-        const directiveAssistant = new DirectiveAssistant({ registry, store, parser });
+        const directiveAssistant = new DirectiveAssistant({ registry, store, parser, profileStore });
         appApi.directiveAssistant = directiveAssistant;
 
         // 3. Shell
@@ -1580,7 +1580,7 @@ email = sara@example.com
 ::end</pre>
 
 <h3>::table &mdash; Tables</h3>
-<p>A text-native table with pipe-delimited rows. If <code>editable=true</code>, click any cell to edit it. Edits are written back to the document text. If linked to a <code>::py</code> block via <code>source=</code>, the linked computation should export <code>result</code> (or <code>table_result</code>) as a list of row objects. <strong>re-sync</strong> re-runs the source block and rewrites the table body from the latest computed output; the <strong>divergence protocol</strong> tracks manual edits against that computed source:</p>
+<p>A text-native table with pipe-delimited rows. If <code>editable=true</code>, click any cell to edit it. Edits are written back to the document text. If linked to a <code>::py</code> block via <code>source=</code>, the value is the source block id: <code>::table[budget]{source=q3-check}</code> reads from <code>::py[q3-check]</code>. The table reads exported variables from the Python block&apos;s runtime context, not from <code>print()</code> output. By default it looks for <code>result</code> (then <code>table_result</code>); use <code>source-var=</code> to override that variable name. Accepted source shapes are either a list of row objects or an object with <code>headers</code> and <code>rows</code>. <strong>re-sync</strong> re-runs the source block and rewrites the table body from the latest computed output; the <strong>divergence protocol</strong> tracks manual edits against that computed source:</p>
 <ul>
 <li><strong>Synchronised</strong> &mdash; table matches source output.</li>
 <li><strong>Diverged</strong> &mdash; cells edited, "edited" badge shown. Use <strong>re-sync</strong> to discard edits or <strong>detach</strong> to break the link.</li>
@@ -1588,6 +1588,12 @@ email = sara@example.com
 <pre>::table[budget]{source=analysis editable=true}
 | Region | Q1 | Q2 |
 | North | 3500 | 4200 |
+::end</pre>
+<pre>::py[analysis]{run=auto}
+result = [
+  {"region": "North", "q1": 3500, "q2": 4200},
+  {"region": "South", "q1": 2000, "q2": 2100}
+]
 ::end</pre>
 
 <h3>::py &mdash; Python</h3>
