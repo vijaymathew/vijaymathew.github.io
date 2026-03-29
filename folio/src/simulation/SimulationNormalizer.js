@@ -40,8 +40,8 @@ function normalizeEmail(items, date) {
     id: item?.id || `msg-${date.replace(/-/g, '')}-${index + 1}`,
     threadId: item?.threadId || item?.thread_id || `thread-${date.replace(/-/g, '')}-${index + 1}`,
     mailbox: item?.mailbox || 'inbox',
-    from: item?.from || `${item?.user || 'contact'}@folio.local`,
-    fromName: item?.fromName || item?.from_name || item?.userName || 'Unknown',
+    from: resolveEmailAddress(item),
+    fromName: resolveSenderName(item),
     subject: item?.subject || 'Generated update',
     date: item?.date || `${date}T09:${String(index).padStart(2, '0')}:00Z`,
     priority: item?.priority === 'high' ? 'high' : 'normal',
@@ -109,6 +109,42 @@ function normalizeStrings(items, fallback) {
 function normalizeObjects(items, fallback) {
   const source = Array.isArray(items) && items.length > 0 ? items : fallback;
   return source.map((item) => ({ ...item }));
+}
+
+function resolveEmailAddress(item = {}) {
+  return item?.from
+    || item?.from_email
+    || item?.fromEmail
+    || item?.sender_email
+    || item?.senderEmail
+    || item?.sender?.email
+    || `${item?.user || item?.sender || 'contact'}@folio.local`;
+}
+
+function resolveSenderName(item = {}) {
+  const explicit = item?.fromName
+    || item?.from_name
+    || item?.sender_name
+    || item?.senderName
+    || item?.name
+    || item?.display_name
+    || item?.displayName
+    || item?.userName
+    || item?.sender?.name
+    || item?.from_display
+    || item?.fromDisplay;
+
+  if (explicit) return String(explicit).trim();
+
+  const address = resolveEmailAddress(item);
+  const localPart = String(address).split('@')[0];
+  if (localPart) {
+    return localPart
+      .replace(/[._-]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  return 'Unknown';
 }
 
 function safeChannel(channel) {

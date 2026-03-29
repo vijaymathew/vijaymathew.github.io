@@ -294,7 +294,7 @@ export class RenderCanvas {
     editor.value = text;
     editor.placeholder = '(empty)';
     let lastCommitted = text;
-    let syncTimer = null;
+    let commitOnNextInput = false;
 
     const commitEditorValue = () => {
       const newText = editor.value;
@@ -315,16 +315,20 @@ export class RenderCanvas {
 
     editor.addEventListener('input', () => {
       this._autosizeTextSurface(editor);
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => {
-        syncTimer = null;
+      if (commitOnNextInput) {
+        commitOnNextInput = false;
         commitEditorValue();
-      }, 250);
+      }
+    });
+
+    editor.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        commitOnNextInput = true;
+      }
     });
 
     editor.addEventListener('blur', () => {
-      clearTimeout(syncTimer);
-      syncTimer = null;
+      commitOnNextInput = false;
       commitEditorValue();
     });
 
@@ -462,7 +466,7 @@ export class RenderCanvas {
     }
     textarea.value = text;
     let lastCommitted = text;
-    let syncTimer = null;
+    let commitOnNextInput = false;
 
     const commitTextareaValue = () => {
       const newText = textarea.value;
@@ -484,16 +488,20 @@ export class RenderCanvas {
 
     textarea.addEventListener('input', () => {
       this._autosizeTextSurface(textarea);
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => {
-        syncTimer = null;
+      if (commitOnNextInput) {
+        commitOnNextInput = false;
         commitTextareaValue();
-      }, 250);
+      }
+    });
+
+    textarea.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        commitOnNextInput = true;
+      }
     });
 
     textarea.addEventListener('blur', () => {
-      clearTimeout(syncTimer);
-      syncTimer = null;
+      commitOnNextInput = false;
       commitTextareaValue();
     });
 

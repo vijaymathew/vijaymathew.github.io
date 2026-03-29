@@ -20,9 +20,13 @@ export class EmailRenderer extends RendererBase {
   }
 
   async render(ctx) {
-    if (ctx.id === 'inbox' || ctx.id.startsWith('inbox')) return this._renderInbox(ctx);
+    if (ctx.id === 'inbox' || ctx.id.startsWith('inbox')) {
+      const inboxState = await this._ensureInboxData(ctx);
+      return this._renderInbox(ctx, inboxState);
+    }
     if (ctx.id === 'draft' || ctx.id.startsWith('draft')) return this._renderDraft(ctx);
-    return this._renderThread(ctx);
+    const threadState = await this._ensureThreadData(ctx);
+    return this._renderThread(ctx, threadState);
   }
 
   async query(params) {
@@ -37,7 +41,7 @@ export class EmailRenderer extends RendererBase {
     return grouped;
   }
 
-  _renderInbox(ctx) {
+  _renderInbox(ctx, loadState = null) {
     const { id, params, body, syncBus, lineStart, lineEnd } = ctx;
     const messages = MockEmailBackend.queryInbox(params);
     const logLines = (body || []).map(line => line.trim()).filter(Boolean);
@@ -52,6 +56,10 @@ export class EmailRenderer extends RendererBase {
 
     const list = document.createElement('div');
     list.className = 'email-list';
+
+    if (messages.length === 0) {
+      bodyEl.appendChild(this._buildEmptyState(this._resolveEmptyMessage(loadState, 'No inbox messages are available yet.')));
+    }
 
     messages.forEach((msg) => {
       const item = document.createElement('div');
@@ -111,7 +119,7 @@ export class EmailRenderer extends RendererBase {
     return container;
   }
 
-  _renderThread(ctx) {
+  _renderThread(ctx, loadState = null) {
     const { id, params, body, syncBus, lineStart, lineEnd } = ctx;
     const messages = MockEmailBackend.queryThread(id, params);
     const logLines = (body || []).map(line => line.trim()).filter(Boolean);
@@ -125,6 +133,10 @@ export class EmailRenderer extends RendererBase {
 
     const thread = document.createElement('div');
     thread.className = 'email-thread';
+
+    if (messages.length === 0) {
+      bodyEl.appendChild(this._buildEmptyState(this._resolveEmptyMessage(loadState, `No messages found for thread ${id}.`)));
+    }
 
     messages.forEach((msg) => {
       const card = document.createElement('div');
@@ -285,6 +297,67 @@ export class EmailRenderer extends RendererBase {
     logArea.className = 'email-log-area';
     logLines.forEach((line) => this._appendLogEntry(logArea, line));
     bodyEl.appendChild(logArea);
+  }
+
+  async _ensureInboxData(ctx) {
+    const existing = MockEmailBackend.queryInbox(ctx.params);
+    if (existing.length > 0) return { status: 'available' };
+    return this._generateMirroredEmail(ctx, 'inbox');
+  }
+
+  async _ensureThreadData(ctx) {
+    const existing = MockEmailBackend.queryThread(ctx.id, ctx.params);
+    if (existing.length > 0) return { status: 'available' };
+    return this._generateMirroredEmail(ctx, 'thread');
+  }
+
+  async _generateMirroredEmail(ctx, mode) {
+    const simulation = ctx.app?.simulation;
+    if (!simulation || typeof simulation.generateInbox !== 'function') {
+      return { status: 'unavailable', reason: 'No simulation provider is configured for email generation.' };
+    }
+
+    const status = simulation.getClientStatus?.() || {};
+    if (status.ready === false) {
+      return {
+        status: 'unavailable',
+        reason: status.message || 'The simulation provider is not ready.'
+      };
+    }
+
+    ctx.app?.setStatus?.(`Generating simulated email ${mode === 'inbox' ? 'inbox' : 'thread'}...`);
+    try {
+      const result = await simulation.generateInbox();
+      if (result?.status === 'generated') {
+        ctx.app?.setStatus?.(`Generated simulated email for ${ctx.id}.`);
+        return { status: 'generated' };
+      }
+      return {
+        status: 'error',
+        reason: result?.error || 'Email generation did not return any messages.'
+      };
+    } catch (error) {
+      console.error('[EmailRenderer] Failed to generate mirrored email:', error);
+      return {
+        status: 'error',
+        reason: error?.message || 'Email generation failed.'
+      };
+    }
+  }
+
+  _buildEmptyState(text) {
+    const empty = document.createElement('div');
+    empty.className = 'email-log';
+    empty.textContent = text;
+    return empty;
+  }
+
+  _resolveEmptyMessage(loadState, fallback) {
+    if (!loadState) return fallback;
+    if (loadState.status === 'unavailable' || loadState.status === 'error') {
+      return loadState.reason || fallback;
+    }
+    return fallback;
   }
 
   _addPill(container, text, active = false) {

@@ -3,6 +3,15 @@
  * Handles both inline directives ::type[id]{params} and block directives ::type[id]...::end.
  */
 export class DirectiveParser {
+  constructor() {
+    this.knownTypes = null;
+  }
+
+  setKnownTypes(types = []) {
+    const values = Array.isArray(types) ? types : [];
+    this.knownTypes = new Set(values.map((value) => String(value).trim()).filter(Boolean));
+  }
+
   /**
    * Scan the document and return an array of directive descriptors.
    * @param {string} text 
@@ -29,6 +38,10 @@ export class DirectiveParser {
       // ::type[id]{params} - where id and params are optional
       const match = line.match(/^::([a-z0-9-]+)(?:\[([^\]]*)\])?(?:\{([^\}]*)\})?$/);
       if (match) {
+        if (!this._isKnownType(match[1])) {
+          continue;
+        }
+
         const descriptor = {
           type: match[1],
           id: match[2] || '',
@@ -38,11 +51,15 @@ export class DirectiveParser {
           raw: lines[i]
         };
 
-        // Block-capable directives become blocks only when a matching ::end
-        // appears before the next directive start; otherwise treat them as
-        // single-line directives so forms like ::cal[today]{view=agenda} render.
-        if (blockCapableTypes.has(descriptor.type) && this._hasExplicitBlockTerminator(lines, i + 1)) {
-          currentBlock = { ...descriptor, body: [] };
+        // Some block-capable directives can render from a single header line
+        // because they are pure projections with no required body. Others
+        // keep requiring ::end so the user can finish authoring their content.
+        if (blockCapableTypes.has(descriptor.type)) {
+          if (this._hasExplicitBlockTerminator(lines, i + 1)) {
+            currentBlock = { ...descriptor, body: [] };
+          } else if (this._canRenderInline(descriptor)) {
+            index.push(descriptor);
+          }
         } else {
           index.push(descriptor);
         }
@@ -62,8 +79,33 @@ export class DirectiveParser {
     for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i].trim();
       if (line === '::end') return true;
-      if (/^::([a-z0-9-]+)(?:\[([^\]]*)\])?(?:\{([^\}]*)\})?$/i.test(line)) return false;
+      const match = line.match(/^::([a-z0-9-]+)(?:\[([^\]]*)\])?(?:\{([^\}]*)\})?$/i);
+      if (match && this._isKnownType(match[1])) return false;
     }
+    return false;
+  }
+
+  _isKnownType(type) {
+    if (!this.knownTypes || this.knownTypes.size === 0) return true;
+    return this.knownTypes.has(type);
+  }
+
+  _canRenderInline(descriptor) {
+    if (!descriptor) return false;
+
+    if (descriptor.type === 'cal' || descriptor.type === 'chat') {
+      return true;
+    }
+
+    if (descriptor.type === 'email') {
+      const id = String(descriptor.id || '').trim().toLowerCase();
+      return id !== 'draft' && !id.startsWith('draft');
+    }
+
+    if (descriptor.type === 'note') {
+      return Boolean(descriptor.params?.source || descriptor.params?.target);
+    }
+
     return false;
   }
 
