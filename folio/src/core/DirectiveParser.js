@@ -12,6 +12,7 @@ export class DirectiveParser {
     const lines = text.split('\n');
     const index = [];
     let currentBlock = null;
+    const blockCapableTypes = new Set(['py', 'table', 'email', 'cal', 'note', 'contact', 'chat', 'web']);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -37,9 +38,10 @@ export class DirectiveParser {
           raw: lines[i]
         };
 
-        // Block directives are multi-line with ::end
-        const blockTypes = ['py', 'table', 'email', 'cal', 'note', 'contact', 'chat', 'web'];
-        if (blockTypes.includes(descriptor.type)) {
+        // Block-capable directives become blocks only when a matching ::end
+        // appears before the next directive start; otherwise treat them as
+        // single-line directives so forms like ::cal[today]{view=agenda} render.
+        if (blockCapableTypes.has(descriptor.type) && this._hasExplicitBlockTerminator(lines, i + 1)) {
           currentBlock = { ...descriptor, body: [] };
         } else {
           index.push(descriptor);
@@ -54,6 +56,15 @@ export class DirectiveParser {
     }
 
     return index;
+  }
+
+  _hasExplicitBlockTerminator(lines, startIndex) {
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line === '::end') return true;
+      if (/^::([a-z0-9-]+)(?:\[([^\]]*)\])?(?:\{([^\}]*)\})?$/i.test(line)) return false;
+    }
+    return false;
   }
 
   /**

@@ -293,26 +293,39 @@ export class RenderCanvas {
     editor.spellcheck = false;
     editor.value = text;
     editor.placeholder = '(empty)';
+    let lastCommitted = text;
+    let syncTimer = null;
+
+    const commitEditorValue = () => {
+      const newText = editor.value;
+      if (newText === lastCommitted) return;
+      lastCommitted = newText;
+      this.syncBus.emit({
+        timestamp: new Date().toISOString(),
+        source: 'editor', // Use 'editor' source to trigger updates elsewhere
+        type: 'replace',
+        payload: {
+          targetDocId: 'current',
+          lineStart: startLine,
+          lineEnd: startLine + lineCount - 1,
+          text: newText
+        }
+      });
+    };
 
     editor.addEventListener('input', () => {
       this._autosizeTextSurface(editor);
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        syncTimer = null;
+        commitEditorValue();
+      }, 250);
     });
 
     editor.addEventListener('blur', () => {
-      const newText = editor.value;
-      if (newText !== text) {
-        this.syncBus.emit({
-          timestamp: new Date().toISOString(),
-          source: 'editor', // Use 'editor' source to trigger updates elsewhere
-          type: 'replace',
-          payload: {
-            targetDocId: 'current',
-            lineStart: startLine,
-            lineEnd: startLine + lineCount - 1,
-            text: newText
-          }
-        });
-      }
+      clearTimeout(syncTimer);
+      syncTimer = null;
+      commitEditorValue();
     });
 
     editor.addEventListener('focus', () => {
@@ -321,6 +334,7 @@ export class RenderCanvas {
 
     el.appendChild(editor);
     this._mountAutosizedTextSurface(editor);
+    this.appApi?.directiveAssistant?.bind(editor, { mode: 'textarea' });
   }
 
   // ── viewport observation ────────────────────────────────────
@@ -447,14 +461,13 @@ export class RenderCanvas {
       text += '\n' + descriptor.body.join('\n') + '\n::end';
     }
     textarea.value = text;
+    let lastCommitted = text;
+    let syncTimer = null;
 
-    textarea.addEventListener('input', () => {
-      this._autosizeTextSurface(textarea);
-    });
-
-    textarea.addEventListener('blur', () => {
+    const commitTextareaValue = () => {
       const newText = textarea.value;
-      if (newText === text) return;
+      if (newText === lastCommitted) return;
+      lastCommitted = newText;
 
       this.syncBus.emit({
         timestamp: new Date().toISOString(),
@@ -467,10 +480,26 @@ export class RenderCanvas {
           text: newText
         }
       });
+    };
+
+    textarea.addEventListener('input', () => {
+      this._autosizeTextSurface(textarea);
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        syncTimer = null;
+        commitTextareaValue();
+      }, 250);
+    });
+
+    textarea.addEventListener('blur', () => {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+      commitTextareaValue();
     });
 
     element.appendChild(textarea);
     this._mountAutosizedTextSurface(textarea);
+    this.appApi?.directiveAssistant?.bind(textarea, { mode: 'textarea' });
   }
 
   _autosizeTextSurface(el) {
