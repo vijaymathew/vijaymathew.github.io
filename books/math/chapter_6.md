@@ -133,13 +133,13 @@ The Islamic mathematicians did preserve the Greek tradition. This was enormously
 
 But preservation was the smallest part of what happened. The Islamic scholars absorbed the Greek tradition, tested it against the Indian and Babylonian traditions they had also absorbed, found the gaps and contradictions, and pushed beyond them.
 
-Al-Khwarizmi did not just transmit Babylonian and Indian equation-solving: he systematised it, classified it, and for the first time provided proofs. His algebra was genuinely new, not because the individual techniques were novel but because the form — systematic, general, demonstrated, teachable — had never been achieved before.
+Al-Khwarizmi did not just transmit Babylonian and Indian equation-solving: he systematised it, classified it, and helped turn it into a more general and demonstrative discipline. His algebra was genuinely new, not because the individual techniques were novel but because the form — systematic, general, demonstrated, teachable — had never been achieved before.
 
 Al-Battani did not just copy Ptolemy's trigonometry: he measured its errors, corrected them with better observations, and reformulated it using the Indian sine and cosine in place of the Greek chord, making it more computationally tractable. His astronomy was more accurate than Ptolemy's precisely because he was not simply copying.
 
 Ibn al-Haytham did not just transmit Greek optics: he overturned the central Greek claim about vision, replaced it with a correct theory derived from experiment and mathematical analysis, and built a framework for optics that would last six centuries.
 
-Al-Biruni did not just describe India: he approached it as a scientist, checking claims against evidence, comparing traditions, noting where they agreed and where they diverged, and drawing conclusions with appropriate epistemic humility. His *India* is one of the first genuinely comparative cultural-scientific studies.
+Al-Biruni did not just describe India: he approached it as a scientist, checking claims against evidence, comparing traditions, noting where they agreed and where they diverged, and drawing conclusions with appropriate epistemic humility. His *India* is one of the most remarkable early examples of comparative cultural scholarship.
 
 What the Islamic Golden Age created was not a relay station between ancient wisdom and modern science. It was a five-century period of original, creative, rigorous intellectual work that transformed what it inherited and produced results that could not have been produced by either the Greek or the Indian tradition alone. The synthesis was the achievement.
 
@@ -189,9 +189,9 @@ The Golden Age did not produce Kerala. But it raised the bar that Kerala had to 
 
 The accounting, at the end of Chapter 6, is straightforward.
 
-Algebra — as a systematic, general, demonstrably correct theory of equation-solving — was born in Baghdad. The word is Arabic. The discipline is Arabic. It was transmitted to Europe via Toledo and Palermo and absorbed into a European mathematical tradition that eventually, by the sixteenth and seventeenth centuries, outpaced its source. This is not a tragedy but a tribute: ideas that are genuinely powerful propagate, and they eventually outgrow the institutions that first housed them.
+The word algebra is Arabic, and Baghdad was one of the places where equation-solving took on a systematic, general, and teachable classical form. It was transmitted to Europe via Toledo and Palermo and absorbed into a European mathematical tradition that eventually, by the sixteenth and seventeenth centuries, outpaced its source. This is not a tragedy but a tribute: ideas that are genuinely powerful propagate, and they eventually outgrow the institutions that first housed them.
 
-The decimal number system — the system you use to write every number, from your bank balance to the distance to the moon — is Indian in origin and was transmitted to Europe through Islamic mathematics. The numerals are called Arabic because that is the route they took. They should perhaps be called Indian-Arabic, in the same spirit that the Madhava-Leibniz series acknowledges both its originators.
+The decimal number system — the system you use to write every number, from your bank balance to the distance to the moon — is Indian in origin and was transmitted to Europe through Islamic mathematics. The numerals are called Arabic because that is the route they took. The modern term "Hindu-Arabic numerals" captures their Indian origin and Arabic transmission more accurately.
 
 The word *algorithm* is a monument to al-Khwarizmi, built from his own name by the slow erosion of centuries of translation and transmission. Every line of computer code that has ever been written is, etymologically, an act of homage to a scholar in ninth-century Baghdad who wanted to help judges divide estates fairly.
 

@@ -31,7 +31,7 @@ Think about what the grain master of a Sumerian city actually had to manage. Far
 
 Any single error in this system could mean that workers went unfed, that the temple ran short of its offerings, that a legal dispute was decided on false figures. The stakes were not abstract. They were hunger, injustice, and social collapse. The people who managed these records needed their arithmetic to be right, and they needed it to be checkable.
 
-This is why writing was invented. And this — which most histories of mathematics skip over too quickly — is a deeply remarkable fact. The oldest written documents in the world are not poems, not laws, not religious texts. They are receipts. They are inventories. They are payroll records. The very first use of writing, anywhere on earth, was to keep track of numbers.
+This is one of the main reasons writing first took durable administrative form in Mesopotamia. And this — which most histories of mathematics skip over too quickly — is a deeply remarkable fact. The oldest written documents in the world are not poems, not laws, not religious texts. They are receipts. They are inventories. They are payroll records. The earliest surviving uses of writing are overwhelmingly administrative: receipts, inventories, and ration records.
 
 Language came first, obviously. But the urge to make language *permanent* — to press it into clay so that it outlasted the moment of speaking — arose first and most urgently from the need to record quantities too large and too important to trust to human memory.
 
@@ -229,7 +229,7 @@ Let's be precise about the inheritance, before we move on.
 
 The base-60 number system still lives in your clock, your compass, and your GPS. Every coordinate of latitude and longitude is expressed in degrees, minutes, and seconds — the Babylonian three-tier division of the circle, unchanged for fifty centuries.
 
-The concept of a positional number system — the revolutionary idea that the same symbol means different things in different positions — was a Babylonian invention. Our own decimal system uses the same principle. So do computers, which work in base 2.
+The Babylonians developed one of the earliest and most influential positional number systems we know. Our own decimal system uses the same principle. So do computers, which work in base 2.
 
 The quadratic formula — the procedure for finding the sides of a rectangle given its area and the relationship between its sides — was known, in full generality, to Babylonian scribes of 1800 BCE. It appears in European textbooks roughly 3,400 years later.
 
@@ -237,9 +237,9 @@ Compound interest — the exponential growth of debt that has shaped economies, 
 
 The Pythagorean relationship between the sides of a right triangle — a² + b² = c² — was known a millennium before Pythagoras. He may have proved it. He almost certainly did not discover it.
 
-And perhaps most importantly: the idea that mathematics is *useful* — that it is a technology for managing a complex world rather than an abstract game — is Babylonian. It is the bedrock on which everything else in this book is built. The Greeks would make mathematics beautiful. The Indians would make it complete. The Kerala scholars, working on the shores of the Arabian Sea in the fourteenth century, would push it further than anyone in Europe imagined possible. But all of them were standing on a foundation laid by people who needed to count grain and could not afford to be wrong.
+And perhaps most importantly: the idea that mathematics is *useful* — that it is a technology for managing a complex world rather than an abstract game — is Babylonian. It is the bedrock on which everything else in this book is built. The Greeks would make mathematics beautiful. Indian mathematicians would extend it decisively, above all through zero, place value, and the arithmetic of negative numbers. The Kerala scholars, working on the shores of the Arabian Sea in the fourteenth century, would push it further than anyone in Europe imagined possible. But all of them were standing on a foundation laid by people who needed to count grain and could not afford to be wrong.
 
-The unnamed accountant of Ur, pressing his reed into wet clay in the second millennium before the common era, was the first person we know of to do mathematics. Not the first to count — counting is as old as language, and probably older. But the first to participate in the cumulative, recorded, transmitted, building-on-itself project that eventually became the most powerful intellectual tool our species has ever made.
+The unnamed accountant of Ur, pressing his reed into wet clay in the second millennium before the common era, stands among the earliest people we can actually see doing recorded mathematics. Not the first to count — counting is as old as language, and probably older. But among the first to participate in the cumulative, recorded, transmitted, building-on-itself project that eventually became the most powerful intellectual tool our species has ever made.
 
 He got the columns to balance. It was enough.
 

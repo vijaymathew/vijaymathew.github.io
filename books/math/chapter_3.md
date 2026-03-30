@@ -29,7 +29,7 @@ Thales did not fully make this transition — the historical record is too thin 
 
 Why did this happen in Ionia, at this particular moment? Historians have proposed several explanations, and none is fully satisfying. The trading culture of the Aegean encouraged a kind of argumentative pluralism — merchants from different traditions, with different practices, had to negotiate and justify their positions to one another, developing the habit of reasoned persuasion. The Greek political culture of the emerging city-states, with its public debate and citizen deliberation, may have created a general taste for explicit argument over authority. Perhaps the very fact that the Greeks were relative newcomers to mathematics — inheriting it from older traditions without being trained from childhood to simply accept its procedures — gave them the freedom to ask *why*.
 
-Whatever the cause, the effect was transformative. Within two hundred years of Thales, Greek mathematicians had built something that Babylon and Egypt, for all their sophistication, had never built: a system of mathematical *proof*.
+Whatever the cause, the effect was transformative. Within two hundred years of Thales, Greek mathematicians had built something preserved far more explicitly than in the Babylonian and Egyptian records: a culture of formal proof.
 
 ---
 
@@ -43,7 +43,7 @@ Mathematical proof is categorically different. A mathematical proof is a chain o
 
 This means that mathematical truth, once established by proof, is permanent in a way that no other kind of knowledge is. The Pythagorean theorem was proved in ancient Greece. It is still true today. It will be true in ten thousand years. No new archaeological discovery, no advance in technology, no revision of scientific understanding can change it, because it does not depend on any fact about the world — it depends only on the logical relationships between defined concepts. A right-angled triangle *necessarily* has the property that the square of the hypotenuse equals the sum of the squares of the other sides, in exactly the same way that a bachelor is necessarily unmarried: it is true by definition and logical consequence, not by observation.
 
-The Greeks invented this. Not the mathematics — Babylon and Egypt had substantial mathematics. But the *idea* that mathematical statements require proof, and that proof means a chain of logical necessity from first principles, is Greek. And it changed everything.
+In the surviving record, the Greeks are the first to make this central and explicit. Not the mathematics — Babylon and Egypt had substantial mathematics. But the *idea* that mathematical statements require proof, and that proof means a chain of logical necessity from first principles, is presented by them with unusual clarity. And it changed everything.
 
 ---
 
@@ -193,9 +193,9 @@ The Greek mathematical tradition effectively ended, as a living creative enterpr
 
 The thread of proof — the idea that mathematics must demonstrate, not merely calculate — would be picked up by the Islamic scholars of the ninth and tenth centuries, transmitted back to Europe in the twelfth and thirteenth centuries, and eventually fused with the algebraic methods coming from India to produce the mathematics of the early modern period. That fusion is the story of the next several chapters.
 
-But the idea — the dangerous, productive, permanent idea that a mathematical claim is not established until it has been *proved*, that knowing the answer is not enough and you must also know *why* — that idea is Greek. Thales introduced it. Pythagoras and his school developed it, and discovered the first result that made it genuinely necessary. Euclid systematised it into a form that would anchor mathematical practice for two thousand years.
+But the idea — the dangerous, productive, permanent idea that a mathematical claim is not established until it has been *proved*, that knowing the answer is not enough and you must also know *why* — is one that the Greek tradition made central. Later Greek tradition traced its beginnings back to Thales. Pythagoras and his school developed it, and discovered the first result that made it genuinely necessary. Euclid systematised it into a form that would anchor mathematical practice for two thousand years.
 
-It is the most important methodological invention in the history of human knowledge.
+It is one of the most consequential methodological inventions in intellectual history.
 
 ---
 
