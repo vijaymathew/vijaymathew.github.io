@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Appendix A — Bytecode Patterns by Construct – The Design and Implementation of Nex</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_6.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./appendix_a.html">Appendices</a></li><li class="breadcrumb-item"><a href="./appendix_a.html"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Bytecode Patterns by Construct</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">The Design and Implementation of Nex</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">index.html</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Introduction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Design Goals</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Parsing, ASTs, and Interpretation</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Typechecking and Code Generation</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Libraries, Host Integration, and Concurrency</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">JVM Bytecode Translation Reference</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Future Directions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Bytecode Patterns by Construct</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#reading-this-appendix" id="toc-reading-this-appendix" class="nav-link active" data-scroll-target="#reading-this-appendix"><span class="header-section-number">A.1</span> Reading This Appendix</a></li>
+  <li><a href="#constants-and-local-state" id="toc-constants-and-local-state" class="nav-link" data-scroll-target="#constants-and-local-state"><span class="header-section-number">A.2</span> Constants and Local State</a>
+  <ul class="collapse">
+  <li><a href="#constants" id="toc-constants" class="nav-link" data-scroll-target="#constants"><span class="header-section-number">A.2.1</span> Constants</a></li>
+  <li><a href="#local-loads-and-stores" id="toc-local-loads-and-stores" class="nav-link" data-scroll-target="#local-loads-and-stores"><span class="header-section-number">A.2.2</span> Local Loads and Stores</a></li>
+  </ul></li>
+  <li><a href="#top-level-repl-bindings" id="toc-top-level-repl-bindings" class="nav-link" data-scroll-target="#top-level-repl-bindings"><span class="header-section-number">A.3</span> Top-Level REPL Bindings</a></li>
+  <li><a href="#arithmetic-comparison-and-boolean-operators" id="toc-arithmetic-comparison-and-boolean-operators" class="nav-link" data-scroll-target="#arithmetic-comparison-and-boolean-operators"><span class="header-section-number">A.4</span> Arithmetic, Comparison, and Boolean Operators</a>
+  <ul class="collapse">
+  <li><a href="#arithmetic" id="toc-arithmetic" class="nav-link" data-scroll-target="#arithmetic"><span class="header-section-number">A.4.1</span> Arithmetic</a></li>
+  <li><a href="#comparisons" id="toc-comparisons" class="nav-link" data-scroll-target="#comparisons"><span class="header-section-number">A.4.2</span> Comparisons</a></li>
+  <li><a href="#short-circuit-boolean-operators" id="toc-short-circuit-boolean-operators" class="nav-link" data-scroll-target="#short-circuit-boolean-operators"><span class="header-section-number">A.4.3</span> Short-Circuit Boolean Operators</a></li>
+  </ul></li>
+  <li><a href="#branching-and-looping" id="toc-branching-and-looping" class="nav-link" data-scroll-target="#branching-and-looping"><span class="header-section-number">A.5</span> Branching and Looping</a>
+  <ul class="collapse">
+  <li><a href="#expression-if" id="toc-expression-if" class="nav-link" data-scroll-target="#expression-if"><span class="header-section-number">A.5.1</span> Expression <code>if</code></a></li>
+  <li><a href="#statement-if" id="toc-statement-if" class="nav-link" data-scroll-target="#statement-if"><span class="header-section-number">A.5.2</span> Statement <code>if</code></a></li>
+  <li><a href="#loops" id="toc-loops" class="nav-link" data-scroll-target="#loops"><span class="header-section-number">A.5.3</span> Loops</a></li>
+  </ul></li>
+  <li><a href="#functions-methods-and-calls" id="toc-functions-methods-and-calls" class="nav-link" data-scroll-target="#functions-methods-and-calls"><span class="header-section-number">A.6</span> Functions, Methods, and Calls</a>
+  <ul class="collapse">
+  <li><a href="#function-argument-prologue" id="toc-function-argument-prologue" class="nav-link" data-scroll-target="#function-argument-prologue"><span class="header-section-number">A.6.1</span> Function Argument Prologue</a></li>
+  <li><a href="#top-level-repl-function-calls" id="toc-top-level-repl-function-calls" class="nav-link" data-scroll-target="#top-level-repl-function-calls"><span class="header-section-number">A.6.2</span> Top-Level REPL Function Calls</a></li>
+  <li><a href="#compiled-instance-and-virtual-calls" id="toc-compiled-instance-and-virtual-calls" class="nav-link" data-scroll-target="#compiled-instance-and-virtual-calls"><span class="header-section-number">A.6.3</span> Compiled Instance and Virtual Calls</a></li>
+  </ul></li>
+  <li><a href="#object-construction-fields-and-class-initialization" id="toc-object-construction-fields-and-class-initialization" class="nav-link" data-scroll-target="#object-construction-fields-and-class-initialization"><span class="header-section-number">A.7</span> Object Construction, Fields, and Class Initialization</a>
+  <ul class="collapse">
+  <li><a href="#plain-object-construction" id="toc-plain-object-construction" class="nav-link" data-scroll-target="#plain-object-construction"><span class="header-section-number">A.7.1</span> Plain Object Construction</a></li>
+  <li><a href="#field-reads-and-writes" id="toc-field-reads-and-writes" class="nav-link" data-scroll-target="#field-reads-and-writes"><span class="header-section-number">A.7.2</span> Field Reads and Writes</a></li>
+  <li><a href="#user-default-constructors" id="toc-user-default-constructors" class="nav-link" data-scroll-target="#user-default-constructors"><span class="header-section-number">A.7.3</span> User Default Constructors</a></li>
+  <li><a href="#class-initializers" id="toc-class-initializers" class="nav-link" data-scroll-target="#class-initializers"><span class="header-section-number">A.7.4</span> Class Initializers</a></li>
+  </ul></li>
+  <li><a href="#collections" id="toc-collections" class="nav-link" data-scroll-target="#collections"><span class="header-section-number">A.8</span> Collections</a>
+  <ul class="collapse">
+  <li><a href="#arrays" id="toc-arrays" class="nav-link" data-scroll-target="#arrays"><span class="header-section-number">A.8.1</span> Arrays</a></li>
+  <li><a href="#maps" id="toc-maps" class="nav-link" data-scroll-target="#maps"><span class="header-section-number">A.8.2</span> Maps</a></li>
+  <li><a href="#sets" id="toc-sets" class="nav-link" data-scroll-target="#sets"><span class="header-section-number">A.8.3</span> Sets</a></li>
+  <li><a href="#collection-operations" id="toc-collection-operations" class="nav-link" data-scroll-target="#collection-operations"><span class="header-section-number">A.8.4</span> Collection Operations</a></li>
+  </ul></li>
+  <li><a href="#exceptions-contracts-and-retry" id="toc-exceptions-contracts-and-retry" class="nav-link" data-scroll-target="#exceptions-contracts-and-retry"><span class="header-section-number">A.9</span> Exceptions, Contracts, and Retry</a>
+  <ul class="collapse">
+  <li><a href="#raise" id="toc-raise" class="nav-link" data-scroll-target="#raise"><span class="header-section-number">A.9.1</span> <code>raise</code></a></li>
+  <li><a href="#contract-assertions" id="toc-contract-assertions" class="nav-link" data-scroll-target="#contract-assertions"><span class="header-section-number">A.9.2</span> Contract Assertions</a></li>
+  <li><a href="#rescue-and-retry" id="toc-rescue-and-retry" class="nav-link" data-scroll-target="#rescue-and-retry"><span class="header-section-number">A.9.3</span> <code>rescue</code> and <code>retry</code></a></li>
+  </ul></li>
+  <li><a href="#concurrency-and-helper-calls" id="toc-concurrency-and-helper-calls" class="nav-link" data-scroll-target="#concurrency-and-helper-calls"><span class="header-section-number">A.10</span> Concurrency and Helper Calls</a></li>
+  <li><a href="#file-compilation-and-program-launch" id="toc-file-compilation-and-program-launch" class="nav-link" data-scroll-target="#file-compilation-and-program-launch"><span class="header-section-number">A.11</span> File Compilation and Program Launch</a></li>
+  <li><a href="#how-to-use-this-appendix-while-reading-the-code" id="toc-how-to-use-this-appendix-while-reading-the-code" class="nav-link" data-scroll-target="#how-to-use-this-appendix-while-reading-the-code"><span class="header-section-number">A.12</span> How to Use This Appendix While Reading the Code</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./appendix_a.html">Appendices</a></li><li class="breadcrumb-item"><a href="./appendix_a.html"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Bytecode Patterns by Construct</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Appendix A — Bytecode Patterns by Construct</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This appendix is a code-reading companion to the JVM backend. It does not try to list every opcode the emitter can produce. It shows the stable bytecode shapes used for the major Nex constructs, so that a reader can move between a Nex example and the corresponding emitter path in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>src/nex/compiler/jvm/emit.clj</code></a> without reverse-engineering the whole file each time.</p>
+<p>The sequences below are schematic. They omit some boxing, unboxing, casts, and local-variable-table details when those are not the point of the example. The important thing is the control-flow and stack shape the backend relies on.</p>
+<section id="reading-this-appendix" class="level2" data-number="A.1">
+<h2 data-number="A.1" class="anchored" data-anchor-id="reading-this-appendix"><span class="header-section-number">A.1</span> Reading This Appendix</h2>
+<p>The compiled JVM path has three layers:</p>
+<ul>
+<li>lowering in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/lower.cljc"><code>src/nex/lower.cljc</code></a></li>
+<li>IR definitions in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/ir.cljc"><code>src/nex/ir.cljc</code></a></li>
+<li>bytecode emission in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>src/nex/compiler/jvm/emit.clj</code></a></li>
+</ul>
+<p>This appendix starts at the last of these. Each section answers the same question: once lowering has decided that a construct stays on the compiled path, what bytecode pattern does the emitter actually write?</p>
+</section>
+<section id="constants-and-local-state" class="level2" data-number="A.2">
+<h2 data-number="A.2" class="anchored" data-anchor-id="constants-and-local-state"><span class="header-section-number">A.2</span> Constants and Local State</h2>
+<p>The simplest compiled constructs become direct stack operations.</p>
+<section id="constants" class="level3" data-number="A.2.1">
+<h3 data-number="A.2.1" class="anchored" data-anchor-id="constants"><span class="header-section-number">A.2.1</span> Constants</h3>
+<p>Integer, boolean, character, string, and <code>nil</code> literals become ordinary JVM constants through the emitter’s constant path. In practice the sequence is a short <code>LDC</code>-style push followed, when needed, by boxing or coercion at the use site.</p>
+<pre class="text"><code>Nex: 42
+
+Bytecode shape:
+  LDC 42</code></pre>
+<pre class="text"><code>Nex: true
+
+Bytecode shape:
+  ICONST_1</code></pre>
+<pre class="text"><code>Nex: "hello"
+
+Bytecode shape:
+  LDC "hello"</code></pre>
+</section>
+<section id="local-loads-and-stores" class="level3" data-number="A.2.2">
+<h3 data-number="A.2.2" class="anchored" data-anchor-id="local-loads-and-stores"><span class="header-section-number">A.2.2</span> Local Loads and Stores</h3>
+<p>Lowered locals become typed JVM local slots. The emitter uses a typed load opcode on read and a typed store opcode on assignment.</p>
+<pre class="text"><code>Nex:
+  let x: Integer := 10
+  x + 1
+
+Bytecode shape:
+  LDC 10
+  ISTORE &lt;slot-x&gt;
+  ILOAD &lt;slot-x&gt;
+  ICONST_1
+  IADD</code></pre>
+<p>The actual load and store opcodes vary with the lowered JVM type:</p>
+<ul>
+<li><code>ILOAD</code> / <code>ISTORE</code> for <code>Integer</code>, <code>Boolean</code>, and <code>Char</code></li>
+<li><code>LLOAD</code> / <code>LSTORE</code> for <code>Integer64</code></li>
+<li><code>DLOAD</code> / <code>DSTORE</code> for <code>Real</code></li>
+<li><code>ALOAD</code> / <code>ASTORE</code> for object-typed values</li>
+</ul>
+<p>The relevant emitter paths are the <code>:local</code> and <code>:set-local</code> branches in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>emit.clj</code></a>.</p>
+</section>
+</section>
+<section id="top-level-repl-bindings" class="level2" data-number="A.3">
+<h2 data-number="A.3" class="anchored" data-anchor-id="top-level-repl-bindings"><span class="header-section-number">A.3</span> Top-Level REPL Bindings</h2>
+<p>The compiled REPL does not treat top-level <code>let</code> as a normal JVM local. Top-level values live in the <code>values</code> atom inside <code>NexReplState</code>, and compiled cells mutate that canonical state.</p>
+<pre class="text"><code>Nex:
+  let count := 10
+
+Bytecode shape:
+  ALOAD state
+  GETFIELD NexReplState.values
+  CHECKCAST clojure/lang/Atom
+  INVOKEVIRTUAL Atom.deref
+  CHECKCAST java/util/HashMap
+  LDC "count"
+  LDC 10
+  INVOKEVIRTUAL HashMap.put
+  POP</code></pre>
+<p>A top-level read mirrors this:</p>
+<pre class="text"><code>Bytecode shape:
+  ALOAD state
+  GETFIELD NexReplState.values
+  ...
+  LDC "count"
+  INVOKEVIRTUAL HashMap.get
+  &lt;unbox-or-cast&gt;</code></pre>
+<p>This is why the compiled REPL can execute multiple cells coherently without pretending every top-level name is a local variable in one giant synthetic method. The read and write paths live under <code>:top-get</code>, <code>:top-set</code>, and the <code>emit-load-values-map!</code> helper in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>emit.clj</code></a>.</p>
+</section>
+<section id="arithmetic-comparison-and-boolean-operators" class="level2" data-number="A.4">
+<h2 data-number="A.4" class="anchored" data-anchor-id="arithmetic-comparison-and-boolean-operators"><span class="header-section-number">A.4</span> Arithmetic, Comparison, and Boolean Operators</h2>
+<section id="arithmetic" class="level3" data-number="A.4.1">
+<h3 data-number="A.4.1" class="anchored" data-anchor-id="arithmetic"><span class="header-section-number">A.4.1</span> Arithmetic</h3>
+<p>Primitive arithmetic is emitted directly after any required numeric promotion.</p>
+<pre class="text"><code>Nex:
+  x + y
+
+Bytecode shape:
+  &lt;emit x&gt;
+  &lt;coerce to operand type&gt;
+  &lt;emit y&gt;
+  &lt;coerce to operand type&gt;
+  IADD | LADD | DADD</code></pre>
+<p>The same pattern applies to <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code>, with the opcode chosen from the lowered JVM type.</p>
+</section>
+<section id="comparisons" class="level3" data-number="A.4.2">
+<h3 data-number="A.4.2" class="anchored" data-anchor-id="comparisons"><span class="header-section-number">A.4.2</span> Comparisons</h3>
+<p>Comparisons compile to branch-and-materialize sequences. The emitter does not leave a raw JVM comparison result on the stack. It branches to produce a Nex boolean value explicitly.</p>
+<pre class="text"><code>Nex:
+  x &lt; y
+
+Bytecode shape for int-like operands:
+  &lt;emit x&gt;
+  &lt;emit y&gt;
+  IF_ICMPLT true
+  ICONST_0
+  GOTO end
+true:
+  ICONST_1
+end:</code></pre>
+<p>For <code>long</code> and <code>double</code>, the JVM requires a compare instruction first:</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit x&gt;
+  &lt;emit y&gt;
+  LCMP | DCMPL
+  IFLT | IFGT | IFEQ ...
+  ICONST_0
+  GOTO end
+true:
+  ICONST_1
+end:</code></pre>
+<p>Object comparison is deliberately narrower. The compiled path currently supports only <code>=</code> and <code>/=</code> on object operands, which become <code>IF_ACMPEQ</code> and <code>IF_ACMPNE</code> style branches over references.</p>
+</section>
+<section id="short-circuit-boolean-operators" class="level3" data-number="A.4.3">
+<h3 data-number="A.4.3" class="anchored" data-anchor-id="short-circuit-boolean-operators"><span class="header-section-number">A.4.3</span> Short-Circuit Boolean Operators</h3>
+<p><code>and</code> and <code>or</code> are emitted as real short-circuit control flow.</p>
+<pre class="text"><code>Nex:
+  a and b
+
+Bytecode shape:
+  &lt;emit a&gt;
+  IFEQ false
+  &lt;emit b&gt;
+  IFEQ false
+  ICONST_1
+  GOTO end
+false:
+  ICONST_0
+end:</code></pre>
+<pre class="text"><code>Nex:
+  a or b
+
+Bytecode shape:
+  &lt;emit a&gt;
+  IFNE true
+  &lt;emit b&gt;
+  IFNE true
+  ICONST_0
+  GOTO end
+true:
+  ICONST_1
+end:</code></pre>
+<p>This is handled in <code>emit-boolean-short-circuit!</code> in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>emit.clj</code></a>.</p>
+</section>
+</section>
+<section id="branching-and-looping" class="level2" data-number="A.5">
+<h2 data-number="A.5" class="anchored" data-anchor-id="branching-and-looping"><span class="header-section-number">A.5</span> Branching and Looping</h2>
+<section id="expression-if" class="level3" data-number="A.5.1">
+<h3 data-number="A.5.1" class="anchored" data-anchor-id="expression-if"><span class="header-section-number">A.5.1</span> Expression <code>if</code></h3>
+<p>Expression-shaped <code>if</code> lowers to one-expression branches with an explicit merge label.</p>
+<pre class="text"><code>Nex:
+  if test then a else b end
+
+Bytecode shape:
+  &lt;emit test&gt;
+  IFEQ else
+  &lt;emit a&gt;
+  &lt;coerce to result type&gt;
+  GOTO end
+else:
+  &lt;emit b&gt;
+  &lt;coerce to result type&gt;
+end:</code></pre>
+<p>The critical detail is the result-type coercion before the merge point. Lowering already decided the result type; emission enforces it on both branches.</p>
+</section>
+<section id="statement-if" class="level3" data-number="A.5.2">
+<h3 data-number="A.5.2" class="anchored" data-anchor-id="statement-if"><span class="header-section-number">A.5.2</span> Statement <code>if</code></h3>
+<p>Statement-form <code>if</code> uses the same branch skeleton without preserving a result on the stack.</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit test&gt;
+  IFEQ else
+  &lt;emit then statements&gt;
+  GOTO end
+else:
+  &lt;emit else statements&gt;
+end:</code></pre>
+</section>
+<section id="loops" class="level3" data-number="A.5.3">
+<h3 data-number="A.5.3" class="anchored" data-anchor-id="loops"><span class="header-section-number">A.5.3</span> Loops</h3>
+<p>The lowered loop form is a guard-at-top loop with a conventional back edge.</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit init statements&gt;
+loop:
+  &lt;emit test&gt;
+  IFNE end
+  &lt;emit body&gt;
+  GOTO loop
+end:</code></pre>
+<p>This looks inverted only if one expects the JVM code to mirror the Nex source text exactly. Lowering has already normalized the loop condition into the internal guard form the emitter uses.</p>
+</section>
+</section>
+<section id="functions-methods-and-calls" class="level2" data-number="A.6">
+<h2 data-number="A.6" class="anchored" data-anchor-id="functions-methods-and-calls"><span class="header-section-number">A.6</span> Functions, Methods, and Calls</h2>
+<section id="function-argument-prologue" class="level3" data-number="A.6.1">
+<h3 data-number="A.6.1" class="anchored" data-anchor-id="function-argument-prologue"><span class="header-section-number">A.6.1</span> Function Argument Prologue</h3>
+<p>Compiled REPL functions and compiled instance methods receive arguments in an <code>Object[]</code>. The first step in the emitted method body is to unpack that array into typed locals.</p>
+<pre class="text"><code>Bytecode shape for one argument:
+  ALOAD __args
+  LDC 0
+  AALOAD
+  &lt;unbox-or-cast to declared type&gt;
+  &lt;typed store into local slot&gt;</code></pre>
+<p>The emitter repeats this for each parameter in <code>emit-function-arg-prologue!</code>.</p>
+</section>
+<section id="top-level-repl-function-calls" class="level3" data-number="A.6.2">
+<h3 data-number="A.6.2" class="anchored" data-anchor-id="top-level-repl-function-calls"><span class="header-section-number">A.6.2</span> Top-Level REPL Function Calls</h3>
+<p>Top-level functions in the compiled REPL are registered in the session state’s <code>functions</code> map as reflective <code>Method</code> objects. Calling one therefore goes through that map and then through <code>Method.invoke</code>.</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;load functions map from state&gt;
+  LDC "fn-name"
+  INVOKEVIRTUAL HashMap.get
+  CHECKCAST java/lang/reflect/Method
+  ACONST_NULL
+  ICONST_2
+  ANEWARRAY java/lang/Object
+  ...
+  INVOKEVIRTUAL Method.invoke
+  &lt;unbox-or-cast result&gt;</code></pre>
+<p>This is not how file-compiled static calls work. It is specifically the compiled REPL strategy, where the current session state is part of the call protocol.</p>
+</section>
+<section id="compiled-instance-and-virtual-calls" class="level3" data-number="A.6.3">
+<h3 data-number="A.6.3" class="anchored" data-anchor-id="compiled-instance-and-virtual-calls"><span class="header-section-number">A.6.3</span> Compiled Instance and Virtual Calls</h3>
+<p>Ordinary method calls on compiled objects use a direct virtual invocation after the target is emitted and cast to the expected owner type.</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit target&gt;
+  CHECKCAST owner
+  ALOAD state
+  &lt;emit boxed arg array&gt;
+  INVOKEVIRTUAL owner.method
+  &lt;unbox-or-cast result&gt;</code></pre>
+<p>Higher-order function-object calls take a different path: they invoke runtime helper machinery rather than inlining the closure protocol into raw bytecode. That choice keeps the backend readable while still staying on the compiled path.</p>
+</section>
+</section>
+<section id="object-construction-fields-and-class-initialization" class="level2" data-number="A.7">
+<h2 data-number="A.7" class="anchored" data-anchor-id="object-construction-fields-and-class-initialization"><span class="header-section-number">A.7</span> Object Construction, Fields, and Class Initialization</h2>
+<section id="plain-object-construction" class="level3" data-number="A.7.1">
+<h3 data-number="A.7.1" class="anchored" data-anchor-id="plain-object-construction"><span class="header-section-number">A.7.1</span> Plain Object Construction</h3>
+<p>A lowered <code>create C</code> eventually becomes the ordinary JVM object-construction triplet:</p>
+<pre class="text"><code>Bytecode shape:
+  NEW C
+  DUP
+  INVOKESPECIAL C.&lt;init&gt;</code></pre>
+<p>That is the <code>:new</code> branch in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>emit.clj</code></a>.</p>
+</section>
+<section id="field-reads-and-writes" class="level3" data-number="A.7.2">
+<h3 data-number="A.7.2" class="anchored" data-anchor-id="field-reads-and-writes"><span class="header-section-number">A.7.2</span> Field Reads and Writes</h3>
+<p>Compiled field access is direct.</p>
+<pre class="text"><code>Nex:
+  obj.x
+
+Bytecode shape:
+  &lt;emit obj&gt;
+  CHECKCAST owner
+  GETFIELD owner/x &lt;descriptor&gt;</code></pre>
+<pre class="text"><code>Nex:
+  obj.x := value
+
+Bytecode shape:
+  &lt;emit obj&gt;
+  CHECKCAST owner
+  &lt;emit value&gt;
+  &lt;coerce to field type&gt;
+  PUTFIELD owner/x &lt;descriptor&gt;</code></pre>
+</section>
+<section id="user-default-constructors" class="level3" data-number="A.7.3">
+<h3 data-number="A.7.3" class="anchored" data-anchor-id="user-default-constructors"><span class="header-section-number">A.7.3</span> User Default Constructors</h3>
+<p>User-defined classes get a default constructor that does more than call <code>Object.&lt;init&gt;</code>. It also initializes composition fields, assigns default values, and sets the <code>__outer__</code> pointer used for dynamic dispatch through composed parent objects.</p>
+<pre class="text"><code>Bytecode shape:
+  ALOAD 0
+  INVOKESPECIAL super.&lt;init&gt;
+
+  ALOAD 0
+  ALOAD 0
+  PUTFIELD owner.__outer__
+
+  ALOAD 0
+  NEW ParentPart
+  DUP
+  INVOKESPECIAL ParentPart.&lt;init&gt;
+  PUTFIELD owner.parent_part
+
+  ALOAD 0
+  GETFIELD owner.parent_part
+  ALOAD 0
+  PUTFIELD ParentPart.__outer__
+
+  ALOAD 0
+  &lt;default value&gt;
+  PUTFIELD owner.field
+
+  RETURN</code></pre>
+<p>The back-pointer setup is specific to Nex’s compiled treatment of composed inheritance and is worth understanding before changing constructor emission.</p>
+</section>
+<section id="class-initializers" class="level3" data-number="A.7.4">
+<h3 data-number="A.7.4" class="anchored" data-anchor-id="class-initializers"><span class="header-section-number">A.7.4</span> Class Initializers</h3>
+<p>Static constants become a straightforward class initializer:</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit constant value&gt;
+  PUTSTATIC owner/CONST
+  ...
+  RETURN</code></pre>
+</section>
+</section>
+<section id="collections" class="level2" data-number="A.8">
+<h2 data-number="A.8" class="anchored" data-anchor-id="collections"><span class="header-section-number">A.8</span> Collections</h2>
+<p>Collection literals compile directly to Java collection objects.</p>
+<section id="arrays" class="level3" data-number="A.8.1">
+<h3 data-number="A.8.1" class="anchored" data-anchor-id="arrays"><span class="header-section-number">A.8.1</span> Arrays</h3>
+<p>Nex arrays become <code>java.util.ArrayList</code>.</p>
+<pre class="text"><code>Nex:
+  [1, 2, 3]
+
+Bytecode shape:
+  NEW java/util/ArrayList
+  DUP
+  INVOKESPECIAL ArrayList.&lt;init&gt;
+  DUP
+  LDC 1
+  &lt;box if needed&gt;
+  INVOKEVIRTUAL ArrayList.add
+  POP
+  DUP
+  LDC 2
+  ...</code></pre>
+</section>
+<section id="maps" class="level3" data-number="A.8.2">
+<h3 data-number="A.8.2" class="anchored" data-anchor-id="maps"><span class="header-section-number">A.8.2</span> Maps</h3>
+<p>Maps become <code>java.util.HashMap</code>.</p>
+<pre class="text"><code>Bytecode shape:
+  NEW java/util/HashMap
+  DUP
+  INVOKESPECIAL HashMap.&lt;init&gt;
+  DUP
+  &lt;emit key&gt;
+  &lt;emit value&gt;
+  INVOKEVIRTUAL HashMap.put
+  POP</code></pre>
+</section>
+<section id="sets" class="level3" data-number="A.8.3">
+<h3 data-number="A.8.3" class="anchored" data-anchor-id="sets"><span class="header-section-number">A.8.3</span> Sets</h3>
+<p>Sets become <code>java.util.LinkedHashSet</code>, which preserves insertion order.</p>
+<pre class="text"><code>Bytecode shape:
+  NEW java/util/LinkedHashSet
+  DUP
+  INVOKESPECIAL LinkedHashSet.&lt;init&gt;
+  DUP
+  &lt;emit element&gt;
+  INVOKEVIRTUAL LinkedHashSet.add
+  POP</code></pre>
+</section>
+<section id="collection-operations" class="level3" data-number="A.8.4">
+<h3 data-number="A.8.4" class="anchored" data-anchor-id="collection-operations"><span class="header-section-number">A.8.4</span> Collection Operations</h3>
+<p>Several core collection operations are emitted as direct host-library calls:</p>
+<ul>
+<li>array <code>get</code> -&gt; <code>ArrayList.get</code></li>
+<li>array <code>put</code> -&gt; <code>ArrayList.set</code></li>
+<li>array <code>add</code> -&gt; <code>ArrayList.add</code></li>
+<li>array <code>length</code> -&gt; <code>ArrayList.size</code></li>
+<li>map <code>put</code> -&gt; <code>HashMap.put</code></li>
+<li>map <code>size</code> -&gt; <code>HashMap.size</code></li>
+<li>set <code>size</code> -&gt; <code>LinkedHashSet.size</code></li>
+</ul>
+<p>The emitter uses runtime helpers only where a direct Java collection call would hide Nex semantics rather than clarify them. String rendering, cloning, equality, and some cursor-related operations still go through helper calls for exactly that reason.</p>
+</section>
+</section>
+<section id="exceptions-contracts-and-retry" class="level2" data-number="A.9">
+<h2 data-number="A.9" class="anchored" data-anchor-id="exceptions-contracts-and-retry"><span class="header-section-number">A.9</span> Exceptions, Contracts, and Retry</h2>
+<section id="raise" class="level3" data-number="A.9.1">
+<h3 data-number="A.9.1" class="anchored" data-anchor-id="raise"><span class="header-section-number">A.9.1</span> <code>raise</code></h3>
+<p><code>raise expr</code> first evaluates the value, boxes it if necessary, converts it to a runtime exception object, then throws it.</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit expr&gt;
+  &lt;box if primitive&gt;
+  &lt;runtime call make-raised-exception&gt;
+  CHECKCAST java/lang/Throwable
+  ATHROW</code></pre>
+</section>
+<section id="contract-assertions" class="level3" data-number="A.9.2">
+<h3 data-number="A.9.2" class="anchored" data-anchor-id="contract-assertions"><span class="header-section-number">A.9.2</span> Contract Assertions</h3>
+<p>Compiled preconditions, postconditions, invariants, and variants are ordinary guard checks that construct and throw a contract violation when false.</p>
+<pre class="text"><code>Bytecode shape:
+  &lt;emit condition&gt;
+  IFNE ok
+  LDC "Postcondition"
+  LDC "label"
+  &lt;runtime call make-contract-violation&gt;
+  CHECKCAST java/lang/Throwable
+  ATHROW
+ok:</code></pre>
+<p>This directness is one of the strengths of the compiled backend. Contract checks are not magic metadata. They are visible control-flow.</p>
+</section>
+<section id="rescue-and-retry" class="level3" data-number="A.9.3">
+<h3 data-number="A.9.3" class="anchored" data-anchor-id="rescue-and-retry"><span class="header-section-number">A.9.3</span> <code>rescue</code> and <code>retry</code></h3>
+<p>The compiled try/rescue path uses explicit JVM try/catch regions plus a retry signal recognized by the runtime.</p>
+<pre class="text"><code>Bytecode shape:
+loop-start:
+body-start:
+  &lt;emit body&gt;
+body-end:
+  GOTO end
+
+body-handler:
+  ASTORE throwable
+  ALOAD throwable
+  &lt;runtime call retry-signal?&gt;
+  ...
+  IFEQ not-retry
+  ALOAD throwable
+  ATHROW
+not-retry:
+  ALOAD throwable
+  &lt;runtime call exception-value&gt;
+  ASTORE exception
+rescue-start:
+  &lt;emit rescue body&gt;
+rescue-end:
+  GOTO end
+
+rescue-handler:
+  ASTORE rescue-throwable
+  ALOAD rescue-throwable
+  &lt;runtime call retry-signal?&gt;
+  ...
+  IFEQ rescue-not-retry
+  GOTO loop-start
+rescue-not-retry:
+  ALOAD rescue-throwable
+  ATHROW
+end:</code></pre>
+<p>This is more substantial than a helper call wrapped around the interpreter. The control flow is genuinely compiled; the runtime only supplies the retry-signal protocol and exception-value extraction.</p>
+</section>
+</section>
+<section id="concurrency-and-helper-calls" class="level2" data-number="A.10">
+<h2 data-number="A.10" class="anchored" data-anchor-id="concurrency-and-helper-calls"><span class="header-section-number">A.10</span> Concurrency and Helper Calls</h2>
+<p>Concurrency is compiled, but not by inlining channel and task mechanics into raw JVM instructions. The emitter uses dedicated runtime helper calls for the concurrency surface.</p>
+<pre class="text"><code>Nex:
+  t.await()
+
+Bytecode shape:
+  &lt;load runtime var task-await-method&gt;
+  &lt;emit boxed task object&gt;
+  INVOKEVIRTUAL Var.invoke
+  &lt;unbox-or-cast result&gt;</code></pre>
+<pre class="text"><code>Nex:
+  ch.send(value)
+
+Bytecode shape:
+  &lt;load runtime var channel-send-method&gt;
+  &lt;emit boxed channel&gt;
+  &lt;emit boxed value&gt;
+  INVOKEVIRTUAL Var.invoke
+  &lt;unbox-or-cast or POP&gt;</code></pre>
+<p>The important design point is that these are still compiled calls. They are not deopts. Lowering produces <code>:concurrency-method</code> IR, and emission maps each supported method to a named runtime helper such as:</p>
+<ul>
+<li><code>task-await-method</code></li>
+<li><code>task-cancel-method</code></li>
+<li><code>channel-send-method</code></li>
+<li><code>channel-receive-method</code></li>
+<li><code>channel-close-method</code></li>
+</ul>
+<p>This keeps the bytecode layer small while still preserving a compiled execution path for concurrency-heavy code.</p>
+</section>
+<section id="file-compilation-and-program-launch" class="level2" data-number="A.11">
+<h2 data-number="A.11" class="anchored" data-anchor-id="file-compilation-and-program-launch"><span class="header-section-number">A.11</span> File Compilation and Program Launch</h2>
+<p>File compilation adds one more layer: a launcher class with <code>main</code>.</p>
+<p>The launcher bytecode shape is:</p>
+<pre class="text"><code>  &lt;load clojure.core/require&gt;
+  &lt;require nex.compiler.jvm.runtime&gt;
+
+  &lt;runtime call make-repl-state&gt;
+  CHECKCAST NexReplState
+  ASTORE state
+
+  &lt;runtime call bootstrap-compiled-state! state classes-edn imports-edn&gt;
+  POP
+
+  ALOAD state
+  INVOKESTATIC Program.eval
+  POP
+
+  &lt;runtime call print-state-output! state&gt;
+  POP
+  RETURN</code></pre>
+<p>This structure is why the file compiler can share so much code with the compiled REPL. The program class still exposes an <code>eval</code> entry point that consumes <code>NexReplState</code>; the launcher is just the small wrapper that creates and bootstraps that state in a standalone jar.</p>
+</section>
+<section id="how-to-use-this-appendix-while-reading-the-code" class="level2" data-number="A.12">
+<h2 data-number="A.12" class="anchored" data-anchor-id="how-to-use-this-appendix-while-reading-the-code"><span class="header-section-number">A.12</span> How to Use This Appendix While Reading the Code</h2>
+<p>For actual code reading, the most efficient order is:</p>
+<ol type="1">
+<li>Read the lowering rule in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/lower.cljc"><code>src/nex/lower.cljc</code></a> for the construct you care about.</li>
+<li>Find the corresponding IR shape in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/ir.cljc"><code>src/nex/ir.cljc</code></a>.</li>
+<li>Jump to the matching <code>:op</code> branch or helper in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>src/nex/compiler/jvm/emit.clj</code></a>.</li>
+<li>Check <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/runtime.clj"><code>src/nex/compiler/jvm/runtime.clj</code></a> only if emission routes through a runtime helper.</li>
+</ol>
+<p>The main practical distinction to keep in mind is this:</p>
+<ul>
+<li>direct JVM emission is used when the construct has a stable and readable stack-level meaning</li>
+<li>runtime helper calls are used when they preserve Nex semantics more clearly than expanding everything inline</li>
+</ul>
+<p>That design is visible throughout the backend, and the bytecode patterns in this appendix are the quickest way to see it.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_6.html" class="pagination-link" aria-label="Future Directions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Future Directions</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

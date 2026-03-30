@@ -34,7 +34,7 @@
     "href": "chapter_1.html#why-object-oriented-and-functional-together",
     "title": "1  Design Goals",
     "section": "1.2 3.2 Why Object-Oriented and Functional Together",
-    "text": "1.2 3.2 Why Object-Oriented and Functional Together\nNex is object-oriented because long-lived programs need stable models of things. Classes, constructors, fields, methods, invariants, and inheritance all exist to support that modelling work. When the problem is to represent a bank account, an HTTP request, or a graphics window, a class is the right unit of thought: it names the concept, bundles the data, and specifies the rules under which the data may change.\nBut classes are not the only useful unit of thought. Sometimes the important thing is not a long-lived object but a transformation — a local computation, a callback, an operation that takes values in and produces a value out without touching any persistent state. For that kind of problem, function values and expression-oriented forms are more natural and more honest. Wrapping a pure computation in a class to satisfy a stylistic rule produces noise without adding clarity.\nNex therefore supports both, not as competing paradigms but as complementary tools. A class may use functions internally when local abstraction serves it better than a new method. A function may manipulate objects when that is what the computation requires. The language makes no ideological commitment to either style. It makes a practical commitment to letting each be used where it fits, without friction between them.",
+    "text": "1.2 3.2 Why Object-Oriented and Functional Together\nNex is object-oriented because long-lived programs need stable models of things. Classes, constructors, fields, methods, invariants, and inheritance all exist to support that modelling work. When the problem is to represent a bank account, an HTTP request, or a configuration object, a class is the right unit of thought: it names the concept, bundles the data, and specifies the rules under which the data may change.\nBut classes are not the only useful unit of thought. Sometimes the important thing is not a long-lived object but a transformation — a local computation, a callback, an operation that takes values in and produces a value out without touching any persistent state. For that kind of problem, function values and expression-oriented forms are more natural and more honest. Wrapping a pure computation in a class to satisfy a stylistic rule produces noise without adding clarity.\nNex therefore supports both, not as competing paradigms but as complementary tools. A class may use functions internally when local abstraction serves it better than a new method. A function may manipulate objects when that is what the computation requires. The language makes no ideological commitment to either style. It makes a practical commitment to letting each be used where it fits, without friction between them.",
     "crumbs": [
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Design Goals</span>"
     ]
@@ -374,7 +374,7 @@
     "href": "chapter_5.html",
     "title": "5  JVM Bytecode Translation Reference",
     "section": "",
-    "text": "5.1 5.1 Purpose and Scope\nThe JVM backend is no longer a narrow experiment. It now covers most of the Nex language surface, supports both REPL compilation and file-to-jar compilation, and uses a mixed strategy of direct bytecode emission plus explicit runtime helper calls where that is the better engineering trade.\nThis chapter is a translation guide for the current implementation. It is not a wishlist, and it is not a plan. The code in:\nis the primary evidence. This chapter explains the design choices that are no longer obvious from reading those files one by one.\nThis reference answers a practical question: when a Nex construct stays on the compiled JVM path, what does the compiler actually do with it?\nIn this chapter, compiled path means:\nThis chapter does not try to document every helper function or every opcode sequence. It documents the stable translation strategy:\nThe remaining deopt surface is real and intentional. The compiled backend is the default REPL path now, but it is still a mixed-mode system rather than a pure ahead-of-time replacement for the interpreter.",
+    "text": "5.1 5.1 Purpose and Scope\nThe JVM backend is a mature execution target for Nex. It covers most of the language surface, supports both compiled REPL execution and file-to-jar compilation, and uses a mixed strategy of direct bytecode emission plus explicit runtime helper calls where that is the better engineering trade.\nThis chapter is a translation guide for the current implementation. It is not a wishlist, and it is not a plan. The primary implementation lives in:\nThe validation surface is substantial too. The most useful tests to read alongside the implementation are:\nThis chapter explains the design choices that are no longer obvious from reading those files one by one.\nThis reference answers a practical question: when a Nex construct stays on the compiled JVM path, what does the compiler actually do with it?\nIn this chapter, compiled path means:\nThis chapter does not try to document every helper function or every opcode sequence. It documents the stable translation strategy:\nThe remaining deopt surface is real and intentional. That does not make the backend experimental. It means the implementation prefers semantic fidelity over forced compilation when a boundary is not yet worth specializing. The compiled backend is the default REPL path and the file compiler produces runnable jars; mixed-mode execution is part of the mature design, not evidence that the target is provisional.",
     "crumbs": [
       "<span class='chapter-number'>5</span>  <span class='chapter-title'>JVM Bytecode Translation Reference</span>"
     ]
@@ -404,7 +404,7 @@
     "href": "chapter_5.html#runtime-model",
     "title": "5  JVM Bytecode Translation Reference",
     "section": "5.3 5.3 Runtime Model",
-    "text": "5.3 5.3 Runtime Model\n\n5.3.1 NexReplState\nThe compiled REPL runtime is organized around NexReplState in src/nex/compiler/jvm/runtime.clj. It stores:\n\ntop-level values,\ntop-level types,\ncompiled function wrappers,\nREPL output,\ncompiled class metadata,\nimports,\na class-name counter,\nthe dynamic classloader.\n\nThis is the canonical runtime state for compiled REPL execution.\n\n\n5.3.2 Compiled Session vs Interpreter Sync\nThe compiled REPL session in src/nex/compiler/jvm/repl.clj stores more than runtime values. It also remembers:\n\nfunction ASTs,\nclass ASTs,\nimport ASTs,\nintern ASTs,\ncompiled class metadata,\nthe dynamic loader and the runtime state.\n\nThe interpreter context and the compiled session are kept coherent by explicit sync in both directions:\n\ncompiled session -&gt; interpreter, when the system deopts,\ninterpreter -&gt; compiled session, after interpreter evaluation succeeds.\n\nThis is why the compiled REPL can be the default without pretending the interpreter no longer exists.\n\n\n5.3.3 Deopt/Reopt Model\nThe compiler does not attempt to compile every AST shape. If an input is outside the supported compiled subset, or hits a deliberately conservative fallback boundary, the REPL:\n\nmaterializes interpreter state from the compiled session,\nruns the input through the interpreter,\nsyncs the resulting state back into the compiled session,\nresumes compiled execution on later supported inputs.\n\nThe correct way to think about the REPL now is:\n\ncompiled by default,\ninterpreter as a correctness-preserving fallback,\nnot “compiled unless we forgot to implement it.”",
+    "text": "5.3 5.3 Runtime Model\n\n5.3.1 NexReplState\nThe compiled REPL runtime is organized around NexReplState in src/nex/compiler/jvm/runtime.clj. It stores:\n\ntop-level values,\ntop-level types,\ncompiled function wrappers,\nREPL output,\ncompiled class metadata,\nimports,\na class-name counter,\nthe dynamic classloader.\n\nThis is the canonical runtime state for compiled REPL execution.\n\n\n5.3.2 Compiled Session vs Interpreter Sync\nThe compiled REPL session in src/nex/compiler/jvm/repl.clj stores more than runtime values. It also remembers:\n\nfunction ASTs,\nclass ASTs,\nimport ASTs,\nintern ASTs,\ncompiled class metadata,\nthe dynamic loader and the runtime state.\n\nThe interpreter context and the compiled session are kept coherent by explicit sync in both directions:\n\ncompiled session -&gt; interpreter, when the system deopts,\ninterpreter -&gt; compiled session, after interpreter evaluation succeeds.\n\nThis is why the compiled REPL can be the default without pretending the interpreter no longer exists.\n\n\n5.3.3 Deopt/Reopt Model\nThe compiler does not attempt to compile every AST shape. If an input is outside the supported compiled subset, or hits a deliberately conservative fallback boundary, the REPL:\n\nmaterializes interpreter state from the compiled session,\nruns the input through the interpreter,\nsyncs the resulting state back into the compiled session,\nresumes compiled execution on later supported inputs.\n\nThe correct way to think about the REPL now is:\n\ncompiled by default and used in ordinary work,\ninterpreter as a correctness-preserving fallback,\nnot “compiled unless we forgot to implement it.”",
     "crumbs": [
       "<span class='chapter-number'>5</span>  <span class='chapter-title'>JVM Bytecode Translation Reference</span>"
     ]
@@ -494,7 +494,17 @@
     "href": "chapter_5.html#fallback-boundaries",
     "title": "5  JVM Bytecode Translation Reference",
     "section": "5.12 5.12 Fallback Boundaries",
-    "text": "5.12 5.12 Fallback Boundaries\nThe compiled backend is the default REPL path, but the fallback surface still matters.\nThe remaining deopt cases are not “all advanced features.” They are mostly:\n\nAST shapes outside the compiled eligibility gate,\ndebugger-enabled REPL evaluation,\nknown conservative mixed-mode boundaries,\nunresolved or unsupported receiver/call shapes,\na small number of deliberately interpreter-routed cases where semantic fidelity is better preserved that way.\n\nTwo design rules are important here:\n\nA runtime helper call is not a deopt.\nA deopt must preserve user-visible semantics after sync, not just finish execution somehow.",
+    "text": "5.12 5.12 Fallback Boundaries\nThe compiled backend is the default REPL path, but the fallback surface still matters.\nThe remaining deopt cases are not “all advanced features,” and they are not a sign that the backend is still a side path. They are mostly:\n\nAST shapes outside the compiled eligibility gate,\ndebugger-enabled REPL evaluation,\nknown conservative mixed-mode boundaries,\nunresolved or unsupported receiver/call shapes,\na small number of deliberately interpreter-routed cases where semantic fidelity is better preserved that way.\n\nTwo design rules are important here:\n\nA runtime helper call is not a deopt.\nA deopt must preserve user-visible semantics after sync, not just finish execution somehow.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>JVM Bytecode Translation Reference</span>"
+    ]
+  },
+  {
+    "objectID": "chapter_5.html#validation-surface",
+    "href": "chapter_5.html#validation-surface",
+    "title": "5  JVM Bytecode Translation Reference",
+    "section": "5.13 5.13 Validation Surface",
+    "text": "5.13 5.13 Validation Surface\nThis chapter documents the current JVM compiler as implemented, tested, and used.\nThree kinds of validation matter in practice:\n\ncompiled REPL tests, which check ordinary interactive use and regression behavior across a wide language surface,\nsoak tests, which stress long mixed-mode sessions with deopt/reopt cycles and cross-cell state,\nfile and CLI tests, which verify standalone compilation, jar packaging, launcher generation, and end-to-end execution under java -jar.\n\nThis matters when reading the source. Many design choices that would otherwise look conservative or overly explicit are there because the backend is expected to survive real REPL sessions and standalone compilation workflows, not only unit-sized translation examples.",
     "crumbs": [
       "<span class='chapter-number'>5</span>  <span class='chapter-title'>JVM Bytecode Translation Reference</span>"
     ]
@@ -503,8 +513,8 @@
     "objectID": "chapter_5.html#worked-examples",
     "href": "chapter_5.html#worked-examples",
     "title": "5  JVM Bytecode Translation Reference",
-    "section": "5.13 5.13 Worked Examples",
-    "text": "5.13 5.13 Worked Examples\n\n5.13.1 Example 1: Top-Level let\nSource:\nlet x: Integer := 40\nLowered strategy:\n\nlower to top-level REPL state mutation, not a transient local\n\nEmitted strategy:\n\ncompiled REPL cell stores into NexReplState.values and NexReplState.types\n\nRuntime involvement:\n\nstate update helpers\nsession-&gt;interpreter sync only if later deopt requires it\n\n\n\n5.13.2 Example 2: Captured Closure\nSource:\nlet add_base := fn (n: Integer): Integer do\n  result := n + x\nend\nLowered strategy:\n\ncaptured closure does not become a plain no-capture function class\ncaptured environment is represented through a runtime-backed closure object\n\nEmitted strategy:\n\ncompiled code allocates the closure through a runtime helper\n\nRuntime involvement:\n\nclosure capture storage\nfunction-object invocation path\n\n\n\n5.13.3 Example 3: Multiple Inheritance Method Call\nSource:\nclass C inherit A, B\nfeature\n  run() do\n    A.show()\n    B.show()\n  end\nend\nLowered strategy:\n\nparent-qualified calls lower against composition fields and delegation metadata\n\nEmitted strategy:\n\nchild class extends Object\nparent state lives in parent composition fields\ndelegation methods and parent-qualified dispatch are emitted explicitly\n\nRuntime involvement:\n\nobject-state validation where required\n\n\n\n5.13.4 Example 4: select\nSource:\nselect\n  when ch.receive() as msg then\n    print(msg)\n  timeout 100 then\n    print(0)\nend\nLowered strategy:\n\nexplicit select lowering\nclause structure preserved rather than reduced to one builtin call\n\nEmitted strategy:\n\ncompiled control flow plus runtime helper support for probe/send/receive behavior\n\nRuntime involvement:\n\nchannel/task coordination helpers\n\n\n\n5.13.5 Example 5: File Compilation\nSource:\nprint(\"hello\")\nLowered strategy:\n\nordinary program AST lowered into a program unit\n\nEmitted strategy:\n\nemit a program class\nemit a launcher class with main\npackage emitted classes and runtime support into a jar\n\nRuntime involvement:\n\nlauncher bootstrap\nshaded runtime helpers in the output jar",
+    "section": "5.14 5.14 Worked Examples",
+    "text": "5.14 5.14 Worked Examples\n\n5.14.1 Example 1: Top-Level let\nSource:\nlet x: Integer := 40\nLowered strategy:\n\nlower to top-level REPL state mutation, not a transient local\n\nEmitted strategy:\n\ncompiled REPL cell stores into NexReplState.values and NexReplState.types\n\nRuntime involvement:\n\nstate update helpers\nsession-&gt;interpreter sync only if later deopt requires it\n\n\n\n5.14.2 Example 2: Captured Closure\nSource:\nlet add_base := fn (n: Integer): Integer do\n  result := n + x\nend\nLowered strategy:\n\ncaptured closure does not become a plain no-capture function class\ncaptured environment is represented through a runtime-backed closure object\n\nEmitted strategy:\n\ncompiled code allocates the closure through a runtime helper\n\nRuntime involvement:\n\nclosure capture storage\nfunction-object invocation path\n\n\n\n5.14.3 Example 3: Multiple Inheritance Method Call\nSource:\nclass C inherit A, B\nfeature\n  run() do\n    A.show()\n    B.show()\n  end\nend\nLowered strategy:\n\nparent-qualified calls lower against composition fields and delegation metadata\n\nEmitted strategy:\n\nchild class extends Object\nparent state lives in parent composition fields\ndelegation methods and parent-qualified dispatch are emitted explicitly\n\nRuntime involvement:\n\nobject-state validation where required\n\n\n\n5.14.4 Example 4: select\nSource:\nselect\n  when ch.receive() as msg then\n    print(msg)\n  timeout 100 then\n    print(0)\nend\nLowered strategy:\n\nexplicit select lowering\nclause structure preserved rather than reduced to one builtin call\n\nEmitted strategy:\n\ncompiled control flow plus runtime helper support for probe/send/receive behavior\n\nRuntime involvement:\n\nchannel/task coordination helpers\n\n\n\n5.14.5 Example 5: File Compilation\nSource:\nprint(\"hello\")\nLowered strategy:\n\nordinary program AST lowered into a program unit\n\nEmitted strategy:\n\nemit a program class\nemit a launcher class with main\npackage emitted classes and runtime support into a jar\n\nRuntime involvement:\n\nlauncher bootstrap\nshaded runtime helpers in the output jar",
     "crumbs": [
       "<span class='chapter-number'>5</span>  <span class='chapter-title'>JVM Bytecode Translation Reference</span>"
     ]
@@ -513,8 +523,8 @@
     "objectID": "chapter_5.html#why-this-reference-exists",
     "href": "chapter_5.html#why-this-reference-exists",
     "title": "5  JVM Bytecode Translation Reference",
-    "section": "5.14 5.14 Why This Reference Exists",
-    "text": "5.14 5.14 Why This Reference Exists\nThe JVM backend has reached the point where “read the source” is no longer an adequate replacement for a design reference. There are now too many important translation choices whose correctness depends on understanding the whole:\n\ndirect bytecode vs runtime-helper boundaries,\nmixed-mode REPL state coherence,\ncomposition-based multiple inheritance,\nclosure representation,\ncontract and exception lowering,\nconcurrency lowering,\nmodule and interop handling.\n\nThis chapter is meant to keep those choices legible. It is a maintenance tool as much as a book chapter. Future backend work should update this reference whenever the translation strategy changes in a way that affects reasoning, not just implementation detail.",
+    "section": "5.15 5.14 Why This Reference Exists",
+    "text": "5.15 5.14 Why This Reference Exists\nThe JVM backend has reached the point where “read the source” is no longer an adequate replacement for a design reference. There are now too many important translation choices whose correctness depends on understanding the whole:\n\ndirect bytecode vs runtime-helper boundaries,\nmixed-mode REPL state coherence,\ncomposition-based multiple inheritance,\nclosure representation,\ncontract and exception lowering,\nconcurrency lowering,\nmodule and interop handling.\n\nThis chapter is meant to keep those choices legible. It is a maintenance tool as much as a book chapter. Future backend work should update this reference whenever the translation strategy changes in a way that affects reasoning, not just implementation detail.",
     "crumbs": [
       "<span class='chapter-number'>5</span>  <span class='chapter-title'>JVM Bytecode Translation Reference</span>"
     ]
@@ -587,6 +597,149 @@
     "text": "6.7 6.7 What Maturity Looks Like\nA mature Nex would not necessarily be a larger Nex. It would be a more settled one: clearer library conventions, stronger tooling, a firmer JavaScript story, more complete documentation, a typechecker and runtime that are broader in coverage but still readable in full.\nThat last property matters more than it might seem. The codebase is currently small enough that a determined reader can trace any feature from grammar to walker to typechecker to interpreter to generators. That traceability is one of Nex’s most valuable properties. Growth should preserve it — not out of sentiment, but because a language designed to teach disciplined thinking about programs should itself be implemented in a way that rewards disciplined reading.\nThe pressures this chapter has described are real, and some of them will eventually force changes that make the system larger and more complex. The goal is to let that happen slowly enough that the system remains comprehensible at each stage, rather than crossing the threshold — familiar from many language histories — where the implementation becomes something that can only be worked on piecemeal, by specialists, without a view of the whole.\nNex has not crossed that threshold. Keeping it on the right side is the most important long-term design commitment the project can make.",
     "crumbs": [
       "<span class='chapter-number'>6</span>  <span class='chapter-title'>Future Directions</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html",
+    "href": "appendix_a.html",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "",
+    "text": "A.1 Reading This Appendix\nThis appendix is a code-reading companion to the JVM backend. It does not try to list every opcode the emitter can produce. It shows the stable bytecode shapes used for the major Nex constructs, so that a reader can move between a Nex example and the corresponding emitter path in src/nex/compiler/jvm/emit.clj without reverse-engineering the whole file each time.\nThe sequences below are schematic. They omit some boxing, unboxing, casts, and local-variable-table details when those are not the point of the example. The important thing is the control-flow and stack shape the backend relies on.\nThe compiled JVM path has three layers:\nThis appendix starts at the last of these. Each section answers the same question: once lowering has decided that a construct stays on the compiled path, what bytecode pattern does the emitter actually write?",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#reading-this-appendix",
+    "href": "appendix_a.html#reading-this-appendix",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "",
+    "text": "lowering in src/nex/lower.cljc\nIR definitions in src/nex/ir.cljc\nbytecode emission in src/nex/compiler/jvm/emit.clj",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#constants-and-local-state",
+    "href": "appendix_a.html#constants-and-local-state",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.2 Constants and Local State",
+    "text": "A.2 Constants and Local State\nThe simplest compiled constructs become direct stack operations.\n\nA.2.1 Constants\nInteger, boolean, character, string, and nil literals become ordinary JVM constants through the emitter’s constant path. In practice the sequence is a short LDC-style push followed, when needed, by boxing or coercion at the use site.\nNex: 42\n\nBytecode shape:\n  LDC 42\nNex: true\n\nBytecode shape:\n  ICONST_1\nNex: \"hello\"\n\nBytecode shape:\n  LDC \"hello\"\n\n\nA.2.2 Local Loads and Stores\nLowered locals become typed JVM local slots. The emitter uses a typed load opcode on read and a typed store opcode on assignment.\nNex:\n  let x: Integer := 10\n  x + 1\n\nBytecode shape:\n  LDC 10\n  ISTORE &lt;slot-x&gt;\n  ILOAD &lt;slot-x&gt;\n  ICONST_1\n  IADD\nThe actual load and store opcodes vary with the lowered JVM type:\n\nILOAD / ISTORE for Integer, Boolean, and Char\nLLOAD / LSTORE for Integer64\nDLOAD / DSTORE for Real\nALOAD / ASTORE for object-typed values\n\nThe relevant emitter paths are the :local and :set-local branches in emit.clj.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#top-level-repl-bindings",
+    "href": "appendix_a.html#top-level-repl-bindings",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.3 Top-Level REPL Bindings",
+    "text": "A.3 Top-Level REPL Bindings\nThe compiled REPL does not treat top-level let as a normal JVM local. Top-level values live in the values atom inside NexReplState, and compiled cells mutate that canonical state.\nNex:\n  let count := 10\n\nBytecode shape:\n  ALOAD state\n  GETFIELD NexReplState.values\n  CHECKCAST clojure/lang/Atom\n  INVOKEVIRTUAL Atom.deref\n  CHECKCAST java/util/HashMap\n  LDC \"count\"\n  LDC 10\n  INVOKEVIRTUAL HashMap.put\n  POP\nA top-level read mirrors this:\nBytecode shape:\n  ALOAD state\n  GETFIELD NexReplState.values\n  ...\n  LDC \"count\"\n  INVOKEVIRTUAL HashMap.get\n  &lt;unbox-or-cast&gt;\nThis is why the compiled REPL can execute multiple cells coherently without pretending every top-level name is a local variable in one giant synthetic method. The read and write paths live under :top-get, :top-set, and the emit-load-values-map! helper in emit.clj.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#arithmetic-comparison-and-boolean-operators",
+    "href": "appendix_a.html#arithmetic-comparison-and-boolean-operators",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.4 Arithmetic, Comparison, and Boolean Operators",
+    "text": "A.4 Arithmetic, Comparison, and Boolean Operators\n\nA.4.1 Arithmetic\nPrimitive arithmetic is emitted directly after any required numeric promotion.\nNex:\n  x + y\n\nBytecode shape:\n  &lt;emit x&gt;\n  &lt;coerce to operand type&gt;\n  &lt;emit y&gt;\n  &lt;coerce to operand type&gt;\n  IADD | LADD | DADD\nThe same pattern applies to -, *, /, and %, with the opcode chosen from the lowered JVM type.\n\n\nA.4.2 Comparisons\nComparisons compile to branch-and-materialize sequences. The emitter does not leave a raw JVM comparison result on the stack. It branches to produce a Nex boolean value explicitly.\nNex:\n  x &lt; y\n\nBytecode shape for int-like operands:\n  &lt;emit x&gt;\n  &lt;emit y&gt;\n  IF_ICMPLT true\n  ICONST_0\n  GOTO end\ntrue:\n  ICONST_1\nend:\nFor long and double, the JVM requires a compare instruction first:\nBytecode shape:\n  &lt;emit x&gt;\n  &lt;emit y&gt;\n  LCMP | DCMPL\n  IFLT | IFGT | IFEQ ...\n  ICONST_0\n  GOTO end\ntrue:\n  ICONST_1\nend:\nObject comparison is deliberately narrower. The compiled path currently supports only = and /= on object operands, which become IF_ACMPEQ and IF_ACMPNE style branches over references.\n\n\nA.4.3 Short-Circuit Boolean Operators\nand and or are emitted as real short-circuit control flow.\nNex:\n  a and b\n\nBytecode shape:\n  &lt;emit a&gt;\n  IFEQ false\n  &lt;emit b&gt;\n  IFEQ false\n  ICONST_1\n  GOTO end\nfalse:\n  ICONST_0\nend:\nNex:\n  a or b\n\nBytecode shape:\n  &lt;emit a&gt;\n  IFNE true\n  &lt;emit b&gt;\n  IFNE true\n  ICONST_0\n  GOTO end\ntrue:\n  ICONST_1\nend:\nThis is handled in emit-boolean-short-circuit! in emit.clj.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#branching-and-looping",
+    "href": "appendix_a.html#branching-and-looping",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.5 Branching and Looping",
+    "text": "A.5 Branching and Looping\n\nA.5.1 Expression if\nExpression-shaped if lowers to one-expression branches with an explicit merge label.\nNex:\n  if test then a else b end\n\nBytecode shape:\n  &lt;emit test&gt;\n  IFEQ else\n  &lt;emit a&gt;\n  &lt;coerce to result type&gt;\n  GOTO end\nelse:\n  &lt;emit b&gt;\n  &lt;coerce to result type&gt;\nend:\nThe critical detail is the result-type coercion before the merge point. Lowering already decided the result type; emission enforces it on both branches.\n\n\nA.5.2 Statement if\nStatement-form if uses the same branch skeleton without preserving a result on the stack.\nBytecode shape:\n  &lt;emit test&gt;\n  IFEQ else\n  &lt;emit then statements&gt;\n  GOTO end\nelse:\n  &lt;emit else statements&gt;\nend:\n\n\nA.5.3 Loops\nThe lowered loop form is a guard-at-top loop with a conventional back edge.\nBytecode shape:\n  &lt;emit init statements&gt;\nloop:\n  &lt;emit test&gt;\n  IFNE end\n  &lt;emit body&gt;\n  GOTO loop\nend:\nThis looks inverted only if one expects the JVM code to mirror the Nex source text exactly. Lowering has already normalized the loop condition into the internal guard form the emitter uses.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#functions-methods-and-calls",
+    "href": "appendix_a.html#functions-methods-and-calls",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.6 Functions, Methods, and Calls",
+    "text": "A.6 Functions, Methods, and Calls\n\nA.6.1 Function Argument Prologue\nCompiled REPL functions and compiled instance methods receive arguments in an Object[]. The first step in the emitted method body is to unpack that array into typed locals.\nBytecode shape for one argument:\n  ALOAD __args\n  LDC 0\n  AALOAD\n  &lt;unbox-or-cast to declared type&gt;\n  &lt;typed store into local slot&gt;\nThe emitter repeats this for each parameter in emit-function-arg-prologue!.\n\n\nA.6.2 Top-Level REPL Function Calls\nTop-level functions in the compiled REPL are registered in the session state’s functions map as reflective Method objects. Calling one therefore goes through that map and then through Method.invoke.\nBytecode shape:\n  &lt;load functions map from state&gt;\n  LDC \"fn-name\"\n  INVOKEVIRTUAL HashMap.get\n  CHECKCAST java/lang/reflect/Method\n  ACONST_NULL\n  ICONST_2\n  ANEWARRAY java/lang/Object\n  ...\n  INVOKEVIRTUAL Method.invoke\n  &lt;unbox-or-cast result&gt;\nThis is not how file-compiled static calls work. It is specifically the compiled REPL strategy, where the current session state is part of the call protocol.\n\n\nA.6.3 Compiled Instance and Virtual Calls\nOrdinary method calls on compiled objects use a direct virtual invocation after the target is emitted and cast to the expected owner type.\nBytecode shape:\n  &lt;emit target&gt;\n  CHECKCAST owner\n  ALOAD state\n  &lt;emit boxed arg array&gt;\n  INVOKEVIRTUAL owner.method\n  &lt;unbox-or-cast result&gt;\nHigher-order function-object calls take a different path: they invoke runtime helper machinery rather than inlining the closure protocol into raw bytecode. That choice keeps the backend readable while still staying on the compiled path.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#object-construction-fields-and-class-initialization",
+    "href": "appendix_a.html#object-construction-fields-and-class-initialization",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.7 Object Construction, Fields, and Class Initialization",
+    "text": "A.7 Object Construction, Fields, and Class Initialization\n\nA.7.1 Plain Object Construction\nA lowered create C eventually becomes the ordinary JVM object-construction triplet:\nBytecode shape:\n  NEW C\n  DUP\n  INVOKESPECIAL C.&lt;init&gt;\nThat is the :new branch in emit.clj.\n\n\nA.7.2 Field Reads and Writes\nCompiled field access is direct.\nNex:\n  obj.x\n\nBytecode shape:\n  &lt;emit obj&gt;\n  CHECKCAST owner\n  GETFIELD owner/x &lt;descriptor&gt;\nNex:\n  obj.x := value\n\nBytecode shape:\n  &lt;emit obj&gt;\n  CHECKCAST owner\n  &lt;emit value&gt;\n  &lt;coerce to field type&gt;\n  PUTFIELD owner/x &lt;descriptor&gt;\n\n\nA.7.3 User Default Constructors\nUser-defined classes get a default constructor that does more than call Object.&lt;init&gt;. It also initializes composition fields, assigns default values, and sets the __outer__ pointer used for dynamic dispatch through composed parent objects.\nBytecode shape:\n  ALOAD 0\n  INVOKESPECIAL super.&lt;init&gt;\n\n  ALOAD 0\n  ALOAD 0\n  PUTFIELD owner.__outer__\n\n  ALOAD 0\n  NEW ParentPart\n  DUP\n  INVOKESPECIAL ParentPart.&lt;init&gt;\n  PUTFIELD owner.parent_part\n\n  ALOAD 0\n  GETFIELD owner.parent_part\n  ALOAD 0\n  PUTFIELD ParentPart.__outer__\n\n  ALOAD 0\n  &lt;default value&gt;\n  PUTFIELD owner.field\n\n  RETURN\nThe back-pointer setup is specific to Nex’s compiled treatment of composed inheritance and is worth understanding before changing constructor emission.\n\n\nA.7.4 Class Initializers\nStatic constants become a straightforward class initializer:\nBytecode shape:\n  &lt;emit constant value&gt;\n  PUTSTATIC owner/CONST\n  ...\n  RETURN",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#collections",
+    "href": "appendix_a.html#collections",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.8 Collections",
+    "text": "A.8 Collections\nCollection literals compile directly to Java collection objects.\n\nA.8.1 Arrays\nNex arrays become java.util.ArrayList.\nNex:\n  [1, 2, 3]\n\nBytecode shape:\n  NEW java/util/ArrayList\n  DUP\n  INVOKESPECIAL ArrayList.&lt;init&gt;\n  DUP\n  LDC 1\n  &lt;box if needed&gt;\n  INVOKEVIRTUAL ArrayList.add\n  POP\n  DUP\n  LDC 2\n  ...\n\n\nA.8.2 Maps\nMaps become java.util.HashMap.\nBytecode shape:\n  NEW java/util/HashMap\n  DUP\n  INVOKESPECIAL HashMap.&lt;init&gt;\n  DUP\n  &lt;emit key&gt;\n  &lt;emit value&gt;\n  INVOKEVIRTUAL HashMap.put\n  POP\n\n\nA.8.3 Sets\nSets become java.util.LinkedHashSet, which preserves insertion order.\nBytecode shape:\n  NEW java/util/LinkedHashSet\n  DUP\n  INVOKESPECIAL LinkedHashSet.&lt;init&gt;\n  DUP\n  &lt;emit element&gt;\n  INVOKEVIRTUAL LinkedHashSet.add\n  POP\n\n\nA.8.4 Collection Operations\nSeveral core collection operations are emitted as direct host-library calls:\n\narray get -&gt; ArrayList.get\narray put -&gt; ArrayList.set\narray add -&gt; ArrayList.add\narray length -&gt; ArrayList.size\nmap put -&gt; HashMap.put\nmap size -&gt; HashMap.size\nset size -&gt; LinkedHashSet.size\n\nThe emitter uses runtime helpers only where a direct Java collection call would hide Nex semantics rather than clarify them. String rendering, cloning, equality, and some cursor-related operations still go through helper calls for exactly that reason.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#exceptions-contracts-and-retry",
+    "href": "appendix_a.html#exceptions-contracts-and-retry",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.9 Exceptions, Contracts, and Retry",
+    "text": "A.9 Exceptions, Contracts, and Retry\n\nA.9.1 raise\nraise expr first evaluates the value, boxes it if necessary, converts it to a runtime exception object, then throws it.\nBytecode shape:\n  &lt;emit expr&gt;\n  &lt;box if primitive&gt;\n  &lt;runtime call make-raised-exception&gt;\n  CHECKCAST java/lang/Throwable\n  ATHROW\n\n\nA.9.2 Contract Assertions\nCompiled preconditions, postconditions, invariants, and variants are ordinary guard checks that construct and throw a contract violation when false.\nBytecode shape:\n  &lt;emit condition&gt;\n  IFNE ok\n  LDC \"Postcondition\"\n  LDC \"label\"\n  &lt;runtime call make-contract-violation&gt;\n  CHECKCAST java/lang/Throwable\n  ATHROW\nok:\nThis directness is one of the strengths of the compiled backend. Contract checks are not magic metadata. They are visible control-flow.\n\n\nA.9.3 rescue and retry\nThe compiled try/rescue path uses explicit JVM try/catch regions plus a retry signal recognized by the runtime.\nBytecode shape:\nloop-start:\nbody-start:\n  &lt;emit body&gt;\nbody-end:\n  GOTO end\n\nbody-handler:\n  ASTORE throwable\n  ALOAD throwable\n  &lt;runtime call retry-signal?&gt;\n  ...\n  IFEQ not-retry\n  ALOAD throwable\n  ATHROW\nnot-retry:\n  ALOAD throwable\n  &lt;runtime call exception-value&gt;\n  ASTORE exception\nrescue-start:\n  &lt;emit rescue body&gt;\nrescue-end:\n  GOTO end\n\nrescue-handler:\n  ASTORE rescue-throwable\n  ALOAD rescue-throwable\n  &lt;runtime call retry-signal?&gt;\n  ...\n  IFEQ rescue-not-retry\n  GOTO loop-start\nrescue-not-retry:\n  ALOAD rescue-throwable\n  ATHROW\nend:\nThis is more substantial than a helper call wrapped around the interpreter. The control flow is genuinely compiled; the runtime only supplies the retry-signal protocol and exception-value extraction.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#concurrency-and-helper-calls",
+    "href": "appendix_a.html#concurrency-and-helper-calls",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.10 Concurrency and Helper Calls",
+    "text": "A.10 Concurrency and Helper Calls\nConcurrency is compiled, but not by inlining channel and task mechanics into raw JVM instructions. The emitter uses dedicated runtime helper calls for the concurrency surface.\nNex:\n  t.await()\n\nBytecode shape:\n  &lt;load runtime var task-await-method&gt;\n  &lt;emit boxed task object&gt;\n  INVOKEVIRTUAL Var.invoke\n  &lt;unbox-or-cast result&gt;\nNex:\n  ch.send(value)\n\nBytecode shape:\n  &lt;load runtime var channel-send-method&gt;\n  &lt;emit boxed channel&gt;\n  &lt;emit boxed value&gt;\n  INVOKEVIRTUAL Var.invoke\n  &lt;unbox-or-cast or POP&gt;\nThe important design point is that these are still compiled calls. They are not deopts. Lowering produces :concurrency-method IR, and emission maps each supported method to a named runtime helper such as:\n\ntask-await-method\ntask-cancel-method\nchannel-send-method\nchannel-receive-method\nchannel-close-method\n\nThis keeps the bytecode layer small while still preserving a compiled execution path for concurrency-heavy code.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#file-compilation-and-program-launch",
+    "href": "appendix_a.html#file-compilation-and-program-launch",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.11 File Compilation and Program Launch",
+    "text": "A.11 File Compilation and Program Launch\nFile compilation adds one more layer: a launcher class with main.\nThe launcher bytecode shape is:\n  &lt;load clojure.core/require&gt;\n  &lt;require nex.compiler.jvm.runtime&gt;\n\n  &lt;runtime call make-repl-state&gt;\n  CHECKCAST NexReplState\n  ASTORE state\n\n  &lt;runtime call bootstrap-compiled-state! state classes-edn imports-edn&gt;\n  POP\n\n  ALOAD state\n  INVOKESTATIC Program.eval\n  POP\n\n  &lt;runtime call print-state-output! state&gt;\n  POP\n  RETURN\nThis structure is why the file compiler can share so much code with the compiled REPL. The program class still exposes an eval entry point that consumes NexReplState; the launcher is just the small wrapper that creates and bootstraps that state in a standalone jar.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
+    ]
+  },
+  {
+    "objectID": "appendix_a.html#how-to-use-this-appendix-while-reading-the-code",
+    "href": "appendix_a.html#how-to-use-this-appendix-while-reading-the-code",
+    "title": "Appendix A — Bytecode Patterns by Construct",
+    "section": "A.12 How to Use This Appendix While Reading the Code",
+    "text": "A.12 How to Use This Appendix While Reading the Code\nFor actual code reading, the most efficient order is:\n\nRead the lowering rule in src/nex/lower.cljc for the construct you care about.\nFind the corresponding IR shape in src/nex/ir.cljc.\nJump to the matching :op branch or helper in src/nex/compiler/jvm/emit.clj.\nCheck src/nex/compiler/jvm/runtime.clj only if emission routes through a runtime helper.\n\nThe main practical distinction to keep in mind is this:\n\ndirect JVM emission is used when the construct has a stable and readable stack-level meaning\nruntime helper calls are used when they preserve Nex semantics more clearly than expanding everything inline\n\nThat design is visible throughout the backend, and the bytecode patterns in this appendix are the quickest way to see it.",
+    "crumbs": [
+      "Appendices",
+      "<span class='chapter-number'>A</span>  <span class='chapter-title'>Bytecode Patterns by Construct</span>"
     ]
   }
 ]
