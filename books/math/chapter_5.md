@@ -33,7 +33,7 @@ One hundred and twenty-one verses. It is roughly the length of a short magazine 
 
 The verse on π is worth quoting in its original structure, even though we will not reproduce the Sanskrit: Aryabhata says, in effect, "add four to one hundred, multiply by eight, and add sixty-two thousand; this is the approximate circumference of a circle whose diameter is twenty thousand." The circumference, by this calculation, is 62,832. Dividing by the diameter of 20,000 gives π ≈ 3.1416. The true value of π is 3.14159... The error is less than one part in ten thousand.
 
-What is most remarkable about this result is what Aryabhata says about it: he explicitly calls it *āsanna*, meaning approximate. He knew it was not exact. This is a significant statement — it implies an awareness that π may not be expressible as a simple ratio, that any numerical value given for it is an approximation to a quantity that has some other, harder-to-express character. Historians have debated whether Aryabhata suspected π was irrational. The word *āsanna* is suggestive. He may be among the earliest mathematicians on record to hint at a suspicion that would not be proved for another fourteen centuries, when Lambert established π's irrationality in 1761.
+What is most remarkable about this result is what Aryabhata says about it: he explicitly calls it *āsanna*, meaning approximate. He knew it was not exact. This is a significant statement — it implies an awareness that π may not be expressible as a simple ratio, that any numerical value given for it is an approximation to a quantity with some other, harder-to-express character. Historians have debated whether Aryabhata suspected π was irrational. The word *āsanna* is suggestive. He may be among the earliest mathematicians on record to hint at that possibility, though it would not be proved for another fourteen centuries, when Lambert established π's irrationality in 1761.
 
 ---
 
@@ -76,7 +76,7 @@ The disagreement was partly astronomical. Aryabhata placed the beginning of the 
 
 This scholarly rivalry is, in its way, charming. It tells us that Indian mathematics in this period was a living, arguing, competitive enterprise — not a monolithic tradition but a collection of schools with different approaches, different data, and different conclusions, willing to dispute each other in print. The disputatiousness is a sign of health. A field that never argues is a field that has stopped thinking.
 
-What both men agreed on — what transcended the rivalry — was the mathematical framework they shared. And the most important element of that framework, the one that makes Brahmagupta's place in the history of mathematics absolutely secure regardless of which astronomical model was more accurate, was his treatment of zero.
+What both men agreed on — what transcended the rivalry — was the mathematical framework they shared. And the decisive element of that framework, the one that makes Brahmagupta's place in the history of mathematics absolutely secure regardless of which astronomical model was more accurate, was his treatment of zero.
 
 ---
 
@@ -86,7 +86,7 @@ Zero had existed as a *placeholder* in positional number systems for centuries b
 
 But a placeholder is not a number. A placeholder is a typographical convention — the way we use "0" in "107" to show that the tens column is empty. Brahmagupta did something completely different: he treated zero as a *number in its own right*, with the same status as 1, 2, or 17, and he worked out the rules for computing with it.
 
-His rules, composed entirely in verse — the *Brāhmasphuṭasiddhānta* contains essentially no symbolic algebraic notation of the kind modern readers expect, only words — are given in the context of what he calls "fortunes" and "debts": positive numbers and negative numbers. They are worth quoting, because the precision and completeness of the system is remarkable:
+His rules, composed entirely in verse — the *Brāhmasphuṭasiddhānta* contains essentially none of the symbolic algebraic notation modern readers expect, only words — are given in the context of what he calls "fortunes" and "debts": positive numbers and negative numbers. They are worth quoting, because the precision and completeness of the system is remarkable:
 
 *A debt subtracted from zero is a fortune. A fortune subtracted from zero is a debt. Zero subtracted from zero is zero. A debt subtracted from a debt is a fortune. Zero multiplied by a debt or fortune is zero. The product of two fortunes is a fortune. The product of two debts is a fortune.*
 
@@ -114,7 +114,7 @@ And once you have negative numbers and zero together — once you have the compl
 
 There is a detail about the *Brāhmasphuṭasiddhānta* that deserves special attention, because it illuminates something important about how mathematical ideas travel and transform.
 
-The entire text — 1,008 verses of mathematics and astronomy — contains essentially no symbolic algebraic notation of the kind modern readers expect. No numerals, no equations, no algebraic symbols. Everything is written in Sanskrit verse, which means everything is written in words. The rules for arithmetic with negative numbers and zero, which we have quoted above, are poetry as much as mathematics. Brahmagupta states his results in metrical verse, following the conventions of Sanskrit *ārya* metre, in a form that could be chanted, memorised, and transmitted orally.
+The entire text — 1,008 verses of mathematics and astronomy — contains essentially none of the symbolic algebraic notation modern readers expect. No numerals, no equations, no algebraic symbols. Everything is written in Sanskrit verse, which means everything is written in words. The rules for arithmetic with negative numbers and zero, which we have quoted above, are poetry as much as mathematics. Brahmagupta states his results in metrical verse, following the conventions of Sanskrit *ārya* metre, in a form that could be chanted, memorised, and transmitted orally.
 
 This is simultaneously the most alien and the most human aspect of Indian mathematics of this period. The mathematical content is, in many cases, centuries ahead of anything in the Western tradition. The form is utterly unlike anything in the Western tradition — there is no Greek text that looks like this, no Babylonian clay tablet that works this way. Indian mathematics was oral and literary in a way that Greek and Babylonian mathematics were not, and this gave it both advantages (the verse form was extremely effective for memorisation and transmission within the tradition) and disadvantages (the absence of symbolic notation made it harder to manipulate expressions, check computations, and extend results in the way that algebraic notation later made possible).
 
@@ -142,7 +142,7 @@ x = (-b ± √(b² - 4ac)) / 2a
 
 The negative sign in front of *b*, the possibility that both solutions are negative — all of this requires negative numbers and zero to be legitimate mathematical objects. Without Brahmagupta's framework, algebra could only handle part of its own subject matter.
 
-Third, and most profoundly: it changed what mathematics is *about*. Before zero and negative numbers, mathematics was, at its heart, a science of positive quantities. Numbers counted things and measured things. With zero and negatives, numbers can represent *relationships*, *directions*, *absences*. Mathematics begins to move beyond the measurement of quantity toward a more general study of relations and structure — of how things connect even when they are not directly tangible. This is a philosophical shift as much as a mathematical one, and it is arguably one of the most important such shifts in the history of the discipline. All modern mathematics — abstract algebra, topology, category theory, the mathematics that underpins quantum mechanics and general relativity — operates in a world where zero, negative numbers, and far stranger objects are taken for granted as legitimate. Brahmagupta opened the door.
+Third, and most profoundly: it changed what mathematics is *about*. Before zero and negative numbers, mathematics was, at its heart, a science of positive quantities. Numbers counted things and measured things. With zero and negatives, numbers can represent *relationships*, *directions*, *absences*. Mathematics begins to move beyond measurement toward a more general study of relations and structure — of how things connect even when they are not directly tangible. This is a philosophical shift as much as a mathematical one, and it is arguably one of the most important such shifts in the history of the discipline. All modern mathematics — abstract algebra, topology, category theory, the mathematics that underpins quantum mechanics and general relativity — operates in a world where zero, negative numbers, and far stranger objects are taken for granted as legitimate. Brahmagupta opened the door.
 
 ---
 
@@ -166,7 +166,7 @@ The decimal positional number system — the system of ten symbols including zer
 
 This is how most mathematical progress actually happens. Named figures — Aryabhata, Brahmagupta, Newton, Mādhava — are the visible peaks of a much larger invisible range. For every theorem that bears a name, there are dozens of insights that fed into it whose originators are unknown. The history of mathematics, told honestly, is not a list of geniuses but a story of a human community, thinking together across time, building on each other's work in ways that individuals never fully see.
 
-The gift of nothing — the gift of zero, of the void made numerable, of emptiness given arithmetic — was India's contribution to that community. It is the most profound mathematical idea in this book, and it arrived not with a thunderclap but with centuries of gradual, collective, largely anonymous work, in the rich and restless intellectual tradition of the subcontinent.
+The gift of nothing — the gift of zero, of the void made numerable, of emptiness given arithmetic — was India's contribution to that community. It is one of the most profound mathematical ideas in this book, and it arrived not with a thunderclap but with centuries of gradual, collective, largely anonymous work, in the rich and restless intellectual tradition of the subcontinent.
 
 Without it, none of what follows would have been possible.
 

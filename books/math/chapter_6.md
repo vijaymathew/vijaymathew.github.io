@@ -13,7 +13,7 @@ Inheritance. Legacies. Lawsuits. Trade. Land. Canals.
 
 We have heard this list before, in different languages. The Babylonian accountant pressed his reed into clay to manage grain and tax. The Egyptian rope-stretcher measured fields and pyramid slopes. Aryabhata solved congruences to align the calendar. And now al-Khwarizmi, working in the wealthiest and most cosmopolitan city on earth, was writing for judges and merchants and administrators who needed a reliable method for solving the equations that arose in the daily business of a complex society.
 
-The book he wrote — *Al-Kitāb al-mukhtaṣar fī ḥisāb al-jabr wal-muqābala*, usually shortened to *Al-Jabr* — gave the world the word algebra. It also gave the world something more important than the word: the discipline itself, stated as a general, systematic, teachable method for the first time in history.
+The book he wrote — *Al-Kitāb al-mukhtaṣar fī ḥisāb al-jabr wal-muqābala*, usually shortened to *Al-Jabr* — gave the world the word algebra. It also gave the world something more important than the word: the discipline stated in an unusually general, systematic, teachable form.
 
 ---
 

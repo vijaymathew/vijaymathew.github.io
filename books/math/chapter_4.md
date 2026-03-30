@@ -7,7 +7,7 @@ In the summer of 240 BCE, a man in the Egyptian city of Alexandria heard a story
 
 The well was in Syene, a town roughly eight hundred kilometres to the south, near the first great cataract of the Nile. Travellers reported something peculiar about it: on a single day each year — the summer solstice, the longest day — at exactly noon, the sun shone directly down into the well and illuminated its entire bottom. No shadow. The sun was directly overhead, not a degree off plumb. In every other town in Egypt, on the same day at the same hour, upright poles and obelisks cast shadows. But in Syene, on the solstice, they did not.
 
-The man who heard this story was named Eratosthenes. He was a mathematician, a geographer, a poet, a music theorist, and the head librarian of the most extraordinary institution the ancient world had produced — the Library of Alexandria, repository of an estimated half million scrolls, the accumulated written knowledge of the entire Mediterranean civilisation. Eratosthenes was, by the affectionate and slightly cutting nickname his contemporaries had given him, "Beta" — always second-best at everything, because he was competent in so many fields that he never dominated any single one. It is the kind of nickname that contains more admiration than contempt.
+The man who heard this story was named Eratosthenes. He was a mathematician, a geographer, a poet, a music theorist, and the head librarian of one of the most extraordinary institutions the ancient world had produced — the Library of Alexandria, repository of an estimated half million scrolls, the accumulated written knowledge of the entire Mediterranean civilisation. Eratosthenes was, by the affectionate and slightly cutting nickname his contemporaries had given him, "Beta" — always second-best at everything, because he was competent in so many fields that he never dominated any single one. It is the kind of nickname that contains more admiration than contempt.
 
 What Eratosthenes did with the story of the well was one of the most elegant pieces of applied mathematics in human history. He did not travel to Syene. He did not commission a survey. He sat in Alexandria with a stick, waited for the summer solstice, measured the shadow the stick cast at noon, and used two facts — the angle of that shadow, and the distance from Alexandria to Syene — to calculate the circumference of the entire Earth.
 
@@ -151,7 +151,7 @@ This is what institutions make possible: the accumulation, preservation, and tra
 
 Alexandria understood this and built accordingly. The Library was not a monument. It was a machine — a machine for generating knowledge by connecting minds across time and space, allowing each generation to build on the work of the previous one rather than reinventing it. Modern universities are, in their essential structure, descendants of the Mouseion. The idea that scholars should be paid to think, housed together, given access to a great library, and encouraged to pursue difficult questions found one of its clearest and most influential ancient institutional forms in Alexandria under the Ptolemies.
 
-It was one of the best ideas anyone has ever had.
+It was one of antiquity's best institutional ideas.
 
 ---
 
