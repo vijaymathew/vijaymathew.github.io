@@ -1,8 +1,11 @@
 ---
-title: "Home"
+title: ""
+pagetitle: "Home"
 numbered: false
 number-sections: false
 title-block: false
+format:
+  html: default
 ---
 
 # {-}
@@ -29,5 +32,5 @@ title-block: false
   <li><a href="chapter_11.html">Working on Remote Machines</a> — configure SSH keys, multiplex connections, transfer files, and keep work durable with <code>tmux</code> and tunnels.</li>
   <li><a href="chapter_12.html">Conclusion — Building CLI Fluency Over Time</a> — deliberate practice advice for keeping the terminal fast, reliable, and central to your development craft.</li>
 </ol>
-<p>Back matter includes an author profile and bibliography for further reading.</p>
+<p>Back matter includes a bibliography for further reading.</p>
 :::

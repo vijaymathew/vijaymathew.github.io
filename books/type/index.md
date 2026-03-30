@@ -1,8 +1,11 @@
 ---
-title: "Home"
+title: ""
+pagetitle: "Home"
 numbered: false
 number-sections: false
 title-block: false
+format:
+  html: default
 ---
 
 # {-}
@@ -57,5 +60,5 @@ title-block: false
   <li><a href="chapter_26.html">Fine typography</a> — microtypography, optical margins, widows, orphans, the paragraph as unit of design.</li>
 </ol>
 <p><strong>Appendices</strong> cover Pandoc flags, essential LaTeX packages, tool comparisons, free font resources, and further reading.</p>
-<p>Back matter includes an author profile.</p>
+<p><strong>Appendices</strong> close the book with reference material and further reading.</p>
 :::
