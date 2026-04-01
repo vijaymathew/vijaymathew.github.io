@@ -141,7 +141,11 @@ Suppose, for contradiction, that there are only finitely many prime numbers. Lis
 N = (p₁ × p₂ × p₃ × ... × pₙ) + 1
 ```
 
-N is either prime or composite. If it is prime, we have found a prime not on our list — contradiction. If it is composite, it must have a prime factor. But N, when divided by any prime on our list, leaves a remainder of 1 — it is not divisible by any of p₁ through pₙ. So its prime factor is also not on our list — contradiction. Either way, our assumption that the list was complete leads to a contradiction. Therefore the primes are infinite.
+It can help to see the logic in a concrete example. Suppose, just for illustration, that our supposedly complete list of primes were 2, 3, 5, and 7:
+
+![A concrete example of Euclid's argument: starting from a finite list of primes, multiplying them together and adding 1 produces a number not divisible by any prime on the list.](images/euclid_infinitely_many_primes.svg){fig-alt="A worked example of Euclid's proof that there are infinitely many primes." width="78%"}
+
+N is either prime or composite. If it is prime, we have found a prime not on our list — contradiction. If it is composite, it must have a prime factor; among all its factors greater than 1, take the smallest one, and that smallest factor must be prime. But N, when divided by any prime on our list, leaves a remainder of 1 — it is not divisible by any of p₁ through pₙ. So its prime factor is also not on our list — contradiction. Either way, our assumption that the list was complete leads to a contradiction. Therefore the primes are infinite.
 
 The proof does not construct the infinitely many primes. It does not find the next prime after the largest known one. It does not give a formula for generating primes. It does something more fundamental: it shows, by pure logic, that any finite list of primes must be incomplete — that the assumption of finitude is self-defeating. The proof is indirect, like the proof of √2's irrationality, and it is devastating.
 

@@ -62,7 +62,49 @@ x ≡ 5 (mod 8)
 x ≡ 4 (mod 9)
 ```
 
-The smallest positive solution is x = 85. But finding it — especially when the numbers involved are large, as they are in astronomical calculations — is not trivial. Aryabhata's method, which he called *kuttaka* (meaning "pulverizer," because it repeatedly breaks large numbers into smaller ones), is an algorithm: a finite, deterministic procedure that always finds the answer. It is essentially what modern mathematicians call the extended Euclidean algorithm, and it is used today in RSA encryption — the cryptographic system that secures most internet transactions. Every time you visit a website with a padlock symbol in your browser's address bar, you are using, at some level, mathematics that Aryabhata formalised in 499 CE.
+Here the symbol `≡` means "has the same remainder as." So `x ≡ 5 (mod 8)` means that `x`, when divided by 8, leaves remainder 5 — equivalently, that `x = 8a + 5` for some whole number `a`.
+
+In this example, write the two conditions as:
+
+```text
+x = 8a + 5
+x = 9b + 4
+```
+
+Since both expressions equal the same number `x`, we get:
+
+```text
+8a + 5 = 9b + 4
+8a - 9b = -1
+```
+
+Now comes the heart of the *kuttaka*: break the large relation into smaller ones by repeated division. Since
+
+```text
+9 = 1×8 + 1
+```
+
+we can rewrite this as
+
+```text
+1 = 9 - 8
+```
+
+and therefore
+
+```text
+-1 = 8 - 9.
+```
+
+That gives an immediate solution to `8a - 9b = -1`, namely `a = 1` and `b = 1`. So
+
+```text
+x = 8(1) + 5 = 13
+```
+
+and indeed `13 ÷ 8` leaves remainder `5`, while `13 ÷ 9` leaves remainder `4`. The next solution is `13 + 72 = 85`, and then `157`, `229`, and so on, because once a number works, adding the least common multiple of 8 and 9 preserves both remainders.
+
+This example is small enough to do by hand, but the power of Aryabhata's method appears when the numbers are large, as they are in astronomical calculations. His *kuttaka* (meaning "pulverizer," because it repeatedly breaks large numbers into smaller ones) is an algorithm: a finite, deterministic procedure that always finds the answer. It is essentially what modern mathematicians call the extended Euclidean algorithm, and it is used today in RSA encryption — the cryptographic system that secures most internet transactions. Every time you visit a website with a padlock symbol in your browser's address bar, you are using, at some level, mathematics that Aryabhata formalised in 499 CE.
 
 The practical context for the kuttaka was astronomical. The Hindu calendar system required reconciling several different astronomical cycles — the solar year, the lunar month, the periods of the planets — that do not divide evenly into one another. Finding the point in the far future at which multiple cycles would simultaneously begin was a problem in simultaneous congruences. Aryabhata's method solved it. The calendar worked. The rituals were performed at the right times. The kuttaka was not a curiosity; it was a tool of genuine practical urgency.
 
