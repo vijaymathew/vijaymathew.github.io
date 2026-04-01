@@ -85,7 +85,7 @@ But they could also do it properly when precision mattered. Triangular areas wer
 Area of circle = (1/12) × (circumference)²
 ```
 
-This gives a value of π of exactly 3, which is not quite right (π is actually about 3.14159…) but is close enough for most practical purposes, and simple enough to compute without error. For millennia, 3 was good enough — close enough to build a round granary or a circular ceremonial platform without structural problems. The first person to notice that π was slightly larger than 3, and to care about the difference, was an Archimedes in a different century and a different world. We will get there.
+Written in modern terms, the exact relation is `A = C² / (4π)`. So when the Babylonians used `A = C² / 12`, they were effectively using `π = 3`, which is not quite right (`π` is actually about `3.14159...`) but is close enough for most practical purposes, and simple enough to compute without error. For millennia, 3 was good enough — close enough to build a round granary or a circular ceremonial platform without structural problems. The first person to notice that `π` was slightly larger than 3, and to care about the difference, was an Archimedes in a different century and a different world. We will get there.
 
 The tablets also show that the Babylonians were comfortable with what we would call square roots. If you need to find the side of a square with a given area, you need the square root of that area. Babylonian scribes had tables of square roots and used them routinely. But they also had a method for *computing* square roots — an iterative procedure that successively refines an initial estimate — that is strikingly similar to methods still used in computer programming today.
 
@@ -136,9 +136,35 @@ This is a system of two equations in two unknowns. You might recognise it as a q
 
 The Babylonian scribe did something geometrically beautiful instead.
 
-Imagine the field as a rectangle with length L and width W. Now, mentally rearrange it. Cut the rectangle in half along its length. You have two pieces, each with dimensions (L/2) by W, or equivalently, one piece W wide and L/2 long, and another the same. Now imagine sliding one piece around to form an L-shape — an incomplete square.
+Imagine the field as a rectangle with length L and width W. Since the length exceeds the width by 7, we can write:
 
-What you have is an L-shaped region whose outer corner would, if completed, form a perfect square of side L/2. The missing square in the corner has side (L−W)/2 = 7/2 = 3.5.
+```text
+L = W + 7
+```
+
+So the rectangle can be thought of as a square of side W together with an extra strip of width 7.
+
+![Original field: a rectangle of width W and length L = W + 7, thought of as a W-by-W square plus an extra strip of width 7.](images/babylon_step1_original_field.svg){fig-alt="Original field: a W-by-W square with an extra strip of width 7." width="72%"}
+
+Now cut that extra strip into two equal pieces, each of width 7/2 = 3.5, and slide them around the square.
+
+![Split the extra strip into two equal pieces, each measuring 3.5 by W.](images/babylon_step2_split_strip.svg){fig-alt="The excess strip split into two equal 3.5-by-W pieces." width="72%"}
+
+Place one piece on top and the other on the side. You now have an almost-square. Its outer side, once the missing corner is filled in, is not `L/2`, but `W + 3.5`, which is the same as `(L + W) / 2`. The missing corner is a small square of side 3.5.
+
+![Rearranged into an almost-square: one 3.5-by-W piece placed on top, the other on the side, leaving a missing 3.5-by-3.5 corner.](images/babylon_step3_almost_square.svg){fig-alt="Almost-square formed from the W-by-W square and two 3.5-by-W strips, with the top-right 3.5-by-3.5 corner missing." width="72%"}
+
+Fill in that missing `3.5 by 3.5` corner and the outer shape becomes a true square:
+
+![Completed square: filling the missing 3.5-by-3.5 corner produces a square of side W + 3.5 = (L + W) / 2.](images/babylon_step4_completed_square.svg){fig-alt="Completed square formed by filling the missing 3.5-by-3.5 corner." width="72%"}
+
+Its outer side is `W + 3.5 = (L + W) / 2`.
+
+That is the crucial move. The area of the original rectangle is 60. The almost-square has the same area as the original rectangle; adding the missing corner square of area `3.5² = 12.25` completes the square. So the completed square has area:
+
+```text
+60 + 12.25 = 72.25
+```
 
 Here is the calculation, step by step:
 
@@ -207,7 +233,7 @@ It had no concept of a variable. Every Babylonian mathematical problem begins wi
 
 This means that Babylonian mathematics, for all its power, is essentially a collection of recipes. Each recipe solves a type of problem. You look up the recipe for the type of problem you face, follow the steps with your specific numbers, and produce your answer. There is no framework that unifies the recipes — no sense that the method for solving a quadratic area problem is related, at a deep level, to the method for computing compound interest. They are just different procedures in a large toolkit.
 
-This is not a failure of intelligence. It is a failure of representation. The Babylonians had an extraordinary system for recording specific numbers but no system for recording general relationships. What they lacked was algebra — not the calculations of algebra, which they could perform with great skill, but the *language* of algebra: the symbolic notation that allows you to write a relationship that holds for all numbers, not just for one.
+This is a limitation of representation, not of mathematical power. The Babylonians had an extraordinary system for recording specific numbers but no system for recording general relationships. What they lacked was algebra — not the calculations of algebra, which they could perform with great skill, but the *language* of algebra: the symbolic notation that allows you to write a relationship that holds for all numbers, not just for one.
 
 Algebra would eventually arrive from India, refined in the Islamic world, and given its modern notation by European mathematicians of the sixteenth century. It is a story for later chapters.
 
@@ -215,7 +241,7 @@ There is something else the Babylonian tradition lacked, and this is perhaps the
 
 The Babylonian attitude toward a mathematical procedure was entirely pragmatic: does it work? If it gives the right answer on every problem we have tried it on, it works, and we use it. The question of *why* it works — of whether it could possibly fail, of what would happen in edge cases, of whether there might be a deeper principle that explains and unifies the various recipes — simply did not arise. Or if it arose, it was not recorded. The tablets are full of worked examples and procedures, and entirely empty of argument and justification.
 
-This is not because the Babylonians were incurious or unintelligent. It is because the demands of their context — of administration, commerce, and law — required answers, not explanations. A judge settling a land dispute needs a correct area calculation. He does not need a proof that the area formula works. A scribe computing rations needs the right number. He does not need to understand why the algorithm for square roots converges.
+This reflects the demands of their context — of administration, commerce, and law — which required answers more urgently than explanations. A judge settling a land dispute needs a correct area calculation. He does not need a proof that the area formula works. A scribe computing rations needs the right number. He does not need to understand why the algorithm for square roots converges.
 
 The demand for proof — the insistence that mathematics should not merely give correct answers but explain *why* those answers must be correct, that should convince not just the calculator but the sceptic — that demand arose in a different place, in response to a different kind of question. It arose in the Greek world, in the hands of a small number of philosophers who were, it must be said, largely useless at running an empire.
 
