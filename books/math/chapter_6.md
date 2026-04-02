@@ -67,6 +67,8 @@ Check: 3² + 10 × 3 = 9 + 30 = 39. Correct.
 
 But why does this work? Al-Khwarizmi proved it geometrically. Draw a square with side x — its area is x². Attach four rectangles to its sides, each with width 10/4 = 2.5 and length x — their total area is 10x. The figure so far has area x² + 10x = 39. Now complete the four corners with small squares, each of side 2.5 — their total area is 4 × (2.5)² = 25. The completed figure is a large square with area 39 + 25 = 64, so its side is √64 = 8. The side of the large square equals x + 2 × 2.5 = x + 5. Therefore x + 5 = 8, so x = 3.
 
+![Al-Khwarizmi's geometric proof of completing the square for x squared plus 10x equals 39, showing the original x squared plus four side rectangles and the completed larger square.](images/al_khwarizmi_completing_the_square.svg){fig-alt="A two-panel geometric diagram of al-Khwarizmi's completing-the-square proof for x squared plus 10x equals 39. The left panel shows a central square labeled x squared with four attached rectangles of area 2.5 times x; the right panel adds four corner squares of area 2.5 squared to form a larger square of side x plus 5, with a calculation box deriving x equals 3." width="94%"}
+
 The procedure — halve, square, add, root, subtract — is precisely what the geometry demands. The proof is not a separate justification tacked on afterward; it is the source of the procedure. The geometry shows you *why* each step is what it is.
 
 Al-Khwarizmi was completing the square. Literally. With an actual square. In a picture.
