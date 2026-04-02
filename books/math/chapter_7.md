@@ -63,6 +63,14 @@ $$
 \pi = 4 \times (1 - 1/3 + 1/5 - 1/7 + 1/9 - \dots)
 $$
 
+One natural route to this series runs through the tangent function. For very small angles, measured in radians, $\tan(\theta)$ is almost the same as $\theta$ itself: the curve of the circle is so gentle, at a tiny scale, that the ratio defining the tangent differs only slightly from the angle. If you then ask for the inverse question — what angle has tangent $x$? — you are asking for $\arctan(x)$, and the corresponding power series is:
+
+$$
+\arctan(x) = x - x^3/3 + x^5/5 - x^7/7 + \dots
+$$
+
+Now set $x = 1$. The angle whose tangent is 1 is 45 degrees, or $\pi/4$ radians, because in a right triangle with equal legs the opposite side and adjacent side are the same. So $\arctan(1) = \pi/4$, and the series becomes exactly the one above. In effect, the geometry of a right triangle turns a question about tangent into a formula for $\pi$.
+
 This is the series now called the Madhava-Leibniz series for π — Leibniz rediscovered it in Europe in 1673, roughly three centuries after Mādhava. It is one of the most beautiful equations in all of mathematics: a number that seems hopelessly irrational and transcendental, the ratio of a circle's circumference to its diameter, turns out to be related to the simplest possible pattern — the reciprocals of odd numbers, alternating in sign.
 
 But beauty is not the point, at least not at first. The point, for Mādhava the astronomer, was precision. If you take the first hundred terms of this series, you get π accurate to about two decimal places. Take the first thousand terms, you get about three decimal places. This is frustratingly slow — the series converges, but it converges like a glacier moves. Mādhava was far too clever to just add up thousands of terms.
