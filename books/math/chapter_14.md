@@ -19,9 +19,9 @@ It is tempting, in retrospect, to tell this story as though Cantor sat down dete
 
 By the nineteenth century, after Fourier, mathematicians had become intensely interested in representing functions as sums of sines and cosines. A trigonometric series looks like:
 
-```text
+$$
 a₀ + a₁cos(x) + b₁sin(x) + a₂cos(2x) + b₂sin(2x) + ...
-```
+$$
 
 This kind of expression had already proved extraordinarily useful in the mathematics of heat, waves, and periodic motion. But there was a subtle question lurking behind the technique: if a function can be represented by such a series, is that representation unique? That sounds narrow. It was not.
 
@@ -45,33 +45,45 @@ The trouble begins when the sets are infinite.
 
 Take the natural numbers:
 
-```
+$$
 1, 2, 3, 4, 5, 6, ...
-```
+$$
 
 Now take the even numbers:
 
-```
+$$
 2, 4, 6, 8, 10, 12, ...
-```
+$$
 
 At first glance, the even numbers ought to be fewer. They are only part of the natural numbers. Every even number is a natural number, but not every natural number is even. Surely the whole must be larger than the part.
 
 And yet you can pair them perfectly:
 
-```
+$$
 1 ↔ 2
+$$
+
+$$
 2 ↔ 4
+$$
+
+$$
 3 ↔ 6
+$$
+
+$$
 4 ↔ 8
+$$
+
+$$
 5 ↔ 10
-```
+$$
 
 and in general:
 
-```
+$$
 n ↔ 2n
-```
+$$
 
 Every natural number has exactly one even number paired with it, and every even number has exactly one natural number paired with it. Nothing is left over. By the item-by-item criterion that works perfectly in the finite case, the two sets have the same size.
 
@@ -103,17 +115,17 @@ More startlingly, as Cantor would show, so do the natural numbers and the ration
 
 all the fractions of the form
 
-```
+$$
 p/q
-```
+$$
 
 where `p` and `q` are integers and `q ≠ 0`.
 
 This is harder to believe. Between any two integers there are only finitely many integers, but between any two integers there are infinitely many rational numbers. Between 0 and 1 alone there are:
 
-```
+$$
 1/2, 1/3, 2/3, 1/4, 3/4, ...
-```
+$$
 
 densely packed without end. The rationals feel vastly more numerous than the naturals. Cantor showed they are not. The lesson is severe. Density and size are not the same thing. A set can be densely packed into every interval and still be countable. Infinite sets require sharper distinctions than intuition first provides.
 
@@ -125,49 +137,65 @@ Let us see how Cantor's argument works, because this is the kind of reasoning th
 
 Imagine listing the positive rational numbers in a grid. Put the numerator across the top and the denominator down the side:
 
-```text
-1/1   2/1   3/1   4/1   ...
-1/2   2/2   3/2   4/2   ...
-1/3   2/3   3/3   4/3   ...
-1/4   2/4   3/4   4/4   ...
-...
-```
+$$
+\begin{matrix}
+1/1 & 2/1 & 3/1 & 4/1 & \dots \\
+1/2 & 2/2 & 3/2 & 4/2 & \dots \\
+1/3 & 2/3 & 3/3 & 4/3 & \dots \\
+1/4 & 2/4 & 3/4 & 4/4 & \dots \\
+\dots
+\end{matrix}
+$$
 
 Every positive rational number appears somewhere in this infinite table.
 
 Now sweep through the table diagonally:
 
-```text
-1/1
-2/1, 1/2
-1/3, 2/2, 3/1
-4/1, 3/2, 2/3, 1/4
-...
-```
+$$
+\begin{aligned}
+&1/1 \\
+&2/1, 1/2 \\
+&1/3, 2/2, 3/1 \\
+&4/1, 3/2, 2/3, 1/4 \\
+&\dots
+\end{aligned}
+$$
 
 As you move from diagonal to diagonal, you eventually reach every position in the grid. If you skip duplicates such as:
 
-```
+$$
 2/2 = 1/1
+$$
+
+$$
 2/4 = 1/2
-```
+$$
 
 and keep only fractions in lowest terms, you obtain a sequence:
 
-```
+$$
 r₁, r₂, r₃, r₄, ...
-```
+$$
 
 that lists every positive rational number exactly once.
 
 Once such a list exists, the rationals can be paired with the natural numbers:
 
-```
+$$
 1 ↔ r₁
+$$
+
+$$
 2 ↔ r₂
+$$
+
+$$
 3 ↔ r₃
+$$
+
+$$
 ...
-```
+$$
 
 So the rational numbers are countable.
 
@@ -175,23 +203,23 @@ This is an astonishing result the first time one sees it. The rational numbers s
 
 Countable infinity, in Cantor's sense, does not mean "sparse" or "widely separated." It means only that the set can be matched with:
 
-```
+$$
 1, 2, 3, 4, 5, ...
-```
+$$
 
 This is the first infinite cardinality. Cantor denoted it:
 
-```
+$$
 ℵ₀
-```
+$$
 
 pronounced aleph-null.
 
 So the natural numbers, the even numbers, the odd numbers, and the rational numbers all have cardinality:
 
-```
+$$
 ℵ₀
-```
+$$
 
 That alone would have been enough to secure Cantor a place in mathematical history. But it was only the beginning.
 
@@ -203,9 +231,9 @@ If the rationals can be listed, what about the real numbers?
 
 By the real numbers we mean the full continuous number line: integers, fractions, irrationals like:
 
-```
+$$
 √2, π, e
-```
+$$
 
 and all the infinitely many others filling the gaps between them.
 
@@ -215,27 +243,29 @@ Cantor's proof, the diagonal argument, is one of the most beautiful in mathemati
 
 Suppose, for contradiction, that all real numbers between 0 and 1 can be listed:
 
-```text
-r₁ = 0.a₁₁a₁₂a₁₃a₁₄...
-r₂ = 0.a₂₁a₂₂a₂₃a₂₄...
-r₃ = 0.a₃₁a₃₂a₃₃a₃₄...
-r₄ = 0.a₄₁a₄₂a₄₃a₄₄...
-...
-```
+$$
+\begin{aligned}
+r₁ &= 0.a₁₁a₁₂a₁₃a₁₄\dots \\
+r₂ &= 0.a₂₁a₂₂a₂₃a₂₄\dots \\
+r₃ &= 0.a₃₁a₃₂a₃₃a₃₄\dots \\
+r₄ &= 0.a₄₁a₄₂a₄₃a₄₄\dots \\
+&\dots
+\end{aligned}
+$$
 
 Here each `aᵢⱼ` is a decimal digit.
 
 Now build a new number by changing the diagonal digits. Look at:
 
-```
+$$
 a₁₁, a₂₂, a₃₃, a₄₄, ...
-```
+$$
 
 and define a new decimal:
 
-```text
-s = 0.b₁b₂b₃b₄...
-```
+$$
+s = 0.b₁b₂b₃b₄\dots
+$$
 
 where each `bₙ` is chosen to differ from `aₙₙ`. For instance, one may say:
 
@@ -270,21 +300,21 @@ The continuum is a larger infinity.
 
 A real number is called algebraic if it is a solution of some polynomial equation with integer coefficients. Thus:
 
-```text
+$$
 √2
-```
+$$
 
 is algebraic because it satisfies:
 
-```text
+$$
 x² - 2 = 0
-```
+$$
 
 The golden ratio is algebraic. So are all rational numbers. By contrast, numbers like:
 
-```text
+$$
 π, e
-```
+$$
 
 are transcendental: they are not roots of any such polynomial equation.
 
@@ -336,29 +366,29 @@ Cantor proved a general theorem: for any set, the set of all its subsets has str
 
 If a set is called `A`, its set of all subsets is called the power set:
 
-```
+$$
 P(A)
-```
+$$
 
 For a finite example, if:
 
-```
+$$
 A = {1, 2}
-```
+$$
 
 then:
 
-```
+$$
 P(A) = {∅, {1}, {2}, {1,2}}
-```
+$$
 
 so a 2-element set has a power set with 4 elements.
 
 Cantor showed that this phenomenon persists infinitely. The proof has the same flavour as the diagonal argument. Suppose you try to assign to each element `a` of a set `A` a subset `f(a)` of `A`, hoping to list all subsets this way. Now form a new subset:
 
-```text
-S = {a in A : a is not in f(a)}
-```
+$$
+S = {a in A : a 	ext{ is not in } f(a)}
+$$
 
 Then `S` cannot be equal to any `f(a)`. If it were equal to `f(k)` for some `k`, ask whether `k` is in `S`. If it is, then by definition it is not in `f(k) = S`. If it is not, then by definition it is in `f(k) = S`. Contradiction. So no attempted listing of all subsets can succeed.
 
@@ -366,9 +396,9 @@ The power set of the natural numbers therefore has larger cardinality than the n
 
 So there is no largest infinity. There is an endless hierarchy:
 
-```
+$$
 ℵ₀ < continuum < larger infinities < still larger infinities < ...
-```
+$$
 
 The infinite is not a single foggy beyond. It is an ascending arithmetic landscape.
 
@@ -402,9 +432,9 @@ Is there any infinite size strictly between them?
 
 That is, is there a set whose cardinality is larger than:
 
-```
+$$
 ℵ₀
-```
+$$
 
 but smaller than the continuum?
 

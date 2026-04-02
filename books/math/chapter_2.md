@@ -129,9 +129,9 @@ Problem 14 of the Moscow Papyrus asks: a truncated pyramid (a frustum — a pyra
 
 The answer given, and the method for computing it, are both correct. The correct formula for the volume of a frustum is:
 
-```
-V = (h/3) × (a² + ab + b²)
-```
+$$
+V = (h/3) \times (a^2 + ab + b^2)
+$$
 
 where h is the height, a is the side of the base, and b is the side of the top.
 

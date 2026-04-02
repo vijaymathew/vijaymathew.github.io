@@ -43,9 +43,9 @@ Then electromagnetism arrived and began to pull the floorboards loose.
 
 James Clerk Maxwell's equations, written in the 1860s, unified electricity, magnetism, and light in one of the great acts of mathematical compression in scientific history. The equations implied that electromagnetic waves propagate at a fixed speed:
 
-```text
+$$
 c
-```
+$$
 
 which turns out to be the speed of light.
 
@@ -79,9 +79,9 @@ The first postulate extends an old principle. If you are in a smoothly moving tr
 
 The second postulate is the explosive one. It says that if a light beam moves at speed:
 
-```text
+$$
 c
-```
+$$
 
 for one observer, it moves at the same speed for every inertial observer.
 
@@ -143,9 +143,9 @@ Now imagine the whole clock moving sideways past an external observer. From that
 
 So the external observer sees the light travel a longer path in each tick. But the speed of light is still:
 
-```text
+$$
 c
-```
+$$
 
 for that observer as well.
 
@@ -153,15 +153,15 @@ Longer path at the same speed means more time. So the moving clock ticks more sl
 
 This is not metaphorical. If the time measured by the moving clock is `τ` and the time measured in the external frame is `t`, the relation is:
 
-```text
+$$
 t = γτ
-```
+$$
 
 where:
 
-```text
+$$
 γ = 1 / √(1 - v²/c²)
-```
+$$
 
 As `v` becomes a significant fraction of `c`, the factor `γ` grows. Moving clocks run slow. This is time dilation.
 
@@ -177,15 +177,15 @@ Suppose a rod has length `L₀` in the frame where it is at rest. What length do
 
 Special relativity says:
 
-```text
+$$
 L = L₀ / γ
-```
+$$
 
 where the same Lorentz factor appears:
 
-```text
+$$
 γ = 1 / √(1 - v²/c²)
-```
+$$
 
 So the moving rod is shorter in the direction of motion. This is length contraction.
 
@@ -195,9 +195,9 @@ Space and time have become entangled with motion.
 
 The classical idea had been:
 
-```text
+$$
 space + time + matter
-```
+$$
 
 as three separately intelligible ingredients.
 
@@ -217,21 +217,21 @@ This was not rhetoric. It was geometry.
 
 In Euclidean plane geometry, the distance between nearby points satisfies:
 
-```text
+$$
 ds² = dx² + dy²
-```
+$$
 
 In three-dimensional Euclidean space:
 
-```text
+$$
 ds² = dx² + dy² + dz²
-```
+$$
 
 Minkowski's insight was that special relativity preserves not ordinary spatial distance, but the spacetime interval:
 
-```text
+$$
 s² = c²t² - x² - y² - z²
-```
+$$
 
 Different inertial observers may disagree about `t`, `x`, `y`, and `z` separately. But they agree on this combined quantity.
 
@@ -239,15 +239,15 @@ That is the geometric heart of special relativity.
 
 Lorentz transformations, which replace the old Galilean transformations, are exactly those changes of coordinates that preserve the spacetime interval. Just as rotations in Euclidean geometry preserve:
 
-```text
+$$
 x² + y²
-```
+$$
 
 Lorentz transformations preserve:
 
-```text
+$$
 c²t² - x² - y² - z²
-```
+$$
 
 This turns physics into geometry in a very strong sense. The odd phenomena of relativity — time dilation, length contraction, relativity of simultaneity — are not a collection of disconnected curiosities. They are manifestations of the geometry of spacetime. Once Minkowski had said this clearly, the theory looked different. Einstein had not merely repaired electrodynamics. He had discovered a new geometry of the world. And this geometry was already non-Euclidean in spirit. Time entered with a different sign. Space and time were not separate axes in an ordinary four-dimensional Euclidean box. The structure was subtler and stranger. This was only the beginning.
 
@@ -285,9 +285,9 @@ John Wheeler, much later, would summarise it neatly: matter tells spacetime how 
 
 The actual field equations of general relativity are among the most beautiful in physics. In compressed symbolic form they relate spacetime curvature to energy and momentum:
 
-```text
+$$
 Gμν = (8πG/c⁴) Tμν
-```
+$$
 
 One need not parse every symbol here to appreciate the structure. On one side stands geometry. On the other stands matter and energy. The equation says they determine one another.
 

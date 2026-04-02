@@ -7,9 +7,9 @@ In the middle decades of the eighteenth century, mathematicians inherited a new 
 
 The power was calculus. Newton and Leibniz had given Europe a way to calculate motion, area, growth, and change with a precision no previous generation could have imagined. The embarrassment was older. It had been sitting quietly in algebra ever since Cardano and Tartaglia had wrestled with the cubic two centuries earlier. It appeared under a square root sign, and it looked like nonsense:
 
-```
-√(-1)
-```
+$$
+\sqrt{-1}
+$$
 
 No number, it seemed, could possibly have this property. A positive number squared is positive. A negative number squared is also positive, because minus times minus gives plus. There is no real number whose square is negative. To write √(-1) was to write the mathematical equivalent of "a north point south of here" or "a triangle with four sides." It was not a difficult object. It was an impossible one.
 
@@ -25,24 +25,27 @@ We met the problem in Renaissance Italy, when Cardano's formula for solving cubi
 
 Consider the cubic equation:
 
-```
-x³ = 15x + 4
-```
+$$
+x^3 = 15x + 4
+$$
 
 You can check by inspection that x = 4 is a solution, because:
 
-```
-4³ = 64
-15 × 4 + 4 = 60 + 4 = 64
-```
+$$
+4^3 = 64
+$$
+
+$$
+15 \times 4 + 4 = 60 + 4 = 64
+$$
 
 So this is not a mysterious equation. It has an ordinary, perfectly real answer.
 
 But now apply Cardano's general method. In modern notation, the formula leads you to:
 
-```
-x = ∛(2 + √(-121)) + ∛(2 - √(-121))
-```
+$$
+x = \sqrt[3]{2 + \sqrt{-121}} + \sqrt[3]{2 - \sqrt{-121}}
+$$
 
 The correct answer, x = 4, is somehow hidden inside an expression involving √(-121), which should not mean anything at all.
 
@@ -62,57 +65,65 @@ This was a very old mathematical instinct. When the Babylonians needed square ro
 
 He wrote down rules that a modern student would recognise immediately:
 
-```
+$$
 (a + bi) + (c + di) = (a + c) + (b + d)i
+$$
 
+$$
 (a + bi)(c + di) = (ac - bd) + (ad + bc)i
-```
+$$
 
 The first rule is ordinary addition, done component by component. The second is what you get if you multiply out the brackets and remember that:
 
-```
-i² = -1
-```
+$$
+i^2 = -1
+$$
 
 At first glance this looks like mere symbol-pushing. But Bombelli's great virtue was that he pushed the symbols far enough to reveal that they were not arbitrary.
 
 Return to Cardano's troubling example. We had:
 
-```
-x = ∛(2 + √(-121)) + ∛(2 - √(-121))
-```
+$$
+x = \sqrt[3]{2 + \sqrt{-121}} + \sqrt[3]{2 - \sqrt{-121}}
+$$
 
 Since:
 
-```
-√(-121) = 11i
-```
+$$
+\sqrt{-121} = 11i
+$$
 
 this becomes:
 
-```
-x = ∛(2 + 11i) + ∛(2 - 11i)
-```
+$$
+x = \sqrt[3]{2 + 11i} + \sqrt[3]{2 - 11i}
+$$
 
 Now notice something extraordinary:
 
-```
-(2 + i)³ = 2 + 11i
-(2 - i)³ = 2 - 11i
-```
+$$
+(2 + i)^3 = 2 + 11i
+$$
+
+$$
+(2 - i)^3 = 2 - 11i
+$$
 
 So the cube roots are:
 
-```
-∛(2 + 11i) = 2 + i
-∛(2 - 11i) = 2 - i
-```
+$$
+\sqrt[3]{2 + 11i} = 2 + i
+$$
+
+$$
+\sqrt[3]{2 - 11i} = 2 - i
+$$
 
 and therefore:
 
-```
+$$
 x = (2 + i) + (2 - i) = 4
-```
+$$
 
 The imaginary parts cancel. The real answer emerges intact. Bombelli did not solve every problem surrounding complex numbers. He did not make them philosophically respectable. But he did something indispensable: he showed that they could be handled coherently enough to produce correct results. He turned a scandal into a method. By the time Euler inherited the problem, the impossible number was no longer merely a ghost in Cardano's formula. It was a working mathematical object, still mistrusted but no longer mute.
 
@@ -138,28 +149,31 @@ Let us be honest about the name before we do anything else. "Imaginary number" i
 
 The simplest way to define the imaginary unit is this:
 
-```
-i = √(-1)
-```
+$$
+i = \sqrt{-1}
+$$
 
 which means:
 
-```
-i² = -1
-```
+$$
+i^2 = -1
+$$
 
 Once you accept this definition, the arithmetic proceeds in exactly the ordinary way. For example:
 
-```
-i³ = i² × i = -i
-i⁴ = i² × i² = 1
-```
+$$
+i^3 = i^2 \times i = -i
+$$
+
+$$
+i^4 = i^2 \times i^2 = 1
+$$
 
 and the pattern repeats from there. Any number of the form
 
-```
+$$
 a + bi
-```
+$$
 
 where *a* and *b* are ordinary real numbers, is called a complex number. If *b = 0*, the complex number is just an ordinary real number. The real numbers, in other words, sit inside the complex numbers as a special case.
 
@@ -167,24 +181,27 @@ This alone is already a clue that we are not adding a fantasy world on top of ma
 
 Take the equation:
 
-```
-x² + 1 = 0
-```
+$$
+x^2 + 1 = 0
+$$
 
 Over the real numbers, this equation has no solution. Over the complex numbers, it has two:
 
-```
+$$
 x = i
+$$
+
+$$
 x = -i
-```
+$$
 
 The point is not that we have played a naming game. The point is that by allowing this extension, whole families of equations become solvable in a more complete and systematic way. Algebra stops hitting dead ends quite so often. Much later, mathematicians would discover an elegant geometric interpretation of complex numbers. You can picture *a + bi* as a point in a plane: *a* steps along the horizontal axis, *b* steps along a vertical axis. In that picture, multiplying by *i* is not nonsense at all. It is a quarter-turn — a rotation by ninety degrees.
 
 You can see it in the algebra:
 
-```
-i(a + bi) = ai + bi² = -b + ai
-```
+$$
+i(a + bi) = ai + bi^2 = -b + ai
+$$
 
 The point `(a, b)` becomes the point `(-b, a)`, which is exactly what a ninety-degree rotation does.
 
@@ -198,27 +215,31 @@ And as soon as you know that, its connection to circles, waves, and oscillation 
 
 Euler's most famous contribution to this story is a single equation. It is short enough to write on a postcard and deep enough to occupy mathematicians for a lifetime:
 
-```
-e^(iθ) = cos(θ) + i sin(θ)
-```
+$$
+e^{i\theta} = \cos(\theta) + i \sin(\theta)
+$$
 
 This is Euler's formula. It is one of the most astonishing bridges ever built in mathematics. On the left is the exponential function, the mathematics of growth and decay. On the right are sine and cosine, the mathematics of circles, waves, and oscillation. Between them stands *i*, the square root of minus one, acting as the hinge. To appreciate why this is so surprising, recall what these functions seemed to belong to before Euler linked them. Exponentials arise in compound interest, population growth, radioactive decay, and any process that changes proportionally to its current size. Sine and cosine arise in geometry, astronomy, music, and the description of periodic motion. They look like inhabitants of different mathematical countries. Euler showed that they are, in a profound sense, the same thing.
 
 Here is how the connection appears. By Euler's time, mathematicians knew the power series expansions:
 
-```
-e^x = 1 + x + x²/2! + x³/3! + x⁴/4! + ...
+$$
+e^x = 1 + x + x^2/2! + x^3/3! + x^4/4! + \dots
+$$
 
-cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...
+$$
+\cos(x) = 1 - x^2/2! + x^4/4! - x^6/6! + \dots
+$$
 
-sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...
-```
+$$
+\sin(x) = x - x^3/3! + x^5/5! - x^7/7! + \dots
+$$
 
 Now replace *x* in the exponential series with *iθ*:
 
-```
-e^(iθ) = 1 + iθ + (iθ)²/2! + (iθ)³/3! + (iθ)^4/4! + ...
-```
+$$
+e^{i\theta} = 1 + i\theta + (i\theta)^2/2! + (i\theta)^3/3! + (i\theta)^4/4! + \dots
+$$
 
 Because powers of *i* cycle:
 
@@ -230,42 +251,42 @@ i⁴ = 1
 
 the series becomes:
 
-```
-e^(iθ) = 1 + iθ - θ²/2! - iθ³/3! + θ⁴/4! + iθ⁵/5! - ...
-```
+$$
+e^{i\theta} = 1 + i\theta - \theta^2/2! - i\theta^3/3! + \theta^4/4! + i\theta^5/5! - \dots
+$$
 
 Now group the real terms and the imaginary terms separately:
 
-```
-e^(iθ) = (1 - θ²/2! + θ⁴/4! - ...)
-       + i(θ - θ³/3! + θ⁵/5! - ...)
-```
+$$
+e^{i\theta} = (1 - \theta^2/2! + \theta^4/4! - \dots)
+       + i(\theta - \theta^3/3! + \theta^5/5! - \dots)
+$$
 
 But those are exactly the series for cosine and sine:
 
-```
-e^(iθ) = cos(θ) + i sin(θ)
-```
+$$
+e^{i\theta} = \cos(\theta) + i \sin(\theta)
+$$
 
 Nothing mystical has happened. The formula falls out of the series with relentless calm. And yet the result still feels miraculous, because it says that continuous growth, rotation, and oscillation are all different expressions of one underlying structure.
 
 Set θ = π, and something even stranger happens:
 
-```
-e^(iπ) = cos(π) + i sin(π) = -1 + 0i = -1
-```
+$$
+e^{i\pi} = \cos(\pi) + i \sin(\pi) = -1 + 0i = -1
+$$
 
 So:
 
-```
-e^(iπ) + 1 = 0
-```
+$$
+e^{i\pi} + 1 = 0
+$$
 
 This identity ties together five of the most fundamental constants in mathematics:
 
-```
-0, 1, e, i, π
-```
+$$
+0, 1, e, i, \pi
+$$
 
 Zero, the additive identity. One, the multiplicative identity. *e*, the constant of continuous growth. *i*, the square root of minus one. π, the constant of the circle. They meet in a relation so compact that it looks like a magic trick. It is not a magic trick. It is a sign that mathematics, far below the surface, is more unified than our first intuitions suggest.
 
@@ -277,9 +298,9 @@ Euler's formula did more than make one beautiful identity possible. It changed h
 
 Take the equation:
 
-```
-x⁴ = 1
-```
+$$
+x^4 = 1
+$$
 
 Over the real numbers, this looks almost trivial. There are only two real solutions:
 
@@ -292,47 +313,47 @@ But a fourth-degree equation ought, in some broad sense, to have four roots. Whe
 
 The complex numbers reveal them immediately. Using Euler's formula, any point on the unit circle can be written as:
 
-```
-e^(iθ)
-```
+$$
+e^{i\theta}
+$$
 
 and raising it to the fourth power gives:
 
-```
-(e^(iθ))⁴ = e^(4iθ)
-```
+$$
+\left(e^{i\theta}\right)^4 = e^{4i\theta}
+$$
 
 So the equation x⁴ = 1 is really asking: for which angles θ does
 
-```
-e^(4iθ) = 1?
-```
+$$
+e^{4i\theta} = 1?
+$$
 
 That happens whenever 4θ is a whole multiple of 2π. So:
 
-```
-4θ = 0, 2π, 4π, 6π, ...
-```
+$$
+4\theta = 0, 2\pi, 4\pi, 6\pi, \dots
+$$
 
 and the distinct solutions between 0 and 2π are:
 
-```
-θ = 0, π/2, π, 3π/2
-```
+$$
+\theta = 0, \pi/2, \pi, 3\pi/2
+$$
 
 which correspond to:
 
-```
+$$
 1, i, -1, -i
-```
+$$
 
 The four roots of x⁴ = 1 are not hiding in some inaccessible algebraic darkness. They are the four quarter-turns around the circle.
 
 This was a revelation. Complex numbers did not merely rescue awkward calculations. They organised the solutions of equations geometrically. The roots of:
 
-```
-xⁿ = 1
-```
+$$
+x^n = 1
+$$
 
 turn out to be evenly spaced points around the unit circle, like the vertices of a regular polygon. The equation x³ = 1 gives a triangle. x⁴ = 1 gives a square. x⁶ = 1 gives a hexagon. Algebra and geometry, once again, were not separate worlds at all.
 

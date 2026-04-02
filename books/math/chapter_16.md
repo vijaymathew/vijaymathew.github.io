@@ -130,35 +130,35 @@ This is one reason formalism was so appealing. It promised to separate the relia
 
 For arithmetic, one may imagine a system with symbols for:
 
-```text
+$$
 0, S, +, ×, =, (, ), variables, logical connectives
-```
+$$
 
 where `S` means successor. So:
 
-```text
+$$
 S(0)
-```
+$$
 
 means 1,
 
-```text
+$$
 S(S(0))
-```
+$$
 
 means 2, and so on.
 
 With suitable axioms, one can express statements such as:
 
-```text
+$$
 2 + 2 = 4
-```
+$$
 
 or
 
-```text
-for every number n, n + 0 = n
-```
+$$
+\text{for every number } n,; n + 0 = n
+$$
 
 The point is not that anyone wants to do ordinary arithmetic in this cumbersome notation. The point is that if arithmetic can be formalized, then the question of what arithmetic can prove becomes a precise mathematical question.
 
@@ -212,25 +212,25 @@ The key idea of Gödel numbering is one of the most extraordinary acts of mathem
 
 Every symbol in a formal language is assigned a number. For example, one might assign numbers to:
 
-```text
+$$
 0, S, +, ×, =, (, ), variables, logical symbols
-```
+$$
 
 Then a finite string of symbols — that is, a formula or proof — can be encoded as a single natural number.
 
 There are many ways to do this. The most famous uses prime factorization. If the code numbers of the symbols in a string are:
 
-```text
-a₁, a₂, a₃, ..., aₙ
-```
+$$
+a_1, a_2, a_3, \ldots, a_n
+$$
 
 then encode the whole string by:
 
-```text
-2^a₁ 3^a₂ 5^a₃ ... pₙ^aₙ
-```
+$$
+2^{a_1} 3^{a_2} 5^{a_3} \ldots p_n^{a_n}
+$$
 
-where `pₙ` is the nth prime.
+where $p_n$ is the nth prime.
 
 Because prime factorization is unique, each finite string gets a unique number, and each such number can be decoded back into the string.
 

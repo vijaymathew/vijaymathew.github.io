@@ -95,54 +95,57 @@ Let us look at what Cardano published, because it is worth the effort.
 
 A depressed cubic — one with no x² term — has the form:
 
-```
-x³ + px = q
-```
+$$
+x^3 + px = q
+$$
 
 Cardano's formula gives the solution as:
 
-```
-x = ∛(q/2 + √(q²/4 + p³/27)) - ∛(-q/2 + √(q²/4 + p³/27))
-```
+$$
+x = \sqrt[3]{q/2 + \sqrt{q^2/4 + p^3/27}} - \sqrt[3]{-q/2 + \sqrt{q^2/4 + p^3/27}}
+$$
 
 How does one arrive at something like this? Not by a flash of pure inspiration, and not by blind trial and error, but by a substitution designed to make the cubic partly dismantle itself.
 
 Suppose you write the unknown not as a single quantity x, but as the difference of two new quantities:
 
-```
+$$
 x = u - v
-```
+$$
 
 Now expand the cube:
 
-```
-(u - v)³ = u³ - 3uv(u - v) - v³
-```
+$$
+(u - v)^3 = u^3 - 3uv(u - v) - v^3
+$$
 
 Substituting this into x³ + px = q gives:
 
-```
-u³ - v³ + (p - 3uv)(u - v) = q
-```
+$$
+u^3 - v^3 + (p - 3uv)(u - v) = q
+$$
 
 And here the trick reveals itself. If you can choose u and v so that:
 
-```
+$$
 3uv = p
-```
+$$
 
 then the awkward middle term disappears. The equation collapses to:
 
-```
-u³ - v³ = q
-```
+$$
+u^3 - v^3 = q
+$$
 
 The original problem has been transformed. Instead of solving directly for x, you look for two quantities whose product is fixed and whose cubes differ by q. If we set A = u³ and B = v³, then A and B must satisfy two conditions:
 
-```
+$$
 A - B = q
-AB = (uv)³ = p³/27
-```
+$$
+
+$$
+AB = (uv)^3 = p^3/27
+$$
 
 That is no longer a cubic problem. It is a quadratic one in disguise. Solve for A and B, take their cube roots to recover u and v, and then subtract to recover x = u - v. The square root inside Cardano's formula appears because the final hidden step is not another cubic but a quadratic.
 
