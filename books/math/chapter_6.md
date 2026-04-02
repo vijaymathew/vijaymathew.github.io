@@ -87,7 +87,7 @@ The title of al-Khwarizmi's algebra book — *Al-Jabr wal-Muqābala* — contain
 
 Al-Khwarizmi himself — or rather, his name — had an equally remarkable fate. His works were translated into Latin in the twelfth century, and the Latin translator rendered his name as *Algoritmi* — a Latinisation of *al-Khwarizmi* that preserved the sound but lost the meaning. A later reader, encountering texts that began "Algoritmi says..." or "According to Algoritmi...", took the word to be not a name but a description of a method. Over centuries of use and mistranslation, *Algoritmi* became *algorismus*, then *algorism*, then *algorithm*: a word that now means any finite, systematic, step-by-step procedure for solving a problem.
 
-The word *algebra* comes from an operation al-Khwarizmi described. The word *algorithm* comes from his name. Two of the most consequential words in the language of modern science and technology were both derived, by different paths, from one scholar working in ninth-century Baghdad.
+The word *algebra* comes from an operation al-Khwarizmi described. The word *algorithm* comes from his name. Two of the most important words in the language of modern science and technology were both derived, by different paths, from one scholar working in ninth-century Baghdad.
 
 And every time a computer executes a program — following a sequence of instructions, step by deterministic step, until it reaches a solution — it is, in the most literal etymological sense, performing an *algorithm*. Al-Khwarizmi is in the machine.
 
@@ -159,7 +159,7 @@ The impact was immediate and lasting. Within a generation, European scholars wer
 
 The transmission had a cultural dimension worth noting. When European scholars absorbed the Arabic mathematical tradition, they did not always acknowledge its origins clearly. The Hindu-Arabic numerals — the decimal positional system including zero, derived from India and transmitted through the Islamic world — became known simply as "Arabic numerals" in Europe, losing their Indian origin in the transit. Al-Khwarizmi's name was corrupted to a common noun. Al-Battani's observations were cited in Latin texts without always naming him. The Islamic mathematicians whose work underpinned the European Renaissance were, in many cases, systematically un-named as their ideas were absorbed.
 
-This pattern — of ideas travelling across cultural boundaries and losing their attribution in transit — is one that we have already seen with Kerala, and will see again. It is one of the reasons why this book exists: to try to follow the ideas back to the people who actually had them, regardless of which tradition eventually got the credit.
+This pattern — of ideas travelling across cultural boundaries and losing their attribution in transit — recurs throughout the history of mathematics. It is one of the reasons why this book exists: to try to follow the ideas back to the people who actually had them, regardless of which tradition eventually got the credit.
 
 ---
 
@@ -188,8 +188,6 @@ The Golden Age did not produce Kerala. But it raised the bar that Kerala had to 
 ---
 
 ## What Baghdad Gave Mathematics
-
-The accounting, at the end of Chapter 6, is straightforward.
 
 The word algebra is Arabic, and Baghdad was one of the places where equation-solving took on a systematic, general, and teachable classical form. It was transmitted to Europe via Toledo and Palermo and absorbed into a European mathematical tradition that eventually, by the sixteenth and seventeenth centuries, outpaced its source. This is not a tragedy but a tribute: ideas that are genuinely powerful propagate, and they eventually outgrow the institutions that first housed them.
 
