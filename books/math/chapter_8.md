@@ -105,6 +105,47 @@ Cardano's formula gives the solution as:
 x = ∛(q/2 + √(q²/4 + p³/27)) - ∛(-q/2 + √(q²/4 + p³/27))
 ```
 
+How does one arrive at something like this? Not by a flash of pure inspiration, and not by blind trial and error, but by a substitution designed to make the cubic partly dismantle itself.
+
+Suppose you write the unknown not as a single quantity x, but as the difference of two new quantities:
+
+```
+x = u - v
+```
+
+Now expand the cube:
+
+```
+(u - v)³ = u³ - 3uv(u - v) - v³
+```
+
+Substituting this into x³ + px = q gives:
+
+```
+u³ - v³ + (p - 3uv)(u - v) = q
+```
+
+And here the trick reveals itself. If you can choose u and v so that:
+
+```
+3uv = p
+```
+
+then the awkward middle term disappears. The equation collapses to:
+
+```
+u³ - v³ = q
+```
+
+The original problem has been transformed. Instead of solving directly for x, you look for two quantities whose product is fixed and whose cubes differ by q. If we set A = u³ and B = v³, then A and B must satisfy two conditions:
+
+```
+A - B = q
+AB = (uv)³ = p³/27
+```
+
+That is no longer a cubic problem. It is a quadratic one in disguise. Solve for A and B, take their cube roots to recover u and v, and then subtract to recover x = u - v. The square root inside Cardano's formula appears because the final hidden step is not another cubic but a quadratic.
+
 This formula is remarkable for several reasons. It involves cube roots, which no previous formula had required. It involves a square root nested inside a cube root — a compound radical, a thing that had no precedent in the algebra of the time. And in certain cases, it produces something deeply unsettling: the expression under the square root sign, q²/4 + p³/27, becomes negative.
 
 A negative number under a square root sign. In Cardano's time, this was not just unusual — it was, officially, impossible. Square roots of negative numbers did not exist. They made no sense geometrically and no sense arithmetically. When a quadratic equation had a negative discriminant, mathematicians simply said it had no solution. End of story.
