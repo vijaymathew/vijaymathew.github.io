@@ -51,6 +51,32 @@ This is read as "the rate of change of x with respect to t," and it means exactl
 
 The other central concept of calculus is the integral. If the derivative asks "given a quantity, what is its rate of change?", the integral asks the reverse: "given a rate of change, what is the quantity?" It is also the answer to the question of area: the integral of a curve over an interval is the area enclosed between the curve and the horizontal axis.
 
+A concrete example helps. Suppose a cyclist's position, measured in kilometres from a starting point, is given by:
+
+$$
+x(t) = 5t^2
+$$
+
+where t is time in hours. After 2 hours, the cyclist has gone 20 kilometres. After 2.1 hours, the cyclist has gone 22.05 kilometres. So over that tenth of an hour, the cyclist covered 2.05 kilometres, which is an average speed of 20.5 kilometres per hour. If instead you look only at the tiny interval from 2 hours to 2.01 hours, the average speed comes out to 20.05 kilometres per hour. The shorter the interval you inspect, the closer the average speed gets to 20.
+
+That is what the derivative means. It is the speed you get when you keep shrinking the interval until, in effect, you are asking about a single instant. So the instantaneous velocity at t = 2 is:
+
+```
+dx/dt = 20 km/h
+```
+
+This does not mean that dx and dt are one particular ordinary distance and one particular ordinary time interval. It means that if you look at smaller and smaller intervals of time near the 2-hour mark, and divide the tiny bit of extra distance by the tiny bit of extra time, the ratio settles down toward 20 kilometres per hour. In other words, the derivative extracts the exact speed at one moment from the changing position function. Now reverse the problem. Suppose you know only the cyclist's speed: at the start it is 0 km/h, after 1 hour it is 10 km/h, and after 2 hours it is 20 km/h. The speed rises steadily between those times. A non-mathematical way to estimate the distance is to take the average speed over the two hours, which is 10 km/h, and multiply by 2 hours. That gives 20 kilometres.
+
+The integral is the polished mathematical version of that idea: break the motion into many tiny intervals, work out the small distance travelled in each one, and add them all together. Mathematicians write that compactly as:
+
+$$
+\int_0^2 v(t)\,dt = \int_0^2 10t\,dt = 20
+$$
+
+which simply means: add up all the little bits of distance from time 0 to time 2, and you get 20 kilometres. The derivative turns position into velocity. The integral turns velocity back into distance. This is the core reciprocity on which the whole subject rests.
+
+![A two-panel illustration showing derivative as the limiting slope of secant lines approaching a tangent, and integral as the accumulated area under a curve built from many thin slices.](images/derivative_integral_intro.svg){fig-alt="A two-panel calculus diagram. The left panel shows a rising curve on x-versus-time axes, a point P on the curve, a long secant line through a distant point, a shorter secant line through a nearby point, and a dashed tangent line at P. Labels explain that as the time interval dt shrinks, the average slope delta x over delta t approaches the instantaneous slope dx over dt. The right panel shows a curve above the horizontal axis between a and b, the area underneath shaded in green, and a sequence of thin orange rectangles approximating that area. Labels explain that one thin slice has area approximately y times dx, and that adding many such slices gives the integral, the total accumulated area under the curve." width="96%"}
+
 These two operations — differentiation and integration — turn out to be inverses of each other. This fact, called the Fundamental Theorem of Calculus, is the deepest result in the subject. It means that if you can find the derivative of a function, you can find its integral by reversing the process, and vice versa. The two problems that had seemed entirely separate — the rate of change problem and the area problem — are, at the deepest level, the same problem looked at from two directions.
 
 Newton discovered this. So did Leibniz. They did it independently, a decade apart, using different notation and different conceptual frameworks, and arrived at the same fundamental theorem. The modern consensus, established by careful historical scholarship, is that neither plagiarised the other. The ideas were ready to be discovered, and two people of extraordinary ability discovered them.
@@ -61,7 +87,7 @@ Newton discovered this. So did Leibniz. They did it independently, a decade apar
 
 Newton's approach grew directly out of his physics. He thought of quantities as *flowing* — changing continuously over time, the way water flows through a pipe. He called a continuously changing quantity a *fluent*, and its rate of change a *fluxion*. The fluxion of a position was a velocity. The fluxion of a velocity was an acceleration. To find the fluxion of a quantity, you performed what he called the direct method of fluxions: a set of rules for calculating rates of change. To find the fluent from a given fluxion — to work backward from the rate of change to the original quantity — you used the inverse method: what we now call integration.
 
-Newton's notation used dots. A quantity x had fluxion ẋ (x-dot). The fluxion of ẋ was ẍ (x-double-dot). This dotted notation connected the mathematics directly to its physical interpretation: every fluxion was a rate of change with respect to time, every dot represented one differentiation with respect to t. For a physicist thinking about motion — about how position changes to give velocity, how velocity changes to give acceleration — this notation was natural and intuitive.
+Newton's notation used dots. A quantity x had fluxion $\dot{x}$ (x-dot). The fluxion of $\dot{x}$ was $\ddot{x}$ (x-double-dot). This dotted notation connected the mathematics directly to its physical interpretation: every fluxion was a rate of change with respect to time, every dot represented one differentiation with respect to t. For a physicist thinking about motion — about how position changes to give velocity, how velocity changes to give acceleration — this notation was natural and intuitive.
 
 By 1666, Newton had worked out the basic rules of differentiation, the inverse relationship between differentiation and integration, and applications to finding tangents to curves and areas under them. He wrote this up in a manuscript called *De Analysi per Aequationes Numero Terminorum Infinitas* — On Analysis by Equations with Infinitely Many Terms — in 1669 and circulated it privately to a small number of people. He did not publish it.
 
@@ -83,13 +109,13 @@ He met the Dutch mathematician and physicist Christiaan Huygens, who became his 
 
 In the years between 1674 and 1676, working from a different direction than Newton, Leibniz developed calculus. His approach was more abstract and more algebraic than Newton's. Where Newton thought in terms of flowing quantities and rates of change through time, Leibniz thought in terms of *differences* — the infinitesimally small increments by which a variable quantity changes from one moment to the next. He called these infinitesimal differences differentials, and he wrote them as *dx* and *dy*: the differential of x, the differential of y.
 
-The ratio dy/dx was the derivative — the rate of change of y with respect to x. And the sum of infinitely many infinitesimal areas — which Leibniz wrote using an elongated S, standing for *summa* (sum) — was the integral:
+The ratio $dy/dx$ was the derivative — the rate of change of y with respect to x. And the sum of infinitely many infinitesimal areas — which Leibniz wrote using an elongated S, standing for *summa* (sum) — was the integral:
 
-```
-∫ y dx
-```
+$$
+\int y\,dx
+$$
 
-Both symbols, dy/dx and ∫, are the ones used in every calculus textbook in the world today. Newton's dot notation, which connects calculus to its physical interpretation, is still used in mechanics and physics for time derivatives. But for everything else — for the general theory, for teaching, for extending the ideas — the mathematical world chose Leibniz's notation, because it is more flexible, more generalisable, and more transparent about what is actually happening.
+Both symbols, $dy/dx$ and $\int$, are the ones used in every calculus textbook in the world today. Newton's dot notation, which connects calculus to its physical interpretation, is still used in mechanics and physics for time derivatives. But for everything else — for the general theory, for teaching, for extending the ideas — the mathematical world chose Leibniz's notation, because it is more flexible, more generalisable, and more transparent about what is actually happening.
 
 Leibniz published. In 1684 he published the first paper on differential calculus in the journal *Acta Eruditorum*. In 1686 he published on integral calculus. These were the first published accounts of differential and integral calculus in Europe. The mathematical community of Continental Europe began using Leibniz's methods immediately, building on them with extraordinary speed. The Bernoulli brothers in Basel worked through the implications. Guillaume de l'Hôpital, a French marquis who paid Leibniz's student Johann Bernoulli for mathematical lessons, published the first calculus textbook in 1696. By 1700, Leibniz's calculus was the standard mathematical tool of European science.
 
@@ -127,7 +153,7 @@ With calculus, Newton could write down the equations of motion as *differential 
 
 This is what calculus made possible: the derivation of physical laws from mathematical principles. Before calculus, science could describe. After calculus, science could explain. The *Principia* demonstrated this with a comprehensiveness that left the scientific world reeling. In a single book, Newton had shown that the same mathematical law that governed a falling apple governed the orbit of the moon, the trajectory of a comet, the rise and fall of tides, and the slight flattening of the earth's sphere at the poles. The universe was not a collection of separate phenomena governed by separate rules. It was a single mathematical system, governed by a single law.
 
-The key rule of differentiation — the one that makes most of this possible — is the power rule: if y = xⁿ, then the derivative is ny^(n-1). The derivative of x² is 2x. The derivative of x³ is 3x². In general, the derivative of xⁿ is nxⁿ⁻¹. This rule, together with a few others for sums and products, allows you to differentiate any polynomial — and polynomials, or power series (infinite sums of polynomials), can approximate any smooth function to arbitrary accuracy. The combination of the power rule and the infinite series representations that Newton had developed for functions like sin(x) and cos(x) — exactly the series that Mādhava had found in Kerala three centuries earlier — gave calculus its extraordinary reach.
+The key rule of differentiation — the one that makes most of this possible — is the power rule: if $y = x^n$, then the derivative is $n x^{n-1}$. In plain English: take the exponent, move it to the front, and reduce it by one. This was not guessed out of nowhere. If you compare $x^2$ with $(x + h)^2$, or $x^3$ with $(x + h)^3$, and expand the brackets, a consistent pattern appears: the leading change is always proportional to $h$, with coefficient $2x$ in the first case, $3x^2$ in the second, and, in general, $n x^{n-1}$. The derivative of $x^2$ is $2x$. The derivative of $x^3$ is $3x^2$. In general, the derivative of $x^n$ is $n x^{n-1}$. This rule, together with a few others for sums and products, allows you to differentiate any polynomial — and polynomials, or power series (infinite sums of polynomials), can approximate any smooth function to arbitrary accuracy. The combination of the power rule and the infinite series representations that Newton had developed for functions like $\sin(x)$ and $\cos(x)$ — exactly the series that Mādhava had found in Kerala three centuries earlier — gave calculus its extraordinary reach.
 
 ---
 
@@ -153,7 +179,7 @@ It is, by common agreement among mathematicians, one of the most beautiful resul
 
 There is something that neither Newton nor Leibniz knew, and that this book has been building toward since Chapter 7.
 
-The sine series and cosine series that appear throughout Newton's calculus — the series he used to extend the method of fluxions to trigonometric functions, to calculate areas under curves involving sines and cosines, to represent periodic phenomena mathematically — had earlier antecedents in the Kerala tradition. They had been derived, with proofs, by Mādhava of Sangamagrāma in the fourteenth century. The series for π that Leibniz published in 1673 as one of his first mathematical discoveries — the alternating series 4(1 - 1/3 + 1/5 - 1/7 + ...) that he was justifiably proud of — had been known in Kerala for three hundred years.
+The sine series and cosine series that appear throughout Newton's calculus — the series he used to extend the method of fluxions to trigonometric functions, to calculate areas under curves involving sines and cosines, to represent periodic phenomena mathematically — had earlier antecedents in the Kerala tradition. They had been derived, with proofs, by Mādhava of Sangamagrāma in the fourteenth century. The series for $\pi$ that Leibniz published in 1673 as one of his first mathematical discoveries — the alternating series $4(1 - 1/3 + 1/5 - 1/7 + \dots)$ that he was justifiably proud of — had been known in Kerala for three hundred years.
 
 Neither man knew this. The Kerala texts were in Malayalam, unknown to European scholarship. The results were being used, by the heirs of the Kerala tradition, for astronomical computation on the Malabar coast. They had not been transmitted, as far as anyone can determine, to Europe.
 
@@ -169,9 +195,9 @@ Newton and Leibniz looked. They found. They built a framework that transformed p
 
 Within a generation of Newton's *Principia* and Leibniz's papers, calculus had become the universal language of the physical sciences.
 
-The Bernoulli brothers — Johann and Jakob — extended calculus to the study of curves, discovering the shapes of hanging chains and the paths of fastest descent. Their student, the Swiss mathematician Leonhard Euler, developed the subject with an energy and productivity that has never been matched: he worked through differential equations, the calculus of variations, complex analysis, number theory, and dozens of other fields, often while blind in one eye and eventually in both, dictating results to scribes until the day he died. Euler gave calculus its modern notation — he introduced *f(x)* for a function of x, *e* for the base of the natural logarithm, *i* for the square root of −1, Σ for summation, and π for the ratio of circumference to diameter, standardising a symbolic language that the entire world now uses.
+The Bernoulli brothers — Johann and Jakob — extended calculus to the study of curves, discovering the shapes of hanging chains and the paths of fastest descent. Their student, the Swiss mathematician Leonhard Euler, developed the subject with an energy and productivity that has never been matched: he worked through differential equations, the calculus of variations, complex analysis, number theory, and dozens of other fields, often while blind in one eye and eventually in both, dictating results to scribes until the day he died. Euler gave calculus its modern notation — he introduced *f(x)* for a function of x, *e* for the base of the natural logarithm, *i* for the square root of $-1$, $\Sigma$ for summation, and $\pi$ for the ratio of circumference to diameter, standardising a symbolic language that the entire world now uses.
 
-In France, the calculus of Newton and Leibniz was extended by d'Alembert, Lagrange, and Laplace into what became analytical mechanics: a complete mathematical theory of the motion of bodies under forces, so powerful that Laplace could write his five-volume *Mécanique céleste* — Celestial Mechanics — which gave precise mathematical descriptions of the entire solar system's motion, and could reportedly say to Napoleon, who asked where God featured in his system, that he had no need of that hypothesis.
+In France, the calculus of Newton and Leibniz was extended by d'Alembert, Lagrange, and Laplace into what became analytical mechanics: a complete mathematical theory of the motion of bodies under forces, so powerful that Laplace could write his five-volume *Mécanique céleste* — Celestial Mechanics — which gave precise mathematical descriptions of the entire solar system's motion.
 
 Engineering followed. The mathematical description of heat flow, developed by Fourier in 1822, required calculus and produced the Fourier series — the decomposition of any periodic function into a sum of sines and cosines, which turns out to be one of the most practically useful mathematical tools ever developed. Every digital audio file, every image compression algorithm, every wireless communication system uses Fourier analysis at its core. Fourier's work on heat conduction produced tools that are now embedded in every smartphone.
 
