@@ -81,9 +81,9 @@ The area of an irregular quadrilateral is not a simple calculation. It requires 
 
 But they could also do it properly when precision mattered. Triangular areas were calculated exactly. Circular areas were approximated using the formula:
 
-```
-Area of circle = (1/12) × (circumference)²
-```
+$$
+\text{Area of circle} = (1/12) \times (\text{circumference})^2
+$$
 
 Written in modern terms, the exact relation is `A = C² / (4π)`. So when the Babylonians used `A = C² / 12`, they were effectively using `π = 3`, which is not quite right (`π` is actually about `3.14159...`) but is close enough for most practical purposes, and simple enough to compute without error. For millennia, 3 was good enough — close enough to build a round granary or a circular ceremonial platform without structural problems. The first person to notice that `π` was slightly larger than 3, and to care about the difference, was an Archimedes in a different century and a different world. We will get there.
 
@@ -99,9 +99,9 @@ And then there is the matter of right angles.
 
 Pythagoras of Samos is one of the most famous mathematicians who ever lived. He gave his name to the theorem that every school child learns: in a right-angled triangle, the square of the hypotenuse — the long side — equals the sum of the squares of the other two sides. In symbols:
 
-```
-a² + b² = c²
-```
+$$
+a^2 + b^2 = c^2
+$$
 
 The simplest example is the 3-4-5 triangle: 9 + 16 = 25, and √25 = 5. It is one of the most useful facts in all of practical geometry, because it allows you to construct a perfect right angle with nothing more than a rope knotted into a triangle with sides in the ratio 3:4:5. Egyptian and Babylonian builders used exactly this technique to square the corners of buildings and fields.
 
@@ -127,10 +127,13 @@ The following problem is translated from a tablet found at Nippur, dating from a
 
 In modern notation, we are looking for two numbers L and W such that:
 
-```
-L × W = 60
-L − W = 7
-```
+$$
+L \times W = 60
+$$
+
+$$
+L - W = 7
+$$
 
 This is a system of two equations in two unknowns. You might recognise it as a quadratic problem: if you substitute L = W + 7 into the first equation, you get W(W + 7) = 60, which is W² + 7W − 60 = 0. A modern student would reach for the quadratic formula.
 
@@ -138,9 +141,9 @@ The Babylonian scribe did something geometrically beautiful instead.
 
 Imagine the field as a rectangle with length L and width W. Since the length exceeds the width by 7, we can write:
 
-```text
+$$
 L = W + 7
-```
+$$
 
 So the rectangle can be thought of as a square of side W together with an extra strip of width 7.
 
@@ -162,9 +165,9 @@ Its outer side is `W + 3.5 = (L + W) / 2`.
 
 That is the crucial move. The area of the original rectangle is 60. The almost-square has the same area as the original rectangle; adding the missing corner square of area `3.5² = 12.25` completes the square. So the completed square has area:
 
-```text
+$$
 60 + 12.25 = 72.25
-```
+$$
 
 Here is the calculation, step by step:
 
@@ -179,10 +182,13 @@ Check: 12 × 5 = 60. ✓ And 12 − 5 = 7. ✓
 
 What the scribe has done, without any symbolic algebra whatsoever, is derive and apply the quadratic formula. The general version of this method — for a problem where the area is *A* and the excess of length over width is *d* — gives:
 
-```
-L = √((d/2)² + A) + d/2
-W = √((d/2)² + A) − d/2
-```
+$$
+L = \sqrt{(d/2)^2 + A} + d/2
+$$
+
+$$
+W = \sqrt{(d/2)^2 + A} - d/2
+$$
 
 This *is* the quadratic formula, dressed in geometric clothing. The Babylonians did not write it in symbols. They wrote it as a procedure: *do this, then this, then this*. Every step was specific — real numbers, a real field, a real answer. There was no general variable, no letter *x* standing in for any number. But the procedure was completely general. It worked for any area and any difference. The scribe knew this, even without a symbolic way to say it.
 
@@ -200,18 +206,20 @@ Simple interest is straightforward: if you borrow 1 unit at 20% per year, after 
 
 But Babylonian loans often worked differently. If you could not repay at the end of the year, the interest was added to the principal, and the following year's interest was calculated on that larger sum. This is compound interest, and it behaves very differently. Under 20% compound interest:
 
-```
-After 1 year:  1 × 1.2  = 1.2
-After 2 years: 1.2 × 1.2 = 1.44
-After 3 years: 1.44 × 1.2 = 1.728
-After 4 years: 1.728 × 1.2 ≈ 2.07
-```
+$$
+\begin{aligned}
+\text{After 1 year:} &\quad 1 \times 1.2 = 1.2 \\
+\text{After 2 years:} &\quad 1.2 \times 1.2 = 1.44 \\
+\text{After 3 years:} &\quad 1.44 \times 1.2 = 1.728 \\
+\text{After 4 years:} &\quad 1.728 \times 1.2 \approx 2.07
+\end{aligned}
+$$
 
 The debt has more than doubled in four years. The general formula — not written by the Babylonians in symbols, but implicit in their tables — is:
 
-```
-Amount = Principal × (1 + r)ⁿ
-```
+$$
+\text{Amount} = \text{Principal} \times (1 + r)^n
+$$
 
 where r is the interest rate and n is the number of years.
 

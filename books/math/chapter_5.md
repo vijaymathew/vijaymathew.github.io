@@ -57,50 +57,59 @@ The *Āryabhaṭīya* also contains a method for solving a class of equations th
 
 The problem is this: find a whole number *x* such that when you divide it by 8 you get a remainder of 5, and when you divide it by 9 you get a remainder of 4. In modern notation, solve the simultaneous congruences:
 
-```
-x ≡ 5 (mod 8)
-x ≡ 4 (mod 9)
-```
+$$
+x \equiv 5 \pmod{8}
+$$
+
+$$
+x \equiv 4 \pmod{9}
+$$
 
 Here the symbol `≡` means "has the same remainder as." So `x ≡ 5 (mod 8)` means that `x`, when divided by 8, leaves remainder 5 — equivalently, that `x = 8a + 5` for some whole number `a`.
 
 In this example, write the two conditions as:
 
-```text
+$$
 x = 8a + 5
+$$
+
+$$
 x = 9b + 4
-```
+$$
 
 Since both expressions equal the same number `x`, we get:
 
-```text
+$$
 8a + 5 = 9b + 4
+$$
+
+$$
 8a - 9b = -1
-```
+$$
 
 Now comes the heart of the *kuttaka*: break the large relation into smaller ones by repeated division. Since
 
-```text
-9 = 1×8 + 1
-```
+$$
+9 = 1 \times 8 + 1
+$$
 
 we can rewrite this as
 
-```text
+$$
 1 = 9 - 8
-```
+$$
 
 and therefore
 
-```text
--1 = 8 - 9.
-```
+$$
+-1 = 8 - 9
+$$
 
 That gives an immediate solution to `8a - 9b = -1`, namely `a = 1` and `b = 1`. So
 
-```text
+$$
 x = 8(1) + 5 = 13
-```
+$$
 
 and indeed `13 ÷ 8` leaves remainder `5`, while `13 ÷ 9` leaves remainder `4`. The next solution is `13 + 72 = 85`, and then `157`, `229`, and so on, because once a number works, adding the least common multiple of 8 and 9 preserves both remainders.
 
@@ -172,15 +181,15 @@ First and most immediately: it completed the positional number system. Without a
 
 Second: it made algebra complete. The quadratic equation
 
-```
-ax² + bx + c = 0
-```
+$$
+ax^2 + bx + c = 0
+$$
 
 has solutions
 
-```
-x = (-b ± √(b² - 4ac)) / 2a
-```
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
 
 The negative sign in front of *b*, the possibility that both solutions are negative — all of this requires negative numbers and zero to be legitimate mathematical objects. Without Brahmagupta's framework, algebra could only handle part of its own subject matter.
 

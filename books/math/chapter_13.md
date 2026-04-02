@@ -25,23 +25,23 @@ From the beginning, algebra had been driven by the urge to solve. Babylonian scr
 
 A polynomial equation looks like this:
 
-```
+$$
 axⁿ + bxⁿ⁻¹ + cxⁿ⁻² + ... = 0
-```
+$$
 
 where the highest power `n` is called the degree.
 
 The simplest nontrivial case is the quadratic:
 
-```
+$$
 ax² + bx + c = 0
-```
+$$
 
 For this there is a famous formula:
 
-```
+$$
 x = (-b ± √(b² - 4ac)) / 2a
-```
+$$
 
 Whatever specific quadratic you are given, the roots can be written in this form.
 
@@ -49,15 +49,15 @@ The Renaissance triumphs extended the same dream. Tartaglia and Cardano found fo
 
 That is the general equation of degree five:
 
-```
+$$
 ax⁵ + bx⁴ + cx³ + dx² + ex + f = 0
-```
+$$
 
 Not one particular quintic, but the general one. The question was not whether some fifth-degree equations can be solved. Of course some can. For example:
 
-```
+$$
 x⁵ - 1 = 0
-```
+$$
 
 can be handled explicitly. The question was whether there is a general formula, analogous to the quadratic formula, that will solve every quintic by radicals. For more than two centuries, mathematicians assumed the answer was yes. That assumption turned out to be false.
 
@@ -69,36 +69,39 @@ To understand why the quintic fails, it helps to see what even the quadratic for
 
 Suppose an equation has two roots, `r₁` and `r₂`. Then it can be written as:
 
-```
+$$
 (x - r₁)(x - r₂) = 0
-```
+$$
 
 Expanding gives:
 
-```
+$$
 x² - (r₁ + r₂)x + r₁r₂ = 0
-```
+$$
 
 So if the quadratic is:
 
-```
+$$
 x² + bx + c = 0
-```
+$$
 
 then the roots satisfy:
 
-```
+$$
 r₁ + r₂ = -b
+$$
+
+$$
 r₁r₂ = c
-```
+$$
 
 This is already revealing. The coefficients do not tell you the roots individually. They tell you symmetric facts about them: the sum and the product. If you swap `r₁` and `r₂`, nothing changes. The equation does not care which root you call first and which you call second.
 
 Take a concrete example:
 
-```
+$$
 x² - 5x + 6 = 0
-```
+$$
 
 Its roots are:
 
@@ -108,10 +111,13 @@ Its roots are:
 
 The coefficients encode:
 
-```
+$$
 2 + 3 = 5
+$$
+
+$$
 2 × 3 = 6
-```
+$$
 
 But those facts remain true if you reverse the roles of 2 and 3. From the point of view of the coefficients alone, the two roots are entangled. The equation knows them only through relationships unchanged by swapping.
 
@@ -121,46 +127,49 @@ By introducing one extra quantity that changes sign under the swap: the differen
 
 Observe that:
 
-```
+$$
 (r₁ - r₂)² = (r₁ + r₂)² - 4r₁r₂
-```
+$$
 
 Using the coefficient relations, this becomes:
 
-```
+$$
 (r₁ - r₂)² = b² - 4c
-```
+$$
 
 if the quadratic is monic, or more generally:
 
-```
+$$
 (r₁ - r₂)² = (b² - 4ac)/a²
-```
+$$
 
 So:
 
-```
+$$
 r₁ - r₂ = ± √(b² - 4ac) / a
-```
+$$
 
 Now we know both:
 
-```
+$$
 r₁ + r₂
-```
+$$
 
 and
 
-```
+$$
 r₁ - r₂
-```
+$$
 
 and from these we can isolate each root:
 
-```
+$$
 r₁ = ((r₁ + r₂) + (r₁ - r₂))/2
+$$
+
+$$
 r₂ = ((r₁ + r₂) - (r₁ - r₂))/2
-```
+$$
 
 That is the quadratic formula.
 
@@ -172,73 +181,79 @@ This may look like a simple manipulation, but it contains the whole future story
 
 The crucial idea is permutation. A permutation is simply a rearrangement. If an equation has roots:
 
-```
+$$
 r₁, r₂, r₃
-```
+$$
 
 then one may reorder them as:
 
-```
+$$
 r₂, r₁, r₃
-```
+$$
 
 or
 
-```
+$$
 r₃, r₁, r₂
-```
+$$
 
 or in any other way. For three objects there are:
 
-```
+$$
 3! = 6
-```
+$$
 
 possible permutations. For four objects there are:
 
-```
+$$
 4! = 24
-```
+$$
 
 For five:
 
-```
+$$
 5! = 120
-```
+$$
 
 The equation itself does not come with the roots labelled in order. If you are handed:
 
-```
+$$
 x³ - 6x² + 11x - 6 = 0
-```
+$$
 
 you may later discover that its roots are 1, 2, and 3. But the equation is indifferent to whether you list them as:
 
-```
+$$
 1, 2, 3
-```
+$$
 
 or
 
-```
+$$
 3, 1, 2
-```
+$$
 
 The coefficients are built from symmetric combinations of the roots, and those combinations are invariant under permutation.
 
 For the cubic:
 
-```
+$$
 x³ - sx² + px - q = 0
-```
+$$
 
 the coefficients encode:
 
-```
+$$
 r₁ + r₂ + r₃ = s
+$$
+
+$$
 r₁r₂ + r₁r₃ + r₂r₃ = p
+$$
+
+$$
 r₁r₂r₃ = q
-```
+$$
 
 Again, these expressions are unchanged if the roots are rearranged. Lagrange, in the eighteenth century, saw that this was not a side issue. It was the heart of the matter. Why do formulas for the quadratic, cubic, and quartic work? Because one can find auxiliary expressions in the roots whose behaviour under permutation is simple enough to control.
 
@@ -254,23 +269,29 @@ He asked, in effect, what is common to the quadratic, cubic, and quartic solutio
 
 For the cubic, for example, one introduces combinations of the roots involving the cube roots of unity:
 
-```
+$$
 1, ω, ω²
-```
+$$
 
 where:
 
-```
+$$
 ω³ = 1
+$$
+
+$$
 ω ≠ 1
+$$
+
+$$
 1 + ω + ω² = 0
-```
+$$
 
 Then expressions like:
 
-```
+$$
 r₁ + ωr₂ + ω²r₃
-```
+$$
 
 behave in a controlled way when the roots are cyclically permuted. They are not invariant, but they are not chaotic either. Their cubes turn out to be much more symmetric than the expressions themselves, and this is what makes Cardano's formula possible.
 
@@ -328,9 +349,9 @@ That definition, written this way, sounds dry. It is better to begin with exampl
 
 Take an equilateral triangle. You may rotate it by:
 
-```
+$$
 0°, 120°, 240°
-```
+$$
 
 and it still occupies the same overall position. You may also reflect it across any of its three symmetry axes. Altogether there are six symmetries:
 
@@ -345,21 +366,21 @@ Now replace the triangle's geometric symmetries with permutations of roots.
 
 If an equation has roots:
 
-```
+$$
 r₁, r₂, r₃
-```
+$$
 
 then any rearrangement of these roots is a permutation. The full collection of all such permutations forms a group. For three roots this is the symmetric group:
 
-```
+$$
 S₃
-```
+$$
 
 For five roots, the full permutation group is:
 
-```
+$$
 S₅
-```
+$$
 
 This was Galois's leap. The relevant object attached to an equation is not just its coefficients or its explicit roots. It is the group of permutations that preserve the algebraic relations visible from the field in which one is working.
 
@@ -373,23 +394,23 @@ Why should radicals have anything to do with groups? Because extracting a root r
 
 Suppose I tell you that:
 
-```
+$$
 y² = 9
-```
+$$
 
 Then you know:
 
-```
-y = 3 or y = -3
-```
+$$
+y = 3 	ext{ or } y = -3
+$$
 
 Before choosing the square root, there is a twofold symmetry: the equation does not distinguish `3` from `-3`. Extracting the square root breaks that symmetry by making a choice.
 
 Similarly, if:
 
-```
+$$
 y³ = 8
-```
+$$
 
 then over the complex numbers there are three cube roots, related by multiplication by cube roots of unity. Extracting a cube root means passing from a symmetric situation to a more specific one.
 
@@ -407,22 +428,25 @@ More precisely, the full symmetry group on five objects, `S₅`, contains within
 
 Let us return for a moment to the quadratic, because it shows the principle in the simplest possible form. If the roots are `r₁` and `r₂`, then the coefficient data knows:
 
-```
+$$
 r₁ + r₂
+$$
+
+$$
 r₁r₂
-```
+$$
 
 These quantities are unchanged by the only nontrivial permutation:
 
-```
+$$
 r₁ ↔ r₂
-```
+$$
 
 So the equation begins with a symmetry of order two. To solve it, we adjoin:
 
-```
+$$
 r₁ - r₂
-```
+$$
 
 or equivalently its square root form through the discriminant. This quantity changes sign under the swap, so once it is available, the symmetry is broken and the individual roots can be separated.
 

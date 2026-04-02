@@ -79,9 +79,9 @@ His method was to trap π between two polygons — one inscribed inside the circ
 
 Archimedes started with hexagons — six-sided polygons — and doubled the number of sides repeatedly until he reached polygons with 96 sides each. The calculation at each doubling step requires finding the lengths of the new polygon's sides from the lengths of the previous ones, which involves square roots and careful arithmetic. Without algebra, without decimal notation, working with fractions that become increasingly unwieldy as the sides multiply — Archimedes carried the computation all the way to 96 sides and showed that:
 
-```
-3 + 10/71 < π < 3 + 1/7
-```
+$$
+3 + 10/71 < \pi < 3 + 1/7
+$$
 
 In decimals: 3.1408 < π < 3.1429.
 

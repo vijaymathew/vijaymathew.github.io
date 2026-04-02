@@ -45,23 +45,23 @@ You already know what a finite sum is. Three plus five plus seven is fifteen. Th
 
 An infinite series is different. It is a sum that goes on forever:
 
-```
-1 - 1/3 + 1/5 - 1/7 + 1/9 - 1/11 + ...
-```
+$$
+1 - 1/3 + 1/5 - 1/7 + 1/9 - 1/11 + \dots
+$$
 
-The dots mean the pattern continues indefinitely, alternating between adding and subtracting the reciprocals of odd numbers. You can never write down all the terms, because there are infinitely many of them. And yet — and this is the miracle — if you add them up in order, the running total gets closer and closer to a definite value. It never arrives, but it converges. The limit, as mathematicians say, is π/4.
+The dots mean the pattern continues indefinitely, alternating between adding and subtracting the reciprocals of odd numbers. You can never write down all the terms, because there are infinitely many of them. And yet — and this is the miracle — if you add them up in order, the running total gets closer and closer to a definite value. It never arrives, but it converges. The limit, as mathematicians say, is $\pi/4$.
 
 Which means:
 
-```
-π/4 = 1 - 1/3 + 1/5 - 1/7 + 1/9 - ...
-```
+$$
+\pi/4 = 1 - 1/3 + 1/5 - 1/7 + 1/9 - \dots
+$$
 
 Or equivalently:
 
-```
-π = 4 × (1 - 1/3 + 1/5 - 1/7 + 1/9 - ...)
-```
+$$
+\pi = 4 \times (1 - 1/3 + 1/5 - 1/7 + 1/9 - \dots)
+$$
 
 This is the series now called the Madhava-Leibniz series for π — Leibniz rediscovered it in Europe in 1673, roughly three centuries after Mādhava. It is one of the most beautiful equations in all of mathematics: a number that seems hopelessly irrational and transcendental, the ratio of a circle's circumference to its diameter, turns out to be related to the simplest possible pattern — the reciprocals of odd numbers, alternating in sign.
 
@@ -71,9 +71,9 @@ What he did instead was discover that you could add a correction term to any par
 
 Think about what thirteen decimal places means. It means:
 
-```
-π ≈ 3.1415926535898
-```
+$$
+\pi \approx 3.1415926535898
+$$
 
 The difference between this and the true value of π is about 0.000000000000007. If you used this value to calculate the circumference of the entire Earth, your error would be less than the width of an atom.
 
@@ -87,11 +87,13 @@ The series for π is remarkable, but it is Mādhava's series for the sine and co
 
 For a reader encountering them for the first time: the sine and cosine of an angle can be expressed as infinite sums of powers of the angle, divided by factorial numbers. In modern notation:
 
-```
-sin(θ) = θ - θ³/3! + θ⁵/5! - θ⁷/7! + ...
+$$
+\sin(\theta) = \theta - \theta^3/3! + \theta^5/5! - \theta^7/7! + \dots
+$$
 
-cos(θ) = 1 - θ²/2! + θ⁴/4! - θ⁶/6! + ...
-```
+$$
+\cos(\theta) = 1 - \theta^2/2! + \theta^4/4! - \theta^6/6! + \dots
+$$
 
 where θ is measured in radians, and n! means n factorial (1 × 2 × 3 × ... × n).
 
@@ -141,9 +143,9 @@ The connection to navigation is equally direct. Arab and Indian sailors navigati
 
 In 1671, a Scottish mathematician named James Gregory derived the infinite series for the arctangent function:
 
-```
-arctan(x) = x - x³/3 + x⁵/5 - x⁷/7 + ...
-```
+$$
+\arctan(x) = x - x^3/3 + x^5/5 - x^7/7 + \dots
+$$
 
 Setting x = 1 gives arctan(1) = π/4, which produces the series for π. This result became known as the Gregory-Leibniz series after Leibniz independently derived the same result in 1673. It was considered one of the great achievements of seventeenth-century European mathematics.
 
