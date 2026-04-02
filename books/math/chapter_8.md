@@ -226,10 +226,8 @@ The frontier was motion. Tartaglia had asked what path a cannonball follows. He 
 
 Describing continuous change mathematically — finding a language adequate to the world in motion — was the problem that the next century would solve. It would be solved independently in England and in Germany, by two men who would spend the rest of their lives arguing about which of them had solved it first. It would draw on Tartaglia's ballistics, Kepler's planetary orbits, Napier's logarithms, and the algebraic machinery that Viète had spent his legal career constructing.
 
-And, in a broader historical sense, some of its component ideas had earlier precedents on the coast of the Arabian Sea, in work neither man knew.
-
 ---
 
-*The next chapter turns to the seventeenth century and the invention of calculus — or rather, to the collision of two independent inventions of calculus, and the furious priority dispute that followed. The mathematics of change was waiting to be discovered. Isaac Newton and Gottfried Leibniz were both heading toward it. Neither of their discoveries emerged in a vacuum, and some key series had earlier precedents in Kerala.*
+*The next chapter turns to the seventeenth century and the invention of calculus — or rather, to the collision of two independent inventions of calculus, and the furious priority dispute that followed. The mathematics of change was waiting to be discovered. Isaac Newton and Gottfried Leibniz were both heading toward it.*
 
 ---
