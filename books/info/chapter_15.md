@@ -1257,4 +1257,4 @@ Data Processing Inequality:
 
 ---
 
-*In Chapter 16, we turn from pure information theory to system design: how does an information-theoretic perspective change the way you design data pipelines, APIs, logging systems, and observability infrastructure? This final applied chapter synthesizes everything into concrete engineering decisions.*
+*In Chapter 16, we turn to databases: cardinality, selectivity, index design, and query planning through an information-theoretic lens. We will see why high-entropy columns make better index keys, how query planners approximate data distributions, and where those approximations break down.*

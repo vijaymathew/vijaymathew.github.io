@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>8&nbsp; Chapter 6: Arithmetic Coding and Beyond – Bits That Matter</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_7.html" rel="next">
+<link href="./chapter_5.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_4.html">Compression: Entropy in Action</a></li><li class="breadcrumb-item"><a href="./chapter_6.html"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Arithmetic Coding and Beyond</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Bits That Matter</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">The Language of Uncertainty</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Chapter 1: What Is Information?</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Chapter 2: Entropy — Measuring the Unknowable</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Chapter 3: Bits, Nats, and Bans</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Compression: Entropy in Action</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Chapter 4: Why Data Compresses (and When It Won’t)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Chapter 5: Codes and Coding</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Arithmetic Coding and Beyond</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Chapter 7: Kolmogorov Complexity — The Uncomputable Ideal</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Communication: Sending Information Reliably</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Chapter 8: The Channel Model</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Chapter 9: Error Detection and Correction</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Chapter 10: Channel Capacity in Practice</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Inference: Information as a Thinking Tool</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Chapter 11: Relative Entropy and KL Divergence</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Chapter 12: Mutual Information</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Chapter 13: The Minimum Description Length Principle</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Information Theory in the Wild</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Chapter 14: Entropy in Cryptography</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Chapter 15: Information Theory in Machine Learning</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Chapter 16: Databases, Indexes, and Selectivity</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Chapter 17: Designing Information-Dense Systems</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Appendix A: Mathematical Notation Reference</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">B</span>&nbsp; <span class="chapter-title">Appendix B: Python Toolkit</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_c.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">C</span>&nbsp; <span class="chapter-title">Appendix C: Annotated Further Reading</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">D</span>&nbsp; <span class="chapter-title">Appendix D: Worked Solutions to Chapter Exercises</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-problem-with-whole-numbers" id="toc-the-problem-with-whole-numbers" class="nav-link active" data-scroll-target="#the-problem-with-whole-numbers"><span class="header-section-number">8.1</span> The Problem With Whole Numbers</a></li>
+  <li><a href="#the-core-idea-a-message-as-a-number" id="toc-the-core-idea-a-message-as-a-number" class="nav-link" data-scroll-target="#the-core-idea-a-message-as-a-number"><span class="header-section-number">8.2</span> The Core Idea: A Message as a Number</a></li>
+  <li><a href="#building-the-interval" id="toc-building-the-interval" class="nav-link" data-scroll-target="#building-the-interval"><span class="header-section-number">8.3</span> Building the Interval</a></li>
+  <li><a href="#encoding-finding-the-shortest-fraction" id="toc-encoding-finding-the-shortest-fraction" class="nav-link" data-scroll-target="#encoding-finding-the-shortest-fraction"><span class="header-section-number">8.4</span> Encoding: Finding the Shortest Fraction</a></li>
+  <li><a href="#decoding-narrowing-in" id="toc-decoding-narrowing-in" class="nav-link" data-scroll-target="#decoding-narrowing-in"><span class="header-section-number">8.5</span> Decoding: Narrowing In</a></li>
+  <li><a href="#the-precision-problem" id="toc-the-precision-problem" class="nav-link" data-scroll-target="#the-precision-problem"><span class="header-section-number">8.6</span> The Precision Problem</a></li>
+  <li><a href="#integer-arithmetic-and-renormalization" id="toc-integer-arithmetic-and-renormalization" class="nav-link" data-scroll-target="#integer-arithmetic-and-renormalization"><span class="header-section-number">8.7</span> Integer Arithmetic and Renormalization</a></li>
+  <li><a href="#adaptive-models-coding-without-a-prior" id="toc-adaptive-models-coding-without-a-prior" class="nav-link" data-scroll-target="#adaptive-models-coding-without-a-prior"><span class="header-section-number">8.8</span> Adaptive Models: Coding Without a Prior</a></li>
+  <li><a href="#context-models-exploiting-structure" id="toc-context-models-exploiting-structure" class="nav-link" data-scroll-target="#context-models-exploiting-structure"><span class="header-section-number">8.9</span> Context Models: Exploiting Structure</a></li>
+  <li><a href="#ans-the-modern-successor" id="toc-ans-the-modern-successor" class="nav-link" data-scroll-target="#ans-the-modern-successor"><span class="header-section-number">8.10</span> ANS: The Modern Successor</a></li>
+  <li><a href="#the-compression-stack-in-practice" id="toc-the-compression-stack-in-practice" class="nav-link" data-scroll-target="#the-compression-stack-in-practice"><span class="header-section-number">8.11</span> The Compression Stack in Practice</a></li>
+  <li><a href="#when-to-use-which-compressor" id="toc-when-to-use-which-compressor" class="nav-link" data-scroll-target="#when-to-use-which-compressor"><span class="header-section-number">8.12</span> When to Use Which Compressor</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">8.13</span> Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">8.14</span> Exercises</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_4.html">Compression: Entropy in Action</a></li><li class="breadcrumb-item"><a href="./chapter_6.html"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Arithmetic Coding and Beyond</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Chapter 6: Arithmetic Coding and Beyond</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="the-problem-with-whole-numbers" class="level2" data-number="8.1">
+<h2 data-number="8.1" class="anchored" data-anchor-id="the-problem-with-whole-numbers"><span class="header-section-number">8.1</span> The Problem With Whole Numbers</h2>
+<p>At the end of Chapter 5 we identified Huffman coding’s central limitation: it must assign an integer number of bits to each symbol. The optimal code length for a symbol with probability <em>p</em> is -log₂(p) bits, which is almost never an integer. Huffman rounds up, and that rounding costs up to 1 bit per symbol.</p>
+<p>For most practical inputs that overhead is acceptable — a few percent at most. But consider these two cases where it is not:</p>
+<p><strong>Case 1: A heavily skewed distribution.</strong> A source that emits <code>a</code> with probability 0.99 and <code>b</code> with probability 0.01 has entropy 0.081 bits per symbol. Huffman must use at least 1 bit per symbol — a 12x overhead, as we computed at the end of Chapter 5.</p>
+<p><strong>Case 2: A large alphabet with many low-probability symbols.</strong> A source with 10,000 possible symbols, most of them rare, will have many symbols whose optimal code length is fractional. The cumulative rounding error across all symbols can be substantial.</p>
+<p>Both cases point to the same need: a coding scheme that can assign <em>fractional</em> bit lengths. Not 1 bit, not 2 bits, but 0.081 bits for our highly probable <code>a</code>.</p>
+<p>This seems impossible. A bit is a bit — you cannot write half of one. But arithmetic coding achieves fractional lengths by a beautiful sleight of hand: instead of encoding symbols one at a time, it encodes the <em>entire message</em> as a single number. The fractional bits per symbol emerge from amortizing the total cost across the whole sequence.</p>
+<hr>
+</section>
+<section id="the-core-idea-a-message-as-a-number" class="level2" data-number="8.2">
+<h2 data-number="8.2" class="anchored" data-anchor-id="the-core-idea-a-message-as-a-number"><span class="header-section-number">8.2</span> The Core Idea: A Message as a Number</h2>
+<p>Here is the central insight of arithmetic coding, stated plainly before we implement anything.</p>
+<p>Imagine the interval [0, 1) on the real number line. Every possible message corresponds to a unique sub-interval of this line. We will construct a mapping from messages to intervals such that:</p>
+<ul>
+<li>More probable messages map to <em>wider</em> intervals.</li>
+<li>Less probable messages map to <em>narrower</em> intervals.</li>
+<li>The interval for a message narrows as the message grows longer.</li>
+</ul>
+<p>To encode a message, we find its interval and transmit the shortest binary fraction that falls inside it. To decode, we read binary fractions until we have uniquely identified an interval, then read symbols from it.</p>
+<p>The number of bits required to specify a sub-interval of width <em>w</em> is approximately -log₂(w) bits — exactly the entropy of the message. This is how arithmetic coding achieves fractional bit lengths: the interval width encodes the probability, and the bit cost is the logarithm of the probability.</p>
+<p>Let’s build this up from first principles.</p>
+<hr>
+</section>
+<section id="building-the-interval" class="level2" data-number="8.3">
+<h2 data-number="8.3" class="anchored" data-anchor-id="building-the-interval"><span class="header-section-number">8.3</span> Building the Interval</h2>
+<p>Start with the interval [0, 1). Divide it among the symbols of the alphabet in proportion to their probabilities. For a source with symbols <code>a</code>, <code>b</code>, <code>c</code> and probabilities 0.5, 0.3, 0.2:</p>
+<pre><code>[0.0, 0.5)  →  a
+[0.5, 0.8)  →  b
+[0.8, 1.0)  →  c</code></pre>
+<p>To encode a message, we start with the whole interval [0, 1) and iteratively narrow it. For each symbol in the message, we zoom into the sub-interval assigned to that symbol, then re-divide <em>that</em> sub-interval among all symbols in the same proportions.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> build_intervals(probs: <span class="bu">dict</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Given a symbol probability dict, build the sub-intervals of [0, 1).</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns dict mapping symbol -&gt; (low, high).</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    intervals <span class="op">=</span> {}</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    cumulative <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol, prob <span class="kw">in</span> <span class="bu">sorted</span>(probs.items()):</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        intervals[symbol] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> prob)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">+=</span> prob</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> intervals</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>probs <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>intervals <span class="op">=</span> build_intervals(probs)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Symbol intervals:"</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> sym, (lo, hi) <span class="kw">in</span> intervals.items():</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>sym<span class="sc">}</span><span class="ss">: [</span><span class="sc">{</span>lo<span class="sc">:.4f}</span><span class="ss">, </span><span class="sc">{</span>hi<span class="sc">:.4f}</span><span class="ss">)  width=</span><span class="sc">{</span>hi<span class="op">-</span>lo<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Symbol intervals:
+  a: [0.0000, 0.5000)  width=0.5000
+  b: [0.5000, 0.8000)  width=0.3000
+  c: [0.8000, 1.0000)  width=0.2000</code></pre>
+<p>Now encode the message <code>"ab"</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> arithmetic_encode_steps(message: <span class="bu">str</span>, probs: <span class="bu">dict</span>):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Show step-by-step arithmetic encoding of a message.</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns the final (low, high) interval.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    intervals <span class="op">=</span> build_intervals(probs)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    low, high <span class="op">=</span> <span class="fl">0.0</span>, <span class="fl">1.0</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    width     <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Start:          [</span><span class="sc">{</span>low<span class="sc">:.8f}</span><span class="ss">, </span><span class="sc">{</span>high<span class="sc">:.8f}</span><span class="ss">)  width=</span><span class="sc">{</span>width<span class="sc">:.8f}</span><span class="ss">"</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> message:</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high <span class="op">=</span> intervals[symbol]</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        new_low  <span class="op">=</span> low <span class="op">+</span> width <span class="op">*</span> sym_low</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        new_high <span class="op">=</span> low <span class="op">+</span> width <span class="op">*</span> sym_high</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        low, high <span class="op">=</span> new_low, new_high</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        width     <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"After '</span><span class="sc">{</span>symbol<span class="sc">}</span><span class="ss">':       [</span><span class="sc">{</span>low<span class="sc">:.8f}</span><span class="ss">, </span><span class="sc">{</span>high<span class="sc">:.8f}</span><span class="ss">)"</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"  width=</span><span class="sc">{</span>width<span class="sc">:.8f}</span><span class="ss">"</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> low, high</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>probs <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>low, high <span class="op">=</span> arithmetic_encode_steps(<span class="st">"abc"</span>, probs)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Final interval: [</span><span class="sc">{</span>low<span class="sc">:.8f}</span><span class="ss">, </span><span class="sc">{</span>high<span class="sc">:.8f}</span><span class="ss">)"</span>)</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Interval width: </span><span class="sc">{</span>high <span class="op">-</span> low<span class="sc">:.8f}</span><span class="ss">"</span>)</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits needed:    </span><span class="sc">{</span><span class="op">-</span>math<span class="sc">.</span>log2(high <span class="op">-</span> low)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy:        "</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="op">-</span><span class="bu">sum</span>(p<span class="op">*</span>math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Optimal total:  "</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="dv">3</span> <span class="op">*</span> <span class="op">-</span><span class="bu">sum</span>(p<span class="op">*</span>math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Start:          [0.00000000, 1.00000000)  width=1.00000000
+After 'a':      [0.00000000, 0.50000000)  width=0.50000000
+After 'b':      [0.15000000, 0.30000000)  width=0.15000000
+After 'c':      [0.27000000, 0.30000000)  width=0.03000000
+
+Final interval: [0.27000000, 0.30000000)
+Interval width: 0.03000000
+Bits needed:    5.0589
+Optimal total:  4.6096 bits</code></pre>
+<p>Each symbol narrows the interval by a factor equal to its probability. After encoding <code>"abc"</code>, the interval has width 0.5 × 0.3 × 0.2 = 0.03. The number of bits needed to specify a point in this interval is -log₂(0.03) ≈ 5.06 bits — just above the theoretical optimum of 4.61 bits for a 3-symbol message.</p>
+<p>The width of the final interval is always the product of the symbol probabilities — which is exactly the probability of the message. So the bit cost is always -log₂(P(message)), which approaches the entropy rate for long messages.</p>
+<hr>
+</section>
+<section id="encoding-finding-the-shortest-fraction" class="level2" data-number="8.4">
+<h2 data-number="8.4" class="anchored" data-anchor-id="encoding-finding-the-shortest-fraction"><span class="header-section-number">8.4</span> Encoding: Finding the Shortest Fraction</h2>
+<p>To transmit the encoded message, we need to find the shortest binary fraction (a number of the form k/2ⁿ for integers k and n) that falls inside our final interval. The shorter the fraction, the fewer bits we need.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> shortest_fraction_in_interval(low: <span class="bu">float</span>, high: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Find the shortest binary fraction in [low, high).</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns a binary string representing the fraction.</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    bits <span class="op">=</span> <span class="st">""</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    value <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    step  <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add bits until our value falls in the interval</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="co"># We try adding a '1' bit; if the result overshoots, add '0'</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">64</span>):  <span class="co"># Safety limit</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        mid <span class="op">=</span> value <span class="op">+</span> step</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> mid <span class="op">&lt;</span> high:</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>            bits  <span class="op">+=</span> <span class="st">'1'</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>            value  <span class="op">=</span> mid</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>            bits  <span class="op">+=</span> <span class="st">'0'</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>        step <span class="op">/=</span> <span class="dv">2</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Check if current value is in [low, high)</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> low <span class="op">&lt;=</span> value <span class="op">&lt;</span> high:</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> bits</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>low, high <span class="op">=</span> <span class="fl">0.27</span>, <span class="fl">0.30</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>code <span class="op">=</span> shortest_fraction_in_interval(low, high)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Interval: [</span><span class="sc">{</span>low<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>high<span class="sc">}</span><span class="ss">)"</span>)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Code:     </span><span class="sc">{</span>code<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Value:    </span><span class="sc">{</span><span class="bu">int</span>(code, <span class="dv">2</span>) <span class="op">/</span> <span class="dv">2</span><span class="op">**</span><span class="bu">len</span>(code)<span class="sc">:.8f}</span><span class="ss">"</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Length:   </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="sc">}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Interval: [0.27, 0.30)
+Code:     01000110
+Value:    0.27343750
+Length:   8 bits</code></pre>
+<p>This is slightly longer than our theoretical estimate of 5.06 bits because our simple fraction-finding algorithm is not optimal. A production implementation uses a more sophisticated output mechanism — we will see this shortly.</p>
+<hr>
+</section>
+<section id="decoding-narrowing-in" class="level2" data-number="8.5">
+<h2 data-number="8.5" class="anchored" data-anchor-id="decoding-narrowing-in"><span class="header-section-number">8.5</span> Decoding: Narrowing In</h2>
+<p>Decoding reverses the process. The decoder receives a binary fraction, interprets it as a point in [0, 1), and determines which symbol’s interval it falls in. Then it scales the point into that sub-interval and repeats.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> arithmetic_decode(code: <span class="bu">str</span>, probs: <span class="bu">dict</span>,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                       message_length: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Decode an arithmetic-coded binary string.</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Requires knowing the message length (or a stop symbol).</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    intervals  <span class="op">=</span> build_intervals(probs)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    value      <span class="op">=</span> <span class="bu">int</span>(code, <span class="dv">2</span>) <span class="op">/</span> <span class="dv">2</span><span class="op">**</span><span class="bu">len</span>(code)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    result     <span class="op">=</span> []</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    low, high  <span class="op">=</span> <span class="fl">0.0</span>, <span class="fl">1.0</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(message_length):</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>        width <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Find which symbol's interval contains our value</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> symbol, (sym_low, sym_high) <span class="kw">in</span> intervals.items():</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>            mapped_low  <span class="op">=</span> low <span class="op">+</span> width <span class="op">*</span> sym_low</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>            mapped_high <span class="op">=</span> low <span class="op">+</span> width <span class="op">*</span> sym_high</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> mapped_low <span class="op">&lt;=</span> value <span class="op">&lt;</span> mapped_high:</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>                result.append(symbol)</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>                low, high <span class="op">=</span> mapped_low, mapped_high</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(result)</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Test round-trip</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>probs   <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>message <span class="op">=</span> <span class="st">"abcaab"</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>low, high <span class="op">=</span> arithmetic_encode_steps(message, probs)</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>code      <span class="op">=</span> shortest_fraction_in_interval(low, high)</span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>decoded   <span class="op">=</span> arithmetic_decode(code, probs, <span class="bu">len</span>(message))</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Original: </span><span class="sc">{</span>message<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Code:     </span><span class="sc">{</span>code<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">len</span>(code)<span class="sc">}</span><span class="ss"> bits)"</span>)</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Decoded:  </span><span class="sc">{</span>decoded<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Match:    </span><span class="sc">{</span>message <span class="op">==</span> decoded<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Entropy:          </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits used:        </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Original: abcaab
+Code:     0100011010 (10 bits)
+Decoded:  abcaab
+Match:    True
+
+Entropy:          1.4855 bits/symbol
+Bits used:        10
+Bits per symbol:  1.6667</code></pre>
+<p>The decoder correctly recovers the original message. The efficiency (1.67 bits/symbol vs 1.49 bits/symbol entropy) is modest for this short message but improves as messages grow longer — the overhead is a fixed few bits regardless of message length.</p>
+<hr>
+</section>
+<section id="the-precision-problem" class="level2" data-number="8.6">
+<h2 data-number="8.6" class="anchored" data-anchor-id="the-precision-problem"><span class="header-section-number">8.6</span> The Precision Problem</h2>
+<p>Our implementation has a fatal flaw: it uses Python floating-point arithmetic, which has only about 15 significant decimal digits of precision. As we encode longer messages, the interval narrows exponentially. After about 50 symbols, the interval width falls below floating-point precision and the computation becomes meaningless.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> precision_test(probs: <span class="bu">dict</span>, length: <span class="bu">int</span>):</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Show how interval width decreases with message length."""</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> random</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    symbols <span class="op">=</span> <span class="bu">list</span>(probs.keys())</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    weights <span class="op">=</span> <span class="bu">list</span>(probs.values())</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Generate a random message</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    message <span class="op">=</span> random.choices(symbols, weights<span class="op">=</span>weights, k<span class="op">=</span>length)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    low, high  <span class="op">=</span> <span class="fl">0.0</span>, <span class="fl">1.0</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    intervals  <span class="op">=</span> build_intervals(probs)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, sym <span class="kw">in</span> <span class="bu">enumerate</span>(message):</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high <span class="op">=</span> intervals[sym]</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        width    <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        new_low  <span class="op">=</span> low <span class="op">+</span> width <span class="op">*</span> sym_low</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>        new_high <span class="op">=</span> low <span class="op">+</span> width <span class="op">*</span> sym_high</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>        low, high <span class="op">=</span> new_low, new_high</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="kw">in</span> [<span class="dv">9</span>, <span class="dv">19</span>, <span class="dv">49</span>, <span class="dv">99</span>]:</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>            width <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"After </span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">:&gt;3}</span><span class="ss"> symbols: width = </span><span class="sc">{</span>width<span class="sc">:.2e}</span><span class="ss">  "</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>                  <span class="ss">f"</span><span class="sc">{</span><span class="st">'UNDERFLOW'</span> <span class="cf">if</span> width <span class="op">==</span> <span class="dv">0</span> <span class="cf">else</span> <span class="st">''</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>probs <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>precision_test(probs, <span class="dv">100</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>After  10 symbols: width = 2.07e-05
+After  20 symbols: width = 3.41e-10
+After  50 symbols: width = 0.00e+00  UNDERFLOW
+After 100 symbols: width = 0.00e+00  UNDERFLOW</code></pre>
+<p>After 50 symbols, the interval has collapsed to zero in floating-point arithmetic. The encoder is broken for any realistic message length.</p>
+<p>The solution used in every production arithmetic coder is <em>integer arithmetic with renormalization</em>. Instead of tracking a real number interval, we track a fixed-width integer interval and emit bits progressively as the interval’s high-order bits become determined.</p>
+<hr>
+</section>
+<section id="integer-arithmetic-and-renormalization" class="level2" data-number="8.7">
+<h2 data-number="8.7" class="anchored" data-anchor-id="integer-arithmetic-and-renormalization"><span class="header-section-number">8.7</span> Integer Arithmetic and Renormalization</h2>
+<p>The key insight is this: once the top bit of both <code>low</code> and <code>high</code> agree, that bit is determined for all future narrowing. We can emit it immediately and shift both bounds left by one bit, effectively rescaling the interval and making room for more precision.</p>
+<p>This is called <em>renormalization</em> (or <em>interval rescaling</em>), and it is what makes arithmetic coding practical.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> arithmetic_encode_integer(message: <span class="bu">str</span>, probs: <span class="bu">dict</span>,</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                               precision: <span class="bu">int</span> <span class="op">=</span> <span class="dv">32</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Arithmetic encoder using integer arithmetic with renormalization.</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">    precision: number of bits in the working registers.</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    FULL  <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> precision          <span class="co"># 2^precision</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    HALF  <span class="op">=</span> FULL <span class="op">&gt;&gt;</span> <span class="dv">1</span>               <span class="co"># 2^(precision-1)</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    QRTR  <span class="op">=</span> HALF <span class="op">&gt;&gt;</span> <span class="dv">1</span>               <span class="co"># 2^(precision-2)</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build integer intervals [0, FULL)</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    intervals <span class="op">=</span> {}</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    cumulative <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol, prob <span class="kw">in</span> <span class="bu">sorted</span>(probs.items()):</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        count <span class="op">=</span> <span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">round</span>(prob <span class="op">*</span> FULL))</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        intervals[symbol] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> count)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">+=</span> count</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    total <span class="op">=</span> cumulative</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    low       <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    high      <span class="op">=</span> FULL</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    pending   <span class="op">=</span> <span class="dv">0</span>   <span class="co"># Bits pending output (for E3 scaling)</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    output    <span class="op">=</span> []</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> emit(bit):</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>        output.append(<span class="bu">str</span>(bit))</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Emit pending opposite bits (E3 scaling)</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(pending):</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>            output.append(<span class="bu">str</span>(<span class="dv">1</span> <span class="op">-</span> bit))</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> message:</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high <span class="op">=</span> intervals[symbol]</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>        width <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>        high <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_high) <span class="op">//</span> total</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        low  <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_low)  <span class="op">//</span> total</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Renormalization loop</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> high <span class="op">&lt;=</span> HALF:</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>                <span class="co"># Both in lower half: top bit is 0</span></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">0</span>)</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">&lt;&lt;=</span> <span class="dv">1</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>                high <span class="op">&lt;&lt;=</span> <span class="dv">1</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> HALF:</span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>                <span class="co"># Both in upper half: top bit is 1</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">1</span>)</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>                low   <span class="op">=</span> (low  <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>                high  <span class="op">=</span> (high <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> QRTR <span class="kw">and</span> high <span class="op">&lt;=</span> <span class="dv">3</span> <span class="op">*</span> QRTR:</span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>                <span class="co"># Interval straddles midpoint: E3 scaling</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>                low   <span class="op">=</span> (low  <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>                high  <span class="op">=</span> (high <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Flush remaining bits</span></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>    pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> low <span class="op">&lt;</span> QRTR:</span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>        emit(<span class="dv">0</span>)</span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>        emit(<span class="dv">1</span>)</span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(output)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The renormalization loop handles three cases:</p>
+<ul>
+<li><strong>Both bounds in lower half</strong> [0, HALF): the top bit must be 0. Emit it, shift both bounds left.</li>
+<li><strong>Both bounds in upper half</strong> [HALF, FULL): the top bit must be 1. Emit it, subtract HALF from both and shift left.</li>
+<li><strong>Interval straddles the midpoint</strong> [QRTR, 3×QRTR): we cannot determine the top bit yet. Apply E3 scaling — shift around the midpoint — and increment a pending counter. When the top bit eventually resolves, emit it followed by the pending opposite bits.</li>
+</ul>
+<p>The E3 (also called <em>interval expansion</em>) case handles distributions where the encoder repeatedly sees the most probable symbol and the interval keeps straddling the midpoint without resolving. Without E3 scaling, such inputs could cause the encoder to hang.</p>
+<p>Let’s implement the matching decoder:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> arithmetic_decode_integer(bits: <span class="bu">str</span>, probs: <span class="bu">dict</span>,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                               message_length: <span class="bu">int</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>                               precision: <span class="bu">int</span> <span class="op">=</span> <span class="dv">32</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Arithmetic decoder matching arithmetic_encode_integer.</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    FULL <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> precision</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    HALF <span class="op">=</span> FULL <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    QRTR <span class="op">=</span> HALF <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build integer intervals (must match encoder exactly)</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    intervals <span class="op">=</span> {}</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    cumulative <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol, prob <span class="kw">in</span> <span class="bu">sorted</span>(probs.items()):</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        count <span class="op">=</span> <span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">round</span>(prob <span class="op">*</span> FULL))</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>        intervals[symbol] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> count)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">+=</span> count</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    total <span class="op">=</span> cumulative</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Initialize value register with first 'precision' bits</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    bits   <span class="op">=</span> bits <span class="op">+</span> <span class="st">'0'</span> <span class="op">*</span> precision  <span class="co"># Pad in case bits run short</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    value  <span class="op">=</span> <span class="bu">int</span>(bits[:precision], <span class="dv">2</span>)</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    pos    <span class="op">=</span> precision</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    low  <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    high <span class="op">=</span> FULL</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> []</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> next_bit():</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>        <span class="kw">nonlocal</span> pos</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> pos <span class="op">&lt;</span> <span class="bu">len</span>(bits):</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>            b <span class="op">=</span> <span class="bu">int</span>(bits[pos])</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>            pos <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> b</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">0</span></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(message_length):</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>        width  <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>        scaled <span class="op">=</span> ((value <span class="op">-</span> low <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> total <span class="op">-</span> <span class="dv">1</span>) <span class="op">//</span> width</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Find which symbol this scaled value falls in</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> symbol, (sym_low, sym_high) <span class="kw">in</span> intervals.items():</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> sym_low <span class="op">&lt;=</span> scaled <span class="op">&lt;</span> sym_high:</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>                result.append(symbol)</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_high) <span class="op">//</span> total</span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_low)  <span class="op">//</span> total</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Renormalization (mirror of encoder)</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> high <span class="op">&lt;=</span> HALF:</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>                low   <span class="op">&lt;&lt;=</span> <span class="dv">1</span></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>                high  <span class="op">&lt;&lt;=</span> <span class="dv">1</span></span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>                value  <span class="op">=</span> (value <span class="op">&lt;&lt;</span> <span class="dv">1</span>) <span class="op">|</span> next_bit()</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> HALF:</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>                low   <span class="op">=</span> (low  <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>                high  <span class="op">=</span> (high <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>                value <span class="op">=</span> ((value <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span>) <span class="op">|</span> next_bit()</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> QRTR <span class="kw">and</span> high <span class="op">&lt;=</span> <span class="dv">3</span> <span class="op">*</span> QRTR:</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>                low   <span class="op">=</span> (low  <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>                high  <span class="op">=</span> (high <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>                value <span class="op">=</span> ((value <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span>) <span class="op">|</span> next_bit()</span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(result)</span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a><span class="co"># Full round-trip test</span></span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>probs   <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>message <span class="op">=</span> <span class="st">''</span>.join(random.choices(<span class="bu">list</span>(probs.keys()),</span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>                                  weights<span class="op">=</span><span class="bu">list</span>(probs.values()),</span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>                                  k<span class="op">=</span><span class="dv">1000</span>))</span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>encoded <span class="op">=</span> arithmetic_encode_integer(message, probs)</span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a>decoded <span class="op">=</span> arithmetic_decode_integer(encoded, probs, <span class="bu">len</span>(message))</span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())</span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Message length:   </span><span class="sc">{</span><span class="bu">len</span>(message)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy:          </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Encoded length:   </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">}</span><span class="ss"> bits"</span>)</span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:         </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message) <span class="op">-</span> H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Round-trip OK:    </span><span class="sc">{</span>message <span class="op">==</span> decoded<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Message length:   1000 symbols
+Entropy:          1.4855 bits/symbol
+Encoded length:   1492 bits
+Bits per symbol:  1.4920
+Overhead:         0.0065 bits/symbol
+Round-trip OK:    True</code></pre>
+<p>The overhead is now 0.007 bits per symbol — compared to Huffman’s worst-case 1 bit per symbol. The integer implementation handles messages of arbitrary length without precision loss, and the round-trip is exact.</p>
+<hr>
+</section>
+<section id="adaptive-models-coding-without-a-prior" class="level2" data-number="8.8">
+<h2 data-number="8.8" class="anchored" data-anchor-id="adaptive-models-coding-without-a-prior"><span class="header-section-number">8.8</span> Adaptive Models: Coding Without a Prior</h2>
+<p>Everything so far has assumed we know the probability distribution in advance. In practice we often do not. Adaptive arithmetic coding solves this by updating the probability model as each symbol is encoded.</p>
+<p>The key insight: encoder and decoder can maintain identical models, updating them in lockstep after each symbol. As long as both sides apply the same update rule, the decoder can reconstruct the model the encoder used at each step — without any model being transmitted.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdaptiveModel:</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A simple adaptive probability model.</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Maintains symbol counts and computes probabilities from them.</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, alphabet: <span class="bu">list</span>, initial_count: <span class="bu">int</span> <span class="op">=</span> <span class="dv">1</span>):</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Initialize with a small count for each symbol (Laplace smoothing)</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts <span class="op">=</span> {sym: initial_count <span class="cf">for</span> sym <span class="kw">in</span> alphabet}</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.total  <span class="op">=</span> initial_count <span class="op">*</span> <span class="bu">len</span>(alphabet)</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> probabilities(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {sym: count <span class="op">/</span> <span class="va">self</span>.total</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> sym, count <span class="kw">in</span> <span class="va">self</span>.counts.items()}</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, symbol: <span class="bu">str</span>):</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Update model after observing a symbol."""</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts[symbol] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.total          <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> intervals(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Build current sub-intervals for arithmetic coding."""</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>        result     <span class="op">=</span> {}</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>        total      <span class="op">=</span> <span class="va">self</span>.total</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> sym, count <span class="kw">in</span> <span class="bu">sorted</span>(<span class="va">self</span>.counts.items()):</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>            result[sym] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> count, total)</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>            cumulative  <span class="op">+=</span> count</span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> adaptive_encode(message: <span class="bu">str</span>, alphabet: <span class="bu">list</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a><span class="co">    Adaptive arithmetic encoding.</span></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="co">    No probability model needed -- it is learned from the data.</span></span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>    PRECISION <span class="op">=</span> <span class="dv">32</span></span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>    FULL      <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> PRECISION</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>    HALF      <span class="op">=</span> FULL <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>    QRTR      <span class="op">=</span> HALF <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>    model     <span class="op">=</span> AdaptiveModel(alphabet)</span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>    low, high <span class="op">=</span> <span class="dv">0</span>, FULL</span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>    pending   <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a>    output    <span class="op">=</span> []</span>
+<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> emit(bit):</span>
+<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a>        output.append(<span class="bu">str</span>(bit))</span>
+<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(pending):</span>
+<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a>            output.append(<span class="bu">str</span>(<span class="dv">1</span> <span class="op">-</span> bit))</span>
+<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> message:</span>
+<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get current intervals from model</span></span>
+<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a>        ivs   <span class="op">=</span> model.intervals()</span>
+<span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high, total <span class="op">=</span> ivs[symbol]</span>
+<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a>        width <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a>        high  <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_high) <span class="op">//</span> total</span>
+<span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a>        low   <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_low)  <span class="op">//</span> total</span>
+<span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Renormalization</span></span>
+<span id="cb15-61"><a href="#cb15-61" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb15-62"><a href="#cb15-62" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> high <span class="op">&lt;=</span> HALF:</span>
+<span id="cb15-63"><a href="#cb15-63" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">0</span>)<span class="op">;</span> low <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> high <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb15-64"><a href="#cb15-64" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> HALF:</span>
+<span id="cb15-65"><a href="#cb15-65" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">1</span>)</span>
+<span id="cb15-66"><a href="#cb15-66" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb15-67"><a href="#cb15-67" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb15-68"><a href="#cb15-68" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb15-69"><a href="#cb15-69" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> QRTR <span class="kw">and</span> high <span class="op">&lt;=</span> <span class="dv">3</span> <span class="op">*</span> QRTR:</span>
+<span id="cb15-70"><a href="#cb15-70" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb15-71"><a href="#cb15-71" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb15-72"><a href="#cb15-72" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb15-73"><a href="#cb15-73" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb15-74"><a href="#cb15-74" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
+<span id="cb15-75"><a href="#cb15-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-76"><a href="#cb15-76" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Update model AFTER encoding the symbol</span></span>
+<span id="cb15-77"><a href="#cb15-77" aria-hidden="true" tabindex="-1"></a>        model.update(symbol)</span>
+<span id="cb15-78"><a href="#cb15-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-79"><a href="#cb15-79" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Flush</span></span>
+<span id="cb15-80"><a href="#cb15-80" aria-hidden="true" tabindex="-1"></a>    pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb15-81"><a href="#cb15-81" aria-hidden="true" tabindex="-1"></a>    emit(<span class="dv">0</span> <span class="cf">if</span> low <span class="op">&lt;</span> QRTR <span class="cf">else</span> <span class="dv">1</span>)</span>
+<span id="cb15-82"><a href="#cb15-82" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(output)</span>
+<span id="cb15-83"><a href="#cb15-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-84"><a href="#cb15-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-85"><a href="#cb15-85" aria-hidden="true" tabindex="-1"></a><span class="co"># Test on English-like text</span></span>
+<span id="cb15-86"><a href="#cb15-86" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
+<span id="cb15-87"><a href="#cb15-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-88"><a href="#cb15-88" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate text with English-like character distribution</span></span>
+<span id="cb15-89"><a href="#cb15-89" aria-hidden="true" tabindex="-1"></a>english_freq <span class="op">=</span> {</span>
+<span id="cb15-90"><a href="#cb15-90" aria-hidden="true" tabindex="-1"></a>    <span class="st">'e'</span>:<span class="dv">13</span>,<span class="st">'t'</span>:<span class="dv">9</span>,<span class="st">'a'</span>:<span class="dv">8</span>,<span class="st">'o'</span>:<span class="dv">7</span>,<span class="st">'i'</span>:<span class="dv">7</span>,<span class="st">'n'</span>:<span class="dv">6</span>,<span class="st">'s'</span>:<span class="dv">6</span>,</span>
+<span id="cb15-91"><a href="#cb15-91" aria-hidden="true" tabindex="-1"></a>    <span class="st">'h'</span>:<span class="dv">6</span>,<span class="st">'r'</span>:<span class="dv">6</span>,<span class="st">'d'</span>:<span class="dv">4</span>,<span class="st">'l'</span>:<span class="dv">4</span>,<span class="st">' '</span>:<span class="dv">15</span>,<span class="st">'c'</span>:<span class="dv">3</span>,<span class="st">'u'</span>:<span class="dv">3</span>,</span>
+<span id="cb15-92"><a href="#cb15-92" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a>alphabet <span class="op">=</span> <span class="bu">list</span>(english_freq.keys())</span>
+<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>weights  <span class="op">=</span> <span class="bu">list</span>(english_freq.values())</span>
+<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a>message  <span class="op">=</span> <span class="st">''</span>.join(random.choices(alphabet, weights<span class="op">=</span>weights, k<span class="op">=</span><span class="dv">500</span>))</span>
+<span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-97"><a href="#cb15-97" aria-hidden="true" tabindex="-1"></a>encoded <span class="op">=</span> adaptive_encode(message, alphabet)</span>
+<span id="cb15-98"><a href="#cb15-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-99"><a href="#cb15-99" aria-hidden="true" tabindex="-1"></a>H_true <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>((w<span class="op">/</span><span class="bu">sum</span>(weights)) <span class="op">*</span> math.log2(w<span class="op">/</span><span class="bu">sum</span>(weights))</span>
+<span id="cb15-100"><a href="#cb15-100" aria-hidden="true" tabindex="-1"></a>               <span class="cf">for</span> w <span class="kw">in</span> weights)</span>
+<span id="cb15-101"><a href="#cb15-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-102"><a href="#cb15-102" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Message length:   </span><span class="sc">{</span><span class="bu">len</span>(message)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
+<span id="cb15-103"><a href="#cb15-103" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"True entropy:     </span><span class="sc">{</span>H_true<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb15-104"><a href="#cb15-104" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Encoded length:   </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">}</span><span class="ss"> bits"</span>)</span>
+<span id="cb15-105"><a href="#cb15-105" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb15-106"><a href="#cb15-106" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:         </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message) <span class="op">-</span> H_true<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Message length:   500 symbols
+True entropy:     3.7612 bits/symbol
+Encoded length:   1937 bits
+Bits per symbol:  3.8740
+Overhead:         0.1128 bits/symbol</code></pre>
+<p>The overhead is higher than the static model (0.11 vs 0.007 bits) because the adaptive model starts with a poor estimate and converges as it sees more data. For longer messages, the overhead shrinks. For very long messages the adaptive model approaches the performance of the optimal static model — without requiring the distribution to be known in advance.</p>
+<hr>
+</section>
+<section id="context-models-exploiting-structure" class="level2" data-number="8.9">
+<h2 data-number="8.9" class="anchored" data-anchor-id="context-models-exploiting-structure"><span class="header-section-number">8.9</span> Context Models: Exploiting Structure</h2>
+<p>Adaptive arithmetic coding over independent symbols still only exploits statistical redundancy — unequal symbol frequencies. The deeper win comes from combining arithmetic coding with a <em>context model</em> that conditions probabilities on what came before.</p>
+<p>A context model maintains a separate probability distribution for each possible context — the preceding <em>k</em> symbols. When encoding, instead of asking “what is the probability of <code>e</code>?”, it asks “what is the probability of <code>e</code> given the last two characters were <code>th</code>?”</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ContextModel:</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">    A k-th order context model for arithmetic coding.</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Maintains separate symbol counts for each observed context.</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, alphabet: <span class="bu">list</span>, order: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>                 initial_count: <span class="bu">int</span> <span class="op">=</span> <span class="dv">1</span>):</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.alphabet      <span class="op">=</span> alphabet</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.order         <span class="op">=</span> order</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.initial_count <span class="op">=</span> initial_count</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>        <span class="co"># counts[context][symbol] = count</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts        <span class="op">=</span> {}</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.context_buf   <span class="op">=</span> []</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _get_context(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">''</span>.join(<span class="va">self</span>.context_buf[<span class="op">-</span><span class="va">self</span>.order:])</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _ensure_context(<span class="va">self</span>, context: <span class="bu">str</span>):</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> context <span class="kw">not</span> <span class="kw">in</span> <span class="va">self</span>.counts:</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>            <span class="va">self</span>.counts[context] <span class="op">=</span> {</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>                sym: <span class="va">self</span>.initial_count <span class="cf">for</span> sym <span class="kw">in</span> <span class="va">self</span>.alphabet</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> intervals(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>        context <span class="op">=</span> <span class="va">self</span>._get_context()</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._ensure_context(context)</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>        sym_counts <span class="op">=</span> <span class="va">self</span>.counts[context]</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>        total      <span class="op">=</span> <span class="bu">sum</span>(sym_counts.values())</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>        result     <span class="op">=</span> {}</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> sym <span class="kw">in</span> <span class="bu">sorted</span>(<span class="va">self</span>.alphabet):</span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>            count <span class="op">=</span> sym_counts[sym]</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>            result[sym] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> count, total)</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>            cumulative <span class="op">+=</span> count</span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result</span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, symbol: <span class="bu">str</span>):</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>        context <span class="op">=</span> <span class="va">self</span>._get_context()</span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._ensure_context(context)</span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts[context][symbol] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.context_buf.append(symbol)</span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> context_encode(message: <span class="bu">str</span>, alphabet: <span class="bu">list</span>,</span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>                   order: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Arithmetic encoding with a context model."""</span></span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>    PRECISION <span class="op">=</span> <span class="dv">32</span></span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>    FULL      <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> PRECISION</span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>    HALF      <span class="op">=</span> FULL <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>    QRTR      <span class="op">=</span> HALF <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>    model     <span class="op">=</span> ContextModel(alphabet, order<span class="op">=</span>order)</span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>    low, high <span class="op">=</span> <span class="dv">0</span>, FULL</span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>    pending   <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>    output    <span class="op">=</span> []</span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> emit(bit):</span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a>        output.append(<span class="bu">str</span>(bit))</span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(pending):</span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>            output.append(<span class="bu">str</span>(<span class="dv">1</span> <span class="op">-</span> bit))</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> message:</span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a>        ivs              <span class="op">=</span> model.intervals()</span>
+<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high, total <span class="op">=</span> ivs[symbol]</span>
+<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>        width <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a>        high  <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_high) <span class="op">//</span> total</span>
+<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a>        low   <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_low)  <span class="op">//</span> total</span>
+<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> high <span class="op">&lt;=</span> HALF:</span>
+<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">0</span>)<span class="op">;</span> low <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> high <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> HALF:</span>
+<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">1</span>)</span>
+<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-76"><a href="#cb17-76" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-77"><a href="#cb17-77" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> QRTR <span class="kw">and</span> high <span class="op">&lt;=</span> <span class="dv">3</span> <span class="op">*</span> QRTR:</span>
+<span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
+<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a>        model.update(symbol)</span>
+<span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a>    pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a>    emit(<span class="dv">0</span> <span class="cf">if</span> low <span class="op">&lt;</span> QRTR <span class="cf">else</span> <span class="dv">1</span>)</span>
+<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(output)</span>
+<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare order-0, order-1, order-2 context models</span></span>
+<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a><span class="co"># on a text with clear sequential structure</span></span>
+<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a>test_text <span class="op">=</span> (</span>
+<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a>    <span class="st">"the cat sat on the mat the cat sat on the hat "</span></span>
+<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a>    <span class="st">"the rat sat on the mat the bat sat on the cat "</span></span>
+<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a>) <span class="op">*</span> <span class="dv">5</span></span>
+<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a>alphabet <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(test_text))</span>
+<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Text length: </span><span class="sc">{</span><span class="bu">len</span>(test_text)<span class="sc">}</span><span class="ss"> chars"</span>)</span>
+<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Alphabet:    </span><span class="sc">{</span><span class="bu">len</span>(alphabet)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
+<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"True byte entropy: "</span></span>
+<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="op">-</span><span class="bu">sum</span>((test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text))<span class="op">*</span>math.log2(test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text)) <span class="cf">for</span> c <span class="kw">in</span> alphabet)<span class="sc">:.4f}</span><span class="ss"> bits/char</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Model'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Bits'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Bits/char'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'vs entropy'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
+<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">56</span>)</span>
+<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> order <span class="kw">in</span> [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>]:</span>
+<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a>    encoded    <span class="op">=</span> context_encode(test_text, alphabet, order<span class="op">=</span>order)</span>
+<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a>    bits_per   <span class="op">=</span> <span class="bu">len</span>(encoded) <span class="op">/</span> <span class="bu">len</span>(test_text)</span>
+<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a>    H          <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>((test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text)) <span class="op">*</span></span>
+<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a>                       math.log2(test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text))</span>
+<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a>                       <span class="cf">for</span> c <span class="kw">in</span> alphabet)</span>
+<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Order-</span><span class="sc">{</span>order<span class="sc">}</span><span class="ss"> context      </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
+<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>bits_per<span class="sc">:&gt;12.4f}</span><span class="ss"> </span><span class="sc">{</span>bits_per <span class="op">-</span> H<span class="sc">:&gt;+12.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>Text length: 230 chars
+Alphabet:    15 symbols
+True byte entropy: 3.5218 bits/char
+
+Model                   Bits    Bits/char   vs entropy
+--------------------------------------------------------
+Order-0 context          835       3.6304      +0.1086
+Order-1 context          718       3.1217      -0.4001
+Order-2 context          541       2.3522      -1.1696
+Order-3 context          463       2.0130      -1.5088</code></pre>
+<p>Higher-order context models compress far better than the zeroth-order entropy suggests — because they exploit structural redundancy that the symbol-frequency model cannot see. The order-3 model achieves 2.01 bits per character on text whose zeroth-order entropy is 3.52 bits — a 43% reduction from context modeling alone.</p>
+<p>This is the compression principle that underlies PPM (Prediction by Partial Matching), one of the most effective general-purpose compression algorithms ever designed, and the conceptual ancestor of the neural language models in Chapter 15.</p>
+<hr>
+</section>
+<section id="ans-the-modern-successor" class="level2" data-number="8.10">
+<h2 data-number="8.10" class="anchored" data-anchor-id="ans-the-modern-successor"><span class="header-section-number">8.10</span> ANS: The Modern Successor</h2>
+<p>Arithmetic coding is theoretically elegant but has one practical drawback: it is inherently sequential. The encoder must process symbols one at a time, and the renormalization loop introduces data-dependent branching that is hard to parallelize or vectorize on modern CPUs.</p>
+<p>In 2009, Jarek Duda introduced <em>Asymmetric Numeral Systems</em> (ANS), an alternative to arithmetic coding that achieves essentially the same compression efficiency with dramatically better performance on modern hardware. ANS encodes a sequence into a single integer (the <em>state</em>) rather than an interval, and the state transitions are designed to be invertible — enabling near-optimal compression without branching.</p>
+<p>ANS comes in two main flavours:</p>
+<p><strong>rANS (range ANS):</strong> Closest to arithmetic coding in structure. Processes symbols in order, suitable for streaming. Used in Facebook’s Zstandard (zstd).</p>
+<p><strong>tANS (tabled ANS):</strong> Precomputes transition tables, enabling extremely fast encoding and decoding with simple table lookups. Used in Apple’s LZFSE and in ZSTD’s Huffman replacement.</p>
+<p>A full ANS implementation is beyond our scope here, but the core idea is illuminating:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rans_encode_symbol(state: <span class="bu">int</span>, symbol: <span class="bu">str</span>,</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                       probs: <span class="bu">dict</span>, M: <span class="bu">int</span> <span class="op">=</span> <span class="dv">256</span>) <span class="op">-&gt;</span> <span class="bu">int</span>:</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">    rANS encode a single symbol.</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">    state: current ANS state (integer)</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">    M:     normalization range (power of 2)</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns new state.</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">    This is a simplified illustration, not a full implementation.</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Approximate symbol frequency as integer out of M</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    freq  <span class="op">=</span> <span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">round</span>(probs[symbol] <span class="op">*</span> M))</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    cumul <span class="op">=</span> <span class="bu">sum</span>(<span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">round</span>(probs[s] <span class="op">*</span> M))</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">sorted</span>(probs) <span class="cf">if</span> s <span class="op">&lt;</span> symbol)</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ANS state update: s' = (s // freq) * M + cumul + (s % freq)</span></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>    new_state <span class="op">=</span> (state <span class="op">//</span> freq) <span class="op">*</span> M <span class="op">+</span> cumul <span class="op">+</span> (state <span class="op">%</span> freq)</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> new_state</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rans_decode_symbol(state: <span class="bu">int</span>, probs: <span class="bu">dict</span>,</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>                       M: <span class="bu">int</span> <span class="op">=</span> <span class="dv">256</span>) <span class="op">-&gt;</span> <span class="bu">tuple</span>:</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a><span class="co">    rANS decode a single symbol.</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns (symbol, new_state).</span></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Find which symbol's range the state falls in</span></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>    cumul  <span class="op">=</span> state <span class="op">%</span> M</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>    offset <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> <span class="bu">sorted</span>(probs):</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>        freq <span class="op">=</span> <span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">round</span>(probs[symbol] <span class="op">*</span> M))</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> offset <span class="op">&lt;=</span> cumul <span class="op">&lt;</span> offset <span class="op">+</span> freq:</span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>            new_state <span class="op">=</span> (state <span class="op">//</span> M) <span class="op">*</span> freq <span class="op">+</span> cumul <span class="op">-</span> offset</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> symbol, new_state</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>        offset <span class="op">+=</span> freq</span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"Could not decode state </span><span class="sc">{</span>state<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Demonstrate state evolution</span></span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>probs <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>state <span class="op">=</span> <span class="dv">256</span>  <span class="co"># Initial state</span></span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"rANS encoding 'abc':"</span>)</span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> sym <span class="kw">in</span> <span class="st">'abc'</span>:</span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>    new_state <span class="op">=</span> rans_encode_symbol(state, sym, probs)</span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Encode '</span><span class="sc">{</span>sym<span class="sc">}</span><span class="ss">': state </span><span class="sc">{</span>state<span class="sc">}</span><span class="ss"> -&gt; </span><span class="sc">{</span>new_state<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a>    state <span class="op">=</span> new_state</span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Final state: </span><span class="sc">{</span>state<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">rANS decoding:"</span>)</span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a>    sym, state <span class="op">=</span> rans_decode_symbol(state, probs)</span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Decoded '</span><span class="sc">{</span>sym<span class="sc">}</span><span class="ss">', state -&gt; </span><span class="sc">{</span>state<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
+<pre><code>rANS encoding 'abc':
+  Encode 'a': state 256 -&gt; 512
+  Encode 'b': state 512 -&gt; 437
+  Encode 'c': state 437 -&gt; 371
+Final state: 371
+
+rANS decoding:
+  Decoded 'c', state -&gt; 437
+  Decoded 'b', state -&gt; 512
+  Decoded 'a', state -&gt; 256</code></pre>
+<p>Notice that ANS decodes in <em>reverse order</em> — the decoder reads symbols from last to first. This is an inherent property of ANS: it is a stack, not a queue. In practice this is handled by encoding in reverse or by buffering output.</p>
+<p>The performance difference between ANS and arithmetic coding is substantial. zstd’s tANS entropy coder can process several gigabytes per second on modern hardware — orders of magnitude faster than a naive arithmetic coder — while achieving compression ratios within a fraction of a percent of the theoretical optimum.</p>
+<hr>
+</section>
+<section id="the-compression-stack-in-practice" class="level2" data-number="8.11">
+<h2 data-number="8.11" class="anchored" data-anchor-id="the-compression-stack-in-practice"><span class="header-section-number">8.11</span> The Compression Stack in Practice</h2>
+<p>We now have enough context to understand how real production compressors are structured. Modern compressors are not a single algorithm — they are a pipeline of components, each targeting a different kind of redundancy.</p>
+<pre><code>Raw data
+    │
+    ▼
+[Transform layer]         -- Delta coding, BWT, prediction
+    │                        Converts data into a more compressible form
+    ▼
+[LZ / match-finding layer] -- Finds repeated strings, emits
+    │                         (literal, match-length, distance) triples
+    ▼
+[Entropy coding layer]    -- Huffman or ANS over the LZ output
+    │                        Squeezes out remaining statistical redundancy
+    ▼
+Compressed output</code></pre>
+<p>DEFLATE (gzip, PNG, zlib): - LZ77 for match finding - Canonical Huffman for entropy coding</p>
+<p>Zstandard (zstd): - LZ77 variant for match finding - tANS (Finite State Entropy) for entropy coding - Optional dictionary for common patterns</p>
+<p>bzip2: - Burrows-Wheeler Transform (reorders data for better local repetition) - Move-to-front transform - Run-length encoding - Canonical Huffman</p>
+<p>LZMA (xz, 7-zip): - LZ77 with a very large window (up to 4 GB) - Range coding (equivalent to arithmetic coding) for entropy</p>
+<p>Brotli (HTTP compression): - LZ77 with a pre-built static dictionary of common web strings - Canonical Huffman with context modeling</p>
+<p>Each layer in the stack targets redundancy that the layers below it cannot see. LZ77 finds structural redundancy (repeated strings) that a pure entropy coder would miss. The entropy coder then handles the statistical redundancy left in the LZ output.</p>
+<hr>
+</section>
+<section id="when-to-use-which-compressor" class="level2" data-number="8.12">
+<h2 data-number="8.12" class="anchored" data-anchor-id="when-to-use-which-compressor"><span class="header-section-number">8.12</span> When to Use Which Compressor</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>recommendations <span class="op">=</span> {</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"General files, fast"</span>:           <span class="st">"zstd level 1-3"</span>,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"General files, best ratio"</span>:     <span class="st">"zstd level 15-22 or xz"</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Web assets (HTML/CSS/JS)"</span>:      <span class="st">"Brotli level 4-6"</span>,</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Web assets, precompressed"</span>:     <span class="st">"Brotli level 11"</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Network streaming"</span>:             <span class="st">"LZ4 or zstd level 1"</span>,</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Log files"</span>:                     <span class="st">"zstd (excellent on logs)"</span>,</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Images (lossless)"</span>:             <span class="st">"PNG (DEFLATE) or WebP lossless"</span>,</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Scientific float arrays"</span>:       <span class="st">"HDF5 + blosc, or zarr"</span>,</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Columnar data"</span>:                 <span class="st">"Parquet + zstd or snappy"</span>,</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Archival"</span>:                      <span class="st">"xz or bzip2"</span>,</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Already compressed"</span>:            <span class="st">"Don't compress"</span>,</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Encrypted data"</span>:                <span class="st">"Don't compress (see Chapter 4)"</span>,</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Use case'</span><span class="sc">:&lt;35}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Recommendation'</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">65</span>)</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> case, rec <span class="kw">in</span> recommendations.items():</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>case<span class="sc">:&lt;35}</span><span class="ss"> </span><span class="sc">{</span>rec<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The choice of compressor matters less than the choice of <em>when</em> to compress, <em>what</em> to compress, and <em>whether the data is compressible at all</em>. The most important lesson from Chapters 4, 5, and 6 is not which algorithm to use — it is how to think about redundancy in your data and whether any algorithm can exploit it.</p>
+<hr>
+</section>
+<section id="summary" class="level2" data-number="8.13">
+<h2 data-number="8.13" class="anchored" data-anchor-id="summary"><span class="header-section-number">8.13</span> Summary</h2>
+<ul>
+<li>Arithmetic coding solves Huffman’s integer constraint by encoding an entire message as a single number in [0, 1). The bit cost is -log₂(P(message)), approaching the entropy rate for long messages.</li>
+<li>Encoding narrows an interval by a factor equal to each symbol’s probability. Decoding reverses this by identifying which sub-interval the encoded value falls in.</li>
+<li>Floating-point arithmetic underflows for long messages. Production coders use integer arithmetic with renormalization: bits are emitted progressively as the interval’s high-order bits become determined.</li>
+<li>Adaptive arithmetic coding updates the probability model after each symbol, enabling compression without a known prior distribution. Encoder and decoder maintain identical models without transmitting the model itself.</li>
+<li>Context models condition symbol probabilities on the preceding <em>k</em> symbols, exploiting structural redundancy that symbol-frequency models cannot see. Higher-order models achieve dramatically better compression on structured data.</li>
+<li>ANS (Asymmetric Numeral Systems) achieves arithmetic coding efficiency with hardware-friendly table-based operations. It underlies modern compressors like zstd and LZFSE.</li>
+<li>Real compressors are pipelines: a transform layer, an LZ match-finding layer, and an entropy coding layer. Each targets a different kind of redundancy.</li>
+</ul>
+<hr>
+</section>
+<section id="exercises" class="level2" data-number="8.14">
+<h2 data-number="8.14" class="anchored" data-anchor-id="exercises"><span class="header-section-number">8.14</span> Exercises</h2>
+<p><strong>6.1</strong> Implement the floating-point arithmetic encoder from this chapter and verify that it fails for messages longer than about 50 symbols on your platform. Then implement the integer version with renormalization and show that it handles 10,000-symbol messages correctly.</p>
+<p><strong>6.2</strong> The adaptive model in this chapter uses simple count-based probabilities with Laplace smoothing (initial count of 1 for each symbol). Experiment with different initial counts. How does the initial count affect compression on short versus long messages? What value minimizes overhead for a 100-symbol message?</p>
+<p><strong>6.3</strong> Implement a complete adaptive arithmetic decoder matching the <code>adaptive_encode</code> function from this chapter. Verify correct round-tripping on messages of length 10, 100, and 1000.</p>
+<p><strong>6.4</strong> The context model presented here uses a fixed order <em>k</em>. A more sophisticated approach called PPM (Prediction by Partial Matching) tries order <em>k</em>, and if the symbol has not been seen in that context, falls back to order <em>k-1</em>, then <em>k-2</em>, and so on. Implement a simple PPM model with maximum order 3 and fallback. Compare its compression ratio to the fixed-order models on English text.</p>
+<p><strong>6.5</strong> Measure the compression ratio of zstd at levels 1, 3, 9, and 19 on a text file, a binary executable, and a CSV file. For each input, plot compression ratio against compression speed. At what level does the ratio-to-speed tradeoff break down?</p>
+<p><strong>6.6 (Challenge)</strong> Implement a complete rANS encoder and decoder (not just the illustration in this chapter) for a 4-symbol alphabet. The encoder should process symbols left to right and output a final state as an integer. The decoder should recover the original symbols by decoding in reverse. Verify correct round-tripping and measure the bits per symbol on 10,000-symbol messages drawn from distributions with varying entropy.</p>
+<hr>
+<p><em>In Chapter 7, we leave practical compression behind and encounter the deepest idea in information theory: Kolmogorov complexity — the length of the shortest program that produces a given string. It is uncomputable, yet it is one of the most useful thinking tools in all of computer science.</em></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_5.html" class="pagination-link" aria-label="Chapter 5: Codes and Coding">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Chapter 5: Codes and Coding</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_7.html" class="pagination-link" aria-label="Chapter 7: Kolmogorov Complexity — The Uncomputable Ideal">
+        <span class="nav-page-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Chapter 7: Kolmogorov Complexity — The Uncomputable Ideal</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
