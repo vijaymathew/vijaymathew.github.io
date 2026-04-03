@@ -197,6 +197,8 @@ $$
 
 The point is not that we have played a naming game. The point is that by allowing this extension, whole families of equations become solvable in a more complete and systematic way. Algebra stops hitting dead ends quite so often. Much later, mathematicians would discover an elegant geometric interpretation of complex numbers. You can picture *a + bi* as a point in a plane: *a* steps along the horizontal axis, *b* steps along a vertical axis. In that picture, multiplying by *i* is not nonsense at all. It is a quarter-turn — a rotation by ninety degrees.
 
+![A complex-plane diagram showing that multiplying by i rotates a point by ninety degrees. A point labeled z = a + bi is shown in the first quadrant, and its image under multiplication by i is shown at the rotated point -b + ai. Dashed projection lines mark the coordinates, a curved arrow marks the quarter-turn, and a side inset shows the special case that x squared plus 1 equals 0 has roots at i and -i on the imaginary axis.](images/complex_i_quarter_turn.svg){fig-alt="A complex-plane explanatory diagram. In the main panel, the real and imaginary axes cross at the origin, a point z = a + bi is shown with projections to the axes, and a second point iz = -b + ai is shown after a ninety-degree counterclockwise rotation. A curved arrow labeled multiply by i marks the quarter-turn, and the unit circle markers 1, i, -1, and -i appear around the origin. Two small inset panels summarize the special case x squared plus 1 equals 0 with roots at i and minus i, and the coordinate rule that (a, b) becomes (-b, a)." width="94%"}
+
 You can see it in the algebra:
 
 $$
@@ -366,6 +368,8 @@ Much later, this insight would be captured in one of the great theorems of mathe
 ## Why Circles Live Inside Growth
 
 If Euler's formula feels beautiful but mysterious, there is a more physical way to think about it. Exponential growth is what happens when the direction of change is always aligned with the quantity itself. If your money grows at interest, the more money you have, the more quickly it increases. The change points in the same direction as the existing quantity. But what if the change were always turned ninety degrees from the quantity instead of aligned with it? Then the quantity would not keep getting bigger in a straight line. It would keep turning. Its tip would trace a circle.
+
+![A two-panel diagram explaining why ordinary exponential growth stretches outward while complex exponential growth traces a circle. The left panel shows a vector and its rate of change pointing in the same direction, so the tip moves farther out along one line. The right panel shows a vector on the unit circle and a perpendicular tangent vector labeled as the quarter-turned rate of change, with cosine and sine shown as the horizontal and vertical projections.](images/euler_growth_circle.svg){fig-alt="A two-panel explanatory diagram for Euler's formula. The left panel shows ordinary exponential growth as a vector whose change points in the same direction, producing outward motion along a straight ray. The right panel shows complex exponential growth on the complex plane: a radius to a point on the unit circle, a tangent arrow at right angles labeled as the quarter-turned rate of change, and dashed projections labeling the coordinates as cosine and sine." width="94%"}
 
 That is what multiplication by *i* means in the geometric picture: a quarter-turn. So the equation
 

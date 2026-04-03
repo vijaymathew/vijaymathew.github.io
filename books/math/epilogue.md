@@ -16,7 +16,7 @@ What the history suggests is something less neat and more interesting.
 
 Mathematics is a human construction built in response to real structure.
 
-That phrase matters in all its parts. It is human construction because people made it: Sumerian accountants, Egyptian surveyors, Greek geometers, Indian astronomers, Arabic algebraists, Kerala scholars, Renaissance artillery theorists, European analysts, and logicians confronting paradox. None of the chapters in this story happened without bodies, languages, institutions, materials, mistakes, rivalries, inheritances, and needs. The symbols changed. The notation changed. The questions changed. The standards of proof changed. Parts of the subject that once looked obvious later turned out to be fragile, and parts that looked absurd later became indispensable. Mathematics has history because it is made by historical beings.
+That phrase matters in all its parts. It is human construction because people made it: Sumerian accountants, Egyptian surveyors, Greek geometers, Indian astronomers, Arabic algebraists, Renaissance artillery theorists, European analysts, and logicians confronting paradox. None of the chapters in this story happened without bodies, languages, institutions, materials, mistakes, rivalries, inheritances, and needs. The symbols changed. The notation changed. The questions changed. The standards of proof changed. Parts of the subject that once looked obvious later turned out to be fragile, and parts that looked absurd later became indispensable. Mathematics has history because it is made by historical beings.
 
 But it is made in response to real structure because the world keeps refusing to behave arbitrarily.
 
@@ -64,7 +64,7 @@ There is also a more unsettling one.
 
 Mathematics exists because once exact thought begins, it does not stay inside the problem that gave birth to it. It generalizes. It asks what else would follow if the same relation held elsewhere. It strips away matter and keeps form. It discovers that some structures recur across many domains and some do not belong to any domain yet known. It becomes, in other words, exploratory. It stops being only a toolkit and becomes a way of finding out what kinds of order are possible.
 
-That is why mathematics so often outruns experience. It is not merely recording the world. It is mapping the space of structures into which the world might fit. Most of that map may never be physically used. Some of it waits centuries before it is. No one in Babylon was thinking about Hilbert spaces. No one in Euclid's Alexandria was trying to prepare the language of relativity. No one in the Kerala School was building modern analysis in its later axiomatic form. Yet lines drawn for one reason keep becoming the necessary scaffolding for another. The history of mathematics is full of concepts arriving early for jobs not yet invented.
+That is why mathematics so often outruns experience. It is not merely recording the world. It is mapping the space of structures into which the world might fit. Most of that map may never be physically used. Some of it waits centuries before it is. No one in Babylon was thinking about Hilbert spaces. No one in Euclid's Alexandria was trying to prepare the language of relativity. Yet lines drawn for one reason keep becoming the necessary scaffolding for another. The history of mathematics is full of concepts arriving early for jobs not yet invented.
 
 This is perhaps the deepest answer the book can offer.
 

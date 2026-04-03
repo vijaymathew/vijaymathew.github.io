@@ -358,7 +358,7 @@ If one wanted to compress this whole book into a single long arc, one might say 
 
 It begins in Sumer, where mathematics exists because grain, wages, land, and debt exceed the capacity of memory and intuition.
 
-It passes through Egypt, Greece, India, Baghdad, Kerala, Renaissance Europe, Newtonian physics, probability, non-Euclidean geometry, symmetry, and infinity.
+It passes through Egypt, Greece, India, Baghdad, Renaissance Europe, Newtonian physics, probability, non-Euclidean geometry, symmetry, and infinity.
 
 At each stage the subject becomes more abstract, more powerful, and more surprising. Numbers expand. Space bends. Symmetry governs equations. Infinity stratifies. Geometry becomes physics.
 

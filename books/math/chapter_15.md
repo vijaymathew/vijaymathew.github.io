@@ -61,7 +61,7 @@ Physicists tried very hard to detect this effect. The most famous attempt was th
 
 It found nothing. No ether wind. No detectable directional difference. No sign that the earth was moving through a light-bearing medium at all.
 
-This was deeply unsettling. There were several possible responses. One could keep the ether and invent compensating hypotheses. One could distrust the experiment. Or one could consider something more radical:
+This was deeply unsettling. There were several possible responses. One could keep the ether and invent compensating hypotheses. Hendrik Lorentz in the Netherlands, building on an earlier suggestion by George FitzGerald, explored exactly that route: perhaps bodies moving through the ether physically contract in the direction of motion, just enough to hide the expected effect. One could distrust the experiment. Or one could consider something more radical:
 
 perhaps the old ideas of space, time, and velocity were wrong.
 
@@ -221,21 +221,39 @@ $$
 ds² = dx² + dy²
 $$
 
+This is just the Pythagorean theorem written in coordinate form. Move a little in the `x` direction and a little in the `y` direction, and the squared distance is the sum of the two squared displacements.
+
 In three-dimensional Euclidean space:
 
 $$
 ds² = dx² + dy² + dz²
 $$
 
-Minkowski's insight was that special relativity preserves not ordinary spatial distance, but the spacetime interval:
+The extra dimension simply adds another squared term. Rotations may change the separate values of `dx`, `dy`, and `dz`, but they leave this total unchanged. That unchanging quantity is what makes Euclidean geometry geometric rather than merely coordinate-based.
+
+![A Euclidean-geometry diagram showing that the distance formula is Pythagoras in coordinate form. A point reached by moving dx horizontally and dy vertically from the origin forms a right triangle, with the diagonal labeled ds. A side panel states that in the plane ds squared equals dx squared plus dy squared, and in three dimensions one adds dz squared.](images/euclidean_distance_pythagoras.svg){fig-alt="A Euclidean distance diagram. On a coordinate plane, a point P is reached from the origin by a horizontal step dx and a vertical step dy, forming a right triangle whose hypotenuse is labeled ds. Dashed guide lines project the point to the axes. A side panel summarizes the formulas ds squared equals dx squared plus dy squared and, in three dimensions, ds squared equals dx squared plus dy squared plus dz squared." width="94%"}
+
+Minkowski's insight was that special relativity also has an invariant quantity, but it is not ordinary spatial distance. It is the spacetime interval:
 
 $$
 s² = c²t² - x² - y² - z²
 $$
 
-Different inertial observers may disagree about `t`, `x`, `y`, and `z` separately. But they agree on this combined quantity.
+The minus signs are the crucial novelty. Time does not enter in the same way the spatial coordinates do. This is why spacetime is not just ordinary four-dimensional Euclidean space with an extra axis attached. Its geometry has a different structure.
+
+One way to feel this is to look at light itself. For a light pulse, distance travelled equals `ct`, so the interval is:
+
+$$
+s² = 0
+$$
+
+That remains true for every inertial observer. Different observers may disagree about the separate values of `t`, `x`, `y`, and `z`, but they agree on the interval built from them. In Euclidean geometry, all rotated coordinate systems agree on distance. In relativity, all inertial frames agree on the spacetime interval.
+
+![A spacetime diagram showing the invariant interval in special relativity. The horizontal axis is x and the vertical axis is ct. Two diagonal lines at 45 degrees mark the paths of light, where the interval is zero. A timelike event above the origin lies on a hyperbola labeled constant s squared greater than zero, and dashed projections mark its x and ct coordinates. A side note explains that different inertial observers may assign different coordinates while preserving the same interval c squared t squared minus x squared.](images/minkowski_interval_hyperbola.svg){fig-alt="A special-relativity spacetime diagram. The horizontal axis is x and the vertical axis is ct. Two diagonal orange lines through the origin mark the worldlines of light and are labeled s squared equals zero. A point P lies above and to the right of the origin, with dashed projection lines to the axes marking x and ct. A blue hyperbola through P is labeled constant interval, showing that the quantity c squared t squared minus x squared stays fixed even when coordinates change between inertial frames." width="94%"}
 
 That is the geometric heart of special relativity.
+
+Put less formally: if everyone must measure the same speed of light, then space and time cannot stay separate. Change the observer, and both the distance and the time coordinate must adjust together. Lorentz transformations are the exact rules for that adjustment.
 
 Lorentz transformations, which replace the old Galilean transformations, are exactly those changes of coordinates that preserve the spacetime interval. Just as rotations in Euclidean geometry preserve:
 
@@ -311,7 +329,7 @@ The geometry of spacetime had become observable. That is a remarkable sentence. 
 
 ---
 
-## Why This Chapter Matters
+## When Geometry Became Physics
 
 The significance of relativity is not only scientific. It is historical in the specific sense this book has been tracing from the start.
 

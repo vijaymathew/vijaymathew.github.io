@@ -401,7 +401,7 @@ $$
 Then you know:
 
 $$
-y = 3 	ext{ or } y = -3
+y = 3 \text{ or } y = -3
 $$
 
 Before choosing the square root, there is a twofold symmetry: the equation does not distinguish `3` from `-3`. Extracting the square root breaks that symmetry by making a choice.
@@ -488,7 +488,7 @@ This is another recurring pattern in the history of mathematics. A local failure
 
 ---
 
-## Why This Chapter Matters
+## When Algebra Learned Symmetry
 
 At first glance the equation problem may look narrower than calculus or geometry. Motion concerns the whole physical world. Space concerns the whole visible world. But the mathematics born from polynomial equations may be even more conceptually important, because it taught mathematicians to stop asking only what objects are and to ask what transformations preserve their essential relations.
 
