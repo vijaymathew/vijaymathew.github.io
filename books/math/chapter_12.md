@@ -31,6 +31,8 @@ These are not modern axioms in the strictest logical sense, but they are clear. 
 
 The fifth postulate is different. In Euclid's own form, it says that if a line falling across two other lines makes the interior angles on one side add up to less than two right angles, then the two lines, if extended far enough, will meet on that side.
 
+![A two-panel diagram clarifying Euclid's fifth postulate. The left panel shows Euclid's original form: a transversal crosses two lines, the two interior angles on one side are highlighted, and because they add to less than 180 degrees the two lines meet when extended on that side. The right panel shows the later equivalent school form: through a point above a line, exactly one parallel can be drawn, while other lines through the point eventually intersect the given line.](images/euclid_fifth_postulate.svg){fig-alt="A geometry diagram in two panels. In the left panel, a blue transversal cuts across two gray lines that meet on the right. Two same-side interior angles are marked alpha and beta, with a note that alpha plus beta is less than 180 degrees, explaining why the lines meet on that side. In the right panel, a point P sits above a horizontal line l. One green horizontal line through P is the unique parallel, while other dashed lines through P slope down and would meet l if extended." width="94%"}
+
 It is easier to grasp in the later equivalent form that most students now learn: through a point not on a given line, there is exactly one line parallel to the given line. This is the parallel postulate.
 
 The difference in tone matters. The first four postulates feel constructive. Do this. Draw that. Extend this line. The fifth feels global. It talks about what happens arbitrarily far away. It is not about a local construction you can perform in front of you. It is about the large-scale structure of the whole plane.
@@ -109,6 +111,10 @@ The first corresponds to ordinary Euclidean geometry. Saccheri's strategy was to
 
 He succeeded with the obtuse hypothesis, which corresponds roughly to a geometry in which straight lines bend toward one another so strongly that parallels do not exist. But when he turned to the acute hypothesis, something awkward happened. Instead of contradiction after contradiction, he found a coherent and highly structured alternative world. In that world, the angle sum of a triangle is less than 180°. In that world, lines that begin diverging can diverge faster than Euclid would permit. In that world, the farther you go from a line, the more room there is.
 
+![A three-panel schematic of Saccheri's three hypotheses. Each panel starts with the same base and equal sides erected at right angles. In the obtuse case the top angles are greater than 90 degrees and the sides lean inward. In the middle Euclidean case all four angles are right angles and the shape is a rectangle. In the acute case the top angles are less than 90 degrees and the sides flare outward, suggesting more room as you move away from the base line.](images/saccheri_hypotheses.svg){fig-alt="A three-panel geometry diagram comparing Saccheri's obtuse, right-angle, and acute hypotheses. The left panel shows a quadrilateral with right angles at the base and obtuse top angles, with the sides leaning inward. The middle panel shows the Euclidean rectangle case with four right angles. The right panel shows a quadrilateral with right angles at the base and acute top angles, with the sides leaning outward and the top edge wider than the base." width="94%"}
+
+The acute top angles were not yet the new geometry itself. They were the doorway to a chain of consequences that fit together without contradiction.
+
 Saccheri hated these conclusions. They seemed to him repugnant to the nature of the straight line. He eventually declared the acute hypothesis false, but not because he had genuinely derived a contradiction from it. He rejected it because it offended Euclidean intuition. His book is one of the great near-misses in intellectual history: a man sets out to destroy a new geometry and almost discovers it instead.
 
 What Saccheri had really shown was that the fifth postulate could not be treated casually. Remove it, and geometry does not collapse at once into nonsense. It begins to change character.
@@ -130,6 +136,8 @@ That fact is so familiar that it does not feel like information. It feels like t
 On a sphere, for example, triangles can have angle sum greater than 180°.
 
 Take the North Pole and two points on the equator separated by ninety degrees of longitude. Connect the pole to each equatorial point by a meridian, and connect the two equatorial points by the equator. You now have a spherical triangle. The angle at each equatorial point is 90°, because meridians meet the equator at right angles. The angle at the North Pole can also be 90° if the longitudes differ by ninety degrees. So the total angle sum is:
+
+![A sphere diagram showing a spherical triangle with vertices at the North Pole and two equatorial points 90 degrees apart in longitude. Two meridians run from the pole to the equator, and the equator arc joins the equatorial points. Right-angle markers appear at all three vertices, making the total angle sum 270 degrees.](images/spherical_triangle_270.svg){fig-alt="A spherical geometry diagram. A sphere is shown with the equator drawn across it and a spherical triangle shaded on the surface. The three vertices are the North Pole and two points on the equator. Two meridian arcs connect the pole to the equator, and the equator arc forms the base. Each vertex is marked as a 90-degree angle, with a side box noting that the total is 90 plus 90 plus 90 equals 270 degrees." width="94%"}
 
 ```
 90° + 90° + 90° = 270°

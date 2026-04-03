@@ -387,7 +387,7 @@ so a 2-element set has a power set with 4 elements.
 Cantor showed that this phenomenon persists infinitely. The proof has the same flavour as the diagonal argument. Suppose you try to assign to each element `a` of a set `A` a subset `f(a)` of `A`, hoping to list all subsets this way. Now form a new subset:
 
 $$
-S = {a in A : a 	ext{ is not in } f(a)}
+S = \{a \in A : a \notin f(a)\}
 $$
 
 Then `S` cannot be equal to any `f(a)`. If it were equal to `f(k)` for some `k`, ask whether `k` is in `S`. If it is, then by definition it is not in `f(k) = S`. If it is not, then by definition it is in `f(k) = S`. Contradiction. So no attempted listing of all subsets can succeed.

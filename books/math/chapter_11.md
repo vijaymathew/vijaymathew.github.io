@@ -126,17 +126,40 @@ Each interior number is the sum of the two above it. What do these numbers count
 1   4   6   4   1
 ```
 
-tells you how many ways there are to choose 0, 1, 2, 3, or 4 successes in 4 independent yes-or-no trials.
+tells you how many sequences have 0, 1, 2, 3, or 4 successes.
 
-If you flip a fair coin four times, there is:
+Take a concrete case: four coin flips. There are:
 
 ```text
-1 way to get 0 heads
-4 ways to get 1 head
-6 ways to get 2 heads
-4 ways to get 3 heads
-1 way to get 4 heads
+2 × 2 × 2 × 2 = 16
 ```
+
+equally likely sequences in all. Now group those 16 sequences by how many heads they contain. The row:
+
+```text
+1   4   6   4   1
+```
+
+means:
+
+```text
+0 heads: 1 sequence
+TTTT
+
+1 head: 4 sequences
+HTTT, THTT, TTHT, TTTH
+
+2 heads: 6 sequences
+HHTT, HTHT, HTTH, THHT, THTH, TTHH
+
+3 heads: 4 sequences
+HHHT, HHTH, HTHH, THHH
+
+4 heads: 1 sequence
+HHHH
+```
+
+So the middle 6 is not mysterious. It is simply the number of ways to choose which 2 of the 4 positions are heads.
 
 This matters because probability is often hidden inside counting. If all sequences of four flips are equally likely, then the chance of getting exactly two heads is:
 
@@ -307,7 +330,7 @@ P(king | face card) = 1/3
 
 The vertical bar means "given that."
 
-This sounds modest, but it is a profound shift. Probability is no longer just about bare symmetry. It becomes a calculus of information. As soon as you know something, the space of possibilities contracts, and the numbers must change with it. This is how real reasoning usually works. A physician does not ask for the probability of a disease in the population at large, but the probability of the disease given a set of symptoms. A judge does not ask for the probability that witnesses are mistaken in general, but the probability of error given the light, distance, stress, and delay. A navigator does not ask whether a storm is possible, but how likely it is given the barometer and the sky.
+This sounds modest, but it is a profound shift. Probability is no longer just about bare symmetry. It becomes a calculus of information. As soon as you know something, the space of possibilities contracts, and the numbers must change with it. This is how real reasoning usually works. A physician does not ask for the probability of a disease in the population at large, but the probability of the disease given a set of symptoms. A judge does not ask how often witnesses are wrong in the abstract, but how likely this witness is to be wrong under these specific conditions: poor light, long distance, stress, and delayed recall. A navigator does not ask whether a storm is possible, but how likely it is given the barometer and the sky.
 
 To handle such problems, mathematicians needed a general multiplication rule:
 
@@ -478,6 +501,8 @@ turns out to be the value that balances the errors most naturally in the symmetr
 Gauss went further. He showed that if small independent errors accumulate in the ordinary way, then the pattern of errors tends to form a characteristic shape: many small errors, fewer larger ones, very few huge ones.
 
 The intuition is worth pausing over. An observed error is often the sum of many tiny disturbances: a slight tremor of the hand, a faint blur in the lens, a ripple in the air, a tiny misalignment in the instrument, a rounding error in the recorded figure. Small total errors are common because there are many ways for these disturbances to partially cancel. Large total errors are rare because they require many independent disturbances to push in the same direction at once.
+
+![A two-panel diagram explaining why measurement errors form a bell curve. The left panel shows many tiny disturbances pushing in different directions, so their combined effect produces only a small net error. The right panel shows the resulting bell-shaped normal distribution, with most observations clustered near zero error and only a few in the far tails.](images/error_bell_curve.svg){fig-alt="A two-panel figure for the normal distribution. In the left panel, small labeled disturbances such as hand tremor, lens blur, air ripple, misalignment, rounding, and timing slip point in different directions and mostly cancel, leaving a small net error near zero on an error axis. In the right panel, a bell-shaped curve rises high near zero error and falls away on both sides, with annotations marking small errors as common and large errors as rare." width="94%"}
 
 Plotted on a graph, it looks like a bell. This is the normal distribution. In modern notation its density is proportional to:
 
