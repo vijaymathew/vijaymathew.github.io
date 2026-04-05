@@ -685,6 +685,12 @@ Entropy of order status: 1.189 bits</code></pre>
    0.8    0.7219
    0.9    0.4690
    1.0    0.0000</code></pre>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/binary-entropy-curve.svg" class="img-fluid figure-img" style="width:92.0%"></p>
+<figcaption>The binary entropy function visualized. The curve is symmetric around <code>p = 0.5</code>, reaches its maximum at exactly 1 bit, and collapses to zero at the extremes where the outcome is certain.</figcaption>
+</figure>
+</div>
 <p>This curve — the binary entropy function — has a beautiful shape. It is symmetric around <em>p</em> = 0.5, where it peaks at exactly 1 bit. It falls to zero at both extremes, where the outcome is certain. The curve is concave: entropy always increases as you move the distribution toward uniformity, and always decreases as you push it toward certainty.</p>
 <p>This shape encodes several fundamental truths:</p>
 <p><strong>Certainty kills entropy.</strong> The moment one outcome becomes inevitable, entropy collapses to zero. This is true for any distribution, not just binary ones. A system where you always know the answer has nothing to tell you.</p>
@@ -694,43 +700,50 @@ Entropy of order status: 1.189 bits</code></pre>
 </section>
 <section id="maximum-entropy-the-uniform-distribution" class="level2" data-number="4.4">
 <h2 data-number="4.4" class="anchored" data-anchor-id="maximum-entropy-the-uniform-distribution"><span class="header-section-number">4.4</span> Maximum Entropy: The Uniform Distribution</h2>
-<p>Let’s prove to ourselves that the uniform distribution maximizes entropy for a fixed number of outcomes.</p>
+<p>Let’s build intuition for the fact that the uniform distribution maximizes entropy for a fixed number of outcomes.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> itertools <span class="im">import</span> product</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> entropy(probs):</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs <span class="cf">if</span> p <span class="op">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> max_possible_entropy(n):</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Entropy of a uniform distribution over n outcomes."""</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> math.log2(n)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare various distributions over 4 outcomes</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>distributions <span class="op">=</span> {</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Uniform"</span>:       [<span class="fl">0.25</span>, <span class="fl">0.25</span>, <span class="fl">0.25</span>, <span class="fl">0.25</span>],</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Slightly skewed"</span>: [<span class="fl">0.40</span>, <span class="fl">0.30</span>, <span class="fl">0.20</span>, <span class="fl">0.10</span>],</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Very skewed"</span>:   [<span class="fl">0.70</span>, <span class="fl">0.20</span>, <span class="fl">0.07</span>, <span class="fl">0.03</span>],</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Almost certain"</span>:[<span class="fl">0.97</span>, <span class="fl">0.01</span>, <span class="fl">0.01</span>, <span class="fl">0.01</span>],</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Certain"</span>:       [<span class="fl">1.00</span>, <span class="fl">0.00</span>, <span class="fl">0.00</span>, <span class="fl">0.00</span>],</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Distribution'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Entropy'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'</span><span class="sc">% o</span><span class="st">f max'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>max_H <span class="op">=</span> max_possible_entropy(<span class="dv">4</span>)</span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, dist <span class="kw">in</span> distributions.items():</span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    H <span class="op">=</span> entropy(dist)</span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span>H<span class="sc">:&gt;10.4f}</span><span class="ss"> </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>H<span class="op">/</span>max_H<span class="sc">:&gt;9.1f}</span><span class="ss">%"</span>)</span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Maximum possible (log₂4): </span><span class="sc">{</span>max_H<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs <span class="cf">if</span> p <span class="op">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">max</span>(<span class="fl">0.0</span>, H)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> max_possible_entropy(n):</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Entropy of a uniform distribution over n outcomes."""</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> math.log2(n)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare various distributions over 4 outcomes</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>distributions <span class="op">=</span> {</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Uniform"</span>:       [<span class="fl">0.25</span>, <span class="fl">0.25</span>, <span class="fl">0.25</span>, <span class="fl">0.25</span>],</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Slightly skewed"</span>: [<span class="fl">0.40</span>, <span class="fl">0.30</span>, <span class="fl">0.20</span>, <span class="fl">0.10</span>],</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Very skewed"</span>:   [<span class="fl">0.70</span>, <span class="fl">0.20</span>, <span class="fl">0.07</span>, <span class="fl">0.03</span>],</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Almost certain"</span>:[<span class="fl">0.97</span>, <span class="fl">0.01</span>, <span class="fl">0.01</span>, <span class="fl">0.01</span>],</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Certain"</span>:       [<span class="fl">1.00</span>, <span class="fl">0.00</span>, <span class="fl">0.00</span>, <span class="fl">0.00</span>],</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Distribution'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Entropy'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'</span><span class="sc">% o</span><span class="st">f max'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">42</span>)</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>max_H <span class="op">=</span> max_possible_entropy(<span class="dv">4</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, dist <span class="kw">in</span> distributions.items():</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    H <span class="op">=</span> entropy(dist)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span>H<span class="sc">:&gt;10.4f}</span><span class="ss"> </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>H<span class="op">/</span>max_H<span class="sc">:&gt;9.1f}</span><span class="ss">%"</span>)</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Maximum possible (log₂4): </span><span class="sc">{</span>max_H<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Distribution         Entropy   % of max
 ------------------------------------------
 Uniform               2.0000     100.0%
 Slightly skewed       1.8464      92.3%
-Very skewed           1.3323      66.6%
-Almost certain        0.2193      11.0%
+Very skewed           1.2449      62.2%
+Almost certain        0.2419      12.1%
 Certain               0.0000       0.0%
 
 Maximum possible (log₂4): 2.0000 bits</code></pre>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/maximum-entropy-uniform-distribution.svg" class="img-fluid figure-img" style="width:96.0%"></p>
+<figcaption>A visual comparison of five distributions over four outcomes. As probability mass concentrates on fewer outcomes, entropy drops; the uniform distribution achieves the maximum possible entropy.</figcaption>
+</figure>
+</div>
 <p>The uniform distribution achieves 100% of the theoretical maximum. Any deviation from uniformity — any concentration of probability mass onto certain outcomes — reduces entropy. This is not a coincidence or a special property of this example. It is a theorem, and it holds for any finite distribution.</p>
 <p>This has an important practical implication: <strong>if you want to maximize the information you can transmit per symbol, use a uniform distribution over your symbol set.</strong> This is why good compression algorithms produce output that looks uniformly random — they have redistributed the probability mass as uniformly as possible over the output symbols.</p>
 <hr>
@@ -784,19 +797,19 @@ Maximum possible (log₂4): 2.0000 bits</code></pre>
 <span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Average codeword length: </span><span class="sc">{</span>avg_length<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span>
 <span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy of source:       </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span>
 <span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:                </span><span class="sc">{</span>avg_length <span class="op">-</span> H<span class="sc">:.4f}</span><span class="ss"> bits (</span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>(avg_length<span class="op">-</span>H)<span class="op">/</span>H<span class="sc">:.1f}</span><span class="ss">%)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Output:</p>
+<p>Output (one valid code assignment):</p>
 <pre><code>Status       Prob       Code   Length   p × length
 ------------------------------------------------------
-completed    0.70          0        1       0.7000
-pending      0.20         10        2       0.4000
-failed       0.08        110        3       0.2400
-refunded     0.02        111        3       0.0600
+completed    0.70          1        1       0.7000
+pending      0.20         01        2       0.4000
+failed       0.08        001        3       0.2400
+refunded     0.02        000        3       0.0600
 
 Average codeword length: 1.4000 bits
-Entropy of source:       1.1893 bits
-Overhead:                0.2107 bits (17.7%)</code></pre>
-<p>The Huffman code achieves 1.4 bits per symbol. The entropy of the source is 1.189 bits. The gap — 0.21 bits, or about 18% overhead — is the inefficiency of using discrete codewords. (Arithmetic coding, which we cover in Chapter 6, can close this gap almost entirely.)</p>
-<p>Notice what the Huffman code did: it assigned the <em>shortest</em> codeword (<code>0</code>, one bit) to the <em>most common</em> symbol (<code>completed</code>, 70%), and the <em>longest</em> codewords (three bits) to the rarest symbols. This is exactly the right strategy — it minimizes the expected codeword length by aligning code length with information content.</p>
+Entropy of source:       1.2290 bits
+Overhead:                0.1710 bits (13.9%)</code></pre>
+<p>The Huffman code achieves 1.4 bits per symbol. The entropy of the source is 1.229 bits. The gap — 0.171 bits, or about 14% overhead — is the inefficiency of using discrete codewords. (Arithmetic coding, which we cover in Chapter 6, can close this gap almost entirely.) The exact bit patterns in a Huffman code are not unique: different implementations may swap 0 and 1 or break ties differently, while preserving the same code lengths and average cost.</p>
+<p>Notice what the Huffman code did: it assigned a <em>one-bit</em> codeword to the <em>most common</em> symbol (<code>completed</code>, 70%), and <em>three-bit</em> codewords to the rarest symbols. This is exactly the right strategy — it minimizes the expected codeword length by aligning code length with information content.</p>
 <p>The key insight: <strong>optimal code lengths are equal to the information content of each symbol.</strong> The optimal codeword for <code>completed</code> would be -log₂(0.70) ≈ 0.515 bits. Since we cannot use fractional bits in a simple prefix code, we round up to 1. The overhead comes from this rounding. Arithmetic coding sidesteps this by encoding many symbols at once, amortizing the rounding error.</p>
 <hr>
 </section>
@@ -868,12 +881,12 @@ Overhead:                0.2107 bits (17.7%)</code></pre>
 <span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"H(status | region):      </span><span class="sc">{</span>H_status_given_region<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span>
 <span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Information gain:        </span><span class="sc">{</span>H_status <span class="op">-</span> H_status_given_region<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>H(status):               1.1893 bits
-H(status | domestic):    1.0887 bits
-H(status | intl):        1.3145 bits
-H(status | region):      1.1837 bits
-Information gain:        0.0056 bits</code></pre>
-<p>Knowing the region reduces our uncertainty about status — but only slightly, by 0.0056 bits. This tells us that region is a weak predictor of order status in this dataset. In Chapter 12, when we look at mutual information, we will turn this into a principled feature selection technique.</p>
+<pre><code>H(status):               1.2290 bits
+H(status | domestic):    1.0850 bits
+H(status | intl):        1.3814 bits
+H(status | region):      1.2154 bits
+Information gain:        0.0135 bits</code></pre>
+<p>Knowing the region reduces our uncertainty about status — but only slightly, by 0.0135 bits. This still tells us that region is a weak predictor of order status in this dataset: the conditional entropy is only a little lower than the unconditional entropy. In Chapter 12, when we look at mutual information, we will turn this intuition into a principled feature selection technique.</p>
 <p>One property of conditional entropy is worth stating explicitly, because it is easy to get backwards:</p>
 <p><strong>Conditioning never increases entropy:</strong></p>
 <pre><code>H(Y|X) ≤ H(Y)</code></pre>
@@ -911,11 +924,11 @@ Information gain:        0.0056 bits</code></pre>
 <span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Cross-entropy H(p, q_stale): </span><span class="sc">{</span>H_cross_bad<span class="sc">:.4f}</span><span class="ss"> bits  (stale model)"</span>)</span>
 <span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead from stale model:   </span><span class="sc">{</span>H_cross_bad <span class="op">-</span> H_true<span class="sc">:.4f}</span><span class="ss"> bits per symbol"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>True entropy H(p):           1.1893 bits
-Cross-entropy H(p, p):       1.1893 bits  (perfect model)
-Cross-entropy H(p, q_stale): 1.3887 bits  (stale model)
-Overhead from stale model:   0.1994 bits per symbol</code></pre>
-<p>When your model matches reality, cross-entropy equals true entropy — you achieve optimal encoding. When your model is wrong, you pay a penalty: 0.20 extra bits per symbol in this case. For a system processing millions of orders, that overhead adds up.</p>
+<pre><code>True entropy H(p):           1.2290 bits
+Cross-entropy H(p, p):       1.2290 bits  (perfect model)
+Cross-entropy H(p, q_stale): 1.3091 bits  (stale model)
+Overhead from stale model:   0.0802 bits per symbol</code></pre>
+<p>When your model matches reality, cross-entropy equals true entropy — you achieve optimal encoding. When your model is wrong, you pay a penalty: 0.080 bits per symbol in this case. That may sound small, but over millions of events it becomes a real inefficiency, and in machine learning even modest per-example losses matter because they accumulate over huge datasets.</p>
 <p>Cross-entropy has a second life as a loss function in machine learning. When you train a neural network to predict class probabilities, minimizing cross-entropy loss is exactly equivalent to minimizing the mismatch between the model’s predicted distribution and the true distribution. We will explore this fully in Chapter 15. For now, notice that the cross-entropy loss has a natural lower bound — the true entropy — below which no model can go, no matter how well trained.</p>
 <hr>
 </section>
@@ -933,8 +946,8 @@ Overhead from stale model:   0.1994 bits per symbol</code></pre>
 <span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify: KL = cross-entropy - entropy</span></span>
 <span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Cross-entropy - entropy: </span><span class="sc">{</span>H_cross_bad <span class="op">-</span> H_true<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>KL(p_true || q_stale): 0.1994 bits
-Cross-entropy - entropy: 0.1994 bits</code></pre>
+<pre><code>KL(p_true || q_stale): 0.0802 bits
+Cross-entropy - entropy: 0.0802 bits</code></pre>
 <p>Some important properties of KL divergence:</p>
 <p><strong>KL divergence is always non-negative.</strong> You can never do better than the true distribution. KL(p || q) ≥ 0, with equality if and only if p = q everywhere. This is a theorem — Gibbs’ inequality — and it is one of the most useful facts in information theory.</p>
 <p><strong>KL divergence is not symmetric.</strong> KL(p || q) ≠ KL(q || p) in general. This surprises many people. It means KL divergence is not a true distance metric in the mathematical sense. It measures the cost of approximating <em>p</em> with <em>q</em>, which is a directional relationship.</p>
@@ -1027,7 +1040,7 @@ Cross-entropy - entropy: 0.1994 bits</code></pre>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute the character-level entropy of a text.</span></span>
 <span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co">    order=0: independent character probabilities (zeroth-order model)</span></span>
 <span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    text <span class="op">=</span> text.lower()</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    text <span class="op">=</span> <span class="st">''</span>.join(ch <span class="cf">for</span> ch <span class="kw">in</span> text.lower() <span class="cf">if</span> <span class="st">'a'</span> <span class="op">&lt;=</span> ch <span class="op">&lt;=</span> <span class="st">'z'</span>)</span>
 <span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> order <span class="op">==</span> <span class="dv">0</span>:</span>
 <span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>        <span class="im">from</span> collections <span class="im">import</span> Counter</span>
 <span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>        counts <span class="op">=</span> Counter(text)</span>
@@ -1046,11 +1059,11 @@ Cross-entropy - entropy: 0.1994 bits</code></pre>
 <span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Maximum possible:     </span><span class="sc">{</span>math<span class="sc">.</span>log2(<span class="dv">26</span>)<span class="sc">:.3f}</span><span class="ss"> bits/character (26 letters)"</span>)</span>
 <span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Redundancy:           </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>(<span class="dv">1</span> <span class="op">-</span> H0<span class="op">/</span>math.log2(<span class="dv">26</span>))<span class="sc">:.1f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Zeroth-order entropy: 4.073 bits/character
+<pre><code>Zeroth-order entropy: 3.961 bits/character
 Maximum possible:     4.700 bits/character (26 letters)
-Redundancy:           13.3%</code></pre>
-<p>But this zeroth-order model treats each character independently — it does not capture the fact that after a <code>q</code>, you almost always see a <code>u</code>. A first-order model that conditions on the previous character would show much higher redundancy.</p>
-<p>Shannon himself estimated the true entropy of English at around 1.0–1.5 bits per character — far below even our naive measurement. This means English is roughly 70% redundant: you could theoretically compress it to 30% of its original size. This is why language compresses so well in practice, and it is why autocomplete works so predictably.</p>
+Redundancy:           15.7%</code></pre>
+<p>By filtering down to letters before counting frequencies, this comparison now uses the same 26-symbol alphabet in both the code and the theoretical maximum. But this zeroth-order model still treats each character independently — it does not capture the fact that after a <code>q</code>, you almost always see a <code>u</code>. A first-order model that conditions on the previous character would show much higher redundancy.</p>
+<p>Shannon himself estimated the true entropy of English at around 1.0–1.5 bits per character — far below even our naive measurement. So even when this crude sample gives only about 15.8% redundancy, we already know the real redundancy of English is much larger once sequential structure is modeled properly. That is why language compresses so well in practice, and it is why autocomplete works so predictably.</p>
 <hr>
 </section>
 <section id="what-entropy-cannot-tell-you" class="level2" data-number="4.11">
