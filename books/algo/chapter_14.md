@@ -1,1030 +1,1185 @@
-# Chapter 13: The Suffix Array
+# Chapter 14: The Editor's Data Structure — Ropes and Piece Tables
 
 ---
 
-Consider the human genome. Three billion base pairs, each one of four characters: A, C, G, T. A string of length three billion. Biologists need to answer questions like: where does this gene sequence appear? What is the longest repeated subsequence? Which regions of two different genomes are most similar?
+Open a text editor. Type a character. The character appears instantly, no matter how large the file. Delete a word in the middle of a ten-megabyte document. The deletion is instant. Undo it. Also instant. Select a million characters and replace them with three. Instant.
 
-These are string matching problems at a scale that makes the algorithms of previous chapters inadequate. KMP and Horspool find one pattern in one text in O(n + m) time — fast, but they must be run once per query. For a genome database with millions of queries, you need preprocessing: build an index of the text once, then answer each query in time proportional to the query length, not the text length.
+None of this is obvious. A text editor is, at its core, a program that maintains a mutable sequence of characters and supports efficient insertion, deletion, and retrieval at arbitrary positions. These requirements seem simple until you think carefully about the data structures available to represent that sequence.
 
-The obvious index is a hash map from every k-length substring to its positions. But k must be fixed, and you lose the ability to answer queries of other lengths. What you want is an index over all substrings simultaneously — a data structure that can answer "where does this length-5 pattern appear?" and "where does this length-500 pattern appear?" with equal efficiency.
+An array of characters is the naive choice. Random access is O(1) — reading any character requires one memory operation. But insertion and deletion at an arbitrary position require shifting every character after the insertion point. Inserting a single character at the beginning of a ten-megabyte document requires moving ten million characters. Editing large files would be visibly slow.
 
-The suffix tree does this. It is a compressed trie of all suffixes of the text — all n substrings starting at each position and extending to the end. A suffix tree can answer any substring query in O(m) time, where m is the query length, regardless of text length. It is one of the most powerful data structures in string processing.
+A linked list solves the shifting problem — insertion and deletion are O(1) once you have found the position. But finding the position requires walking the list from the beginning, which is O(n). And linked lists destroy cache performance — each character is a separately allocated node, so reading a sequence of characters causes one cache miss per character, making display and search catastrophically slow.
 
-But suffix trees are notoriously difficult to implement correctly. Ukkonen's linear-time construction algorithm, the standard approach, involves implicit states, suffix links, and extension rules that require days of careful study to understand and weeks of debugging to implement correctly. In practice, most systems that need suffix tree capabilities use suffix arrays instead.
+Neither works. And yet every text editor you have ever used is fast. Something else is happening.
 
-A suffix array achieves most of what a suffix tree can do with a fraction of the implementation complexity. It uses less memory, has better cache performance, and can be constructed efficiently. Combined with the LCP array — a companion structure that records the length of the longest common prefix between adjacent suffixes — it matches the suffix tree's capabilities for almost all practical purposes.
-
-This chapter builds a suffix array and LCP array, then uses them to solve four canonical problems: substring search, longest repeated substring, longest common substring of two texts, and counting distinct substrings. Along the way, it explains exactly how suffix arrays relate to suffix trees and why the simpler structure suffices for nearly every real use case.
+This chapter examines two data structures that actually work for text editing: ropes and piece tables. They represent genuinely different approaches to the same problem. Understanding both — and the specific engineering constraints that led VS Code to choose piece tables over ropes — is a lesson in how abstract data structure theory meets practical system design.
 
 ---
 
-## 13.1 Suffixes and the Suffix Array
+## 14.1 The Requirements
 
-A **suffix** of a string T of length n is any substring T[i..n-1] — a substring that extends to the end of T. There are exactly n suffixes (one starting at each position 0 through n-1), plus the empty suffix at position n.
+Before choosing a structure, state the requirements precisely. A text editor needs:
 
-For T = "banana":
-```
-Position 0: "banana"
-Position 1: "anana"
-Position 2: "nana"
-Position 3: "ana"
-Position 4: "na"
-Position 5: "a"
-```
+**Insertion:** insert a string of length k at position p in a document of length n. Cost should not be O(n).
 
-The **suffix array** SA is the array of starting positions of all suffixes, sorted in lexicographic order of the suffixes themselves.
+**Deletion:** delete characters from position p to position p + k. Cost should not be O(n).
 
-Sorting the suffixes of "banana" lexicographically:
-```
-"a"       → position 5
-"ana"     → position 3
-"anana"   → position 1
-"banana"  → position 0
-"na"      → position 4
-"nana"    → position 2
-```
+**Access:** read the character at position p. Should be efficient.
 
-So SA = [5, 3, 1, 0, 4, 2].
+**Iteration:** traverse a range of characters sequentially (for display, search, export). Should be cache-friendly.
 
-The suffix array does not store the suffixes themselves — they would take O(n²) space. It stores only the starting positions, which take O(n) space. Any suffix SA[i] can be read from the original text T starting at position SA[i].
+**Undo/redo:** revert the document to a previous state. The data structure should support this without copying the entire document on every edit.
 
-This is the key economy of suffix arrays: O(n) space to represent an index over all O(n²) substrings of T.
+**Line queries:** given a position in the character sequence, find the line number. Given a line number, find the start position. Editors think in lines, not just characters.
+
+**Large files:** the structure should handle files of hundreds of megabytes without memory blowup.
+
+No single classical data structure satisfies all of these simultaneously. Arrays fail on insertion and deletion. Linked lists fail on access and iteration. Hash tables do not maintain order. Balanced trees give O(log n) for everything but poor constant factors and bad cache behaviour for iteration.
+
+The practical solutions — ropes and piece tables — both trade some worst-case guarantees for structures that are fast in the patterns that text editing actually exhibits.
 
 ---
 
-## 13.2 Building the Suffix Array: O(n log n)
+## 14.2 Ropes: A Binary Tree of String Fragments
 
-The naive approach — sort all n suffixes using a comparison sort — is O(n² log n): sorting n items, each comparison taking O(n) time in the worst case (two suffixes might share a long common prefix before differing). This is too slow for the genome problem.
-
-We build the suffix array in O(n log n) using the prefix doubling algorithm (due to Manber and Myers, 1990). The idea: sort suffixes by their first 2^k characters for k = 0, 1, 2, ... doubling k each time until the ranking is complete.
-
-At each stage, we have a ranking of suffixes by their first 2^k characters. To sort by first 2^(k+1) characters, observe that a suffix starting at position i has first 2^(k+1) characters equal to: its first 2^k characters (already ranked), followed by the first 2^k characters of the suffix starting at position i + 2^k (also already ranked). Sorting pairs of existing ranks gives the new ranking — and this can be done with a stable sort in O(n log n) per stage, for O(n log² n) total. With radix sort for the inner sort, it becomes O(n log n).
+A rope is a binary tree where each leaf holds a short string fragment (a piece of the document), and each internal node stores the total length of all characters in its left subtree. The document is read by an in-order traversal of the leaves. Random access navigates the tree using the stored weights.
 
 ```
-class Suffix_Array_Builder
+     (23)
+    /    \
+  (11)   "Hello, world"  ← leaf: 12 chars
+  /  \
+"Hello"  ", "            ← leaves: 5 and 2 chars
+```
+
+The number in each internal node is the weight — the total character count in the left subtree. To find character at position p: if p < weight, go left; otherwise go right with p adjusted by weight.
+
+Ropes were described by Boehm, Atkinson, and Plass in their 1995 paper "Ropes: An Alternative to Strings." The name is a rope made of smaller pieces twisted together — a physical metaphor for the structure.
+
+### Node Representation
+
+```
+class Rope_Node
   create
-    make(text: String) do
-      this.text := text
-      this.n := text.length
+    leaf(content: String) do
+      this.is_leaf := true
+      this.content := content
+      this.weight := content.length
+      this.left := nil
+      this.right := nil
+    end
+
+    internal(weight: Integer,
+             left: Rope_Node,
+             right: Rope_Node) do
+      this.is_leaf := false
+      this.content := ""
+      this.weight := weight
+      this.left := left
+      this.right := right
     end
 
   feature
-    text: String
-    n: Integer
+    is_leaf: Boolean
+    content: String      -- non-empty only for leaves
+    weight: Integer      -- for leaf: content.length
+                         -- for internal: total chars in left subtree
+    left: ?Rope_Node
+    right: ?Rope_Node
 
-    build(): Array[Integer] do
-      if n = 0 then
-        result := []
-        return
+    total_length(): Integer do
+      if is_leaf then
+        result := weight
+      else
+        let right_len: Integer :=
+          when right /= nil right.total_length() else 0 end
+        result := weight + right_len
       end
-      if n = 1 then
-        result := [0]
-        return
-      end
-
-      -- Initial ranking: by first character
-      let sa: Array[Integer] := Array.filled(n, 0)
-      let rank: Array[Integer] := Array.filled(n, 0)
-      let tmp: Array[Integer] := Array.filled(n, 0)
-
-      -- Initialise SA as identity, rank by character code
-      from
-        let i: Integer := 0
-      until
-        i >= n
-      do
-        sa.set(i, i)
-        rank.set(i, text.char_at(i).to_integer())
-        i := i + 1
-      end
-
-      -- Sort by rank (character)
-      sa := sort_by_rank(sa, rank)
-      assign_ranks(sa, rank, tmp, 0)
-
-      -- Prefix doubling
-      let gap: Integer := 1
-      from until gap >= n do
-        -- Sort by (rank[i], rank[i + gap])
-        -- rank[i + gap] = rank at position i + gap,
-        -- or -1 if i + gap >= n
-        sa := sort_by_pair(sa, rank, gap)
-        assign_ranks(sa, rank, tmp, gap)
-
-        -- If all ranks are unique we are done
-        if rank.get(sa.get(n - 1)) = n - 1 then
-          gap := n  -- force exit
-        else
-          gap := gap * 2
-        end
-      end
-
-      result := sa
-    end
-
-    -- Sort SA by single rank array
-    sort_by_rank(sa: Array[Integer],
-                  rank: Array[Integer]): Array[Integer] do
-      -- Use counting sort for O(n) performance
-      result := counting_sort_by_key(sa, rank, rank.max_value() + 1)
-    end
-
-    -- Sort SA by pair (rank[i], rank[i+gap])
-    sort_by_pair(sa: Array[Integer],
-                  rank: Array[Integer],
-                  gap: Integer): Array[Integer] do
-      -- Two-pass radix sort: sort by second key, then stably by first
-      let max_rank: Integer := rank.max_value() + 2  -- +1 for sentinel
-
-      -- Key function for second element of pair
-      let second_key: Array[Integer] := Array.filled(n, 0)
-      from
-        let i: Integer := 0
-      until
-        i >= n
-      do
-        if sa.get(i) + gap < n then
-          second_key.set(i, rank.get(sa.get(i) + gap) + 1)
-        else
-          second_key.set(i, 0)  -- sentinel: positions beyond n sort first
-        end
-        i := i + 1
-      end
-
-      -- First sort by second key (less significant)
-      let sorted_by_second: Array[Integer] :=
-        counting_sort_by_index(sa, second_key, max_rank)
-
-      -- Then stable sort by first key (more significant)
-      let first_key: Array[Integer] := Array.filled(n, 0)
-      from
-        let i: Integer := 0
-      until
-        i >= n
-      do
-        first_key.set(i, rank.get(sorted_by_second.get(i)))
-        i := i + 1
-      end
-
-      result := counting_sort_by_index(sorted_by_second, first_key, max_rank)
-    end
-
-    -- After sorting, assign new ranks based on current SA order
-    assign_ranks(sa: Array[Integer],
-                  rank: Array[Integer],
-                  tmp: Array[Integer],
-                  gap: Integer) do
-      tmp.set(sa.get(0), 0)
-
-      from
-        let i: Integer := 1
-      until
-        i >= n
-      do
-        let prev: Integer := sa.get(i - 1)
-        let curr: Integer := sa.get(i)
-
-        let prev_first: Integer := rank.get(prev)
-        let curr_first: Integer := rank.get(curr)
-        let prev_second: Integer :=
-          when prev + gap < n rank.get(prev + gap) else -1 end
-        let curr_second: Integer :=
-          when curr + gap < n rank.get(curr + gap) else -1 end
-
-        if curr_first = prev_first and curr_second = prev_second then
-          tmp.set(curr, tmp.get(prev))
-        else
-          tmp.set(curr, tmp.get(prev) + 1)
-        end
-
-        i := i + 1
-      end
-
-      -- Copy tmp back to rank
-      from
-        let i: Integer := 0
-      until
-        i >= n
-      do
-        rank.set(i, tmp.get(i))
-        i := i + 1
-      end
-    end
-
-    -- Counting sort: sort values in `arr` by their key in `keys`
-    -- where keys are in range [0, max_key)
-    counting_sort_by_key(arr: Array[Integer],
-                          keys: Array[Integer],
-                          max_key: Integer): Array[Integer] do
-      let count: Array[Integer] := Array.filled(max_key, 0)
-
-      across arr as val do
-        count.set(keys.get(val), count.get(keys.get(val)) + 1)
-      end
-
-      -- Prefix sums
-      from
-        let i: Integer := 1
-      until
-        i < max_key
-      do
-        count.set(i, count.get(i) + count.get(i - 1))
-        i := i + 1
-      end
-
-      -- Place in sorted order (right to left for stability)
-      let output: Array[Integer] := Array.filled(arr.length, 0)
-      from
-        let i: Integer := arr.length - 1
-      until
-        i >= 0
-      do
-        let val: Integer := arr.get(i)
-        let key: Integer := keys.get(val)
-        count.set(key, count.get(key) - 1)
-        output.set(count.get(key), val)
-        i := i - 1
-      end
-
-      result := output
-    end
-
-    -- Counting sort: sort indices in `arr` by key `keys[i]` for index i
-    counting_sort_by_index(arr: Array[Integer],
-                            keys: Array[Integer],
-                            max_key: Integer): Array[Integer] do
-      let count: Array[Integer] := Array.filled(max_key, 0)
-
-      across arr as idx do
-        count.set(keys.get(idx), count.get(keys.get(idx)) + 1)
-      end
-
-      from
-        let i: Integer := 1
-      until
-        i < max_key
-      do
-        count.set(i, count.get(i) + count.get(i - 1))
-        i := i + 1
-      end
-
-      let output: Array[Integer] := Array.filled(arr.length, 0)
-      from
-        let i: Integer := arr.length - 1
-      until
-        i >= 0
-      do
-        let idx: Integer := arr.get(i)
-        let key: Integer := keys.get(idx)
-        count.set(key, count.get(key) - 1)
-        output.set(count.get(key), idx)
-        i := i - 1
-      end
-
-      result := output
-    end
-end
-```
-
-Let us trace the construction for "banana" to verify.
-
-Initial ranks (character codes for simplicity: a=1, b=2, n=3):
-```
-Position: 0(b=2), 1(a=1), 2(n=3), 3(a=1), 4(n=3), 5(a=1)
-```
-
-After sorting by rank and assigning: SA=[1,3,5,0,2,4], rank=[2,1,3,1,3,1] normalised to [3,0,4,0,4,0] (after ranking SA order).
-
-Wait — let us follow the algorithm more carefully with normalised ranks. Initial sort by first character gives:
-
-Sorted order: positions 1,3,5 (all 'a'), then 0 ('b'), then 2,4 (both 'n').
-SA = [1,3,5,0,2,4].
-Assigned ranks: 'a' positions get 0, 'b' gets 1, 'n' gets 2.
-rank = [1,0,2,0,2,0].
-
-Gap = 1. Pairs (rank[i], rank[i+1]):
-```
-Position 0: (1, 0)  → "ba"
-Position 1: (0, 2)  → "an"
-Position 2: (2, 0)  → "na"
-Position 3: (0, 2)  → "an"
-Position 4: (2, 0)  → "na"
-Position 5: (0, -1) → "a$"
-```
-
-Sort by pairs: (0,-1)<(0,2)<(0,2)<(1,0)<(2,0)<(2,0)
-SA = [5, 1, 3, 0, 2, 4].
-New ranks: position 5→0, positions 1,3→1 (tied), position 0→2, positions 2,4→3 (tied).
-rank = [2,1,3,1,3,0].
-
-Gap = 2. Pairs (rank[i], rank[i+2]):
-```
-Position 0: (2, 3)  → "bana"
-Position 1: (1, 1)  → "anan" — (rank[1]=1, rank[3]=1)
-Position 2: (3, 0)  → "nana" — (rank[2]=3, rank[4]=3... wait rank[4]=3)
-Position 3: (1, 0)  → "ana$" — (rank[3]=1, rank[5]=0)
-Position 4: (3, -1) → "na$$"
-Position 5: (0, -1) → "a$$$"
-```
-
-Sort: (0,-1)<(1,0)<(1,1)<(2,3)<(3,-1)<(3,0) — wait that doesn't match. Let me recheck rank[4]. After gap=1: rank=[2,1,3,1,3,0].
-
-Pairs for gap=2:
-```
-Position 0: (rank[0], rank[2]) = (2, 3)
-Position 1: (rank[1], rank[3]) = (1, 1)
-Position 2: (rank[2], rank[4]) = (3, 3)
-Position 3: (rank[3], rank[5]) = (1, 0)
-Position 4: (rank[4], -1)     = (3, -1)
-Position 5: (rank[5], -1)     = (0, -1)
-```
-
-Sort: (0,-1)<(1,0)<(1,1)<(2,3)<(3,-1)<(3,3)
-SA = [5, 3, 1, 0, 4, 2].
-
-All ranks now unique — done. SA = [5, 3, 1, 0, 4, 2]. This matches our manually computed answer.
-
----
-
-## 13.3 The LCP Array
-
-The **LCP array** (Longest Common Prefix array) stores, for each adjacent pair in the suffix array, the length of their longest common prefix.
-
-LCP[0] is undefined (no predecessor). LCP[i] = length of the longest common prefix between the suffix at SA[i] and the suffix at SA[i-1].
-
-For "banana" with SA = [5, 3, 1, 0, 4, 2]:
-```
-SA[0]=5: "a"
-SA[1]=3: "ana"      LCP[1] = lcp("a", "ana") = 1
-SA[2]=1: "anana"    LCP[2] = lcp("ana", "anana") = 3
-SA[3]=0: "banana"   LCP[3] = lcp("anana", "banana") = 0
-SA[4]=4: "na"       LCP[4] = lcp("banana", "na") = 0
-SA[5]=2: "nana"     LCP[5] = lcp("na", "nana") = 2
-```
-
-LCP = [-, 1, 3, 0, 0, 2].
-
-The naive LCP computation is O(n²): compute lcp for each adjacent pair directly. Kasai's algorithm computes all LCP values in O(n) using a key observation: if we know LCP[rank[i]] = k (the LCP between the suffix at position i and its predecessor in SA), then LCP[rank[i+1]] ≥ k - 1.
-
-The intuition: suffix at position i+1 is suffix at position i with the first character removed. Its predecessor in the suffix array might have its first character removed too. The LCP can drop by at most 1.
-
-```
-class LCP_Builder
-  create
-    make(text: String, sa: Array[Integer]) do
-      this.text := text
-      this.sa := sa
-      this.n := text.length
-    end
-
-  feature
-    text: String
-    sa: Array[Integer]
-    n: Integer
-
-    build(): Array[Integer] do
-      let lcp: Array[Integer] := Array.filled(n, 0)
-
-      -- Build inverse SA (rank array): rank[i] = position of suffix i in SA
-      let rank: Array[Integer] := Array.filled(n, 0)
-      from
-        let i: Integer := 0
-      until
-        i >= n
-      do
-        rank.set(sa.get(i), i)
-        i := i + 1
-      end
-
-      let k: Integer := 0  -- current LCP value
-
-      from
-        let i: Integer := 0
-      until
-        i >= n
-      do
-        -- If this suffix is first in SA, LCP is 0
-        if rank.get(i) = 0 then
-          k := 0
-          i := i + 1
-        else
-          -- Predecessor in SA
-          let j: Integer := sa.get(rank.get(i) - 1)
-
-          -- Extend LCP from previous value (k is at least k-1 from prev step)
-          from until i + k >= n or
-                     j + k >= n or
-                     text.char_at(i + k) /= text.char_at(j + k) do
-            k := k + 1
-          end
-
-          lcp.set(rank.get(i), k)
-
-          -- Kasai's key: next suffix has LCP at least k-1
-          if k > 0 then
-            k := k - 1
-          end
-
-          i := i + 1
-        end
-      end
-
-      result := lcp
-    end
-end
-```
-
-Kasai's algorithm runs in O(n) because k is incremented at most n times total across all iterations (it can only reach n), and decremented at most once per iteration. The total number of character comparisons is therefore O(n).
-
----
-
-## 13.4 The Suffix Array Structure
-
-Combining construction and providing a clean interface:
-
-```
-class Suffix_Array
-  create
-    build(text: String) do
-      this.text := text
-      this.n := text.length
-
-      let builder: Suffix_Array_Builder :=
-        create Suffix_Array_Builder.make(text)
-      this.sa := builder.build()
-
-      let lcp_builder: LCP_Builder :=
-        create LCP_Builder.make(text, this.sa)
-      this.lcp := lcp_builder.build()
-
-      -- Build rank (inverse SA) for O(1) rank lookup
-      this.rank := Array.filled(this.n, 0)
-      from
-        let i: Integer := 0
-      until
-        i >= this.n
-      do
-        this.rank.set(this.sa.get(i), i)
-        i := i + 1
-      end
-    end
-
-  feature
-    text: String
-    n: Integer
-    sa: Array[Integer]
-    lcp: Array[Integer]
-    rank: Array[Integer]
-
-    -- Get the suffix starting at position i
-    suffix(i: Integer): String do
-      result := text.substring(i, n)
-    end
-
-    -- Get the suffix at SA rank r
-    suffix_at_rank(r: Integer): String do
-      result := suffix(sa.get(r))
-    end
-
-    -- Get the LCP between suffixes at ranks r1 and r2
-    -- Uses range minimum query (naive O(n) here; RMQ in O(1) possible)
-    lcp_between(r1: Integer, r2: Integer): Integer do
-      if r1 = r2 then
-        result := n - sa.get(r1)
-        return
-      end
-
-      let lo: Integer := r1.min(r2) + 1
-      let hi: Integer := r1.max(r2)
-      let min_lcp: Integer := Integer.max_value
-
-      from
-        let i: Integer := lo
-      until
-        i <= hi
-      do
-        if lcp.get(i) < min_lcp then
-          min_lcp := lcp.get(i)
-        end
-        i := i + 1
-      end
-
-      result := min_lcp
     end
 
   invariant
-    consistent_lengths: sa.length = n and lcp.length = n and rank.length = n
-    valid_sa: -- every position 0..n-1 appears exactly once in sa
-      true  -- checked by construction
+    non_negative_weight: weight >= 0
+    leaf_weight_consistent: is_leaf implies weight = content.length
+    internal_has_children: not is_leaf implies left /= nil
 end
 ```
 
-The `lcp_between` function computes the LCP between any two suffixes (not just adjacent ones in SA) as the minimum LCP value in the range between their SA ranks. This follows from the structure of the LCP array: the LCP of two suffixes at ranks r1 and r2 is the minimum LCP value in lcp[r1+1..r2] (assuming r1 < r2). A range minimum query (RMQ) structure on the LCP array would answer this in O(1) after O(n) preprocessing, making many operations on the suffix array O(1) per query. For our purposes, the O(n) naive minimum suffices.
-
----
-
-## 13.5 Pattern Search
-
-The suffix array supports pattern matching in O(m log n): binary search for the range of SA entries whose corresponding suffixes start with the pattern.
-
-The key property: the SA is sorted, so all suffixes starting with pattern P are contiguous in the SA. Binary search for the leftmost and rightmost suffix that starts with P gives the range.
+### The Rope
 
 ```
-class Suffix_Array_Search
+class Rope
   create
-    make(sa: Suffix_Array) do
-      this.sa := sa
+    empty() do
+      this.root := nil
+      this.length := 0
+    end
+
+    from_string(s: String) do
+      this.length := s.length
+      if s.length = 0 then
+        this.root := nil
+      elseif s.length <= MAX_LEAF_SIZE then
+        this.root := create Rope_Node.leaf(s)
+      else
+        -- Split long strings into balanced tree
+        this.root := build_from_string(s, 0, s.length)
+      end
     end
 
   feature
-    sa: Suffix_Array
+    root: ?Rope_Node
+    length: Integer
+    MAX_LEAF_SIZE: Integer := 64  -- maximum characters per leaf
 
-    -- Find all occurrences of pattern in text
-    -- Returns sorted array of starting positions
-    find_all(pattern: String): Array[Integer] do
-      let m: Integer := pattern.length
-      if m = 0 or m > sa.n then
-        result := []
-        return
-      end
-
-      let lo: Integer := lower_bound(pattern)
-      let hi: Integer := upper_bound(pattern)
-
-      if lo > hi then
-        result := []
-        return
-      end
-
-      -- Collect all positions in range [lo, hi]
-      let positions: Array[Integer] := []
-      from
-        let i: Integer := lo
-      until
-        i <= hi
+    -- Character access: O(log n)
+    char_at(pos: Integer): Char
+      require
+        valid_pos: pos >= 0 and pos < length
       do
-        positions.add(sa.sa.get(i))
-        i := i + 1
+        result := node_char_at(root, pos)
       end
 
-      -- Sort positions for predictable output order
-      result := sort_integers(positions)
+    node_char_at(node: ?Rope_Node, pos: Integer): Char do
+      if node = nil then
+        result := '\0'  -- should not happen if pos is valid
+        return
+      end
+
+      if node.is_leaf then
+        result := node.content.char_at(pos)
+        return
+      end
+
+      if pos < node.weight then
+        result := node_char_at(node.left, pos)
+      else
+        result := node_char_at(node.right, pos - node.weight)
+      end
     end
 
-    -- Count occurrences without materialising all positions
-    count(pattern: String): Integer do
-      let lo: Integer := lower_bound(pattern)
-      let hi: Integer := upper_bound(pattern)
-      if lo > hi then
+    -- Substring extraction: O(k + log n)
+    substring(start: Integer, end_pos: Integer): String
+      require
+        valid_range: start >= 0 and end_pos <= length and start <= end_pos
+      do
+        let chars: Array[Char] := []
+        collect_chars(root, start, end_pos, 0, chars)
+        result := String.from_chars(chars)
+      end
+
+    collect_chars(node: ?Rope_Node,
+                  start: Integer,
+                  end_pos: Integer,
+                  offset: Integer,
+                  chars: Array[Char]) do
+      if node = nil then return end
+
+      if node.is_leaf then
+        -- Collect characters in [start, end_pos) from this leaf
+        let leaf_start: Integer := offset
+        let leaf_end: Integer := offset + node.weight
+
+        let lo: Integer := start.max(leaf_start) - leaf_start
+        let hi: Integer := end_pos.min(leaf_end) - leaf_start
+
+        from
+          let i: Integer := lo
+        until
+          i < hi
+        do
+          chars.add(node.content.char_at(i))
+          i := i + 1
+        end
+        return
+      end
+
+      -- Internal node: recurse left then right
+      let left_end: Integer := offset + node.weight
+      if start < left_end then
+        collect_chars(node.left, start, end_pos, offset, chars)
+      end
+      if end_pos > left_end then
+        collect_chars(node.right, start, end_pos, left_end, chars)
+      end
+    end
+
+    -- Concatenate two ropes: O(1) amortised
+    concat(other: Rope): Rope do
+      if length = 0 then
+        result := other
+        return
+      end
+      if other.length = 0 then
+        result := self
+        return
+      end
+
+      let new_rope: Rope := create Rope.empty()
+      new_rope.root := create Rope_Node.internal(
+        length, root, other.root)
+      new_rope.length := length + other.length
+      result := new_rope
+    end
+
+    -- Split at position pos: O(log n)
+    -- Returns [left_rope, right_rope]
+    split(pos: Integer): Array[Rope]
+      require
+        valid_pos: pos >= 0 and pos <= length
+      do
+        if pos = 0 then
+          result := [create Rope.empty(), self]
+          return
+        end
+        if pos = length then
+          result := [self, create Rope.empty()]
+          return
+        end
+
+        let left_node: ?Rope_Node := nil
+        let right_node: ?Rope_Node := nil
+        let split_result: Array[?Rope_Node] :=
+          split_node(root, pos)
+        left_node := split_result.get(0)
+        right_node := split_result.get(1)
+
+        let left_rope: Rope := create Rope.empty()
+        left_rope.root := left_node
+        left_rope.length := pos
+
+        let right_rope: Rope := create Rope.empty()
+        right_rope.root := right_node
+        right_rope.length := length - pos
+
+        result := [left_rope, right_rope]
+      end
+
+    split_node(node: ?Rope_Node,
+               pos: Integer): Array[?Rope_Node] do
+      if node = nil then
+        result := [nil, nil]
+        return
+      end
+
+      if node.is_leaf then
+        -- Split the leaf string
+        let left_str: String := node.content.substring(0, pos)
+        let right_str: String := node.content.substring(pos, node.weight)
+        let left_node: ?Rope_Node :=
+          when left_str.length > 0
+          create Rope_Node.leaf(left_str) else nil end
+        let right_node: ?Rope_Node :=
+          when right_str.length > 0
+          create Rope_Node.leaf(right_str) else nil end
+        result := [left_node, right_node]
+        return
+      end
+
+      if pos < node.weight then
+        -- Split falls in left subtree
+        let sub: Array[?Rope_Node] := split_node(node.left, pos)
+        let new_right: ?Rope_Node :=
+          when sub.get(1) /= nil
+          create Rope_Node.internal(
+            sub.get(1).total_length(),
+            sub.get(1),
+            node.right)
+          else node.right end
+        result := [sub.get(0), new_right]
+
+      elseif pos = node.weight then
+        -- Split falls exactly at boundary
+        result := [node.left, node.right]
+
+      else
+        -- Split falls in right subtree
+        let sub: Array[?Rope_Node] :=
+          split_node(node.right, pos - node.weight)
+        let new_left: ?Rope_Node :=
+          when sub.get(0) /= nil
+          create Rope_Node.internal(
+            node.weight,
+            node.left,
+            sub.get(0))
+          else node.left end
+        result := [new_left, sub.get(1)]
+      end
+    end
+
+    -- Insert string at position: O(log n + k)
+    insert(pos: Integer, s: String): Rope
+      require
+        valid_pos: pos >= 0 and pos <= length
+        non_empty: s.length > 0
+      ensure
+        length_increased: result.length = length + s.length
+      do
+        let parts: Array[Rope] := split(pos)
+        let left: Rope := parts.get(0)
+        let right: Rope := parts.get(1)
+        let middle: Rope := create Rope.from_string(s)
+
+        result := left.concat(middle).concat(right)
+        result := result.rebalance_if_needed()
+      end
+
+    -- Delete range [start, end_pos): O(log n)
+    delete(start: Integer, end_pos: Integer): Rope
+      require
+        valid_range: start >= 0 and end_pos <= length and start <= end_pos
+      ensure
+        length_decreased: result.length = length - (end_pos - start)
+      do
+        if start = end_pos then
+          result := self
+          return
+        end
+
+        let left_parts: Array[Rope] := split(start)
+        let right_parts: Array[Rope] := left_parts.get(1).split(end_pos - start)
+
+        result := left_parts.get(0).concat(right_parts.get(1))
+      end
+
+    -- Rebalance: rebuild as balanced tree if too deep
+    rebalance_if_needed(): Rope do
+      let depth: Integer := tree_depth(root)
+      let max_depth: Integer := (length.to_real().log2() * 2.0 + 2.0).ceiling().to_integer()
+
+      if depth > max_depth then
+        result := create Rope.from_string(self.to_string())
+      else
+        result := self
+      end
+    end
+
+    tree_depth(node: ?Rope_Node): Integer do
+      if node = nil or node.is_leaf then
         result := 0
       else
-        result := hi - lo + 1
+        result := 1 + tree_depth(node.left).max(tree_depth(node.right))
       end
     end
 
-    -- Does the pattern appear at all?
-    contains(pattern: String): Boolean do
-      result := count(pattern) > 0
+    build_from_string(s: String,
+                       start: Integer,
+                       end_pos: Integer): Rope_Node do
+      let len: Integer := end_pos - start
+      if len <= MAX_LEAF_SIZE then
+        result := create Rope_Node.leaf(s.substring(start, end_pos))
+      else
+        let mid: Integer := start + len / 2
+        let left: Rope_Node := build_from_string(s, start, mid)
+        let right: Rope_Node := build_from_string(s, mid, end_pos)
+        result := create Rope_Node.internal(mid - start, left, right)
+      end
     end
 
-    -- Find leftmost SA rank where suffix starts with pattern
-    lower_bound(pattern: String): Integer do
-      let m: Integer := pattern.length
-      let lo: Integer := 0
-      let hi: Integer := sa.n - 1
-
-      from until lo > hi do
-        let mid: Integer := (lo + hi) / 2
-        let suffix_start: Integer := sa.sa.get(mid)
-        let cmp: Integer := compare_prefix(suffix_start, pattern, m)
-
-        if cmp < 0 then
-          lo := mid + 1
-        else
-          hi := mid - 1
-        end
-      end
-
-      result := lo
+    -- Convert entire rope to string: O(n)
+    to_string(): String do
+      let chars: Array[Char] := []
+      collect_all(root, chars)
+      result := String.from_chars(chars)
     end
 
-    -- Find rightmost SA rank where suffix starts with pattern
-    upper_bound(pattern: String): Integer do
-      let m: Integer := pattern.length
-      let lo: Integer := 0
-      let hi: Integer := sa.n - 1
-
-      from until lo > hi do
-        let mid: Integer := (lo + hi) / 2
-        let suffix_start: Integer := sa.sa.get(mid)
-        let cmp: Integer := compare_prefix(suffix_start, pattern, m)
-
-        if cmp > 0 then
-          hi := mid - 1
-        else
-          lo := mid + 1
+    collect_all(node: ?Rope_Node, chars: Array[Char]) do
+      if node = nil then return end
+      if node.is_leaf then
+        across node.content.chars() as c do
+          chars.add(c)
         end
+        return
       end
-
-      result := hi
-    end
-
-    -- Compare text[pos..pos+m-1] with pattern
-    -- Returns negative if text prefix < pattern,
-    --         0 if equal (text starts with pattern),
-    --         positive if text prefix > pattern
-    compare_prefix(pos: Integer,
-                   pattern: String,
-                   m: Integer): Integer do
-      from
-        let i: Integer := 0
-      until
-        i >= m
-      do
-        if pos + i >= sa.n then
-          result := -1  -- text shorter than pattern here
-          return
-        end
-        let tc: Integer := sa.text.char_at(pos + i).to_integer()
-        let pc: Integer := pattern.char_at(i).to_integer()
-        if tc /= pc then
-          result := tc - pc
-          return
-        end
-        i := i + 1
-      end
-      result := 0  -- text starts with pattern
+      collect_all(node.left, chars)
+      collect_all(node.right, chars)
     end
 
   invariant
-    sa_exists: sa /= nil
+    non_negative_length: length >= 0
+    empty_has_no_root: length = 0 implies root = nil
 end
 ```
 
-Time complexity: O(m log n) for each query — O(log n) binary search steps, each taking O(m) for the prefix comparison. This compares favourably to KMP's O(n + m) — for short patterns and long texts queried many times, the O(m log n) per-query cost with no per-query preprocessing is better.
+### Undo With Ropes
 
-With an LCP-accelerated binary search (using the LCP between the current mid and the boundaries to skip already-matched characters), this can be reduced to O(m + log n). We implement the simpler version here.
-
----
-
-## 13.6 Longest Repeated Substring
-
-The longest repeated substring (LRS) of a string is the longest substring that appears at least twice. In the suffix array, this is the maximum value in the LCP array.
-
-The reasoning: LCP[i] is the length of the longest common prefix between suffixes SA[i] and SA[i-1]. A common prefix of length k means both suffixes start with the same k-character string, which appears at positions SA[i] and SA[i-1] in the text. The LRS is therefore the suffix pair with the maximum LCP value.
+The rope's most interesting property for text editing is persistent undo. Because concat and split create new internal nodes rather than modifying existing ones, old versions of the rope remain valid as long as something references them. Keeping a stack of previous roots is all that is needed for undo:
 
 ```
-function longest_repeated_substring(sa: Suffix_Array): String do
-  if sa.n = 0 then
-    result := ""
-    return
-  end
-
-  let max_lcp: Integer := 0
-  let max_pos: Integer := 1  -- SA rank of the suffix with max LCP
-
-  from
-    let i: Integer := 1
-  until
-    i >= sa.n
-  do
-    if sa.lcp.get(i) > max_lcp then
-      max_lcp := sa.lcp.get(i)
-      max_pos := i
-    end
-    i := i + 1
-  end
-
-  if max_lcp = 0 then
-    result := ""  -- no repeated substring
-    return
-  end
-
-  -- The LRS starts at sa.sa[max_pos] and has length max_lcp
-  result := sa.text.substring(sa.sa.get(max_pos),
-                               sa.sa.get(max_pos) + max_lcp)
-end
-```
-
-For "banana": LCP = [-, 1, 3, 0, 0, 2]. Maximum is LCP[2] = 3. SA[2] = 1. So LRS = text[1..3] = "ana". Correct — "ana" appears at positions 1 and 3.
-
-This runs in O(n) after O(n log n) preprocessing. Compare to the O(n log n) expected rolling hash solution from Chapter 8, which is also O(n log n) but has a higher constant and requires careful hash collision handling. The suffix array solution is deterministic and collision-free.
-
----
-
-## 13.7 All Repeated Substrings of a Given Length
-
-A more general query: find all substrings that appear at least k times. These correspond to ranges in the SA where at least k consecutive LCP values are all ≥ L (the target length), and there are at least k entries in that range.
-
-```
-function repeated_substrings(sa: Suffix_Array,
-                              min_length: Integer,
-                              min_count: Integer): Array[String] do
-  let found: Set[String] := #{}
-  let n: Integer := sa.n
-
-  from
-    let i: Integer := 1
-  until
-    i >= n
-  do
-    -- Find maximal range where all LCP values >= min_length
-    if sa.lcp.get(i) >= min_length then
-      let range_start: Integer := i - 1
-      let range_end: Integer := i
-
-      from until range_end + 1 >= n or
-                 sa.lcp.get(range_end + 1) < min_length do
-        range_end := range_end + 1
-      end
-
-      -- Range [range_start..range_end] has range_end - range_start + 1 suffixes
-      let count: Integer := range_end - range_start + 1
-      if count >= min_count then
-        -- All share a prefix of length min_lcp_in_range
-        let min_lcp: Integer := min_in_range(sa.lcp, range_start + 1, range_end)
-        let substr: String := sa.text.substring(
-          sa.sa.get(range_start),
-          sa.sa.get(range_start) + min_lcp.min(min_length).max(min_length))
-        -- Add all lengths from min_length to min_lcp
-        from
-          let len: Integer := min_length
-        until
-          len > min_lcp
-        do
-          found := found.union(#{sa.text.substring(
-            sa.sa.get(range_start),
-            sa.sa.get(range_start) + len)})
-          len := len + 1
-        end
-      end
-
-      i := range_end + 1
-    else
-      i := i + 1
-    end
-  end
-
-  result := found.to_array()
-end
-
-function min_in_range(arr: Array[Integer],
-                       lo: Integer,
-                       hi: Integer): Integer do
-  let min_val: Integer := Integer.max_value
-  from
-    let i: Integer := lo
-  until
-    i <= hi
-  do
-    if arr.get(i) < min_val then
-      min_val := arr.get(i)
-    end
-    i := i + 1
-  end
-  result := min_val
-end
-```
-
----
-
-## 13.8 Longest Common Substring of Two Texts
-
-Given two strings A and B, find the longest substring that appears in both.
-
-This is a different problem from LCS (longest common subsequence) — we want a contiguous match, not a subsequence.
-
-The suffix array approach: concatenate A and B with a separator character that appears in neither (often '$' or a null byte), build the suffix array of the concatenated string, then find the longest LCP between a suffix from A and a suffix from B.
-
-```
-function longest_common_substring(a: String, b: String): String do
-  let n_a: Integer := a.length
-  let n_b: Integer := b.length
-  let separator: String := "$"  -- must not appear in a or b
-
-  -- Concatenate with separator
-  let combined: String := a + separator + b
-  let n: Integer := combined.length
-
-  -- Build suffix array of combined string
-  let sa: Suffix_Array := create Suffix_Array.build(combined)
-
-  -- Find maximum LCP between a suffix from A and a suffix from B
-  let best_len: Integer := 0
-  let best_pos: Integer := 0
-
-  from
-    let i: Integer := 1
-  until
-    i >= n
-  do
-    let pos_prev: Integer := sa.sa.get(i - 1)
-    let pos_curr: Integer := sa.sa.get(i)
-
-    -- One suffix must be from A (pos < n_a) and
-    -- the other from B (pos > n_a) -- the separator is at n_a
-    let from_a: Boolean := (pos_prev < n_a) /= (pos_curr < n_a)
-
-    if from_a and sa.lcp.get(i) > best_len then
-      -- Make sure the LCP does not cross the separator
-      let lcp_len: Integer := sa.lcp.get(i)
-      let a_pos: Integer := when pos_prev < n_a pos_prev else pos_curr end
-      if a_pos + lcp_len <= n_a then
-        best_len := lcp_len
-        best_pos := a_pos
-      end
-    end
-
-    i := i + 1
-  end
-
-  if best_len = 0 then
-    result := ""
-  else
-    result := a.substring(best_pos, best_pos + best_len)
-  end
-end
-```
-
-The separator character is critical. Without it, suffixes from A and B could blend together. The separator ensures that any LCP between a suffix starting in A and a suffix starting in B stops at the separator character — they can only share characters from A before the separator.
-
-The "cross the separator" check (`a_pos + lcp_len <= n_a`) prevents a match that technically goes through the separator from being counted. In practice, the separator character is chosen to be lexicographically smallest or largest, so the LCP never crosses it naturally — but the check makes the invariant explicit.
-
-For "abcdef" and "cdefgh": combined = "abcdef$cdefgh". LCS should be "cdef" (length 4). The SA will have adjacent entries for suffix "cdef$cdefgh" (position 2 in A) and suffix "cdefgh" (position 7, in B), with LCP = 4. Since 2 + 4 ≤ 6, the check passes. Result: "cdef".
-
----
-
-## 13.9 Counting Distinct Substrings
-
-Every substring of a string T corresponds to a prefix of some suffix. The total number of substrings of T (including duplicates) is n(n+1)/2 — for each starting position i, there are n-i substrings of varying length.
-
-The number of distinct substrings is n(n+1)/2 minus the number of duplicates. Each LCP value LCP[i] tells us how many of the substrings starting at SA[i] are duplicates of substrings starting at SA[i-1] — exactly LCP[i] of them. So:
-
-```
-distinct_substrings = n(n+1)/2 - sum(LCP)
-```
-
-```
-function count_distinct_substrings(sa: Suffix_Array): Integer64 do
-  let n: Integer := sa.n
-  let total: Integer64 := (n.to_integer64() * (n + 1).to_integer64()) / 2
-
-  let lcp_sum: Integer64 := 0
-  from
-    let i: Integer := 1
-  until
-    i >= n
-  do
-    lcp_sum := lcp_sum + sa.lcp.get(i).to_integer64()
-    i := i + 1
-  end
-
-  result := total - lcp_sum
-end
-```
-
-For "banana" (n=6): total = 21. LCP sum = 1+3+0+0+2 = 6. Distinct substrings = 21 - 6 = 15.
-
-Verify manually: distinct substrings of "banana" are: a, an, ana, anan, anana, b, ba, ban, bana, banan, banana, n, na, nan, nana — 15. Correct.
-
----
-
-## 13.10 A Complete Suffix Array Application
-
-Assembling everything into a string analysis library:
-
-```
-class String_Analyser
+class Rope_Editor
   create
-    analyse(text: String) do
-      this.text := text
-      this.sa := create Suffix_Array.build(text)
-      this.searcher := create Suffix_Array_Search.make(this.sa)
+    open(initial: String) do
+      this.current := create Rope.from_string(initial)
+      this.history := [this.current]
+      this.history_pos := 0
     end
 
   feature
-    text: String
-    sa: Suffix_Array
-    searcher: Suffix_Array_Search
+    current: Rope
+    history: Array[Rope]
+    history_pos: Integer
 
-    -- Pattern search
-    find(pattern: String): Array[Integer] do
-      result := searcher.find_all(pattern)
+    insert(pos: Integer, text: String) do
+      let new_rope: Rope := current.insert(pos, text)
+      push_history(new_rope)
     end
 
-    count_occurrences(pattern: String): Integer do
-      result := searcher.count(pattern)
+    delete(start: Integer, end_pos: Integer) do
+      let new_rope: Rope := current.delete(start, end_pos)
+      push_history(new_rope)
     end
 
-    -- Repetition analysis
-    longest_repeat(): String do
-      result := longest_repeated_substring(sa)
+    undo(): Boolean do
+      if history_pos > 0 then
+        history_pos := history_pos - 1
+        current := history.get(history_pos)
+        result := true
+      else
+        result := false
+      end
     end
 
-    all_repeats(min_length: Integer): Array[String] do
-      result := repeated_substrings(sa, min_length, 2)
+    redo(): Boolean do
+      if history_pos < history.length - 1 then
+        history_pos := history_pos + 1
+        current := history.get(history_pos)
+        result := true
+      else
+        result := false
+      end
     end
 
-    -- Similarity
-    longest_common_with(other: String): String do
-      result := longest_common_substring(text, other)
+    push_history(rope: Rope) do
+      -- Discard any redo history
+      history := history.slice(0, history_pos + 1)
+      history.add(rope)
+      history_pos := history_pos + 1
+      current := rope
     end
 
-    -- Combinatorics
-    distinct_substring_count(): Integer64 do
-      result := count_distinct_substrings(sa)
+    content(): String do
+      result := current.to_string()
     end
 
-    -- Compression hint: how repetitive is this string?
-    -- Returns fraction of substrings that are duplicates
-    repetitiveness(): Real do
-      let n: Integer64 := sa.n.to_integer64()
-      let total: Integer64 := n * (n + 1) / 2
-      let distinct: Integer64 := count_distinct_substrings(sa)
-      result := 1.0 - distinct.to_real() / total.to_real()
+    length(): Integer do
+      result := current.length
     end
 
   invariant
-    sa_built: sa /= nil
-    searcher_built: searcher /= nil
+    valid_history_pos: history_pos >= 0 and history_pos < history.length
+    current_consistent: current = history.get(history_pos)
 end
 ```
 
-Using it:
+Because rope nodes are immutable and shared between versions, the memory cost of keeping k versions is not O(kn) but O(k log n) — only the O(log n) new nodes created by each edit need to be stored, while unchanged subtrees are shared. A hundred edits to a megabyte file add roughly O(100 log n) new nodes — a few thousand bytes — not a hundred megabyte copies.
 
-```
-let analyser: String_Analyser :=
-  create String_Analyser.analyse("mississippi")
-
--- Pattern search
-print(analyser.find("issi").to_string())
--- [1, 4] (appears at positions 1 and 4)
-
-print(analyser.count_occurrences("ss"))
--- 2
-
--- Longest repeat
-print(analyser.longest_repeat())
--- "issi" (length 4, appears at 1 and 4)
-
--- All repeated substrings of length >= 2
-let repeats: Array[String] := analyser.all_repeats(2)
-print(repeats.to_string())
--- ["is", "iss", "issi", "si", "ss", "i", "s", ...]
-
--- Distinct substring count
-print(analyser.distinct_substring_count())
--- 53 (for "mississippi")
-
--- Repetitiveness score
-print(analyser.repetitiveness())
--- ~0.20 (20% of substrings are duplicates)
-
--- Similarity with another string
-print(analyser.longest_common_with("missouri"))
--- "missi" (length 5)
-```
+This is **structural sharing** — a technique from functional programming that makes persistence cheap. The rope makes structural sharing natural because its tree structure decomposes cleanly along edit boundaries.
 
 ---
 
-## 13.11 Suffix Arrays vs Suffix Trees
+## 14.3 The Problem With Ropes in Practice
 
-The suffix tree is the theoretical ideal: O(n) construction (Ukkonen's algorithm), O(m) pattern search (no log n factor), and O(1) LCP queries with proper annotations. For problems that require very fast repeated queries on large texts, the suffix tree is asymptotically superior.
+Ropes are elegant. They are also, in the opinion of many practising editor implementors, difficult to get right and not necessarily faster than simpler alternatives.
 
-In practice, the suffix array wins almost everywhere for several reasons.
+The problems:
 
-**Memory.** A suffix tree node requires roughly 5-6 pointers and ancillary data — about 40-60 bytes per node. An n-character text has roughly 2n nodes. Total: 80-120n bytes. A suffix array requires 4n bytes (one integer per suffix) plus 4n for the LCP array and 4n for the rank array — about 12n bytes total, an order of magnitude less. For a 3GB genome, a suffix tree requires 240-360GB. A suffix array requires 36GB. Memory is often the binding constraint.
+**Cache performance.** Ropes are trees. Tree traversal follows pointers from node to node. Each pointer follow potentially causes a cache miss. Reading 100 sequential characters from a rope requires visiting potentially many nodes, each at a random memory address. Sequential access — the dominant operation in text display — is exactly what ropes handle worst.
 
-**Cache performance.** Suffix trees are pointer-heavy structures with scattered memory allocation. Following pointers during tree traversal causes cache misses. Suffix arrays are contiguous arrays — sequential access, prefetcher-friendly, dramatically better cache behaviour on modern hardware. The O(log n) binary search in suffix arrays often outperforms O(1) tree traversal in practice because the tree traversal involves many more cache misses.
+**Rebalancing complexity.** Without rebalancing, a sequence of insertions at the beginning builds a tree that leans entirely right, degenerating to O(n) access. Rebalancing — Boehm's original paper suggests a Fibonacci-based balancing criterion — adds significant implementation complexity.
 
-**Implementation complexity.** Ukkonen's algorithm is notoriously difficult to implement correctly. The prefix doubling algorithm for suffix array construction is complex but manageable. The LCP-array based algorithms (Kasai, RMQ) are clear and debuggable. In production bioinformatics codebases, suffix array bugs are found and fixed far more often than suffix tree bugs — not because suffix trees are bug-free, but because suffixes array bugs are easier to detect and reason about.
+**Small edits.** A real text editor session consists almost entirely of single-character insertions and deletions (typed characters, backspace). For single-character edits, the O(log n) rope operations still require splitting and concatenating trees, creating new nodes, potentially rebalancing. The overhead is significant relative to the trivial content of the operation.
 
-**The practical gap.** With the RMQ structure on the LCP array, suffix array pattern search drops to O(m + log n) (compared to O(m) for suffix trees). For most applications, m dominates log n — a 100-character pattern in a 3GB genome has m = 100, log₂(3×10^9) ≈ 32. The suffix tree's theoretical advantage is a factor of 3 in this case. The suffix array's practical advantages in memory and cache behaviour more than compensate.
+**Implementation footprint.** A correct, performant rope is several hundred lines of careful code. Bugs in split and rebalance are subtle and hard to detect.
 
-The conclusion reached by the bioinformatics community — which has the most intensive string processing requirements of any field — is that suffix arrays with LCP arrays are the standard tool for almost all applications, with suffix trees reserved for problems where the O(m) vs O(m + log n) factor genuinely matters.
+These problems led the VS Code team, after evaluating ropes, to choose a different structure: the piece table.
 
 ---
 
-## 13.12 Where This Lives in the Wild
+## 14.4 Piece Tables: A Different Philosophy
 
-**BWA and Bowtie**, the two most widely used short-read aligners in genomics, use FM-index — a compressed suffix array that combines the suffix array with the Burrows-Wheeler Transform (introduced in Chapter 12's discussion of bzip2). The FM-index achieves O(m) search in O(n) space — better than either suffix trees or plain suffix arrays — by exploiting the BWT's structure to navigate the suffix array without materialising it. When a sequencing machine produces millions of 150-base DNA reads and needs to align each against the human reference genome in milliseconds, the FM-index is the data structure doing the work.
+The piece table was described by J. Quentin Miller in 1998 and independently by M. Ramsey in the context of the Oberon editor system. It takes a completely different approach to the mutability problem.
 
-**MUMmer** (Maximal Unique Matches), a widely used genome comparison tool, uses suffix trees to find maximal unique matches between two genomes — substrings that appear exactly once in each genome and are not contained in a longer match. These unique matches anchor the global alignment of the genomes. MUMmer is one of the cases where suffix tree O(m) query time provides a meaningful advantage over suffix arrays, because matches are short (30-50 bases) relative to the genome (3×10^9 bases), making the O(log n) term significant.
+**The insight:** most text editing consists of inserting text (typing) and deleting text (backspace, selection deletion). Insertions produce new text. The original file content is never changed. Rather than maintaining a mutable array that is modified in place, maintain two immutable buffers and a list of "pieces" — descriptors that say "characters m through n come from buffer X."
 
-**Database full-text search** in PostgreSQL uses a suffix array-like structure for the `pg_trgm` extension, which supports substring search with trigrams (3-character n-grams). Trigrams are a simplified suffix array over fixed-length substrings, enabling fast similarity search and substring matching in text columns. The GIN (Generalized Inverted Index) and GiST index types in PostgreSQL use this for pattern-matching queries.
+Two buffers:
+- **Original buffer:** the original file content, never modified
+- **Append buffer:** all text inserted during editing, appended sequentially (never modified in place)
 
-**Burrows-Wheeler Aligner in variant calling**, SAMtools, and the GATK (Genome Analysis Toolkit) — the standard tools for identifying genetic variants from sequencing data — use FM-index internally for the alignment steps that precede variant calling. Every published human genome sequence was produced with software that, somewhere in its pipeline, uses a compressed suffix array.
+A piece table is a sequence of piece descriptors. Each piece descriptor is:
+- Which buffer (original or append)
+- Start position in that buffer
+- Length
+
+The document is reconstructed by concatenating the pieces in order.
+
+```
+Original buffer: "Hello, world! This is the original text."
+Append buffer:   "" (initially empty)
+Pieces: [(original, 0, 40)]   → "Hello, world! This is the original text."
+```
+
+Insert " beautiful" after "Hello,":
+
+```
+Append buffer: " beautiful"
+Pieces: [(original, 0, 7),     → "Hello, "
+         (append,   0, 10),    → " beautiful"
+         (original, 7, 33)]    → "world! This is the original text."
+```
+
+Delete "beautiful":
+
+```
+Pieces: [(original, 0, 7),    → "Hello, "
+         (append,   1, 1),    → " "  (just the space before "beautiful")
+         (original, 7, 33)]   → "world! This is the original text."
+```
+
+Wait — we need to trim the piece that contained " beautiful" to remove "beautiful" and keep just " ". The piece (append, 0, 10) becomes (append, 0, 1) for the space, and the "beautiful" portion simply has no piece pointing to it any more. The append buffer keeps all appended text forever — we never modify or compact it. Deleted text is simply not referenced by any piece.
+
+### Piece Table Implementation
+
+```
+let ORIGINAL: Integer := 0
+let APPEND: Integer := 1
+
+class Piece
+  create
+    make(buffer: Integer, start: Integer, length: Integer) do
+      this.buffer := buffer
+      this.start := start
+      this.length := length
+    end
+
+  feature
+    buffer: Integer   -- ORIGINAL or APPEND
+    start: Integer    -- start position in buffer
+    length: Integer   -- number of characters
+
+  invariant
+    valid_buffer: buffer = ORIGINAL or buffer = APPEND
+    non_negative_start: start >= 0
+    positive_length: length > 0
+end
+
+class Piece_Table
+  create
+    from_string(initial: String) do
+      this.original := initial
+      this.appended := ""
+      this.pieces := []
+      this.total_length := 0
+
+      if initial.length > 0 then
+        pieces.add(create Piece.make(ORIGINAL, 0, initial.length))
+        total_length := initial.length
+      end
+    end
+
+  feature
+    original: String     -- original content, never modified
+    appended: String     -- all insertions appended here
+    pieces: Array[Piece]
+    total_length: Integer
+
+    -- Character access: O(pieces) worst case, O(1) if cached
+    char_at(pos: Integer): Char
+      require
+        valid_pos: pos >= 0 and pos < total_length
+      do
+        let offset: Integer := pos
+        across pieces as piece do
+          if offset < piece.length then
+            let buf: String :=
+              when piece.buffer = ORIGINAL original else appended end
+            result := buf.char_at(piece.start + offset)
+            return
+          end
+          offset := offset - piece.length
+        end
+        result := '\0'  -- should not reach here
+      end
+
+    -- Get text in range [start, end_pos)
+    substring(start: Integer, end_pos: Integer): String
+      require
+        valid_range: start >= 0 and end_pos <= total_length and start <= end_pos
+      do
+        let chars: Array[Char] := []
+        let current_pos: Integer := 0
+
+        across pieces as piece do
+          let piece_end: Integer := current_pos + piece.length
+
+          if current_pos < end_pos and piece_end > start then
+            let buf: String :=
+              when piece.buffer = ORIGINAL original else appended end
+            let lo: Integer := start.max(current_pos) - current_pos
+            let hi: Integer := end_pos.min(piece_end) - current_pos
+
+            from
+              let i: Integer := lo
+            until
+              i < hi
+            do
+              chars.add(buf.char_at(piece.start + i))
+              i := i + 1
+            end
+          end
+
+          current_pos := piece_end
+        end
+
+        result := String.from_chars(chars)
+      end
+
+    -- Insert text at position: O(pieces)
+    insert(pos: Integer, text: String)
+      require
+        valid_pos: pos >= 0 and pos <= total_length
+        non_empty: text.length > 0
+      ensure
+        length_increased: total_length = old total_length + text.length
+      do
+        -- Append text to the append buffer
+        let append_start: Integer := appended.length
+        appended := appended + text
+        let new_piece: Piece := create Piece.make(
+          APPEND, append_start, text.length)
+
+        -- Find the piece containing pos
+        let result_pieces: Array[Piece] := []
+        let current_pos: Integer := 0
+        let inserted: Boolean := false
+
+        across pieces as piece do
+          let piece_end: Integer := current_pos + piece.length
+
+          if not inserted then
+            if pos = current_pos then
+              -- Insert before this piece
+              result_pieces.add(new_piece)
+              result_pieces.add(piece)
+              inserted := true
+
+            elseif pos < piece_end then
+              -- Split this piece and insert in the middle
+              let offset: Integer := pos - current_pos
+
+              if offset > 0 then
+                result_pieces.add(create Piece.make(
+                  piece.buffer, piece.start, offset))
+              end
+
+              result_pieces.add(new_piece)
+
+              let remaining: Integer := piece.length - offset
+              if remaining > 0 then
+                result_pieces.add(create Piece.make(
+                  piece.buffer, piece.start + offset, remaining))
+              end
+
+              inserted := true
+
+            else
+              result_pieces.add(piece)
+            end
+          else
+            result_pieces.add(piece)
+          end
+
+          current_pos := piece_end
+        end
+
+        if not inserted then
+          -- Append at end
+          result_pieces.add(new_piece)
+        end
+
+        pieces := result_pieces
+        total_length := total_length + text.length
+      end
+
+    -- Delete range [start, end_pos): O(pieces)
+    delete(start: Integer, end_pos: Integer)
+      require
+        valid_range: start >= 0 and end_pos <= total_length and start <= end_pos
+      ensure
+        length_decreased: total_length = old total_length - (end_pos - start)
+      do
+        if start = end_pos then return end
+
+        let result_pieces: Array[Piece] := []
+        let current_pos: Integer := 0
+
+        across pieces as piece do
+          let piece_end: Integer := current_pos + piece.length
+
+          if piece_end <= start or current_pos >= end_pos then
+            -- Piece entirely outside deletion range: keep it
+            result_pieces.add(piece)
+
+          elseif current_pos >= start and piece_end <= end_pos then
+            -- Piece entirely inside deletion range: drop it
+            -- (do nothing)
+
+          else
+            -- Piece partially overlaps deletion range: trim it
+
+            if current_pos < start then
+              -- Keep left part
+              let keep_len: Integer := start - current_pos
+              result_pieces.add(create Piece.make(
+                piece.buffer, piece.start, keep_len))
+            end
+
+            if piece_end > end_pos then
+              -- Keep right part
+              let skip: Integer := end_pos - current_pos
+              result_pieces.add(create Piece.make(
+                piece.buffer,
+                piece.start + skip,
+                piece.length - skip))
+            end
+          end
+
+          current_pos := piece_end
+        end
+
+        pieces := result_pieces
+        total_length := total_length - (end_pos - start)
+      end
+
+    -- Replace range with new text: O(pieces)
+    replace(start: Integer, end_pos: Integer, text: String) do
+      delete(start, end_pos)
+      if text.length > 0 then
+        insert(start, text)
+      end
+    end
+
+    -- Full document text: O(n)
+    to_string(): String do
+      let chars: Array[Char] := []
+      across pieces as piece do
+        let buf: String :=
+          when piece.buffer = ORIGINAL original else appended end
+        from
+          let i: Integer := 0
+        until
+          i < piece.length
+        do
+          chars.add(buf.char_at(piece.start + i))
+          i := i + 1
+        end
+      end
+      result := String.from_chars(chars)
+    end
+
+    -- Number of pieces (for diagnostics)
+    piece_count(): Integer do
+      result := pieces.length
+    end
+
+  invariant
+    non_negative_length: total_length >= 0
+    pieces_account_for_length:
+      pieces.sum_by(fn p: Piece do result := p.length end) = total_length
+end
+```
+
+### Undo With Piece Tables
+
+Undo with a piece table is elegant. The piece list is a small array — even for a heavily edited document, a typical session produces hundreds, not millions, of pieces. Saving the entire piece list on each edit is cheap.
+
+```
+class Piece_Table_Editor
+  create
+    open(initial: String) do
+      this.table := create Piece_Table.from_string(initial)
+      this.history := [copy_pieces(table)]
+      this.append_snapshots := [""]  -- snapshot of append buffer length
+      this.history_pos := 0
+    end
+
+  feature
+    table: Piece_Table
+    history: Array[Array[Piece]]        -- piece list at each history point
+    append_snapshots: Array[Integer]    -- append buffer length at each point
+    history_pos: Integer
+
+    insert(pos: Integer, text: String) do
+      table.insert(pos, text)
+      push_history()
+    end
+
+    delete(start: Integer, end_pos: Integer) do
+      table.delete(start, end_pos)
+      push_history()
+    end
+
+    replace(start: Integer, end_pos: Integer, text: String) do
+      table.replace(start, end_pos, text)
+      push_history()
+    end
+
+    undo(): Boolean do
+      if history_pos > 0 then
+        history_pos := history_pos - 1
+        restore_history()
+        result := true
+      else
+        result := false
+      end
+    end
+
+    redo(): Boolean do
+      if history_pos < history.length - 1 then
+        history_pos := history_pos + 1
+        restore_history()
+        result := true
+      else
+        result := false
+      end
+    end
+
+    push_history() do
+      history := history.slice(0, history_pos + 1)
+      append_snapshots := append_snapshots.slice(0, history_pos + 1)
+      history.add(copy_pieces(table))
+      append_snapshots.add(table.appended.length)
+      history_pos := history_pos + 1
+    end
+
+    restore_history() do
+      table.pieces := copy_pieces_from(history.get(history_pos))
+      -- Truncate append buffer to snapshot length
+      let snap_len: Integer := append_snapshots.get(history_pos)
+      table.appended := table.appended.substring(0, snap_len)
+      -- Recompute total_length
+      table.total_length := table.pieces.sum_by(
+        fn p: Piece do result := p.length end)
+    end
+
+    copy_pieces(t: Piece_Table): Array[Piece] do
+      let copy: Array[Piece] := []
+      across t.pieces as p do
+        copy.add(create Piece.make(p.buffer, p.start, p.length))
+      end
+      result := copy
+    end
+
+    copy_pieces_from(pieces: Array[Piece]): Array[Piece] do
+      let copy: Array[Piece] := []
+      across pieces as p do
+        copy.add(create Piece.make(p.buffer, p.start, p.length))
+      end
+      result := copy
+    end
+
+    content(): String do
+      result := table.to_string()
+    end
+
+  invariant
+    valid_history_pos: history_pos >= 0 and history_pos < history.length
+end
+```
+
+The undo model here saves a copy of the piece array on each edit. Each piece array entry is 12 bytes (buffer ID, start, length). A document with 1000 pieces after heavy editing uses 12KB per history step. A hundred undo steps use 1.2MB — negligible.
+
+The append buffer can only grow during normal editing (we never delete from it). Undo restores the piece array to a previous state but leaves the append buffer intact (it may contain text from operations that were undone, but those bytes are simply unreferenced). On redo, the pieces referencing those bytes are restored. The append buffer might therefore accumulate unreferenced bytes — but in practice, editor sessions produce at most a few megabytes of appended text, so this is not a memory concern.
+
+---
+
+## 14.5 Line-Column Indexing
+
+Text editors display and navigate text by line and column, not by absolute character position. Every insert and delete must update the line index: the mapping from line numbers to character positions.
+
+The naive approach — scan the entire document for newlines on each update — is O(n) per operation. Unacceptable for large files.
+
+A piece table with augmented pieces solves this elegantly. Each piece stores not just character count but also newline count. Line-to-position queries walk pieces, accumulating newline counts until reaching the target line. Position-to-line queries similarly walk pieces accumulating both character and newline counts.
+
+```
+class Augmented_Piece
+  create
+    make(buffer: Integer, start: Integer,
+         length: Integer, newlines: Integer) do
+      this.buffer := buffer
+      this.start := start
+      this.length := length
+      this.newlines := newlines
+    end
+
+  feature
+    buffer: Integer
+    start: Integer
+    length: Integer
+    newlines: Integer  -- number of '\n' characters in this piece
+
+  invariant
+    valid_buffer: buffer = ORIGINAL or buffer = APPEND
+    non_negative_newlines: newlines >= 0
+    newlines_bounded: newlines <= length
+end
+
+class Line_Indexed_Piece_Table
+  create
+    from_string(initial: String) do
+      this.original := initial
+      this.appended := ""
+      this.pieces := []
+      this.total_length := 0
+      this.total_lines := 1  -- empty document has 1 line
+
+      if initial.length > 0 then
+        let newlines: Integer := count_newlines(initial, 0, initial.length)
+        pieces.add(create Augmented_Piece.make(
+          ORIGINAL, 0, initial.length, newlines))
+        total_length := initial.length
+        total_lines := newlines + 1
+      end
+    end
+
+  feature
+    original: String
+    appended: String
+    pieces: Array[Augmented_Piece]
+    total_length: Integer
+    total_lines: Integer
+
+    -- Convert line number to character position
+    line_to_pos(line: Integer): Integer
+      require
+        valid_line: line >= 0 and line < total_lines
+      do
+        if line = 0 then
+          result := 0
+          return
+        end
+
+        let char_pos: Integer := 0
+        let lines_seen: Integer := 0
+
+        across pieces as piece do
+          let buf: String :=
+            when piece.buffer = ORIGINAL original else appended end
+
+          if lines_seen + piece.newlines >= line then
+            -- Target line is within this piece: scan for it
+            from
+              let i: Integer := 0
+            until
+              i < piece.length
+            do
+              if buf.char_at(piece.start + i) = '\n' then
+                lines_seen := lines_seen + 1
+                if lines_seen = line then
+                  result := char_pos + i + 1
+                  return
+                end
+              end
+              i := i + 1
+            end
+          end
+
+          lines_seen := lines_seen + piece.newlines
+          char_pos := char_pos + piece.length
+        end
+
+        result := total_length  -- line is the last line
+      end
+
+    -- Convert character position to [line, column]
+    pos_to_line_col(pos: Integer): Array[Integer]
+      require
+        valid_pos: pos >= 0 and pos <= total_length
+      do
+        let char_pos: Integer := 0
+        let line: Integer := 0
+
+        across pieces as piece do
+          let piece_end: Integer := char_pos + piece.length
+
+          if pos <= piece_end then
+            -- Target is within this piece
+            let buf: String :=
+              when piece.buffer = ORIGINAL original else appended end
+            let offset: Integer := pos - char_pos
+
+            from
+              let i: Integer := 0
+            until
+              i < offset
+            do
+              if buf.char_at(piece.start + i) = '\n' then
+                line := line + 1
+              end
+              i := i + 1
+            end
+
+            -- Column is distance from last newline in this piece
+            let col: Integer := 0
+            from
+              let i: Integer := offset - 1
+            until
+              i >= 0
+            do
+              if buf.char_at(piece.start + i) = '\n' then
+                col := offset - i - 1
+                result := [line, col]
+                return
+              end
+              i := i - 1
+            end
+
+            -- No newline found in piece: continue scanning backwards
+            -- through previous pieces for the column
+            result := [line, offset + col]
+            return
+          end
+
+          line := line + piece.newlines
+          char_pos := piece_end
+        end
+
+        result := [line, pos - char_pos]
+      end
+
+    -- Count newlines in buffer region
+    count_newlines(buf: String,
+                   start: Integer,
+                   end_pos: Integer): Integer do
+      let count: Integer := 0
+      from
+        let i: Integer := start
+      until
+        i < end_pos
+      do
+        if buf.char_at(i) = '\n' then
+          count := count + 1
+        end
+        i := i + 1
+      end
+      result := count
+    end
+
+    -- Insert with newline tracking
+    insert(pos: Integer, text: String) do
+      let append_start: Integer := appended.length
+      let new_newlines: Integer := count_newlines(text, 0, text.length)
+      appended := appended + text
+
+      -- ... (same piece splitting logic as before) ...
+      -- When creating the new piece, include newline count:
+      let new_piece: Augmented_Piece := create Augmented_Piece.make(
+        APPEND, append_start, text.length, new_newlines)
+
+      -- Update total_length and total_lines
+      total_length := total_length + text.length
+      total_lines := total_lines + new_newlines
+      -- ... rest of insertion logic
+    end
+
+    -- Get line content
+    get_line(line: Integer): String
+      require
+        valid_line: line >= 0 and line < total_lines
+      do
+        let start: Integer := line_to_pos(line)
+        let end_pos: Integer :=
+          when line + 1 < total_lines
+          line_to_pos(line + 1) - 1  -- exclude newline
+          else total_length end
+        result := substring(start, end_pos)
+      end
+
+  invariant
+    positive_total_lines: total_lines >= 1
+end
+```
+
+With augmented newline counts, line-to-position and position-to-line queries are O(pieces) — fast in practice because most documents have far fewer pieces than characters.
+
+---
+
+## 14.6 The VS Code Decision
+
+In 2018, Peng Lyu of the VS Code team published a detailed blog post titled "Text Buffer Reimplementation." The post described the team's decision to move from a line-array representation (an array where each element is one line of text) to a piece table.
+
+The line-array had served well for years. Its advantage: line queries are O(1) — just index into the array. Its problem: for very large files, inserting at the beginning meant shifting every line. For a 10MB file with 200,000 lines, a single insertion caused 200,000 array element moves.
+
+The VS Code team evaluated ropes. Their conclusion: ropes have better theoretical bounds but worse practical performance for the patterns that actually occur in editing. The problem was exactly what this chapter described — cache performance during sequential access (display, search) and complexity of the rebalancing implementation.
+
+The piece table won because:
+
+**Typing is sequential.** Most insertions are at or near the current cursor position. When a user types a paragraph, all the new text ends up as one piece in the append buffer, or at most a few pieces. The piece count grows slowly under normal editing.
+
+**Piece lists are small.** Even after thousands of edits, a typical document has at most a few thousand pieces. Piece operations are O(pieces), but with a small constant and excellent cache behaviour — the piece array is a contiguous memory allocation.
+
+**Sequential access is fast.** Rendering a screen of text requires reading characters sequentially. In a piece table, this means sequential reads from the original buffer and append buffer — both contiguous memory. No pointer-chasing, full prefetcher utilisation.
+
+**The implementation is simple.** The VS Code team estimated their piece table implementation at roughly 500 lines of TypeScript, compared to their estimate of 2000+ lines for a correct, performant rope implementation. Simpler code has fewer bugs.
+
+The VS Code piece table uses a red-black tree of pieces (rather than a flat array) to achieve O(log n) insertion, deletion, and line queries — addressing the O(pieces) weakness of the flat piece array for pathologically edited documents. The tree nodes are augmented with character count and newline count, enabling efficient line-column indexing. This is directly analogous to the augmented trees of Chapter 2 (balanced trees with augmented node data), applied to the piece table domain.
+
+---
+
+## 14.7 Rope vs Piece Table: The Decision Framework
+
+Both structures solve the text editing problem. Choose based on your constraints.
+
+**Choose a rope when:**
+- Document history and undo must be memory-efficient via structural sharing
+- Concurrent access is required (functional, immutable ropes compose well with concurrent readers)
+- The document is assembled from large fragments with rare edits (document merging, CRDTs for collaborative editing)
+- You are implementing a functional language's string type and need O(log n) concatenation
+
+**Choose a piece table when:**
+- You are implementing a text editor with typical typing patterns
+- Sequential access performance is critical (display, syntax highlighting, search)
+- Implementation simplicity is a priority
+- The document is modified sequentially rather than randomly
+
+**The hybrid (piece table with tree indexing)** — what VS Code actually uses — combines the piece table's sequential access advantage with O(log n) random access. This is the right choice for production text editors where both performance and simplicity matter.
+
+---
+
+## 14.8 Connection to Persistent Data Structures
+
+The rope's structural sharing connects directly to Chapter 20's persistent data structures. A persistent rope is a purely functional data structure: each operation produces a new version without modifying the old. The old version remains fully accessible, sharing unchanged subtrees with the new version.
+
+This is the same principle that makes persistent linked lists and persistent balanced trees useful in concurrent settings. Multiple threads can read old versions while a single writer creates new versions. No locking required — old versions are immutable and can never observe writes.
+
+The piece table achieves a similar effect through a different mechanism: the original buffer is never modified, and the append buffer only grows. Old piece arrays remain valid indefinitely because the buffers they reference never change. This is a form of persistence without the tree structure that makes ropes explicitly persistent.
+
+Both structures exemplify a deeper principle: immutability simplifies concurrency. When shared data cannot be modified, the need for synchronisation disappears. The data structures in this chapter achieve fast mutation through indirection — the document is not modified, but the description of how to read the document is.
+
+---
+
+## 14.9 Where This Lives in the Wild
+
+**VS Code** uses a piece tree — a red-black tree of pieces with augmented character and newline counts — as its text buffer. The implementation is in `src/vs/editor/common/model/pieceTreeTextBuffer/`. It handles files of hundreds of megabytes without degrading. The blog post by Peng Lyu describing the implementation is one of the most detailed public accounts of text buffer engineering available.
+
+**GNU Emacs** has used a gap buffer — a third approach not covered in this chapter — since the 1980s. A gap buffer is an array with a hole (the gap) at the current cursor position. Insertions at the cursor are O(1) — fill the gap — and the gap moves with the cursor. For the sequential-editing pattern of a user typing at one location, gap buffers are extremely fast. For random access across a large file, they degrade. Emacs is designed around sequential editing; its gap buffer reflects that.
+
+**Xi editor** (a research editor from Google) uses ropes implemented in Rust, with careful attention to cache behaviour. Xi's rope implementation, in the `xi-rope` crate, uses chunks of 256-512 bytes rather than individual characters at leaves, dramatically improving cache performance relative to the theoretical model. Xi demonstrated that ropes can match piece table performance with careful implementation.
+
+**Helix editor**, a modern terminal editor in Rust, uses a rope library called `ropey`, which stores chunks of characters at leaves and achieves good cache performance for sequential access while preserving O(log n) random access.
+
+**Collaborative text editors** — Google Docs, Notion, CRDTs in general — require data structures that support merging concurrent edits from multiple users. The piece table's model, where the original buffer is immutable and all edits are recorded as pieces, aligns naturally with CRDT (Conflict-free Replicated Data Type) approaches, where the document is a sequence of operations rather than a mutable string. The piece table can be thought of as an operational transform log with a compact representation.
 
 ---
 
 ## Summary
 
-The suffix array is the sorted permutation of suffix starting positions — a compact O(n) index that implicitly represents all O(n²) substrings of a text. The prefix doubling algorithm constructs it in O(n log n) using repeated radix sorts that double the sorted prefix length at each stage.
+Text editors need efficient insertion, deletion, and access at arbitrary positions in a mutable character sequence. Arrays fail on insertion and deletion due to shifting costs. Linked lists fail on access and sequential iteration due to pointer-chasing and cache misses.
 
-The LCP array, built in O(n) by Kasai's algorithm, stores the longest common prefix between adjacent suffixes in the sorted order. Together, SA and LCP support the full range of string analysis operations: pattern search in O(m log n), longest repeated substring in O(n), all repeated substrings of a given length in O(n + output), longest common substring of two texts in O((n+m) log(n+m)), and counting distinct substrings in O(n).
+Ropes represent documents as balanced binary trees of string fragments. Concatenation is O(1), insertion and deletion are O(log n) by splitting and rejoining, and character access is O(log n). Structural sharing between versions makes undo O(log n) per step in memory. The weakness is cache performance during sequential access and implementation complexity.
 
-The LCP-between query — the LCP between any two suffixes, not just adjacent ones — is the minimum LCP in the range between their SA ranks. With a range minimum query (RMQ) structure, this is O(1) per query after O(n) preprocessing, giving suffix arrays LCP query performance comparable to suffix trees.
+Piece tables represent documents as a sequence of (buffer, start, length) descriptors pointing into two immutable buffers: the original file content and an append-only buffer for insertions. All editing operations manipulate the piece list. Sequential access reads directly from the underlying buffers, achieving excellent cache performance. Undo is cheap because piece arrays are small. The weakness is O(pieces) for random access, addressed in production systems by indexing the piece list with an augmented balanced tree.
 
-Suffix arrays defeat suffix trees in almost all practical applications because they use an order of magnitude less memory, have dramatically better cache performance, and are far simpler to implement correctly. The bioinformatics community — which processes the largest string datasets in science — made this determination in the early 2000s and has not reversed it.
+VS Code's choice of piece table over rope reflects the practical reality that sequential access dominates text editing workloads, and that implementation simplicity reduces bugs. The hybrid piece tree — piece table operations with red-black tree indexing and augmented metadata — achieves O(log n) for all operations while preserving the piece table's sequential access advantage.
 
-The next chapter looks at a different kind of string storage problem: not indexing strings for search, but storing a large mutable string efficiently for editing. The data structure a text editor uses to represent a file is its own fascinating engineering problem, and the solution is neither an array nor a linked list.
+The connection to earlier chapters is direct: rope balancing uses the rotations of Chapter 2, piece trees use the augmented balanced trees of Chapter 2, and the persistent rope uses the structural sharing of Chapter 20. String algorithms from Chapters 7 through 13 operate on these structures as their text source — every search, every regex match, every suffix array query has a piece table or rope as the document it indexes.
+
+This concludes Part III. Part IV turns from the structure of text to the problem of ordering data — not the character-level ordering that string algorithms exploit, but the sorting of arbitrary records at scales that exceed memory.
