@@ -113,6 +113,8 @@ Output:
    1.0    0.0000
 ```
 
+![The binary entropy function visualized. The curve is symmetric around `p = 0.5`, reaches its maximum at exactly 1 bit, and collapses to zero at the extremes where the outcome is certain.](images/binary-entropy-curve.svg){fig-align="center" width="92%"}
+
 This curve — the binary entropy function — has a beautiful shape. It is symmetric around *p* = 0.5, where it peaks at exactly 1 bit. It falls to zero at both extremes, where the outcome is certain. The curve is concave: entropy always increases as you move the distribution toward uniformity, and always decreases as you push it toward certainty.
 
 This shape encodes several fundamental truths:
@@ -127,13 +129,14 @@ This shape encodes several fundamental truths:
 
 ## Maximum Entropy: The Uniform Distribution
 
-Let's prove to ourselves that the uniform distribution maximizes entropy for a fixed number of outcomes.
+Let's build intuition for the fact that the uniform distribution maximizes entropy for a fixed number of outcomes.
 
 ```python
 from itertools import product
 
 def entropy(probs):
-    return -sum(p * math.log2(p) for p in probs if p > 0)
+    H = -sum(p * math.log2(p) for p in probs if p > 0)
+    return max(0.0, H)
 
 def max_possible_entropy(n):
     """Entropy of a uniform distribution over n outcomes."""
@@ -164,12 +167,14 @@ Distribution         Entropy   % of max
 ------------------------------------------
 Uniform               2.0000     100.0%
 Slightly skewed       1.8464      92.3%
-Very skewed           1.3323      66.6%
-Almost certain        0.2193      11.0%
+Very skewed           1.2449      62.2%
+Almost certain        0.2419      12.1%
 Certain               0.0000       0.0%
 
 Maximum possible (log₂4): 2.0000 bits
 ```
+
+![A visual comparison of five distributions over four outcomes. As probability mass concentrates on fewer outcomes, entropy drops; the uniform distribution achieves the maximum possible entropy.](images/maximum-entropy-uniform-distribution.svg){fig-align="center" width="96%"}
 
 The uniform distribution achieves 100% of the theoretical maximum. Any deviation from uniformity — any concentration of probability mass onto certain outcomes — reduces entropy. This is not a coincidence or a special property of this example. It is a theorem, and it holds for any finite distribution.
 
@@ -234,23 +239,23 @@ print(f"Entropy of source:       {H:.4f} bits")
 print(f"Overhead:                {avg_length - H:.4f} bits ({100*(avg_length-H)/H:.1f}%)")
 ```
 
-Output:
+Output (one valid code assignment):
 ```
 Status       Prob       Code   Length   p × length
 ------------------------------------------------------
-completed    0.70          0        1       0.7000
-pending      0.20         10        2       0.4000
-failed       0.08        110        3       0.2400
-refunded     0.02        111        3       0.0600
+completed    0.70          1        1       0.7000
+pending      0.20         01        2       0.4000
+failed       0.08        001        3       0.2400
+refunded     0.02        000        3       0.0600
 
 Average codeword length: 1.4000 bits
-Entropy of source:       1.1893 bits
-Overhead:                0.2107 bits (17.7%)
+Entropy of source:       1.2290 bits
+Overhead:                0.1710 bits (13.9%)
 ```
 
-The Huffman code achieves 1.4 bits per symbol. The entropy of the source is 1.189 bits. The gap — 0.21 bits, or about 18% overhead — is the inefficiency of using discrete codewords. (Arithmetic coding, which we cover in Chapter 6, can close this gap almost entirely.)
+The Huffman code achieves 1.4 bits per symbol. The entropy of the source is 1.229 bits. The gap — 0.171 bits, or about 14% overhead — is the inefficiency of using discrete codewords. (Arithmetic coding, which we cover in Chapter 6, can close this gap almost entirely.) The exact bit patterns in a Huffman code are not unique: different implementations may swap 0 and 1 or break ties differently, while preserving the same code lengths and average cost.
 
-Notice what the Huffman code did: it assigned the *shortest* codeword (`0`, one bit) to the *most common* symbol (`completed`, 70%), and the *longest* codewords (three bits) to the rarest symbols. This is exactly the right strategy — it minimizes the expected codeword length by aligning code length with information content.
+Notice what the Huffman code did: it assigned a *one-bit* codeword to the *most common* symbol (`completed`, 70%), and *three-bit* codewords to the rarest symbols. This is exactly the right strategy — it minimizes the expected codeword length by aligning code length with information content.
 
 The key insight: **optimal code lengths are equal to the information content of each symbol.** The optimal codeword for `completed` would be -log₂(0.70) ≈ 0.515 bits. Since we cannot use fractional bits in a simple prefix code, we round up to 1. The overhead comes from this rounding. Arithmetic coding sidesteps this by encoding many symbols at once, amortizing the rounding error.
 
@@ -351,14 +356,14 @@ print(f"Information gain:        {H_status - H_status_given_region:.4f} bits")
 
 Output:
 ```
-H(status):               1.1893 bits
-H(status | domestic):    1.0887 bits
-H(status | intl):        1.3145 bits
-H(status | region):      1.1837 bits
-Information gain:        0.0056 bits
+H(status):               1.2290 bits
+H(status | domestic):    1.0850 bits
+H(status | intl):        1.3814 bits
+H(status | region):      1.2154 bits
+Information gain:        0.0135 bits
 ```
 
-Knowing the region reduces our uncertainty about status — but only slightly, by 0.0056 bits. This tells us that region is a weak predictor of order status in this dataset. In Chapter 12, when we look at mutual information, we will turn this into a principled feature selection technique.
+Knowing the region reduces our uncertainty about status — but only slightly, by 0.0135 bits. This still tells us that region is a weak predictor of order status in this dataset: the conditional entropy is only a little lower than the unconditional entropy. In Chapter 12, when we look at mutual information, we will turn this intuition into a principled feature selection technique.
 
 One property of conditional entropy is worth stating explicitly, because it is easy to get backwards:
 
@@ -410,13 +415,13 @@ print(f"Overhead from stale model:   {H_cross_bad - H_true:.4f} bits per symbol"
 
 Output:
 ```
-True entropy H(p):           1.1893 bits
-Cross-entropy H(p, p):       1.1893 bits  (perfect model)
-Cross-entropy H(p, q_stale): 1.3887 bits  (stale model)
-Overhead from stale model:   0.1994 bits per symbol
+True entropy H(p):           1.2290 bits
+Cross-entropy H(p, p):       1.2290 bits  (perfect model)
+Cross-entropy H(p, q_stale): 1.3091 bits  (stale model)
+Overhead from stale model:   0.0802 bits per symbol
 ```
 
-When your model matches reality, cross-entropy equals true entropy — you achieve optimal encoding. When your model is wrong, you pay a penalty: 0.20 extra bits per symbol in this case. For a system processing millions of orders, that overhead adds up.
+When your model matches reality, cross-entropy equals true entropy — you achieve optimal encoding. When your model is wrong, you pay a penalty: 0.080 bits per symbol in this case. That may sound small, but over millions of events it becomes a real inefficiency, and in machine learning even modest per-example losses matter because they accumulate over huge datasets.
 
 Cross-entropy has a second life as a loss function in machine learning. When you train a neural network to predict class probabilities, minimizing cross-entropy loss is exactly equivalent to minimizing the mismatch between the model's predicted distribution and the true distribution. We will explore this fully in Chapter 15. For now, notice that the cross-entropy loss has a natural lower bound — the true entropy — below which no model can go, no matter how well trained.
 
@@ -445,8 +450,8 @@ print(f"Cross-entropy - entropy: {H_cross_bad - H_true:.4f} bits")
 
 Output:
 ```
-KL(p_true || q_stale): 0.1994 bits
-Cross-entropy - entropy: 0.1994 bits
+KL(p_true || q_stale): 0.0802 bits
+Cross-entropy - entropy: 0.0802 bits
 ```
 
 Some important properties of KL divergence:
@@ -561,7 +566,7 @@ def text_entropy(text, order=0):
     Compute the character-level entropy of a text.
     order=0: independent character probabilities (zeroth-order model)
     """
-    text = text.lower()
+    text = ''.join(ch for ch in text.lower() if 'a' <= ch <= 'z')
     if order == 0:
         from collections import Counter
         counts = Counter(text)
@@ -583,14 +588,14 @@ print(f"Redundancy:           {100*(1 - H0/math.log2(26)):.1f}%")
 
 Output:
 ```
-Zeroth-order entropy: 4.073 bits/character
+Zeroth-order entropy: 3.961 bits/character
 Maximum possible:     4.700 bits/character (26 letters)
-Redundancy:           13.3%
+Redundancy:           15.7%
 ```
 
-But this zeroth-order model treats each character independently — it does not capture the fact that after a `q`, you almost always see a `u`. A first-order model that conditions on the previous character would show much higher redundancy.
+By filtering down to letters before counting frequencies, this comparison now uses the same 26-symbol alphabet in both the code and the theoretical maximum. But this zeroth-order model still treats each character independently — it does not capture the fact that after a `q`, you almost always see a `u`. A first-order model that conditions on the previous character would show much higher redundancy.
 
-Shannon himself estimated the true entropy of English at around 1.0–1.5 bits per character — far below even our naive measurement. This means English is roughly 70% redundant: you could theoretically compress it to 30% of its original size. This is why language compresses so well in practice, and it is why autocomplete works so predictably.
+Shannon himself estimated the true entropy of English at around 1.0–1.5 bits per character — far below even our naive measurement. So even when this crude sample gives only about 15.8% redundancy, we already know the real redundancy of English is much larger once sequential structure is modeled properly. That is why language compresses so well in practice, and it is why autocomplete works so predictably.
 
 ---
 
