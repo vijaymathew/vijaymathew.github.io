@@ -102,7 +102,7 @@ end
 
 function update_height(node: Node[K, V])
 do
-  node.height := 1 + max(height(node.left), height(node.right))
+  node.height := 1 + height(node.left).max(height(node.right))
 end
 
 function balance_factor(node: Node[K, V]): Integer
@@ -287,26 +287,26 @@ class AVL_Map [K -> Comparable, V]
     end
 
     put(key: K, value: V)
-      ensure
-        key_present: get(key) /= nil
-        count_nondecreasing: count >= old count
       do
         let was_present: Boolean := get(key) /= nil
         root := insert(root, key, value)
         if not was_present then
           count := count + 1
         end
+      ensure
+        key_present: get(key) /= nil
+        count_nondecreasing: count >= old count
       end
 
     remove(key: K)
-      ensure
-        key_absent: get(key) = nil
       do
         let was_present: Boolean := get(key) /= nil
         root := delete(root, key)
         if was_present then
           count := count - 1
         end
+      ensure
+        key_absent: get(key) = nil
       end
 
     in_order(): Array[K] do
@@ -391,8 +391,12 @@ function flip_colors(node: RB_Node[K, V])
     both_children_red: is_red(node.left) and is_red(node.right)
   do
     node.red := true
-    node.left.red := false
-    node.right.red := false
+    if convert node.left to left_child: RB_Node[K, V] then
+      left_child.red := false
+    end
+    if convert node.right to right_child: RB_Node[K, V] then
+      right_child.red := false
+    end
   end
 ```
 
@@ -536,4 +540,3 @@ AVL trees maintain strict balance and are optimal for read-heavy workloads. Red-
 Both trees support ordered operations that hash tables cannot: range queries, in-order traversal, floor and ceiling lookups. These operations make self-balancing trees irreplaceable for any problem where key ordering matters.
 
 The implementation in Nex — with contracts enforcing the balance invariant throughout — demonstrates that correctness and clarity are not in conflict. The contract on `put` guarantees the key is present after insertion. The class invariant guarantees balance is maintained at all times. When an implementation satisfies its contracts, the code can be trusted rather than merely tested.
-

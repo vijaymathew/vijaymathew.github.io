@@ -53,14 +53,12 @@ This is what it means to flip coins for structure. The balance is not enforced â
 A skip list consists of a header node and a maximum level, currently in use. Each node has a key, a value, and an array of forward pointers â€” one per level the node participates in. The header node participates in all levels and serves as the entry point for search at every level.
 
 ```
-intern io/Path
-
 class Skip_Node [K, V]
   create
     make(key: ?K, value: ?V, level: Integer) do
       this.key := key
       this.value := value
-      this.forward := Array[?Skip_Node[K, V]].filled(level, nil)
+      this.forward := Array.filled(level, nil)
     end
   feature
     key: ?K
@@ -180,9 +178,6 @@ Insertion has two phases. First, search for the insertion point while recording,
 
 ```
 function put(key: K, value: V)
-  ensure
-    key_present: search(key) /= nil
-    count_nondecreasing: count >= old count
   do
     let update: Array[?Skip_Node[K, V]] := Array.filled(max_level, nil)
     let current: Skip_Node[K, V] := header
@@ -241,6 +236,9 @@ function put(key: K, value: V)
 
       count := count + 1
     end
+  ensure
+    key_present: search(key) /= nil
+    count_nondecreasing: count >= old count
   end
 ```
 
@@ -256,8 +254,6 @@ Deletion mirrors insertion. Search for the node while building the update array,
 
 ```
 function remove(key: K)
-  ensure
-    key_absent: search(key) = nil
   do
     let update: Array[?Skip_Node[K, V]] := Array.filled(max_level, nil)
     let current: Skip_Node[K, V] := header
@@ -305,6 +301,8 @@ function remove(key: K)
 
       count := count - 1
     end
+  ensure
+    key_absent: search(key) = nil
   end
 ```
 
@@ -317,7 +315,7 @@ The level reduction at the end is a housekeeping step: if deletion left the top 
 Range queries are even simpler than in a balanced tree, because the bottom level of a skip list is a plain sorted linked list. To find all keys between low and high, search for low at the bottom level and walk forward until you exceed high.
 
 ```
-function range(low: K, high: K): Array[K, V]
+function range(low: K, high: K): Array[Any]
   require
     valid_range: low <= high
   do
@@ -426,21 +424,21 @@ class Skip_List [K -> Comparable, V]
     end
 
     put(key: K, value: V)
+      do
+        -- implementation from section 3.6
       ensure
         key_present: contains(key)
         count_nondecreasing: count >= old count
-      do
-        -- implementation from section 3.6
       end
 
     remove(key: K)
-      ensure
-        key_absent: not contains(key)
       do
         -- implementation from section 3.7
+      ensure
+        key_absent: not contains(key)
       end
 
-    range(low: K, high: K): Array[K, V]
+    range(low: K, high: K): Array[Any]
       require
         valid_range: low <= high
       do

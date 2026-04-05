@@ -91,7 +91,7 @@ class Rolling_Hash
         i >= k
       do
         this.current_hash := (this.current_hash * base +
-                               text.char_at(i).to_integer()) % modulus
+                               text.char_at(i).hash()) % modulus
         i := i + 1
       end
     end
@@ -114,10 +114,10 @@ class Rolling_Hash
       do
         -- Remove contribution of outgoing character
         current_hash := (current_hash -
-                         outgoing.to_integer() * high_power % p + p) % p
+                         outgoing.hash() * high_power % p + p) % p
         -- Shift and add incoming character
         current_hash := (current_hash * b +
-                         incoming.to_integer()) % p
+                         incoming.hash()) % p
       end
 
     -- Reset and compute hash from scratch for a new string
@@ -126,8 +126,8 @@ class Rolling_Hash
         correct_length: s.length = window_size
       do
         let h: Integer64 := 0
-        across s.chars() as c do
-          h := (h * b + c.to_integer()) % p
+        across s as c do
+          h := (h * b + c.hash()) % p
         end
         result := h
       end
@@ -171,43 +171,42 @@ function rabin_karp_search(text: String, pattern: String): Array[Integer]
 
     if m > n then
       result := positions
-      return
-    end
+    else
+      let base: Integer := 31
+      let modulus: Integer64 := 1000000007  -- large prime
 
-    let base: Integer := 31
-    let modulus: Integer64 := 1000000007  -- large prime
+      -- Compute pattern hash
+      let rh: Rolling_Hash := create Rolling_Hash.for_window(
+        pattern, m, base, modulus)
+      let pattern_hash: Integer64 := rh.hash()
 
-    -- Compute pattern hash
-    let rh: Rolling_Hash := create Rolling_Hash.for_window(
-      pattern, m, base, modulus)
-    let pattern_hash: Integer64 := rh.hash()
+      -- Compute hash of first text window
+      let text_rh: Rolling_Hash := create Rolling_Hash.for_window(
+        text, m, base, modulus)
 
-    -- Compute hash of first text window
-    let text_rh: Rolling_Hash := create Rolling_Hash.for_window(
-      text, m, base, modulus)
-
-    -- Slide the window
-    from
-      let i: Integer := 0
-    until
-      i > n - m
-    do
-      if text_rh.hash() = pattern_hash then
-        -- Hash match: verify by direct comparison
-        if text.substring(i, i + m) = pattern then
-          positions.add(i)
+      -- Slide the window
+      from
+        let i: Integer := 0
+      until
+        i > n - m
+      do
+        if text_rh.hash() = pattern_hash then
+          -- Hash match: verify by direct comparison
+          if text.substring(i, i + m) = pattern then
+            positions.add(i)
+          end
         end
+
+        -- Roll to next window
+        if i < n - m then
+          text_rh.roll(text.char_at(i), text.char_at(i + m))
+        end
+
+        i := i + 1
       end
 
-      -- Roll to next window
-      if i < n - m then
-        text_rh.roll(text.char_at(i), text.char_at(i + m))
-      end
-
-      i := i + 1
+      result := positions
     end
-
-    result := positions
   end
 ```
 
@@ -247,7 +246,7 @@ function rabin_karp_multi_search(text: String,
       let rh2: Rolling_Hash := create Rolling_Hash.for_window(p, m, base, mod2)
       let combined: Integer64 := rh1.hash() * mod2 + rh2.hash()
 
-      if pattern_hashes.get(combined) = nil then
+      if pattern_hashes.try_get(combined, []) = [] then
         pattern_hashes.put(combined, [])
       end
       pattern_hashes.get(combined).add(p)
@@ -256,57 +255,56 @@ function rabin_karp_multi_search(text: String,
 
     if m > n then
       result := results
-      return
-    end
+    else
+      -- Initialise rolling hashes for text window
+      let text_rh1: Rolling_Hash := create Rolling_Hash.for_window(
+        text, m, base, mod1)
+      let text_rh2: Rolling_Hash := create Rolling_Hash.for_window(
+        text, m, base, mod2)
 
-    -- Initialise rolling hashes for text window
-    let text_rh1: Rolling_Hash := create Rolling_Hash.for_window(
-      text, m, base, mod1)
-    let text_rh2: Rolling_Hash := create Rolling_Hash.for_window(
-      text, m, base, mod2)
+      from
+        let i: Integer := 0
+      until
+        i > n - m
+      do
+        let combined: Integer64 := text_rh1.hash() * mod2 + text_rh2.hash()
+        let candidates: Array[String] := pattern_hashes.try_get(combined, [])
 
-    from
-      let i: Integer := 0
-    until
-      i > n - m
-    do
-      let combined: Integer64 := text_rh1.hash() * mod2 + text_rh2.hash()
-      let candidates: ?Array[String] := pattern_hashes.get(combined)
-
-      if candidates /= nil then
-        -- Hash match: verify each candidate
-        let window: String := text.substring(i, i + m)
-        across candidates as p do
-          if window = p then
-            results.get(p).add(i)
+        if candidates.length > 0 then
+          -- Hash match: verify each candidate
+          let window: String := text.substring(i, i + m)
+          across candidates as p do
+            if window = p then
+              results.get(p).add(i)
+            end
           end
         end
+
+        if i < n - m then
+          text_rh1.roll(text.char_at(i), text.char_at(i + m))
+          text_rh2.roll(text.char_at(i), text.char_at(i + m))
+        end
+
+        i := i + 1
       end
 
-      if i < n - m then
-        text_rh1.roll(text.char_at(i), text.char_at(i + m))
-        text_rh2.roll(text.char_at(i), text.char_at(i + m))
-      end
-
-      i := i + 1
+      result := results
     end
-
-    result := results
   end
 
 function all_same_length(patterns: Array[String]): Boolean do
   if patterns.is_empty() then
     result := true
-    return
-  end
-  let len: Integer := patterns.get(0).length
-  across patterns as p do
-    if p.length /= len then
-      result := false
-      return
+  else
+    let len: Integer := patterns.get(0).length
+    let same: Boolean := true
+    across patterns as p do
+      if p.length /= len then
+        same := false
+      end
     end
+    result := same
   end
-  result := true
 end
 ```
 
@@ -347,31 +345,30 @@ class Plagiarism_Detector
 
       if n < k then
         result := hashes
-        return
-      end
+      else
+        let rh1: Rolling_Hash := create Rolling_Hash.for_window(
+          doc, k, base, mod1)
+        let rh2: Rolling_Hash := create Rolling_Hash.for_window(
+          doc, k, base, mod2)
 
-      let rh1: Rolling_Hash := create Rolling_Hash.for_window(
-        doc, k, base, mod1)
-      let rh2: Rolling_Hash := create Rolling_Hash.for_window(
-        doc, k, base, mod2)
+        from
+          let i: Integer := 0
+        until
+          i > n - k
+        do
+          let combined: Integer64 := rh1.hash() * mod2 + rh2.hash()
+          hashes := hashes.union(#{combined})
 
-      from
-        let i: Integer := 0
-      until
-        i > n - k
-      do
-        let combined: Integer64 := rh1.hash() * mod2 + rh2.hash()
-        hashes := hashes.union(#{combined})
+          if i < n - k then
+            rh1.roll(doc.char_at(i), doc.char_at(i + k))
+            rh2.roll(doc.char_at(i), doc.char_at(i + k))
+          end
 
-        if i < n - k then
-          rh1.roll(doc.char_at(i), doc.char_at(i + k))
-          rh2.roll(doc.char_at(i), doc.char_at(i + k))
+          i := i + 1
         end
 
-        i := i + 1
+        result := hashes
       end
-
-      result := hashes
     end
 
     -- Jaccard similarity: |A ∩ B| / |A ∪ B|
@@ -399,38 +396,40 @@ class Plagiarism_Detector
       let fp_a: Set[Integer64] := fingerprints(doc_a)
       let fp_b: Set[Integer64] := fingerprints(doc_b)
       let shared_hashes: Set[Integer64] := fp_a.intersection(fp_b)
-
-      -- Find actual strings corresponding to shared hashes
       let found: Array[String] := []
       let seen: Set[Integer64] := #{}
-
       let n: Integer := doc_a.length
-      let rh1: Rolling_Hash := create Rolling_Hash.for_window(
-        doc_a, k, base, mod1)
-      let rh2: Rolling_Hash := create Rolling_Hash.for_window(
-        doc_a, k, base, mod2)
 
-      from
-        let i: Integer := 0
-      until
-        i > n - k
-      do
-        let combined: Integer64 := rh1.hash() * mod2 + rh2.hash()
-        if shared_hashes.contains(combined) and
-           not seen.contains(combined) then
-          found.add(doc_a.substring(i, i + k))
-          seen := seen.union(#{combined})
+      if n < k then
+        result := found
+      else
+        let rh1: Rolling_Hash := create Rolling_Hash.for_window(
+          doc_a, k, base, mod1)
+        let rh2: Rolling_Hash := create Rolling_Hash.for_window(
+          doc_a, k, base, mod2)
+
+        from
+          let i: Integer := 0
+        until
+          i > n - k
+        do
+          let combined: Integer64 := rh1.hash() * mod2 + rh2.hash()
+          if shared_hashes.contains(combined) and
+             not seen.contains(combined) then
+            found.add(doc_a.substring(i, i + k))
+            seen := seen.union(#{combined})
+          end
+
+          if i < n - k then
+            rh1.roll(doc_a.char_at(i), doc_a.char_at(i + k))
+            rh2.roll(doc_a.char_at(i), doc_a.char_at(i + k))
+          end
+
+          i := i + 1
         end
 
-        if i < n - k then
-          rh1.roll(doc_a.char_at(i), doc_a.char_at(i + k))
-          rh2.roll(doc_a.char_at(i), doc_a.char_at(i + k))
-        end
-
-        i := i + 1
+        result := found
       end
-
-      result := found
     end
 
   invariant
@@ -460,59 +459,58 @@ function winnow(doc: String, k: Integer, w: Integer): Set[Integer64] do
   let n: Integer := doc.length
   if n < k then
     result := fingerprints
-    return
-  end
+  else
+    let rh1: Rolling_Hash := create Rolling_Hash.for_window(
+      doc, k, 31, 1000000007)
+    let rh2: Rolling_Hash := create Rolling_Hash.for_window(
+      doc, k, 31, 998244353)
 
-  let rh1: Rolling_Hash := create Rolling_Hash.for_window(
-    doc, k, 31, 1000000007)
-  let rh2: Rolling_Hash := create Rolling_Hash.for_window(
-    doc, k, 31, 998244353)
-
-  from
-    let i: Integer := 0
-  until
-    i > n - k
-  do
-    hashes.add(rh1.hash() * 998244353 + rh2.hash())
-    if i < n - k then
-      rh1.roll(doc.char_at(i), doc.char_at(i + k))
-      rh2.roll(doc.char_at(i), doc.char_at(i + k))
-    end
-    i := i + 1
-  end
-
-  -- Slide window of size w, select minimum hash in each window
-  let prev_min_pos: Integer := -1
-  from
-    let i: Integer := 0
-  until
-    i > hashes.length - w
-  do
-    -- Find minimum in window [i, i+w)
-    let min_hash: Integer64 := hashes.get(i)
-    let min_pos: Integer := i
     from
-      let j: Integer := i + 1
+      let i: Integer := 0
     until
-      j < i + w
+      i > n - k
     do
-      if hashes.get(j) < min_hash then
-        min_hash := hashes.get(j)
-        min_pos := j
+      hashes.add(rh1.hash() * 998244353 + rh2.hash())
+      if i < n - k then
+        rh1.roll(doc.char_at(i), doc.char_at(i + k))
+        rh2.roll(doc.char_at(i), doc.char_at(i + k))
       end
-      j := j + 1
+      i := i + 1
     end
 
-    -- Add to fingerprints if not already added
-    if min_pos /= prev_min_pos then
-      fingerprints := fingerprints.union(#{min_hash})
-      prev_min_pos := min_pos
+    -- Slide window of size w, select minimum hash in each window
+    let prev_min_pos: Integer := -1
+    from
+      let i: Integer := 0
+    until
+      i > hashes.length - w
+    do
+      -- Find minimum in window [i, i+w)
+      let min_hash: Integer64 := hashes.get(i)
+      let min_pos: Integer := i
+      from
+        let j: Integer := i + 1
+      until
+        j >= i + w
+      do
+        if hashes.get(j) < min_hash then
+          min_hash := hashes.get(j)
+          min_pos := j
+        end
+        j := j + 1
+      end
+
+      -- Add to fingerprints if not already added
+      if min_pos /= prev_min_pos then
+        fingerprints := fingerprints.union(#{min_hash})
+        prev_min_pos := min_pos
+      end
+
+      i := i + 1
     end
 
-    i := i + 1
+    result := fingerprints
   end
-
-  result := fingerprints
 end
 ```
 
@@ -535,72 +533,73 @@ function longest_repeated_substring(text: String): String do
   let n: Integer := text.length
   if n = 0 then
     result := ""
-    return
-  end
+  else
+    let low: Integer := 1
+    let high: Integer := n / 2
+    let best: String := ""
 
-  let low: Integer := 1
-  let high: Integer := n / 2
-  let best: String := ""
+    from until low > high do
+      let mid: Integer := (low + high) / 2
+      let repeated: ?String := find_repeated_of_length(text, mid)
 
-  from until low > high do
-    let mid: Integer := (low + high) / 2
-    let repeated: ?String := find_repeated_of_length(text, mid)
-
-    if repeated /= nil then
-      best := repeated
-      low := mid + 1
-    else
-      high := mid - 1
+      if repeated /= nil then
+        if convert repeated to repeated_text: String then
+          best := repeated_text
+        end
+        low := mid + 1
+      else
+        high := mid - 1
+      end
     end
-  end
 
-  result := best
+    result := best
+  end
 end
 
 function find_repeated_of_length(text: String, k: Integer): ?String do
   let n: Integer := text.length
   if k = 0 or k > n then
     result := nil
-    return
-  end
+  else
+    let seen: Map[Integer64, Array[Integer]] := {}
+    let found: ?String := nil
+    let rh1: Rolling_Hash := create Rolling_Hash.for_window(
+      text, k, 31, 1000000007)
+    let rh2: Rolling_Hash := create Rolling_Hash.for_window(
+      text, k, 31, 998244353)
 
-  let seen: Map[Integer64, Array[Integer]] := {}
-  let rh1: Rolling_Hash := create Rolling_Hash.for_window(
-    text, k, 31, 1000000007)
-  let rh2: Rolling_Hash := create Rolling_Hash.for_window(
-    text, k, 31, 998244353)
+    from
+      let i: Integer := 0
+    until
+      i > n - k
+    do
+      let combined: Integer64 := rh1.hash() * 998244353 + rh2.hash()
+      let existing: Array[Integer] := seen.try_get(combined, [])
 
-  from
-    let i: Integer := 0
-  until
-    i > n - k
-  do
-    let combined: Integer64 := rh1.hash() * 998244353 + rh2.hash()
-    let existing: ?Array[Integer] := seen.get(combined)
-
-    if existing /= nil then
-      -- Hash collision or genuine match: verify
-      let candidate: String := text.substring(i, i + k)
-      across existing as prev_pos do
-        if text.substring(prev_pos, prev_pos + k) = candidate then
-          result := candidate
-          return
+      if existing.length > 0 then
+        -- Hash collision or genuine match: verify
+        let candidate: String := text.substring(i, i + k)
+        across existing as prev_pos do
+          if found = nil and
+             text.substring(prev_pos, prev_pos + k) = candidate then
+            found := candidate
+          end
         end
+        existing.add(i)
+      else
+        seen.put(combined, [i])
       end
-      existing.add(i)
-    else
-      seen.put(combined, [i])
+
+      if i < n - k then
+        rh1.roll(text.char_at(i), text.char_at(i + k))
+        rh2.roll(text.char_at(i), text.char_at(i + k))
+      end
+
+      i := i + 1
     end
 
-    if i < n - k then
-      rh1.roll(text.char_at(i), text.char_at(i + k))
-      rh2.roll(text.char_at(i), text.char_at(i + k))
-    end
-
-    i := i + 1
+    result := found
   end
-
-  result := nil
 end
 ```
 
@@ -663,9 +662,9 @@ Assembling everything into a clean, reusable module:
 class Rabin_Karp
   create
     make() do
-      this.base := BASE
-      this.mod1 := PRIME_1
-      this.mod2 := PRIME_2
+      this.base := 31
+      this.mod1 := 1000000007
+      this.mod2 := 998244353
     end
 
     with_parameters(base: Integer, mod1: Integer64, mod2: Integer64)
@@ -723,8 +722,24 @@ class Rabin_Karp
     -- Verify Rabin-Karp against naive for testing
     verify(text: String, pattern: String): Boolean do
       let rk_result: Array[Integer] := search(text, pattern)
-      let naive_result: Array[Integer] := naive_search(text, pattern)
-      result := arrays_equal(rk_result, naive_result)
+      let naive_result: Array[Integer] := []
+      let n: Integer := text.length
+      let m: Integer := pattern.length
+
+      if m > 0 and m <= n then
+        from
+          let i: Integer := 0
+        until
+          i > n - m
+        do
+          if text.substring(i, i + m) = pattern then
+            naive_result.add(i)
+          end
+          i := i + 1
+        end
+      end
+
+      result := rk_result.to_string() = naive_result.to_string()
     end
 
   invariant

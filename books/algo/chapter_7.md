@@ -432,8 +432,8 @@ function run_correctness_tests(): Boolean do
     matcher.verify("aaa", "aa")
 
   -- Worst case for naive: repetitive pattern and text
-  let repetitive_text: String := String.filled(1000, 'a')
-  let repetitive_pattern: String := String.filled(10, 'a')
+  let repetitive_text: String := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  let repetitive_pattern: String := "aaaaaaaaaa"
   all_passed := all_passed and
     matcher.verify(repetitive_text, repetitive_pattern)
 

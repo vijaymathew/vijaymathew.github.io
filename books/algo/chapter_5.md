@@ -164,9 +164,9 @@ class MemTable
     threshold: Integer
 
     put(key: String, value: String) do
-      let old: ?String := data.get(key)
-      if old /= nil then
-        size_bytes := size_bytes - old.length
+      let existing: ?String := data.get(key)
+      if existing /= nil then
+        size_bytes := size_bytes - existing.length
       end
       data.put(key, value)
       size_bytes := size_bytes + key.length + value.length
@@ -190,9 +190,9 @@ class MemTable
     end
 
     -- Return all entries in sorted order for flushing
-    entries(): Array[String, String] do
+    entries(): Array[Any] do
       let sorted_keys: Array[String] := data.in_order()
-      let result_arr: Array[String, String] := []
+      let result_arr: Array[Any] := []
       across sorted_keys as key do
         result_arr.add([key, data.get(key)])
       end
@@ -255,7 +255,7 @@ class SSTable_Writer
   feature
     path: Path
     file: Binary_File
-    index_entries: Array[String, Integer64]
+    index_entries: Array[Any]
     entry_count: Integer
     current_offset: Integer
     index_interval: Integer
@@ -328,7 +328,7 @@ class SSTable_Reader
   feature
     path: Path
     file: Binary_File
-    index: Array[String, Integer64]
+    index: Array[Any]
     bloom: Bloom_Filter
     entry_count: Integer
     index_offset: Integer64
@@ -373,7 +373,7 @@ class SSTable_Reader
     scan_for(key: String): ?String do
       -- Read entries sequentially until finding key or passing it
       from until file.position() >= index_offset.to_integer() do
-        let entry: ?Array[String, Boolean] := read_next_entry()
+        let entry: ?Array[Any] := read_next_entry()
         if entry = nil then
           result := nil
           return
@@ -398,27 +398,29 @@ class SSTable_Reader
       result := nil
     end
 
-    read_next_entry(): ?Array[String, Boolean] do
+    read_next_entry(): ?Array[Any] do
       let key_len_bytes: Array[Integer] := file.read(4)
       if key_len_bytes.length < 4 then
         result := nil
         return
       end
       let key_len: Integer := bytes_to_int(key_len_bytes, 0)
-      let key: String := String.from_bytes(file.read(key_len))
+      let key_bytes: Array[Integer] := file.read(key_len)
+      let key: String := decode_bytes(key_bytes)
       let value_len: Integer := bytes_to_int(file.read(4), 0)
-      let value: String := String.from_bytes(file.read(value_len))
+      let value_bytes: Array[Integer] := file.read(value_len)
+      let value: String := decode_bytes(value_bytes)
       let tombstone_byte: Array[Integer] := file.read(1)
       let is_tombstone: Boolean := tombstone_byte.get(0) = 1
       result := [[key, value], is_tombstone]
     end
 
     -- Return all entries in sorted order (for compaction)
-    all_entries(): Array[String, String, Boolean] do
-      let entries: Array[String, String, Boolean] := []
+    all_entries(): Array[Any] do
+      let entries: Array[Any] := []
       file.seek(0)
       from until file.position() >= index_offset.to_integer() do
-        let entry: ?Array[String, Boolean] := read_next_entry()
+        let entry: ?Array[Any] := read_next_entry()
         if entry /= nil then
           entries.add([entry.get(0).get(0),
                        entry.get(0).get(1),
@@ -439,12 +441,17 @@ class SSTable_Reader
     end
 
     load_index() do
-      -- Read index section into memory as Array[String, Integer64]
+      -- Read index section into memory as Array[Any]
     end
 
     load_bloom() do
       -- Read bloom filter bytes and reconstruct Bloom_Filter
     end
+end
+
+function decode_bytes(bytes: Array[Integer]): String do
+  -- Teaching helper: treat the byte sequence as already-decoded text.
+  result := bytes.to_string()
 end
 ```
 
@@ -549,7 +556,7 @@ class Compactor
         i >= sources.length
       do
         let source: SSTable_Reader := sources.get(i)
-        let first: ?Array[String, String, Boolean] :=
+        let first: ?Array[Any] :=
           source.next_entry()
         if first /= nil then
           heap.insert([first.get(0), first.get(1), i, first.get(2)])
@@ -589,7 +596,7 @@ class Compactor
         end
 
         -- Fetch next entry from the same source
-        let next: ?Array[String, String, Boolean] :=
+        let next: ?Array[Any] :=
           sources.get(source_index).next_entry()
         if next /= nil then
           heap.insert([next.get(0), next.get(1),
@@ -616,8 +623,7 @@ class Compactor
     end
 
     find_overlapping(sources: Array[SSTable_Reader],
-                     candidates: Array[SSTable_Reader]):
-                     Array[SSTable_Reader] do
+                     candidates: Array[SSTable_Reader]): Array[SSTable_Reader] do
       -- Find the overall key range of sources
       let min_key: String := find_min_key(sources)
       let max_key: String := find_max_key(sources)
@@ -755,21 +761,21 @@ class LSM_Tree
     end
 
     put(key: String, value: String)
-      ensure
-        key_present: get(key) = value
       do
         wal.append_put(key, value)
         memtable.put(key, value)
         maybe_flush()
+      ensure
+        key_present: get(key) = value
       end
 
     delete(key: String)
-      ensure
-        key_absent: get(key) = nil
       do
         wal.append_delete(key)
         memtable.delete(key)
         maybe_flush()
+      ensure
+        key_absent: get(key) = nil
       end
 
     maybe_flush() do
