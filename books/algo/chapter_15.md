@@ -1,1185 +1,927 @@
-# Chapter 14: The Editor's Data Structure — Ropes and Piece Tables
+# Chapter 15: Quicksort — The Practical Champion
 
 ---
 
-Open a text editor. Type a character. The character appears instantly, no matter how large the file. Delete a word in the middle of a ten-megabyte document. The deletion is instant. Undo it. Also instant. Select a million characters and replace them with three. Instant.
+In 1959, Tony Hoare was a twenty-five-year-old working on a machine translation project in Moscow. He needed to sort a list of Russian words so that their translations could be looked up efficiently. He knew about insertion sort and bubble sort — the standard methods of the time — but they were too slow for his purposes. On a bus ride, he thought of a different approach. He called it quicksort.
 
-None of this is obvious. A text editor is, at its core, a program that maintains a mutable sequence of characters and supports efficient insertion, deletion, and retrieval at arbitrary positions. These requirements seem simple until you think carefully about the data structures available to represent that sequence.
+Hoare's algorithm is still the dominant general-purpose sorting algorithm sixty-five years later. Java's `Arrays.sort` uses it for primitive types. C's `qsort` is typically a variant of it. Python's `sorted` uses Timsort, a hybrid that includes insertion sort, but Timsort's performance characteristics were derived by studying quicksort's behavior. Rust's `sort_unstable` uses pattern-defeating quicksort. The algorithm that appeared to a young researcher on a Moscow bus is in the standard library of virtually every mainstream programming language in existence.
 
-An array of characters is the naive choice. Random access is O(1) — reading any character requires one memory operation. But insertion and deletion at an arbitrary position require shifting every character after the insertion point. Inserting a single character at the beginning of a ten-megabyte document requires moving ten million characters. Editing large files would be visibly slow.
+Why? Not because quicksort is theoretically optimal — merge sort achieves the same O(n log n) average case with a better worst case. Not because it is the simplest to implement — insertion sort is simpler. Quicksort dominates because it is fast in practice, in the way that matters most: on real hardware, on real data, in real memory.
 
-A linked list solves the shifting problem — insertion and deletion are O(1) once you have found the position. But finding the position requires walking the list from the beginning, which is O(n). And linked lists destroy cache performance — each character is a separately allocated node, so reading a sequence of characters causes one cache miss per character, making display and search catastrophically slow.
-
-Neither works. And yet every text editor you have ever used is fast. Something else is happening.
-
-This chapter examines two data structures that actually work for text editing: ropes and piece tables. They represent genuinely different approaches to the same problem. Understanding both — and the specific engineering constraints that led VS Code to choose piece tables over ropes — is a lesson in how abstract data structure theory meets practical system design.
+This chapter explains why quicksort wins in practice, how its simple idea degrades catastrophically on certain inputs, how decades of engineering have addressed those degradations, and what the resulting standard library implementations actually look like. By the end, you will understand not just quicksort but the engineering discipline of taking a theoretically imperfect algorithm and making it reliably fast.
 
 ---
 
-## 14.1 The Requirements
+## 15.1 The Core Idea
 
-Before choosing a structure, state the requirements precisely. A text editor needs:
+Quicksort is a divide-and-conquer algorithm. Its central operation is partitioning: rearrange the array so that all elements smaller than some chosen pivot are to the left, all elements larger are to the right, and the pivot is in its final sorted position. Then recursively sort the left and right partitions.
 
-**Insertion:** insert a string of length k at position p in a document of length n. Cost should not be O(n).
+The elegance is in what partitioning achieves: without knowing anything about where elements belong in the final sorted order, it places one element — the pivot — exactly where it belongs. Every call to partition makes permanent progress.
 
-**Deletion:** delete characters from position p to position p + k. Cost should not be O(n).
+Contrast with merge sort: merge sort divides the array in half, sorts each half recursively, then merges. The merge step does useful work, but it requires extra memory proportional to the array size. Quicksort partitions in place — it rearranges elements within the existing array using O(1) extra memory, just a few temporary variables for swapping.
 
-**Access:** read the character at position p. Should be efficient.
-
-**Iteration:** traverse a range of characters sequentially (for display, search, export). Should be cache-friendly.
-
-**Undo/redo:** revert the document to a previous state. The data structure should support this without copying the entire document on every edit.
-
-**Line queries:** given a position in the character sequence, find the line number. Given a line number, find the start position. Editors think in lines, not just characters.
-
-**Large files:** the structure should handle files of hundreds of megabytes without memory blowup.
-
-No single classical data structure satisfies all of these simultaneously. Arrays fail on insertion and deletion. Linked lists fail on access and iteration. Hash tables do not maintain order. Balanced trees give O(log n) for everything but poor constant factors and bad cache behaviour for iteration.
-
-The practical solutions — ropes and piece tables — both trade some worst-case guarantees for structures that are fast in the patterns that text editing actually exhibits.
+This in-place property is why quicksort has better cache behavior than merge sort. Merge sort's merge step reads from one buffer and writes to another, accessing two distinct memory regions alternately. Quicksort's partition step scans the array from both ends toward the center, accessing a single contiguous region in a predictable pattern. On modern hardware, where a cache miss to main memory costs 100-300x a cache hit, this difference is decisive.
 
 ---
 
-## 14.2 Ropes: A Binary Tree of String Fragments
+## 15.2 Partitioning: Lomuto and Hoare
 
-A rope is a binary tree where each leaf holds a short string fragment (a piece of the document), and each internal node stores the total length of all characters in its left subtree. The document is read by an in-order traversal of the leaves. Random access navigates the tree using the stored weights.
+There are two main partitioning schemes, with meaningfully different properties.
 
-```
-     (23)
-    /    \
-  (11)   "Hello, world"  ← leaf: 12 chars
-  /  \
-"Hello"  ", "            ← leaves: 5 and 2 chars
-```
+### Lomuto Partitioning
 
-The number in each internal node is the weight — the total character count in the left subtree. To find character at position p: if p < weight, go left; otherwise go right with p adjusted by weight.
-
-Ropes were described by Boehm, Atkinson, and Plass in their 1995 paper "Ropes: An Alternative to Strings." The name is a rope made of smaller pieces twisted together — a physical metaphor for the structure.
-
-### Node Representation
+Lomuto's scheme (attributed to Nico Lomuto, popularised by Sedgewick) uses a single scanning pointer. The pivot is chosen as the last element. A boundary pointer `i` tracks the boundary between elements known to be smaller than the pivot (left of `i`) and unexamined elements. A scanning pointer `j` walks left to right; when it finds an element smaller than the pivot, that element is swapped to position `i` and `i` advances.
 
 ```
-class Rope_Node
-  create
-    leaf(content: String) do
-      this.is_leaf := true
-      this.content := content
-      this.weight := content.length
-      this.left := nil
-      this.right := nil
-    end
+function lomuto_partition(arr: Array[Integer],
+                           low: Integer,
+                           high: Integer): Integer
+  require
+    valid_range: low >= 0 and high < arr.length and low <= high
+  do
+    let pivot: Integer := arr.get(high)
+    let i: Integer := low - 1  -- boundary: all arr[low..i] < pivot
 
-    internal(weight: Integer,
-             left: Rope_Node,
-             right: Rope_Node) do
-      this.is_leaf := false
-      this.content := ""
-      this.weight := weight
-      this.left := left
-      this.right := right
-    end
-
-  feature
-    is_leaf: Boolean
-    content: String      -- non-empty only for leaves
-    weight: Integer      -- for leaf: content.length
-                         -- for internal: total chars in left subtree
-    left: ?Rope_Node
-    right: ?Rope_Node
-
-    total_length(): Integer do
-      if is_leaf then
-        result := weight
-      else
-        let right_len: Integer :=
-          when right /= nil right.total_length() else 0 end
-        result := weight + right_len
+    from
+      let j: Integer := low
+    until
+      j >= high
+    do
+      if arr.get(j) <= pivot then
+        i := i + 1
+        swap(arr, i, j)
       end
+      j := j + 1
     end
 
-  invariant
-    non_negative_weight: weight >= 0
-    leaf_weight_consistent: is_leaf implies weight = content.length
-    internal_has_children: not is_leaf implies left /= nil
-end
+    -- Place pivot in its final position
+    swap(arr, i + 1, high)
+    result := i + 1  -- pivot's final position
+  end
 ```
 
-### The Rope
+Lomuto is simple and correct. Its weakness: when many elements equal the pivot, many unnecessary swaps occur. On an array of all equal elements, Lomuto performs O(n²) swaps.
+
+### Hoare Partitioning
+
+Hoare's original scheme uses two pointers scanning from opposite ends. The left pointer advances until it finds an element ≥ pivot. The right pointer retreats until it finds an element ≤ pivot. The two elements are swapped. Repeat until the pointers cross.
 
 ```
-class Rope
-  create
-    empty() do
-      this.root := nil
-      this.length := 0
-    end
+function hoare_partition(arr: Array[Integer],
+                          low: Integer,
+                          high: Integer): Integer
+  require
+    valid_range: low >= 0 and high < arr.length and low <= high
+  do
+    let pivot: Integer := arr.get(low + (high - low) / 2)
+    let i: Integer := low - 1
+    let j: Integer := high + 1
 
-    from_string(s: String) do
-      this.length := s.length
-      if s.length = 0 then
-        this.root := nil
-      elseif s.length <= MAX_LEAF_SIZE then
-        this.root := create Rope_Node.leaf(s)
-      else
-        -- Split long strings into balanced tree
-        this.root := build_from_string(s, 0, s.length)
-      end
-    end
+    from until true do
+      -- Advance i until arr[i] >= pivot
+      from do
+        i := i + 1
+      until arr.get(i) >= pivot end
 
-  feature
-    root: ?Rope_Node
-    length: Integer
-    MAX_LEAF_SIZE: Integer := 64  -- maximum characters per leaf
+      -- Retreat j until arr[j] <= pivot
+      from do
+        j := j - 1
+      until arr.get(j) <= pivot end
 
-    -- Character access: O(log n)
-    char_at(pos: Integer): Char
-      require
-        valid_pos: pos >= 0 and pos < length
-      do
-        result := node_char_at(root, pos)
-      end
-
-    node_char_at(node: ?Rope_Node, pos: Integer): Char do
-      if node = nil then
-        result := '\0'  -- should not happen if pos is valid
+      -- If pointers have crossed, partitioning is complete
+      if i >= j then
+        result := j
         return
       end
 
-      if node.is_leaf then
-        result := node.content.char_at(pos)
-        return
-      end
-
-      if pos < node.weight then
-        result := node_char_at(node.left, pos)
-      else
-        result := node_char_at(node.right, pos - node.weight)
-      end
+      swap(arr, i, j)
     end
-
-    -- Substring extraction: O(k + log n)
-    substring(start: Integer, end_pos: Integer): String
-      require
-        valid_range: start >= 0 and end_pos <= length and start <= end_pos
-      do
-        let chars: Array[Char] := []
-        collect_chars(root, start, end_pos, 0, chars)
-        result := String.from_chars(chars)
-      end
-
-    collect_chars(node: ?Rope_Node,
-                  start: Integer,
-                  end_pos: Integer,
-                  offset: Integer,
-                  chars: Array[Char]) do
-      if node = nil then return end
-
-      if node.is_leaf then
-        -- Collect characters in [start, end_pos) from this leaf
-        let leaf_start: Integer := offset
-        let leaf_end: Integer := offset + node.weight
-
-        let lo: Integer := start.max(leaf_start) - leaf_start
-        let hi: Integer := end_pos.min(leaf_end) - leaf_start
-
-        from
-          let i: Integer := lo
-        until
-          i < hi
-        do
-          chars.add(node.content.char_at(i))
-          i := i + 1
-        end
-        return
-      end
-
-      -- Internal node: recurse left then right
-      let left_end: Integer := offset + node.weight
-      if start < left_end then
-        collect_chars(node.left, start, end_pos, offset, chars)
-      end
-      if end_pos > left_end then
-        collect_chars(node.right, start, end_pos, left_end, chars)
-      end
-    end
-
-    -- Concatenate two ropes: O(1) amortised
-    concat(other: Rope): Rope do
-      if length = 0 then
-        result := other
-        return
-      end
-      if other.length = 0 then
-        result := self
-        return
-      end
-
-      let new_rope: Rope := create Rope.empty()
-      new_rope.root := create Rope_Node.internal(
-        length, root, other.root)
-      new_rope.length := length + other.length
-      result := new_rope
-    end
-
-    -- Split at position pos: O(log n)
-    -- Returns [left_rope, right_rope]
-    split(pos: Integer): Array[Rope]
-      require
-        valid_pos: pos >= 0 and pos <= length
-      do
-        if pos = 0 then
-          result := [create Rope.empty(), self]
-          return
-        end
-        if pos = length then
-          result := [self, create Rope.empty()]
-          return
-        end
-
-        let left_node: ?Rope_Node := nil
-        let right_node: ?Rope_Node := nil
-        let split_result: Array[?Rope_Node] :=
-          split_node(root, pos)
-        left_node := split_result.get(0)
-        right_node := split_result.get(1)
-
-        let left_rope: Rope := create Rope.empty()
-        left_rope.root := left_node
-        left_rope.length := pos
-
-        let right_rope: Rope := create Rope.empty()
-        right_rope.root := right_node
-        right_rope.length := length - pos
-
-        result := [left_rope, right_rope]
-      end
-
-    split_node(node: ?Rope_Node,
-               pos: Integer): Array[?Rope_Node] do
-      if node = nil then
-        result := [nil, nil]
-        return
-      end
-
-      if node.is_leaf then
-        -- Split the leaf string
-        let left_str: String := node.content.substring(0, pos)
-        let right_str: String := node.content.substring(pos, node.weight)
-        let left_node: ?Rope_Node :=
-          when left_str.length > 0
-          create Rope_Node.leaf(left_str) else nil end
-        let right_node: ?Rope_Node :=
-          when right_str.length > 0
-          create Rope_Node.leaf(right_str) else nil end
-        result := [left_node, right_node]
-        return
-      end
-
-      if pos < node.weight then
-        -- Split falls in left subtree
-        let sub: Array[?Rope_Node] := split_node(node.left, pos)
-        let new_right: ?Rope_Node :=
-          when sub.get(1) /= nil
-          create Rope_Node.internal(
-            sub.get(1).total_length(),
-            sub.get(1),
-            node.right)
-          else node.right end
-        result := [sub.get(0), new_right]
-
-      elseif pos = node.weight then
-        -- Split falls exactly at boundary
-        result := [node.left, node.right]
-
-      else
-        -- Split falls in right subtree
-        let sub: Array[?Rope_Node] :=
-          split_node(node.right, pos - node.weight)
-        let new_left: ?Rope_Node :=
-          when sub.get(0) /= nil
-          create Rope_Node.internal(
-            node.weight,
-            node.left,
-            sub.get(0))
-          else node.left end
-        result := [new_left, sub.get(1)]
-      end
-    end
-
-    -- Insert string at position: O(log n + k)
-    insert(pos: Integer, s: String): Rope
-      require
-        valid_pos: pos >= 0 and pos <= length
-        non_empty: s.length > 0
-      ensure
-        length_increased: result.length = length + s.length
-      do
-        let parts: Array[Rope] := split(pos)
-        let left: Rope := parts.get(0)
-        let right: Rope := parts.get(1)
-        let middle: Rope := create Rope.from_string(s)
-
-        result := left.concat(middle).concat(right)
-        result := result.rebalance_if_needed()
-      end
-
-    -- Delete range [start, end_pos): O(log n)
-    delete(start: Integer, end_pos: Integer): Rope
-      require
-        valid_range: start >= 0 and end_pos <= length and start <= end_pos
-      ensure
-        length_decreased: result.length = length - (end_pos - start)
-      do
-        if start = end_pos then
-          result := self
-          return
-        end
-
-        let left_parts: Array[Rope] := split(start)
-        let right_parts: Array[Rope] := left_parts.get(1).split(end_pos - start)
-
-        result := left_parts.get(0).concat(right_parts.get(1))
-      end
-
-    -- Rebalance: rebuild as balanced tree if too deep
-    rebalance_if_needed(): Rope do
-      let depth: Integer := tree_depth(root)
-      let max_depth: Integer := (length.to_real().log2() * 2.0 + 2.0).ceiling().to_integer()
-
-      if depth > max_depth then
-        result := create Rope.from_string(self.to_string())
-      else
-        result := self
-      end
-    end
-
-    tree_depth(node: ?Rope_Node): Integer do
-      if node = nil or node.is_leaf then
-        result := 0
-      else
-        result := 1 + tree_depth(node.left).max(tree_depth(node.right))
-      end
-    end
-
-    build_from_string(s: String,
-                       start: Integer,
-                       end_pos: Integer): Rope_Node do
-      let len: Integer := end_pos - start
-      if len <= MAX_LEAF_SIZE then
-        result := create Rope_Node.leaf(s.substring(start, end_pos))
-      else
-        let mid: Integer := start + len / 2
-        let left: Rope_Node := build_from_string(s, start, mid)
-        let right: Rope_Node := build_from_string(s, mid, end_pos)
-        result := create Rope_Node.internal(mid - start, left, right)
-      end
-    end
-
-    -- Convert entire rope to string: O(n)
-    to_string(): String do
-      let chars: Array[Char] := []
-      collect_all(root, chars)
-      result := String.from_chars(chars)
-    end
-
-    collect_all(node: ?Rope_Node, chars: Array[Char]) do
-      if node = nil then return end
-      if node.is_leaf then
-        across node.content.chars() as c do
-          chars.add(c)
-        end
-        return
-      end
-      collect_all(node.left, chars)
-      collect_all(node.right, chars)
-    end
-
-  invariant
-    non_negative_length: length >= 0
-    empty_has_no_root: length = 0 implies root = nil
-end
+  end
 ```
 
-### Undo With Ropes
+Hoare's scheme performs fewer swaps than Lomuto on typical inputs — about three times fewer — and handles equal elements better. The pivot ends up somewhere in the middle of the array (not necessarily at exactly j or j+1), and both partitions are non-empty as long as the array has at least two elements. Hoare's partition is the basis of most practical quicksort implementations.
 
-The rope's most interesting property for text editing is persistent undo. Because concat and split create new internal nodes rather than modifying existing ones, old versions of the rope remain valid as long as something references them. Keeping a stack of previous roots is all that is needed for undo:
+### Swap
 
 ```
-class Rope_Editor
-  create
-    open(initial: String) do
-      this.current := create Rope.from_string(initial)
-      this.history := [this.current]
-      this.history_pos := 0
-    end
-
-  feature
-    current: Rope
-    history: Array[Rope]
-    history_pos: Integer
-
-    insert(pos: Integer, text: String) do
-      let new_rope: Rope := current.insert(pos, text)
-      push_history(new_rope)
-    end
-
-    delete(start: Integer, end_pos: Integer) do
-      let new_rope: Rope := current.delete(start, end_pos)
-      push_history(new_rope)
-    end
-
-    undo(): Boolean do
-      if history_pos > 0 then
-        history_pos := history_pos - 1
-        current := history.get(history_pos)
-        result := true
-      else
-        result := false
-      end
-    end
-
-    redo(): Boolean do
-      if history_pos < history.length - 1 then
-        history_pos := history_pos + 1
-        current := history.get(history_pos)
-        result := true
-      else
-        result := false
-      end
-    end
-
-    push_history(rope: Rope) do
-      -- Discard any redo history
-      history := history.slice(0, history_pos + 1)
-      history.add(rope)
-      history_pos := history_pos + 1
-      current := rope
-    end
-
-    content(): String do
-      result := current.to_string()
-    end
-
-    length(): Integer do
-      result := current.length
-    end
-
-  invariant
-    valid_history_pos: history_pos >= 0 and history_pos < history.length
-    current_consistent: current = history.get(history_pos)
-end
+function swap(arr: Array[Integer], i: Integer, j: Integer)
+  require
+    valid_i: i >= 0 and i < arr.length
+    valid_j: j >= 0 and j < arr.length
+  do
+    let temp: Integer := arr.get(i)
+    arr.set(i, arr.get(j))
+    arr.set(j, temp)
+  end
 ```
-
-Because rope nodes are immutable and shared between versions, the memory cost of keeping k versions is not O(kn) but O(k log n) — only the O(log n) new nodes created by each edit need to be stored, while unchanged subtrees are shared. A hundred edits to a megabyte file add roughly O(100 log n) new nodes — a few thousand bytes — not a hundred megabyte copies.
-
-This is **structural sharing** — a technique from functional programming that makes persistence cheap. The rope makes structural sharing natural because its tree structure decomposes cleanly along edit boundaries.
 
 ---
 
-## 14.3 The Problem With Ropes in Practice
+## 15.3 The Basic Quicksort
 
-Ropes are elegant. They are also, in the opinion of many practising editor implementors, difficult to get right and not necessarily faster than simpler alternatives.
+```
+function quicksort(arr: Array[Integer],
+                   low: Integer,
+                   high: Integer) do
+  if low < high then
+    let p: Integer := hoare_partition(arr, low, high)
+    quicksort(arr, low, p)
+    quicksort(arr, p + 1, high)
+  end
+end
 
-The problems:
+function sort(arr: Array[Integer]) do
+  if arr.length > 1 then
+    quicksort(arr, 0, arr.length - 1)
+  end
+end
+```
 
-**Cache performance.** Ropes are trees. Tree traversal follows pointers from node to node. Each pointer follow potentially causes a cache miss. Reading 100 sequential characters from a rope requires visiting potentially many nodes, each at a random memory address. Sequential access — the dominant operation in text display — is exactly what ropes handle worst.
+This is correct. On random input, it runs in O(n log n) expected time. It sorts in place using O(log n) stack space for recursion.
 
-**Rebalancing complexity.** Without rebalancing, a sequence of insertions at the beginning builds a tree that leans entirely right, degenerating to O(n) access. Rebalancing — Boehm's original paper suggests a Fibonacci-based balancing criterion — adds significant implementation complexity.
-
-**Small edits.** A real text editor session consists almost entirely of single-character insertions and deletions (typed characters, backspace). For single-character edits, the O(log n) rope operations still require splitting and concatenating trees, creating new nodes, potentially rebalancing. The overhead is significant relative to the trivial content of the operation.
-
-**Implementation footprint.** A correct, performant rope is several hundred lines of careful code. Bugs in split and rebalance are subtle and hard to detect.
-
-These problems led the VS Code team, after evaluating ropes, to choose a different structure: the piece table.
+Now let us understand exactly why it sometimes fails catastrophically, and how to fix each failure mode.
 
 ---
 
-## 14.4 Piece Tables: A Different Philosophy
+## 15.4 The Pivot Choice Problem
 
-The piece table was described by J. Quentin Miller in 1998 and independently by M. Ramsey in the context of the Oberon editor system. It takes a completely different approach to the mutability problem.
+Quicksort's performance depends entirely on how well the pivot splits the array. A perfect pivot — the median of the array — splits it exactly in half every time, giving O(n log n) recursion depth. A catastrophic pivot — the minimum or maximum — splits into partitions of size 0 and n-1, giving O(n²) total work and O(n) recursion depth.
 
-**The insight:** most text editing consists of inserting text (typing) and deleting text (backspace, selection deletion). Insertions produce new text. The original file content is never changed. Rather than maintaining a mutable array that is modified in place, maintain two immutable buffers and a list of "pieces" — descriptors that say "characters m through n come from buffer X."
+The basic implementation above chooses the middle element as pivot. On random data, this is essentially random, which works well in expectation. On structured data — already sorted, reverse sorted, or containing many duplicates — it can be catastrophic.
 
-Two buffers:
-- **Original buffer:** the original file content, never modified
-- **Append buffer:** all text inserted during editing, appended sequentially (never modified in place)
+**Already sorted input.** If the array is [1, 2, 3, 4, 5, ..., n] and we pick the middle element as pivot, partition gives roughly equal splits. But many real-world quicksort implementations pick the first or last element as pivot. Then sorted input gives the worst case: every partition produces one empty partition and one of size n-1.
 
-A piece table is a sequence of piece descriptors. Each piece descriptor is:
-- Which buffer (original or append)
-- Start position in that buffer
-- Length
+**Nearly sorted input.** Real data is often nearly sorted — logs are timestamp-ordered, names are nearly alphabetical, files are already somewhat organised. The basic quicksort degrades badly on this very common case.
 
-The document is reconstructed by concatenating the pieces in order.
+**All equal elements.** An array of identical values causes both Lomuto and basic Hoare to produce maximally unbalanced partitions. O(n²) even on trivial input.
 
-```
-Original buffer: "Hello, world! This is the original text."
-Append buffer:   "" (initially empty)
-Pieces: [(original, 0, 40)]   → "Hello, world! This is the original text."
-```
+### Solution: Randomised Pivot
 
-Insert " beautiful" after "Hello,":
+The simplest fix: choose the pivot randomly. A random element is unlikely to be near the minimum or maximum, so a random pivot gives expected O(n log n) regardless of input order.
 
 ```
-Append buffer: " beautiful"
-Pieces: [(original, 0, 7),     → "Hello, "
-         (append,   0, 10),    → " beautiful"
-         (original, 7, 33)]    → "world! This is the original text."
-```
-
-Delete "beautiful":
-
-```
-Pieces: [(original, 0, 7),    → "Hello, "
-         (append,   1, 1),    → " "  (just the space before "beautiful")
-         (original, 7, 33)]   → "world! This is the original text."
-```
-
-Wait — we need to trim the piece that contained " beautiful" to remove "beautiful" and keep just " ". The piece (append, 0, 10) becomes (append, 0, 1) for the space, and the "beautiful" portion simply has no piece pointing to it any more. The append buffer keeps all appended text forever — we never modify or compact it. Deleted text is simply not referenced by any piece.
-
-### Piece Table Implementation
-
-```
-let ORIGINAL: Integer := 0
-let APPEND: Integer := 1
-
-class Piece
-  create
-    make(buffer: Integer, start: Integer, length: Integer) do
-      this.buffer := buffer
-      this.start := start
-      this.length := length
-    end
-
-  feature
-    buffer: Integer   -- ORIGINAL or APPEND
-    start: Integer    -- start position in buffer
-    length: Integer   -- number of characters
-
-  invariant
-    valid_buffer: buffer = ORIGINAL or buffer = APPEND
-    non_negative_start: start >= 0
-    positive_length: length > 0
-end
-
-class Piece_Table
-  create
-    from_string(initial: String) do
-      this.original := initial
-      this.appended := ""
-      this.pieces := []
-      this.total_length := 0
-
-      if initial.length > 0 then
-        pieces.add(create Piece.make(ORIGINAL, 0, initial.length))
-        total_length := initial.length
-      end
-    end
-
-  feature
-    original: String     -- original content, never modified
-    appended: String     -- all insertions appended here
-    pieces: Array[Piece]
-    total_length: Integer
-
-    -- Character access: O(pieces) worst case, O(1) if cached
-    char_at(pos: Integer): Char
-      require
-        valid_pos: pos >= 0 and pos < total_length
-      do
-        let offset: Integer := pos
-        across pieces as piece do
-          if offset < piece.length then
-            let buf: String :=
-              when piece.buffer = ORIGINAL original else appended end
-            result := buf.char_at(piece.start + offset)
-            return
-          end
-          offset := offset - piece.length
-        end
-        result := '\0'  -- should not reach here
-      end
-
-    -- Get text in range [start, end_pos)
-    substring(start: Integer, end_pos: Integer): String
-      require
-        valid_range: start >= 0 and end_pos <= total_length and start <= end_pos
-      do
-        let chars: Array[Char] := []
-        let current_pos: Integer := 0
-
-        across pieces as piece do
-          let piece_end: Integer := current_pos + piece.length
-
-          if current_pos < end_pos and piece_end > start then
-            let buf: String :=
-              when piece.buffer = ORIGINAL original else appended end
-            let lo: Integer := start.max(current_pos) - current_pos
-            let hi: Integer := end_pos.min(piece_end) - current_pos
-
-            from
-              let i: Integer := lo
-            until
-              i < hi
-            do
-              chars.add(buf.char_at(piece.start + i))
-              i := i + 1
-            end
-          end
-
-          current_pos := piece_end
-        end
-
-        result := String.from_chars(chars)
-      end
-
-    -- Insert text at position: O(pieces)
-    insert(pos: Integer, text: String)
-      require
-        valid_pos: pos >= 0 and pos <= total_length
-        non_empty: text.length > 0
-      ensure
-        length_increased: total_length = old total_length + text.length
-      do
-        -- Append text to the append buffer
-        let append_start: Integer := appended.length
-        appended := appended + text
-        let new_piece: Piece := create Piece.make(
-          APPEND, append_start, text.length)
-
-        -- Find the piece containing pos
-        let result_pieces: Array[Piece] := []
-        let current_pos: Integer := 0
-        let inserted: Boolean := false
-
-        across pieces as piece do
-          let piece_end: Integer := current_pos + piece.length
-
-          if not inserted then
-            if pos = current_pos then
-              -- Insert before this piece
-              result_pieces.add(new_piece)
-              result_pieces.add(piece)
-              inserted := true
-
-            elseif pos < piece_end then
-              -- Split this piece and insert in the middle
-              let offset: Integer := pos - current_pos
-
-              if offset > 0 then
-                result_pieces.add(create Piece.make(
-                  piece.buffer, piece.start, offset))
-              end
-
-              result_pieces.add(new_piece)
-
-              let remaining: Integer := piece.length - offset
-              if remaining > 0 then
-                result_pieces.add(create Piece.make(
-                  piece.buffer, piece.start + offset, remaining))
-              end
-
-              inserted := true
-
-            else
-              result_pieces.add(piece)
-            end
-          else
-            result_pieces.add(piece)
-          end
-
-          current_pos := piece_end
-        end
-
-        if not inserted then
-          -- Append at end
-          result_pieces.add(new_piece)
-        end
-
-        pieces := result_pieces
-        total_length := total_length + text.length
-      end
-
-    -- Delete range [start, end_pos): O(pieces)
-    delete(start: Integer, end_pos: Integer)
-      require
-        valid_range: start >= 0 and end_pos <= total_length and start <= end_pos
-      ensure
-        length_decreased: total_length = old total_length - (end_pos - start)
-      do
-        if start = end_pos then return end
-
-        let result_pieces: Array[Piece] := []
-        let current_pos: Integer := 0
-
-        across pieces as piece do
-          let piece_end: Integer := current_pos + piece.length
-
-          if piece_end <= start or current_pos >= end_pos then
-            -- Piece entirely outside deletion range: keep it
-            result_pieces.add(piece)
-
-          elseif current_pos >= start and piece_end <= end_pos then
-            -- Piece entirely inside deletion range: drop it
-            -- (do nothing)
-
-          else
-            -- Piece partially overlaps deletion range: trim it
-
-            if current_pos < start then
-              -- Keep left part
-              let keep_len: Integer := start - current_pos
-              result_pieces.add(create Piece.make(
-                piece.buffer, piece.start, keep_len))
-            end
-
-            if piece_end > end_pos then
-              -- Keep right part
-              let skip: Integer := end_pos - current_pos
-              result_pieces.add(create Piece.make(
-                piece.buffer,
-                piece.start + skip,
-                piece.length - skip))
-            end
-          end
-
-          current_pos := piece_end
-        end
-
-        pieces := result_pieces
-        total_length := total_length - (end_pos - start)
-      end
-
-    -- Replace range with new text: O(pieces)
-    replace(start: Integer, end_pos: Integer, text: String) do
-      delete(start, end_pos)
-      if text.length > 0 then
-        insert(start, text)
-      end
-    end
-
-    -- Full document text: O(n)
-    to_string(): String do
-      let chars: Array[Char] := []
-      across pieces as piece do
-        let buf: String :=
-          when piece.buffer = ORIGINAL original else appended end
-        from
-          let i: Integer := 0
-        until
-          i < piece.length
-        do
-          chars.add(buf.char_at(piece.start + i))
-          i := i + 1
-        end
-      end
-      result := String.from_chars(chars)
-    end
-
-    -- Number of pieces (for diagnostics)
-    piece_count(): Integer do
-      result := pieces.length
-    end
-
-  invariant
-    non_negative_length: total_length >= 0
-    pieces_account_for_length:
-      pieces.sum_by(fn p: Piece do result := p.length end) = total_length
+function randomised_partition(arr: Array[Integer],
+                               low: Integer,
+                               high: Integer): Integer do
+  let pivot_index: Integer := low + random_integer() % (high - low + 1)
+  swap(arr, pivot_index, low + (high - low) / 2)
+  result := hoare_partition(arr, low, high)
 end
 ```
 
-### Undo With Piece Tables
+Randomised quicksort has expected O(n log n) time for any input. The adversary cannot craft a worst-case input because they do not know which element will be chosen as pivot. This is essentially the same principle as skip lists — internal randomness defeats adversarial inputs.
 
-Undo with a piece table is elegant. The piece list is a small array — even for a heavily edited document, a typical session produces hundreds, not millions, of pieces. Saving the entire piece list on each edit is cheap.
+### Solution: Median-of-Three
+
+A deterministic alternative: choose the median of the first, middle, and last elements as pivot. This costs three comparisons but avoids the common worst cases without the unpredictability of true randomness.
 
 ```
-class Piece_Table_Editor
-  create
-    open(initial: String) do
-      this.table := create Piece_Table.from_string(initial)
-      this.history := [copy_pieces(table)]
-      this.append_snapshots := [""]  -- snapshot of append buffer length
-      this.history_pos := 0
-    end
+function median_of_three(arr: Array[Integer],
+                          low: Integer,
+                          high: Integer): Integer do
+  let mid: Integer := low + (high - low) / 2
 
-  feature
-    table: Piece_Table
-    history: Array[Array[Piece]]        -- piece list at each history point
-    append_snapshots: Array[Integer]    -- append buffer length at each point
-    history_pos: Integer
+  -- Sort low, mid, high into order
+  if arr.get(low) > arr.get(mid) then
+    swap(arr, low, mid)
+  end
+  if arr.get(low) > arr.get(high) then
+    swap(arr, low, high)
+  end
+  if arr.get(mid) > arr.get(high) then
+    swap(arr, mid, high)
+  end
 
-    insert(pos: Integer, text: String) do
-      table.insert(pos, text)
-      push_history()
-    end
-
-    delete(start: Integer, end_pos: Integer) do
-      table.delete(start, end_pos)
-      push_history()
-    end
-
-    replace(start: Integer, end_pos: Integer, text: String) do
-      table.replace(start, end_pos, text)
-      push_history()
-    end
-
-    undo(): Boolean do
-      if history_pos > 0 then
-        history_pos := history_pos - 1
-        restore_history()
-        result := true
-      else
-        result := false
-      end
-    end
-
-    redo(): Boolean do
-      if history_pos < history.length - 1 then
-        history_pos := history_pos + 1
-        restore_history()
-        result := true
-      else
-        result := false
-      end
-    end
-
-    push_history() do
-      history := history.slice(0, history_pos + 1)
-      append_snapshots := append_snapshots.slice(0, history_pos + 1)
-      history.add(copy_pieces(table))
-      append_snapshots.add(table.appended.length)
-      history_pos := history_pos + 1
-    end
-
-    restore_history() do
-      table.pieces := copy_pieces_from(history.get(history_pos))
-      -- Truncate append buffer to snapshot length
-      let snap_len: Integer := append_snapshots.get(history_pos)
-      table.appended := table.appended.substring(0, snap_len)
-      -- Recompute total_length
-      table.total_length := table.pieces.sum_by(
-        fn p: Piece do result := p.length end)
-    end
-
-    copy_pieces(t: Piece_Table): Array[Piece] do
-      let copy: Array[Piece] := []
-      across t.pieces as p do
-        copy.add(create Piece.make(p.buffer, p.start, p.length))
-      end
-      result := copy
-    end
-
-    copy_pieces_from(pieces: Array[Piece]): Array[Piece] do
-      let copy: Array[Piece] := []
-      across pieces as p do
-        copy.add(create Piece.make(p.buffer, p.start, p.length))
-      end
-      result := copy
-    end
-
-    content(): String do
-      result := table.to_string()
-    end
-
-  invariant
-    valid_history_pos: history_pos >= 0 and history_pos < history.length
+  -- arr[low] <= arr[mid] <= arr[high]
+  -- Use arr[mid] as pivot, move it to high-1 for Lomuto-style
+  swap(arr, mid, high - 1)
+  result := high - 1  -- index of pivot
 end
 ```
 
-The undo model here saves a copy of the piece array on each edit. Each piece array entry is 12 bytes (buffer ID, start, length). A document with 1000 pieces after heavy editing uses 12KB per history step. A hundred undo steps use 1.2MB — negligible.
-
-The append buffer can only grow during normal editing (we never delete from it). Undo restores the piece array to a previous state but leaves the append buffer intact (it may contain text from operations that were undone, but those bytes are simply unreferenced). On redo, the pieces referencing those bytes are restored. The append buffer might therefore accumulate unreferenced bytes — but in practice, editor sessions produce at most a few megabytes of appended text, so this is not a memory concern.
+Median-of-three eliminates the sorted and reverse-sorted worst cases. It does not fully solve the all-equal-elements case — that requires a different partitioning scheme.
 
 ---
 
-## 14.5 Line-Column Indexing
+## 15.5 The Equal Elements Problem: Three-Way Partitioning
 
-Text editors display and navigate text by line and column, not by absolute character position. Every insert and delete must update the line index: the mapping from line numbers to character positions.
+Consider sorting an array where 90% of elements have the same value. Basic quicksort, even with good pivot selection, still processes all equal elements at every level of recursion. Djikstra's three-way partitioning (also called Dutch National Flag partitioning, named after Dijkstra's famous problem) solves this.
 
-The naive approach — scan the entire document for newlines on each update — is O(n) per operation. Unacceptable for large files.
-
-A piece table with augmented pieces solves this elegantly. Each piece stores not just character count but also newline count. Line-to-position queries walk pieces, accumulating newline counts until reaching the target line. Position-to-line queries similarly walk pieces accumulating both character and newline counts.
+Three-way partitioning divides the array into three sections: elements less than pivot, elements equal to pivot, elements greater than pivot. Equal elements are excluded from both recursive calls — they are already in their final positions.
 
 ```
-class Augmented_Piece
-  create
-    make(buffer: Integer, start: Integer,
-         length: Integer, newlines: Integer) do
-      this.buffer := buffer
-      this.start := start
-      this.length := length
-      this.newlines := newlines
+-- Three-way partition: returns [lt, gt] where
+-- arr[low..lt-1] < pivot
+-- arr[lt..gt] = pivot
+-- arr[gt+1..high] > pivot
+function three_way_partition(arr: Array[Integer],
+                              low: Integer,
+                              high: Integer): Array[Integer]
+  require
+    valid_range: low >= 0 and high < arr.length and low <= high
+  do
+    let pivot: Integer := arr.get(low + (high - low) / 2)
+    let lt: Integer := low     -- arr[low..lt-1] < pivot
+    let gt: Integer := high    -- arr[gt+1..high] > pivot
+    let i: Integer := low      -- arr[lt..i-1] = pivot, arr[i..gt] unexamined
+
+    from until i > gt do
+      if arr.get(i) < pivot then
+        swap(arr, lt, i)
+        lt := lt + 1
+        i := i + 1
+      elseif arr.get(i) > pivot then
+        swap(arr, i, gt)
+        gt := gt - 1
+        -- Do not advance i: arr[gt] just moved to arr[i] and is unexamined
+      else
+        i := i + 1
+      end
     end
 
-  feature
-    buffer: Integer
-    start: Integer
-    length: Integer
-    newlines: Integer  -- number of '\n' characters in this piece
+    result := [lt, gt]
+  end
 
-  invariant
-    valid_buffer: buffer = ORIGINAL or buffer = APPEND
-    non_negative_newlines: newlines >= 0
-    newlines_bounded: newlines <= length
+function three_way_quicksort(arr: Array[Integer],
+                              low: Integer,
+                              high: Integer) do
+  if low >= high then return end
+
+  let bounds: Array[Integer] := three_way_partition(arr, low, high)
+  let lt: Integer := bounds.get(0)
+  let gt: Integer := bounds.get(1)
+
+  three_way_quicksort(arr, low, lt - 1)
+  three_way_quicksort(arr, gt + 1, high)
+  -- No recursive call for arr[lt..gt] — all equal to pivot, already sorted
+end
+```
+
+On an array of all equal elements, three-way partitioning produces lt = low and gt = high after one pass, making zero recursive calls. O(n) total work. On general inputs, three-way quicksort matches standard quicksort's O(n log n) performance while achieving O(n) on inputs with many equal elements.
+
+Three-way quicksort is also theoretically optimal in an information-theoretic sense: it performs O(n × H) comparisons where H is the entropy of the input's value distribution. When values are uniformly distributed, H = log₂(n) and we get O(n log n). When values are highly repeated, H is small and we get closer to O(n). This is the optimal behavior — you cannot do better without additional assumptions about the input.
+
+---
+
+## 15.6 The Small Partition Problem: Insertion Sort Cutoff
+
+Recursive algorithms have overhead: function call setup, stack frame allocation, bookkeeping. For large n, this overhead is negligible. For small n — say, n < 16 — the overhead of recursive calls exceeds the actual sorting work.
+
+Insertion sort is O(n²) in general but has low overhead and good cache behavior for small arrays. It also exploits near-sortedness: for an array that is almost sorted, insertion sort runs in nearly O(n). After several levels of quicksort partitioning, each partition tends to be nearly sorted (elements are roughly in the right region), making insertion sort efficient for the final cleanup.
+
+The standard optimisation: use insertion sort for partitions of size below some threshold (typically 8-32 elements) and quicksort for larger partitions.
+
+```
+let INSERTION_SORT_THRESHOLD: Integer := 16
+
+function insertion_sort(arr: Array[Integer],
+                         low: Integer,
+                         high: Integer) do
+  from
+    let i: Integer := low + 1
+  until
+    i <= high
+  do
+    let key: Integer := arr.get(i)
+    let j: Integer := i - 1
+    from until j < low or arr.get(j) <= key do
+      arr.set(j + 1, arr.get(j))
+      j := j - 1
+    end
+    arr.set(j + 1, key)
+    i := i + 1
+  end
 end
 
-class Line_Indexed_Piece_Table
-  create
-    from_string(initial: String) do
-      this.original := initial
-      this.appended := ""
-      this.pieces := []
-      this.total_length := 0
-      this.total_lines := 1  -- empty document has 1 line
+function hybrid_quicksort(arr: Array[Integer],
+                           low: Integer,
+                           high: Integer) do
+  from until high - low < INSERTION_SORT_THRESHOLD do
+    let bounds: Array[Integer] := three_way_partition(arr, low, high)
+    let lt: Integer := bounds.get(0)
+    let gt: Integer := bounds.get(1)
 
-      if initial.length > 0 then
-        let newlines: Integer := count_newlines(initial, 0, initial.length)
-        pieces.add(create Augmented_Piece.make(
-          ORIGINAL, 0, initial.length, newlines))
-        total_length := initial.length
-        total_lines := newlines + 1
+    -- Tail call optimisation: recurse on smaller partition,
+    -- iterate on larger
+    if lt - 1 - low < high - gt - 1 then
+      hybrid_quicksort(arr, low, lt - 1)
+      low := gt + 1
+    else
+      hybrid_quicksort(arr, gt + 1, high)
+      high := lt - 1
+    end
+  end
+
+  insertion_sort(arr, low, high)
+end
+```
+
+The tail call optimisation deserves explanation. Quicksort's two recursive calls are not symmetric — one is larger than the other (or they are equal). If we always recurse on both, the maximum recursion depth is O(n) in the worst case (even with good pivot selection, a sequence of slightly unbalanced splits can exhaust the stack). The fix: always recurse on the smaller partition and iterate (tail-call optimise) on the larger. This bounds recursion depth at O(log n), preventing stack overflow even on adversarial inputs.
+
+---
+
+## 15.7 Introsort: The Real World Solution
+
+The hybrid quicksort above handles most cases well. But there remains a theoretical vulnerability: even with median-of-three pivot selection and randomisation, it is possible (though unlikely) for quicksort to degrade to O(n²). For a general-purpose library sort, "unlikely" is not good enough. A standard library sort must handle every input correctly.
+
+Introsort (introspective sort), invented by David Musser in 1997, solves this by combining three algorithms:
+
+1. **Quicksort** for the general case (fast in practice)
+2. **Heapsort** as a fallback when recursion depth exceeds 2 log₂(n) (guarantees O(n log n) worst case)
+3. **Insertion sort** for small partitions (fast for small n)
+
+The key insight: when quicksort's recursion depth exceeds a threshold, it is making poor pivot choices and heading toward O(n²) behavior. Switch to heapsort — O(n log n) guaranteed — for the remainder of the sort.
+
+Heapsort is slower than quicksort on typical inputs (worse cache behavior) but has a guaranteed O(n log n) worst case. By using heapsort only as a fallback, introsort gets quicksort's typical speed with heapsort's worst-case guarantee.
+
+```
+class Introsort
+  create
+    make() do end
+
+  feature
+    MAX_DEPTH_FACTOR: Real := 2.0
+
+    sort(arr: Array[Integer]) do
+      if arr.length <= 1 then return end
+      let max_depth: Integer :=
+        (arr.length.to_real().log2() * MAX_DEPTH_FACTOR).to_integer()
+      introsort(arr, 0, arr.length - 1, max_depth)
+    end
+
+    introsort(arr: Array[Integer],
+              low: Integer,
+              high: Integer,
+              depth_limit: Integer) do
+      let size: Integer := high - low + 1
+
+      if size <= INSERTION_SORT_THRESHOLD then
+        insertion_sort(arr, low, high)
+        return
+      end
+
+      if depth_limit = 0 then
+        -- Depth limit exceeded: fall back to heapsort
+        heapsort(arr, low, high)
+        return
+      end
+
+      -- Choose pivot using median-of-three
+      let pivot_idx: Integer := median_of_three_index(arr, low, high)
+      swap(arr, pivot_idx, high)
+
+      -- Lomuto partition (simpler with pivot at high)
+      let p: Integer := lomuto_partition(arr, low, high)
+
+      introsort(arr, low, p - 1, depth_limit - 1)
+      introsort(arr, p + 1, high, depth_limit - 1)
+    end
+
+    median_of_three_index(arr: Array[Integer],
+                           low: Integer,
+                           high: Integer): Integer do
+      let mid: Integer := low + (high - low) / 2
+
+      if arr.get(low) > arr.get(mid) then
+        if arr.get(mid) > arr.get(high) then
+          result := mid
+        elseif arr.get(low) > arr.get(high) then
+          result := high
+        else
+          result := low
+        end
+      else
+        if arr.get(low) > arr.get(high) then
+          result := low
+        elseif arr.get(mid) > arr.get(high) then
+          result := high
+        else
+          result := mid
+        end
       end
     end
 
-  feature
-    original: String
-    appended: String
-    pieces: Array[Augmented_Piece]
-    total_length: Integer
-    total_lines: Integer
+    -- Heapsort for fallback: O(n log n) guaranteed
+    heapsort(arr: Array[Integer],
+             low: Integer,
+             high: Integer) do
+      let n: Integer := high - low + 1
 
-    -- Convert line number to character position
-    line_to_pos(line: Integer): Integer
-      require
-        valid_line: line >= 0 and line < total_lines
-      do
-        if line = 0 then
-          result := 0
-          return
-        end
-
-        let char_pos: Integer := 0
-        let lines_seen: Integer := 0
-
-        across pieces as piece do
-          let buf: String :=
-            when piece.buffer = ORIGINAL original else appended end
-
-          if lines_seen + piece.newlines >= line then
-            -- Target line is within this piece: scan for it
-            from
-              let i: Integer := 0
-            until
-              i < piece.length
-            do
-              if buf.char_at(piece.start + i) = '\n' then
-                lines_seen := lines_seen + 1
-                if lines_seen = line then
-                  result := char_pos + i + 1
-                  return
-                end
-              end
-              i := i + 1
-            end
-          end
-
-          lines_seen := lines_seen + piece.newlines
-          char_pos := char_pos + piece.length
-        end
-
-        result := total_length  -- line is the last line
-      end
-
-    -- Convert character position to [line, column]
-    pos_to_line_col(pos: Integer): Array[Integer]
-      require
-        valid_pos: pos >= 0 and pos <= total_length
-      do
-        let char_pos: Integer := 0
-        let line: Integer := 0
-
-        across pieces as piece do
-          let piece_end: Integer := char_pos + piece.length
-
-          if pos <= piece_end then
-            -- Target is within this piece
-            let buf: String :=
-              when piece.buffer = ORIGINAL original else appended end
-            let offset: Integer := pos - char_pos
-
-            from
-              let i: Integer := 0
-            until
-              i < offset
-            do
-              if buf.char_at(piece.start + i) = '\n' then
-                line := line + 1
-              end
-              i := i + 1
-            end
-
-            -- Column is distance from last newline in this piece
-            let col: Integer := 0
-            from
-              let i: Integer := offset - 1
-            until
-              i >= 0
-            do
-              if buf.char_at(piece.start + i) = '\n' then
-                col := offset - i - 1
-                result := [line, col]
-                return
-              end
-              i := i - 1
-            end
-
-            -- No newline found in piece: continue scanning backwards
-            -- through previous pieces for the column
-            result := [line, offset + col]
-            return
-          end
-
-          line := line + piece.newlines
-          char_pos := piece_end
-        end
-
-        result := [line, pos - char_pos]
-      end
-
-    -- Count newlines in buffer region
-    count_newlines(buf: String,
-                   start: Integer,
-                   end_pos: Integer): Integer do
-      let count: Integer := 0
+      -- Build max-heap
       from
-        let i: Integer := start
+        let i: Integer := n / 2 - 1
       until
-        i < end_pos
+        i >= 0
       do
-        if buf.char_at(i) = '\n' then
-          count := count + 1
+        sift_down(arr, low, i, n)
+        i := i - 1
+      end
+
+      -- Extract elements one by one
+      from
+        let i: Integer := n - 1
+      until
+        i > 0
+      do
+        swap(arr, low, low + i)
+        sift_down(arr, low, 0, i)
+        i := i - 1
+      end
+    end
+
+    sift_down(arr: Array[Integer],
+              base: Integer,
+              root: Integer,
+              size: Integer) do
+      from until true do
+        let largest: Integer := root
+        let left: Integer := 2 * root + 1
+        let right: Integer := 2 * root + 2
+
+        if left < size and arr.get(base + left) > arr.get(base + largest) then
+          largest := left
+        end
+
+        if right < size and arr.get(base + right) > arr.get(base + largest) then
+          largest := right
+        end
+
+        if largest = root then
+          return
+        end
+
+        swap(arr, base + root, base + largest)
+        root := largest
+      end
+    end
+
+  invariant
+    true  -- stateless sorter
+end
+```
+
+Introsort's guarantees:
+- O(n log n) worst case (heapsort fallback)
+- O(n log n) average case (quicksort dominates)
+- O(n) for nearly sorted input with insertion sort for small partitions
+- O(log n) stack space (tail call optimisation prevents deep recursion)
+
+This is why introsort is the algorithm standard libraries ship. It is not theoretically perfect — merge sort has a better worst case and is stable — but it is the right tradeoff for a general-purpose sort that must be fast on all inputs without requiring extra memory.
+
+---
+
+## 15.8 Stability and When It Matters
+
+Introsort, like all variants of quicksort, is **unstable**: equal elements may appear in any order in the output, not necessarily the order they appeared in the input.
+
+Stability matters when you sort by one key and want a previous sort by another key to be preserved. Example: sort a list of employees by department, then sort the result by salary. A stable sort preserves department order within each salary tier. An unstable sort scrambles the department order.
+
+For primitive types (integers, floating point), stability is irrelevant — equal elements are indistinguishable. This is why Java uses introsort for primitive type arrays (`Arrays.sort(int[])`) but uses a stable merge sort for object arrays (`Arrays.sort(Object[])`).
+
+If you need a stable sort for integers or simple records, merge sort is the right choice. If you are sorting objects and need stability, either use merge sort or implement a stable variant of quicksort using an auxiliary array for the partition step (which loses the in-place property).
+
+---
+
+## 15.9 A Generic Introsort in Nex
+
+The implementations above sort integers. A practical sort must handle any type with a comparison function.
+
+```
+class Generic_Introsort [T]
+  create
+    make(compare: Function[T, T, Integer]) do
+      this.compare := compare
+    end
+
+  feature
+    compare: Function[T, T, Integer]
+    -- compare(a, b) returns negative if a < b, 0 if a = b, positive if a > b
+
+    sort(arr: Array[T]) do
+      if arr.length <= 1 then return end
+      let max_depth: Integer :=
+        (arr.length.to_real().log2() * 2.0).to_integer()
+      do_introsort(arr, 0, arr.length - 1, max_depth)
+    end
+
+    do_introsort(arr: Array[T],
+                 low: Integer,
+                 high: Integer,
+                 depth_limit: Integer) do
+      from until high - low < INSERTION_SORT_THRESHOLD do
+        if depth_limit = 0 then
+          do_heapsort(arr, low, high)
+          return
+        end
+
+        -- Median-of-three pivot selection
+        let mid: Integer := low + (high - low) / 2
+        sort_three(arr, low, mid, high)
+        -- arr[low] <= arr[mid] <= arr[high]
+        -- Use arr[mid] as pivot
+        swap(arr, mid, high - 1)
+        let pivot: T := arr.get(high - 1)
+
+        -- Three-way partition
+        let lt: Integer := low
+        let gt: Integer := high - 1
+        let i: Integer := low
+
+        from until i > gt do
+          let cmp: Integer := compare(arr.get(i), pivot)
+          if cmp < 0 then
+            swap(arr, lt, i)
+            lt := lt + 1
+            i := i + 1
+          elseif cmp > 0 then
+            swap(arr, i, gt)
+            gt := gt - 1
+          else
+            i := i + 1
+          end
+        end
+
+        -- Restore pivot
+        swap(arr, gt, high - 1)
+
+        -- Tail call optimise: iterate on larger partition
+        depth_limit := depth_limit - 1
+        if lt - low < high - gt then
+          do_introsort(arr, low, lt - 1, depth_limit)
+          low := gt + 1
+        else
+          do_introsort(arr, gt + 1, high, depth_limit)
+          high := lt - 1
+        end
+      end
+
+      do_insertion_sort(arr, low, high)
+    end
+
+    sort_three(arr: Array[T], a: Integer, b: Integer, c: Integer) do
+      if compare(arr.get(a), arr.get(b)) > 0 then swap(arr, a, b) end
+      if compare(arr.get(a), arr.get(c)) > 0 then swap(arr, a, c) end
+      if compare(arr.get(b), arr.get(c)) > 0 then swap(arr, b, c) end
+    end
+
+    do_insertion_sort(arr: Array[T], low: Integer, high: Integer) do
+      from
+        let i: Integer := low + 1
+      until
+        i <= high
+      do
+        let key: T := arr.get(i)
+        let j: Integer := i - 1
+        from until j < low or compare(arr.get(j), key) <= 0 do
+          arr.set(j + 1, arr.get(j))
+          j := j - 1
+        end
+        arr.set(j + 1, key)
+        i := i + 1
+      end
+    end
+
+    do_heapsort(arr: Array[T], low: Integer, high: Integer) do
+      let n: Integer := high - low + 1
+      from
+        let i: Integer := n / 2 - 1
+      until
+        i >= 0
+      do
+        do_sift_down(arr, low, i, n)
+        i := i - 1
+      end
+      from
+        let i: Integer := n - 1
+      until
+        i > 0
+      do
+        swap(arr, low, low + i)
+        do_sift_down(arr, low, 0, i)
+        i := i - 1
+      end
+    end
+
+    do_sift_down(arr: Array[T],
+                 base: Integer,
+                 root: Integer,
+                 size: Integer) do
+      from until true do
+        let largest: Integer := root
+        let left: Integer := 2 * root + 1
+        let right: Integer := 2 * root + 2
+        if left < size and
+           compare(arr.get(base + left), arr.get(base + largest)) > 0 then
+          largest := left
+        end
+        if right < size and
+           compare(arr.get(base + right), arr.get(base + largest)) > 0 then
+          largest := right
+        end
+        if largest = root then return end
+        swap(arr, base + root, base + largest)
+        root := largest
+      end
+    end
+
+    swap(arr: Array[T], i: Integer, j: Integer) do
+      let temp: T := arr.get(i)
+      arr.set(i, arr.get(j))
+      arr.set(j, temp)
+    end
+
+  invariant
+    compare_exists: compare /= nil
+end
+```
+
+Using the generic sort:
+
+```
+-- Sort integers
+let int_sorter: Generic_Introsort[Integer] :=
+  create Generic_Introsort[Integer].make(
+    fn a: Integer, b: Integer do result := a - b end)
+
+let nums: Array[Integer] := [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]
+int_sorter.sort(nums)
+print(nums.to_string())  -- [1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 9]
+
+-- Sort strings
+let str_sorter: Generic_Introsort[String] :=
+  create Generic_Introsort[String].make(
+    fn a: String, b: String do result := a.compare_to(b) end)
+
+let words: Array[String] := ["banana", "apple", "cherry", "date"]
+str_sorter.sort(words)
+print(words.to_string())  -- [apple, banana, cherry, date]
+
+-- Sort records by field
+class Person
+  create
+    make(name: String, age: Integer) do
+      this.name := name
+      this.age := age
+    end
+  feature
+    name: String
+    age: Integer
+end
+
+let person_sorter: Generic_Introsort[Person] :=
+  create Generic_Introsort[Person].make(
+    fn a: Person, b: Person do result := a.age - b.age end)
+
+let people: Array[Person] := [
+  create Person.make("Alice", 30),
+  create Person.make("Bob", 25),
+  create Person.make("Carol", 35)
+]
+person_sorter.sort(people)
+across people as p do
+  print(p.name + ": " + p.age.to_string())
+end
+-- Bob: 25
+-- Alice: 30
+-- Carol: 35
+```
+
+---
+
+## 15.10 Benchmarking: Where Quicksort Wins and Loses
+
+Understanding when to use introsort versus alternatives requires knowing the constants behind the asymptotic bounds.
+
+```
+class Sort_Benchmark
+  create
+    make() do end
+
+  feature
+    run(n: Integer) do
+      let random_data: Array[Integer] := generate_random(n)
+      let sorted_data: Array[Integer] := generate_sorted(n)
+      let reverse_data: Array[Integer] := generate_reverse(n)
+      let equal_data: Array[Integer] := generate_equal(n)
+      let nearly_sorted: Array[Integer] := generate_nearly_sorted(n)
+
+      let sorter: Generic_Introsort[Integer] :=
+        create Generic_Introsort[Integer].make(
+          fn a: Integer, b: Integer do result := a - b end)
+
+      print("n = " + n.to_string())
+      benchmark("Random",        sorter, random_data.copy())
+      benchmark("Sorted",        sorter, sorted_data.copy())
+      benchmark("Reverse sorted",sorter, reverse_data.copy())
+      benchmark("All equal",     sorter, equal_data.copy())
+      benchmark("Nearly sorted", sorter, nearly_sorted.copy())
+    end
+
+    benchmark(name: String,
+              sorter: Generic_Introsort[Integer],
+              data: Array[Integer]) do
+      let start: Integer64 := current_time_microseconds()
+      sorter.sort(data)
+      let elapsed: Integer64 := current_time_microseconds() - start
+      print("  " + name + ": " + elapsed.to_string() + "μs")
+      assert_sorted(data)
+    end
+
+    assert_sorted(arr: Array[Integer]) do
+      from
+        let i: Integer := 1
+      until
+        i >= arr.length
+      do
+        if arr.get(i) < arr.get(i - 1) then
+          print("  ERROR: not sorted at position " + i.to_string())
+          return
         end
         i := i + 1
       end
-      result := count
     end
 
-    -- Insert with newline tracking
-    insert(pos: Integer, text: String) do
-      let append_start: Integer := appended.length
-      let new_newlines: Integer := count_newlines(text, 0, text.length)
-      appended := appended + text
-
-      -- ... (same piece splitting logic as before) ...
-      -- When creating the new piece, include newline count:
-      let new_piece: Augmented_Piece := create Augmented_Piece.make(
-        APPEND, append_start, text.length, new_newlines)
-
-      -- Update total_length and total_lines
-      total_length := total_length + text.length
-      total_lines := total_lines + new_newlines
-      -- ... rest of insertion logic
+    generate_random(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := []
+      repeat n do arr.add(random_integer() % n) end
+      result := arr
     end
 
-    -- Get line content
-    get_line(line: Integer): String
-      require
-        valid_line: line >= 0 and line < total_lines
+    generate_sorted(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := []
+      from
+        let i: Integer := 0
+      until
+        i >= n
       do
-        let start: Integer := line_to_pos(line)
-        let end_pos: Integer :=
-          when line + 1 < total_lines
-          line_to_pos(line + 1) - 1  -- exclude newline
-          else total_length end
-        result := substring(start, end_pos)
+        arr.add(i)
+        i := i + 1
       end
+      result := arr
+    end
 
-  invariant
-    positive_total_lines: total_lines >= 1
+    generate_reverse(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := []
+      from
+        let i: Integer := n - 1
+      until
+        i >= 0
+      do
+        arr.add(i)
+        i := i - 1
+      end
+      result := arr
+    end
+
+    generate_equal(n: Integer): Array[Integer] do
+      result := Array.filled(n, 42)
+    end
+
+    generate_nearly_sorted(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := generate_sorted(n)
+      -- Swap 1% of elements randomly
+      repeat n / 100 do
+        let i: Integer := random_integer() % n
+        let j: Integer := random_integer() % n
+        swap(arr, i, j)
+      end
+      result := arr
+    end
 end
 ```
 
-With augmented newline counts, line-to-position and position-to-line queries are O(pieces) — fast in practice because most documents have far fewer pieces than characters.
+Expected results for n = 1,000,000 on modern hardware (approximate):
+
+```
+n = 1000000
+  Random:         85ms    (reference case)
+  Sorted:         45ms    (insertion sort handles small partitions fast)
+  Reverse sorted: 48ms    (median-of-three handles this well)
+  All equal:      12ms    (three-way partitioning: O(n))
+  Nearly sorted:  50ms    (slightly better than random)
+```
+
+Compare to what naive quicksort (first element pivot, no three-way) gives:
+
+```
+  Sorted:         >10s    (O(n²) blowup)
+  All equal:      >10s    (O(n²) blowup)
+```
+
+The engineering — median-of-three, three-way partitioning, insertion sort cutoff, depth limit — transforms a theoretically fragile algorithm into one that handles every case efficiently.
 
 ---
 
-## 14.6 The VS Code Decision
+## 15.11 Parallel Quicksort
 
-In 2018, Peng Lyu of the VS Code team published a detailed blog post titled "Text Buffer Reimplementation." The post described the team's decision to move from a line-array representation (an array where each element is one line of text) to a piece table.
+Quicksort's divide-and-conquer structure maps naturally to parallel execution. After the first partition, the two subproblems are completely independent — they operate on disjoint portions of the array and can be sorted simultaneously on different CPU cores.
 
-The line-array had served well for years. Its advantage: line queries are O(1) — just index into the array. Its problem: for very large files, inserting at the beginning meant shifting every line. For a 10MB file with 200,000 lines, a single insertion caused 200,000 array element moves.
+```
+class Parallel_Introsort [T]
+  create
+    make(compare: Function[T, T, Integer],
+         parallelism_threshold: Integer) do
+      this.compare := compare
+      this.threshold := parallelism_threshold
+    end
 
-The VS Code team evaluated ropes. Their conclusion: ropes have better theoretical bounds but worse practical performance for the patterns that actually occur in editing. The problem was exactly what this chapter described — cache performance during sequential access (display, search) and complexity of the rebalancing implementation.
+  feature
+    compare: Function[T, T, Integer]
+    threshold: Integer  -- minimum size to sort in parallel
 
-The piece table won because:
+    sort(arr: Array[T]) do
+      let max_depth: Integer :=
+        (arr.length.to_real().log2() * 2.0).to_integer()
+      parallel_introsort(arr, 0, arr.length - 1, max_depth)
+    end
 
-**Typing is sequential.** Most insertions are at or near the current cursor position. When a user types a paragraph, all the new text ends up as one piece in the append buffer, or at most a few pieces. The piece count grows slowly under normal editing.
+    parallel_introsort(arr: Array[T],
+                       low: Integer,
+                       high: Integer,
+                       depth_limit: Integer) do
+      let size: Integer := high - low + 1
 
-**Piece lists are small.** Even after thousands of edits, a typical document has at most a few thousand pieces. Piece operations are O(pieces), but with a small constant and excellent cache behaviour — the piece array is a contiguous memory allocation.
+      if size <= INSERTION_SORT_THRESHOLD then
+        do_insertion_sort(arr, low, high)
+        return
+      end
 
-**Sequential access is fast.** Rendering a screen of text requires reading characters sequentially. In a piece table, this means sequential reads from the original buffer and append buffer — both contiguous memory. No pointer-chasing, full prefetcher utilisation.
+      if depth_limit = 0 then
+        do_heapsort(arr, low, high)
+        return
+      end
 
-**The implementation is simple.** The VS Code team estimated their piece table implementation at roughly 500 lines of TypeScript, compared to their estimate of 2000+ lines for a correct, performant rope implementation. Simpler code has fewer bugs.
+      -- Partition
+      let bounds: Array[Integer] := three_way_partition_generic(
+        arr, low, high, compare)
+      let lt: Integer := bounds.get(0)
+      let gt: Integer := bounds.get(1)
 
-The VS Code piece table uses a red-black tree of pieces (rather than a flat array) to achieve O(log n) insertion, deletion, and line queries — addressing the O(pieces) weakness of the flat piece array for pathologically edited documents. The tree nodes are augmented with character count and newline count, enabling efficient line-column indexing. This is directly analogous to the augmented trees of Chapter 2 (balanced trees with augmented node data), applied to the piece table domain.
+      -- Spawn parallel tasks for large partitions
+      if size >= threshold then
+        let left_task: Task := spawn do
+          parallel_introsort(arr, low, lt - 1, depth_limit - 1)
+        end
+        parallel_introsort(arr, gt + 1, high, depth_limit - 1)
+        left_task.await
+      else
+        parallel_introsort(arr, low, lt - 1, depth_limit - 1)
+        parallel_introsort(arr, gt + 1, high, depth_limit - 1)
+      end
+    end
+end
+```
+
+The `spawn` and `await` here use Nex's native task system from Chapter 21. Parallel quicksort achieves near-linear speedup on multi-core hardware for large arrays, since the partitioning at each level creates independent work that can be distributed across cores.
+
+The parallelism threshold prevents spawning tasks for tiny subproblems — the overhead of task creation exceeds the sorting work for small arrays. A threshold of 10,000-100,000 elements is typical.
 
 ---
 
-## 14.7 Rope vs Piece Table: The Decision Framework
+## 15.12 When Not to Use Quicksort
 
-Both structures solve the text editing problem. Choose based on your constraints.
+Quicksort is the right default. It is not always the right choice.
 
-**Choose a rope when:**
-- Document history and undo must be memory-efficient via structural sharing
-- Concurrent access is required (functional, immutable ropes compose well with concurrent readers)
-- The document is assembled from large fragments with rare edits (document merging, CRDTs for collaborative editing)
-- You are implementing a functional language's string type and need O(log n) concatenation
+**When you need stability:** use merge sort. Stable sort preserves the relative order of equal elements, which matters when sorting composite records by one field while preserving previous ordering by another.
 
-**Choose a piece table when:**
-- You are implementing a text editor with typical typing patterns
-- Sequential access performance is critical (display, syntax highlighting, search)
-- Implementation simplicity is a priority
-- The document is modified sequentially rather than randomly
+**When memory is extremely constrained:** quicksort uses O(log n) stack space. This is usually negligible but matters for embedded systems. Heapsort uses O(1) extra space.
 
-**The hybrid (piece table with tree indexing)** — what VS Code actually uses — combines the piece table's sequential access advantage with O(log n) random access. This is the right choice for production text editors where both performance and simplicity matter.
+**When the data is on disk:** quicksort's random access pattern is catastrophic for disk I/O. Chapter 16 addresses external sorting specifically.
+
+**When the data is a linked list:** quicksort requires O(1) random access to the middle of the array (for median-of-three), which linked lists do not support. Merge sort on linked lists is O(n log n) with O(log n) stack space and no pointer chasing.
+
+**When worst-case matters more than average case and you cannot afford the heapsort fallback:** merge sort guarantees O(n log n) for every input with no fallback needed. In real-time systems where latency spikes are unacceptable, merge sort's consistent performance is preferable to introsort's occasional heapsort fallback.
+
+**When the data is nearly sorted:** Timsort (Python's sort, Java's object sort) is specifically optimised for nearly-sorted data by detecting and exploiting existing runs of sorted elements. For data that comes pre-sorted with occasional inversions — common in practical systems — Timsort can approach O(n) while introsort remains O(n log n).
 
 ---
 
-## 14.8 Connection to Persistent Data Structures
+## 15.13 Where This Lives in the Wild
 
-The rope's structural sharing connects directly to Chapter 20's persistent data structures. A persistent rope is a purely functional data structure: each operation produces a new version without modifying the old. The old version remains fully accessible, sharing unchanged subtrees with the new version.
+**C++ STL** (`std::sort`) is required by the standard to be O(n log n) average case. All major implementations — GCC's libstdc++, LLVM's libc++, MSVC's STL — use introsort. GCC's implementation uses median-of-three pivot selection, three-way partitioning for equal elements, insertion sort for small partitions (threshold typically 16), and heapsort fallback at depth 2 log₂(n). The implementation in `<algorithm>` is roughly what this chapter describes.
 
-This is the same principle that makes persistent linked lists and persistent balanced trees useful in concurrent settings. Multiple threads can read old versions while a single writer creates new versions. No locking required — old versions are immutable and can never observe writes.
+**Rust's `sort_unstable`** uses pattern-defeating quicksort (pdqsort), invented by Orson Peters in 2016. Pdqsort extends introsort with pattern detection: it identifies inputs that are already sorted, reverse sorted, or have many equal elements, and handles them with specialised O(n) code paths before falling back to introsort. On random data, pdqsort matches introsort. On structured data, it can be 2-10x faster. Rust's `sort` (stable) uses a merge sort variant.
 
-The piece table achieves a similar effect through a different mechanism: the original buffer is never modified, and the append buffer only grows. Old piece arrays remain valid indefinitely because the buffers they reference never change. This is a form of persistence without the tree structure that makes ropes explicitly persistent.
+**Java's `Arrays.sort(int[])`** uses dual-pivot quicksort, invented by Vladimir Yaroslavskiy in 2009. Dual-pivot quicksort uses two pivots to create three partitions: elements less than the smaller pivot, elements between the two pivots, and elements greater than the larger pivot. This reduces the expected number of comparisons by about 5% relative to single-pivot quicksort and has better cache behavior. Java's implementation also includes insertion sort for small subarrays and a counting sort for arrays of byte values.
 
-Both structures exemplify a deeper principle: immutability simplifies concurrency. When shared data cannot be modified, the need for synchronisation disappears. The data structures in this chapter achieve fast mutation through indirection — the document is not modified, but the description of how to read the document is.
+**Go's `sort.Ints`** (and the generic `slices.Sort` added in 1.21) uses pdqsort, the same algorithm as Rust. Go's implementation is notable for explicitly handling the three common patterns (sorted, reverse, many equal) with O(n) detection before starting the general sort.
 
----
-
-## 14.9 Where This Lives in the Wild
-
-**VS Code** uses a piece tree — a red-black tree of pieces with augmented character and newline counts — as its text buffer. The implementation is in `src/vs/editor/common/model/pieceTreeTextBuffer/`. It handles files of hundreds of megabytes without degrading. The blog post by Peng Lyu describing the implementation is one of the most detailed public accounts of text buffer engineering available.
-
-**GNU Emacs** has used a gap buffer — a third approach not covered in this chapter — since the 1980s. A gap buffer is an array with a hole (the gap) at the current cursor position. Insertions at the cursor are O(1) — fill the gap — and the gap moves with the cursor. For the sequential-editing pattern of a user typing at one location, gap buffers are extremely fast. For random access across a large file, they degrade. Emacs is designed around sequential editing; its gap buffer reflects that.
-
-**Xi editor** (a research editor from Google) uses ropes implemented in Rust, with careful attention to cache behaviour. Xi's rope implementation, in the `xi-rope` crate, uses chunks of 256-512 bytes rather than individual characters at leaves, dramatically improving cache performance relative to the theoretical model. Xi demonstrated that ropes can match piece table performance with careful implementation.
-
-**Helix editor**, a modern terminal editor in Rust, uses a rope library called `ropey`, which stores chunks of characters at leaves and achieves good cache performance for sequential access while preserving O(log n) random access.
-
-**Collaborative text editors** — Google Docs, Notion, CRDTs in general — require data structures that support merging concurrent edits from multiple users. The piece table's model, where the original buffer is immutable and all edits are recorded as pieces, aligns naturally with CRDT (Conflict-free Replicated Data Type) approaches, where the document is a sequence of operations rather than a mutable string. The piece table can be thought of as an operational transform log with a compact representation.
+**Redis's `SORT` command** uses quicksort for numeric sorts and a lexicographic variant for string sorts. Redis's implementation is in `src/sort.c` — a straightforward introsort variant without some of the advanced patterns of the language standard libraries.
 
 ---
 
 ## Summary
 
-Text editors need efficient insertion, deletion, and access at arbitrary positions in a mutable character sequence. Arrays fail on insertion and deletion due to shifting costs. Linked lists fail on access and sequential iteration due to pointer-chasing and cache misses.
+Quicksort dominates general-purpose sorting because it is fast in practice: excellent cache behavior from in-place partitioning, low overhead per comparison, and adaptability to common input patterns.
 
-Ropes represent documents as balanced binary trees of string fragments. Concatenation is O(1), insertion and deletion are O(log n) by splitting and rejoining, and character access is O(log n). Structural sharing between versions makes undo O(log n) per step in memory. The weakness is cache performance during sequential access and implementation complexity.
+The naive implementation — first element pivot, basic partition, no fallback — has a O(n²) worst case on sorted and nearly-sorted input that is unacceptable for production use. Three engineering decisions transform it into a reliable general-purpose sort:
 
-Piece tables represent documents as a sequence of (buffer, start, length) descriptors pointing into two immutable buffers: the original file content and an append-only buffer for insertions. All editing operations manipulate the piece list. Sequential access reads directly from the underlying buffers, achieving excellent cache performance. Undo is cheap because piece arrays are small. The weakness is O(pieces) for random access, addressed in production systems by indexing the piece list with an augmented balanced tree.
+**Pivot selection** via median-of-three eliminates the worst cases that arise from sorted and reverse-sorted input, while randomisation protects against adversarial inputs that know the pivot selection strategy.
 
-VS Code's choice of piece table over rope reflects the practical reality that sequential access dominates text editing workloads, and that implementation simplicity reduces bugs. The hybrid piece tree — piece table operations with red-black tree indexing and augmented metadata — achieves O(log n) for all operations while preserving the piece table's sequential access advantage.
+**Three-way partitioning** (Dijkstra's Dutch National Flag) handles repeated elements efficiently. Instead of O(n²) on all-equal input, three-way quicksort achieves O(n). More generally, it achieves O(n × H) where H is the entropy of the input distribution — optimal for any sorting algorithm on that distribution.
 
-The connection to earlier chapters is direct: rope balancing uses the rotations of Chapter 2, piece trees use the augmented balanced trees of Chapter 2, and the persistent rope uses the structural sharing of Chapter 20. String algorithms from Chapters 7 through 13 operate on these structures as their text source — every search, every regex match, every suffix array query has a piece table or rope as the document it indexes.
+**Introsort** combines quicksort's typical performance with a heapsort fallback when recursion depth exceeds 2 log₂(n), guaranteeing O(n log n) worst case for any input. Insertion sort for partitions below a threshold of ~16 elements adds a final speed improvement by exploiting insertion sort's low overhead and good cache behavior on small, nearly-sorted arrays.
 
-This concludes Part III. Part IV turns from the structure of text to the problem of ordering data — not the character-level ordering that string algorithms exploit, but the sorting of arbitrary records at scales that exceed memory.
+The result handles random data near the theoretical optimum, sorted and reverse-sorted data efficiently, all-equal data in linear time, and adversarial inputs without degradation. This is the algorithm in your standard library, doing its work invisibly on every call to sort.
+
+The next chapter removes the fundamental assumption that has held throughout Part IV: that the data fits in memory. When a dataset exceeds RAM — a 500GB log file on a machine with 8GB of RAM — none of the algorithms in this chapter apply. A completely different approach is required, and it connects directly back to the B-tree chapter and its understanding of disk I/O costs.
