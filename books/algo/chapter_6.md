@@ -80,7 +80,7 @@ class Bloom_Filter
         this.m := optimal_m(expected_elements, false_positive_rate)
         -- Optimal number of hash functions
         this.k := optimal_k(this.m, expected_elements)
-        this.bits := Array[Boolean].filled(this.m, false)
+        this.bits := Array.filled(this.m, false)
         this.count := 0
       end
 
@@ -90,7 +90,7 @@ class Bloom_Filter
         this.m := bytes_to_int(data, 0)
         this.k := bytes_to_int(data, 4)
         this.count := bytes_to_int(data, 8)
-        this.bits := Array[Boolean].filled(this.m, false)
+        this.bits := Array.filled(this.m, false)
         from
           let i: Integer := 0
         until
@@ -98,7 +98,7 @@ class Bloom_Filter
         do
           let byte_index: Integer := 12 + (i / 8)
           let bit_index: Integer := i % 8
-          this.bits.set(i, (data.get(byte_index) >> bit_index) & 1 = 1)
+          this.bits.set(i, data.get(byte_index).bitwise_right_shift(bit_index).bitwise_and(1) = 1)
           i := i + 1
         end
       end
@@ -110,13 +110,13 @@ class Bloom_Filter
     count: Integer      -- number of elements added (approximate)
 
     add(element: String)
-      ensure
-        might_contain_after: might_contain(element)
       do
         across hash_positions(element) as pos do
           bits.set(pos, true)
         end
         count := count + 1
+      ensure
+        might_contain_after: might_contain(element)
       end
 
     might_contain(element: String): Boolean do
@@ -151,7 +151,7 @@ class Bloom_Filter
         do
           let pos: Integer := byte_i * 8 + bit_i
           if pos < m and bits.get(pos) then
-            byte_val := byte_val or (1 << bit_i)
+            byte_val := byte_val.bitwise_or((1).bitwise_left_shift(bit_i))
           end
           bit_i := bit_i + 1
         end
@@ -284,8 +284,7 @@ class Count_Min_Sketch
       do
         this.w := width
         this.d := depth
-        this.table := Array[Array[Integer]].filled(
-          depth, Array[Integer].filled(width, 0))
+        this.table := Array.filled(depth, Array.filled(width, 0))
         this.seeds := generate_seeds(depth)
         this.total := 0
       end
@@ -299,8 +298,7 @@ class Count_Min_Sketch
         -- w = ceil(e / epsilon), d = ceil(ln(1 / delta))
         this.w := (euler.to_real() / epsilon).ceiling().to_integer()
         this.d := (ln(1.0 / delta)).ceiling().to_integer()
-        this.table := Array[Array[Integer]].filled(
-          this.d, Array[Integer].filled(this.w, 0))
+        this.table := Array.filled(this.d, Array.filled(this.w, 0))
         this.seeds := generate_seeds(this.d)
         this.total := 0
       end
@@ -333,7 +331,7 @@ class Count_Min_Sketch
       end
 
     estimate(element: String): Integer do
-      let min_val: Integer := Integer.max_value
+      let min_val: Integer := 2147483647
       from
         let row: Integer := 0
       until
@@ -458,9 +456,9 @@ class Heavy_Hitter_Tracker
       end
     end
 
-    top_k(k: Integer): Array[String, Integer] do
-      let results: Array[String, Integer] := []
-      let temp: Array[String, Integer] := []
+    top_k(k: Integer): Array[Any] do
+      let results: Array[Any] := []
+      let temp: Array[Any] := []
 
       from until candidates.is_empty() or temp.length >= k do
         let entry: Array := candidates.extract_max()
@@ -512,8 +510,8 @@ class HyperLogLog
         -- precision p gives m = 2^p registers
         -- Standard error ≈ 1.04 / sqrt(m)
         this.p := precision
-        this.m := 1 << precision  -- 2^precision registers
-        this.registers := Array[Integer].filled(this.m, 0)
+        this.m := (1).bitwise_left_shift(precision)  -- 2^precision registers
+        this.registers := Array.filled(this.m, 0)
         this.alpha := compute_alpha(this.m)
       end
 
@@ -528,10 +526,10 @@ class HyperLogLog
 
       -- Use first p bits to select register
       let register_index: Integer :=
-        (hash >> (64 - p)).to_integer() & (m - 1)
+        hash.bitwise_right_shift(64 - p).to_integer().bitwise_and(m - 1)
 
       -- Count leading zeros in remaining bits + 1
-      let remaining: Integer64 := hash << p
+      let remaining: Integer64 := hash.bitwise_left_shift(p)
       let leading_zeros: Integer := count_leading_zeros(remaining) + 1
 
       -- Update register with maximum
@@ -544,7 +542,7 @@ class HyperLogLog
       -- Compute harmonic mean of 2^register values
       let sum: Real := 0.0
       across registers as reg do
-        sum := sum + (1.0 / (1 << reg).to_real())
+        sum := sum + (1.0 / ((1).bitwise_left_shift(reg)).to_real())
       end
 
       let estimate: Real := alpha * m.to_real() * m.to_real() / sum
@@ -589,7 +587,7 @@ class HyperLogLog
 
   invariant
     valid_p: p >= 4 and p <= 18
-    correct_m: m = 1 << p
+    correct_m: m = (1).bitwise_left_shift(p)
     registers_correct_size: registers.length = m
 end
 
@@ -600,9 +598,9 @@ function count_leading_zeros(value: Integer64): Integer do
   end
   let count: Integer := 0
   let v: Integer64 := value
-  from until (v & (1 << 63)) /= 0 do
+  from until v.bitwise_and((1).bitwise_left_shift(63)) /= 0 do
     count := count + 1
-    v := v << 1
+    v := v.bitwise_left_shift(1)
   end
   result := count
 end

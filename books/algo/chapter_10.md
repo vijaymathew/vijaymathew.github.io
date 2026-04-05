@@ -115,9 +115,6 @@ class Trie [V]
     put(key: String, value: V)
       require
         non_empty_key: key.length > 0
-      ensure
-        contains_key: contains(key)
-        size_nondecreasing: size >= old size
       do
         let node: Trie_Node[V] := root
         node.count := node.count + 1
@@ -135,6 +132,9 @@ class Trie [V]
         end
         node.is_terminal := true
         node.value := value
+      ensure
+        contains_key: contains(key)
+        size_nondecreasing: size >= old size
       end
 
     -- Look up an exact key
@@ -168,8 +168,8 @@ class Trie [V]
     end
 
     -- Return all key-value pairs with the given prefix
-    entries_with_prefix(prefix: String): Array[String, V] do
-      let results: Array[String, V] := []
+    entries_with_prefix(prefix: String): Array[Any] do
+      let results: Array[Any] := []
       let node: ?Trie_Node[V] := find_node(prefix)
       if node /= nil then
         collect_entries(node, prefix, results)
@@ -179,8 +179,6 @@ class Trie [V]
 
     -- Delete a key
     remove(key: String): Boolean
-      ensure
-        not_contains: not contains(key)
       do
         result := delete(root, key, 0)
         if result then
@@ -188,6 +186,8 @@ class Trie [V]
           -- Decrement counts along the path
           decrement_counts(key)
         end
+      ensure
+        not_contains: not contains(key)
       end
 
     -- Find the node representing a prefix (nil if prefix not in trie)
@@ -211,18 +211,24 @@ class Trie [V]
       if node.is_terminal then
         results.add(prefix)
       end
-      across node.children as c, child do
+      across node.children as entry do
+        let c: Char := entry.get(0)
+        let child: Trie_Node[Integer] := entry.get(1)
+        
         collect_keys(child, prefix + c.to_string(), results)
       end
     end
 
     collect_entries(node: Trie_Node[V],
                     prefix: String,
-                    results: Array[String, V]) do
+                    results: Array[Any]) do
       if node.is_terminal then
         results.add([prefix, node.value])
       end
-      across node.children as c, child do
+      across node.children as entry do
+        let c: Char := entry.get(0)
+        let child: Trie_Node[Integer] := entry.get(1)
+        
         collect_entries(child, prefix + c.to_string(), results)
       end
     end
@@ -295,16 +301,16 @@ class Autocomplete_Engine
       across words as word do
         let lower: String := word.trim().to_lower()
         if lower.length > 0 then
-          self.add(lower, 1)
+          this.add(lower, 1)
         end
       end
     end
 
-    from_frequency_list(entries: Array[String, Integer]) do
+    from_frequency_list(entries: Array[Any]) do
       this.trie := create Trie[Integer].empty()
       this.total_entries := 0
       across entries as entry do
-        self.add(entry.get(0).to_lower(), entry.get(1))
+        this.add(entry.get(0).to_lower(), entry.get(1))
       end
     end
 
@@ -333,7 +339,7 @@ class Autocomplete_Engine
     end
 
     -- Return top-k completions for prefix, by score
-    complete(prefix: String, k: Integer): Array[String, Integer]
+    complete(prefix: String, k: Integer): Array[Any]
       require
         non_empty_prefix: prefix.length > 0
         positive_k: k > 0
@@ -363,12 +369,12 @@ class Autocomplete_Engine
     -- Best-first search: find k highest-scoring completions
     best_first_search(start: Trie_Node[Integer],
                        prefix: String,
-                       k: Integer): Array[String, Integer] do
+                       k: Integer): Array[Any] do
       -- Priority queue: (score, word_so_far, node)
       -- We want maximum score, so negate for min-heap or use max-heap
       let pq: Max_Priority_Queue[Integer, String, Trie_Node[Integer]] :=
         create Max_Priority_Queue.empty()
-      let results: Array[String, Integer] := []
+      let results: Array[Any] := []
 
       -- Seed with the start node
       pq.insert([start.count, prefix, start])
@@ -386,7 +392,10 @@ class Autocomplete_Engine
         end
 
         -- Enqueue children, ordered by their subtree count
-        across node.children as c, child do
+        across node.children as entry do
+        let c: Char := entry.get(0)
+        let child: Trie_Node[Integer] := entry.get(1)
+        
           pq.insert([child.count, current_prefix + c.to_string(), child])
         end
       end
@@ -397,9 +406,9 @@ class Autocomplete_Engine
     -- Prefix search with fuzzy tolerance (edit distance ≤ max_errors)
     fuzzy_complete(prefix: String,
                    k: Integer,
-                   max_errors: Integer): Array[String, Integer] do
+                   max_errors: Integer): Array[Any] do
       let lower: String := prefix.to_lower()
-      let candidates: Array[String, Integer] := []
+      let candidates: Array[Any] := []
       fuzzy_search(trie.root, lower, 0, "", 0, max_errors, candidates)
       candidates := sort_by_score(candidates)
       if candidates.length > k then
@@ -416,7 +425,7 @@ class Autocomplete_Engine
                  current_word: String,
                  errors: Integer,
                  max_errors: Integer,
-                 results: Array[String, Integer]) do
+                 results: Array[Any]) do
       -- Prune: if errors already exceed max, stop
       if errors > max_errors then
         return
@@ -427,7 +436,10 @@ class Autocomplete_Engine
         if node.is_terminal then
           results.add([current_word, node.value])
         end
-        across node.children as c, child do
+        across node.children as entry do
+        let c: Char := entry.get(0)
+        let child: Trie_Node[Integer] := entry.get(1)
+        
           fuzzy_search(child, prefix, prefix_pos,
                        current_word + c.to_string(),
                        errors, max_errors, results)
@@ -438,7 +450,10 @@ class Autocomplete_Engine
       let target_char: Char := prefix.char_at(prefix_pos)
 
       -- Try each child
-      across node.children as c, child do
+      across node.children as entry do
+        let c: Char := entry.get(0)
+        let child: Trie_Node[Integer] := entry.get(1)
+        
         let new_errors: Integer :=
           when c = target_char errors else errors + 1 end
         fuzzy_search(child, prefix, prefix_pos + 1,
@@ -537,8 +552,6 @@ class Radix_Tree [V]
     put(key: String, value: V)
       require
         non_empty_key: key.length > 0
-      ensure
-        contains_key: contains(key)
       do
         insert(root, key, value)
         size := size + 1
@@ -653,7 +666,10 @@ class Radix_Tree [V]
         if node.is_terminal then
           results.add(accumulated)
         end
-        across node.children as c, child do
+        across node.children as entry do
+        let c: Char := entry.get(0)
+        let child: Trie_Node[Integer] := entry.get(1)
+        
           collect_with_prefix(child, "", accumulated + child.label, results)
         end
         return
@@ -764,6 +780,9 @@ Real autocomplete systems often combine approaches: a trie or radix tree for the
 A production autocomplete system adds several things beyond the basic trie: persistence (the dictionary survives process restarts), learning (selections boost scores), and multiple suggestion strategies (exact prefix, fuzzy, phonetic).
 
 ```
+intern io/Path
+intern io/Text_File
+
 class Autocomplete_System
   create
     open(directory: String) do
@@ -782,7 +801,7 @@ class Autocomplete_System
 
     -- Query: returns top-5 completions
     query(prefix: String): Array[String] do
-      let completions: Array[String, Integer] :=
+      let completions: Array[Any] :=
         engine.complete(prefix, 5)
       let words: Array[String] := []
       across completions as c do
@@ -792,13 +811,13 @@ class Autocomplete_System
     end
 
     -- Query with custom k
-    query_top(prefix: String, k: Integer): Array[String, Integer] do
+    query_top(prefix: String, k: Integer): Array[Any] do
       result := engine.complete(prefix, k)
     end
 
     -- Query with fuzzy tolerance
     fuzzy_query(prefix: String, k: Integer): Array[String] do
-      let completions: Array[String, Integer] :=
+      let completions: Array[Any] :=
         engine.fuzzy_complete(prefix, k, 1)
       let words: Array[String] := []
       across completions as c do
@@ -808,21 +827,18 @@ class Autocomplete_System
     end
 
     -- Record that user selected this word
-    select(word: String) do
+    record_selection(word: String) do
       engine.record_selection(word)
       log_selection(word)
     end
 
     -- Persist state
     save() do
-      intern io/Text_File
-      intern io/Path
-
-      let path: Path := create Path.make(dictionary_path)
+            let path: Path := create Path.make(dictionary_path)
       let writer: Text_File := create Text_File.open_write(path)
 
       -- Write all entries with their scores
-      let all_entries: Array[String, Integer] :=
+      let all_entries: Array[Any] :=
         engine.trie.entries_with_prefix("")
       across all_entries as entry do
         writer.write_line(entry.get(0) + "\t" + entry.get(1).to_string())
@@ -832,10 +848,7 @@ class Autocomplete_System
     end
 
     load() do
-      intern io/Text_File
-      intern io/Path
-
-      let path: Path := create Path.make(dictionary_path)
+            let path: Path := create Path.make(dictionary_path)
       if not path.exists() then
         return
       end
@@ -843,12 +856,15 @@ class Autocomplete_System
       let reader: Text_File := create Text_File.open_read(path)
       from until true do
         let line: ?String := reader.read_line()
-        if line = nil then break end
+        if line = nil then
+          reader.close()
+          return
+        end
         let parts: Array[String] := line.split("\t")
         if parts.length = 2 then
           let word: String := parts.get(0)
-          let score: ?Integer := Integer.parse(parts.get(1))
-          if score /= nil then
+          if parts.get(1).trim() /= "" then
+            let score: Integer := parts.get(1).to_integer()
             engine.add(word, score)
           end
         end
@@ -857,8 +873,6 @@ class Autocomplete_System
     end
 
     log_selection(word: String) do
-      intern io/Text_File
-      intern io/Path
       let path: Path := create Path.make(selection_log_path)
       let writer: Text_File := create Text_File.open_append(path)
       writer.write_line(word)
@@ -896,7 +910,7 @@ end
 -- ...
 
 -- User selects "microphone"
-system.select("microphone")
+system.record_selection("microphone")
 
 -- Now "microphone" has a boosted score and will rank higher
 let results2: Array[String] := system.query("micro")

@@ -80,7 +80,7 @@ class NFA_State
 
   feature
     id: Integer
-    transitions: Array[Integer, Integer]  -- (label, target_id)
+    transitions: Array[Any]  -- (label, target_id)
     is_accepting: Boolean
 
     add_transition(label: Integer, target: Integer) do
@@ -132,12 +132,12 @@ class NFA
       result := states.get(id)
     end
 
-    add_transition(from: Integer, label: Integer, to: Integer) do
-      get_state(from).add_transition(label, to)
+    add_transition(from_state: Integer, label: Integer, to_state: Integer) do
+      get_state(from_state).add_transition(label, to_state)
     end
 
-    add_epsilon(from: Integer, to: Integer) do
-      get_state(from).add_epsilon(to)
+    add_epsilon(from_state: Integer, to_state: Integer) do
+      get_state(from_state).add_epsilon(to_state)
     end
 
   invariant
@@ -250,9 +250,11 @@ class Thompson_Builder
 
       -- Concatenation is implicit; continue while more atoms remain
       -- (stop at '|', ')', or end of pattern)
-      from until pos >= pattern.length or
-                 pattern.char_at(pos) = '|' or
-                 pattern.char_at(pos) = ')' do
+      from
+        let more_atoms: Boolean := true
+      until
+        pos >= pattern.length or pattern.char_at(pos) = '|' or pattern.char_at(pos) = ')'
+      do
         let right: Array[Integer] := parse_quantified()
         left := make_concatenation(left, right)
       end
@@ -494,9 +496,9 @@ class NFA_Simulator
     end
 
     -- Find all matches of the pattern in text (non-overlapping)
-    find_all(text: String): Array[Integer, Integer] do
+    find_all(text: String): Array[Any] do
       -- Returns array of [start, end) positions of matches
-      let matches_found: Array[Integer, Integer] := []
+      let matches_found: Array[Any] := []
       let n: Integer := text.length
 
       from
@@ -586,7 +588,7 @@ let nfa: NFA := builder.build()
 let sim: NFA_Simulator := create NFA_Simulator.make(nfa)
 
 -- This runs in O(nm) regardless of how many a's
-let dangerous_input: String := String.filled(30, 'a')
+let dangerous_input: String := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 print(sim.matches(dangerous_input))   -- false, computed quickly
 print(sim.matches(dangerous_input + "b"))  -- true, computed quickly
 ```
@@ -773,13 +775,13 @@ class Regex
     end
 
     -- Find all non-overlapping matches, return their positions
-    find_all(text: String): Array[Integer, Integer] do
+    find_all(text: String): Array[Any] do
       result := sim.find_all(text)
     end
 
     -- Find first match position, or nil
     find_first(text: String): ?Array[Integer] do
-      let all: Array[Integer, Integer] := find_all(text)
+      let all: Array[Any] := find_all(text)
       if all.is_empty() then
         result := nil
       else
@@ -789,7 +791,7 @@ class Regex
 
     -- Replace all matches with a replacement string
     replace_all(text: String, replacement: String): String do
-      let matches_list: Array[Integer, Integer] := find_all(text)
+      let matches_list: Array[Any] := find_all(text)
       if matches_list.is_empty() then
         result := text
         return
@@ -811,7 +813,7 @@ class Regex
 
     -- Split text on pattern matches
     split(text: String): Array[String] do
-      let matches_list: Array[Integer, Integer] := find_all(text)
+      let matches_list: Array[Any] := find_all(text)
       let parts: Array[String] := []
       let last_end: Integer := 0
 
@@ -875,13 +877,13 @@ function test_regex_engine() do
 
   -- The catastrophic backtracking case -- runs fast
   let r5: Regex := create Regex.compile("(a+)+b")
-  let long_a: String := String.filled(30, 'a')
+  let long_a: String := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   print(r5.matches(long_a))        -- false (fast)
   print(r5.matches(long_a + "b"))  -- true (fast)
 
   -- Find all
   let r6: Regex := create Regex.compile("a+")
-  let positions: Array[Integer, Integer] := r6.find_all("aabbaaa")
+  let positions: Array[Any] := r6.find_all("aabbaaa")
   across positions as p do
     print("[" + p.get(0).to_string() + ", " + p.get(1).to_string() + ")")
   end

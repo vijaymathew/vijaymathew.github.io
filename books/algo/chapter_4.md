@@ -226,18 +226,18 @@ The PageManager handles two concerns that might seem like details but are fundam
 ```
 function int_to_bytes(value: Integer, page: Array[Integer], offset: Integer)
 do
-  page.set(offset,     (value >> 24) & 0xFF)
-  page.set(offset + 1, (value >> 16) & 0xFF)
-  page.set(offset + 2, (value >> 8)  & 0xFF)
-  page.set(offset + 3,  value        & 0xFF)
+  page.set(offset, value.bitwise_right_shift(24).bitwise_and(255))
+  page.set(offset + 1, value.bitwise_right_shift(16).bitwise_and(255))
+  page.set(offset + 2, value.bitwise_right_shift(8).bitwise_and(255))
+  page.set(offset + 3, value.bitwise_and(255))
 end
 
 function bytes_to_int(page: Array[Integer], offset: Integer): Integer
 do
-  result := ((page.get(offset)     & 0xFF) << 24) or
-             ((page.get(offset + 1) & 0xFF) << 16) or
-             ((page.get(offset + 2) & 0xFF) << 8)  or
-              (page.get(offset + 3) & 0xFF)
+  result := page.get(offset).bitwise_and(255).bitwise_left_shift(24)
+             .bitwise_or(page.get(offset + 1).bitwise_and(255).bitwise_left_shift(16))
+             .bitwise_or(page.get(offset + 2).bitwise_and(255).bitwise_left_shift(8))
+             .bitwise_or(page.get(offset + 3).bitwise_and(255))
 end
 
 function string_to_bytes(s: String, page: Array[Integer],
@@ -270,7 +270,7 @@ do
     bytes.add(page.get(offset + i))
     i := i + 1
   end
-  result := String.from_bytes(bytes)
+  result := bytes.to_string()
 end
 ```
 
@@ -363,8 +363,6 @@ class BTree_Node
 
     -- Serialise this node to a PAGE_SIZE byte array
     to_page(): Array[Integer]
-      ensure
-        correct_size: result.length = PAGE_SIZE
       do
         let data: Array[Integer] := Array.filled(PAGE_SIZE, 0)
         data.set(OFFSET_IS_LEAF, when is_leaf 1 else 0 end)
@@ -401,11 +399,13 @@ class BTree_Node
         end
 
         result := data
+      ensure
+        correct_size: result.length = PAGE_SIZE
       end
 
   invariant
-    leaf_has_no_children: is_leaf implies children.length = 0
-    internal_children_count: not is_leaf implies
+    leaf_has_no_children: (not is_leaf) or children.length = 0
+    internal_children_count: is_leaf or
                              children.length = keys.length + 1
     not_overfull: keys.length <= MAX_KEYS
 end
@@ -483,6 +483,7 @@ class BTree
       end
       result := low
     end
+end
 ```
 
 Each call to `search_node` is exactly one disk read — `load_node` fetches one page. The recursion depth equals the tree height. For a tree with t = 10 and a million entries, height is at most 6. Six disk reads to find any key in a million-entry database. This is the payoff for all the complexity of the node layout and the PageManager.
@@ -500,12 +501,14 @@ Splitting a node means dividing it into two nodes of roughly equal size and prom
 We use a proactive split strategy: split any full node we encounter on the way down during insertion, before we actually need to. This means that when we reach a full leaf and need to split it, its parent is guaranteed to have room for the promoted median — we split it on the way down. This avoids the need to walk back up the tree after insertion.
 
 ```
+class BTree
+  feature
+    pm: Page_Manager
+
     put(key: String, value: String)
       require
         valid_key: key.length > 0
         valid_value: value.length > 0
-      ensure
-        key_present: get(key) /= nil
       do
         let root_page: Integer := pm.read_root()
         let root: BTree_Node := load_node(root_page)
@@ -524,7 +527,10 @@ We use a proactive split strategy: split any full node we encounter on the way d
         else
           insert_non_full(root, key, value)
         end
+      ensure
+        key_present: get(key) /= nil
       end
+end
 ```
 
 When the root is full, we create a new root, make the old root its only child, then immediately split that child. The new root then has one promoted key and two children. This is the only case where tree height increases.
@@ -532,6 +538,10 @@ When the root is full, we create a new root, make the old root its only child, t
 The `split_child` operation splits the child at index `child_index` of `parent`:
 
 ```
+class BTree
+  feature
+    pm: Page_Manager
+
     split_child(parent: BTree_Node, child_index: Integer)
       require
         valid_index: child_index >= 0 and
@@ -594,6 +604,7 @@ The `split_child` operation splits the child at index `child_index` of `parent`:
         save_node(new_node)
         save_node(parent)
       end
+end
 ```
 
 Let us trace through a split carefully. Suppose we have a leaf node with MAX_KEYS = 20 keys, and we need to split it. T = 10, so median_index = 9. Keys 0 through 8 stay in the left node (child). Key 9 is promoted to the parent. Keys 10 through 19 move to the right node (new_node). Both resulting nodes have exactly T-1 = 9 keys — the minimum allowed. The parent gains one key and one new child pointer.
@@ -601,6 +612,8 @@ Let us trace through a split carefully. Suppose we have a leaf node with MAX_KEY
 After the split, three pages are written to disk: the truncated left child, the new right child, and the updated parent. This is a small constant number of writes regardless of tree size.
 
 ```
+class BTree
+  feature
     insert_non_full(node: BTree_Node, key: String, value: String) do
       let i: Integer := find_key_index(node, key)
 
@@ -632,6 +645,7 @@ After the split, three pages are written to disk: the truncated left child, the 
         insert_non_full(load_node(node.children.get(i)), key, value)
       end
     end
+end
 ```
 
 The proactive split strategy is visible here: before recursing into a child, we check if it is full and split it if so. By the time we reach any node during insertion, its parent has already been split if necessary — guaranteeing that the parent has room for whatever median key we might promote.
@@ -653,9 +667,9 @@ There are three cases for deletion:
 We use a proactive fix-up strategy during descent: before recursing into a child with only T-1 keys, we either borrow a key from a sibling or merge the child with a sibling, ensuring that any deletion we perform on the way down never creates an underfull node.
 
 ```
+class BTree
+  feature
     remove(key: String)
-      ensure
-        key_absent: get(key) = nil
       do
         let root_page: Integer := pm.read_root()
         delete_from(root_page, key)
@@ -667,6 +681,8 @@ We use a proactive fix-up strategy during descent: before recursing into a child
           pm.write_root(new_root_page)
           pm.free_page(root_page)
         end
+      ensure
+        key_absent: get(key) = nil
       end
 
     delete_from(page_num: Integer, key: String) do
@@ -695,11 +711,14 @@ We use a proactive fix-up strategy during descent: before recursing into a child
         delete_from(updated.children.get(new_i), key)
       end
     end
+end
 ```
 
 Deleting from an internal node replaces the key with its in-order successor and then deletes the successor from the right subtree:
 
 ```
+class BTree
+  feature
     delete_from_internal(node: BTree_Node, key_index: Integer) do
       -- Find in-order successor: leftmost key in right subtree
       let successor_page: Integer := node.children.get(key_index + 1)
@@ -732,11 +751,14 @@ Deleting from an internal node replaces the key with its in-order successor and 
         result := find_min_value(node.children.get(0))
       end
     end
+end
 ```
 
 The `ensure_child_has_room` operation is the heart of deletion's complexity. Given a node and a child index, it ensures the child has at least T keys before we descend into it:
 
 ```
+class BTree
+  feature
     ensure_child_has_room(node: BTree_Node, child_index: Integer) do
       let child_page: Integer := node.children.get(child_index)
       let child: BTree_Node := load_node(child_page)
@@ -775,11 +797,14 @@ The `ensure_child_has_room` operation is the heart of deletion's complexity. Giv
         merge_children(node, child_index)
       end
     end
+end
 ```
 
 Borrowing from a sibling is a rotation at the parent level: a key comes down from the parent into the underfull child, and the sibling's nearest key goes up to replace it. This maintains all invariants while transferring one key across.
 
 ```
+class BTree
+  feature
     borrow_from_left(parent: BTree_Node, child_index: Integer,
                      child: BTree_Node, left: BTree_Node) do
       -- Parent's separator key comes down into child at position 0
@@ -827,11 +852,14 @@ Borrowing from a sibling is a rotation at the parent level: a key comes down fro
       save_node(right)
       save_node(parent)
     end
+end
 ```
 
 When borrowing is not possible — both siblings have exactly T-1 keys — we merge. Merging is the inverse of splitting: two nodes of T-1 keys each, plus a separator key from the parent, combine into one node of 2T-1 keys. The parent loses one key and one child pointer. If the parent is now underfull, the fix-up propagates upward — but because we ensured each node had room before descending, this cascade is bounded.
 
 ```
+class BTree
+  feature
     merge_children(parent: BTree_Node, left_index: Integer) do
       -- Merge child at left_index+1 into child at left_index,
       -- pulling separator down from parent
@@ -867,6 +895,7 @@ When borrowing is not possible — both siblings have exactly T-1 keys — we me
       save_node(parent)
       pm.free_page(right_page)
     end
+end
 ```
 
 The freed page is returned to the PageManager's free list for future reuse. This is important for long-running databases — without the free list, every deletion would waste a page permanently, causing the file to grow without bound even as data is removed.
@@ -898,11 +927,13 @@ Update `split_child` to set next-leaf pointers when splitting a leaf:
 Range query then becomes a leaf-chain walk:
 
 ```
-    range(low: String, high: String): Array[String, String]
+class BTree
+  feature
+    range(low: String, high: String): Array[Any]
       require
         valid_range: low <= high
       do
-        let results: Array[String, String] := []
+        let results: Array[Any] := []
         let root_page: Integer := pm.read_root()
 
         -- Find the leaf containing low
@@ -911,10 +942,17 @@ Range query then becomes a leaf-chain walk:
         -- Walk the leaf chain
         from until leaf_page = -1 do
           let leaf: BTree_Node := load_node(leaf_page)
-          across leaf.keys as key, leaf.values as value do
+          from
+            let i: Integer := 0
+          until
+            i >= leaf.num_keys()
+          do
+            let key: String := leaf.keys.get(i)
+            let value: String := leaf.values.get(i)
             if key >= low and key <= high then
               results.add([key, value])
             end
+            i := i + 1
           end
           if leaf.num_keys() > 0 and
              leaf.keys.get(leaf.num_keys() - 1) > high then
@@ -936,6 +974,7 @@ Range query then becomes a leaf-chain walk:
         result := find_leaf(node.children.get(i), key)
       end
     end
+end
 ```
 
 ---
@@ -961,20 +1000,20 @@ class KV_Store
     put(key: String, value: String)
       require
         non_empty_key: key.length > 0
-      ensure
-        stored: get(key) = value
       do
         tree.put(key, value)
+      ensure
+        stored: get(key) = value
       end
 
     remove(key: String)
-      ensure
-        absent: get(key) = nil
       do
         tree.remove(key)
+      ensure
+        absent: get(key) = nil
       end
 
-    range(low: String, high: String): Array[String, String] do
+    range(low: String, high: String): Array[Any] do
       result := tree.range(low, high)
     end
 
@@ -998,7 +1037,7 @@ store.put("carol", "manager")
 
 print(store.get("bob"))   -- "designer"
 
-let results: Array[String, String] := store.range("alice", "carol")
+let results: Array[Any] := store.range("alice", "carol")
 across results as pair do
   print(pair.get(0) + " -> " + pair.get(1))
 end
@@ -1050,6 +1089,7 @@ class Shadow_BTree
       -- by scanning the free list against pre-transaction page count
       shadow_root := -1
     end
+end
 ```
 
 On recovery after a crash, we read the header page. The root pointer either points to the pre-crash root (if the crash happened before commit) or the post-crash root (if it happened after). Either way, the root it points to is consistent. We scan for orphaned pages during a recovery pass and return them to the free list.

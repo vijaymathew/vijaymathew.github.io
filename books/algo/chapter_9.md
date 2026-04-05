@@ -117,7 +117,7 @@ function edit_distance(a: String, b: String): Integer do
   until
     i > n
   do
-    table.add(Array[Integer].filled(m + 1, 0))
+    table.add(Array.filled(m + 1, 0))
     i := i + 1
   end
 
@@ -373,17 +373,15 @@ class Spell_Checker
     end
 
     from_file(path: String) do
-      intern io/Text_File
-      intern io/Path
-
-      let file: Text_File := create Text_File.open_read(
+            let file: Text_File := create Text_File.open_read(
         create Path.make(path))
       let words: Array[String] := []
 
       from until true do
         let line: ?String := file.read_line()
         if line = nil then
-          break
+          file.close()
+          return
         end
         let word: String := line.trim().to_lower()
         if word.length > 0 then
@@ -413,9 +411,9 @@ class Spell_Checker
       result := false
     end
 
-    suggest(word: String): Array[String, Integer] do
+    suggest(word: String): Array[Any] do
       let lower: String := word.to_lower()
-      let candidates: Array[String, Integer] := []
+      let candidates: Array[Any] := []
 
       -- Early exit: exact match
       if is_correct(lower) then
@@ -454,7 +452,7 @@ class Spell_Checker
       across words as word do
         let lower: String := word.to_lower()
         if not is_correct(lower) and not results.contains(lower) then
-          let suggestions: Array[String, Integer] := suggest(lower)
+          let suggestions: Array[Any] := suggest(lower)
           let suggestion_words: Array[String] := []
           across suggestions as s do
             suggestion_words.add(s.get(0))
@@ -490,8 +488,8 @@ function tokenise(text: String): Array[String] do
   result := words
 end
 
-function sort_by_distance(candidates: Array[String, Integer]):
-                           Array[String, Integer] do
+function sort_by_distance(candidates: Array[Any]):
+                           Array[Any] do
   -- Simple insertion sort: candidates are typically small
   from
     let i: Integer := 1
@@ -545,12 +543,11 @@ function edit_distance_bounded(a: String, b: String,
     until
       j <= m
     do
-      let val: Integer :=
-        if a.char_at(i - 1) = b.char_at(j - 1) then
-          prev.get(j - 1)
-        else
-          1 + prev.get(j).min(curr.get(j - 1)).min(prev.get(j - 1))
-        end
+      let val: Integer := when a.char_at(i - 1) = b.char_at(j - 1)
+        prev.get(j - 1)
+      else
+        1 + prev.get(j).min(curr.get(j - 1)).min(prev.get(j - 1))
+      end
       curr.set(j, val)
       row_min := row_min.min(val)
       j := j + 1
@@ -651,7 +648,7 @@ class Diff
       until
         i <= n
       do
-        table.add(Array[Integer].filled(m + 1, 0))
+        table.add(Array.filled(m + 1, 0))
         i := i + 1
       end
 
@@ -808,6 +805,7 @@ class Sequence_Aligner
       this.mismatch_penalty := mismatch_penalty
       this.gap_open := gap_open
       this.gap_extend := gap_extend
+      this.negative_infinity := -1000000
     end
 
     dna_default() do
@@ -816,6 +814,7 @@ class Sequence_Aligner
       this.mismatch_penalty := -3
       this.gap_open := -5
       this.gap_extend := -2
+      this.negative_infinity := -1000000
     end
 
   feature
@@ -823,7 +822,7 @@ class Sequence_Aligner
     mismatch_penalty: Integer
     gap_open: Integer
     gap_extend: Integer
-    negative_infinity: Integer := -1000000
+    negative_infinity: Integer
 
     align(seq_a: String, seq_b: String): Alignment do
       let n: Integer := seq_a.length
@@ -864,12 +863,11 @@ class Sequence_Aligner
         until
           j <= m
         do
-          let s: Integer :=
-            if seq_a.char_at(i - 1) = seq_b.char_at(j - 1) then
-              match_score
-            else
-              mismatch_penalty
-            end
+          let s: Integer := when seq_a.char_at(i - 1) = seq_b.char_at(j - 1)
+            match_score
+          else
+            mismatch_penalty
+          end
 
           M.get(i).set(j, s + max3(M.get(i-1).get(j-1),
                                     X.get(i-1).get(j-1),
@@ -915,34 +913,52 @@ class Sequence_Aligner
                            M.get(n).get(m) >= Y.get(n).get(m)
       let in_x: Boolean := not in_m and
                            X.get(n).get(m) >= Y.get(n).get(m)
-      let state: String := when in_m "M" else when in_x "X" else "Y" end
+      let state: String := "M"
+      if in_m then
+        state := "M"
+      elseif in_x then
+        state := "X"
+      else
+        state := "Y"
+      end
 
       from until i = 0 and j = 0 do
-        case state of
-          "M" then
-            aligned_a := seq_a.char_at(i - 1).to_string() + aligned_a
-            aligned_b := seq_b.char_at(j - 1).to_string() + aligned_b
-            -- Determine which table we came from
-            let prev: Integer := M.get(i-1).get(j-1)
-            let prev_x: Integer := X.get(i-1).get(j-1)
-            let prev_y: Integer := Y.get(i-1).get(j-1)
-            state := when prev >= prev_x and prev >= prev_y "M"
-                     else when prev_x >= prev_y "X"
-                     else "Y" end
-            i := i - 1
-            j := j - 1
-          "X" then
-            aligned_a := seq_a.char_at(i - 1).to_string() + aligned_a
-            aligned_b := "-" + aligned_b
-            state := when M.get(i-1).get(j) + gap_open >= X.get(i-1).get(j) + gap_extend
-                     "M" else "X" end
-            i := i - 1
-          "Y" then
-            aligned_a := "-" + aligned_a
-            aligned_b := seq_b.char_at(j - 1).to_string() + aligned_b
-            state := when M.get(i).get(j-1) + gap_open >= Y.get(i).get(j-1) + gap_extend
-                     "M" else "Y" end
-            j := j - 1
+        if state = "M" then
+          aligned_a := seq_a.char_at(i - 1).to_string() + aligned_a
+          aligned_b := seq_b.char_at(j - 1).to_string() + aligned_b
+          -- Determine which table we came from
+          let prev: Integer := M.get(i - 1).get(j - 1)
+          let prev_x: Integer := X.get(i - 1).get(j - 1)
+          let prev_y: Integer := Y.get(i - 1).get(j - 1)
+          if prev >= prev_x and prev >= prev_y then
+            state := "M"
+          elseif prev_x >= prev_y then
+            state := "X"
+          else
+            state := "Y"
+          end
+          i := i - 1
+          j := j - 1
+        elseif state = "X" then
+          aligned_a := seq_a.char_at(i - 1).to_string() + aligned_a
+          aligned_b := "-" + aligned_b
+          if M.get(i - 1).get(j) + gap_open >=
+             X.get(i - 1).get(j) + gap_extend then
+            state := "M"
+          else
+            state := "X"
+          end
+          i := i - 1
+        else
+          aligned_a := "-" + aligned_a
+          aligned_b := seq_b.char_at(j - 1).to_string() + aligned_b
+          if M.get(i).get(j - 1) + gap_open >=
+             Y.get(i).get(j - 1) + gap_extend then
+            state := "M"
+          else
+            state := "Y"
+          end
+          j := j - 1
         end
       end
 
@@ -1034,9 +1050,12 @@ The specific form — fill a 2D table row by row — is the edit distance varian
 The DP recurrence for Damerau-Levenshtein requires tracking the last position in A and B where each character appeared, adding one case to the recurrence:
 
 ```
-if a[i] = b[j-1] and a[i-1] = b[j] then
-  transposition_cost := table[i-2][j-2] + 1
+if a.char_at(i) = b.char_at(j - 1) and
+   a.char_at(i - 1) = b.char_at(j) then
+  let transposition_cost: Integer :=
+    table.get(i - 2).get(j - 2) + 1
   -- compare with the other three costs and take the minimum
+end
 ```
 
 **Jaro-Winkler distance** is a similarity metric (not a distance) that is more appropriate for short strings like names. It counts matching characters within a window and transpositions among matched characters, then applies a prefix bonus for strings that share a common prefix. Name matching systems — merging customer databases, deduplicating records — typically use Jaro-Winkler rather than Levenshtein because it is more forgiving of common name variations (abbreviations, nicknames, different transliterations).
