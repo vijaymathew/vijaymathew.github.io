@@ -709,10 +709,11 @@ Optimal total:  4.6096 bits</code></pre>
 <span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Length:   </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="sc">}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Interval: [0.27, 0.30)
-Code:     01000110
-Value:    0.27343750
-Length:   8 bits</code></pre>
-<p>This is slightly longer than our theoretical estimate of 5.06 bits because our simple fraction-finding algorithm is not optimal. A production implementation uses a more sophisticated output mechanism — we will see this shortly.</p>
+Code:     01001
+Value:    0.28125000
+Length:   5 bits</code></pre>
+<p>For this interval, the shortest dyadic fraction happens to be 5 bits long, which is exactly what you would expect from an interval of width 0.03: <code>-log₂(0.03) ≈ 5.06</code>, so any valid dyadic point will need at least 5 bits. Our helper finds <code>0.28125 = 9/32</code>, which lies inside the interval and is as short as possible.</p>
+<p>In production arithmetic coders, you do not search for a dyadic point after the fact like this. Instead, bits are emitted incrementally as the interval narrows and its high-order bits become fixed. We will get to that shortly.</p>
 <hr>
 </section>
 <section id="decoding-narrowing-in" class="level2" data-number="8.5">
@@ -758,19 +759,25 @@ Length:   8 bits</code></pre>
 <span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Match:    </span><span class="sc">{</span>message <span class="op">==</span> decoded<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())</span>
-<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Entropy:          </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
-<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits used:        </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>message_prob <span class="op">=</span> math.prod(probs[ch] <span class="cf">for</span> ch <span class="kw">in</span> message)</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Message probability:  </span><span class="sc">{</span>message_prob<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Self-information:     </span><span class="sc">{</span><span class="op">-</span>math<span class="sc">.</span>log2(message_prob)<span class="sc">:.4f}</span><span class="ss"> bits"</span>)</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Source entropy:       </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits used here:       </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:      </span><span class="sc">{</span><span class="bu">len</span>(code)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Original: abcaab
-Code:     0100011010 (10 bits)
+Code:     011 (3 bits)
 Decoded:  abcaab
 Match:    True
 
-Entropy:          1.4855 bits/symbol
-Bits used:        10
-Bits per symbol:  1.6667</code></pre>
-<p>The decoder correctly recovers the original message. The efficiency (1.67 bits/symbol vs 1.49 bits/symbol entropy) is modest for this short message but improves as messages grow longer — the overhead is a fixed few bits regardless of message length.</p>
+Message probability:  0.002250
+Self-information:     8.7959 bits
+Source entropy:       1.4855 bits/symbol
+Bits used here:       3
+Bits per symbol:      0.5000</code></pre>
+<p>The decoder correctly recovers the original message. The surprisingly short 3-bit code is a reminder that this toy representation is <strong>not</strong> a full standalone compressed stream: the decoder is also being given the message length out of band, and we are choosing one dyadic point that happens to lie inside the message interval. Some particular messages get lucky and land on a very short dyadic fraction; many do not.</p>
+<p>So do not read this example as saying arithmetic coding can beat <code>-log₂(P(message))</code> for a fully specified message. The real point of this section is correctness of the interval logic. A production arithmetic coder turns that interval into a self-delimiting bitstream by emitting bits incrementally during renormalization, which is what we build next.</p>
 <hr>
 </section>
 <section id="the-precision-problem" class="level2" data-number="8.6">
@@ -958,32 +965,29 @@ After 100 symbols: width = 0.00e+00  UNDERFLOW</code></pre>
 <span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(result)</span>
 <span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a><span class="co"># Full round-trip test</span></span>
-<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
-<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>probs   <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
-<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>message <span class="op">=</span> <span class="st">''</span>.join(random.choices(<span class="bu">list</span>(probs.keys()),</span>
-<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>                                  weights<span class="op">=</span><span class="bu">list</span>(probs.values()),</span>
-<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>                                  k<span class="op">=</span><span class="dv">1000</span>))</span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a><span class="co"># Full round-trip test on a fixed message whose counts match the model exactly</span></span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a>probs   <span class="op">=</span> {<span class="st">'a'</span>: <span class="fl">0.5</span>, <span class="st">'b'</span>: <span class="fl">0.3</span>, <span class="st">'c'</span>: <span class="fl">0.2</span>}</span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>message <span class="op">=</span> <span class="st">"a"</span> <span class="op">*</span> <span class="dv">500</span> <span class="op">+</span> <span class="st">"b"</span> <span class="op">*</span> <span class="dv">300</span> <span class="op">+</span> <span class="st">"c"</span> <span class="op">*</span> <span class="dv">200</span></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>encoded <span class="op">=</span> arithmetic_encode_integer(message, probs)</span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>decoded <span class="op">=</span> arithmetic_decode_integer(encoded, probs, <span class="bu">len</span>(message))</span>
 <span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>encoded <span class="op">=</span> arithmetic_encode_integer(message, probs)</span>
-<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a>decoded <span class="op">=</span> arithmetic_decode_integer(encoded, probs, <span class="bu">len</span>(message))</span>
-<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())</span>
-<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Message length:   </span><span class="sc">{</span><span class="bu">len</span>(message)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
-<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy:          </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
-<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Encoded length:   </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">}</span><span class="ss"> bits"</span>)</span>
-<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:         </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message) <span class="op">-</span> H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
-<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Round-trip OK:    </span><span class="sc">{</span>message <span class="op">==</span> decoded<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs.values())</span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Message length:   </span><span class="sc">{</span><span class="bu">len</span>(message)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy:          </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Encoded length:   </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">}</span><span class="ss"> bits"</span>)</span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:         </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message) <span class="op">-</span> H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Round-trip OK:    </span><span class="sc">{</span>message <span class="op">==</span> decoded<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Message length:   1000 symbols
 Entropy:          1.4855 bits/symbol
-Encoded length:   1492 bits
-Bits per symbol:  1.4920
-Overhead:         0.0065 bits/symbol
+Encoded length:   1487 bits
+Bits per symbol:  1.4870
+Overhead:         0.0015 bits/symbol
 Round-trip OK:    True</code></pre>
-<p>The overhead is now 0.007 bits per symbol — compared to Huffman’s worst-case 1 bit per symbol. The integer implementation handles messages of arbitrary length without precision loss, and the round-trip is exact.</p>
+<p>The overhead is now about 0.002 bits per symbol — compared to Huffman’s worst-case 1 bit per symbol. The integer implementation handles messages of arbitrary length without precision loss, and the round-trip is exact. Using a fixed message here makes the example reproducible and keeps the comparison anchored to the stated source distribution instead of one particular random draw.</p>
 <hr>
 </section>
 <section id="adaptive-models-coding-without-a-prior" class="level2" data-number="8.8">
@@ -1074,17 +1078,17 @@ Round-trip OK:    True</code></pre>
 <span id="cb15-82"><a href="#cb15-82" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(output)</span>
 <span id="cb15-83"><a href="#cb15-83" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-84"><a href="#cb15-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-85"><a href="#cb15-85" aria-hidden="true" tabindex="-1"></a><span class="co"># Test on English-like text</span></span>
-<span id="cb15-86"><a href="#cb15-86" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
-<span id="cb15-87"><a href="#cb15-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-88"><a href="#cb15-88" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate text with English-like character distribution</span></span>
-<span id="cb15-89"><a href="#cb15-89" aria-hidden="true" tabindex="-1"></a>english_freq <span class="op">=</span> {</span>
-<span id="cb15-90"><a href="#cb15-90" aria-hidden="true" tabindex="-1"></a>    <span class="st">'e'</span>:<span class="dv">13</span>,<span class="st">'t'</span>:<span class="dv">9</span>,<span class="st">'a'</span>:<span class="dv">8</span>,<span class="st">'o'</span>:<span class="dv">7</span>,<span class="st">'i'</span>:<span class="dv">7</span>,<span class="st">'n'</span>:<span class="dv">6</span>,<span class="st">'s'</span>:<span class="dv">6</span>,</span>
-<span id="cb15-91"><a href="#cb15-91" aria-hidden="true" tabindex="-1"></a>    <span class="st">'h'</span>:<span class="dv">6</span>,<span class="st">'r'</span>:<span class="dv">6</span>,<span class="st">'d'</span>:<span class="dv">4</span>,<span class="st">'l'</span>:<span class="dv">4</span>,<span class="st">' '</span>:<span class="dv">15</span>,<span class="st">'c'</span>:<span class="dv">3</span>,<span class="st">'u'</span>:<span class="dv">3</span>,</span>
-<span id="cb15-92"><a href="#cb15-92" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a>alphabet <span class="op">=</span> <span class="bu">list</span>(english_freq.keys())</span>
-<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>weights  <span class="op">=</span> <span class="bu">list</span>(english_freq.values())</span>
-<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a>message  <span class="op">=</span> <span class="st">''</span>.join(random.choices(alphabet, weights<span class="op">=</span>weights, k<span class="op">=</span><span class="dv">500</span>))</span>
+<span id="cb15-85"><a href="#cb15-85" aria-hidden="true" tabindex="-1"></a><span class="co"># Test on a fixed synthetic text with English-like character frequencies</span></span>
+<span id="cb15-86"><a href="#cb15-86" aria-hidden="true" tabindex="-1"></a>english_freq <span class="op">=</span> {</span>
+<span id="cb15-87"><a href="#cb15-87" aria-hidden="true" tabindex="-1"></a>    <span class="st">'e'</span>:<span class="dv">13</span>,<span class="st">'t'</span>:<span class="dv">9</span>,<span class="st">'a'</span>:<span class="dv">8</span>,<span class="st">'o'</span>:<span class="dv">7</span>,<span class="st">'i'</span>:<span class="dv">7</span>,<span class="st">'n'</span>:<span class="dv">6</span>,<span class="st">'s'</span>:<span class="dv">6</span>,</span>
+<span id="cb15-88"><a href="#cb15-88" aria-hidden="true" tabindex="-1"></a>    <span class="st">'h'</span>:<span class="dv">6</span>,<span class="st">'r'</span>:<span class="dv">6</span>,<span class="st">'d'</span>:<span class="dv">4</span>,<span class="st">'l'</span>:<span class="dv">4</span>,<span class="st">' '</span>:<span class="dv">15</span>,<span class="st">'c'</span>:<span class="dv">3</span>,<span class="st">'u'</span>:<span class="dv">3</span>,</span>
+<span id="cb15-89"><a href="#cb15-89" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-90"><a href="#cb15-90" aria-hidden="true" tabindex="-1"></a>alphabet <span class="op">=</span> <span class="bu">list</span>(english_freq.keys())</span>
+<span id="cb15-91"><a href="#cb15-91" aria-hidden="true" tabindex="-1"></a>weights  <span class="op">=</span> <span class="bu">list</span>(english_freq.values())</span>
+<span id="cb15-92"><a href="#cb15-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a><span class="co"># Build a deterministic message whose symbol counts match the model exactly.</span></span>
+<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>base_message <span class="op">=</span> <span class="st">''</span>.join(sym <span class="op">*</span> count <span class="cf">for</span> sym, count <span class="kw">in</span> english_freq.items())</span>
+<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a>message      <span class="op">=</span> base_message <span class="op">*</span> <span class="dv">5</span></span>
 <span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-97"><a href="#cb15-97" aria-hidden="true" tabindex="-1"></a>encoded <span class="op">=</span> adaptive_encode(message, alphabet)</span>
 <span id="cb15-98"><a href="#cb15-98" aria-hidden="true" tabindex="-1"></a></span>
@@ -1097,12 +1101,12 @@ Round-trip OK:    True</code></pre>
 <span id="cb15-105"><a href="#cb15-105" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Bits per symbol:  </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
 <span id="cb15-106"><a href="#cb15-106" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:         </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="op">/</span><span class="bu">len</span>(message) <span class="op">-</span> H_true<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Message length:   500 symbols
-True entropy:     3.7612 bits/symbol
-Encoded length:   1937 bits
-Bits per symbol:  3.8740
-Overhead:         0.1128 bits/symbol</code></pre>
-<p>The overhead is higher than the static model (0.11 vs 0.007 bits) because the adaptive model starts with a poor estimate and converges as it sees more data. For longer messages, the overhead shrinks. For very long messages the adaptive model approaches the performance of the optimal static model — without requiring the distribution to be known in advance.</p>
+<pre><code>Message length:   485 symbols
+True entropy:     3.6505 bits/symbol
+Encoded length:   1808 bits
+Bits per symbol:  3.7278
+Overhead:         0.0773 bits/symbol</code></pre>
+<p>The overhead is higher than in the fixed-model examples because the adaptive model starts with a poor estimate and converges as it sees more data. For longer messages, that startup cost is amortized away. For very long messages the adaptive model approaches the performance of the optimal static model — without requiring the distribution to be known in advance.</p>
 <hr>
 </section>
 <section id="context-models-exploiting-structure" class="level2" data-number="8.9">
@@ -1124,116 +1128,118 @@ Overhead:         0.1128 bits/symbol</code></pre>
 <span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.context_buf   <span class="op">=</span> []</span>
 <span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _get_context(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">''</span>.join(<span class="va">self</span>.context_buf[<span class="op">-</span><span class="va">self</span>.order:])</span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _ensure_context(<span class="va">self</span>, context: <span class="bu">str</span>):</span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> context <span class="kw">not</span> <span class="kw">in</span> <span class="va">self</span>.counts:</span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>            <span class="va">self</span>.counts[context] <span class="op">=</span> {</span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>                sym: <span class="va">self</span>.initial_count <span class="cf">for</span> sym <span class="kw">in</span> <span class="va">self</span>.alphabet</span>
-<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>            }</span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> intervals(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
-<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>        context <span class="op">=</span> <span class="va">self</span>._get_context()</span>
-<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._ensure_context(context)</span>
-<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>        sym_counts <span class="op">=</span> <span class="va">self</span>.counts[context]</span>
-<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>        total      <span class="op">=</span> <span class="bu">sum</span>(sym_counts.values())</span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>        result     <span class="op">=</span> {}</span>
-<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> sym <span class="kw">in</span> <span class="bu">sorted</span>(<span class="va">self</span>.alphabet):</span>
-<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>            count <span class="op">=</span> sym_counts[sym]</span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>            result[sym] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> count, total)</span>
-<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>            cumulative <span class="op">+=</span> count</span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result</span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, symbol: <span class="bu">str</span>):</span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>        context <span class="op">=</span> <span class="va">self</span>._get_context()</span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._ensure_context(context)</span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts[context][symbol] <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.context_buf.append(symbol)</span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> context_encode(message: <span class="bu">str</span>, alphabet: <span class="bu">list</span>,</span>
-<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>                   order: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Arithmetic encoding with a context model."""</span></span>
-<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>    PRECISION <span class="op">=</span> <span class="dv">32</span></span>
-<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>    FULL      <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> PRECISION</span>
-<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>    HALF      <span class="op">=</span> FULL <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
-<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>    QRTR      <span class="op">=</span> HALF <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
-<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>    model     <span class="op">=</span> ContextModel(alphabet, order<span class="op">=</span>order)</span>
-<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>    low, high <span class="op">=</span> <span class="dv">0</span>, FULL</span>
-<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>    pending   <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>    output    <span class="op">=</span> []</span>
-<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> emit(bit):</span>
-<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a>        output.append(<span class="bu">str</span>(bit))</span>
-<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(pending):</span>
-<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>            output.append(<span class="bu">str</span>(<span class="dv">1</span> <span class="op">-</span> bit))</span>
-<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> message:</span>
-<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a>        ivs              <span class="op">=</span> model.intervals()</span>
-<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high, total <span class="op">=</span> ivs[symbol]</span>
-<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>        width <span class="op">=</span> high <span class="op">-</span> low</span>
-<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a>        high  <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_high) <span class="op">//</span> total</span>
-<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a>        low   <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_low)  <span class="op">//</span> total</span>
-<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="va">True</span>:</span>
-<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> high <span class="op">&lt;=</span> HALF:</span>
-<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">0</span>)<span class="op">;</span> low <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> high <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> pending <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> HALF:</span>
-<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">1</span>)</span>
-<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
-<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
-<span id="cb17-76"><a href="#cb17-76" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb17-77"><a href="#cb17-77" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> QRTR <span class="kw">and</span> high <span class="op">&lt;=</span> <span class="dv">3</span> <span class="op">*</span> QRTR:</span>
-<span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
-<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
-<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
-<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
-<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a>        model.update(symbol)</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.order <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> <span class="st">""</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">''</span>.join(<span class="va">self</span>.context_buf[<span class="op">-</span><span class="va">self</span>.order:])</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _ensure_context(<span class="va">self</span>, context: <span class="bu">str</span>):</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> context <span class="kw">not</span> <span class="kw">in</span> <span class="va">self</span>.counts:</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>            <span class="va">self</span>.counts[context] <span class="op">=</span> {</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>                sym: <span class="va">self</span>.initial_count <span class="cf">for</span> sym <span class="kw">in</span> <span class="va">self</span>.alphabet</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> intervals(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>        context <span class="op">=</span> <span class="va">self</span>._get_context()</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._ensure_context(context)</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>        sym_counts <span class="op">=</span> <span class="va">self</span>.counts[context]</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>        total      <span class="op">=</span> <span class="bu">sum</span>(sym_counts.values())</span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>        result     <span class="op">=</span> {}</span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>        cumulative <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> sym <span class="kw">in</span> <span class="bu">sorted</span>(<span class="va">self</span>.alphabet):</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>            count <span class="op">=</span> sym_counts[sym]</span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>            result[sym] <span class="op">=</span> (cumulative, cumulative <span class="op">+</span> count, total)</span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>            cumulative <span class="op">+=</span> count</span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, symbol: <span class="bu">str</span>):</span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        context <span class="op">=</span> <span class="va">self</span>._get_context()</span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._ensure_context(context)</span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts[context][symbol] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.context_buf.append(symbol)</span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> context_encode(message: <span class="bu">str</span>, alphabet: <span class="bu">list</span>,</span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>                   order: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Arithmetic encoding with a context model."""</span></span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>    PRECISION <span class="op">=</span> <span class="dv">32</span></span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>    FULL      <span class="op">=</span> <span class="dv">1</span> <span class="op">&lt;&lt;</span> PRECISION</span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>    HALF      <span class="op">=</span> FULL <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>    QRTR      <span class="op">=</span> HALF <span class="op">&gt;&gt;</span> <span class="dv">1</span></span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>    model     <span class="op">=</span> ContextModel(alphabet, order<span class="op">=</span>order)</span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>    low, high <span class="op">=</span> <span class="dv">0</span>, FULL</span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>    pending   <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a>    output    <span class="op">=</span> []</span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> emit(bit):</span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>        output.append(<span class="bu">str</span>(bit))</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(pending):</span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>            output.append(<span class="bu">str</span>(<span class="dv">1</span> <span class="op">-</span> bit))</span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> symbol <span class="kw">in</span> message:</span>
+<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>        ivs              <span class="op">=</span> model.intervals()</span>
+<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a>        sym_low, sym_high, total <span class="op">=</span> ivs[symbol]</span>
+<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a>        width <span class="op">=</span> high <span class="op">-</span> low</span>
+<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a>        high  <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_high) <span class="op">//</span> total</span>
+<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a>        low   <span class="op">=</span> low <span class="op">+</span> (width <span class="op">*</span> sym_low)  <span class="op">//</span> total</span>
+<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> high <span class="op">&lt;=</span> HALF:</span>
+<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">0</span>)<span class="op">;</span> low <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> high <span class="op">&lt;&lt;=</span> <span class="dv">1</span><span class="op">;</span> pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> HALF:</span>
+<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a>                emit(<span class="dv">1</span>)</span>
+<span id="cb17-76"><a href="#cb17-76" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-77"><a href="#cb17-77" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> HALF) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> low <span class="op">&gt;=</span> QRTR <span class="kw">and</span> high <span class="op">&lt;=</span> <span class="dv">3</span> <span class="op">*</span> QRTR:</span>
+<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a>                pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>                low  <span class="op">=</span> (low  <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a>                high <span class="op">=</span> (high <span class="op">-</span> QRTR) <span class="op">&lt;&lt;</span> <span class="dv">1</span></span>
+<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
 <span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a>    pending <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a>    emit(<span class="dv">0</span> <span class="cf">if</span> low <span class="op">&lt;</span> QRTR <span class="cf">else</span> <span class="dv">1</span>)</span>
-<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(output)</span>
-<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare order-0, order-1, order-2 context models</span></span>
-<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a><span class="co"># on a text with clear sequential structure</span></span>
-<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a>test_text <span class="op">=</span> (</span>
-<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a>    <span class="st">"the cat sat on the mat the cat sat on the hat "</span></span>
-<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a>    <span class="st">"the rat sat on the mat the bat sat on the cat "</span></span>
-<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a>) <span class="op">*</span> <span class="dv">5</span></span>
-<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a>alphabet <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(test_text))</span>
-<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Text length: </span><span class="sc">{</span><span class="bu">len</span>(test_text)<span class="sc">}</span><span class="ss"> chars"</span>)</span>
-<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Alphabet:    </span><span class="sc">{</span><span class="bu">len</span>(alphabet)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
-<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"True byte entropy: "</span></span>
-<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="op">-</span><span class="bu">sum</span>((test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text))<span class="op">*</span>math.log2(test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text)) <span class="cf">for</span> c <span class="kw">in</span> alphabet)<span class="sc">:.4f}</span><span class="ss"> bits/char</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Model'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Bits'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Bits/char'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'vs entropy'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
-<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">56</span>)</span>
-<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> order <span class="kw">in</span> [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>]:</span>
-<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a>    encoded    <span class="op">=</span> context_encode(test_text, alphabet, order<span class="op">=</span>order)</span>
-<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a>    bits_per   <span class="op">=</span> <span class="bu">len</span>(encoded) <span class="op">/</span> <span class="bu">len</span>(test_text)</span>
-<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a>    H          <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>((test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text)) <span class="op">*</span></span>
-<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a>                       math.log2(test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text))</span>
-<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a>                       <span class="cf">for</span> c <span class="kw">in</span> alphabet)</span>
-<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Order-</span><span class="sc">{</span>order<span class="sc">}</span><span class="ss"> context      </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
-<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>bits_per<span class="sc">:&gt;12.4f}</span><span class="ss"> </span><span class="sc">{</span>bits_per <span class="op">-</span> H<span class="sc">:&gt;+12.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a>        model.update(symbol)</span>
+<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a>    pending <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a>    emit(<span class="dv">0</span> <span class="cf">if</span> low <span class="op">&lt;</span> QRTR <span class="cf">else</span> <span class="dv">1</span>)</span>
+<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(output)</span>
+<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare order-0, order-1, order-2 context models</span></span>
+<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a><span class="co"># on a text with clear sequential structure</span></span>
+<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a>test_text <span class="op">=</span> (</span>
+<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a>    <span class="st">"the cat sat on the mat the cat sat on the hat "</span></span>
+<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a>    <span class="st">"the rat sat on the mat the bat sat on the cat "</span></span>
+<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a>) <span class="op">*</span> <span class="dv">5</span></span>
+<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a>alphabet <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(test_text))</span>
+<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Text length: </span><span class="sc">{</span><span class="bu">len</span>(test_text)<span class="sc">}</span><span class="ss"> chars"</span>)</span>
+<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Alphabet:    </span><span class="sc">{</span><span class="bu">len</span>(alphabet)<span class="sc">}</span><span class="ss"> symbols"</span>)</span>
+<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Zeroth-order character entropy: "</span></span>
+<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="op">-</span><span class="bu">sum</span>((test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text))<span class="op">*</span>math.log2(test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text)) <span class="cf">for</span> c <span class="kw">in</span> alphabet)<span class="sc">:.4f}</span><span class="ss"> bits/char</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Model'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Bits'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Bits/char'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'vs entropy'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
+<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">56</span>)</span>
+<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> order <span class="kw">in</span> [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>]:</span>
+<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a>    encoded    <span class="op">=</span> context_encode(test_text, alphabet, order<span class="op">=</span>order)</span>
+<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a>    bits_per   <span class="op">=</span> <span class="bu">len</span>(encoded) <span class="op">/</span> <span class="bu">len</span>(test_text)</span>
+<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a>    H          <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>((test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text)) <span class="op">*</span></span>
+<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a>                       math.log2(test_text.count(c)<span class="op">/</span><span class="bu">len</span>(test_text))</span>
+<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>                       <span class="cf">for</span> c <span class="kw">in</span> alphabet)</span>
+<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Order-</span><span class="sc">{</span>order<span class="sc">}</span><span class="ss"> context      </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
+<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>bits_per<span class="sc">:&gt;12.4f}</span><span class="ss"> </span><span class="sc">{</span>bits_per <span class="op">-</span> H<span class="sc">:&gt;+12.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Text length: 230 chars
-Alphabet:    15 symbols
-True byte entropy: 3.5218 bits/char
+<pre><code>Text length: 460 chars
+Alphabet:    12 symbols
+Zeroth-order character entropy: 3.0151 bits/char
 
 Model                   Bits    Bits/char   vs entropy
 --------------------------------------------------------
-Order-0 context          835       3.6304      +0.1086
-Order-1 context          718       3.1217      -0.4001
-Order-2 context          541       2.3522      -1.1696
-Order-3 context          463       2.0130      -1.5088</code></pre>
-<p>Higher-order context models compress far better than the zeroth-order entropy suggests — because they exploit structural redundancy that the symbol-frequency model cannot see. The order-3 model achieves 2.01 bits per character on text whose zeroth-order entropy is 3.52 bits — a 43% reduction from context modeling alone.</p>
+Order-0 context         1422       3.0913      +0.0762
+Order-1 context          772       1.6783      -1.3368
+Order-2 context          682       1.4826      -1.5325
+Order-3 context          765       1.6630      -1.3520</code></pre>
+<p>Higher-order context models compress far better than the zeroth-order entropy suggests — because they exploit structural redundancy that the symbol-frequency model cannot see. On this text, the order-2 model is best, reaching 1.48 bits per character versus a zeroth-order entropy of 3.02. The order-3 model is slightly worse here, which is also instructive: on a short corpus, higher order can overfit sparse contexts and give back some of the gain.</p>
 <p>This is the compression principle that underlies PPM (Prediction by Partial Matching), one of the most effective general-purpose compression algorithms ever designed, and the conceptual ancestor of the neural language models in Chapter 15.</p>
 <hr>
 </section>
@@ -1299,15 +1305,16 @@ Order-3 context          463       2.0130      -1.5088</code></pre>
 <p>Output:</p>
 <pre><code>rANS encoding 'abc':
   Encode 'a': state 256 -&gt; 512
-  Encode 'b': state 512 -&gt; 437
-  Encode 'c': state 437 -&gt; 371
-Final state: 371
+  Encode 'b': state 512 -&gt; 1714
+  Encode 'c': state 1714 -&gt; 8684
+Final state: 8684
 
 rANS decoding:
-  Decoded 'c', state -&gt; 437
+  Decoded 'c', state -&gt; 1714
   Decoded 'b', state -&gt; 512
   Decoded 'a', state -&gt; 256</code></pre>
 <p>Notice that ANS decodes in <em>reverse order</em> — the decoder reads symbols from last to first. This is an inherent property of ANS: it is a stack, not a queue. In practice this is handled by encoding in reverse or by buffering output.</p>
+<p>Also notice how quickly the state grows in this toy example. Real rANS coders use renormalization to keep the state within a bounded machine-word range while streaming out bits, just as arithmetic coding renormalizes its interval.</p>
 <p>The performance difference between ANS and arithmetic coding is substantial. zstd’s tANS entropy coder can process several gigabytes per second on modern hardware — orders of magnitude faster than a naive arithmetic coder — while achieving compression ratios within a fraction of a percent of the theoretical optimum.</p>
 <hr>
 </section>

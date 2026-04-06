@@ -86,9 +86,7 @@ class Huffman_Node
       this.is_leaf := true
     end
 
-    internal(frequency: Integer,
-             left: Huffman_Node,
-             right: Huffman_Node) do
+    branch(frequency: Integer, left: Huffman_Node, right: Huffman_Node) do
       this.symbol := -1
       this.frequency := frequency
       this.left := left
@@ -105,9 +103,46 @@ class Huffman_Node
 
   invariant
     non_negative_frequency: frequency >= 0
-    leaf_has_symbol: is_leaf implies symbol >= 0
-    internal_has_children: not is_leaf implies
-                           left /= nil and right /= nil
+    leaf_has_symbol: (not is_leaf) or symbol >= 0
+    internal_has_children:
+      is_leaf or (left /= nil and right /= nil)
+end
+
+function compare_huffman_nodes(a: Huffman_Node, b: Huffman_Node): Integer do
+  if a.frequency < b.frequency then
+    result := -1
+  elseif a.frequency > b.frequency then
+    result := 1
+  else
+    result := 0
+  end
+end
+
+function int_to_bytes(value: Integer,
+                      output: Array[Integer],
+                      offset: Integer) do
+  from
+    let i: Integer := 0
+  until
+    i >= 4
+  do
+    let shift: Integer := (3 - i) * 8
+    let byte_val: Integer :=
+      value.bitwise_right_shift(shift).bitwise_and(255)
+    if offset + i < output.length then
+      output.set(offset + i, byte_val)
+    else
+      output.add(byte_val)
+    end
+    i := i + 1
+  end
+end
+
+function bytes_to_int(input: Array[Integer], offset: Integer): Integer do
+  result := input.get(offset).bitwise_left_shift(24)
+    .bitwise_or(input.get(offset + 1).bitwise_left_shift(16))
+    .bitwise_or(input.get(offset + 2).bitwise_left_shift(8))
+    .bitwise_or(input.get(offset + 3))
 end
 
 class Huffman_Codec
@@ -117,7 +152,7 @@ class Huffman_Codec
   feature
     -- Build frequency table from data
     build_frequencies(data: Array[Integer]): Array[Integer] do
-      let freq: Array[Integer] := Array.filled(256, 0)
+      let freq: Array[Integer] := create Array.filled(256, 0)
       across data as byte do
         freq.set(byte, freq.get(byte) + 1)
       end
@@ -127,8 +162,10 @@ class Huffman_Codec
     -- Build Huffman tree from frequency table
     build_tree(frequencies: Array[Integer]): ?Huffman_Node do
       -- Build priority queue of leaf nodes, ordered by frequency
-      let pq: Min_Heap[Integer, Huffman_Node] :=
-        create Min_Heap[Integer, Huffman_Node].empty()
+      let pq: Min_Heap[Huffman_Node] :=
+        create Min_Heap[Huffman_Node].from_comparator(
+          fn(a: Huffman_Node, b: Huffman_Node): Integer do result := compare_huffman_nodes(a, b) end
+        )
 
       from
         let i: Integer := 0
@@ -136,82 +173,83 @@ class Huffman_Codec
         i >= 256
       do
         if frequencies.get(i) > 0 then
-          pq.insert([frequencies.get(i),
-                     create Huffman_Node.leaf(i, frequencies.get(i))])
+          pq.insert(create Huffman_Node.leaf(i, frequencies.get(i)))
         end
         i := i + 1
       end
 
       -- Edge case: only one distinct symbol
       if pq.size() = 1 then
-        let only: Array := pq.extract_min()
-        let leaf: Huffman_Node := only.get(1)
-        result := create Huffman_Node.internal(
+        let leaf: Huffman_Node := pq.extract_min()
+        result := create Huffman_Node.branch(
           leaf.frequency,
           leaf,
           create Huffman_Node.leaf(leaf.symbol, 0))
-        return
-      end
-
-      -- Merge until one tree remains
-      from until pq.size() <= 1 do
-        let first: Array := pq.extract_min()
-        let second: Array := pq.extract_min()
-        let left: Huffman_Node := first.get(1)
-        let right: Huffman_Node := second.get(1)
-        let merged: Huffman_Node := create Huffman_Node.internal(
-          left.frequency + right.frequency, left, right)
-        pq.insert([merged.frequency, merged])
-      end
-
-      if pq.is_empty() then
-        result := nil
       else
-        result := pq.extract_min().get(1)
+        -- Merge until one tree remains
+        from until pq.size() <= 1 do
+          let left: Huffman_Node := pq.extract_min()
+          let right: Huffman_Node := pq.extract_min()
+          let merged: Huffman_Node := create Huffman_Node.branch(
+            left.frequency + right.frequency, left, right)
+          pq.insert(merged)
+        end
+
+        if pq.is_empty() then
+          result := nil
+        else
+          result := pq.extract_min()
+        end
       end
     end
 
     -- Generate code table from tree
-    build_code_table(root: Huffman_Node): Array[Array[Integer]] do
-      let codes: Array[Array[Integer]] := Array.filled(256, nil)
+    build_code_table(root: Huffman_Node): Array[?Array[Integer]] do
+      let codes: Array[?Array[Integer]] := []
+      repeat 256 do
+        codes.add(nil)
+      end
       traverse_tree(root, [], codes)
       result := codes
     end
 
     traverse_tree(node: Huffman_Node,
                   current_code: Array[Integer],
-                  codes: Array[Array[Integer]]) do
+                  codes: Array[?Array[Integer]]) do
       if node.is_leaf then
         -- Leaf: assign current code to this symbol
         if current_code.is_empty() then
           -- Single symbol edge case
           codes.set(node.symbol, [0])
         else
-          codes.set(node.symbol, current_code.copy())
+          codes.set(node.symbol, current_code.slice(0, current_code.length))
         end
-        return
+      else
+        -- Go left: append 0
+        let left_code: Array[Integer] := current_code.slice(0, current_code.length)
+        left_code.add(0)
+        if convert node.left to left_child: Huffman_Node then
+          traverse_tree(left_child, left_code, codes)
+        end
+
+        -- Go right: append 1
+        let right_code: Array[Integer] := current_code.slice(0, current_code.length)
+        right_code.add(1)
+        if convert node.right to right_child: Huffman_Node then
+          traverse_tree(right_child, right_code, codes)
+        end
       end
-
-      -- Go left: append 0
-      let left_code: Array[Integer] := current_code.copy()
-      left_code.add(0)
-      traverse_tree(node.left, left_code, codes)
-
-      -- Go right: append 1
-      let right_code: Array[Integer] := current_code.copy()
-      right_code.add(1)
-      traverse_tree(node.right, right_code, codes)
     end
 
     -- Encode data using code table, return bit stream as bytes
     encode(data: Array[Integer],
-           codes: Array[Array[Integer]]): Array[Integer] do
+           codes: Array[?Array[Integer]]): Array[Integer] do
       -- Collect all bits
       let bits: Array[Integer] := []
       across data as byte do
         let code: ?Array[Integer] := codes.get(byte)
-        if code /= nil then
-          across code as bit do
+        if convert code to bits_for_symbol: Array[Integer] then
+          across bits_for_symbol as bit do
             bits.add(bit)
           end
         end
@@ -237,7 +275,8 @@ class Huffman_Codec
         do
           let bit_pos: Integer := i + j
           if bit_pos < bits.length then
-            byte_val := byte_val or (bits.get(bit_pos) << (7 - j))
+            byte_val := byte_val.bitwise_or(
+              bits.get(bit_pos).bitwise_left_shift(7 - j))
           end
           j := j + 1
         end
@@ -269,7 +308,7 @@ class Huffman_Codec
         until
           bit_i >= 8 - bits_in_byte
         do
-          let bit: Integer := (byte_val >> bit_i) & 1
+          let bit: Integer := byte_val.bitwise_right_shift(bit_i).bitwise_and(1)
 
           if node.is_leaf then
             decoded.add(node.symbol)
@@ -277,9 +316,13 @@ class Huffman_Codec
           end
 
           if bit = 0 then
-            node := node.left
+            if convert node.left to left_child: Huffman_Node then
+              node := left_child
+            end
           else
-            node := node.right
+            if convert node.right to right_child: Huffman_Node then
+              node := right_child
+            end
           end
 
           bit_i := bit_i - 1
@@ -319,7 +362,8 @@ class Huffman_Codec
           j < 8
         do
           if i + j < bits.length then
-            byte_val := byte_val or (bits.get(i + j) << (7 - j))
+            byte_val := byte_val.bitwise_or(
+              bits.get(i + j).bitwise_left_shift(7 - j))
           end
           j := j + 1
         end
@@ -339,13 +383,17 @@ class Huffman_Codec
         until
           i >= 0
         do
-          bits.add((node.symbol >> i) & 1)
+          bits.add(node.symbol.bitwise_right_shift(i).bitwise_and(1))
           i := i - 1
         end
       else
         bits.add(0)
-        serialise_node(node.left, bits)
-        serialise_node(node.right, bits)
+        if convert node.left to left_child: Huffman_Node then
+          serialise_node(left_child, bits)
+        end
+        if convert node.right to right_child: Huffman_Node then
+          serialise_node(right_child, bits)
+        end
       end
     end
 
@@ -353,45 +401,44 @@ class Huffman_Codec
     compress(data: Array[Integer]): Array[Integer] do
       if data.is_empty() then
         result := []
-        return
+      else
+        let freq: Array[Integer] := build_frequencies(data)
+        let tree: ?Huffman_Node := build_tree(freq)
+
+        if tree = nil then
+          result := data  -- nothing to compress
+        else
+          if convert tree to root_node: Huffman_Node then
+            let codes: Array[?Array[Integer]] := build_code_table(root_node)
+            let tree_bytes: Array[Integer] := serialise_tree(root_node)
+            let encoded: Array[Integer] := encode(data, codes)
+
+            -- Output: [tree_bytes_length(4)][tree_bytes][encoded]
+            let output: Array[Integer] := [0, 0, 0, 0]
+            int_to_bytes(tree_bytes.length, output, 0)
+            across tree_bytes as b do output.add(b) end
+            across encoded as b do output.add(b) end
+
+            result := output
+          end
+        end
       end
-
-      let freq: Array[Integer] := build_frequencies(data)
-      let tree: ?Huffman_Node := build_tree(freq)
-
-      if tree = nil then
-        result := data  -- nothing to compress
-        return
-      end
-
-      let codes: Array[Array[Integer]] := build_code_table(tree)
-      let tree_bytes: Array[Integer] := serialise_tree(tree)
-      let encoded: Array[Integer] := encode(data, codes)
-
-      -- Output: [tree_bytes_length(4)][tree_bytes][encoded]
-      let output: Array[Integer] := []
-      int_to_bytes(tree_bytes.length, output, 0)
-      across tree_bytes as b do output.add(b) end
-      across encoded as b do output.add(b) end
-
-      result := output
     end
 
     -- Complete decompress
     decompress(compressed: Array[Integer]): Array[Integer] do
       if compressed.is_empty() then
         result := []
-        return
+      else
+        let tree_len: Integer := bytes_to_int(compressed, 0)
+        let tree_bytes: Array[Integer] :=
+          compressed.slice(4, 4 + tree_len)
+        let encoded: Array[Integer] :=
+          compressed.slice(4 + tree_len, compressed.length)
+
+        let tree: Huffman_Node := deserialise_tree(tree_bytes)
+        result := decode(encoded, tree)
       end
-
-      let tree_len: Integer := bytes_to_int(compressed, 0)
-      let tree_bytes: Array[Integer] :=
-        compressed.slice(4, 4 + tree_len)
-      let encoded: Array[Integer] :=
-        compressed.slice(4 + tree_len, compressed.length)
-
-      let tree: Huffman_Node := deserialise_tree(tree_bytes)
-      result := decode(encoded, tree)
     end
 
     deserialise_tree(bytes: Array[Integer]): Huffman_Node do
@@ -415,7 +462,8 @@ class Huffman_Codec
         until
           i >= 0
         do
-          symbol := symbol or (bits.get(pos.get(0)) << i)
+          symbol := symbol.bitwise_or(
+            bits.get(pos.get(0)).bitwise_left_shift(i))
           pos.set(0, pos.get(0) + 1)
           i := i - 1
         end
@@ -424,7 +472,7 @@ class Huffman_Codec
         -- Internal: read left and right subtrees
         let left: Huffman_Node := deserialise_node(bits, pos)
         let right: Huffman_Node := deserialise_node(bits, pos)
-        result := create Huffman_Node.internal(0, left, right)
+        result := create Huffman_Node.branch(0, left, right)
       end
     end
 
@@ -444,7 +492,7 @@ class Huffman_Codec
         until
           j >= 8 - bits_in_byte
         do
-          bits.add((byte_val >> j) & 1)
+          bits.add(byte_val.bitwise_right_shift(j).bitwise_and(1))
           j := j - 1
         end
         i := i + 1
@@ -453,7 +501,7 @@ class Huffman_Codec
     end
 
   invariant
-    true  -- stateless codec
+    stateless_codec: true
 end
 ```
 
@@ -623,8 +671,8 @@ class LZ77_Token
     length: Integer
 
   invariant
-    valid_reference: not is_literal implies distance > 0 and length > 0
-    valid_literal: is_literal implies byte_value >= 0 and byte_value <= 255
+    valid_reference: is_literal or (distance > 0 and length > 0)
+    valid_literal: (not is_literal) or (byte_value >= 0 and byte_value <= 255)
 end
 ```
 
@@ -645,8 +693,8 @@ class LZ77_Fast_Codec
       this.window_size := 32768
       this.min_match := 3
       this.hash_size := 65536  -- must be power of 2
-      this.hash_table := Array[Integer].filled(65536, -1)
-      this.hash_chain := Array[Integer].filled(32768, -1)
+      this.hash_table := create Array.filled(65536, -1)
+      this.hash_chain := create Array.filled(32768, -1)
     end
 
   feature
@@ -659,12 +707,13 @@ class LZ77_Fast_Codec
     hash3(data: Array[Integer], pos: Integer): Integer do
       if pos + 2 >= data.length then
         result := 0
-        return
+      else
+        -- Simple 3-byte hash
+        result := data.get(pos).bitwise_left_shift(10)
+          .bitwise_xor(data.get(pos + 1).bitwise_left_shift(5))
+          .bitwise_xor(data.get(pos + 2))
+          .bitwise_and(hash_size - 1)
       end
-      -- Simple 3-byte hash
-      result := ((data.get(pos) << 10) xor
-                 (data.get(pos + 1) << 5) xor
-                 data.get(pos + 2)) & (hash_size - 1)
     end
 
     compress(data: Array[Integer]): Array[LZ77_Token] do
@@ -673,8 +722,8 @@ class LZ77_Fast_Codec
       let pos: Integer := 0
 
       -- Reset hash structures
-      hash_table := Array[Integer].filled(hash_size, -1)
-      hash_chain := Array[Integer].filled(window_size, -1)
+      hash_table := create Array.filled(hash_size, -1)
+      hash_chain := create Array.filled(window_size, -1)
 
       from until pos >= n do
         if pos + min_match > n then
@@ -869,7 +918,7 @@ function compression_benchmark() do
     random_bytes.add(random_integer() % 256)
   end
 
-  let datasets: Array[String, Array[Integer]] := [
+  let datasets: Array[Any] := [
     ["English text", text_bytes],
     ["Repetitive",   repeated],
     ["Random",       random_bytes]
@@ -898,7 +947,7 @@ function compression_benchmark() do
     -- Verify round-trip
     let recovered: Array[Integer] := deflate.decompress(deflate_compressed)
     print("  Round-trip: " +
-          when arrays_equal(data, recovered) "OK" else "FAILED" end)
+          when (data = recovered) "OK" else "FAILED" end)
   end
 end
 ```

@@ -77,16 +77,22 @@ function hoare_partition(arr: Array[Integer],
     let i: Integer := low - 1
     let j: Integer := high + 1
 
-    from until true do
+    from until false do
       -- Advance i until arr[i] >= pivot
-      from do
+      from
         i := i + 1
-      until arr.get(i) >= pivot end
+      until
+        arr.get(i) >= pivot
+      do
+      end
 
       -- Retreat j until arr[j] <= pivot
-      from do
+      from
         j := j - 1
-      until arr.get(j) <= pivot end
+      until
+        arr.get(j) <= pivot
+      do
+      end
 
       -- If pointers have crossed, partitioning is complete
       if i >= j then
@@ -340,12 +346,14 @@ class Introsort
     make() do end
 
   feature
-    MAX_DEPTH_FACTOR: Real := 2.0
+    max_depth_factor(): Real do
+      result := 2.0
+    end
 
     sort(arr: Array[Integer]) do
       if arr.length <= 1 then return end
       let max_depth: Integer :=
-        (arr.length.to_real().log2() * MAX_DEPTH_FACTOR).to_integer()
+        (arr.length.to_real().log2() * max_depth_factor()).to_integer()
       introsort(arr, 0, arr.length - 1, max_depth)
     end
 
@@ -456,7 +464,7 @@ class Introsort
     end
 
   invariant
-    true  -- stateless sorter
+    stateless_sorter: true
 end
 ```
 
@@ -641,7 +649,7 @@ Using the generic sort:
 -- Sort integers
 let int_sorter: Generic_Introsort[Integer] :=
   create Generic_Introsort[Integer].make(
-    fn a: Integer, b: Integer do result := a - b end)
+    fn(a: Integer, b: Integer): Integer do result := a - b end)
 
 let nums: Array[Integer] := [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]
 int_sorter.sort(nums)
@@ -650,7 +658,7 @@ print(nums.to_string())  -- [1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 9]
 -- Sort strings
 let str_sorter: Generic_Introsort[String] :=
   create Generic_Introsort[String].make(
-    fn a: String, b: String do result := a.compare_to(b) end)
+    fn(a: String, b: String): Integer do result := a.compare_to(b) end)
 
 let words: Array[String] := ["banana", "apple", "cherry", "date"]
 str_sorter.sort(words)
@@ -670,7 +678,7 @@ end
 
 let person_sorter: Generic_Introsort[Person] :=
   create Generic_Introsort[Person].make(
-    fn a: Person, b: Person do result := a.age - b.age end)
+    fn(a: Person, b: Person): Integer do result := a.age - b.age end)
 
 let people: Array[Person] := [
   create Person.make("Alice", 30),
@@ -707,7 +715,7 @@ class Sort_Benchmark
 
       let sorter: Generic_Introsort[Integer] :=
         create Generic_Introsort[Integer].make(
-          fn a: Integer, b: Integer do result := a - b end)
+          fn(a: Integer, b: Integer): Integer do result := a - b end)
 
       print("n = " + n.to_string())
       benchmark("Random",        sorter, random_data.copy())
@@ -774,7 +782,7 @@ class Sort_Benchmark
     end
 
     generate_equal(n: Integer): Array[Integer] do
-      result := Array.filled(n, 42)
+      result := create Array.filled(n, 42)
     end
 
     generate_nearly_sorted(n: Integer): Array[Integer] do

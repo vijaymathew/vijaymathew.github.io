@@ -49,15 +49,13 @@ For external sorting, we need precise control over I/O patterns. We read and wri
 ```
 intern io/Binary_File
 intern io/Path
-
-let IO_BUFFER_SIZE: Integer := 4 * 1024 * 1024  -- 4MB I/O buffer
-let RECORD_SIZE: Integer := 100  -- bytes per record (fixed for this implementation)
+intern io/Directory
 
 class Buffered_Reader
   create
     open(path: String) do
       this.file := create Binary_File.open_read(create Path.make(path))
-      this.buffer := Array.filled(IO_BUFFER_SIZE, 0)
+      this.buffer := create Array.filled((4 * 1024 * 1024), 0)
       this.buffer_pos := 0
       this.buffer_valid := 0
       this.eof := false
@@ -77,74 +75,77 @@ class Buffered_Reader
     read_bytes(count: Integer): ?Array[Integer] do
       if eof and buffer_pos >= buffer_valid then
         result := nil
-        return
-      end
+      else
+        let output: Array[Integer] := []
+        let reading: Boolean := true
 
-      let output: Array[Integer] := []
-
-      from until output.length >= count do
-        if buffer_pos >= buffer_valid then
-          fill_buffer()
-          if buffer_valid = 0 then
-            -- EOF reached before reading count bytes
-            if output.is_empty() then
-              result := nil
-            else
-              result := output
+        from until output.length >= count or not reading do
+          if buffer_pos >= buffer_valid then
+            fill_buffer()
+            if buffer_valid = 0 then
+              -- EOF reached before reading count bytes
+              if output.is_empty() then
+                result := nil
+              else
+                result := output
+              end
+              reading := false
             end
-            return
+          end
+
+          if reading then
+            let available: Integer := buffer_valid - buffer_pos
+            let needed: Integer := count - output.length
+            let take: Integer := available.min(needed)
+
+            from
+              let i: Integer := 0
+            until
+              i < take
+            do
+              output.add(buffer.get(buffer_pos + i))
+              i := i + 1
+            end
+
+            buffer_pos := buffer_pos + take
+            total_read := total_read + take.to_integer64()
           end
         end
 
-        let available: Integer := buffer_valid - buffer_pos
-        let needed: Integer := count - output.length
-        let take: Integer := available.min(needed)
-
-        from
-          let i: Integer := 0
-        until
-          i < take
-        do
-          output.add(buffer.get(buffer_pos + i))
-          i := i + 1
+        if reading then
+          result := output
         end
-
-        buffer_pos := buffer_pos + take
-        total_read := total_read + take.to_integer64()
       end
-
-      result := output
     end
 
     -- Read one record, or nil at EOF
     read_record(): ?Array[Integer] do
-      result := read_bytes(RECORD_SIZE)
+      result := read_bytes(100)
     end
 
     fill_buffer() do
-      if eof then return end
-      let data: Array[Integer] := file.read(IO_BUFFER_SIZE)
-      if data.length = 0 then
-        eof := true
-        buffer_valid := 0
-      else
-        buffer := data
-        buffer_pos := 0
-        buffer_valid := data.length
+      if not eof then
+        let data: Array[Integer] := file.read((4 * 1024 * 1024))
+        if data.length = 0 then
+          eof := true
+          buffer_valid := 0
+        else
+          buffer := data
+          buffer_pos := 0
+          buffer_valid := data.length
+        end
       end
     end
 
     has_more(): Boolean do
       if buffer_pos < buffer_valid then
         result := true
-        return
-      end
-      if eof then
+      elseif eof then
         result := false
-        return
+      else
+        fill_buffer()
+        result := buffer_valid > 0
       end
-      fill_buffer()
-      result := buffer_valid > 0
     end
 
     close() do
@@ -161,7 +162,7 @@ class Buffered_Writer
   create
     open(path: String) do
       this.file := create Binary_File.open_write(create Path.make(path))
-      this.buffer := Array.filled(IO_BUFFER_SIZE, 0)
+      this.buffer := create Array.filled((4 * 1024 * 1024), 0)
       this.buffer_pos := 0
       this.total_written := 0
     end
@@ -176,7 +177,7 @@ class Buffered_Writer
       let written: Integer := 0
 
       from until written >= data.length do
-        let space: Integer := IO_BUFFER_SIZE - buffer_pos
+        let space: Integer := (4 * 1024 * 1024) - buffer_pos
         let remaining: Integer := data.length - written
         let write_now: Integer := space.min(remaining)
 
@@ -193,7 +194,7 @@ class Buffered_Writer
         written := written + write_now
         total_written := total_written + write_now.to_integer64()
 
-        if buffer_pos >= IO_BUFFER_SIZE then
+        if buffer_pos >= (4 * 1024 * 1024) then
           flush()
         end
       end
@@ -201,7 +202,7 @@ class Buffered_Writer
 
     write_record(record: Array[Integer])
       require
-        correct_size: record.length = RECORD_SIZE
+        correct_size: record.length = 100
       do
         write_bytes(record)
       end
@@ -220,7 +221,7 @@ class Buffered_Writer
 
   invariant
     non_negative_buffer_pos: buffer_pos >= 0
-    buffer_pos_bounded: buffer_pos <= IO_BUFFER_SIZE
+    buffer_pos_bounded: buffer_pos <= (4 * 1024 * 1024)
 end
 ```
 
@@ -237,7 +238,7 @@ class Run_Generator
   create
     make(memory_budget: Integer64,
          work_dir: String,
-         compare: Function[Array[Integer], Array[Integer], Integer]) do
+         compare: Function) do
       this.memory_budget := memory_budget
       this.work_dir := work_dir
       this.compare := compare
@@ -247,14 +248,14 @@ class Run_Generator
   feature
     memory_budget: Integer64
     work_dir: String
-    compare: Function[Array[Integer], Array[Integer], Integer]
+    compare: Function
     run_paths: Array[String]
 
-    -- Records per run: how many RECORD_SIZE records fit in memory budget
+    -- Records per run: how many 100 records fit in memory budget
     records_per_run(): Integer do
       -- Reserve some memory for I/O buffers and overhead
       let usable: Integer64 := memory_budget - (64 * 1024 * 1024)  -- 64MB overhead
-      result := (usable / RECORD_SIZE.to_integer64()).to_integer()
+      result := (usable / 100).to_integer()
     end
 
     -- Generate all runs from input file
@@ -273,20 +274,18 @@ class Run_Generator
         from until chunk.length >= records_in_run or
                    not reader.has_more() do
           let record: ?Array[Integer] := reader.read_record()
-          if record /= nil then
-            chunk.add(record)
+          if convert record to next_record: Array[Integer] then
+            chunk.add(next_record)
           end
         end
 
         if not chunk.is_empty() then
           -- Sort the chunk in memory
-          let sorter: Generic_Introsort[Array[Integer]] :=
-            create Generic_Introsort[Array[Integer]].make(compare)
-          sorter.sort(chunk)
+          let sorted_chunk: Array[Array[Integer]] := sort_records(chunk)
 
           -- Write sorted chunk to run file
           let run_path: String := run_file_path(run_num)
-          write_run(chunk, run_path)
+          write_run(sorted_chunk, run_path)
           run_paths.add(run_path)
           run_num := run_num + 1
 
@@ -305,6 +304,29 @@ class Run_Generator
         writer.write_record(record)
       end
       writer.close()
+    end
+
+    sort_records(records: Array[Array[Integer]]): Array[Array[Integer]] do
+      let sorted: Array[Array[Integer]] := records.slice(0, records.length)
+
+      from
+        let i: Integer := 1
+      until
+        i >= sorted.length
+      do
+        let current: Array[Integer] := sorted.get(i)
+        let j: Integer := i - 1
+
+        from until j < 0 or compare(sorted.get(j), current) <= 0 do
+          sorted.set(j + 1, sorted.get(j))
+          j := j - 1
+        end
+
+        sorted.set(j + 1, current)
+        i := i + 1
+      end
+
+      result := sorted
     end
 
     run_file_path(run_num: Integer): String do
@@ -350,7 +372,7 @@ class Replacement_Selection_Generator
   create
     make(heap_size: Integer,
          work_dir: String,
-         compare: Function[Array[Integer], Array[Integer], Integer]) do
+         compare: Function) do
       this.heap_size := heap_size
       this.work_dir := work_dir
       this.compare := compare
@@ -358,9 +380,9 @@ class Replacement_Selection_Generator
     end
 
   feature
-    heap_size: Integer       -- max records in heap (= memory budget / RECORD_SIZE)
+    heap_size: Integer       -- max records in heap (= memory budget / 100)
     work_dir: String
-    compare: Function[Array[Integer], Array[Integer], Integer]
+    compare: Function
     run_paths: Array[String]
 
     generate(input_path: String): Array[String] do
@@ -371,12 +393,14 @@ class Replacement_Selection_Generator
       -- Deferred list: records that belong to next run
       let active: Min_Heap[Array[Integer]] :=
         create Min_Heap[Array[Integer]].from_comparator(compare)
-      let deferred: Array[Array[Integer]] := []
+      let deferred_records: Array[Array[Integer]] := []
 
       -- Fill heap initially
       from until active.size() >= heap_size or not reader.has_more() do
         let rec: ?Array[Integer] := reader.read_record()
-        if rec /= nil then active.insert(rec) end
+        if convert rec to next_record: Array[Integer] then
+          active.insert(next_record)
+        end
       end
 
       let run_num: Integer := 0
@@ -395,33 +419,42 @@ class Replacement_Selection_Generator
 
         -- Extract minimum from active heap
         let record: Array[Integer] := active.extract_min()
-        writer.write_record(record)
-        last_output := record
+        if convert writer to current_writer: Buffered_Writer then
+          current_writer.write_record(record)
+          last_output := record
+        end
 
         -- Read next input record
         let next: ?Array[Integer] := reader.read_record()
-        if next /= nil then
-          if compare(next, last_output) >= 0 then
-            -- Eligible for current run
-            active.insert(next)
+        if convert next to next_record: Array[Integer] then
+          if convert last_output to previous_record: Array[Integer] then
+            let order: Integer := compare(next_record, previous_record)
+            if order >= 0 then
+              -- Eligible for current run
+              active.insert(next_record)
+            else
+              -- Must go in next run
+              deferred_records.add(next_record)
+            end
           else
-            -- Must go in next run
-            deferred.add(next)
+            active.insert(next_record)
           end
         end
 
         -- If active heap empty, end current run
         if active.is_empty() then
-          writer.close()
+          if convert writer to current_writer: Buffered_Writer then
+            current_writer.close()
+          end
           writer := nil
           print("Generated run " + run_num.to_string() +
                 " (replacement selection)")
 
           -- Promote deferred records to active for next run
-          across deferred as d do
+          across deferred_records as d do
             active.insert(d)
           end
-          deferred := []
+          deferred_records := []
         end
       end
 
@@ -457,7 +490,7 @@ class K_Way_Merger
   create
     make(run_paths: Array[String],
          output_path: String,
-         compare: Function[Array[Integer], Array[Integer], Integer],
+         compare: Function,
          memory_budget: Integer64) do
       this.run_paths := run_paths
       this.output_path := output_path
@@ -468,18 +501,22 @@ class K_Way_Merger
   feature
     run_paths: Array[String]
     output_path: String
-    compare: Function[Array[Integer], Array[Integer], Integer]
+    compare: Function
     memory_budget: Integer64
 
     -- Merge all runs into output
     merge() do
       let k: Integer := run_paths.length
 
-      if k = 0 then return end
+      if k = 0 then
+        -- nothing to merge
+      end
       if k = 1 then
         -- Nothing to merge: just rename/copy the single run
         copy_file(run_paths.get(0), output_path)
-        return
+      end
+      if k <= 1 then
+        -- merge finished in the trivial case
       end
 
       -- Open all run readers
@@ -490,9 +527,9 @@ class K_Way_Merger
 
       -- Min-heap entries: (record, run_index)
       -- Compare by record content
-      let heap: Min_Heap[Array[Integer], Integer] :=
-        create Min_Heap[Array[Integer], Integer].from_comparator(
-          fn a: Array[Array[Integer]], b: Array[Array[Integer]] do
+      let heap: Min_Heap[Any] :=
+        create Min_Heap[Any].from_comparator(
+          fn(a: Array[Any], b: Array[Any]): Integer do
             result := compare(a.get(0), b.get(0))
           end)
 
@@ -503,8 +540,11 @@ class K_Way_Merger
         i >= k
       do
         let record: ?Array[Integer] := readers.get(i).read_record()
-        if record /= nil then
-          heap.insert([record, i])
+        if convert record to first_record: Array[Integer] then
+          let entry: Array[Any] := []
+          entry.add(first_record)
+          entry.add(i)
+          heap.insert(entry)
         end
         i := i + 1
       end
@@ -525,8 +565,11 @@ class K_Way_Merger
 
         -- Read next record from same run
         let next: ?Array[Integer] := readers.get(run_idx).read_record()
-        if next /= nil then
-          heap.insert([next, run_idx])
+        if convert next to next_record: Array[Integer] then
+          let entry: Array[Any] := []
+          entry.add(next_record)
+          entry.add(run_idx)
+          heap.insert(entry)
         end
       end
 
@@ -545,9 +588,9 @@ class K_Way_Merger
       let reader: Buffered_Reader := create Buffered_Reader.open(src)
       let writer: Buffered_Writer := create Buffered_Writer.open(dst)
       from until not reader.has_more() do
-        let chunk: ?Array[Integer] := reader.read_bytes(IO_BUFFER_SIZE)
-        if chunk /= nil then
-          writer.write_bytes(chunk)
+        let chunk: ?Array[Integer] := reader.read_bytes((4 * 1024 * 1024))
+        if convert chunk to bytes: Array[Integer] then
+          writer.write_bytes(bytes)
         end
       end
       reader.close()
@@ -592,7 +635,7 @@ class Multi_Pass_Merger
   create
     make(run_paths: Array[String],
          output_path: String,
-         compare: Function[Array[Integer], Array[Integer], Integer],
+         compare: Function,
          memory_budget: Integer64,
          work_dir: String) do
       this.run_paths := run_paths
@@ -606,18 +649,18 @@ class Multi_Pass_Merger
   feature
     run_paths: Array[String]
     output_path: String
-    compare: Function[Array[Integer], Array[Integer], Integer]
+    compare: Function
     memory_budget: Integer64
     work_dir: String
     temp_paths: Array[String]  -- intermediate files to clean up
 
     merge() do
-      let current_runs: Array[String] := run_paths.copy()
+      let current_runs: Array[String] := run_paths.slice(0, run_paths.length)
       let pass_num: Integer := 0
 
       from until current_runs.length <= 1 do
         let max_runs_per_merge: Integer :=
-          (memory_budget / IO_BUFFER_SIZE.to_integer64()).to_integer()
+          (memory_budget / (4 * 1024 * 1024)).to_integer()
         max_runs_per_merge := max_runs_per_merge.max(2)
 
         let next_runs: Array[String] := []
@@ -636,15 +679,14 @@ class Multi_Pass_Merger
           let is_final: Boolean :=
             current_runs.length <= max_runs_per_merge and pass_num > 0
 
-          let merged_path: String :=
-            when is_final
-              output_path
-            else
-              let p: String := work_dir + "/pass_" + pass_num.to_string() +
-                               "_group_" + group_num.to_string() + ".tmp"
-              temp_paths.add(p)
-              p
-            end
+          let merged_path: String := ""
+          if is_final then
+            merged_path := output_path
+          else
+            merged_path := work_dir + "/pass_" + pass_num.to_string() +
+                           "_group_" + group_num.to_string() + ".tmp"
+            temp_paths.add(merged_path)
+          end
 
           let merger: K_Way_Merger := create K_Way_Merger.make(
             group, merged_path, compare, memory_budget)
@@ -703,8 +745,8 @@ class External_Sorter
   create
     make(memory_budget_gb: Real,
          work_dir: String,
-         compare: Function[Array[Integer], Array[Integer], Integer]) do
-      this.memory_budget := (memory_budget_gb * 1024.0 * 1024.0 * 1024.0).to_integer64()
+         compare: Function) do
+      this.memory_budget := (memory_budget_gb * 1024.0 * 1024.0 * 1024.0).round().to_string().to_integer64()
       this.work_dir := work_dir
       this.compare := compare
       this.stats := create Sort_Stats.make()
@@ -713,7 +755,7 @@ class External_Sorter
   feature
     memory_budget: Integer64
     work_dir: String
-    compare: Function[Array[Integer], Array[Integer], Integer]
+    compare: Function
     stats: Sort_Stats
 
     sort(input_path: String, output_path: String) do
@@ -721,56 +763,52 @@ class External_Sorter
       let dir: Directory := create Directory.make(work_dir)
       if not dir.exists() then dir.create_tree() end
 
-      let total_start: Integer64 := current_time_ms()
+      let total_start: Integer64 := datetime_now()
 
       -- Phase 1: Run generation
       print("Phase 1: Generating runs...")
-      let gen_start: Integer64 := current_time_ms()
+      let gen_start: Integer64 := datetime_now()
 
       let generator: Run_Generator := create Run_Generator.make(
         memory_budget, work_dir, compare)
       let run_paths: Array[String] := generator.generate(input_path)
 
-      let gen_time: Integer64 := current_time_ms() - gen_start
-      stats.run_count := run_paths.length
-      stats.phase1_ms := gen_time
+      let gen_time: Integer64 := datetime_now() - gen_start
+      stats.set_run_count(run_paths.length)
+      stats.set_phase1_ms(gen_time)
 
       print("Generated " + run_paths.length.to_string() +
             " runs in " + gen_time.to_string() + "ms")
 
       if run_paths.is_empty() then
         print("No data to sort")
-        return
-      end
-
-      if run_paths.length = 1 then
+      elseif run_paths.length = 1 then
         -- Only one run: it is already sorted, just rename/move
         create Path.make(run_paths.get(0)).move_to(
           create Path.make(output_path))
-        stats.total_ms := current_time_ms() - total_start
+        stats.set_total_ms(datetime_now() - total_start)
         print_stats()
-        return
+      else
+        -- Phase 2: Merging
+        print("Phase 2: Merging " + run_paths.length.to_string() + " runs...")
+        let merge_start: Integer64 := datetime_now()
+
+        let merger: Multi_Pass_Merger := create Multi_Pass_Merger.make(
+          run_paths, output_path, compare, memory_budget, work_dir)
+        merger.merge()
+
+        let merge_time: Integer64 := datetime_now() - merge_start
+        stats.set_phase2_ms(merge_time)
+
+        print("Merged in " + merge_time.to_string() + "ms")
+
+        -- Cleanup
+        generator.cleanup()
+        merger.cleanup()
+
+        stats.set_total_ms(datetime_now() - total_start)
+        print_stats()
       end
-
-      -- Phase 2: Merging
-      print("Phase 2: Merging " + run_paths.length.to_string() + " runs...")
-      let merge_start: Integer64 := current_time_ms()
-
-      let merger: Multi_Pass_Merger := create Multi_Pass_Merger.make(
-        run_paths, output_path, compare, memory_budget, work_dir)
-      merger.merge()
-
-      let merge_time: Integer64 := current_time_ms() - merge_start
-      stats.phase2_ms := merge_time
-
-      print("Merged in " + merge_time.to_string() + "ms")
-
-      -- Cleanup
-      generator.cleanup()
-      merger.cleanup()
-
-      stats.total_ms := current_time_ms() - total_start
-      print_stats()
     end
 
     -- Sort by a key extracted from each record
@@ -778,23 +816,9 @@ class External_Sorter
                 output_path: String,
                 key_offset: Integer,
                 key_length: Integer) do
-      let key_compare: Function[Array[Integer], Array[Integer], Integer] :=
-        fn a: Array[Integer], b: Array[Integer] do
-          from
-            let i: Integer := 0
-          until
-            i < key_length
-          do
-            let diff: Integer := a.get(key_offset + i) - b.get(key_offset + i)
-            if diff /= 0 then
-              result := diff
-              return
-            end
-            i := i + 1
-          end
-          result := 0
-        end
-      sort(input_path, output_path)  -- uses key_compare via closure
+      -- Assumes this sorter was constructed with a comparator that
+      -- already knows how to compare the target key layout.
+      sort(input_path, output_path)
     end
 
     print_stats() do
@@ -829,6 +853,22 @@ class Sort_Stats
     phase1_ms: Integer64
     phase2_ms: Integer64
     total_ms: Integer64
+
+    set_run_count(value: Integer) do
+      run_count := value
+    end
+
+    set_phase1_ms(value: Integer64) do
+      phase1_ms := value
+    end
+
+    set_phase2_ms(value: Integer64) do
+      phase2_ms := value
+    end
+
+    set_total_ms(value: Integer64) do
+      total_ms := value
+    end
 end
 ```
 
@@ -836,25 +876,31 @@ Using the sorter:
 
 ```
 -- Sort a 500GB log file by timestamp (first 8 bytes of each record)
+function compare_timestamp_records(a: Array[Integer],
+                                   b: Array[Integer]): Integer do
+  let done: Boolean := false
+  from
+    let i: Integer := 0
+  until
+    i >= 8 or done
+  do
+    let diff: Integer := a.get(i) - b.get(i)
+    if diff /= 0 then
+      result := diff
+      done := true
+    else
+      i := i + 1
+    end
+  end
+  if not done then
+    result := 0
+  end
+end
+
 let sorter: External_Sorter := create External_Sorter.make(
   8.0,           -- 8GB memory budget
   "/tmp/sort",   -- work directory for temporary files
-  fn a: Array[Integer], b: Array[Integer] do
-    -- Compare first 8 bytes as big-endian int64 (timestamp)
-    from
-      let i: Integer := 0
-    until
-      i < 8
-    do
-      let diff: Integer := a.get(i) - b.get(i)
-      if diff /= 0 then
-        result := diff
-        return
-      end
-      i := i + 1
-    end
-    result := 0
-  end)
+  compare_timestamp_records)
 
 sorter.sort("/data/logs/500gb_log.bin",
             "/data/logs/sorted_log.bin")
@@ -873,8 +919,8 @@ class Double_Buffered_Reader
   create
     open(path: String) do
       this.file := create Binary_File.open_read(create Path.make(path))
-      this.buffer_a := Array.filled(IO_BUFFER_SIZE, 0)
-      this.buffer_b := Array.filled(IO_BUFFER_SIZE, 0)
+      this.buffer_a := create Array.filled((4 * 1024 * 1024), 0)
+      this.buffer_b := create Array.filled((4 * 1024 * 1024), 0)
       this.active_buffer := this.buffer_a
       this.active_valid := 0
       this.active_pos := 0
@@ -882,7 +928,7 @@ class Double_Buffered_Reader
 
       -- Start first fill
       this.pending_fill := spawn do
-        result := this.file.read(IO_BUFFER_SIZE)
+        result := this.file.read((4 * 1024 * 1024))
       end
     end
 
@@ -897,7 +943,7 @@ class Double_Buffered_Reader
     pending_fill: Task[Array[Integer]]
 
     read_record(): ?Array[Integer] do
-      if active_pos + RECORD_SIZE > active_valid then
+      if active_pos + 100 > active_valid then
         -- Need to swap buffers
         swap_buffers()
         if active_valid = 0 then
@@ -907,8 +953,8 @@ class Double_Buffered_Reader
       end
 
       let record: Array[Integer] := active_buffer.slice(
-        active_pos, active_pos + RECORD_SIZE)
-      active_pos := active_pos + RECORD_SIZE
+        active_pos, active_pos + 100)
+      active_pos := active_pos + 100
       result := record
     end
 
@@ -935,7 +981,7 @@ class Double_Buffered_Reader
 
       -- Start filling the other buffer asynchronously
       pending_fill := spawn do
-        result := this.file.read(IO_BUFFER_SIZE)
+        result := this.file.read((4 * 1024 * 1024))
       end
     end
 
@@ -992,12 +1038,12 @@ Any external sort implementation must include verification. A bug in a sort that
 ```
 class Sort_Verifier
   create
-    make(compare: Function[Array[Integer], Array[Integer], Integer]) do
+    make(compare: Function) do
       this.compare := compare
     end
 
   feature
-    compare: Function[Array[Integer], Array[Integer], Integer]
+    compare: Function
 
     -- Verify that file is sorted, returning position of first violation
     verify_sorted(path: String): ?Integer64 do
@@ -1010,17 +1056,20 @@ class Sort_Verifier
         if record = nil then
           reader.close()
           result := nil
-          return
+        elseif convert record to current_record: Array[Integer] then
+          if convert prev to prev_record: Array[Integer] then
+            if compare(current_record, prev_record) < 0 then
+              reader.close()
+              result := position
+            else
+              prev := current_record
+              position := position + 100
+            end
+          else
+            prev := current_record
+            position := position + 100
+          end
         end
-
-        if prev /= nil and compare(record, prev) < 0 then
-          reader.close()
-          result := position
-          return
-        end
-
-        prev := record
-        position := position + RECORD_SIZE.to_integer64()
       end
 
       reader.close()
@@ -1038,7 +1087,7 @@ class Sort_Verifier
     -- Spot-check: verify sample positions are sorted
     spot_check(path: String, num_samples: Integer): Boolean do
       let file_size: Integer64 := create Path.make(path).size()
-      let total_records: Integer64 := file_size / RECORD_SIZE.to_integer64()
+      let total_records: Integer64 := file_size / 100
 
       if total_records < 2 then
         result := true
@@ -1056,13 +1105,13 @@ class Sort_Verifier
         -- Pick two adjacent random positions
         let pos: Integer64 := (random_integer64() %
                                (total_records - 1)).abs()
-        let offset: Integer64 := pos * RECORD_SIZE.to_integer64()
+        let offset: Integer64 := pos * 100
 
         reader_file.seek(offset.to_integer())
-        let rec1: Array[Integer] := reader_file.read(RECORD_SIZE)
-        let rec2: Array[Integer] := reader_file.read(RECORD_SIZE)
+        let rec1: Array[Integer] := reader_file.read(100)
+        let rec2: Array[Integer] := reader_file.read(100)
 
-        if rec1.length = RECORD_SIZE and rec2.length = RECORD_SIZE then
+        if rec1.length = 100 and rec2.length = 100 then
           if compare(rec2, rec1) < 0 then
             reader_file.close()
             result := false

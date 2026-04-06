@@ -119,7 +119,7 @@ function build_failure(pattern: String): Array[Integer]
     non_empty: pattern.length > 0
   do
     let m: Integer := pattern.length
-    let failure: Array[Integer] := Array.filled(m, 0)
+    let failure: Array[Integer] := create Array.filled(m, 0)
     -- failure[0] is always 0 by definition
 
     let k: Integer := 0  -- length of current matching prefix
@@ -254,12 +254,7 @@ function build_skip_table(pattern: String): Map[Char, Integer]
 function get_skip(table: Map[Char, Integer],
                   c: Char,
                   pattern_length: Integer): Integer do
-  let val: ?Integer := table.get(c)
-  if val = nil then
-    result := pattern_length
-  else
-    result := val
-  end
+  result := table.try_get(c, pattern_length)
 end
 ```
 
@@ -360,8 +355,8 @@ class String_Matcher
       let horspool_result: Array[Integer] :=
         horspool_search(text, pattern)
 
-      result := arrays_equal(naive_result, kmp_result) and
-                arrays_equal(naive_result, horspool_result)
+      result := (naive_result = kmp_result) and
+                (naive_result = horspool_result)
     end
 
     -- Count occurrences (useful for high-frequency queries)

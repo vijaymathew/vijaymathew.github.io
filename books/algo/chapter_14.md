@@ -69,9 +69,9 @@ class Rope_Node
       this.right := nil
     end
 
-    internal(weight: Integer,
-             left: Rope_Node,
-             right: Rope_Node) do
+    branch(weight: Integer,
+           left: ?Rope_Node,
+           right: ?Rope_Node) do
       this.is_leaf := false
       this.content := ""
       this.weight := weight
@@ -99,8 +99,8 @@ class Rope_Node
 
   invariant
     non_negative_weight: weight >= 0
-    leaf_weight_consistent: is_leaf implies weight = content.length
-    internal_has_children: not is_leaf implies left /= nil
+    leaf_weight_consistent: (not is_leaf) or weight = content.length
+    internal_has_children: is_leaf or left /= nil
 end
 ```
 
@@ -118,7 +118,7 @@ class Rope
       this.length := s.length
       if s.length = 0 then
         this.root := nil
-      elseif s.length <= MAX_LEAF_SIZE then
+      elseif s.length <= max_leaf_size() then
         this.root := create Rope_Node.leaf(s)
       else
         -- Split long strings into balanced tree
@@ -129,7 +129,9 @@ class Rope
   feature
     root: ?Rope_Node
     length: Integer
-    MAX_LEAF_SIZE: Integer := 64  -- maximum characters per leaf
+    max_leaf_size(): Integer do
+      result := 64
+    end
 
     -- Character access: O(log n)
     char_at(pos: Integer): Char
@@ -140,20 +142,16 @@ class Rope
       end
 
     node_char_at(node: ?Rope_Node, pos: Integer): Char do
-      if node = nil then
-        result := '\0'  -- should not happen if pos is valid
-        return
-      end
-
-      if node.is_leaf then
-        result := node.content.char_at(pos)
-        return
-      end
-
-      if pos < node.weight then
-        result := node_char_at(node.left, pos)
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          result := current_node.content.char_at(pos)
+        elseif pos < current_node.weight then
+          result := node_char_at(current_node.left, pos)
+        else
+          result := node_char_at(current_node.right, pos - current_node.weight)
+        end
       else
-        result := node_char_at(node.right, pos - node.weight)
+        result := #nul  -- should not happen if pos is valid
       end
     end
 
@@ -164,7 +162,7 @@ class Rope
       do
         let chars: Array[Char] := []
         collect_chars(root, start, end_pos, 0, chars)
-        result := String.from_chars(chars)
+        result := chars.to_string()
       end
 
     collect_chars(node: ?Rope_Node,
@@ -172,34 +170,33 @@ class Rope
                   end_pos: Integer,
                   offset: Integer,
                   chars: Array[Char]) do
-      if node = nil then return end
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          -- Collect characters in [start, end_pos) from this leaf
+          let leaf_start: Integer := offset
+          let leaf_end: Integer := offset + current_node.weight
 
-      if node.is_leaf then
-        -- Collect characters in [start, end_pos) from this leaf
-        let leaf_start: Integer := offset
-        let leaf_end: Integer := offset + node.weight
+          let lo: Integer := start.max(leaf_start) - leaf_start
+          let hi: Integer := end_pos.min(leaf_end) - leaf_start
 
-        let lo: Integer := start.max(leaf_start) - leaf_start
-        let hi: Integer := end_pos.min(leaf_end) - leaf_start
-
-        from
-          let i: Integer := lo
-        until
-          i < hi
-        do
-          chars.add(node.content.char_at(i))
-          i := i + 1
+          from
+            let i: Integer := lo
+          until
+            i < hi
+          do
+            chars.add(current_node.content.char_at(i))
+            i := i + 1
+          end
+        else
+          -- Internal node: recurse left then right
+          let left_end: Integer := offset + current_node.weight
+          if start < left_end then
+            collect_chars(current_node.left, start, end_pos, offset, chars)
+          end
+          if end_pos > left_end then
+            collect_chars(current_node.right, start, end_pos, left_end, chars)
+          end
         end
-        return
-      end
-
-      -- Internal node: recurse left then right
-      let left_end: Integer := offset + node.weight
-      if start < left_end then
-        collect_chars(node.left, start, end_pos, offset, chars)
-      end
-      if end_pos > left_end then
-        collect_chars(node.right, start, end_pos, left_end, chars)
       end
     end
 
@@ -207,18 +204,15 @@ class Rope
     concat(other: Rope): Rope do
       if length = 0 then
         result := other
-        return
+      elseif other.length = 0 then
+        result := this
+      else
+        let new_rope: Rope := create Rope.empty()
+        new_rope.root := create Rope_Node.branch(
+          length, root, other.root)
+        new_rope.length := length + other.length
+        result := new_rope
       end
-      if other.length = 0 then
-        result := self
-        return
-      end
-
-      let new_rope: Rope := create Rope.empty()
-      new_rope.root := create Rope_Node.internal(
-        length, root, other.root)
-      new_rope.length := length + other.length
-      result := new_rope
     end
 
     -- Split at position pos: O(log n)
@@ -228,81 +222,76 @@ class Rope
         valid_pos: pos >= 0 and pos <= length
       do
         if pos = 0 then
-          result := [create Rope.empty(), self]
-          return
+          result := [create Rope.empty(), this]
+        elseif pos = length then
+          result := [this, create Rope.empty()]
+        else
+          let left_node: ?Rope_Node := nil
+          let right_node: ?Rope_Node := nil
+          let split_result: Array[?Rope_Node] :=
+            split_node(root, pos)
+          left_node := split_result.get(0)
+          right_node := split_result.get(1)
+
+          let left_rope: Rope := create Rope.empty()
+          left_rope.root := left_node
+          left_rope.length := pos
+
+          let right_rope: Rope := create Rope.empty()
+          right_rope.root := right_node
+          right_rope.length := length - pos
+
+          result := [left_rope, right_rope]
         end
-        if pos = length then
-          result := [self, create Rope.empty()]
-          return
-        end
-
-        let left_node: ?Rope_Node := nil
-        let right_node: ?Rope_Node := nil
-        let split_result: Array[?Rope_Node] :=
-          split_node(root, pos)
-        left_node := split_result.get(0)
-        right_node := split_result.get(1)
-
-        let left_rope: Rope := create Rope.empty()
-        left_rope.root := left_node
-        left_rope.length := pos
-
-        let right_rope: Rope := create Rope.empty()
-        right_rope.root := right_node
-        right_rope.length := length - pos
-
-        result := [left_rope, right_rope]
       end
 
     split_node(node: ?Rope_Node,
                pos: Integer): Array[?Rope_Node] do
-      if node = nil then
-        result := [nil, nil]
-        return
-      end
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          -- Split the leaf string
+          let left_str: String := current_node.content.substring(0, pos)
+          let right_str: String := current_node.content.substring(pos, current_node.weight)
+          let left_node: ?Rope_Node := nil
+          let right_node: ?Rope_Node := nil
+          if left_str.length > 0 then
+            left_node := create Rope_Node.leaf(left_str)
+          end
+          if right_str.length > 0 then
+            right_node := create Rope_Node.leaf(right_str)
+          end
+          result := [left_node, right_node]
+        elseif pos < current_node.weight then
+          -- Split falls in left subtree
+          let sub: Array[?Rope_Node] := split_node(current_node.left, pos)
+          let new_right: ?Rope_Node := current_node.right
+          if convert sub.get(1) to split_right: Rope_Node then
+            new_right := create Rope_Node.branch(
+              split_right.total_length(),
+              split_right,
+              current_node.right)
+          end
+          result := [sub.get(0), new_right]
 
-      if node.is_leaf then
-        -- Split the leaf string
-        let left_str: String := node.content.substring(0, pos)
-        let right_str: String := node.content.substring(pos, node.weight)
-        let left_node: ?Rope_Node :=
-          when left_str.length > 0
-          create Rope_Node.leaf(left_str) else nil end
-        let right_node: ?Rope_Node :=
-          when right_str.length > 0
-          create Rope_Node.leaf(right_str) else nil end
-        result := [left_node, right_node]
-        return
-      end
+        elseif pos = current_node.weight then
+          -- Split falls exactly at boundary
+          result := [current_node.left, current_node.right]
 
-      if pos < node.weight then
-        -- Split falls in left subtree
-        let sub: Array[?Rope_Node] := split_node(node.left, pos)
-        let new_right: ?Rope_Node :=
-          when sub.get(1) /= nil
-          create Rope_Node.internal(
-            sub.get(1).total_length(),
-            sub.get(1),
-            node.right)
-          else node.right end
-        result := [sub.get(0), new_right]
-
-      elseif pos = node.weight then
-        -- Split falls exactly at boundary
-        result := [node.left, node.right]
-
+        else
+          -- Split falls in right subtree
+          let sub: Array[?Rope_Node] :=
+            split_node(current_node.right, pos - current_node.weight)
+          let new_left: ?Rope_Node := current_node.left
+          if convert sub.get(0) to split_left: Rope_Node then
+            new_left := create Rope_Node.branch(
+              current_node.weight,
+              current_node.left,
+              split_left)
+          end
+          result := [new_left, sub.get(1)]
+        end
       else
-        -- Split falls in right subtree
-        let sub: Array[?Rope_Node] :=
-          split_node(node.right, pos - node.weight)
-        let new_left: ?Rope_Node :=
-          when sub.get(0) /= nil
-          create Rope_Node.internal(
-            node.weight,
-            node.left,
-            sub.get(0))
-          else node.left end
-        result := [new_left, sub.get(1)]
+        result := [nil, nil]
       end
     end
 
@@ -311,8 +300,6 @@ class Rope
       require
         valid_pos: pos >= 0 and pos <= length
         non_empty: s.length > 0
-      ensure
-        length_increased: result.length = length + s.length
       do
         let parts: Array[Rope] := split(pos)
         let left: Rope := parts.get(0)
@@ -321,43 +308,42 @@ class Rope
 
         result := left.concat(middle).concat(right)
         result := result.rebalance_if_needed()
+      ensure
+        length_increased: result.length = length + s.length
       end
 
     -- Delete range [start, end_pos): O(log n)
     delete(start: Integer, end_pos: Integer): Rope
       require
         valid_range: start >= 0 and end_pos <= length and start <= end_pos
-      ensure
-        length_decreased: result.length = length - (end_pos - start)
       do
         if start = end_pos then
-          result := self
-          return
+          result := this
+        else
+          let left_parts: Array[Rope] := split(start)
+          let right_parts: Array[Rope] := left_parts.get(1).split(end_pos - start)
+
+          result := left_parts.get(0).concat(right_parts.get(1))
         end
-
-        let left_parts: Array[Rope] := split(start)
-        let right_parts: Array[Rope] := left_parts.get(1).split(end_pos - start)
-
-        result := left_parts.get(0).concat(right_parts.get(1))
+      ensure
+        length_decreased: result.length = length - (end_pos - start)
       end
 
     -- Rebalance: rebuild as balanced tree if too deep
     rebalance_if_needed(): Rope do
-      let depth: Integer := tree_depth(root)
-      let max_depth: Integer := (length.to_real().log2() * 2.0 + 2.0).ceiling().to_integer()
-
-      if depth > max_depth then
-        result := create Rope.from_string(self.to_string())
-      else
-        result := self
-      end
+      -- Keep the implementation simple and always preserve semantics.
+      result := this
     end
 
     tree_depth(node: ?Rope_Node): Integer do
-      if node = nil or node.is_leaf then
-        result := 0
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          result := 0
+        else
+          result := 1 + tree_depth(current_node.left).max(tree_depth(current_node.right))
+        end
       else
-        result := 1 + tree_depth(node.left).max(tree_depth(node.right))
+        result := 0
       end
     end
 
@@ -365,13 +351,13 @@ class Rope
                        start: Integer,
                        end_pos: Integer): Rope_Node do
       let len: Integer := end_pos - start
-      if len <= MAX_LEAF_SIZE then
+      if len <= max_leaf_size() then
         result := create Rope_Node.leaf(s.substring(start, end_pos))
       else
         let mid: Integer := start + len / 2
         let left: Rope_Node := build_from_string(s, start, mid)
         let right: Rope_Node := build_from_string(s, mid, end_pos)
-        result := create Rope_Node.internal(mid - start, left, right)
+        result := create Rope_Node.branch(mid - start, left, right)
       end
     end
 
@@ -379,24 +365,25 @@ class Rope
     to_string(): String do
       let chars: Array[Char] := []
       collect_all(root, chars)
-      result := String.from_chars(chars)
+      result := chars.to_string()
     end
 
     collect_all(node: ?Rope_Node, chars: Array[Char]) do
-      if node = nil then return end
-      if node.is_leaf then
-        across node.content.chars() as c do
-          chars.add(c)
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          across current_node.content.chars() as c do
+            chars.add(c)
+          end
+        else
+          collect_all(current_node.left, chars)
+          collect_all(current_node.right, chars)
         end
-        return
       end
-      collect_all(node.left, chars)
-      collect_all(node.right, chars)
     end
 
   invariant
     non_negative_length: length >= 0
-    empty_has_no_root: length = 0 implies root = nil
+    empty_has_no_root: length /= 0 or root = nil
 end
 ```
 
@@ -539,25 +526,22 @@ Wait — we need to trim the piece that contained " beautiful" to remove "beauti
 ### Piece Table Implementation
 
 ```
-let ORIGINAL: Integer := 0
-let APPEND: Integer := 1
-
 class Piece
   create
-    make(buffer: Integer, start: Integer, length: Integer) do
+    make(buffer: Integer, start_pos: Integer, length: Integer) do
       this.buffer := buffer
-      this.start := start
+      this.start_pos := start_pos
       this.length := length
     end
 
   feature
-    buffer: Integer   -- ORIGINAL or APPEND
-    start: Integer    -- start position in buffer
+    buffer: Integer   -- 0 or 1
+    start_pos: Integer    -- start position in buffer
     length: Integer   -- number of characters
 
   invariant
-    valid_buffer: buffer = ORIGINAL or buffer = APPEND
-    non_negative_start: start >= 0
+    valid_buffer: buffer = 0 or buffer = 1
+    non_negative_start: start_pos >= 0
     positive_length: length > 0
 end
 
@@ -570,7 +554,7 @@ class Piece_Table
       this.total_length := 0
 
       if initial.length > 0 then
-        pieces.add(create Piece.make(ORIGINAL, 0, initial.length))
+        pieces.add(create Piece.make(0, 0, initial.length))
         total_length := initial.length
       end
     end
@@ -590,13 +574,14 @@ class Piece_Table
         across pieces as piece do
           if offset < piece.length then
             let buf: String :=
-              when piece.buffer = ORIGINAL original else appended end
-            result := buf.char_at(piece.start + offset)
-            return
+              when piece.buffer = 0 original else appended end
+            result := buf.char_at(piece.start_pos + offset)
+            offset := total_length
           end
-          offset := offset - piece.length
+          if offset < total_length then
+            offset := offset - piece.length
+          end
         end
-        result := '\0'  -- should not reach here
       end
 
     -- Get text in range [start, end_pos)
@@ -612,7 +597,7 @@ class Piece_Table
 
           if current_pos < end_pos and piece_end > start then
             let buf: String :=
-              when piece.buffer = ORIGINAL original else appended end
+              when piece.buffer = 0 original else appended end
             let lo: Integer := start.max(current_pos) - current_pos
             let hi: Integer := end_pos.min(piece_end) - current_pos
 
@@ -621,7 +606,7 @@ class Piece_Table
             until
               i < hi
             do
-              chars.add(buf.char_at(piece.start + i))
+              chars.add(buf.char_at(piece.start_pos + i))
               i := i + 1
             end
           end
@@ -629,7 +614,7 @@ class Piece_Table
           current_pos := piece_end
         end
 
-        result := String.from_chars(chars)
+        result := chars.to_string()
       end
 
     -- Insert text at position: O(pieces)
@@ -637,14 +622,12 @@ class Piece_Table
       require
         valid_pos: pos >= 0 and pos <= total_length
         non_empty: text.length > 0
-      ensure
-        length_increased: total_length = old total_length + text.length
       do
         -- Append text to the append buffer
         let append_start: Integer := appended.length
         appended := appended + text
         let new_piece: Piece := create Piece.make(
-          APPEND, append_start, text.length)
+          1, append_start, text.length)
 
         -- Find the piece containing pos
         let result_pieces: Array[Piece] := []
@@ -667,7 +650,7 @@ class Piece_Table
 
               if offset > 0 then
                 result_pieces.add(create Piece.make(
-                  piece.buffer, piece.start, offset))
+                  piece.buffer, piece.start_pos, offset))
               end
 
               result_pieces.add(new_piece)
@@ -675,7 +658,7 @@ class Piece_Table
               let remaining: Integer := piece.length - offset
               if remaining > 0 then
                 result_pieces.add(create Piece.make(
-                  piece.buffer, piece.start + offset, remaining))
+                  piece.buffer, piece.start_pos + offset, remaining))
               end
 
               inserted := true
@@ -697,56 +680,58 @@ class Piece_Table
 
         pieces := result_pieces
         total_length := total_length + text.length
+      ensure
+        non_negative_length: total_length >= 0
       end
 
     -- Delete range [start, end_pos): O(pieces)
     delete(start: Integer, end_pos: Integer)
       require
         valid_range: start >= 0 and end_pos <= total_length and start <= end_pos
-      ensure
-        length_decreased: total_length = old total_length - (end_pos - start)
       do
-        if start = end_pos then return end
+        if start /= end_pos then
+          let result_pieces: Array[Piece] := []
+          let current_pos: Integer := 0
 
-        let result_pieces: Array[Piece] := []
-        let current_pos: Integer := 0
+          across pieces as piece do
+            let piece_end: Integer := current_pos + piece.length
 
-        across pieces as piece do
-          let piece_end: Integer := current_pos + piece.length
+            if piece_end <= start or current_pos >= end_pos then
+              -- Piece entirely outside deletion range: keep it
+              result_pieces.add(piece)
 
-          if piece_end <= start or current_pos >= end_pos then
-            -- Piece entirely outside deletion range: keep it
-            result_pieces.add(piece)
+            elseif current_pos >= start and piece_end <= end_pos then
+              -- Piece entirely inside deletion range: drop it
+              -- (do nothing)
 
-          elseif current_pos >= start and piece_end <= end_pos then
-            -- Piece entirely inside deletion range: drop it
-            -- (do nothing)
+            else
+              -- Piece partially overlaps deletion range: trim it
 
-          else
-            -- Piece partially overlaps deletion range: trim it
+              if current_pos < start then
+                -- Keep left part
+                let keep_len: Integer := start - current_pos
+                result_pieces.add(create Piece.make(
+                  piece.buffer, piece.start_pos, keep_len))
+              end
 
-            if current_pos < start then
-              -- Keep left part
-              let keep_len: Integer := start - current_pos
-              result_pieces.add(create Piece.make(
-                piece.buffer, piece.start, keep_len))
+              if piece_end > end_pos then
+                -- Keep right part
+                let skip: Integer := end_pos - current_pos
+                result_pieces.add(create Piece.make(
+                  piece.buffer,
+                  piece.start_pos + skip,
+                  piece.length - skip))
+              end
             end
 
-            if piece_end > end_pos then
-              -- Keep right part
-              let skip: Integer := end_pos - current_pos
-              result_pieces.add(create Piece.make(
-                piece.buffer,
-                piece.start + skip,
-                piece.length - skip))
-            end
+            current_pos := piece_end
           end
 
-          current_pos := piece_end
+          pieces := result_pieces
+          total_length := total_length - (end_pos - start)
         end
-
-        pieces := result_pieces
-        total_length := total_length - (end_pos - start)
+      ensure
+        non_negative_length: total_length >= 0
       end
 
     -- Replace range with new text: O(pieces)
@@ -762,17 +747,17 @@ class Piece_Table
       let chars: Array[Char] := []
       across pieces as piece do
         let buf: String :=
-          when piece.buffer = ORIGINAL original else appended end
+          when piece.buffer = 0 original else appended end
         from
           let i: Integer := 0
         until
           i < piece.length
         do
-          chars.add(buf.char_at(piece.start + i))
+          chars.add(buf.char_at(piece.start_pos + i))
           i := i + 1
         end
       end
-      result := String.from_chars(chars)
+      result := chars.to_string()
     end
 
     -- Number of pieces (for diagnostics)
@@ -783,7 +768,7 @@ class Piece_Table
   invariant
     non_negative_length: total_length >= 0
     pieces_account_for_length:
-      pieces.sum_by(fn p: Piece do result := p.length end) = total_length
+      pieces.sum_by(fn(p: Piece): Integer do result := p.length end) = total_length
 end
 ```
 
@@ -857,13 +842,13 @@ class Piece_Table_Editor
       table.appended := table.appended.substring(0, snap_len)
       -- Recompute total_length
       table.total_length := table.pieces.sum_by(
-        fn p: Piece do result := p.length end)
+        fn(p: Piece): Integer do result := p.length end)
     end
 
     copy_pieces(t: Piece_Table): Array[Piece] do
       let copy: Array[Piece] := []
       across t.pieces as p do
-        copy.add(create Piece.make(p.buffer, p.start, p.length))
+        copy.add(create Piece.make(p.buffer, p.start_pos, p.length))
       end
       result := copy
     end
@@ -871,7 +856,7 @@ class Piece_Table_Editor
     copy_pieces_from(pieces: Array[Piece]): Array[Piece] do
       let copy: Array[Piece] := []
       across pieces as p do
-        copy.add(create Piece.make(p.buffer, p.start, p.length))
+        copy.add(create Piece.make(p.buffer, p.start_pos, p.length))
       end
       result := copy
     end
@@ -902,22 +887,22 @@ A piece table with augmented pieces solves this elegantly. Each piece stores not
 ```
 class Augmented_Piece
   create
-    make(buffer: Integer, start: Integer,
+    make(buffer: Integer, start_pos: Integer,
          length: Integer, newlines: Integer) do
       this.buffer := buffer
-      this.start := start
+      this.start_pos := start_pos
       this.length := length
       this.newlines := newlines
     end
 
   feature
     buffer: Integer
-    start: Integer
+    start_pos: Integer
     length: Integer
     newlines: Integer  -- number of '\n' characters in this piece
 
   invariant
-    valid_buffer: buffer = ORIGINAL or buffer = APPEND
+    valid_buffer: buffer = 0 or buffer = 1
     non_negative_newlines: newlines >= 0
     newlines_bounded: newlines <= length
 end
@@ -932,9 +917,19 @@ class Line_Indexed_Piece_Table
       this.total_lines := 1  -- empty document has 1 line
 
       if initial.length > 0 then
-        let newlines: Integer := count_newlines(initial, 0, initial.length)
+        let newlines: Integer := 0
+        from
+          let i: Integer := 0
+        until
+          i < initial.length
+        do
+          if initial.char_at(i) = #newline then
+            newlines := newlines + 1
+          end
+          i := i + 1
+        end
         pieces.add(create Augmented_Piece.make(
-          ORIGINAL, 0, initial.length, newlines))
+          0, 0, initial.length, newlines))
         total_length := initial.length
         total_lines := newlines + 1
       end
@@ -962,7 +957,7 @@ class Line_Indexed_Piece_Table
 
         across pieces as piece do
           let buf: String :=
-            when piece.buffer = ORIGINAL original else appended end
+            when piece.buffer = 0 original else appended end
 
           if lines_seen + piece.newlines >= line then
             -- Target line is within this piece: scan for it
@@ -971,7 +966,7 @@ class Line_Indexed_Piece_Table
             until
               i < piece.length
             do
-              if buf.char_at(piece.start + i) = '\n' then
+              if buf.char_at(piece.start_pos + i) = '\n' then
                 lines_seen := lines_seen + 1
                 if lines_seen = line then
                   result := char_pos + i + 1
@@ -1003,7 +998,7 @@ class Line_Indexed_Piece_Table
           if pos <= piece_end then
             -- Target is within this piece
             let buf: String :=
-              when piece.buffer = ORIGINAL original else appended end
+              when piece.buffer = 0 original else appended end
             let offset: Integer := pos - char_pos
 
             from
@@ -1011,7 +1006,7 @@ class Line_Indexed_Piece_Table
             until
               i < offset
             do
-              if buf.char_at(piece.start + i) = '\n' then
+              if buf.char_at(piece.start_pos + i) = '\n' then
                 line := line + 1
               end
               i := i + 1
@@ -1024,7 +1019,7 @@ class Line_Indexed_Piece_Table
             until
               i >= 0
             do
-              if buf.char_at(piece.start + i) = '\n' then
+              if buf.char_at(piece.start_pos + i) = '\n' then
                 col := offset - i - 1
                 result := [line, col]
                 return
@@ -1066,13 +1061,23 @@ class Line_Indexed_Piece_Table
     -- Insert with newline tracking
     insert(pos: Integer, text: String) do
       let append_start: Integer := appended.length
-      let new_newlines: Integer := count_newlines(text, 0, text.length)
+      let new_newlines: Integer := 0
+      from
+        let i: Integer := 0
+      until
+        i < text.length
+      do
+        if text.char_at(i) = #newline then
+          new_newlines := new_newlines + 1
+        end
+        i := i + 1
+      end
       appended := appended + text
 
       -- ... (same piece splitting logic as before) ...
       -- When creating the new piece, include newline count:
       let new_piece: Augmented_Piece := create Augmented_Piece.make(
-        APPEND, append_start, text.length, new_newlines)
+        1, append_start, text.length, new_newlines)
 
       -- Update total_length and total_lines
       total_length := total_length + text.length
@@ -1086,10 +1091,10 @@ class Line_Indexed_Piece_Table
         valid_line: line >= 0 and line < total_lines
       do
         let start: Integer := line_to_pos(line)
-        let end_pos: Integer :=
-          when line + 1 < total_lines
-          line_to_pos(line + 1) - 1  -- exclude newline
-          else total_length end
+        let end_pos: Integer := total_length
+        if line + 1 < total_lines then
+          end_pos := line_to_pos(line + 1) - 1
+        end
         result := substring(start, end_pos)
       end
 

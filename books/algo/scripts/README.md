@@ -16,7 +16,7 @@ book repo itself.
 ### What It Checks
 
 - `preface.md`
-- `chapter_1.md` through `chapter_12.md` if present
+- `chapter_1.md` through `chapter_20.md` if present
 - `toc.md`
 
 The checker extracts fenced code blocks and verifies that active Nex examples

@@ -75,17 +75,14 @@ class Suffix_Array_Builder
     build(): Array[Integer] do
       if n = 0 then
         result := []
-        return
-      end
-      if n = 1 then
+      elseif n = 1 then
         result := [0]
-        return
+      else
+        -- Initial ranking: by first character
+        let sa: Array[Integer] := create Array.filled(n, 0)
+        let rank: Array[Integer] := create Array.filled(n, 0)
+        let tmp: Array[Integer] := create Array.filled(n, 0)
       end
-
-      -- Initial ranking: by first character
-      let sa: Array[Integer] := Array.filled(n, 0)
-      let rank: Array[Integer] := Array.filled(n, 0)
-      let tmp: Array[Integer] := Array.filled(n, 0)
 
       -- Initialise SA as identity, rank by character code
       from
@@ -94,7 +91,7 @@ class Suffix_Array_Builder
         i >= n
       do
         sa.set(i, i)
-        rank.set(i, text.char_at(i).to_integer())
+        rank.set(i, text.char_at(i).hash())
         i := i + 1
       end
 
@@ -137,7 +134,7 @@ class Suffix_Array_Builder
       let max_rank: Integer := rank.max_value() + 2  -- +1 for sentinel
 
       -- Key function for second element of pair
-      let second_key: Array[Integer] := Array.filled(n, 0)
+      let second_key: Array[Integer] := create Array.filled(n, 0)
       from
         let i: Integer := 0
       until
@@ -156,7 +153,7 @@ class Suffix_Array_Builder
         counting_sort_by_index(sa, second_key, max_rank)
 
       -- Then stable sort by first key (more significant)
-      let first_key: Array[Integer] := Array.filled(n, 0)
+      let first_key: Array[Integer] := create Array.filled(n, 0)
       from
         let i: Integer := 0
       until
@@ -216,7 +213,7 @@ class Suffix_Array_Builder
     counting_sort_by_key(arr: Array[Integer],
                           keys: Array[Integer],
                           max_key: Integer): Array[Integer] do
-      let count: Array[Integer] := Array.filled(max_key, 0)
+      let count: Array[Integer] := create Array.filled(max_key, 0)
 
       across arr as val do
         count.set(keys.get(val), count.get(keys.get(val)) + 1)
@@ -233,7 +230,7 @@ class Suffix_Array_Builder
       end
 
       -- Place in sorted order (right to left for stability)
-      let output: Array[Integer] := Array.filled(arr.length, 0)
+      let output: Array[Integer] := create Array.filled(arr.length, 0)
       from
         let i: Integer := arr.length - 1
       until
@@ -253,7 +250,7 @@ class Suffix_Array_Builder
     counting_sort_by_index(arr: Array[Integer],
                             keys: Array[Integer],
                             max_key: Integer): Array[Integer] do
-      let count: Array[Integer] := Array.filled(max_key, 0)
+      let count: Array[Integer] := create Array.filled(max_key, 0)
 
       across arr as idx do
         count.set(keys.get(idx), count.get(keys.get(idx)) + 1)
@@ -268,7 +265,7 @@ class Suffix_Array_Builder
         i := i + 1
       end
 
-      let output: Array[Integer] := Array.filled(arr.length, 0)
+      let output: Array[Integer] := create Array.filled(arr.length, 0)
       from
         let i: Integer := arr.length - 1
       until
@@ -383,10 +380,10 @@ class LCP_Builder
     n: Integer
 
     build(): Array[Integer] do
-      let lcp: Array[Integer] := Array.filled(n, 0)
+      let lcp: Array[Integer] := create Array.filled(n, 0)
 
       -- Build inverse SA (rank array): rank[i] = position of suffix i in SA
-      let rank: Array[Integer] := Array.filled(n, 0)
+      let rank: Array[Integer] := create Array.filled(n, 0)
       from
         let i: Integer := 0
       until
@@ -458,7 +455,7 @@ class Suffix_Array
       this.lcp := lcp_builder.build()
 
       -- Build rank (inverse SA) for O(1) rank lookup
-      this.rank := Array.filled(this.n, 0)
+      this.rank := create Array.filled(this.n, 0)
       from
         let i: Integer := 0
       until
@@ -491,31 +488,29 @@ class Suffix_Array
     lcp_between(r1: Integer, r2: Integer): Integer do
       if r1 = r2 then
         result := n - sa.get(r1)
-        return
-      end
+      else
+        let lo: Integer := r1.min(r2) + 1
+        let hi: Integer := r1.max(r2)
+        let min_lcp: Integer := 2147483647
 
-      let lo: Integer := r1.min(r2) + 1
-      let hi: Integer := r1.max(r2)
-      let min_lcp: Integer := Integer.max_value
-
-      from
-        let i: Integer := lo
-      until
-        i <= hi
-      do
-        if lcp.get(i) < min_lcp then
-          min_lcp := lcp.get(i)
+        from
+          let i: Integer := lo
+        until
+          i <= hi
+        do
+          if lcp.get(i) < min_lcp then
+            min_lcp := lcp.get(i)
+          end
+          i := i + 1
         end
-        i := i + 1
-      end
 
-      result := min_lcp
+        result := min_lcp
+      end
     end
 
   invariant
     consistent_lengths: sa.length = n and lcp.length = n and rank.length = n
-    valid_sa: -- every position 0..n-1 appears exactly once in sa
-      true  -- checked by construction
+    valid_sa: true
 end
 ```
 
@@ -545,30 +540,28 @@ class Suffix_Array_Search
       let m: Integer := pattern.length
       if m = 0 or m > sa.n then
         result := []
-        return
+      else
+        let lo: Integer := lower_bound(pattern)
+        let hi: Integer := upper_bound(pattern)
+
+        if lo > hi then
+          result := []
+        else
+          -- Collect all positions in range [lo, hi]
+          let positions: Array[Integer] := []
+          from
+            let i: Integer := lo
+          until
+            i <= hi
+          do
+            positions.add(sa.sa.get(i))
+            i := i + 1
+          end
+
+          -- Sort positions for predictable output order
+          result := sort_integers(positions)
+        end
       end
-
-      let lo: Integer := lower_bound(pattern)
-      let hi: Integer := upper_bound(pattern)
-
-      if lo > hi then
-        result := []
-        return
-      end
-
-      -- Collect all positions in range [lo, hi]
-      let positions: Array[Integer] := []
-      from
-        let i: Integer := lo
-      until
-        i <= hi
-      do
-        positions.add(sa.sa.get(i))
-        i := i + 1
-      end
-
-      -- Sort positions for predictable output order
-      result := sort_integers(positions)
     end
 
     -- Count occurrences without materialising all positions
@@ -636,24 +629,30 @@ class Suffix_Array_Search
     compare_prefix(pos: Integer,
                    pattern: String,
                    m: Integer): Integer do
+      let done: Boolean := false
       from
         let i: Integer := 0
       until
-        i >= m
+        i >= m or done
       do
         if pos + i >= sa.n then
           result := -1  -- text shorter than pattern here
-          return
+          done := true
+        else
+          let tc: Char := sa.text.char_at(pos + i)
+          let pc: Char := pattern.char_at(i)
+          let diff: Integer := tc.compare(pc)
+          if diff /= 0 then
+            result := diff
+            done := true
+          else
+            i := i + 1
+          end
         end
-        let tc: Integer := sa.text.char_at(pos + i).to_integer()
-        let pc: Integer := pattern.char_at(i).to_integer()
-        if tc /= pc then
-          result := tc - pc
-          return
-        end
-        i := i + 1
       end
-      result := 0  -- text starts with pattern
+      if not done then
+        result := 0  -- text starts with pattern
+      end
     end
 
   invariant
@@ -677,32 +676,30 @@ The reasoning: LCP[i] is the length of the longest common prefix between suffixe
 function longest_repeated_substring(sa: Suffix_Array): String do
   if sa.n = 0 then
     result := ""
-    return
-  end
+  else
+    let max_lcp: Integer := 0
+    let max_pos: Integer := 1  -- SA rank of the suffix with max LCP
 
-  let max_lcp: Integer := 0
-  let max_pos: Integer := 1  -- SA rank of the suffix with max LCP
-
-  from
-    let i: Integer := 1
-  until
-    i >= sa.n
-  do
-    if sa.lcp.get(i) > max_lcp then
-      max_lcp := sa.lcp.get(i)
-      max_pos := i
+    from
+      let i: Integer := 1
+    until
+      i >= sa.n
+    do
+      if sa.lcp.get(i) > max_lcp then
+        max_lcp := sa.lcp.get(i)
+        max_pos := i
+      end
+      i := i + 1
     end
-    i := i + 1
-  end
 
-  if max_lcp = 0 then
-    result := ""  -- no repeated substring
-    return
+    if max_lcp = 0 then
+      result := ""  -- no repeated substring
+    else
+      -- The LRS starts at sa.sa[max_pos] and has length max_lcp
+      result := sa.text.substring(sa.sa.get(max_pos),
+                                   sa.sa.get(max_pos) + max_lcp)
+    end
   end
-
-  -- The LRS starts at sa.sa[max_pos] and has length max_lcp
-  result := sa.text.substring(sa.sa.get(max_pos),
-                               sa.sa.get(max_pos) + max_lcp)
 end
 ```
 
@@ -771,7 +768,7 @@ end
 function min_in_range(arr: Array[Integer],
                        lo: Integer,
                        hi: Integer): Integer do
-  let min_val: Integer := Integer.max_value
+  let min_val: Integer := 2147483647
   from
     let i: Integer := lo
   until

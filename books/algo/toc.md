@@ -202,26 +202,11 @@
 
 ## Appendices
 
-**Appendix A: Nex Language Reference**
-- Syntax quick reference
-- Classes, contracts, generics, and error handling
-- Concurrency primitives: tasks, channels, select
-- IO libraries: Binary_File with seek and position, Text_File, Path
-- Interop with Java and JavaScript when you need to go lower
-
-**Appendix B: Complexity and Memory Cheat Sheet**
+**Appendix A: Complexity and Memory Cheat Sheet**
 - One honest page per structure: time complexity, space complexity, cache behaviour, and when to use it
 - Covers every structure implemented in the book
 
-**Appendix C: What's Inside Real Systems**
-- Redis → skip lists, hash tables, zip lists
-- RocksDB → LSM trees, bloom filters, block-based storage
-- PostgreSQL → B-trees, buffer pool management, WAL
-- VS Code → piece tables
-- Linux kernel → red-black trees in the scheduler and virtual memory subsystem
-- A guide to reading the actual source code of each
-
-**Appendix D: Annotated Bibliography**
+**Appendix B: Annotated Bibliography**
 - Wirth, Sedgewick, CLRS, Skiena — what each covers and when to reach for it
 - Key papers: the original B-tree paper, the LSM paper, Thompson's regex construction, the skip list paper
 - Where to go deeper on concurrency: Herlihy & Shavit, the Java Memory Model specification

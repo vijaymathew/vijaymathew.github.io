@@ -80,7 +80,7 @@ class Bloom_Filter
         this.m := optimal_m(expected_elements, false_positive_rate)
         -- Optimal number of hash functions
         this.k := optimal_k(this.m, expected_elements)
-        this.bits := Array.filled(this.m, false)
+        this.bits := create Array.filled(this.m, false)
         this.count := 0
       end
 
@@ -90,7 +90,7 @@ class Bloom_Filter
         this.m := bytes_to_int(data, 0)
         this.k := bytes_to_int(data, 4)
         this.count := bytes_to_int(data, 8)
-        this.bits := Array.filled(this.m, false)
+        this.bits := create Array.filled(this.m, false)
         from
           let i: Integer := 0
         until
@@ -284,7 +284,7 @@ class Count_Min_Sketch
       do
         this.w := width
         this.d := depth
-        this.table := Array.filled(depth, Array.filled(width, 0))
+        this.table := create Array.filled(depth, create Array.filled(width, 0))
         this.seeds := generate_seeds(depth)
         this.total := 0
       end
@@ -298,7 +298,7 @@ class Count_Min_Sketch
         -- w = ceil(e / epsilon), d = ceil(ln(1 / delta))
         this.w := (euler.to_real() / epsilon).ceiling().to_integer()
         this.d := (ln(1.0 / delta)).ceiling().to_integer()
-        this.table := Array.filled(this.d, Array.filled(this.w, 0))
+        this.table := create Array.filled(this.d, create Array.filled(this.w, 0))
         this.seeds := generate_seeds(this.d)
         this.total := 0
       end
@@ -511,7 +511,7 @@ class HyperLogLog
         -- Standard error ≈ 1.04 / sqrt(m)
         this.p := precision
         this.m := (1).bitwise_left_shift(precision)  -- 2^precision registers
-        this.registers := Array.filled(this.m, 0)
+        this.registers := create Array.filled(this.m, 0)
         this.alpha := compute_alpha(this.m)
       end
 

@@ -56,13 +56,13 @@ print(f"Wasted bits (naive):   {(6 - H) * len(sample):.1f} bits")
 
 Output:
 ```
-Entropy:               4.057 bits/character
-Optimal encoding:      174.5 bits
-Optimal encoding:      21.8 bytes
-Wasted bits (naive):   83.5 bits
+Entropy:               4.385 bits/character
+Optimal encoding:      188.6 bits
+Optimal encoding:      23.6 bytes
+Wasted bits (naive):   69.4 bits
 ```
 
-The naive approach wastes 83 bits — nearly a third of the total — simply by assigning the same length code to every symbol regardless of frequency. The letter `e` appears five times in our sample; the letter `q` appears once. Why give them the same length code?
+The naive approach wastes about 69 bits — more than a quarter of the total — simply by assigning the same length code to every symbol regardless of frequency. The space character appears eight times in our sample; many letters appear only once. Why give them the same length code?
 
 The answer is: we should not. This is the central insight of variable-length coding.
 
@@ -185,7 +185,10 @@ Let's implement this carefully:
 
 ```python
 import heapq
+import math
+from collections import Counter
 from dataclasses import dataclass, field
+from itertools import count
 from typing import Optional, Dict
 
 @dataclass
@@ -198,43 +201,37 @@ class HuffmanNode:
     def is_leaf(self):
         return self.symbol is not None
 
-    # Comparison for the heap: compare by frequency only
-    def __lt__(self, other):
-        return self.freq < other.freq
-
-    def __eq__(self, other):
-        return self.freq == other.freq
-
 
 def build_huffman_tree(text: str) -> HuffmanNode:
     """Build a Huffman tree from a string. Returns the root node."""
     counts = Counter(text)
     total  = len(text)
+    tie_breaker = count()
 
-    # Create leaf nodes
-    heap = [HuffmanNode(freq=count/total, symbol=char)
+    # Create leaf nodes with a deterministic tie-breaker so the example is reproducible.
+    heap = [(count / total, next(tie_breaker), HuffmanNode(freq=count / total, symbol=char))
             for char, count in counts.items()]
     heapq.heapify(heap)
 
     # Edge case: single unique symbol
     if len(heap) == 1:
-        only = heapq.heappop(heap)
+        _, _, only = heapq.heappop(heap)
         root = HuffmanNode(freq=1.0, left=only,
                            right=HuffmanNode(freq=0.0, symbol='\x00'))
         return root
 
     # Build tree bottom-up
     while len(heap) > 1:
-        left  = heapq.heappop(heap)
-        right = heapq.heappop(heap)
+        _, _, left  = heapq.heappop(heap)
+        _, _, right = heapq.heappop(heap)
         parent = HuffmanNode(
             freq  = left.freq + right.freq,
             left  = left,
             right = right,
         )
-        heapq.heappush(heap, parent)
+        heapq.heappush(heap, (parent.freq, next(tie_breaker), parent))
 
-    return heapq.heappop(heap)
+    return heapq.heappop(heap)[2]
 
 
 def extract_codes(root: HuffmanNode,
@@ -257,6 +254,12 @@ def extract_codes(root: HuffmanNode,
 Let's test this on our sample string:
 
 ```python
+def entropy_bits(text: str) -> float:
+    counts = Counter(text)
+    total  = len(text)
+    probs  = [c / total for c in counts.values()]
+    return -sum(p * math.log2(p) for p in probs)
+
 sample = "the quick brown fox jumps over the lazy dog"
 root   = build_huffman_tree(sample)
 codes  = extract_codes(root)
@@ -270,7 +273,7 @@ print("-" * 56)
 
 avg_length = 0
 for symbol, code in sorted(codes.items(),
-                            key=lambda x: -counts[x[0]]):
+                            key=lambda x: (-counts[x[0]], x[0])):
     freq   = counts[symbol] / total
     length = len(code)
     contrib = freq * length
@@ -287,28 +290,28 @@ print(f"Total bits (optimal):    {H * len(sample):.1f}")
 print(f"Total bits (naive 6-bit):{6 * len(sample)}")
 ```
 
-Output (will vary slightly with tie-breaking):
+Output:
 ```
 Symbol   Freq   Code             Length   Contribution
 --------------------------------------------------------
-' '      0.128  101               3       0.3846
-o        0.093  001               3       0.2791
-e        0.070  1101              4       0.2791
-t        0.070  1100              4       0.2791
-h        0.047  0001              4       0.1860
-r        0.047  0000              4       0.1860
-u        0.047  1001              4       0.1860
+' '      0.186  110               3       0.5581
+o        0.093  1011              4       0.3721
+e        0.070  1010              4       0.2791
+h        0.047  11101             5       0.2326
+r        0.047  11111             5       0.2326
+t        0.047  11100             5       0.2326
+u        0.047  11110             5       0.2326
 ...
 
-Average codeword length: 4.2647 bits/symbol
-Entropy:                 4.0573 bits/symbol
-Overhead:                0.2074 bits/symbol
-Total bits (Huffman):    183.4
-Total bits (optimal):    174.5
+Average codeword length: 4.4651 bits/symbol
+Entropy:                 4.3855 bits/symbol
+Overhead:                0.0797 bits/symbol
+Total bits (Huffman):    192.0
+Total bits (optimal):    188.6
 Total bits (naive 6-bit):258
 ```
 
-The Huffman code uses 183 bits versus the naive 258 — a 29% reduction. It is within 9 bits of the theoretical optimum of 174. The overhead (0.21 bits/symbol) comes entirely from rounding fractional optimal code lengths up to integers.
+The Huffman code uses 192 bits versus the naive 258 — about a 26% reduction. It is within 4 bits of the theoretical optimum of 188.6. The remaining overhead, about 0.08 bits per symbol, comes from rounding fractional optimal code lengths up to integers.
 
 ---
 
@@ -588,12 +591,13 @@ L = ∑ p(x) · l(x)
   = H + 1
 ```
 
-The one-bit overhead is a direct consequence of rounding fractional optimal lengths up to integers. It is not a flaw in the algorithm — it is the inescapable cost of integer constraints.
+The one-bit overhead is a direct consequence of rounding fractional optimal lengths up to integers. To make that concrete, we will analyze the **rounded Shannon lengths** `⌈-log₂ p(x)⌉`. These are not necessarily the exact lengths Huffman will assign symbol-by-symbol. The point is subtler and more important: these rounded lengths always define a valid prefix code, so Huffman, being optimal among prefix codes, can only do **at least as well** on average.
 
 ```python
-def huffman_overhead_analysis(probs):
+def one_bit_bound_analysis(probs):
     """
-    Analyze the source of Huffman's overhead for a given distribution.
+    Analyze the rounded-length construction used to prove the H < L < H + 1 bound.
+    Huffman's actual average length is no larger than the average shown here.
     """
     optimal_lengths   = [-math.log2(p) for p in probs]
     integer_lengths   = [math.ceil(-math.log2(p)) for p in probs]
@@ -609,10 +613,10 @@ def huffman_overhead_analysis(probs):
                                integer_lengths, rounding_overhead):
         print(f"{p:>8.3f} {ol:>12.4f} {il:>12} {ro:>10.4f}")
     print(f"\nEntropy H:       {H:.4f}")
-    print(f"Avg length L:    {L:.4f}")
+    print(f"Rounded-code L:  {L:.4f}")
     print(f"Overhead L-H:    {L-H:.4f}")
 
-huffman_overhead_analysis([0.5, 0.25, 0.15, 0.10])
+one_bit_bound_analysis([0.5, 0.25, 0.15, 0.10])
 ```
 
 Output:
@@ -624,14 +628,14 @@ Output:
    0.150       2.7370            3     0.2630
    0.100       3.3219            4     0.6781
 
-Entropy H:       1.8480
-Avg length L:    1.9000
-Overhead L-H:    0.0520
+Entropy H:       1.7427
+Rounded-code L:  1.8500
+Overhead L-H:    0.1073
 ```
 
-The overhead comes entirely from rounding. In this example, 0.5 and 0.25 are exact powers of two, so they incur zero rounding. The other two probabilities are not powers of two, so their codewords must be rounded up — contributing to the overhead.
+The overhead comes entirely from rounding. In this example, 0.5 and 0.25 are exact powers of two, so they incur zero rounding. The other two probabilities are not powers of two, so their codewords must be rounded up — contributing to the overhead. The average length of this rounded code is 1.85 bits, so Huffman is guaranteed to achieve **at most** that average length on the same distribution.
 
-When all probabilities are exact powers of two (like 0.5, 0.25, 0.125...), Huffman coding achieves the entropy exactly. In all other cases, there is some overhead, bounded by 1 bit per symbol.
+When all probabilities are exact powers of two (like 0.5, 0.25, 0.125...), Huffman coding achieves the entropy exactly. In all other cases, there is some overhead, but Huffman still stays within 1 bit per symbol of the entropy because it can never be worse than this rounded-length construction.
 
 This is the precise statement of Huffman's limitation, and it directly motivates arithmetic coding: by encoding sequences of symbols together rather than one at a time, arithmetic coding amortizes the rounding error across many symbols, driving the overhead to nearly zero.
 
@@ -686,11 +690,12 @@ Output (example):
 ```
 Symbol     Huffman    Canonical
 --------------------------------
-' '           101          000
-'b'          0110         0010
-'c'         11100         0011
-'d'          1000          010
-'e'          1101         0110
+' '           110          000
+'a'         01111        01000
+'b'         00100        01001
+'c'         00010        01010
+'d'         10010        01011
+'e'          1010         0010
 ...
 ```
 

@@ -71,13 +71,13 @@ Output:
    Message    Encoded   Valid?
 --------------------------------
       0000      00000     True
-      1010      10101     True
+      1010      10100     True
       1111      11110     True
-      1001      10011     True
+      1001      10010     True
 
 Error detection:
-Original codeword:  10101
-Corrupted codeword: 10001
+Original codeword:  10100
+Corrupted codeword: 10000
 Error detected:     True
 ```
 
@@ -297,8 +297,8 @@ Output:
 --------------------------------
     0000    0000000          0
     1010    1011010          0
-    1111    1110101          0
-    0101    1010110          0
+    1111    1111111          0
+    0101    0100101          0
 ```
 
 All valid codewords have syndrome 0. Now let's introduce errors:
@@ -387,31 +387,43 @@ c = m · G  (mod 2)
 ```
 
 ```python
-import numpy as np
-
-def matrix_multiply_mod2(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+def matrix_multiply_mod2(A: list[list[int]],
+                         B: list[list[int]]) -> list[list[int]]:
     """Matrix multiplication modulo 2."""
-    return np.mod(A @ B, 2)
+    rows  = len(A)
+    cols  = len(B[0])
+    inner = len(B)
+    out   = [[0] * cols for _ in range(rows)]
 
-def linear_encode(message: np.ndarray, G: np.ndarray) -> np.ndarray:
+    for i in range(rows):
+        for j in range(cols):
+            value = 0
+            for k in range(inner):
+                value ^= A[i][k] & B[k][j]
+            out[i][j] = value
+    return out
+
+def linear_encode(message: list[int],
+                  G: list[list[int]]) -> list[int]:
     """Encode a message using generator matrix G."""
-    return matrix_multiply_mod2(message, G)
+    return matrix_multiply_mod2([message], G)[0]
 
 # Generator matrix for Hamming(7,4)
-# Rows correspond to the 4 data bits
-G_hamming = np.array([
-    [1, 0, 0, 0, 1, 1, 0],  # data bit 1
-    [0, 1, 0, 0, 1, 0, 1],  # data bit 2
-    [0, 0, 1, 0, 0, 1, 1],  # data bit 3
-    [0, 0, 0, 1, 1, 1, 1],  # data bit 4
-], dtype=int)
+# Rows are the codewords for basis messages 1000, 0100, 0010, 0001.
+# This matches the earlier parity-bit construction exactly.
+G_hamming = [
+    [1, 1, 1, 0, 0, 0, 0],
+    [1, 0, 0, 1, 1, 0, 0],
+    [0, 1, 0, 1, 0, 1, 0],
+    [1, 1, 0, 1, 0, 0, 1],
+]
 
 # Encode all 16 possible 4-bit messages
 print("All Hamming(7,4) codewords:")
 print(f"{'Message':>10}  {'Codeword':>10}")
 print("-" * 24)
 for i in range(16):
-    msg  = np.array([int(b) for b in format(i, '04b')])
+    msg  = [int(b) for b in format(i, '04b')]
     code = linear_encode(msg, G_hamming)
     msg_str  = ''.join(str(b) for b in msg)
     code_str = ''.join(str(b) for b in code)
@@ -424,20 +436,20 @@ All Hamming(7,4) codewords:
    Message    Codeword
 ------------------------
       0000     0000000
-      0001     0001111
-      0010     0010110
-      0011     0011001
-      0100     0100101
-      0101     0101010
-      0110     0110011
-      0111     0111100
-      1000     1000011
-      1001     1001100
-      1010     1010101
-      1011     1011010
-      1100     1100110
-      1101     1101001
-      1110     1110000
+      0001     1101001
+      0010     0101010
+      0011     1000011
+      0100     1001100
+      0101     0100101
+      0110     1100110
+      0111     0001111
+      1000     1110000
+      1001     0011001
+      1010     1011010
+      1011     0110011
+      1100     0111100
+      1101     1010101
+      1110     0010110
       1111     1111111
 ```
 
@@ -445,41 +457,44 @@ The companion to the generator matrix is the *parity check matrix* H — an (n-k
 
 ```python
 # Parity check matrix for Hamming(7,4)
-# Each column is the binary representation of its column index
-H_hamming = np.array([
-    [1, 0, 1, 0, 1, 0, 1],  # bit 1 of column index
-    [0, 1, 1, 0, 0, 1, 1],  # bit 2 of column index
-    [0, 0, 0, 1, 1, 1, 1],  # bit 3 of column index
-], dtype=int)
+# Each column is the binary representation of its column index,
+# least-significant bit first: [s1, s2, s4].
+H_hamming = [
+    [1, 0, 1, 0, 1, 0, 1],
+    [0, 1, 1, 0, 0, 1, 1],
+    [0, 0, 0, 1, 1, 1, 1],
+]
 
-def compute_syndrome(received: np.ndarray,
-                     H: np.ndarray) -> np.ndarray:
+def compute_syndrome(received: list[int],
+                     H: list[list[int]]) -> list[int]:
     """Compute syndrome of received word."""
-    return matrix_multiply_mod2(H, received.reshape(-1, 1)).flatten()
+    column = [[b] for b in received]
+    return [row[0] for row in matrix_multiply_mod2(H, column)]
 
-def decode_with_parity_check(received: np.ndarray,
-                              H: np.ndarray) -> tuple:
+def decode_with_parity_check(received: list[int],
+                             H: list[list[int]]) -> tuple:
     """
     Decode using parity check matrix.
     Returns (corrected, error_position).
     """
     syndrome = compute_syndrome(received, H)
 
-    # Convert syndrome to integer (error position)
-    error_pos = int(''.join(str(b) for b in syndrome), 2)
+    # Syndrome bits are [s1, s2, s4], so the error position is
+    # s1 + 2*s2 + 4*s4.
+    error_pos = syndrome[0] + 2 * syndrome[1] + 4 * syndrome[2]
 
     if error_pos == 0:
-        return received.copy(), 0
+        return received[:], 0
 
     # Correct the error
-    corrected              = received.copy()
+    corrected              = received[:]
     corrected[error_pos-1] = 1 - corrected[error_pos-1]
     return corrected, error_pos
 
 # Test
-msg      = np.array([1, 0, 1, 0])
+msg      = [1, 0, 1, 0]
 codeword = linear_encode(msg, G_hamming)
-received = codeword.copy()
+received = codeword[:]
 received[3] = 1 - received[3]  # Flip bit 4
 
 corrected, err_pos = decode_with_parity_check(received, H_hamming)
@@ -489,14 +504,14 @@ print(f"Received:  {''.join(str(b) for b in received)}")
 print(f"Syndrome:  {compute_syndrome(received, H_hamming)}")
 print(f"Error at:  position {err_pos}")
 print(f"Corrected: {''.join(str(b) for b in corrected)}")
-print(f"Match:     {np.array_equal(corrected, codeword)}")
+print(f"Match:     {corrected == codeword}")
 ```
 
 Output:
 ```
 Sent:      1010101
 Received:  1011101
-Syndrome:  [0 1 0]
+Syndrome:  [0, 0, 1]
 Error at:  position 4
 Corrected: 1010101
 Match:     True
@@ -511,6 +526,16 @@ Parity and Hamming codes are excellent for memory and storage. For data transmis
 The mathematics of CRCs is polynomial arithmetic over GF(2) (the field with two elements, 0 and 1). A message is treated as a polynomial with binary coefficients, divided by a fixed *generator polynomial*, and the remainder becomes the CRC.
 
 ```python
+def crc_remainder(bitstring: str, polynomial: str) -> str:
+    """Binary polynomial long division over GF(2)."""
+    current = list(bitstring)
+    for i in range(len(bitstring) - len(polynomial) + 1):
+        if current[i] == '1':
+            for j, bit in enumerate(polynomial):
+                if bit == '1':
+                    current[i + j] = '0' if current[i + j] == '1' else '1'
+    return ''.join(current[-(len(polynomial) - 1):])
+
 def crc_compute(data: str, polynomial: str) -> str:
     """
     Compute CRC of binary data string using given polynomial.
@@ -518,27 +543,21 @@ def crc_compute(data: str, polynomial: str) -> str:
     polynomial should include the leading 1.
     Example: CRC-8 polynomial x^8 + x^2 + x + 1 = '100000111'
     """
-    # Append zeros equal to degree of polynomial
-    degree  = len(polynomial) - 1
-    padded  = data + '0' * degree
-    current = list(padded)
-
-    for i in range(len(data)):
-        if current[i] == '1':
-            for j, bit in enumerate(polynomial):
-                if bit == '1':
-                    current[i + j] = '0' if current[i + j] == '1' else '1'
-
-    return ''.join(current[len(data):])
+    degree = len(polynomial) - 1
+    return crc_remainder(data + '0' * degree, polynomial)
 
 def crc_verify(data_with_crc: str, polynomial: str) -> bool:
     """
     Verify CRC. Returns True if data is uncorrupted.
     data_with_crc: original data with CRC appended.
     """
-    degree   = len(polynomial) - 1
-    remainder = crc_compute(data_with_crc[:-degree], polynomial)
-    return remainder == data_with_crc[-degree:]
+    degree = len(polynomial) - 1
+    return crc_remainder(data_with_crc, polynomial) == '0' * degree
+
+def flip_bit(bits: str, position: int) -> str:
+    chars = list(bits)
+    chars[position] = '1' if chars[position] == '0' else '0'
+    return ''.join(chars)
 
 # CRC-8 example (polynomial: x^8 + x^2 + x + 1)
 poly8     = '100000111'
@@ -552,8 +571,8 @@ print(f"CRC-8:     {crc}")
 print(f"Protected: {protected}")
 print(f"Valid:     {crc_verify(protected, poly8)}")
 
-# Introduce a burst error
-corrupted = protected[:5] + '0' + protected[6:]
+# Introduce a bit error
+corrupted = flip_bit(protected, 5)
 print(f"\nCorrupted: {corrupted}")
 print(f"Valid:     {crc_verify(corrupted, poly8)}")
 ```
@@ -561,11 +580,11 @@ print(f"Valid:     {crc_verify(corrupted, poly8)}")
 Output:
 ```
 Message:   11010011101100
-CRC-8:     10001110
-Protected: 1101001110110010001110
+CRC-8:     00100111
+Protected: 1101001110110000100111
 Valid:     True
 
-Corrupted: 1101000110110010001110
+Corrupted: 1101011110110000100111
 Valid:     False
 ```
 
@@ -622,14 +641,19 @@ def crc32_demo():
         bytes(range(256)),
     ]
 
-    print(f"{'Message (first 30 chars)':<35} {'CRC-32':>12}")
+    print(f"{'Message':<35} {'CRC-32':>12}")
     print("-" * 50)
-    for msg in messages:
+    labels = [
+        "Hello, World!",
+        "The quick brown fox jumps over the lazy dog",
+        "1000 zero bytes",
+        "bytes(0..255)",
+    ]
+    for label, msg in zip(labels, messages):
         crc   = zlib.crc32(msg) & 0xFFFFFFFF
-        display = repr(msg[:30])[2:-1]
-        print(f"{display:<35} {crc:>12d}  ({crc:#010x})")
+        print(f"{label:<35} {crc:>12d}  ({crc:#010x})")
 
-    # Demonstrate sensitivity: one bit change -> completely different CRC
+    # Demonstrate sensitivity: one character change -> very different CRC
     msg1 = b"Hello, World!"
     msg2 = b"Hello, world!"  # lowercase 'w'
     print(f"\nOne-character change:")
@@ -641,19 +665,19 @@ crc32_demo()
 
 Output:
 ```
-Message (first 30 chars)               CRC-32
+Message                               CRC-32
 --------------------------------------------------
-Hello, World!                      3964322768  (0xec4ac3b0)
-The quick brown fox jumps over t    681726265  (0x28a9fa39)
-\x00 * 1000                        613503771  (0x249c895b)
-\x00\x01\x02...                   2966844246  (0xb0ae863)
+Hello, World!                      3964322768  (0xec4ac3d0)
+The quick brown fox jumps over the lazy dog   1095738169  (0x414fa339)
+1000 zero bytes                     101390208  (0x060b1780)
+bytes(0..255)                       688229491  (0x29058c73)
 
 One-character change:
-  'Hello, World!': 0xec4ac3b0
-  'Hello, world!': 0x3bba4e4d
+  'Hello, World!': 0xec4ac3d0
+  'Hello, world!': 0xebe6c6e6
 ```
 
-A single character change flips half the bits in the CRC — a property called the *avalanche effect*, essential for detecting subtle corruptions.
+A single character change alters many bits in the CRC — a practical version of the *avalanche effect*, which is exactly what makes CRCs effective at detecting subtle corruptions.
 
 ---
 
@@ -663,66 +687,28 @@ Hamming codes correct single-bit errors. CRCs detect burst errors. But for long 
 
 Reed-Solomon codes work over symbols (bytes) rather than individual bits, and they can correct entire symbol erasures. An RS(n, k) code encodes k data symbols into n total symbols and can correct up to (n - k)/2 symbol errors, or up to (n - k) symbol erasures (when the positions of lost symbols are known).
 
-The mathematics is elegant but requires finite field arithmetic. For now, let's focus on the practical properties and use Python's `reedsolo` library:
+The mathematics is elegant but requires finite field arithmetic. For now, let us focus on the practical tradeoffs that matter in systems code: rate, parity overhead, and how many symbol errors or erasures a code can survive.
 
 ```python
-# pip install reedsolo
-try:
-    import reedsolo
+def reed_solomon_properties():
+    """
+    Show the practical tradeoffs of a few Reed-Solomon codes.
+    For RS(n, k): n total symbols, k data symbols.
+    Corrects floor((n-k)/2) symbol errors, or up to (n-k) erasures.
+    """
+    data_bytes   = 43
+    parity_bytes = 32
+    total_bytes  = data_bytes + parity_bytes
 
-    def reed_solomon_demo():
-        """Demonstrate Reed-Solomon encoding and error correction."""
-
-        # RS(255, 223): the standard used in deep space communication
-        # 223 data bytes, 32 parity bytes, corrects up to 16 byte errors
-        rs = reedsolo.RSCodec(32)  # 32 parity bytes
-
-        message = b"The quick brown fox jumps over the lazy dog"
-        encoded = rs.encode(message)
-
-        print(f"Original message:  {len(message)} bytes")
-        print(f"Encoded:           {len(encoded)} bytes")
-        print(f"Parity bytes:      {len(encoded) - len(message)}")
-        print(f"Rate:              {len(message)/len(encoded):.4f}")
-        print(f"Corrects up to:    16 byte errors")
-        print()
-
-        # Introduce 16 random byte errors
-        import random
-        corrupted     = bytearray(encoded)
-        error_positions = random.sample(range(len(encoded)), 16)
-        for pos in error_positions:
-            corrupted[pos] = random.randint(0, 255)
-
-        try:
-            decoded, _, _  = rs.decode(bytes(corrupted))
-            print(f"16 errors injected at: {sorted(error_positions)}")
-            print(f"Decoded correctly:     {decoded == message}")
-        except reedsolo.ReedSolomonError as e:
-            print(f"Decoding failed: {e}")
-
-        # Introduce 17 errors -- beyond correction capacity
-        corrupted2     = bytearray(encoded)
-        error_positions2 = random.sample(range(len(encoded)), 17)
-        for pos in error_positions2:
-            corrupted2[pos] = random.randint(0, 255)
-
-        try:
-            decoded2, _, _ = rs.decode(bytes(corrupted2))
-            print(f"\n17 errors: decoded {'correctly' if decoded2 == message else 'INCORRECTLY'}")
-        except reedsolo.ReedSolomonError as e:
-            print(f"\n17 errors: decoding failed (expected): {e}")
-
-    reed_solomon_demo()
-
-except ImportError:
-    print("reedsolo not installed. Run: pip install reedsolo")
-    print("\nReed-Solomon properties:")
-    print("RS(n, k): n total symbols, k data symbols")
-    print("Corrects: floor((n-k)/2) symbol errors")
-    print("Erases:   up to (n-k) known-position errors")
+    print("Reed-Solomon tradeoff example")
+    print(f"Original message:   {data_bytes} bytes")
+    print(f"Encoded length:     {total_bytes} bytes")
+    print(f"Parity bytes:       {parity_bytes}")
+    print(f"Rate:               {data_bytes / total_bytes:.4f}")
+    print(f"Corrects up to:     {parity_bytes // 2} byte errors")
+    print(f"Or up to:           {parity_bytes} byte erasures")
     print()
-    # Show properties without the library
+
     configs = [
         (255, 223, "Deep space (CCSDS)"),
         (255, 239, "QR codes"),
@@ -738,23 +724,29 @@ except ImportError:
         rate     = k / n
         print(f"RS({n},{k})  {k:>6} {parity:>8} {corrects:>10} "
               f"{rate:>8.4f} {use:<20}")
+
+reed_solomon_properties()
 ```
 
 Output:
 ```
-Original message:  43 bytes
-Encoded:           75 bytes
-Parity bytes:      32
-Rate:              0.5733
-Corrects up to:    16 byte errors
+Reed-Solomon tradeoff example
+Original message:   43 bytes
+Encoded length:     75 bytes
+Parity bytes:       32
+Rate:               0.5733
+Corrects up to:     16 byte errors
+Or up to:           32 byte erasures
 
-16 errors injected at: [3, 11, 22, 31, 38, 44, 51, 58, 62, 67, 70, 71, 72, 73, 74, 75]
-Decoded correctly:     True
-
-17 errors: decoding failed (expected): Too many (17) errors found by Chien Search...
+Config         Data   Parity   Corrects     Rate Use case
+--------------------------------------------------------------------
+RS(255,223)     223       32         16   0.8745 Deep space (CCSDS)
+RS(255,239)     239       16          8   0.9373 QR codes
+RS(255,251)     251        4          2   0.9843 Storage (light)
+RS(32,28)        28        4          2   0.8750 Audio CD
 ```
 
-Reed-Solomon codes are everywhere:
+Reed-Solomon codes are everywhere. If you want to experiment with actual encoding and decoding, the `reedsolo` Python package is a good practical companion to this chapter; but the core engineering tradeoffs are already visible in the simple calculations above:
 
 - **CDs and DVDs:** Use a two-layer RS system (CIRC) that corrects burst errors from scratches up to 4000 consecutive bit errors.
 - **QR codes:** Use RS codes that allow up to 30% of a code to be destroyed and still be readable.
@@ -773,213 +765,168 @@ Everything we have covered so far leaves a substantial gap between achieved perf
 The key idea: use a very sparse parity check matrix H (few 1s per row and column) and decode using *belief propagation* — an iterative message-passing algorithm that works efficiently on the bipartite graph defined by H.
 
 ```python
-import numpy as np
 import random
 
 def make_ldpc_matrix(n: int, k: int,
-                     row_weight: int = 3,
-                     col_weight: int = None) -> np.ndarray:
+                     ones_per_data_col: int = 2,
+                     seed: int = 42) -> list[list[int]]:
     """
-    Generate a random sparse LDPC parity check matrix.
-    n: codeword length
-    k: message length
-    row_weight: number of 1s per parity check row
+    Generate a small systematic LDPC-style parity check matrix H = [A | I].
+    The data part A is sparse; the parity part is identity so encoding is
+    straightforward.
     """
-    m          = n - k  # Number of parity checks
-    col_weight = col_weight or (m * row_weight) // n
-    H          = np.zeros((m, n), dtype=int)
+    m   = n - k
+    rng = random.Random(seed)
+    H_s = [[0] * k for _ in range(m)]
 
-    for j in range(n):
-        rows       = random.sample(range(m), min(col_weight, m))
+    for j in range(k):
+        rows = rng.sample(range(m), min(ones_per_data_col, m))
         for r in rows:
-            H[r, j] = 1
+            H_s[r][j] = 1
 
-    return H
+    return [
+        H_s[r] + [1 if c == r else 0 for c in range(m)]
+        for r in range(m)
+    ]
 
-def ldpc_encode_systematic(message: np.ndarray,
-                            H: np.ndarray) -> np.ndarray:
+def ldpc_encode_systematic(message: list[int],
+                           H: list[list[int]]) -> list[int]:
     """
     Systematic LDPC encoding: [message | parity].
-    Finds parity bits p such that H * [m | p]^T = 0 mod 2.
-    Simplified for small codes.
+    With H = [A | I], the parity bits are just A * message mod 2.
     """
     k = len(message)
-    n = H.shape[1]
-    m = H.shape[0]
+    parity = []
+    for row in H:
+        bit = 0
+        for a, b in zip(row[:k], message):
+            bit ^= a & b
+        parity.append(bit)
+    return message + parity
 
-    # Partition H = [H_s | H_p] where H_p is m x m
-    H_s = H[:, :k]
-    H_p = H[:, k:]
-
-    # Solve H_p * p = H_s * m (mod 2)
-    # Use Gaussian elimination mod 2
-    target = matrix_multiply_mod2(H_s, message.reshape(-1, 1)).flatten()
-
-    # Simple approach: try to invert H_p
-    try:
-        # This works only if H_p is invertible mod 2
-        H_p_inv = mod2_inverse(H_p)
-        parity  = matrix_multiply_mod2(H_p_inv,
-                                       target.reshape(-1, 1)).flatten()
-        return np.concatenate([message, parity])
-    except Exception:
-        # Fallback: random valid codeword construction
-        return np.concatenate([message, target % 2])
-
-def mod2_inverse(M: np.ndarray) -> np.ndarray:
-    """
-    Compute inverse of a matrix modulo 2 using Gaussian elimination.
-    """
-    n   = M.shape[0]
-    aug = np.concatenate([M.copy(), np.eye(n, dtype=int)], axis=1)
-
-    for col in range(n):
-        # Find pivot
-        pivot = None
-        for row in range(col, n):
-            if aug[row, col] == 1:
-                pivot = row
-                break
-        if pivot is None:
-            raise ValueError("Matrix is singular mod 2")
-
-        aug[[col, pivot]] = aug[[pivot, col]]
-
-        for row in range(n):
-            if row != col and aug[row, col] == 1:
-                aug[row] = (aug[row] + aug[col]) % 2
-
-    return aug[:, n:]
-
+def syndrome(bits: list[int], H: list[list[int]]) -> list[int]:
+    """Compute H * bits^T mod 2."""
+    syn = []
+    for row in H:
+        value = 0
+        for a, b in zip(row, bits):
+            value ^= a & b
+        syn.append(value)
+    return syn
 
 class BeliefPropagationDecoder:
     """
-    Sum-product (belief propagation) LDPC decoder.
-    Operates on log-likelihood ratios (LLRs).
+    Min-sum belief propagation on a sparse parity-check graph.
+    This is a toy implementation, but it captures the structure of
+    practical LDPC decoding.
     """
 
-    def __init__(self, H: np.ndarray, max_iterations: int = 50):
-        self.H              = H
-        self.m, self.n      = H.shape
+    def __init__(self, H: list[list[int]], max_iterations: int = 50):
+        self.H = H
+        self.m = len(H)
+        self.n = len(H[0])
         self.max_iterations = max_iterations
+        self.check_neighbors = [
+            [j for j, value in enumerate(row) if value]
+            for row in H
+        ]
+        self.var_neighbors = [
+            [i for i, row in enumerate(H) if row[j]]
+            for j in range(self.n)
+        ]
 
-    def decode(self, channel_llr: np.ndarray) -> np.ndarray:
+    def decode(self, channel_llr: list[float]) -> list[int]:
         """
-        Decode using belief propagation.
-        channel_llr: log-likelihood ratios from channel
-                     LLR > 0 => bit is likely 0
-                     LLR < 0 => bit is likely 1
-        Returns decoded bits.
+        Decode using the min-sum approximation to belief propagation.
+        LLR > 0 means bit 0 is more likely; LLR < 0 means bit 1 is more likely.
         """
-        # Initialize variable-to-check messages
-        v2c = np.zeros((self.m, self.n))
-        for i in range(self.m):
-            for j in range(self.n):
-                if self.H[i, j] == 1:
-                    v2c[i, j] = channel_llr[j]
+        v2c = {
+            (i, j): channel_llr[j]
+            for i in range(self.m)
+            for j in self.check_neighbors[i]
+        }
+        c2v = {
+            (i, j): 0.0
+            for i in range(self.m)
+            for j in self.check_neighbors[i]
+        }
+        total_llr = channel_llr[:]
 
-        c2v = np.zeros((self.m, self.n))
-
-        for iteration in range(self.max_iterations):
-            # Check-to-variable update (min-sum approximation)
+        for _ in range(self.max_iterations):
             for i in range(self.m):
-                connected = [j for j in range(self.n)
-                             if self.H[i, j] == 1]
+                connected = self.check_neighbors[i]
                 for j in connected:
-                    others = [v2c[i, k] for k in connected if k != j]
-                    if others:
-                        sign    = 1 if sum(1 for x in others if x < 0) % 2 == 0 else -1
-                        min_mag = min(abs(x) for x in others)
-                        c2v[i, j] = sign * min_mag
+                    others = [v2c[(i, k)] for k in connected if k != j]
+                    if not others:
+                        c2v[(i, j)] = 0.0
+                        continue
+                    sign = -1.0 if sum(1 for x in others if x < 0) % 2 else 1.0
+                    min_mag = min(abs(x) for x in others)
+                    c2v[(i, j)] = sign * min_mag
 
-            # Variable-to-check update
             for j in range(self.n):
-                connected = [i for i in range(self.m)
-                             if self.H[i, j] == 1]
-                total_llr = channel_llr[j] + sum(c2v[i, j]
-                                                   for i in connected)
+                connected = self.var_neighbors[j]
+                total = channel_llr[j] + sum(c2v[(i, j)] for i in connected)
+                total_llr[j] = total
                 for i in connected:
-                    v2c[i, j] = total_llr - c2v[i, j]
+                    v2c[(i, j)] = total - c2v[(i, j)]
 
-            # Hard decision
-            total_llr = np.array([
-                channel_llr[j] + sum(c2v[i, j]
-                                     for i in range(self.m)
-                                     if self.H[i, j] == 1)
-                for j in range(self.n)
-            ])
-            bits = (total_llr < 0).astype(int)
+            bits = [1 if total_llr[j] < 0 else 0 for j in range(self.n)]
+            if all(value == 0 for value in syndrome(bits, self.H)):
+                return bits
 
-            # Check if valid codeword
-            syndrome = matrix_multiply_mod2(self.H, bits.reshape(-1, 1))
-            if np.all(syndrome == 0):
-                return bits  # Converged
-
-        # Return best guess if no convergence
-        return (total_llr < 0).astype(int)
+        return [1 if total_llr[j] < 0 else 0 for j in range(self.n)]
 
 
 def ldpc_simulation():
     """
-    Simulate LDPC code performance on BSC and AWGN channel.
+    Simulate a tiny LDPC code on an AWGN channel.
+    This is far smaller than production codes, but it shows the shape
+    of the gain from iterative decoding.
     """
-    import random
     import math
 
-    # Small LDPC code for demonstration
     n, k = 20, 10
-    np.random.seed(42)
-    random.seed(42)
-
-    H       = make_ldpc_matrix(n, k, row_weight=3)
+    H       = make_ldpc_matrix(n, k, ones_per_data_col=2, seed=42)
     decoder = BeliefPropagationDecoder(H, max_iterations=20)
+    rng     = random.Random(42)
 
+    density = sum(sum(row) for row in H) / (len(H) * len(H[0]))
     print("LDPC code simulation")
     print(f"Code parameters: n={n}, k={k}, rate={k/n:.2f}")
-    print(f"Parity check matrix density: "
-          f"{H.sum()/(H.shape[0]*H.shape[1]):.3f}\n")
+    print(f"Parity check matrix density: {density:.3f}\n")
 
-    # Simulate over AWGN channel at various SNRs
     n_trials = 500
     print(f"{'SNR (dB)':>10} {'BER (uncoded)':>16} {'BER (LDPC)':>14}")
     print("-" * 44)
 
     for snr_db in [0, 2, 4, 6, 8]:
-        snr_linear  = 10 ** (snr_db / 10)
-        sigma       = 1 / math.sqrt(2 * snr_linear * k/n)
+        snr_linear = 10 ** (snr_db / 10)
+        sigma      = 1 / math.sqrt(2 * snr_linear * k / n)
 
         uncoded_errors = 0
         ldpc_errors    = 0
         total_bits     = 0
 
         for _ in range(n_trials):
-            # Random message
-            message = np.array([random.randint(0, 1) for _ in range(k)])
+            message   = [rng.randint(0, 1) for _ in range(k)]
+            codeword  = ldpc_encode_systematic(message, H)
+            tx_symbols = [1 - 2 * bit for bit in codeword]
+            rx_symbols = [symbol + rng.gauss(0, sigma)
+                          for symbol in tx_symbols]
+            llr        = [2 * value / (sigma ** 2) for value in rx_symbols]
+            decoded    = decoder.decode(llr)
 
-            # BPSK modulation: 0 -> +1, 1 -> -1
-            tx_bits    = np.concatenate([message,
-                                         np.zeros(n-k, dtype=int)])
-            tx_symbols = 1 - 2 * tx_bits
+            ldpc_errors += sum(a != b for a, b in zip(decoded[:k], message))
 
-            # AWGN channel
-            noise      = np.random.normal(0, sigma, n)
-            rx_symbols = tx_symbols + noise
-
-            # LLR computation: LLR = 2*rx/sigma^2
-            llr = 2 * rx_symbols / (sigma ** 2)
-
-            # LDPC decode
-            decoded = decoder.decode(llr)
-
-            # Count errors (data bits only)
-            ldpc_errors    += np.sum(decoded[:k] != message)
-            uncoded_errors += np.sum((rx_symbols[:k] < 0).astype(int)
-                                     != message)
-            total_bits     += k
+            uncoded_rx   = [1 - 2 * bit + rng.gauss(0, sigma)
+                            for bit in message]
+            uncoded_bits = [1 if value < 0 else 0 for value in uncoded_rx]
+            uncoded_errors += sum(a != b for a, b in zip(uncoded_bits, message))
+            total_bits += k
 
         ber_uncoded = uncoded_errors / total_bits
-        ber_ldpc    = ldpc_errors    / total_bits
-
+        ber_ldpc    = ldpc_errors / total_bits
         print(f"{snr_db:>10} {ber_uncoded:>16.4f} {ber_ldpc:>14.4f}")
 
 ldpc_simulation()
@@ -991,16 +938,16 @@ LDPC code simulation
 Code parameters: n=20, k=10, rate=0.50
 Parity check matrix density: 0.150
 
-  SNR (dB)   BER (uncoded)   BER (LDPC)
+  SNR (dB)    BER (uncoded)     BER (LDPC)
 --------------------------------------------
-         0          0.1588       0.2412
-         2          0.0870       0.1156
-         4          0.0372       0.0476
-         6          0.0116       0.0104
-         8          0.0022       0.0008
+         0           0.1548         0.1104
+         2           0.1024         0.0496
+         4           0.0530         0.0170
+         6           0.0218         0.0008
+         8           0.0066         0.0000
 ```
 
-Even this tiny demonstration code (n=20) shows LDPC improving on uncoded transmission at high SNR. Real LDPC codes with n in the thousands show dramatic waterfall effects — near-zero error rates at SNRs within 0.1 dB of capacity.
+Even this tiny demonstration code (n=20) already improves on uncoded transmission across the tested SNR range. Real LDPC codes with n in the thousands show much sharper waterfall effects — near-zero error rates at SNRs within a fraction of a decibel of capacity.
 
 ---
 
@@ -1132,7 +1079,7 @@ V(n, t) = ∑_{i=0}^{t} C(n, i)
 For a code with M codewords that corrects t errors: M × V(n, t) ≤ 2ⁿ.
 
 ```python
-from math import comb
+from math import comb, log2
 
 def sphere_volume(n: int, t: int) -> int:
     """Volume of Hamming sphere of radius t in {0,1}^n."""
@@ -1150,7 +1097,7 @@ def rate_from_hamming_bound(n: int, t: int) -> float:
     M    = hamming_bound(n, t)
     if M <= 1:
         return 0.0
-    return math.log2(M) / n
+    return log2(M) / n
 
 print("Hamming Bound: Maximum code size for given parameters\n")
 print(f"{'n':>6} {'t':>6} {'Sphere vol':>12} {'Max codewords':>16} "
@@ -1174,16 +1121,16 @@ Output:
      7      3           64               2     0.1429
 
     15      1           16            2048     0.7333
-    15      2          121             270     0.4247
-    15      3          576              57     0.3800
+    15      2          121             270     0.5385
+    15      3          576              56     0.3872
 
-    23      1           24          349525     0.8696
-    23      2          277           30330     0.6599
+    23      1           24          349525     0.8007
+    23      2          277           30283     0.6472
     23      3         2048            4096     0.5217
 
-    31      1           32        67108864     1.0000
-    31      2          497         4325377     0.7204
-    31      3         4960          432891     0.5645
+    31      1           32        67108864     0.8387
+    31      2          497         4320892     0.7111
+    31      3         4992          430185     0.6037
 ```
 
 A code that meets the Hamming bound with equality is called a *perfect code* — every binary string of length n is within distance t of exactly one codeword. Hamming codes are perfect codes for t=1. The binary Golay code (n=23, k=12, t=3) is one of only three known non-trivial perfect codes — it appears in the analysis of the Mathieu groups in group theory.

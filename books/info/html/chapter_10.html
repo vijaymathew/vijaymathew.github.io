@@ -611,7 +611,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> bw <span class="op">&gt;=</span> <span class="fl">1e6</span>:</span>
 <span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>            bw_str <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>bw<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.0f}</span><span class="ss"> MHz"</span></span>
 <span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> bw <span class="op">&gt;=</span> <span class="fl">1e3</span>:</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>            bw_str <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>bw<span class="op">/</span><span class="fl">1e3</span><span class="sc">:.0f}</span><span class="ss"> kHz"</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>            bw_str <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>bw<span class="op">/</span><span class="fl">1e3</span><span class="sc">:.1f}</span><span class="ss"> kHz"</span> <span class="cf">if</span> bw <span class="op">&lt;</span> <span class="dv">10_000</span> <span class="cf">else</span> <span class="ss">f"</span><span class="sc">{</span>bw<span class="op">/</span><span class="fl">1e3</span><span class="sc">:.0f}</span><span class="ss"> kHz"</span></span>
 <span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
 <span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            bw_str <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>bw<span class="sc">:.0f}</span><span class="ss"> Hz"</span></span>
 <span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;25}</span><span class="ss"> </span><span class="sc">{</span>bw_str<span class="sc">:&gt;15}</span><span class="ss">  </span><span class="sc">{</span>desc<span class="sc">}</span><span class="ss">"</span>)</span>
@@ -683,46 +683,44 @@ Single-mode fiber                10 THz  ~10 THz optical bandwidth</code></pre>
 
   Modulation    Bits/symbol    Nyquist cap       Shannon cap (SNR)
 -----------------------------------------------------------------
-        BPSK              1        40.0 Mbps         23.2 Mbps @ 5dB
-        QPSK              2        80.0 Mbps         66.4 Mbps @ 10dB
-      16-QAM              4       160.0 Mbps        132.9 Mbps @ 20dB
-      64-QAM              6       240.0 Mbps        166.1 Mbps @ 25dB
+        BPSK              1        40.0 Mbps         41.1 Mbps @ 5dB
+        QPSK              2        80.0 Mbps         69.2 Mbps @ 10dB
+      16-QAM              4       160.0 Mbps        133.2 Mbps @ 20dB
+      64-QAM              6       240.0 Mbps        166.2 Mbps @ 25dB
       256-QAM             8       320.0 Mbps        199.3 Mbps @ 30dB
-     1024-QAM            10       400.0 Mbps        232.5 Mbps @ 35dB</code></pre>
-<p>The Nyquist rate gives the symbol rate; the modulation scheme (BPSK, QPSK, QAM) determines how many bits each symbol carries. But the Nyquist rate ignores noise — it assumes perfect transmission. The Shannon limit accounts for noise and gives a lower, achievable bound.</p>
-<p>Notice that 256-QAM at 30 dB SNR offers 320 Mbps by the Nyquist calculation but only 199 Mbps by Shannon. The difference is the noise margin — not all 8 bits per symbol are reliably distinguishable at 30 dB SNR. The Shannon limit tells you the true ceiling.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> minimum_snr_for_modulation(bits_per_symbol: <span class="bu">float</span>,</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                                bandwidth: <span class="bu">float</span>,</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                                target_rate: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Minimum SNR required to achieve target_rate using given modulation</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">    on a channel of given bandwidth.</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">    From Shannon: SNR &gt;= 2^(C/W) - 1</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    spectral_efficiency <span class="op">=</span> target_rate <span class="op">/</span> bandwidth</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    required_snr_linear <span class="op">=</span> <span class="dv">2</span> <span class="op">**</span> spectral_efficiency <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    required_snr_db     <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(required_snr_linear)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> required_snr_db</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co"># What SNR does 802.11ac need for its highest MCS?</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>bw           <span class="op">=</span> <span class="fl">80e6</span>    <span class="co"># 80 MHz channel</span></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>target_rates <span class="op">=</span> [<span class="fl">433e6</span>, <span class="fl">867e6</span>, <span class="fl">1300e6</span>]  <span class="co"># Mbps at various MIMO configs</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Minimum SNR for 802.11ac rates (80 MHz channel):"</span>)</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Target rate'</span><span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Min SNR (dB)'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">32</span>)</span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> rate <span class="kw">in</span> target_rates:</span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    snr_db <span class="op">=</span> minimum_snr_for_modulation(</span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>        math.log2(<span class="dv">256</span>), bw, rate  <span class="co"># 256-QAM</span></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>rate<span class="op">/</span><span class="fl">1e6</span><span class="sc">:&gt;12.0f}</span><span class="ss"> Mbps </span><span class="sc">{</span>snr_db<span class="sc">:&gt;12.1f}</span><span class="ss"> dB"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+      1024-QAM            10       400.0 Mbps        232.5 Mbps @ 35dB</code></pre>
+<p>The Nyquist rate gives the symbol rate; the modulation scheme (BPSK, QPSK, QAM) determines how many bits each symbol carries. But the Nyquist calculation for a chosen modulation ignores how difficult those symbol distinctions are in noise. The Shannon limit accounts for noise and gives the true upper bound for the channel at that SNR.</p>
+<p>Low-order schemes like BPSK can sit far below Shannon because they are not using all of the channel’s available constellation complexity. High-order schemes like 256-QAM push closer to the limit, but only if the SNR is high enough. At 30 dB SNR, 256-QAM offers 320 Mbps by the Nyquist calculation but only 199 Mbps by Shannon. The difference is the noise margin: not all 8 bits per symbol are reliably distinguishable at that SNR.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> minimum_snr_for_rate(bandwidth: <span class="bu">float</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                         target_rate: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Minimum Shannon-theoretic SNR required to achieve target_rate</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">    on a channel of given bandwidth.</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">    From Shannon: SNR &gt;= 2^(C/W) - 1</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    spectral_efficiency <span class="op">=</span> target_rate <span class="op">/</span> bandwidth</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    required_snr_linear <span class="op">=</span> <span class="dv">2</span> <span class="op">**</span> spectral_efficiency <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    required_snr_db     <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(required_snr_linear)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> required_snr_db</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co"># What would a single 80 MHz stream need to support these rates?</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>bw           <span class="op">=</span> <span class="fl">80e6</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>target_rates <span class="op">=</span> [<span class="fl">433e6</span>, <span class="fl">867e6</span>, <span class="fl">1300e6</span>]</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Minimum SNR for raw rates on one 80 MHz channel:"</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Target rate'</span><span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Min SNR (dB)'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">32</span>)</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> rate <span class="kw">in</span> target_rates:</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    snr_db <span class="op">=</span> minimum_snr_for_rate(bw, rate)</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>rate<span class="op">/</span><span class="fl">1e6</span><span class="sc">:&gt;12.0f}</span><span class="ss"> Mbps </span><span class="sc">{</span>snr_db<span class="sc">:&gt;12.1f}</span><span class="ss"> dB"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Minimum SNR for 802.11ac rates (80 MHz channel):
+<pre><code>Minimum SNR for raw rates on one 80 MHz channel:
    Target rate    Min SNR (dB)
 --------------------------------
-         433 Mbps          12.6 dB
-         867 Mbps          18.7 dB
-        1300 Mbps          22.1 dB</code></pre>
+         433 Mbps          16.2 dB
+         867 Mbps          32.6 dB
+        1300 Mbps          48.9 dB</code></pre>
+<p>These numbers explain why the headline rates on 802.11ac and 802.11ax products are not single-stream numbers. Aggregate rates like 867 Mbps and 1300 Mbps rely on multiple spatial streams, coding, and protocol details layered on top of Shannon’s per-channel constraint. A single 80 MHz stream would need unrealistically high SNR to deliver them on its own.</p>
 <hr>
 </section>
 <section id="snr-path-loss-and-the-link-budget" class="level2" data-number="12.4">
@@ -802,14 +800,14 @@ Single-mode fiber                10 THz  ~10 THz optical bandwidth</code></pre>
 
   Distance   Path loss   RX power     SNR     Capacity
 ----------------------------------------------------------
-       1m      46.4dB    -20.4dBm   47.3dB    480.0Mbps
-       5m      60.4dB    -34.4dBm   33.3dB    348.0Mbps
-      10m      66.4dB    -40.4dBm   27.3dB    295.3Mbps
-      20m      72.4dB    -46.4dBm   21.3dB    234.4Mbps
-      50m      80.4dB    -54.4dBm   13.3dB    152.7Mbps
-     100m      86.4dB    -60.4dBm    7.3dB     88.5Mbps
-     200m      92.4dB    -66.4dBm    1.3dB     23.8Mbps</code></pre>
-<p>The Shannon capacity drops precipitously with distance — from 480 Mbps at 1 meter to 24 Mbps at 200 meters — purely due to path loss. This is why 5 GHz WiFi has shorter range than 2.4 GHz: higher frequency means higher free-space path loss at the same distance.</p>
+       1m      46.4dB    -20.4dBm   57.5dB   1528.8Mbps
+       5m      60.4dB    -34.4dBm   43.5dB   1157.3Mbps
+      10m      66.4dB    -40.4dBm   37.5dB    997.3Mbps
+      20m      72.4dB    -46.4dBm   31.5dB    837.3Mbps
+      50m      80.4dB    -54.4dBm   23.5dB    626.2Mbps
+     100m      86.4dB    -60.4dBm   17.5dB    467.8Mbps
+     200m      92.4dB    -66.4dBm   11.5dB    313.6Mbps</code></pre>
+<p>The Shannon capacity drops sharply with distance — from about 1.5 Gbps at 1 meter to 314 Mbps at 200 meters in this idealized free-space model — purely due to path loss. This is why 5 GHz WiFi has shorter range than 2.4 GHz: higher frequency means higher free-space path loss at the same distance.</p>
 <p>Free-space path loss is idealized. Real environments add wall attenuation, multipath reflections, and interference. But the fundamental relationship — capacity degrades with distance as SNR falls — holds in every real deployment.</p>
 <hr>
 </section>
@@ -861,95 +859,105 @@ Single-mode fiber                10 THz  ~10 THz optical bandwidth</code></pre>
 
   MCS   Modulation  Code rate   SE (bits/s/Hz)   Min SNR (dB)
 --------------------------------------------------------------
-    0         BPSK        1/2             0.50           0.0
-    1         QPSK        1/2             1.00           3.0
-    2         QPSK        3/4             1.50           5.5
-    3       16-QAM        1/2             2.00           9.0
-    4       16-QAM        3/4             3.00          12.0
-    5       64-QAM        2/3             4.00          16.0
-    6       64-QAM        3/4             4.50          17.0
-    7       64-QAM        5/6             5.00          18.1
-    8      256-QAM        3/4             6.00          21.1
-    9      256-QAM        5/6             6.67          22.2
-   10     1024-QAM        3/4             7.50          24.8
-   11     1024-QAM        5/6             8.33          26.2</code></pre>
-<p>This is the MCS table that your WiFi chip uses every moment of operation. The access point measures SNR and selects the highest MCS index that can be reliably decoded. When you walk away from your router and signal weakens, the chip drops to a lower MCS — slower but more robust.</p>
-<p>Notice that MCS 11 achieves 8.33 bits/s/Hz at 26 dB SNR. Shannon’s limit at 26 dB SNR is log₂(1 + 398) ≈ 8.64 bits/s/Hz. Modern WiFi 6 achieves about 96% of the Shannon limit at high SNR — an astonishing engineering achievement compared to the 0.2% efficiency of the 56k modem we saw in Chapter 8.</p>
+    0         BPSK        1/2             0.50          -3.8
+    1         QPSK        1/2             1.00           0.0
+    2         QPSK        3/4             1.50           2.6
+    3       16-QAM        1/2             2.00           4.8
+    4       16-QAM        3/4             3.00           8.5
+    5       64-QAM        2/3             4.00          11.8
+    6       64-QAM        3/4             4.50          13.4
+    7       64-QAM        5/6             5.00          14.9
+    8      256-QAM        3/4             6.00          18.0
+    9      256-QAM        5/6             6.67          20.0
+   10     1024-QAM        3/4             7.50          22.6
+   11     1024-QAM        5/6             8.33          25.1</code></pre>
+<p>This is the shape of the MCS table that your WiFi chip uses every moment of operation. The access point measures SNR and selects the highest MCS index that can be reliably decoded. When you walk away from your router and the signal weakens, the chip drops to a lower MCS — slower but more robust.</p>
+<p>These SNR values are Shannon-theoretic lower bounds, not the actual thresholds that a real chipset needs in the field. Real implementations need additional margin for coding loss, channel estimation error, interference, and hardware non-idealities. The key point is the trend: each step up the MCS ladder costs progressively more SNR for a progressively smaller gain in spectral efficiency.</p>
 <hr>
 </section>
 <section id="ofdm-dividing-the-channel" class="level2" data-number="12.6">
 <h2 data-number="12.6" class="anchored" data-anchor-id="ofdm-dividing-the-channel"><span class="header-section-number">12.6</span> OFDM: Dividing the Channel</h2>
 <p>Real wireless channels are not flat across their bandwidth. Different frequencies experience different amounts of attenuation and phase shift — a property called <em>frequency selectivity</em>. A single signal spanning 80 MHz might find that some frequencies are heavily attenuated by reflections while others are not.</p>
 <p>Orthogonal Frequency Division Multiplexing (OFDM) solves this by dividing the channel into many narrow subcarriers, each narrow enough to be approximately flat. Each subcarrier is modulated independently at whatever rate its local SNR supports.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ofdm_channel_demo():</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Illustrate how OFDM handles a frequency-selective channel.</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    n_subcarriers <span class="op">=</span> <span class="dv">64</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    bw_per_sub    <span class="op">=</span> <span class="fl">312.5e3</span>  <span class="co"># 312.5 kHz per subcarrier (802.11 standard)</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simulate a frequency-selective channel: some subcarriers</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># have good SNR, some have poor SNR (due to multipath fading)</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">42</span>)</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    base_snr_db   <span class="op">=</span> <span class="dv">25</span>  <span class="co"># Average SNR</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Rayleigh fading causes ~6dB variation across subcarriers</span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    snr_variation <span class="op">=</span> np.random.rayleigh(scale<span class="op">=</span><span class="fl">1.0</span>, size<span class="op">=</span>n_subcarriers)</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    snr_db_per_sub <span class="op">=</span> base_snr_db <span class="op">+</span> <span class="dv">20</span><span class="op">*</span>np.log10(snr_variation<span class="op">/</span>snr_variation.mean())</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute capacity per subcarrier</span></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    capacity_per_sub <span class="op">=</span> [</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>        bw_per_sub <span class="op">*</span> math.log2(<span class="dv">1</span> <span class="op">+</span> <span class="dv">10</span><span class="op">**</span>(snr<span class="op">/</span><span class="dv">10</span>))</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> snr <span class="kw">in</span> snr_db_per_sub</span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    total_capacity  <span class="op">=</span> <span class="bu">sum</span>(capacity_per_sub)</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    avg_snr_db      <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(</span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>        <span class="bu">sum</span>(<span class="dv">10</span><span class="op">**</span>(s<span class="op">/</span><span class="dv">10</span>) <span class="cf">for</span> s <span class="kw">in</span> snr_db_per_sub) <span class="op">/</span> n_subcarriers</span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    flat_capacity   <span class="op">=</span> n_subcarriers <span class="op">*</span> bw_per_sub <span class="op">*</span> math.log2(</span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        <span class="dv">1</span> <span class="op">+</span> <span class="dv">10</span><span class="op">**</span>(avg_snr_db<span class="op">/</span><span class="dv">10</span>)</span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"OFDM Channel Analysis (64 subcarriers, 20 MHz total)"</span>)</span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Average SNR:             </span><span class="sc">{</span>avg_snr_db<span class="sc">:.1f}</span><span class="ss"> dB"</span>)</span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Total bandwidth:         </span><span class="sc">{</span>n_subcarriers<span class="op">*</span>bw_per_sub<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> MHz"</span>)</span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Flat-channel capacity:   </span><span class="sc">{</span>flat_capacity<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span>)</span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"OFDM total capacity:     </span><span class="sc">{</span>total_capacity<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span>)</span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Gain from OFDM:          "</span></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>(total_capacity<span class="op">-</span>flat_capacity)<span class="op">/</span>flat_capacity<span class="sc">:.1%}</span><span class="ss">"</span>)</span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Show distribution of per-subcarrier SNR</span></span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>    bins <span class="op">=</span> [(<span class="op">-</span><span class="dv">10</span>, <span class="dv">0</span>), (<span class="dv">0</span>, <span class="dv">10</span>), (<span class="dv">10</span>, <span class="dv">20</span>), (<span class="dv">20</span>, <span class="dv">30</span>), (<span class="dv">30</span>, <span class="dv">40</span>), (<span class="dv">40</span>, <span class="dv">50</span>)]</span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"SNR distribution across subcarriers:"</span>)</span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> lo, hi <span class="kw">in</span> bins:</span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>        count <span class="op">=</span> <span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> s <span class="kw">in</span> snr_db_per_sub <span class="cf">if</span> lo <span class="op">&lt;=</span> s <span class="op">&lt;</span> hi)</span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>        bar   <span class="op">=</span> <span class="st">'█'</span> <span class="op">*</span> count</span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>lo<span class="sc">:&gt;4}</span><span class="ss"> to </span><span class="sc">{</span>hi<span class="sc">:&gt;3}</span><span class="ss"> dB: </span><span class="sc">{</span>bar<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span>count<span class="sc">}</span><span class="ss">)"</span>)</span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>ofdm_channel_demo()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rayleigh_sample(rng: random.Random, sigma: <span class="bu">float</span> <span class="op">=</span> <span class="fl">1.0</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Rayleigh sample from two underlying Gaussian components."""</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="bu">max</span>(rng.random(), <span class="fl">1e-12</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> sigma <span class="op">*</span> math.sqrt(<span class="op">-</span><span class="fl">2.0</span> <span class="op">*</span> math.log(<span class="fl">1.0</span> <span class="op">-</span> u))</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ofdm_channel_demo():</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">    Illustrate how OFDM handles a frequency-selective channel.</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    n_subcarriers <span class="op">=</span> <span class="dv">64</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    bw_per_sub    <span class="op">=</span> <span class="fl">312.5e3</span>  <span class="co"># 312.5 kHz per subcarrier (802.11 standard)</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simulate a frequency-selective channel: some subcarriers</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># have good SNR, some have poor SNR (due to multipath fading)</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    rng           <span class="op">=</span> random.Random(<span class="dv">42</span>)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    base_snr_db   <span class="op">=</span> <span class="dv">25</span>  <span class="co"># Average SNR</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Rayleigh fading causes ~6dB variation across subcarriers</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    snr_variation <span class="op">=</span> [rayleigh_sample(rng, sigma<span class="op">=</span><span class="fl">1.0</span>)</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>                     <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_subcarriers)]</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    mean_variation <span class="op">=</span> <span class="bu">sum</span>(snr_variation) <span class="op">/</span> <span class="bu">len</span>(snr_variation)</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    snr_db_per_sub <span class="op">=</span> [</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        base_snr_db <span class="op">+</span> <span class="dv">20</span> <span class="op">*</span> math.log10(v <span class="op">/</span> mean_variation)</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> v <span class="kw">in</span> snr_variation</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute capacity per subcarrier</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    capacity_per_sub <span class="op">=</span> [</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>        bw_per_sub <span class="op">*</span> math.log2(<span class="dv">1</span> <span class="op">+</span> <span class="dv">10</span><span class="op">**</span>(snr<span class="op">/</span><span class="dv">10</span>))</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> snr <span class="kw">in</span> snr_db_per_sub</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>    total_capacity  <span class="op">=</span> <span class="bu">sum</span>(capacity_per_sub)</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    eq_flat_snr_db  <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        <span class="bu">sum</span>(<span class="dv">10</span><span class="op">**</span>(s<span class="op">/</span><span class="dv">10</span>) <span class="cf">for</span> s <span class="kw">in</span> snr_db_per_sub) <span class="op">/</span> n_subcarriers</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>    flat_capacity   <span class="op">=</span> n_subcarriers <span class="op">*</span> bw_per_sub <span class="op">*</span> math.log2(</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>        <span class="dv">1</span> <span class="op">+</span> <span class="dv">10</span><span class="op">**</span>(eq_flat_snr_db<span class="op">/</span><span class="dv">10</span>)</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"OFDM Channel Analysis (64 subcarriers, 20 MHz total)"</span>)</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Equivalent flat SNR:     </span><span class="sc">{</span>eq_flat_snr_db<span class="sc">:.1f}</span><span class="ss"> dB"</span>)</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Total bandwidth:         </span><span class="sc">{</span>n_subcarriers<span class="op">*</span>bw_per_sub<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> MHz"</span>)</span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Flat-channel capacity:   </span><span class="sc">{</span>flat_capacity<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span>)</span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"OFDM total capacity:     </span><span class="sc">{</span>total_capacity<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span>)</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Gain from OFDM:          "</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>(total_capacity<span class="op">-</span>flat_capacity)<span class="op">/</span>flat_capacity<span class="sc">:.1%}</span><span class="ss">"</span>)</span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Show distribution of per-subcarrier SNR</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>    bins <span class="op">=</span> [(<span class="op">-</span><span class="dv">10</span>, <span class="dv">0</span>), (<span class="dv">0</span>, <span class="dv">10</span>), (<span class="dv">10</span>, <span class="dv">20</span>), (<span class="dv">20</span>, <span class="dv">30</span>), (<span class="dv">30</span>, <span class="dv">40</span>), (<span class="dv">40</span>, <span class="dv">50</span>)]</span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"SNR distribution across subcarriers:"</span>)</span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> lo, hi <span class="kw">in</span> bins:</span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>        count <span class="op">=</span> <span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> s <span class="kw">in</span> snr_db_per_sub <span class="cf">if</span> lo <span class="op">&lt;=</span> s <span class="op">&lt;</span> hi)</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>        bar   <span class="op">=</span> <span class="st">'█'</span> <span class="op">*</span> count</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>lo<span class="sc">:&gt;4}</span><span class="ss"> to </span><span class="sc">{</span>hi<span class="sc">:&gt;3}</span><span class="ss"> dB: </span><span class="sc">{</span>bar<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span>count<span class="sc">}</span><span class="ss">)"</span>)</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>ofdm_channel_demo()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>OFDM Channel Analysis (64 subcarriers, 20 MHz total)
 
-Average SNR:             25.0 dB
+Equivalent flat SNR:     26.1 dB
 Total bandwidth:         20.0 MHz
 
-Flat-channel capacity:   166.1 Mbps
-OFDM total capacity:     161.3 Mbps
-Gain from OFDM:          -2.9%
+Flat-channel capacity:   173.4 Mbps
+OFDM total capacity:     156.3 Mbps
+Gain from OFDM:          -9.8%
 
 SNR distribution across subcarriers:
    -10 to   0 dB:  (0)
-     0 to  10 dB: ██████████ (10)
-    10 to  20 dB: ██████████████████████ (22)
-    20 to  30 dB: ████████████████████ (20)
-    30 to  40 dB: ████████████ (12)
+     0 to  10 dB: █ (1)
+    10 to  20 dB: ████████████ (12)
+    20 to  30 dB: ██████████████████████████████████████████████ (46)
+    30 to  40 dB: █████ (5)
     40 to  50 dB: (0)</code></pre>
-<p>Interestingly, OFDM at uniform power allocation is slightly <em>worse</em> than a hypothetical flat channel. This is because Shannon capacity is a concave function of SNR — the gain from good subcarriers does not fully compensate for the loss on bad ones. The true gain of OFDM is not in capacity but in <em>robustness</em>: handling frequency selectivity without complex equalization, and avoiding deep fades that would corrupt a wideband signal.</p>
+<p>Interestingly, OFDM with uniform power allocation is <em>worse</em> than a hypothetical flat channel with the same average received power. This is because Shannon capacity is a concave function of SNR — the gain from strong subcarriers does not fully compensate for the loss on weak ones. The true gain of OFDM is not free extra capacity but <em>robustness</em>: handling frequency selectivity without complex equalization, and letting the system adapt per subcarrier.</p>
 <p>The capacity gain comes from <em>water-filling</em> — allocating more power to subcarriers with better SNR:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> water_filling(snr_per_sub: <span class="bu">list</span>,</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                  total_power: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">list</span>:</span>
@@ -992,10 +1000,10 @@ SNR distribution across subcarriers:
 <span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a><span class="co">    Compare uniform vs water-filling power allocation.</span></span>
 <span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    rng     <span class="op">=</span> random.Random(<span class="dv">42</span>)</span>
 <span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>    n_sub   <span class="op">=</span> <span class="dv">16</span></span>
 <span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>    snr_per <span class="op">=</span> [<span class="dv">10</span><span class="op">**</span>(s<span class="op">/</span><span class="dv">10</span>) <span class="cf">for</span> s <span class="kw">in</span></span>
-<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>               np.random.uniform(<span class="dv">0</span>, <span class="dv">30</span>, n_sub)]</span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>               [rng.uniform(<span class="op">-</span><span class="dv">5</span>, <span class="dv">30</span>) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_sub)]]</span>
 <span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a>    P_total <span class="op">=</span> n_sub  <span class="co"># Total power = n_sub units (1 per subcarrier average)</span></span>
 <span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Uniform allocation</span></span>
@@ -1030,19 +1038,19 @@ SNR distribution across subcarriers:
 
   Sub   SNR (dB)    Uniform P     WF Power     WF Cap
 ------------------------------------------------------
-    0        8.3        1.000        0.847       3.0251
-    1       20.1        1.000        1.847       7.3401
-    2        2.7        1.000        0.000       0.0000
-    3       14.5        1.000        1.347       5.4892
-    4       22.3        1.000        2.047       8.1023
-    5        1.1        1.000        0.000       0.0000
-    6       18.9        1.000        1.747       7.0218
-    7       11.2        1.000        1.047       4.5821
+    0       17.4        1.000        1.507       6.3828
+    1       -4.1        1.000        0.000       0.0000
+    2        4.6        1.000        1.181       2.1460
+    3        2.8        1.000        1.002       1.5435
+    4       20.8        1.000        1.517       7.5111
+    5       18.7        1.000        1.512       6.8161
+    6       26.2        1.000        1.523       9.3214
+    7       -2.0        1.000        0.000       0.0000
     ...
 
-Uniform total capacity:     76.4812 bits/use
-Water-filling capacity:     80.2341 bits/use
-Gain from water-filling:    4.9%</code></pre>
+Uniform total capacity:     54.5059 bits/use
+Water-filling capacity:     56.9377 bits/use
+Gain from water-filling:    4.5%</code></pre>
 <p>Water-filling allocates zero power to the worst subcarriers — those below the water level — and more power to the best ones. The gain is modest here (5%), but in highly frequency-selective channels or when power is severely constrained, water-filling can be essential.</p>
 <hr>
 </section>
@@ -1052,117 +1060,123 @@ Gain from water-filling:    4.9%</code></pre>
 <p>The capacity of an M×N MIMO channel (M transmit, N receive antennas) under certain conditions is:</p>
 <pre><code>C_MIMO = ∑ᵢ log₂(1 + λᵢ · P/(M·N))</code></pre>
 <p>where λᵢ are the squared singular values of the channel matrix H, and P is the total transmit power. Each singular value corresponds to an independent spatial stream.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mimo_capacity(H: np.ndarray, snr_per_antenna: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute MIMO channel capacity.</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">    H: channel matrix (n_rx x n_tx), complex-valued in general,</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">       real-valued for illustration here.</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">    snr_per_antenna: SNR available per transmit antenna.</span></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns capacity in bits per channel use.</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    n_rx, n_tx <span class="op">=</span> H.shape</span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Singular value decomposition</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    _, singular_values, _ <span class="op">=</span> np.linalg.svd(H)</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    lambdas <span class="op">=</span> singular_values <span class="op">**</span> <span class="dv">2</span></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Capacity from each spatial stream</span></span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>    capacity <span class="op">=</span> <span class="bu">sum</span>(</span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>        math.log2(<span class="dv">1</span> <span class="op">+</span> lam <span class="op">*</span> snr_per_antenna <span class="op">/</span> n_tx)</span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> lam <span class="kw">in</span> lambdas</span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> capacity</span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mimo_demo():</span>
-<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a><span class="co">    Compare SISO, 2x2 MIMO, and 4x4 MIMO capacity.</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mimo_capacity_from_modes(mode_strengths: <span class="bu">list</span>[<span class="bu">float</span>],</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                             snr_per_antenna: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute MIMO capacity from the channel's singular values.</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">    mode_strengths: singular values of the channel matrix H</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">                    (or a representative synthetic profile)</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">    snr_per_antenna: SNR available per transmit antenna</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns capacity in bits per channel use.</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    n_tx <span class="op">=</span> <span class="bu">len</span>(mode_strengths)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Capacity from each spatial stream</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>    capacity <span class="op">=</span> <span class="bu">sum</span>(</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>        math.log2(<span class="dv">1</span> <span class="op">+</span> (sigma <span class="op">**</span> <span class="dv">2</span>) <span class="op">*</span> snr_per_antenna <span class="op">/</span> n_tx)</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> sigma <span class="kw">in</span> mode_strengths</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> capacity</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> synthetic_mode_strengths(n_streams: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">float</span>]:</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="co">    Deterministic, descending singular-value profiles for a toy MIMO</span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="co">    channel. This keeps the example runnable without external linear</span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a><span class="co">    algebra libraries while preserving the core capacity formula.</span></span>
 <span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">42</span>)</span>
-<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>    snr_db  <span class="op">=</span> <span class="dv">20</span>  <span class="co"># 20 dB SNR</span></span>
-<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>    snr     <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (snr_db <span class="op">/</span> <span class="dv">10</span>)</span>
-<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>    configs <span class="op">=</span> [</span>
-<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">1</span>, <span class="dv">1</span>, <span class="st">"SISO"</span>),</span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">2</span>, <span class="dv">2</span>, <span class="st">"2×2 MIMO"</span>),</span>
-<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">4</span>, <span class="dv">4</span>, <span class="st">"4×4 MIMO"</span>),</span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">8</span>, <span class="dv">8</span>, <span class="st">"8×8 MIMO"</span>),</span>
-<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"MIMO Capacity Comparison (SNR = </span><span class="sc">{</span>snr_db<span class="sc">}</span><span class="ss"> dB)</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Config'</span><span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Streams'</span><span class="sc">:&gt;9}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity'</span><span class="sc">:&gt;14}</span><span class="ss"> "</span></span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'vs SISO'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>    siso_cap <span class="op">=</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n_tx, n_rx, name <span class="kw">in</span> configs:</span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> n_tx <span class="op">==</span> <span class="dv">1</span> <span class="kw">and</span> n_rx <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>            cap     <span class="op">=</span> siso_cap</span>
-<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>            streams <span class="op">=</span> <span class="dv">1</span></span>
-<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
-<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Random i.i.d. Rayleigh fading channel matrix</span></span>
-<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>            H       <span class="op">=</span> (np.random.randn(n_rx, n_tx)</span>
-<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>                       <span class="op">+</span> <span class="ot">1j</span> <span class="op">*</span> np.random.randn(n_rx, n_tx)) <span class="op">/</span> math.sqrt(<span class="dv">2</span>)</span>
-<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>            H_real  <span class="op">=</span> np.<span class="bu">abs</span>(H)  <span class="co"># Simplified real-valued version</span></span>
-<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>            cap     <span class="op">=</span> mimo_capacity(H_real, snr)</span>
-<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>            streams <span class="op">=</span> <span class="bu">min</span>(n_tx, n_rx)</span>
-<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span>streams<span class="sc">:&gt;9}</span><span class="ss"> </span><span class="sc">{</span>cap<span class="sc">:&gt;12.2f}</span><span class="ss"> bpcu "</span></span>
-<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>cap<span class="op">/</span>siso_cap<span class="sc">:&gt;8.1f}</span><span class="ss">×"</span>)</span>
-<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a>mimo_demo()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> n_streams <span class="op">==</span> <span class="dv">1</span>:</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [<span class="fl">1.0</span>]</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>        math.sqrt(n_streams) <span class="op">*</span> (<span class="fl">0.35</span> <span class="op">+</span> <span class="fl">0.65</span> <span class="op">*</span> (<span class="dv">1</span> <span class="op">-</span> i <span class="op">/</span> (n_streams <span class="op">-</span> <span class="dv">1</span>)))</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n_streams)</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mimo_demo():</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a><span class="co">    Compare SISO, 2x2 MIMO, and larger MIMO configurations.</span></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>    snr_db  <span class="op">=</span> <span class="dv">20</span>  <span class="co"># 20 dB SNR</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>    snr     <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (snr_db <span class="op">/</span> <span class="dv">10</span>)</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>    configs <span class="op">=</span> [</span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">1</span>, <span class="dv">1</span>, <span class="st">"SISO"</span>),</span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">2</span>, <span class="dv">2</span>, <span class="st">"2×2 MIMO"</span>),</span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">4</span>, <span class="dv">4</span>, <span class="st">"4×4 MIMO"</span>),</span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">8</span>, <span class="dv">8</span>, <span class="st">"8×8 MIMO"</span>),</span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"MIMO Capacity Comparison (SNR = </span><span class="sc">{</span>snr_db<span class="sc">}</span><span class="ss"> dB)</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Config'</span><span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Streams'</span><span class="sc">:&gt;9}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity'</span><span class="sc">:&gt;14}</span><span class="ss"> "</span></span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'vs SISO'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>    siso_cap <span class="op">=</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n_tx, n_rx, name <span class="kw">in</span> configs:</span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> n_tx <span class="op">==</span> <span class="dv">1</span> <span class="kw">and</span> n_rx <span class="op">==</span> <span class="dv">1</span>:</span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>            cap     <span class="op">=</span> siso_cap</span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>            streams <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a>            modes   <span class="op">=</span> synthetic_mode_strengths(<span class="bu">min</span>(n_tx, n_rx))</span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>            cap     <span class="op">=</span> mimo_capacity_from_modes(modes, snr)</span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>            streams <span class="op">=</span> <span class="bu">min</span>(n_tx, n_rx)</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span>streams<span class="sc">:&gt;9}</span><span class="ss"> </span><span class="sc">{</span>cap<span class="sc">:&gt;12.2f}</span><span class="ss"> bpcu "</span></span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>cap<span class="op">/</span>siso_cap<span class="sc">:&gt;8.1f}</span><span class="ss">×"</span>)</span>
+<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>mimo_demo()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>MIMO Capacity Comparison (SNR = 20 dB)
 
 Config       Streams     Capacity      vs SISO
 --------------------------------------------------
 SISO               1        6.66 bpcu       1.0×
-2×2 MIMO           2       11.34 bpcu       1.7×
-4×4 MIMO           4       20.87 bpcu       3.1×
-8×8 MIMO           8       39.14 bpcu       5.9×</code></pre>
-<p>In ideal i.i.d. Rayleigh fading, the capacity scales approximately linearly with min(n_tx, n_rx). This is why modern WiFi and 5G base stations invest heavily in antenna arrays — each additional antenna pair can approximately double the capacity up to practical limits.</p>
+2×2 MIMO           2       10.39 bpcu       1.6×
+4×4 MIMO           4       21.40 bpcu       3.2×
+8×8 MIMO           8       43.17 bpcu       6.5×</code></pre>
+<p>With a healthy spread of usable spatial modes, capacity scales approximately linearly with min(n_tx, n_rx). This is why modern WiFi and 5G base stations invest heavily in antenna arrays — each additional antenna pair can open another near-independent data path up to practical limits.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> massive_mimo_scaling():</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Show how capacity scales with antenna count in massive MIMO.</span></span>
 <span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    snr_db  <span class="op">=</span> <span class="dv">15</span></span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    snr     <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (snr_db <span class="op">/</span> <span class="dv">10</span>)</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Massive MIMO scaling (SNR = </span><span class="sc">{</span>snr_db<span class="sc">}</span><span class="ss"> dB)</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Antennas (NxN)'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity (bpcu)'</span><span class="sc">:&gt;18}</span><span class="ss"> "</span></span>
-<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'bits/s/Hz'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Scaling'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">60</span>)</span>
-<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    prev_cap <span class="op">=</span> <span class="va">None</span></span>
-<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">16</span>, <span class="dv">32</span>, <span class="dv">64</span>, <span class="dv">128</span>]:</span>
-<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> n <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>            cap <span class="op">=</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
-<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
-<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>            H   <span class="op">=</span> (np.random.randn(n, n)</span>
-<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>                   <span class="op">+</span> <span class="ot">1j</span> <span class="op">*</span> np.random.randn(n, n)) <span class="op">/</span> math.sqrt(<span class="dv">2</span>)</span>
-<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>            cap <span class="op">=</span> mimo_capacity(np.<span class="bu">abs</span>(H), snr)</span>
-<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>        se      <span class="op">=</span> cap  <span class="co"># bits per channel use = bits/s/Hz for 1 Hz bw</span></span>
-<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>        scaling <span class="op">=</span> cap <span class="op">/</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
-<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="ss">f'</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">×</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span>cap<span class="sc">:&gt;18.2f}</span><span class="ss"> </span><span class="sc">{</span>se<span class="sc">:&gt;12.2f}</span><span class="ss"> "</span></span>
-<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>scaling<span class="sc">:&gt;10.1f}</span><span class="ss">×"</span>)</span>
-<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>massive_mimo_scaling()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    snr_db  <span class="op">=</span> <span class="dv">15</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    snr     <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (snr_db <span class="op">/</span> <span class="dv">10</span>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Massive MIMO scaling (SNR = </span><span class="sc">{</span>snr_db<span class="sc">}</span><span class="ss"> dB)</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Antennas (NxN)'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity (bpcu)'</span><span class="sc">:&gt;18}</span><span class="ss"> "</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'bits/s/Hz'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Scaling'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    prev_cap <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">16</span>, <span class="dv">32</span>, <span class="dv">64</span>, <span class="dv">128</span>]:</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> n <span class="op">==</span> <span class="dv">1</span>:</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>            cap <span class="op">=</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>            cap <span class="op">=</span> mimo_capacity_from_modes(</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>                synthetic_mode_strengths(n), snr</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>        se      <span class="op">=</span> cap  <span class="co"># bits per channel use = bits/s/Hz for 1 Hz bw</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>        scaling <span class="op">=</span> cap <span class="op">/</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="ss">f'</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">×</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span>cap<span class="sc">:&gt;18.2f}</span><span class="ss"> </span><span class="sc">{</span>se<span class="sc">:&gt;12.2f}</span><span class="ss"> "</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>scaling<span class="sc">:&gt;10.1f}</span><span class="ss">×"</span>)</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>massive_mimo_scaling()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Massive MIMO scaling (SNR = 15 dB)
 
   Antennas (NxN)   Capacity (bpcu)    bits/s/Hz     Scaling
 ------------------------------------------------------------
-             1×1              4.09          4.09        1.0×
-             2×2              6.81          6.81        1.7×
-             4×4             13.71         13.71        3.4×
-             8×8             26.02         26.02        6.4×
-            16×16            51.03         51.03       12.5×
-            32×32           100.14        100.14       24.5×
-            64×64           196.84        196.84       48.1×
-           128×128          390.38        390.38       95.4×</code></pre>
-<p>With 128×128 antennas, the capacity is nearly 100× the single-antenna case — not by using more bandwidth or more power, but by exploiting the spatial dimension. This is the principle behind massive MIMO, the key technology in 5G base stations that can serve dozens of users simultaneously on the same frequency.</p>
+             1×1              5.03          5.03        1.0×
+             2×2              7.31          7.31        1.5×
+             4×4             15.14         15.14        3.0×
+             8×8             30.59         30.59        6.1×
+            16×16            61.41         61.41       12.2×
+            32×32           123.04        123.04       24.5×
+            64×64           246.29        246.29       49.0×
+           128×128          492.79        492.79       98.0×</code></pre>
+<p>With 128×128 antennas in this idealized mode profile, the capacity is about 98× the single-antenna case — not by using more bandwidth or more power, but by exploiting the spatial dimension. This is the principle behind massive MIMO, the key technology in 5G base stations that can serve many users simultaneously on the same frequency.</p>
 <hr>
 </section>
 <section id="the-capacity-of-real-networks" class="level2" data-number="12.8">
@@ -1236,7 +1250,7 @@ SISO               1        6.66 bpcu       1.0×
    TDMA: 44.3 Mbps per user (132.9 Mbps total)
    FDMA: 44.3 Mbps per user (132.9 Mbps total)
    OFDMA: ≈ FDMA for uniform SNR, better for selective channels
-   SDMA (4×4 MIMO): 177.2 Mbps per user (531.6 Mbps total)
+   SDMA (4×4 MIMO): 177.6 Mbps per user (532.7 Mbps total)
 
 3. Shannon capacity is additive over orthogonal dimensions:
    Time × Frequency × Space × Code = total capacity
@@ -1305,16 +1319,16 @@ SISO               1        6.66 bpcu       1.0×
 
 C-band optical bandwidth:  5.0 THz
 Shannon limit per fiber:
-  Short haul (&lt; 100km)         SNR=20dB  C = 33.2 Tbps
-  Metro (100-1000km)           SNR=15dB  C = 24.9 Tbps
-  Long haul (&gt; 1000km)         SNR=10dB  C = 16.6 Tbps
+  Short haul (&lt; 100km)         SNR=20dB  C = 33.3 Tbps
+  Metro (100-1000km)           SNR=15dB  C = 25.1 Tbps
+  Long haul (&gt; 1000km)         SNR=10dB  C = 17.3 Tbps
 
 WDM: Wavelength Division Multiplexing
   Multiple wavelengths on one fiber = multiple parallel channels
 
-  C-band channels (50 GHz grid): 100
-  Capacity per channel:           332.2 Gbps
-  Total WDM capacity:             33.2 Tbps per fiber
+  C-band channels (50 GHz grid): 99
+  Capacity per channel:           251.4 Gbps
+  Total WDM capacity:             24.9 Tbps per fiber
 
   A single fiber pair can carry the entire
   internet's traffic many times over.</code></pre>
@@ -1364,7 +1378,7 @@ WDM: Wavelength Division Multiplexing
 <span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>    E    <span class="op">=</span> <span class="dv">1</span> <span class="op">*</span> c<span class="op">**</span><span class="dv">2</span>  <span class="co"># 1 kg × c²</span></span>
 <span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>    bek  <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> math.pi <span class="op">*</span> R <span class="op">*</span> E <span class="op">/</span> (hbar <span class="op">*</span> c <span class="op">*</span> math.log(<span class="dv">2</span>))</span>
 <span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"   Bekenstein bound: </span><span class="sc">{</span>bek<span class="sc">:.2e}</span><span class="ss"> bits"</span>)</span>
-<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"   (~</span><span class="sc">{</span>bek<span class="op">/</span><span class="fl">1e80</span><span class="sc">:.1f}</span><span class="ss"> × 10^80 bits)"</span>)</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"   (~</span><span class="sc">{</span>bek<span class="op">/</span><span class="fl">1e41</span><span class="sc">:.1f}</span><span class="ss"> × 10^41 bits)"</span>)</span>
 <span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
 <span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"4. Practical takeaway:"</span>)</span>
@@ -1378,29 +1392,29 @@ WDM: Wavelength Division Multiplexing
 
 1. Landauer's Principle
    Erasing one bit of information requires minimum energy:
-   E_min = kT ln(2) = 2.85e-21 Joules/bit
+   E_min = kT ln(2) = 2.77e-21 Joules/bit
    At room temperature and 1 GHz clock:
-   Min power = 2.85 pW per bit/s
+   Min power = 2.77 pW per bit/s
 
 2. Quantum Shannon Limit (Holevo bound)
    Maximum bits per photon at optical frequencies:
    Photon energy at 1550nm: 1.28e-19 J
-   At 1 mW: 7.81e+15 photons/second
-   Theoretical max: ~52.1 bits/photon
+   At 1 mW: 7.80e+15 photons/second
+   Theoretical max: ~52.8 bits/photon
 
 3. Bekenstein Bound
    Maximum information in a region of space:
    I ≤ 2π R E / (ℏ c ln 2)  bits
    where R is radius, E is energy content
    For 1 kg in 1 cm sphere:
-   Bekenstein bound: 2.58e+40 bits
-   (~2.6 × 10^40 bits)
+   Bekenstein bound: 2.58e+41 bits
+   (~2.6 × 10^41 bits)
 
 4. Practical takeaway:
    For the next several decades, the Shannon-Hartley limit
    is the binding constraint. Physical limits are
    many orders of magnitude beyond current engineering.</code></pre>
-<p>The Bekenstein bound — the maximum information that can be stored in a region of space — is 10⁴⁰ bits for a kilogram of matter in a centimeter sphere. For context, all the data ever created by humanity is estimated at around 10²³ bits. We are nowhere near the physical limits of information storage or transmission. The binding constraints for the foreseeable future are economic and engineering, not physical.</p>
+<p>The Bekenstein bound — the maximum information that can be stored in a region of space — is on the order of 10⁴¹ bits for a kilogram of matter in a centimeter sphere. For context, all the data ever created by humanity is estimated at around 10²³ bits. We are nowhere near the physical limits of information storage or transmission. The binding constraints for the foreseeable future are economic and engineering, not physical.</p>
 <hr>
 </section>
 <section id="putting-it-together-designing-a-real-system" class="level2" data-number="12.11">
@@ -1427,75 +1441,71 @@ WDM: Wavelength Division Multiplexing
 <span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> bw_mhz <span class="kw">in</span> [<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">40</span>, <span class="dv">80</span>, <span class="dv">160</span>]:</span>
 <span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>        bw    <span class="op">=</span> bw_mhz <span class="op">*</span> <span class="fl">1e6</span></span>
 <span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>        se    <span class="op">=</span> target_rate <span class="op">/</span> bw  <span class="co"># bits/s/Hz needed</span></span>
-<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> se <span class="op">&gt;</span> <span class="dv">1</span>:</span>
-<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>            snr_needed    <span class="op">=</span> <span class="dv">2</span><span class="op">**</span>se <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>            snr_needed_db <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(snr_needed)</span>
-<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>bw_mhz<span class="sc">:&gt;10}</span><span class="ss"> MHz </span><span class="sc">{</span>se<span class="sc">:&gt;12.2f}</span><span class="ss"> b/s/Hz "</span></span>
-<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>                  <span class="ss">f"</span><span class="sc">{</span>snr_needed_db<span class="sc">:&gt;12.1f}</span><span class="ss"> dB"</span>)</span>
-<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
-<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>bw_mhz<span class="sc">:&gt;10}</span><span class="ss"> MHz </span><span class="sc">{</span>se<span class="sc">:&gt;12.2f}</span><span class="ss"> b/s/Hz "</span></span>
-<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>                  <span class="ss">f"</span><span class="sc">{</span><span class="st">'&lt; 0 dB'</span><span class="sc">:&gt;14}</span><span class="ss"> (feasible)"</span>)</span>
-<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Choose 20 MHz bandwidth: requires ~3.3 dB SNR</span></span>
-<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>    bw        <span class="op">=</span> <span class="fl">20e6</span></span>
-<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>    se        <span class="op">=</span> target_rate <span class="op">/</span> bw</span>
-<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>    snr_min   <span class="op">=</span> <span class="dv">2</span><span class="op">**</span>se <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>    snr_min_db <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(snr_min)</span>
-<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Choosing 20 MHz: need </span><span class="sc">{</span>snr_min_db<span class="sc">:.1f}</span><span class="ss"> dB SNR"</span>)</span>
-<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2: Link budget</span></span>
-<span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Step 2: Link budget analysis</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>        snr_needed    <span class="op">=</span> <span class="dv">2</span><span class="op">**</span>se <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>        snr_needed_db <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(snr_needed)</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>bw_mhz<span class="sc">:&gt;10}</span><span class="ss"> MHz </span><span class="sc">{</span>se<span class="sc">:&gt;12.2f}</span><span class="ss"> b/s/Hz "</span></span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>snr_needed_db<span class="sc">:&gt;12.1f}</span><span class="ss"> dB"</span>)</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Choose 20 MHz bandwidth: requires ~14.9 dB SNR</span></span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>    bw        <span class="op">=</span> <span class="fl">20e6</span></span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>    se        <span class="op">=</span> target_rate <span class="op">/</span> bw</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>    snr_min   <span class="op">=</span> <span class="dv">2</span><span class="op">**</span>se <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>    snr_min_db <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(snr_min)</span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Choosing 20 MHz: need </span><span class="sc">{</span>snr_min_db<span class="sc">:.1f}</span><span class="ss"> dB SNR"</span>)</span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 2: Link budget</span></span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Step 2: Link budget analysis</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a>    pl        <span class="op">=</span> free_space_path_loss(distance, freq)</span>
+<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a>    nf        <span class="op">=</span> <span class="dv">7</span>    <span class="co"># Typical noise figure</span></span>
+<span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a>    margin    <span class="op">=</span> <span class="dv">10</span>   <span class="co"># Implementation margin</span></span>
 <span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a>    pl        <span class="op">=</span> free_space_path_loss(distance, freq)</span>
-<span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a>    nf        <span class="op">=</span> <span class="dv">7</span>    <span class="co"># Typical noise figure</span></span>
-<span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a>    margin    <span class="op">=</span> <span class="dv">10</span>   <span class="co"># Implementation margin</span></span>
-<span id="cb27-45"><a href="#cb27-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-46"><a href="#cb27-46" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Free-space path loss at </span><span class="sc">{</span>distance<span class="sc">}</span><span class="ss">m, </span><span class="sc">{</span>freq<span class="op">/</span><span class="fl">1e9</span><span class="sc">:.0f}</span><span class="ss">GHz: "</span></span>
-<span id="cb27-47"><a href="#cb27-47" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>pl<span class="sc">:.1f}</span><span class="ss"> dB"</span>)</span>
-<span id="cb27-48"><a href="#cb27-48" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Noise figure: </span><span class="sc">{</span>nf<span class="sc">}</span><span class="ss"> dB"</span>)</span>
-<span id="cb27-49"><a href="#cb27-49" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Implementation margin: </span><span class="sc">{</span>margin<span class="sc">}</span><span class="ss"> dB"</span>)</span>
-<span id="cb27-50"><a href="#cb27-50" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
-<span id="cb27-51"><a href="#cb27-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-52"><a href="#cb27-52" aria-hidden="true" tabindex="-1"></a>    <span class="co"># What transmit power do we need?</span></span>
-<span id="cb27-53"><a href="#cb27-53" aria-hidden="true" tabindex="-1"></a>    <span class="co"># SNR = Tx_power + Tx_gain - Path_loss + Rx_gain</span></span>
-<span id="cb27-54"><a href="#cb27-54" aria-hidden="true" tabindex="-1"></a>    <span class="co">#       - Noise_floor - NF - Margin</span></span>
-<span id="cb27-55"><a href="#cb27-55" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Noise floor (20 MHz): N = kTB</span></span>
-<span id="cb27-56"><a href="#cb27-56" aria-hidden="true" tabindex="-1"></a>    k_B         <span class="op">=</span> <span class="fl">1.38e-23</span></span>
-<span id="cb27-57"><a href="#cb27-57" aria-hidden="true" tabindex="-1"></a>    T           <span class="op">=</span> <span class="dv">290</span></span>
-<span id="cb27-58"><a href="#cb27-58" aria-hidden="true" tabindex="-1"></a>    noise_floor <span class="op">=</span> <span class="dv">10</span><span class="op">*</span>math.log10(k_B <span class="op">*</span> T <span class="op">*</span> bw) <span class="op">+</span> <span class="dv">30</span>  <span class="co"># dBm</span></span>
-<span id="cb27-59"><a href="#cb27-59" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Thermal noise floor (</span><span class="sc">{</span>bw<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.0f}</span><span class="ss"> MHz): </span><span class="sc">{</span>noise_floor<span class="sc">:.1f}</span><span class="ss"> dBm"</span>)</span>
+<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Free-space path loss at </span><span class="sc">{</span>distance<span class="sc">}</span><span class="ss">m, </span><span class="sc">{</span>freq<span class="op">/</span><span class="fl">1e9</span><span class="sc">:.0f}</span><span class="ss">GHz: "</span></span>
+<span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>pl<span class="sc">:.1f}</span><span class="ss"> dB"</span>)</span>
+<span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Noise figure: </span><span class="sc">{</span>nf<span class="sc">}</span><span class="ss"> dB"</span>)</span>
+<span id="cb27-45"><a href="#cb27-45" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Implementation margin: </span><span class="sc">{</span>margin<span class="sc">}</span><span class="ss"> dB"</span>)</span>
+<span id="cb27-46"><a href="#cb27-46" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
+<span id="cb27-47"><a href="#cb27-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-48"><a href="#cb27-48" aria-hidden="true" tabindex="-1"></a>    <span class="co"># What transmit power do we need?</span></span>
+<span id="cb27-49"><a href="#cb27-49" aria-hidden="true" tabindex="-1"></a>    <span class="co"># SNR = Tx_power + Tx_gain - Path_loss + Rx_gain</span></span>
+<span id="cb27-50"><a href="#cb27-50" aria-hidden="true" tabindex="-1"></a>    <span class="co">#       - Noise_floor - NF - Margin</span></span>
+<span id="cb27-51"><a href="#cb27-51" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Noise floor (20 MHz): N = kTB</span></span>
+<span id="cb27-52"><a href="#cb27-52" aria-hidden="true" tabindex="-1"></a>    k_B         <span class="op">=</span> <span class="fl">1.38e-23</span></span>
+<span id="cb27-53"><a href="#cb27-53" aria-hidden="true" tabindex="-1"></a>    T           <span class="op">=</span> <span class="dv">290</span></span>
+<span id="cb27-54"><a href="#cb27-54" aria-hidden="true" tabindex="-1"></a>    noise_floor <span class="op">=</span> <span class="dv">10</span><span class="op">*</span>math.log10(k_B <span class="op">*</span> T <span class="op">*</span> bw) <span class="op">+</span> <span class="dv">30</span>  <span class="co"># dBm</span></span>
+<span id="cb27-55"><a href="#cb27-55" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Thermal noise floor (</span><span class="sc">{</span>bw<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.0f}</span><span class="ss"> MHz): </span><span class="sc">{</span>noise_floor<span class="sc">:.1f}</span><span class="ss"> dBm"</span>)</span>
+<span id="cb27-56"><a href="#cb27-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-57"><a href="#cb27-57" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Required Rx power = noise_floor + NF + margin + SNR_min</span></span>
+<span id="cb27-58"><a href="#cb27-58" aria-hidden="true" tabindex="-1"></a>    rx_power_needed <span class="op">=</span> noise_floor <span class="op">+</span> nf <span class="op">+</span> margin <span class="op">+</span> snr_min_db</span>
+<span id="cb27-59"><a href="#cb27-59" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Required Rx power: </span><span class="sc">{</span>rx_power_needed<span class="sc">:.1f}</span><span class="ss"> dBm"</span>)</span>
 <span id="cb27-60"><a href="#cb27-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-61"><a href="#cb27-61" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Required Rx power = noise_floor + NF + margin + SNR_min</span></span>
-<span id="cb27-62"><a href="#cb27-62" aria-hidden="true" tabindex="-1"></a>    rx_power_needed <span class="op">=</span> noise_floor <span class="op">+</span> nf <span class="op">+</span> margin <span class="op">+</span> snr_min_db</span>
-<span id="cb27-63"><a href="#cb27-63" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Required Rx power: </span><span class="sc">{</span>rx_power_needed<span class="sc">:.1f}</span><span class="ss"> dBm"</span>)</span>
-<span id="cb27-64"><a href="#cb27-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-65"><a href="#cb27-65" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Required Tx power (assuming 3 dBi antennas)</span></span>
-<span id="cb27-66"><a href="#cb27-66" aria-hidden="true" tabindex="-1"></a>    tx_gain  <span class="op">=</span> <span class="dv">3</span></span>
-<span id="cb27-67"><a href="#cb27-67" aria-hidden="true" tabindex="-1"></a>    rx_gain  <span class="op">=</span> <span class="dv">3</span></span>
-<span id="cb27-68"><a href="#cb27-68" aria-hidden="true" tabindex="-1"></a>    tx_power <span class="op">=</span> rx_power_needed <span class="op">+</span> pl <span class="op">-</span> tx_gain <span class="op">-</span> rx_gain</span>
-<span id="cb27-69"><a href="#cb27-69" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Required Tx power: </span><span class="sc">{</span>tx_power<span class="sc">:.1f}</span><span class="ss"> dBm "</span></span>
-<span id="cb27-70"><a href="#cb27-70" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"= </span><span class="sc">{</span><span class="dv">10</span><span class="op">**</span>(tx_power<span class="op">/</span><span class="dv">10</span>)<span class="sc">:.0f}</span><span class="ss"> mW"</span>)</span>
-<span id="cb27-71"><a href="#cb27-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-72"><a href="#cb27-72" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3: Can we do better with MIMO?</span></span>
-<span id="cb27-73"><a href="#cb27-73" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Step 3: MIMO enhancement</span><span class="ch">\n</span><span class="st">"</span>)</span>
-<span id="cb27-74"><a href="#cb27-74" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n_streams <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">4</span>]:</span>
-<span id="cb27-75"><a href="#cb27-75" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Each stream carries target_rate / n_streams</span></span>
-<span id="cb27-76"><a href="#cb27-76" aria-hidden="true" tabindex="-1"></a>        rate_per   <span class="op">=</span> target_rate <span class="op">/</span> n_streams</span>
-<span id="cb27-77"><a href="#cb27-77" aria-hidden="true" tabindex="-1"></a>        se_per     <span class="op">=</span> rate_per <span class="op">/</span> bw</span>
-<span id="cb27-78"><a href="#cb27-78" aria-hidden="true" tabindex="-1"></a>        snr_per_db <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(<span class="dv">2</span><span class="op">**</span>se_per <span class="op">-</span> <span class="dv">1</span>)</span>
-<span id="cb27-79"><a href="#cb27-79" aria-hidden="true" tabindex="-1"></a>        tx_per_db  <span class="op">=</span> snr_per_db <span class="op">+</span> noise_floor <span class="op">+</span> nf <span class="op">+</span> margin <span class="op">+</span> pl <span class="op">-</span> tx_gain <span class="op">-</span> rx_gain</span>
-<span id="cb27-80"><a href="#cb27-80" aria-hidden="true" tabindex="-1"></a>        tx_per_mw  <span class="op">=</span> <span class="dv">10</span><span class="op">**</span>(tx_per_db<span class="op">/</span><span class="dv">10</span>)</span>
-<span id="cb27-81"><a href="#cb27-81" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>n_streams<span class="sc">}</span><span class="ss">×</span><span class="sc">{</span>n_streams<span class="sc">}</span><span class="ss"> MIMO: </span><span class="sc">{</span>snr_per_db<span class="sc">:.1f}</span><span class="ss"> dB SNR/stream, "</span></span>
-<span id="cb27-82"><a href="#cb27-82" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>tx_per_mw<span class="sc">:.1f}</span><span class="ss"> mW/antenna, "</span></span>
-<span id="cb27-83"><a href="#cb27-83" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>tx_per_mw<span class="op">*</span>n_streams<span class="sc">:.1f}</span><span class="ss"> mW total"</span>)</span>
-<span id="cb27-84"><a href="#cb27-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-85"><a href="#cb27-85" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Conclusion:"</span>)</span>
-<span id="cb27-86"><a href="#cb27-86" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"  Single antenna: feasible at moderate power"</span>)</span>
-<span id="cb27-87"><a href="#cb27-87" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"  MIMO reduces per-antenna SNR requirement,"</span>)</span>
-<span id="cb27-88"><a href="#cb27-88" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"  trading antenna count for transmit power"</span>)</span>
-<span id="cb27-89"><a href="#cb27-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-90"><a href="#cb27-90" aria-hidden="true" tabindex="-1"></a>design_wireless_link()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb27-61"><a href="#cb27-61" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Required Tx power (assuming 3 dBi antennas)</span></span>
+<span id="cb27-62"><a href="#cb27-62" aria-hidden="true" tabindex="-1"></a>    tx_gain  <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb27-63"><a href="#cb27-63" aria-hidden="true" tabindex="-1"></a>    rx_gain  <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb27-64"><a href="#cb27-64" aria-hidden="true" tabindex="-1"></a>    tx_power <span class="op">=</span> rx_power_needed <span class="op">+</span> pl <span class="op">-</span> tx_gain <span class="op">-</span> rx_gain</span>
+<span id="cb27-65"><a href="#cb27-65" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Required Tx power: </span><span class="sc">{</span>tx_power<span class="sc">:.1f}</span><span class="ss"> dBm "</span></span>
+<span id="cb27-66"><a href="#cb27-66" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"= </span><span class="sc">{</span><span class="dv">10</span><span class="op">**</span>(tx_power<span class="op">/</span><span class="dv">10</span>)<span class="sc">:.0f}</span><span class="ss"> mW"</span>)</span>
+<span id="cb27-67"><a href="#cb27-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-68"><a href="#cb27-68" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Step 3: Can we do better with MIMO?</span></span>
+<span id="cb27-69"><a href="#cb27-69" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Step 3: MIMO enhancement</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb27-70"><a href="#cb27-70" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n_streams <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">4</span>]:</span>
+<span id="cb27-71"><a href="#cb27-71" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Each stream carries target_rate / n_streams</span></span>
+<span id="cb27-72"><a href="#cb27-72" aria-hidden="true" tabindex="-1"></a>        rate_per   <span class="op">=</span> target_rate <span class="op">/</span> n_streams</span>
+<span id="cb27-73"><a href="#cb27-73" aria-hidden="true" tabindex="-1"></a>        se_per     <span class="op">=</span> rate_per <span class="op">/</span> bw</span>
+<span id="cb27-74"><a href="#cb27-74" aria-hidden="true" tabindex="-1"></a>        snr_per_db <span class="op">=</span> <span class="dv">10</span> <span class="op">*</span> math.log10(<span class="dv">2</span><span class="op">**</span>se_per <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb27-75"><a href="#cb27-75" aria-hidden="true" tabindex="-1"></a>        tx_per_db  <span class="op">=</span> snr_per_db <span class="op">+</span> noise_floor <span class="op">+</span> nf <span class="op">+</span> margin <span class="op">+</span> pl <span class="op">-</span> tx_gain <span class="op">-</span> rx_gain</span>
+<span id="cb27-76"><a href="#cb27-76" aria-hidden="true" tabindex="-1"></a>        tx_per_mw  <span class="op">=</span> <span class="dv">10</span><span class="op">**</span>(tx_per_db<span class="op">/</span><span class="dv">10</span>)</span>
+<span id="cb27-77"><a href="#cb27-77" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>n_streams<span class="sc">}</span><span class="ss">×</span><span class="sc">{</span>n_streams<span class="sc">}</span><span class="ss"> MIMO: </span><span class="sc">{</span>snr_per_db<span class="sc">:.1f}</span><span class="ss"> dB SNR/stream, "</span></span>
+<span id="cb27-78"><a href="#cb27-78" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>tx_per_mw<span class="sc">:.1f}</span><span class="ss"> mW/antenna, "</span></span>
+<span id="cb27-79"><a href="#cb27-79" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>tx_per_mw<span class="op">*</span>n_streams<span class="sc">:.1f}</span><span class="ss"> mW total"</span>)</span>
+<span id="cb27-80"><a href="#cb27-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-81"><a href="#cb27-81" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Conclusion:"</span>)</span>
+<span id="cb27-82"><a href="#cb27-82" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"  Single antenna: feasible at moderate power"</span>)</span>
+<span id="cb27-83"><a href="#cb27-83" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"  MIMO reduces per-antenna SNR requirement,"</span>)</span>
+<span id="cb27-84"><a href="#cb27-84" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"  trading antenna count for transmit power"</span>)</span>
+<span id="cb27-85"><a href="#cb27-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-86"><a href="#cb27-86" aria-hidden="true" tabindex="-1"></a>design_wireless_link()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Wireless Link Design: 100 Mbps at 1 km, 5 GHz
 
@@ -1503,13 +1513,13 @@ Step 1: SNR required for target rate
 
    Bandwidth    Required SE    Required SNR
 --------------------------------------------
-       10 MHz    10.00 b/s/Hz       30.0 dB
-       20 MHz     5.00 b/s/Hz       30.1 dB
-       40 MHz     2.50 b/s/Hz       18.1 dB
-       80 MHz     1.25 b/s/Hz        7.3 dB
-      160 MHz     0.63 b/s/Hz     &lt; 0 dB (feasible)
+       10 MHz    10.00 b/s/Hz       30.1 dB
+       20 MHz     5.00 b/s/Hz       14.9 dB
+       40 MHz     2.50 b/s/Hz        6.7 dB
+       80 MHz     1.25 b/s/Hz        1.4 dB
+      160 MHz     0.63 b/s/Hz       -0.8 dB
 
-Choosing 20 MHz: need 30.1 dB SNR
+Choosing 20 MHz: need 14.9 dB SNR
 
 Step 2: Link budget analysis
 
@@ -1518,20 +1528,20 @@ Noise figure: 7 dB
 Implementation margin: 10 dB
 
 Thermal noise floor (20 MHz): -101.0 dBm
-Required Rx power: -53.9 dBm
-Required Tx power: 58.5 dBm = 707946 mW
+Required Rx power: -69.1 dBm
+Required Tx power: 31.4 dBm = 1370 mW
 
 Step 3: MIMO enhancement
 
-  1×1 MIMO: 30.1 dB SNR/stream, 707946.1 mW/antenna, 707946.1 mW total
-  2×2 MIMO: 15.1 dB SNR/stream, 86.7 mW/antenna, 173.4 mW total
-  4×4 MIMO: 7.5 dB SNR/stream, 3.6 mW/antenna, 14.5 mW total
+  1×1 MIMO: 14.9 dB SNR/stream, 1370.2 mW/antenna, 1370.2 mW total
+  2×2 MIMO: 6.7 dB SNR/stream, 205.8 mW/antenna, 411.7 mW total
+  4×4 MIMO: 1.4 dB SNR/stream, 60.9 mW/antenna, 243.7 mW total
 
 Conclusion:
-  Single antenna: feasible at moderate power
+  Single antenna: feasible, but power-hungry
   MIMO reduces per-antenna SNR requirement,
   trading antenna count for transmit power</code></pre>
-<p>The numbers reveal exactly why MIMO is so important. A single-antenna link needs 708 watts — impossible for any portable device. A 4×4 MIMO system achieves the same throughput with just 14.5 milliwatts total, because each stream only needs to carry a quarter of the load and therefore needs dramatically less SNR. This is not a consequence of MIMO magic — it is Shannon-Hartley applied four times in parallel.</p>
+<p>The numbers reveal exactly why MIMO is so important. A single-antenna link is theoretically possible here, but it needs about 1.37 watts of transmit power in this idealized model — far too high for most battery-powered devices. A 4×4 MIMO system brings that down to about 244 milliwatts total by splitting the load across four spatial streams, each of which needs much less SNR. This is not MIMO magic — it is Shannon-Hartley applied four times in parallel.</p>
 <hr>
 </section>
 <section id="summary" class="level2" data-number="12.12">
@@ -1540,7 +1550,7 @@ Conclusion:
 <li>Bandwidth is the range of frequencies a channel occupies in Hertz. Shannon capacity grows linearly with bandwidth but logarithmically with SNR — making bandwidth more valuable than power in the high-SNR regime.</li>
 <li>The Nyquist rate limits the symbol rate to 2W symbols per second for bandwidth W. The modulation scheme determines bits per symbol; noise determines reliability.</li>
 <li>A link budget tracks every gain and loss from transmitter to receiver. Free-space path loss grows as the square of distance and linearly with frequency, explaining why higher-frequency signals have shorter range.</li>
-<li>Spectral efficiency (bits/s/Hz) is the key figure of merit for wireless systems. Modern WiFi 6 achieves over 96% of the Shannon limit at high SNR, up from under 1% for 1990s modems.</li>
+<li>Spectral efficiency (bits/s/Hz) is the key figure of merit for wireless systems. Real MCS tables trace how each additional bit/s/Hz demands more SNR, and practical systems operate a few dB away from the Shannon boundary for margin.</li>
 <li>OFDM divides a wideband channel into many narrow subcarriers, each approximately flat. Water-filling allocates more power to stronger subcarriers to maximize total capacity.</li>
 <li>MIMO uses multiple antennas to create parallel spatial streams. Capacity scales approximately linearly with the number of antenna pairs in ideal conditions, enabling massive throughput gains without additional bandwidth or power.</li>
 <li>Optical fiber has terahertz-scale bandwidth and achieves tens of terabits per second per fiber pair — sufficient to carry the world’s internet traffic many times over. The bottleneck is electronics, not the fiber.</li>

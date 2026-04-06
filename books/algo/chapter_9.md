@@ -117,7 +117,7 @@ function edit_distance(a: String, b: String): Integer do
   until
     i > n
   do
-    table.add(Array.filled(m + 1, 0))
+    table.add(create Array.filled(m + 1, 0))
     i := i + 1
   end
 
@@ -309,8 +309,8 @@ function edit_distance_space_optimised(a: String, b: String): Integer do
   let m: Integer := b.length
 
   -- Use only two rows
-  let prev: Array[Integer] := Array.filled(m + 1, 0)
-  let curr: Array[Integer] := Array.filled(m + 1, 0)
+  let prev: Array[Integer] := create Array.filled(m + 1, 0)
+  let curr: Array[Integer] := create Array.filled(m + 1, 0)
 
   -- Initialise first row
   from
@@ -518,8 +518,8 @@ function edit_distance_bounded(a: String, b: String,
                                 max_dist: Integer): Integer do
   let n: Integer := a.length
   let m: Integer := b.length
-  let prev: Array[Integer] := Array.filled(m + 1, 0)
-  let curr: Array[Integer] := Array.filled(m + 1, 0)
+  let prev: Array[Integer] := create Array.filled(m + 1, 0)
+  let curr: Array[Integer] := create Array.filled(m + 1, 0)
 
   from
     let j: Integer := 0
@@ -587,8 +587,8 @@ The LCS DP table is almost identical to the edit distance table:
 function lcs_length(a: String, b: String): Integer do
   let n: Integer := a.length
   let m: Integer := b.length
-  let prev: Array[Integer] := Array.filled(m + 1, 0)
-  let curr: Array[Integer] := Array.filled(m + 1, 0)
+  let prev: Array[Integer] := create Array.filled(m + 1, 0)
+  let curr: Array[Integer] := create Array.filled(m + 1, 0)
 
   from
     let i: Integer := 1
@@ -648,7 +648,7 @@ class Diff
       until
         i <= n
       do
-        table.add(Array.filled(m + 1, 0))
+        table.add(create Array.filled(m + 1, 0))
         i := i + 1
       end
 

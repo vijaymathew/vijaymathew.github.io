@@ -28,7 +28,6 @@ The transition probability is the channel's noise model. It captures everything 
 
 ```python
 import math
-import numpy as np
 from collections import defaultdict
 
 class Channel:
@@ -68,12 +67,12 @@ class Channel:
         probs   = [self.p(x, y) for y in outputs]
         return random.choices(outputs, weights=probs)[0]
 
-    def transition_matrix(self) -> np.ndarray:
-        """Return the transition matrix as a numpy array."""
-        return np.array([
+    def transition_matrix(self) -> list:
+        """Return the transition matrix as a nested list."""
+        return [
             [self.p(x, y) for y in self.outputs]
             for x in self.inputs
-        ])
+        ]
 ```
 
 Let's define some standard channels:
@@ -278,7 +277,7 @@ with uniform input distribution P(X=0) = P(X=1) = 0.5
           0.00         1.0000
           0.05         0.7136
           0.10         0.5310
-          0.20         0.2780
+          0.20         0.2781
           0.30         0.1187
           0.50         0.0000
 ```
@@ -302,8 +301,6 @@ C = max_{P(X)} I(X; Y)
 Capacity is a property of the channel alone — it is the best we can do, optimizing over our choice of input distribution. It is measured in bits per channel use.
 
 ```python
-from scipy.optimize import minimize
-
 def channel_capacity_binary(channel: Channel,
                              n_points: int = 1000) -> tuple:
     """
@@ -350,11 +347,11 @@ Channel         Capacity (bits)   Optimal P(X=1)
 BSC(0.00)                1.0000           0.5000
 BSC(0.05)                0.7136           0.5000
 BSC(0.10)                0.5310           0.5000
-BSC(0.20)                0.2780           0.5000
+BSC(0.20)                0.2781           0.5000
 BSC(0.50)                0.0000           0.5000
 BEC(0.20)                0.8000           0.5000
 BEC(0.50)                0.5000           0.5000
-Z-channel                0.3219           0.2929
+Z-channel                0.3219           0.4000
 ```
 
 Several results here deserve comment.
@@ -375,7 +372,7 @@ C_BEC = 1 - ε
 
 This is elegantly simple. If 20% of bits are erased, the channel delivers 80% of its maximum capacity. Unlike the BSC, the BEC is perfect on the bits it does pass — you lose capacity linearly with erasure probability, but what gets through is uncorrupted.
 
-**Z-channel:** The optimal input distribution is not uniform (P(X=1) ≈ 0.29, not 0.5). Asymmetric channels have asymmetric optimal input distributions.
+**Z-channel:** The optimal input distribution is not uniform (P(X=1) ≈ 0.40, not 0.5). Asymmetric channels generally have asymmetric optimal input distributions.
 
 ```python
 def bsc_capacity(p: float) -> float:
@@ -407,7 +404,7 @@ Closed-form vs numerical BSC capacity:
 --------------------------------------------
    0.0        1.0000        1.0000       YES
    0.1        0.5310        0.5310       YES
-   0.2        0.2780        0.2780       YES
+  0.2        0.2781        0.2781       YES
    0.3        0.1187        0.1187       YES
    0.5        0.0000        0.0000       YES
 ```
@@ -441,6 +438,7 @@ def channel_coding_theorem_illustration():
     2. Above capacity: error rate stays bounded away from zero
     """
     import random
+    random.seed(42)
 
     # Simple repetition code for BSC(0.1)
     # Capacity = 0.531 bits per channel use
@@ -484,17 +482,17 @@ def channel_coding_theorem_illustration():
 channel_coding_theorem_illustration()
 ```
 
-Output (approximate):
+Output:
 ```
 Repetition code on BSC(0.1)
 Channel capacity: 0.5310 bits/use
 
   Reps   Rate (bits/use)   Error rate
 ----------------------------------------
-     1            1.0000       0.1000  > C
-     3            0.3333       0.0280  < C
-     5            0.2000       0.0086  < C
-     9            0.1111       0.0009  < C
+     1            1.0000       0.0989  > C
+     3            0.3333       0.0285  < C
+     5            0.2000       0.0087  < C
+     9            0.1111       0.0007  < C
     15            0.0667       0.0000  < C
     25            0.0400       0.0000  < C
     51            0.0196       0.0000  < C
@@ -516,6 +514,7 @@ def converse_illustration():
     Show that at rate 1.0 > C = 0.531, error rate stays bounded.
     """
     import random
+    random.seed(42)
 
     results = []
     for p in [0.01, 0.05, 0.10, 0.20, 0.30, 0.50]:
@@ -524,13 +523,6 @@ def converse_illustration():
 
         # Rate = 1.0 (no encoding, raw transmission)
         n_trials = 10000
-        errors   = sum(
-            1 for _ in range(n_trials)
-            if bsc.transmit(random.choice(['0', '1'])) !=
-               random.choice(['0', '1'])  # Wrong: must compare correctly
-        )
-
-        # Correct simulation: send random bit, check if received correctly
         errors = 0
         for _ in range(n_trials):
             bit      = random.choice(['0', '1'])
@@ -544,7 +536,6 @@ def converse_illustration():
     print(f"{'p':>6}  {'Capacity':>10}  {'Error rate':>12}  {'Rate > C?':>10}")
     print("-" * 44)
     for p, C, err in results:
-        above = rate > C if (rate := 1.0) else False
         print(f"{p:>6.2f}  {C:>10.4f}  {err:>12.4f}  "
               f"{'YES' if 1.0 > C else 'NO':>10}")
 
@@ -556,15 +547,15 @@ Output:
 Raw transmission (rate=1.0) on BSC(p)
      p    Capacity    Error rate   Rate > C?
 --------------------------------------------
-  0.01      0.9192        0.0100        YES
-  0.05      0.7136        0.0500        YES
-  0.10      0.5310        0.1000        YES
-  0.20      0.2780        0.2000        YES
-  0.30      0.1187        0.3000        YES
-  0.50      0.0000        0.5000        YES
+  0.01      0.9192        0.0087        YES
+  0.05      0.7136        0.0507        YES
+  0.10      0.5310        0.0991        YES
+  0.20      0.2781        0.2069        YES
+  0.30      0.1187        0.3034        YES
+  0.50      0.0000        0.4951        YES
 ```
 
-At rate 1.0 (always above capacity for p > 0), the error rate equals exactly *p* — the raw channel error rate. You cannot do better without adding redundancy.
+At rate 1.0 (always above capacity for p > 0), the measured error rate tracks *p* closely — it is just the raw channel error rate up to sampling noise. You cannot do better without adding redundancy.
 
 ---
 
@@ -644,11 +635,11 @@ Shannon-Hartley capacity for real-world channels
 
 Channel                       BW (Hz)   SNR (dB)       Capacity
 --------------------------------------------------------------------
-Phone line (POTS)                3400         30        33.93 kbps
-DSL (ADSL2+)                  2200000         40        29.21 Mbps
-WiFi 802.11n (2.4GHz)        20000000         25        83.22 Mbps
-WiFi 802.11ac (5GHz)         80000000         30       266.00 Mbps
-5G NR (sub-6GHz)            100000000         20       332.19 Mbps
+Phone line (POTS)                3400         30        33.89 kbps
+DSL (ADSL2+)                  2200000         40        29.23 Mbps
+WiFi 802.11n (2.4GHz)        20000000         25       166.19 Mbps
+WiFi 802.11ac (5GHz)         80000000         30       797.38 Mbps
+5G NR (sub-6GHz)            100000000         20       665.82 Mbps
 Fiber optic (single λ)    10000000000         40       132.88 Gbps
 ```
 
@@ -663,8 +654,6 @@ def snr_capacity_tradeoff():
     Key insight: capacity grows logarithmically with SNR
     but linearly with bandwidth.
     """
-    import numpy as np
-
     bandwidth = 1e6  # Fixed at 1 MHz
 
     snrs_db  = list(range(-10, 51, 5))
@@ -692,16 +681,18 @@ Capacity vs SNR (bandwidth = 1 MHz fixed)
   SNR (dB)   SNR (linear)   Capacity (Mbps)
 --------------------------------------------
        -10            0.1           0.1375
-        -5            0.3           0.3785
+        -5            0.3           0.3964
          0            1.0           1.0000
-         5            3.2           2.0568
+         5            3.2           2.0574
         10           10.0           3.4594
-        15           31.6           4.9829
+        15           31.6           5.0278
         20          100.0           6.6582
-        25          316.2           8.3062
-        30         1000.0           9.9658
-        40        10000.0          13.2882
-        50       100000.0          16.6096
+        25          316.2           8.3094
+        30         1000.0           9.9672
+        35         3162.3          11.6272
+        40        10000.0          13.2879
+        45        31622.8          14.9487
+        50       100000.0          16.6097
 
 Key observation:
 Doubling SNR (adding ~3 dB) adds only 1 bit/s/Hz to capacity.
@@ -724,9 +715,18 @@ def spectral_efficiency_analysis():
     Spectral efficiency = actual_rate / bandwidth (bits/s/Hz)
     Shannon limit      = log2(1 + SNR)
     """
+    def format_rate(rate_bps):
+        if rate_bps >= 1e9:
+            return f"{rate_bps/1e9:.1f} Gbps"
+        if rate_bps >= 1e6:
+            return f"{rate_bps/1e6:.1f} Mbps"
+        if rate_bps >= 1e3:
+            return f"{rate_bps/1e3:.1f} kbps"
+        return f"{rate_bps:.1f} bps"
+
     systems = [
         # (name, bandwidth_hz, snr_db, actual_rate_bps)
-        ("56k modem",        3400,     30,       56e3),
+        ("33.6k modem",      3400,     30,     33.6e3),
         ("ADSL2+",         2.2e6,     35,       24e6),
         ("VDSL2",           17e6,     40,      100e6),
         ("802.11g",         20e6,     20,       54e6),
@@ -743,30 +743,30 @@ def spectral_efficiency_analysis():
         snr      = db_to_linear(snr_db)
         limit    = shannon_hartley_capacity(bw, snr)
         eff      = rate / limit
-        limit_str = f"{limit/1e6:.1f} Mbps"
-        rate_str  = f"{rate/1e6:.1f} Mbps"
+        limit_str = format_rate(limit)
+        rate_str  = format_rate(rate)
         print(f"{name:<20} {limit_str:>15} {rate_str:>14} {eff:>11.1%}")
 
 spectral_efficiency_analysis()
 ```
 
-Output (approximate):
+Output:
 ```
 System               Shannon limit    Actual rate   Efficiency
 -----------------------------------------------------------------
-56k modem               33.9 Mbps       0.1 Mbps        0.2%
-ADSL2+                  43.8 Mbps      24.0 Mbps       54.8%
-VDSL2                  266.0 Mbps     100.0 Mbps       37.6%
-802.11g                  83.2 Mbps      54.0 Mbps       64.9%
-802.11n MIMO            166.4 Mbps     300.0 Mbps      180.4%
-802.11ac 4x4            266.0 Mbps    1300.0 Mbps      488.7%
-LTE Cat 6                83.2 Mbps     300.0 Mbps      360.6%
-5G NR mmWave           1661.0 Mbps    4000.0 Mbps      240.8%
+33.6k modem              33.9 kbps      33.6 kbps       99.1%
+ADSL2+                   25.6 Mbps      24.0 Mbps       93.8%
+VDSL2                   225.9 Mbps     100.0 Mbps       44.3%
+802.11g                 133.2 Mbps      54.0 Mbps       40.6%
+802.11n MIMO            332.4 Mbps     300.0 Mbps       90.3%
+802.11ac 4x4            797.4 Mbps       1.3 Gbps      163.0%
+LTE Cat 6               133.2 Mbps     300.0 Mbps      225.3%
+5G NR mmWave              2.0 Gbps       4.0 Gbps      198.9%
 ```
 
-Some efficiencies exceed 100% — this seems to violate Shannon's theorem. The reason: MIMO (multiple-input, multiple-output) systems use multiple antennas to create *multiple parallel channels*, effectively multiplying the available bandwidth. The Shannon-Hartley formula applies to a single channel; MIMO systems use 2, 4, or more spatial streams simultaneously. The correct comparison would account for this.
+Some efficiencies exceed 100% — this seems to violate Shannon's theorem. The reason is that systems like 802.11ac, LTE Cat 6, and 5G NR combine multiple spatial streams and/or aggregated channels. The Shannon-Hartley formula above is for a single channel. Once you account for MIMO and carrier aggregation, the apparent violation disappears.
 
-The 56k modem at 0.2% efficiency shows how far modems were from the theoretical limit in the 1990s — and how much room there was for improvement. Modern systems achieve 40-65% of the Shannon limit for single-channel links, which represents decades of coding and signal processing research.
+The 33.6k modem is already close to the single-channel Shannon limit of a telephone line, which is why classic dial-up modems plateaued where they did. Modern single-link systems in this toy table range from about 40% to 95% of the corresponding Shannon limit, while multi-stream systems exceed the single-link bound by opening multiple parallel channels.
 
 ---
 
@@ -789,32 +789,35 @@ def is_memoryless_approximation_valid(channel: Channel,
                                        n_samples: int = 10000) -> dict:
     """
     Empirically test whether a channel appears memoryless by checking
-    whether successive outputs are independent.
+    whether successive outputs have near-zero lag-1 mutual information.
     """
     import random
-    from scipy.stats import chi2_contingency
+    from collections import Counter
 
     # Transmit a long sequence and collect pairs of consecutive outputs
+    random.seed(42)
     inputs    = [random.choice(channel.inputs) for _ in range(n_samples)]
     outputs   = [channel.transmit(x) for x in inputs]
 
-    # Build contingency table of (output_i, output_{i+1}) pairs
-    pairs     = [(outputs[i], outputs[i+1])
-                 for i in range(len(outputs)-1)]
-    unique_y  = sorted(set(channel.outputs))
-    table     = [[sum(1 for p in pairs if p == (y1, y2))
-                  for y2 in unique_y]
-                 for y1 in unique_y]
+    # Empirical lag-1 mutual information I(Y_t ; Y_{t+1})
+    pairs       = [(outputs[i], outputs[i+1]) for i in range(len(outputs)-1)]
+    pair_counts = Counter(pairs)
+    single      = Counter(outputs)
+    total_pairs = len(pairs)
+    total_single = len(outputs)
 
-    # Chi-squared test for independence
-    chi2, p_value, dof, expected = chi2_contingency(table)
+    lag_mi = 0.0
+    for (y1, y2), count in pair_counts.items():
+        p12 = count / total_pairs
+        p1  = single[y1] / total_single
+        p2  = single[y2] / total_single
+        lag_mi += p12 * math.log2(p12 / (p1 * p2))
 
     return {
-        'chi2':     chi2,
-        'p_value':  p_value,
-        'independent': p_value > 0.05,
-        'verdict':  'Memoryless (outputs independent)'
-                    if p_value > 0.05
+        'lag_mi_bits': lag_mi,
+        'independent': lag_mi < 1e-3,
+        'verdict':  'Memoryless (no detectable lag-1 dependence)'
+                    if lag_mi < 1e-3
                     else 'Has memory (outputs correlated)',
     }
 
@@ -822,14 +825,14 @@ def is_memoryless_approximation_valid(channel: Channel,
 for name, ch in [("BSC(0.1)", binary_symmetric_channel(0.1)),
                   ("BEC(0.2)", binary_erasure_channel(0.2))]:
     result = is_memoryless_approximation_valid(ch)
-    print(f"{name}: p-value={result['p_value']:.3f}  "
+    print(f"{name}: lag MI={result['lag_mi_bits']:.6f} bits  "
           f"{result['verdict']}")
 ```
 
 Output (approximate):
 ```
-BSC(0.1): p-value=0.847  Memoryless (outputs independent)
-BEC(0.2): p-value=0.612  Memoryless (outputs independent)
+BSC(0.1): lag MI=0.000005 bits  Memoryless (no detectable lag-1 dependence)
+BEC(0.2): lag MI=0.000141 bits  Memoryless (no detectable lag-1 dependence)
 ```
 
 Our simulated channels pass the independence test — as expected, since we constructed them to be memoryless.
@@ -897,12 +900,11 @@ def capacity_headroom_analysis():
         (30, "SLC NAND (1 bit/cell)"),
         (20, "MLC NAND (2 bits/cell)"),
         (15, "TLC NAND (3 bits/cell)"),
-        (10, "QLC NAND (4 bits/cell)"),
+        (12, "QLC NAND (4 bits/cell)"),
     ]:
         snr      = db_to_linear(snr_db)
         # Effective capacity per cell (simplified)
         cap      = math.log2(1 + snr)
-        overhead = 1 - (cap / math.log2(1 + snr))
 
         print(f"{technology}")
         print(f"  SNR (approx):        {snr_db} dB")
@@ -935,8 +937,8 @@ TLC NAND (3 bits/cell)
   Nominal bits/cell:   3
 
 QLC NAND (4 bits/cell)
-  SNR (approx):        10 dB
-  Shannon limit:       3.46 bits/cell
+  SNR (approx):        12 dB
+  Shannon limit:       4.07 bits/cell
   Nominal bits/cell:   4
 ```
 
@@ -953,7 +955,7 @@ Even QLC NAND (4 bits per cell) is well below the Shannon limit — there is roo
 - Shannon's channel coding theorem: for any R < C, reliable communication is achievable. For any R > C, it is not. Capacity is the sharp dividing line.
 - The Shannon-Hartley theorem gives AWGN channel capacity: C = W log₂(1 + SNR). Capacity grows logarithmically with SNR but linearly with bandwidth.
 - The theorem guarantees existence of good codes but says nothing about how to construct them, their computational complexity, or their finite-length performance.
-- Real systems achieve 40-65% of the Shannon limit for single-channel links. MIMO and other multi-antenna techniques exceed the single-channel Shannon limit by creating multiple parallel channels.
+- Real single-channel links often operate anywhere from roughly 40% to 95% of the Shannon limit, depending on engineering tradeoffs. MIMO and other multi-antenna techniques exceed the single-channel Shannon limit by creating multiple parallel channels.
 
 ---
 

@@ -45,10 +45,19 @@ String B also has a short description: "the first 1000 binary digits of π - 3."
 
 ```python
 from mpmath import mp
-mp.dps = 350  # Enough decimal places
-pi_digits = mp.nstr(mp.pi - 3, 340, strip_zeros=False).replace('0.', '')
-binary = bin(int(pi_digits.replace('.', '')))[2:][:1000]
-print(binary)
+mp.dps = 350  # Enough decimal places for 1000 binary digits
+
+x = mp.pi - 3
+bits = []
+for _ in range(1000):
+    x *= 2
+    if x >= 1:
+        bits.append('1')
+        x -= 1
+    else:
+        bits.append('0')
+
+print(''.join(bits))
 ```
 
 This program is perhaps 200 characters long — far shorter than the 1000-bit string it generates.
@@ -162,35 +171,41 @@ Most strings are incompressible. This is not an empirical observation — it is 
 There are 2ⁿ binary strings of length *n*. How many of them have Kolmogorov complexity less than *n - k*? A program of length *n - k* bits is itself a binary string of length *n - k*, and there are at most 2^(n-k) such programs. So at most 2^(n-k) strings of length *n* can have complexity less than *n - k*.
 
 ```python
-def fraction_with_complexity_below(n, threshold):
+import math
+
+def fraction_log10_upper_bound(n, threshold):
     """
-    Upper bound on the fraction of n-bit strings with
+    log10 of an upper bound on the fraction of n-bit strings with
     Kolmogorov complexity below threshold bits.
     """
-    max_programs    = 2 ** threshold
-    total_strings   = 2 ** n
-    return max_programs / total_strings
+    return (threshold - n) * math.log10(2)
+
+def scientific_from_log10(log10_x):
+    exponent = math.floor(log10_x)
+    mantissa = 10 ** (log10_x - exponent)
+    return f"{mantissa:.2f}e{exponent:+d}"
 
 print(f"{'n':>6} {'threshold':>12} {'fraction':>15} {'1 in ...':>12}")
 print("-" * 48)
 for n in [100, 1000, 10000]:
     for ratio in [0.5, 0.9]:
         threshold = int(n * ratio)
-        frac      = fraction_with_complexity_below(n, threshold)
-        print(f"{n:>6} {threshold:>12} {frac:>15.2e} "
-              f"{f'1 in 10^{int(-math.log10(frac))}':>12}")
+        log10_frac = fraction_log10_upper_bound(n, threshold)
+        frac_str   = scientific_from_log10(log10_frac)
+        rarity     = f"1 in 10^{int(-log10_frac)}"
+        print(f"{n:>6} {threshold:>12} {frac_str:>15} {rarity:>12}")
 ```
 
 Output:
 ```
      n    threshold        fraction     1 in ...
 ------------------------------------------------
-   100           50     1.00e-15    1 in 10^15
-   100           90     1.25e-03    1 in 10^3
-  1000          500     1.00e-151   1 in 10^151
-  1000          900     1.07e-44    1 in 10^44
- 10000         5000    3.05e-1506   1 in 10^1506
- 10000         9000    1.26e-436   1 in 10^436
+   100           50        8.88e-16   1 in 10^15
+   100           90         9.77e-4    1 in 10^3
+  1000          500       3.05e-151  1 in 10^150
+  1000          900        7.89e-31   1 in 10^30
+ 10000         5000      7.08e-1506 1 in 10^1505
+ 10000         9000       9.33e-302  1 in 10^301
 ```
 
 The fraction of strings that can be compressed by even 10% is vanishingly small for long strings. A random string is almost certainly incompressible — not probably incompressible, but incompressible with probability that approaches 1 as length grows.
@@ -269,12 +284,12 @@ Kolmogorov complexity is uncomputable, but we can approximate it. Any compressio
 Better compressors give tighter upper bounds.
 
 ```python
-import gzip, bz2, lzma
+import gzip, bz2, hashlib, lzma
 
 def kolmogorov_upper_bounds(s: bytes) -> dict:
     """
     Compute upper bounds on K(s) using various compressors.
-    Each gives a different (increasingly tight) upper bound.
+    Each gives a different upper bound.
     """
     bounds = {}
     bounds['Raw length']   = len(s) * 8
@@ -284,47 +299,65 @@ def kolmogorov_upper_bounds(s: bytes) -> dict:
     return bounds
 
 # Compare bounds on different types of data
+source_snippet = (
+    b"def fib(n):\n"
+    b"    a, b = 0, 1\n"
+    b"    for _ in range(n):\n"
+    b"        a, b = b, a + b\n"
+    b"    return a\n"
+) * 12
+
 test_cases = {
-    'Zeros (1KB)':       bytes(1024),
-    'Random (1KB)':      bytes(__import__('os').urandom(1024)),
-    'English text':      b'the quick brown fox jumps over the lazy dog ' * 23,
-    'Pi digits':         str(3.14159265358979323846264338327950288419716).encode() * 30,
-    'Source code':       open(__file__, 'rb').read()[:1024] if True else b'',
+    'Zeros (1KB)':             bytes(1024),
+    'SHAKE256 stream (1KB)':   hashlib.shake_256(b'chapter7-upper-bounds').digest(1024),
+    'English text':            b'the quick brown fox jumps over the lazy dog ' * 23,
+    'Pi digits':               str(3.14159265358979323846264338327950288419716).encode() * 30,
+    'Source code':             source_snippet[:1024],
 }
 
 for name, data in test_cases.items():
-    if not data:
-        continue
     bounds = kolmogorov_upper_bounds(data)
     print(f"\n{name} ({len(data)} bytes raw):")
     for method, bits in bounds.items():
         print(f"  K(s) ≤ {bits:>8} bits  [{method}]")
 ```
 
-Output (approximate):
+Output:
 ```
 Zeros (1KB) (1024 bytes raw):
   K(s) ≤    8192 bits  [Raw length]
-  K(s) ≤     216 bits  [gzip]
-  K(s) ≤     208 bits  [bz2]
-  K(s) ≤     408 bits  [lzma]
+  K(s) ≤     232 bits  [gzip]
+  K(s) ≤     336 bits  [bz2]
+  K(s) ≤     608 bits  [lzma]
 
-Random (1KB) (1024 bytes raw):
+SHAKE256 stream (1KB) (1024 bytes raw):
   K(s) ≤    8192 bits  [Raw length]
-  K(s) ≤    8312 bits  [gzip]
-  K(s) ≤    8248 bits  [bz2]
-  K(s) ≤    8680 bits  [lzma]
+  K(s) ≤    8376 bits  [gzip]
+  K(s) ≤   10472 bits  [bz2]
+  K(s) ≤    8672 bits  [lzma]
 
 English text (1012 bytes raw):
   K(s) ≤    8096 bits  [Raw length]
-  K(s) ≤    3584 bits  [gzip]
-  K(s) ≤    3456 bits  [bz2]
-  K(s) ≤    3320 bits  [lzma]
+  K(s) ≤     576 bits  [gzip]
+  K(s) ≤     944 bits  [bz2]
+  K(s) ≤     960 bits  [lzma]
+
+Pi digits (510 bytes raw):
+  K(s) ≤    4080 bits  [Raw length]
+  K(s) ≤     336 bits  [gzip]
+  K(s) ≤     520 bits  [bz2]
+  K(s) ≤     736 bits  [lzma]
+
+Source code (1024 bytes raw):
+  K(s) ≤    8192 bits  [Raw length]
+  K(s) ≤     760 bits  [gzip]
+  K(s) ≤    1208 bits  [bz2]
+  K(s) ≤    1120 bits  [lzma]
 ```
 
-Notice that for the zeros, even gzip gives a tight bound — 216 bits versus the raw 8192. For random data, every compressor gives a bound *larger* than the raw length because of compression overhead. The true K for random data is close to 8192 bits; the true K for zeros is tiny (a few bytes to encode "1024 zeros").
+Notice that for the zeros, even gzip gives a tight upper bound — 232 bits versus the raw 8192. For the SHAKE256 stream, every compressor gives a bound *larger* than the raw length because of compression overhead and the absence of exploitable structure. The true K for the all-zero string is tiny (a short program can say "print 1024 zeros"), while the compressor's behavior on the SHAKE256 stream tells us only that it looks incompressible to these models.
 
-For practical purposes, lzma usually gives the tightest upper bound because it uses a very large window and sophisticated context modeling. For research purposes, people have built specialized approximators for K based on ideas from prediction and model selection.
+No one compressor is universally tightest. Large-window compressors like lzma often win on large structured inputs, but on short toy samples header costs matter, and gzip can easily come out ahead. For research purposes, people have built specialized approximators for K based on ideas from prediction and model selection.
 
 ---
 
@@ -377,8 +410,8 @@ Output:
        8          15.30       24.00   0.6375
       16          44.25       64.00   0.6914
       64         296.00      384.00   0.7708
-     256        1683.99     2048.00   0.8223
-    1024        8530.27     10240.00  0.8330
+     256        1684.00     2048.00   0.8223
+    1024        8769.01     10240.00  0.8563
 ```
 
 The lower bound is tight — it matches the known optimal bounds within a constant factor, and it is derived without any analysis of specific algorithms. The incompressibility method gives us a lower bound essentially for free, simply from the counting argument that most permutations are hard to describe.
@@ -492,18 +525,22 @@ Kolmogorov complexity is a property of an *individual string*. It measures the i
 The connection is this: **for strings drawn from a distribution with entropy H, the expected Kolmogorov complexity is approximately H bits per symbol.**
 
 ```python
+import gzip
+import math
+import random
+
 def entropy_vs_kolmogorov():
     """
     Illustrate the connection between entropy and K-complexity.
     We approximate K(s) with compression length as an upper bound.
     """
-    import random
+    random.seed(42)
 
     results = []
     for p_heads in [0.1, 0.3, 0.5, 0.7, 0.9]:
-        # Generate 1000 samples from a biased coin
+        # Generate a long sample from a biased coin
         bits = ''.join('1' if random.random() < p_heads else '0'
-                       for _ in range(10000))
+                       for _ in range(200000))
 
         # Shannon entropy of the distribution
         p    = p_heads
@@ -529,14 +566,14 @@ Output:
 ```
   p(heads)   H (bits)   K approx   Ratio K/H
 --------------------------------------------
-       0.1     0.4690     0.5821     1.2411
-       0.3     0.8813     0.9012     1.0225
-       0.5     1.0000     1.0089     1.0089
-       0.7     0.8813     0.9015     1.0229
-       0.9     0.4690     0.5798     1.2359
+       0.1     0.4690     0.6568     1.4004
+       0.3     0.8813     1.1274     1.2792
+       0.5     1.0000     1.2207     1.2207
+       0.7     0.8813     1.1271     1.2789
+       0.9     0.4690     0.6525     1.3912
 ```
 
-The approximate K tracks the Shannon entropy closely, especially near p = 0.5. The ratio is always ≥ 1 (K approximations are upper bounds) and approaches 1 as the distribution becomes less extreme. For very skewed distributions (p = 0.1 or 0.9), gzip's approximation is looser because it cannot perfectly exploit the redundancy.
+The approximate K tracks the *shape* of the Shannon entropy: it is symmetric around p = 0.5, largest at p = 0.5, and smaller for skewed distributions. But the upper bound is visibly loose. Gzip is compressing an ASCII bitstring, not using an ideal model for independent Bernoulli bits, so it leaves a substantial gap above the entropy rate. The ratio is always ≥ 1 because compression length is only an upper bound on K.
 
 The formal statement of this relationship is: for a string of length *n* generated by a stationary ergodic source with entropy rate *H*, the Kolmogorov complexity K(s) / n converges to *H* almost surely as *n* → ∞. Entropy is, in a deep sense, the expected Kolmogorov complexity per symbol.
 
@@ -551,6 +588,10 @@ Classical probability theory can tell you that a sequence of fair coin flips has
 Kolmogorov complexity fixes this. A string is **Kolmogorov random** (or **1-random**) if its complexity is maximal — if K(s) ≥ |s| - c for a small constant *c*. 
 
 ```python
+import gzip
+import hashlib
+import struct
+
 def kolmogorov_randomness_test(s: bytes) -> dict:
     """
     Approximate test for Kolmogorov randomness.
@@ -578,16 +619,21 @@ def kolmogorov_randomness_test(s: bytes) -> dict:
     }
 
 # Test various sequences
-import os, struct
+def lcg_bytes(n, seed=1):
+    state = seed
+    out = bytearray()
+    for _ in range(n):
+        state = (1664525 * state + 1013904223) & 0xFFFFFFFF
+        out.append(state & 0xFF)
+    return bytes(out)
 
 test_cases = {
-    'Alternating 01':    bytes([0, 255] * 512),
-    'All zeros':         bytes(1024),
-    'os.urandom':        os.urandom(1024),
-    'Pi bytes':          struct.pack('d', 3.14159265358979) * 64,
-    'English text':      b'the quick brown fox jumps over the lazy dog ' * 23,
-    'LFSR (pseudo-rng)': bytes(((i * 1664525 + 1013904223) & 0xFF)
-                               for i in range(1024)),
+    'Alternating 01':     bytes([0, 255] * 512),
+    'All zeros':          bytes(1024),
+    'SHAKE256 stream':    hashlib.shake_256(b'chapter7').digest(1024),
+    'Pi bytes':           struct.pack('d', 3.14159265358979) * 64,
+    'English text':       b'the quick brown fox jumps over the lazy dog ' * 23,
+    'LCG (pseudo-rng)':   lcg_bytes(1024),
 }
 
 print(f"{'Source':<22} {'Raw':>8} {'Comp':>8} {'Ratio':>8}  Assessment")
@@ -603,19 +649,19 @@ Output:
 ```
 Source                  Raw     Comp    Ratio  Assessment
 ----------------------------------------------------------------------
-Alternating 01         8192      216    0.026  Structured (compressible)
-All zeros              8192      160    0.020  Structured (compressible)
-os.urandom             8192     8256    1.008  Likely random (incompressible)
-Pi bytes               8192     6560    0.801  Structured (compressible)
-English text           8096     3456    0.427  Structured (compressible)
-LFSR (pseudo-rng)      8192     4288    0.523  Structured (compressible)
+Alternating 01         8192      240    0.029  Structured (compressible)
+All zeros              8192      232    0.028  Structured (compressible)
+SHAKE256 stream        8192     8376    1.022  Likely random (incompressible)
+Pi bytes               4096      264    0.064  Structured (compressible)
+English text           8096      576    0.071  Structured (compressible)
+LCG (pseudo-rng)       8192     2384    0.291  Structured (compressible)
 ```
 
 Several things are worth noting here.
 
-`os.urandom` is flagged as likely random — its compression ratio exceeds 1.0, meaning the compressor gives up and adds overhead. This is the behavior we expect from a cryptographically secure random number generator.
+The SHAKE256 stream is flagged as likely random — its compression ratio exceeds 1.0, meaning the compressor gives up and adds overhead. This is the behavior we expect from a cryptographic pseudorandom stream: to a general-purpose compressor, it looks structureless.
 
-The LFSR (a simple linear feedback shift register, a common pseudo-random generator) is flagged as structured — it compresses to about 52% of original. LFSRs have mathematical structure that a good compressor can find, even though their output passes many statistical randomness tests. This is why LFSRs are not suitable for cryptography.
+The LCG (a simple linear congruential generator) is flagged as structured — it compresses to about 29% of original. That is exactly what we would hope a rough Kolmogorov-style test would notice: cheap pseudo-random generators often leave obvious regularities in their low-order bits, which makes them unsuitable for cryptography.
 
 Pi's bytes are compressible — not because pi is "non-random" in any simple statistical sense, but because the floating-point representation of 3.14159... repeated 64 times has obvious structure.
 
@@ -636,6 +682,9 @@ P(s) = 2^(-K(s))
 This is called the *Solomonoff prior* or *universal prior*. It assigns higher probability to simpler strings — strings with shorter descriptions — and lower probability to complex strings. It is "universal" in the sense that it dominates every computable probability distribution: for any computable distribution *Q* there exists a constant *c* such that P(s) ≥ c × Q(s) for all *s*.
 
 ```python
+import gzip
+import hashlib
+
 def universal_prior_intuition():
     """
     Illustrate the Solomonoff universal prior.
@@ -644,7 +693,7 @@ def universal_prior_intuition():
     test_strings = [
         ("1000 zeros",    bytes(1000)),
         ("pi digits",     str(3.14159265358979323846).encode() * 55),
-        ("random bytes",  os.urandom(1000)),
+        ("SHAKE256 stream", hashlib.shake_256(b'chapter7').digest(1000)),
         ("English text",  b"the cat sat on the mat " * 43),
     ]
 
@@ -662,13 +711,13 @@ Output:
 ```
 String            K approx (bits)    2^-K (log scale)
 ----------------------------------------------------------
-1000 zeros                    216                 -216 bits
-pi digits                    3856                -3856 bits
-random bytes                 8256                -8256 bits
-English text                 3424                -3424 bits
+1000 zeros                    232                 -232 bits
+pi digits                     368                 -368 bits
+SHAKE256 stream              8184                -8184 bits
+English text                  384                 -384 bits
 ```
 
-The zeros have by far the highest prior probability — 2^(-216) is astronomically larger than 2^(-8256). In the Solomonoff framework, simple strings are a priori more likely, and this prior is updated as we observe data.
+The zeros have by far the highest prior probability — 2^(-232) is astronomically larger than 2^(-8184). In the Solomonoff framework, simple strings are a priori more likely, and this prior is updated as we observe data.
 
 This might seem like a curiosity, but it is the foundation of a coherent theory of inductive inference. The Solomonoff prior is the unique prior that is "universal" — it gives non-zero probability to every computable sequence and dominates every other computable prior. If you want to do Bayesian inference without choosing a prior — if you want a prior that encodes only "prefer simpler explanations" — the Solomonoff prior is the answer.
 
