@@ -370,10 +370,16 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#construction-2" id="toc-construction-2" class="nav-link" data-scroll-target="#construction-2">Construction</a></li>
   <li><a href="#methods-2" id="toc-methods-2" class="nav-link" data-scroll-target="#methods-2">Methods</a></li>
   </ul></li>
+  <li><a href="#min_heapt" id="toc-min_heapt" class="nav-link" data-scroll-target="#min_heapt"><code>Min_Heap[T]</code></a>
+  <ul class="collapse">
+  <li><a href="#construction-3" id="toc-construction-3" class="nav-link" data-scroll-target="#construction-3">Construction</a></li>
+  <li><a href="#methods-3" id="toc-methods-3" class="nav-link" data-scroll-target="#methods-3">Methods</a></li>
+  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
+  </ul></li>
   <li><a href="#stackt" id="toc-stackt" class="nav-link" data-scroll-target="#stackt"><code>Stack[T]</code></a>
   <ul class="collapse">
   <li><a href="#typical-definition" id="toc-typical-definition" class="nav-link" data-scroll-target="#typical-definition">Typical Definition</a></li>
-  <li><a href="#methods-3" id="toc-methods-3" class="nav-link" data-scroll-target="#methods-3">Methods</a></li>
+  <li><a href="#methods-4" id="toc-methods-4" class="nav-link" data-scroll-target="#methods-4">Methods</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   </ul></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
@@ -403,13 +409,21 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>This section covers the standard collection abstractions used throughout Nex code. <code>Array</code>, <code>Map</code>, and <code>Set</code> are built-in collection types. <code>Stack[T]</code> is a common generic collection class pattern built on top of <code>Array[T]</code>.</p>
+<p>This section covers the standard collection abstractions used throughout Nex code. <code>Array</code>, <code>Map</code>, <code>Set</code>, and <code>Min_Heap[T]</code> are built-in collection types. <code>Stack[T]</code> is a common generic collection class pattern built on top of <code>Array[T]</code>.</p>
 <p>All built-in collection types inherit <code>Any</code>. Their <code>to_string</code>, <code>equals</code>, and <code>clone</code> methods operate recursively: <code>to_string</code> renders nested structure, <code>equals</code> performs deep structural equality, and <code>clone</code> performs a deep copy.</p>
 <section id="array" class="level2">
 <h2 class="anchored" data-anchor-id="array"><code>Array</code></h2>
 <section id="construction" class="level3">
 <h3 class="anchored" data-anchor-id="construction">Construction</h3>
-<pre class="nex"><code>[]</code></pre>
+<pre class="nex"><code>[]
+create Array.filled(3, 0)
+create Array[String].filled(2, "x")</code></pre>
+<ul>
+<li><code>[]</code> creates an empty array literal.</li>
+<li><code>create Array.filled(size, value)</code> creates a new array of length <code>size</code> where each element is initialized to <code>value</code>.</li>
+<li><code>size</code> must be a non-negative <code>Integer</code>.</li>
+<li>The element type is inferred from <code>value</code>, or checked against <code>Array[T]</code> when the target array type is declared explicitly.</li>
+</ul>
 </section>
 <section id="methods" class="level3">
 <h3 class="anchored" data-anchor-id="methods">Methods</h3>
@@ -731,6 +745,96 @@ create Set[Integer].from_array([1, 2, 3])</code></pre>
 </table>
 </section>
 </section>
+<section id="min_heapt" class="level2">
+<h2 class="anchored" data-anchor-id="min_heapt"><code>Min_Heap[T]</code></h2>
+<section id="construction-3" class="level3">
+<h3 class="anchored" data-anchor-id="construction-3">Construction</h3>
+<pre class="nex"><code>create Min_Heap.empty
+create Min_Heap[Integer].empty
+create Min_Heap[Box].from_comparator(compare_boxes)</code></pre>
+<ul>
+<li><code>create Min_Heap.empty</code> creates an empty heap that uses natural ordering.</li>
+<li><code>empty()</code> is intended for element types that already support ordering: built-in sortable scalars or classes implementing <code>Comparable</code>.</li>
+<li>For non-<code>Comparable</code> element types, use <code>from_comparator(...)</code>.</li>
+<li><code>from_comparator(compare)</code> expects a function that takes two values and returns an <code>Integer</code> comparison result: negative when the first value is smaller, positive when larger, <code>0</code> when equal.</li>
+</ul>
+</section>
+<section id="methods-3" class="level3">
+<h3 class="anchored" data-anchor-id="methods-3">Methods</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>insert</code></td>
+<td><code>value: T</code></td>
+<td><code>Void</code></td>
+<td>Insert a value into the heap.</td>
+</tr>
+<tr class="even">
+<td><code>extract_min</code></td>
+<td>none</td>
+<td><code>T</code></td>
+<td>Remove and return the smallest value. Fails if empty.</td>
+</tr>
+<tr class="odd">
+<td><code>try_extract_min</code></td>
+<td>none</td>
+<td><code>?T</code></td>
+<td>Remove and return the smallest value, or <code>nil</code> if empty.</td>
+</tr>
+<tr class="even">
+<td><code>peek</code></td>
+<td>none</td>
+<td><code>T</code></td>
+<td>Return the smallest value without removing it. Fails if empty.</td>
+</tr>
+<tr class="odd">
+<td><code>try_peek</code></td>
+<td>none</td>
+<td><code>?T</code></td>
+<td>Return the smallest value, or <code>nil</code> if empty.</td>
+</tr>
+<tr class="even">
+<td><code>size</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Number of stored elements.</td>
+</tr>
+<tr class="odd">
+<td><code>is_empty</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True when the heap has no elements.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="example" class="level3">
+<h3 class="anchored" data-anchor-id="example">Example</h3>
+<pre class="nex"><code>let failure: Min_Heap[Integer] := create Min_Heap.empty
+failure.insert(0)
+failure.insert(3)
+failure.insert(1)
+print(failure.peek)              -- 0
+print(failure.extract_min)       -- 0
+print(failure.try_extract_min)   -- 1
+print(failure.try_extract_min)   -- 3
+print(failure.try_extract_min)   -- nil</code></pre>
+</section>
+</section>
 <section id="stackt" class="level2">
 <h2 class="anchored" data-anchor-id="stackt"><code>Stack[T]</code></h2>
 <p><code>Stack[T]</code> is a generic last-in, first-out collection abstraction. It is not a built-in primitive type; it is typically defined as a class using <code>Array[T]</code> for storage.</p>
@@ -767,8 +871,8 @@ create Set[Integer].from_array([1, 2, 3])</code></pre>
     end
 end</code></pre>
 </section>
-<section id="methods-3" class="level3">
-<h3 class="anchored" data-anchor-id="methods-3">Methods</h3>
+<section id="methods-4" class="level3">
+<h3 class="anchored" data-anchor-id="methods-4">Methods</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">
