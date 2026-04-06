@@ -58,12 +58,19 @@ class Skip_Node [K, V]
     make(key: ?K, value: ?V, level: Integer) do
       this.key := key
       this.value := value
-      this.forward := Array.filled(level, nil)
+      this.forward := []
+      repeat level do
+        this.forward.add(nil)
+      end
     end
   feature
     key: ?K
     value: ?V
     forward: Array[?Skip_Node[K, V]]
+
+    set_value(new_value: V) do
+      value := new_value
+    end
 
     level(): Integer do
       result := forward.length
@@ -104,17 +111,19 @@ The `probability` field controls the coin flip — 0.5 gives you the classic hal
 
 The random level function is the heart of the skip list. It determines how high each new node reaches.
 
-```
-function random_level(): Integer
+```text
+function random_level(max_level: Integer, probability: Real): Integer
 do
   let level: Integer := 1
+  let done: Boolean := false
   repeat max_level - 1 do
-    if random_real() < probability then
-      level := level + 1
-    else
-      -- stop as soon as the coin comes up tails
-      result := level
-      return
+    if not done then
+      if random_real() < probability then
+        level := level + 1
+      else
+        -- stop as soon as the coin comes up tails
+        done := true
+      end
     end
   end
   result := level
@@ -131,32 +140,47 @@ Notice what is not happening here: no global state is consulted, no other nodes 
 
 Search is the operation that reveals why the multi-level structure works. Start at the highest current level of the header. Walk forward as long as the next node's key is less than the target key. When you cannot advance, drop down one level and continue. Repeat until you reach level 1 and either find the key or determine it is absent.
 
-```
+```text
 function search(key: K): ?V
 do
   let current: Skip_Node[K, V] := header
-  from
-    let level: Integer := current_level
-  until
-    level < 1
-  do
+  let level: Integer := current_level
+        from until
+          level < 1
+        do
     -- Advance as far as possible at this level
-    from until
-      current.forward.get(level - 1) = nil or
-      current.forward.get(level - 1).key >= key
-    do
-      current := current.forward.get(level - 1)
-    end
+    let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if convert next_node.key to next_key: K then
+              if next_key.compare(key) < 0 then
+                current := next_node
+              else
+                done := true
+              end
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
     level := level - 1
   end
 
   -- Check if the next node at level 1 is our target
   let candidate: ?Skip_Node[K, V] := current.forward.get(0)
-  if candidate /= nil and candidate.key = key then
-    result := candidate.value
-  else
-    result := nil
-  end
+  if convert candidate to candidate_node: Skip_Node[K, V] then
+        if candidate_node.key = key then
+          result := candidate_node.value
+        else
+          result := nil
+        end
+      else
+        result := nil
+      end
 end
 ```
 
@@ -176,35 +200,43 @@ The key insight: at each level we eliminated large stretches of the list. At lev
 
 Insertion has two phases. First, search for the insertion point while recording, for each level, the last node we were at before descending — the *update array*. These are the nodes whose forward pointers must be modified to include the new node.
 
-```
+```text
 function put(key: K, value: V)
   do
-    let update: Array[?Skip_Node[K, V]] := Array.filled(max_level, nil)
+    let update: Array[?Skip_Node[K, V]] := create Array.filled(max_level, nil)
     let current: Skip_Node[K, V] := header
 
     -- Find update positions at each level
-    from
-      let level: Integer := current_level
-    until
-      level < 1
-    do
-      from until
-        current.forward.get(level - 1) = nil or
-        current.forward.get(level - 1).key >= key
-      do
-        current := current.forward.get(level - 1)
-      end
+    let level: Integer := current_level
+        from until
+          level < 1
+        do
+      let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if next_node.key < key then
+              current := next_node
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
       update.set(level - 1, current)
       level := level - 1
     end
 
     -- Check if key already exists
     let candidate: ?Skip_Node[K, V] := current.forward.get(0)
-    if candidate /= nil and candidate.key = key then
-      candidate.value := value
-    else
+    if convert candidate to candidate_node: Skip_Node[K, V] then
+          if candidate_node.key = key then
+            candidate_node.set_value(value)
+          else
       -- New node
-      let new_level: Integer := random_level()
+          let new_level: Integer := random_level()
 
       -- If new node reaches higher than current maximum,
       -- point the extra update positions to the header
@@ -233,10 +265,39 @@ function put(key: K, value: V)
         update.get(i).forward.set(i, new_node)
         i := i + 1
       end
+          count := count + 1
+          end
+        else
+          let new_level: Integer := random_level()
 
-      count := count + 1
-    end
-  ensure
+          if new_level > current_level then
+            from
+              let i: Integer := current_level
+            until
+              i >= new_level
+            do
+              update.set(i, header)
+              i := i + 1
+            end
+            current_level := new_level
+          end
+
+          let new_node: Skip_Node[K, V] :=
+            create Skip_Node[K, V].make(key, value, new_level)
+
+          from
+            let i: Integer := 0
+          until
+            i >= new_level
+          do
+            new_node.forward.set(i, update.get(i).forward.get(i))
+            update.get(i).forward.set(i, new_node)
+            i := i + 1
+          end
+
+          count := count + 1
+        end
+      ensure
     key_present: search(key) /= nil
     count_nondecreasing: count >= old count
   end
@@ -252,30 +313,38 @@ This is the skip list's structural simplicity made concrete. Insertion touches o
 
 Deletion mirrors insertion. Search for the node while building the update array, verify the node exists, then splice it out at each level it participates in.
 
-```
+```text
 function remove(key: K)
   do
-    let update: Array[?Skip_Node[K, V]] := Array.filled(max_level, nil)
+    let update: Array[?Skip_Node[K, V]] := create Array.filled(max_level, nil)
     let current: Skip_Node[K, V] := header
 
-    from
-      let level: Integer := current_level
-    until
-      level < 1
-    do
-      from until
-        current.forward.get(level - 1) = nil or
-        current.forward.get(level - 1).key >= key
-      do
-        current := current.forward.get(level - 1)
-      end
+    let level: Integer := current_level
+        from until
+          level < 1
+        do
+      let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if next_node.key < key then
+              current := next_node
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
       update.set(level - 1, current)
       level := level - 1
     end
 
     let target: ?Skip_Node[K, V] := current.forward.get(0)
 
-    if target /= nil and target.key = key then
+    if convert target to target_node: Skip_Node[K, V] then
+          if target_node.key = key then
       -- Splice out at each level
       from
         let i: Integer := 0
@@ -286,7 +355,7 @@ function remove(key: K)
           -- target does not participate at this level, stop
           i := current_level -- break
         else
-          update.get(i).forward.set(i, target.forward.get(i))
+          update.get(i).forward.set(i, target_node.forward.get(i))
           i := i + 1
         end
       end
@@ -298,9 +367,9 @@ function remove(key: K)
       do
         current_level := current_level - 1
       end
-
-      count := count - 1
-    end
+          count := count - 1
+        end
+      end
   ensure
     key_absent: search(key) = nil
   end
@@ -314,7 +383,7 @@ The level reduction at the end is a housekeeping step: if deletion left the top 
 
 Range queries are even simpler than in a balanced tree, because the bottom level of a skip list is a plain sorted linked list. To find all keys between low and high, search for low at the bottom level and walk forward until you exceed high.
 
-```
+```text
 function range(low: K, high: K): Array[Any]
   require
     valid_range: low <= high
@@ -323,27 +392,47 @@ function range(low: K, high: K): Array[Any]
     let current: Skip_Node[K, V] := header
 
     -- Find the starting position using normal search
-    from
-      let level: Integer := current_level
-    until
-      level < 1
-    do
-      from until
-        current.forward.get(level - 1) = nil or
-        current.forward.get(level - 1).key >= low
-      do
-        current := current.forward.get(level - 1)
-      end
+    let level: Integer := current_level
+        from until
+          level < 1
+        do
+      let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if convert next_node.key to next_key: K then
+              if next_key.compare(low) < 0 then
+                current := next_node
+              else
+                done := true
+              end
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
       level := level - 1
     end
 
     -- Walk forward at level 1, collecting results
-    current := current.forward.get(0)
-    from until
-      current = nil or current.key > high
-    do
-      results.add([current.key, current.value])
-      current := current.forward.get(0)
+    let scan: ?Skip_Node[K, V] := current.forward.get(0)
+    from until scan = nil do
+      if convert scan to current_node: Skip_Node[K, V] then
+        if current_node.key > high then
+          scan := nil
+        else
+          let pair: Array[Any] := []
+          pair.add(current_node.key)
+          pair.add(current_node.value)
+          results.add(pair)
+          scan := current_node.forward.get(0)
+        end
+      else
+        scan := nil
+      end
     end
 
     result := results
@@ -415,6 +504,60 @@ class Skip_List [K -> Comparable, V]
     header: Skip_Node[K, V]
     probability: Real
 
+    random_level(): Integer do
+      let level: Integer := 1
+      let done: Boolean := false
+      repeat max_level - 1 do
+        if not done then
+          if random_real() < probability then
+            level := level + 1
+          else
+            done := true
+          end
+        end
+      end
+      result := level
+    end
+
+    search(key: K): ?V do
+      let current: Skip_Node[K, V] := header
+      let level: Integer := current_level
+        from until
+          level < 1
+        do
+        let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if next_node.key < key then
+              current := next_node
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
+        level := level - 1
+      end
+
+      let candidate: ?Skip_Node[K, V] := current.forward.get(0)
+      if convert candidate to candidate_node: Skip_Node[K, V] then
+        if convert candidate_node.key to candidate_key: K then
+          if candidate_key.compare(key) = 0 then
+            result := candidate_node.value
+          else
+            result := nil
+          end
+        else
+          result := nil
+        end
+      else
+        result := nil
+      end
+    end
+
     get(key: K): ?V do
       result := search(key)
     end
@@ -425,7 +568,76 @@ class Skip_List [K -> Comparable, V]
 
     put(key: K, value: V)
       do
-        -- implementation from section 3.6
+        let update: Array[Skip_Node[K, V]] := []
+        repeat max_level do
+          update.add(header)
+        end
+        let current: Skip_Node[K, V] := header
+
+        let level: Integer := current_level
+        from until
+          level < 1
+        do
+          let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if next_node.key < key then
+              current := next_node
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
+          update.set(level - 1, current)
+          level := level - 1
+        end
+
+        let candidate: ?Skip_Node[K, V] := current.forward.get(0)
+        let found_existing: Boolean := false
+
+        if convert candidate to candidate_node: Skip_Node[K, V] then
+          if convert candidate_node.key to candidate_key: K then
+            if candidate_key.compare(key) = 0 then
+              candidate_node.set_value(value)
+              found_existing := true
+            end
+          end
+        end
+
+        if not found_existing then
+          let new_level: Integer := random_level()
+
+          if new_level > current_level then
+            from
+              let i: Integer := current_level
+            until
+              i >= new_level
+            do
+              update.set(i, header)
+              i := i + 1
+            end
+            current_level := new_level
+          end
+
+          let new_node: Skip_Node[K, V] :=
+            create Skip_Node[K, V].make(key, value, new_level)
+
+          from
+            let i: Integer := 0
+          until
+            i >= new_level
+          do
+            new_node.forward.set(i, update.get(i).forward.get(i))
+            update.get(i).forward.set(i, new_node)
+            i := i + 1
+          end
+
+          count := count + 1
+        end
       ensure
         key_present: contains(key)
         count_nondecreasing: count >= old count
@@ -433,7 +645,61 @@ class Skip_List [K -> Comparable, V]
 
     remove(key: K)
       do
-        -- implementation from section 3.7
+        let update: Array[Skip_Node[K, V]] := []
+        repeat max_level do
+          update.add(header)
+        end
+        let current: Skip_Node[K, V] := header
+
+        let level: Integer := current_level
+        from until
+          level < 1
+        do
+          let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if next_node.key < key then
+              current := next_node
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
+          update.set(level - 1, current)
+          level := level - 1
+        end
+
+        let target: ?Skip_Node[K, V] := current.forward.get(0)
+
+        if convert target to target_node: Skip_Node[K, V] then
+          if convert target_node.key to target_key: K then
+            if target_key.compare(key) = 0 then
+            from
+              let i: Integer := 0
+            until
+              i >= current_level
+            do
+              if update.get(i).forward.get(i) = target then
+                update.get(i).forward.set(i, target_node.forward.get(i))
+              end
+              i := i + 1
+            end
+
+            from until
+              current_level <= 1 or
+              header.forward.get(current_level - 1) /= nil
+            do
+              current_level := current_level - 1
+            end
+
+              count := count - 1
+            end
+          end
+        end
       ensure
         key_absent: not contains(key)
       end
@@ -442,15 +708,72 @@ class Skip_List [K -> Comparable, V]
       require
         valid_range: low <= high
       do
-        -- implementation from section 3.8
+        let results: Array[Any] := []
+        let current: Skip_Node[K, V] := header
+
+        let level: Integer := current_level
+        from until
+          level < 1
+        do
+          let done: Boolean := false
+          from until
+            done
+          do
+          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+            if next_node.key < low then
+              current := next_node
+            else
+              done := true
+            end
+          else
+            done := true
+          end
+        end
+          level := level - 1
+        end
+
+        let scan: ?Skip_Node[K, V] := current.forward.get(0)
+        from until scan = nil do
+          if convert scan to current_node: Skip_Node[K, V] then
+            if convert current_node.key to current_key: K then
+              if current_key.compare(high) > 0 then
+                scan := nil
+              else
+                let pair: Array[Any] := []
+                pair.add(current_key)
+                if convert current_node.value to current_value: V then
+                  pair.add(current_value)
+                else
+                  pair.add(nil)
+                end
+                results.add(pair)
+                scan := current_node.forward.get(0)
+              end
+            else
+              scan := nil
+            end
+          else
+            scan := nil
+          end
+        end
+
+        result := results
       end
 
     in_order(): Array[K] do
       let results: Array[K] := []
       let current: ?Skip_Node[K, V] := header.forward.get(0)
       from until current = nil do
-        results.add(current.key)
-        current := current.forward.get(0)
+        if convert current to current_node: Skip_Node[K, V] then
+          if convert current_node.key to current_key: K then
+            results.add(current_key)
+            current := current_node.forward.get(0)
+          else
+            current := nil
+          end
+        else
+          current := nil
+        end
       end
       result := results
     end

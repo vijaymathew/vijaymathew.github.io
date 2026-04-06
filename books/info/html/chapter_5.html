@@ -612,11 +612,11 @@ Naive encoding:        32.2 bytes</code></pre>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Optimal encoding:      </span><span class="sc">{</span>H <span class="op">*</span> <span class="bu">len</span>(sample) <span class="op">/</span> <span class="dv">8</span><span class="sc">:.1f}</span><span class="ss"> bytes"</span>)</span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Wasted bits (naive):   </span><span class="sc">{</span>(<span class="dv">6</span> <span class="op">-</span> H) <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">:.1f}</span><span class="ss"> bits"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Entropy:               4.057 bits/character
-Optimal encoding:      174.5 bits
-Optimal encoding:      21.8 bytes
-Wasted bits (naive):   83.5 bits</code></pre>
-<p>The naive approach wastes 83 bits — nearly a third of the total — simply by assigning the same length code to every symbol regardless of frequency. The letter <code>e</code> appears five times in our sample; the letter <code>q</code> appears once. Why give them the same length code?</p>
+<pre><code>Entropy:               4.385 bits/character
+Optimal encoding:      188.6 bits
+Optimal encoding:      23.6 bytes
+Wasted bits (naive):   69.4 bits</code></pre>
+<p>The naive approach wastes about 69 bits — more than a quarter of the total — simply by assigning the same length code to every symbol regardless of frequency. The space character appears eight times in our sample; many letters appear only once. Why give them the same length code?</p>
 <p>The answer is: we should not. This is the central insight of variable-length coding.</p>
 <hr>
 </section>
@@ -705,121 +705,124 @@ Kraft sum for lengths [2,2,2,3]: 0.5000</code></pre>
 </ol>
 <p>Let’s implement this carefully:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> heapq</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass, field</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Optional, Dict</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HuffmanNode:</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    freq:   <span class="bu">float</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    symbol: Optional[<span class="bu">str</span>]          <span class="op">=</span> <span class="va">None</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    left:   Optional[<span class="st">'HuffmanNode'</span>] <span class="op">=</span> field(default<span class="op">=</span><span class="va">None</span>, <span class="bu">repr</span><span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    right:  Optional[<span class="st">'HuffmanNode'</span>] <span class="op">=</span> field(default<span class="op">=</span><span class="va">None</span>, <span class="bu">repr</span><span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> is_leaf(<span class="va">self</span>):</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.symbol <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> Counter</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass, field</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> itertools <span class="im">import</span> count</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Optional, Dict</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HuffmanNode:</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    freq:   <span class="bu">float</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    symbol: Optional[<span class="bu">str</span>]          <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    left:   Optional[<span class="st">'HuffmanNode'</span>] <span class="op">=</span> field(default<span class="op">=</span><span class="va">None</span>, <span class="bu">repr</span><span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    right:  Optional[<span class="st">'HuffmanNode'</span>] <span class="op">=</span> field(default<span class="op">=</span><span class="va">None</span>, <span class="bu">repr</span><span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Comparison for the heap: compare by frequency only</span></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__lt__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.freq <span class="op">&lt;</span> other.freq</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> is_leaf(<span class="va">self</span>):</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.symbol <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__eq__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.freq <span class="op">==</span> other.freq</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> build_huffman_tree(text: <span class="bu">str</span>) <span class="op">-&gt;</span> HuffmanNode:</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Build a Huffman tree from a string. Returns the root node."""</span></span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    counts <span class="op">=</span> Counter(text)</span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    total  <span class="op">=</span> <span class="bu">len</span>(text)</span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create leaf nodes</span></span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    heap <span class="op">=</span> [HuffmanNode(freq<span class="op">=</span>count<span class="op">/</span>total, symbol<span class="op">=</span>char)</span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> char, count <span class="kw">in</span> counts.items()]</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    heapq.heapify(heap)</span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Edge case: single unique symbol</span></span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(heap) <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>        only <span class="op">=</span> heapq.heappop(heap)</span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        root <span class="op">=</span> HuffmanNode(freq<span class="op">=</span><span class="fl">1.0</span>, left<span class="op">=</span>only,</span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>                           right<span class="op">=</span>HuffmanNode(freq<span class="op">=</span><span class="fl">0.0</span>, symbol<span class="op">=</span><span class="st">'</span><span class="ch">\x00</span><span class="st">'</span>))</span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> root</span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build tree bottom-up</span></span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="bu">len</span>(heap) <span class="op">&gt;</span> <span class="dv">1</span>:</span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>        left  <span class="op">=</span> heapq.heappop(heap)</span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>        right <span class="op">=</span> heapq.heappop(heap)</span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>        parent <span class="op">=</span> HuffmanNode(</span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>            freq  <span class="op">=</span> left.freq <span class="op">+</span> right.freq,</span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>            left  <span class="op">=</span> left,</span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>            right <span class="op">=</span> right,</span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>        heapq.heappush(heap, parent)</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> build_huffman_tree(text: <span class="bu">str</span>) <span class="op">-&gt;</span> HuffmanNode:</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Build a Huffman tree from a string. Returns the root node."""</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    counts <span class="op">=</span> Counter(text)</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    total  <span class="op">=</span> <span class="bu">len</span>(text)</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    tie_breaker <span class="op">=</span> count()</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create leaf nodes with a deterministic tie-breaker so the example is reproducible.</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    heap <span class="op">=</span> [(count <span class="op">/</span> total, <span class="bu">next</span>(tie_breaker), HuffmanNode(freq<span class="op">=</span>count <span class="op">/</span> total, symbol<span class="op">=</span>char))</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> char, count <span class="kw">in</span> counts.items()]</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    heapq.heapify(heap)</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Edge case: single unique symbol</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(heap) <span class="op">==</span> <span class="dv">1</span>:</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        _, _, only <span class="op">=</span> heapq.heappop(heap)</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>        root <span class="op">=</span> HuffmanNode(freq<span class="op">=</span><span class="fl">1.0</span>, left<span class="op">=</span>only,</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>                           right<span class="op">=</span>HuffmanNode(freq<span class="op">=</span><span class="fl">0.0</span>, symbol<span class="op">=</span><span class="st">'</span><span class="ch">\x00</span><span class="st">'</span>))</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> root</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build tree bottom-up</span></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="bu">len</span>(heap) <span class="op">&gt;</span> <span class="dv">1</span>:</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>        _, _, left  <span class="op">=</span> heapq.heappop(heap)</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>        _, _, right <span class="op">=</span> heapq.heappop(heap)</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>        parent <span class="op">=</span> HuffmanNode(</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>            freq  <span class="op">=</span> left.freq <span class="op">+</span> right.freq,</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>            left  <span class="op">=</span> left,</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>            right <span class="op">=</span> right,</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>        heapq.heappush(heap, (parent.freq, <span class="bu">next</span>(tie_breaker), parent))</span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> heapq.heappop(heap)[<span class="dv">2</span>]</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> heapq.heappop(heap)</span>
-<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> extract_codes(root: HuffmanNode,</span>
-<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>                  prefix: <span class="bu">str</span> <span class="op">=</span> <span class="st">""</span>) <span class="op">-&gt;</span> Dict[<span class="bu">str</span>, <span class="bu">str</span>]:</span>
-<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a><span class="co">    Walk the Huffman tree and extract the binary code for each symbol.</span></span>
-<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns a dict mapping symbol -&gt; binary string.</span></span>
-<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> root.is_leaf():</span>
-<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {root.symbol: prefix <span class="kw">or</span> <span class="st">'0'</span>}</span>
-<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>    codes <span class="op">=</span> {}</span>
-<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> root.left:</span>
-<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>        codes.update(extract_codes(root.left,  prefix <span class="op">+</span> <span class="st">'0'</span>))</span>
-<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> root.right:</span>
-<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a>        codes.update(extract_codes(root.right, prefix <span class="op">+</span> <span class="st">'1'</span>))</span>
-<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> codes</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> extract_codes(root: HuffmanNode,</span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>                  prefix: <span class="bu">str</span> <span class="op">=</span> <span class="st">""</span>) <span class="op">-&gt;</span> Dict[<span class="bu">str</span>, <span class="bu">str</span>]:</span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="co">    Walk the Huffman tree and extract the binary code for each symbol.</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns a dict mapping symbol -&gt; binary string.</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> root.is_leaf():</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {root.symbol: prefix <span class="kw">or</span> <span class="st">'0'</span>}</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>    codes <span class="op">=</span> {}</span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> root.left:</span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>        codes.update(extract_codes(root.left,  prefix <span class="op">+</span> <span class="st">'0'</span>))</span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> root.right:</span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>        codes.update(extract_codes(root.right, prefix <span class="op">+</span> <span class="st">'1'</span>))</span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> codes</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Let’s test this on our sample string:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>sample <span class="op">=</span> <span class="st">"the quick brown fox jumps over the lazy dog"</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>root   <span class="op">=</span> build_huffman_tree(sample)</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>codes  <span class="op">=</span> extract_codes(root)</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Display codes sorted by frequency</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>counts <span class="op">=</span> Counter(sample)</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>total  <span class="op">=</span> <span class="bu">len</span>(sample)</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Symbol'</span><span class="sc">:&lt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Freq'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Code'</span><span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Length'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Contribution'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">56</span>)</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>avg_length <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> symbol, code <span class="kw">in</span> <span class="bu">sorted</span>(codes.items(),</span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>                            key<span class="op">=</span><span class="kw">lambda</span> x: <span class="op">-</span>counts[x[<span class="dv">0</span>]]):</span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    freq   <span class="op">=</span> counts[symbol] <span class="op">/</span> total</span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    length <span class="op">=</span> <span class="bu">len</span>(code)</span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    contrib <span class="op">=</span> freq <span class="op">*</span> length</span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    avg_length <span class="op">+=</span> contrib</span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    sym_display <span class="op">=</span> <span class="bu">repr</span>(symbol) <span class="cf">if</span> symbol <span class="op">==</span> <span class="st">' '</span> <span class="cf">else</span> symbol</span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>sym_display<span class="sc">:&lt;8}</span><span class="ss"> </span><span class="sc">{</span>freq<span class="sc">:&gt;6.3f}</span><span class="ss"> </span><span class="sc">{</span>code<span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span>length<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>contrib<span class="sc">:&gt;14.4f}</span><span class="ss">"</span>)</span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> entropy_bits(sample)</span>
-<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Average codeword length: </span><span class="sc">{</span>avg_length<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
-<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy:                 </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
-<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:                </span><span class="sc">{</span>avg_length <span class="op">-</span> H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
-<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total bits (Huffman):    </span><span class="sc">{</span>avg_length <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total bits (optimal):    </span><span class="sc">{</span>H <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total bits (naive 6-bit):</span><span class="sc">{</span><span class="dv">6</span> <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Output (will vary slightly with tie-breaking):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> entropy_bits(text: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    counts <span class="op">=</span> Counter(text)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    total  <span class="op">=</span> <span class="bu">len</span>(text)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    probs  <span class="op">=</span> [c <span class="op">/</span> total <span class="cf">for</span> c <span class="kw">in</span> counts.values()]</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>sample <span class="op">=</span> <span class="st">"the quick brown fox jumps over the lazy dog"</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>root   <span class="op">=</span> build_huffman_tree(sample)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>codes  <span class="op">=</span> extract_codes(root)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Display codes sorted by frequency</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>counts <span class="op">=</span> Counter(sample)</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>total  <span class="op">=</span> <span class="bu">len</span>(sample)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Symbol'</span><span class="sc">:&lt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Freq'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Code'</span><span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Length'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Contribution'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">56</span>)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>avg_length <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> symbol, code <span class="kw">in</span> <span class="bu">sorted</span>(codes.items(),</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>                            key<span class="op">=</span><span class="kw">lambda</span> x: (<span class="op">-</span>counts[x[<span class="dv">0</span>]], x[<span class="dv">0</span>])):</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    freq   <span class="op">=</span> counts[symbol] <span class="op">/</span> total</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    length <span class="op">=</span> <span class="bu">len</span>(code)</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    contrib <span class="op">=</span> freq <span class="op">*</span> length</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>    avg_length <span class="op">+=</span> contrib</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    sym_display <span class="op">=</span> <span class="bu">repr</span>(symbol) <span class="cf">if</span> symbol <span class="op">==</span> <span class="st">' '</span> <span class="cf">else</span> symbol</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>sym_display<span class="sc">:&lt;8}</span><span class="ss"> </span><span class="sc">{</span>freq<span class="sc">:&gt;6.3f}</span><span class="ss"> </span><span class="sc">{</span>code<span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span>length<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>contrib<span class="sc">:&gt;14.4f}</span><span class="ss">"</span>)</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>H <span class="op">=</span> entropy_bits(sample)</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Average codeword length: </span><span class="sc">{</span>avg_length<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Entropy:                 </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Overhead:                </span><span class="sc">{</span>avg_length <span class="op">-</span> H<span class="sc">:.4f}</span><span class="ss"> bits/symbol"</span>)</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total bits (Huffman):    </span><span class="sc">{</span>avg_length <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total bits (optimal):    </span><span class="sc">{</span>H <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total bits (naive 6-bit):</span><span class="sc">{</span><span class="dv">6</span> <span class="op">*</span> <span class="bu">len</span>(sample)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
 <pre><code>Symbol   Freq   Code             Length   Contribution
 --------------------------------------------------------
-' '      0.128  101               3       0.3846
-o        0.093  001               3       0.2791
-e        0.070  1101              4       0.2791
-t        0.070  1100              4       0.2791
-h        0.047  0001              4       0.1860
-r        0.047  0000              4       0.1860
-u        0.047  1001              4       0.1860
+' '      0.186  110               3       0.5581
+o        0.093  1011              4       0.3721
+e        0.070  1010              4       0.2791
+h        0.047  11101             5       0.2326
+r        0.047  11111             5       0.2326
+t        0.047  11100             5       0.2326
+u        0.047  11110             5       0.2326
 ...
 
-Average codeword length: 4.2647 bits/symbol
-Entropy:                 4.0573 bits/symbol
-Overhead:                0.2074 bits/symbol
-Total bits (Huffman):    183.4
-Total bits (optimal):    174.5
+Average codeword length: 4.4651 bits/symbol
+Entropy:                 4.3855 bits/symbol
+Overhead:                0.0797 bits/symbol
+Total bits (Huffman):    192.0
+Total bits (optimal):    188.6
 Total bits (naive 6-bit):258</code></pre>
-<p>The Huffman code uses 183 bits versus the naive 258 — a 29% reduction. It is within 9 bits of the theoretical optimum of 174. The overhead (0.21 bits/symbol) comes entirely from rounding fractional optimal code lengths up to integers.</p>
+<p>The Huffman code uses 192 bits versus the naive 258 — about a 26% reduction. It is within 4 bits of the theoretical optimum of 188.6. The remaining overhead, about 0.08 bits per symbol, comes from rounding fractional optimal code lengths up to integers.</p>
 <hr>
 </section>
 <section id="encoding-and-decoding" class="level2" data-number="7.6">
@@ -1041,29 +1044,30 @@ Huffman:                 1.9000 bits  lengths=[1, 2, 3, 3]</code></pre>
   ≤ ∑ p(x) · (-log₂(p(x)) + 1)
   = H + ∑ p(x)
   = H + 1</code></pre>
-<p>The one-bit overhead is a direct consequence of rounding fractional optimal lengths up to integers. It is not a flaw in the algorithm — it is the inescapable cost of integer constraints.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> huffman_overhead_analysis(probs):</span>
+<p>The one-bit overhead is a direct consequence of rounding fractional optimal lengths up to integers. To make that concrete, we will analyze the <strong>rounded Shannon lengths</strong> <code>⌈-log₂ p(x)⌉</code>. These are not necessarily the exact lengths Huffman will assign symbol-by-symbol. The point is subtler and more important: these rounded lengths always define a valid prefix code, so Huffman, being optimal among prefix codes, can only do <strong>at least as well</strong> on average.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> one_bit_bound_analysis(probs):</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Analyze the source of Huffman's overhead for a given distribution.</span></span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    optimal_lengths   <span class="op">=</span> [<span class="op">-</span>math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs]</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    integer_lengths   <span class="op">=</span> [math.ceil(<span class="op">-</span>math.log2(p)) <span class="cf">for</span> p <span class="kw">in</span> probs]</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    rounding_overhead <span class="op">=</span> [il <span class="op">-</span> ol</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>                         <span class="cf">for</span> il, ol <span class="kw">in</span> <span class="bu">zip</span>(integer_lengths, optimal_lengths)]</span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs)</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    L <span class="op">=</span> <span class="bu">sum</span>(p <span class="op">*</span> il <span class="cf">for</span> p, il <span class="kw">in</span> <span class="bu">zip</span>(probs, integer_lengths))</span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Prob'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Opt length'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Int length'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Rounding'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">46</span>)</span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p, ol, il, ro <span class="kw">in</span> <span class="bu">zip</span>(probs, optimal_lengths,</span>
-<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>                               integer_lengths, rounding_overhead):</span>
-<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:&gt;8.3f}</span><span class="ss"> </span><span class="sc">{</span>ol<span class="sc">:&gt;12.4f}</span><span class="ss"> </span><span class="sc">{</span>il<span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span>ro<span class="sc">:&gt;10.4f}</span><span class="ss">"</span>)</span>
-<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Entropy H:       </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Avg length L:    </span><span class="sc">{</span>L<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Overhead L-H:    </span><span class="sc">{</span>L<span class="op">-</span>H<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>huffman_overhead_analysis([<span class="fl">0.5</span>, <span class="fl">0.25</span>, <span class="fl">0.15</span>, <span class="fl">0.10</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Analyze the rounded-length construction used to prove the H &lt; L &lt; H + 1 bound.</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Huffman's actual average length is no larger than the average shown here.</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    optimal_lengths   <span class="op">=</span> [<span class="op">-</span>math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs]</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    integer_lengths   <span class="op">=</span> [math.ceil(<span class="op">-</span>math.log2(p)) <span class="cf">for</span> p <span class="kw">in</span> probs]</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    rounding_overhead <span class="op">=</span> [il <span class="op">-</span> ol</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>                         <span class="cf">for</span> il, ol <span class="kw">in</span> <span class="bu">zip</span>(integer_lengths, optimal_lengths)]</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    H <span class="op">=</span> <span class="op">-</span><span class="bu">sum</span>(p <span class="op">*</span> math.log2(p) <span class="cf">for</span> p <span class="kw">in</span> probs)</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    L <span class="op">=</span> <span class="bu">sum</span>(p <span class="op">*</span> il <span class="cf">for</span> p, il <span class="kw">in</span> <span class="bu">zip</span>(probs, integer_lengths))</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Prob'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Opt length'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Int length'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Rounding'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">46</span>)</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p, ol, il, ro <span class="kw">in</span> <span class="bu">zip</span>(probs, optimal_lengths,</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>                               integer_lengths, rounding_overhead):</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:&gt;8.3f}</span><span class="ss"> </span><span class="sc">{</span>ol<span class="sc">:&gt;12.4f}</span><span class="ss"> </span><span class="sc">{</span>il<span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span>ro<span class="sc">:&gt;10.4f}</span><span class="ss">"</span>)</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Entropy H:       </span><span class="sc">{</span>H<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Rounded-code L:  </span><span class="sc">{</span>L<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Overhead L-H:    </span><span class="sc">{</span>L<span class="op">-</span>H<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>one_bit_bound_analysis([<span class="fl">0.5</span>, <span class="fl">0.25</span>, <span class="fl">0.15</span>, <span class="fl">0.10</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>    Prob   Opt length   Int length   Rounding
 ----------------------------------------------
@@ -1072,11 +1076,11 @@ Huffman:                 1.9000 bits  lengths=[1, 2, 3, 3]</code></pre>
    0.150       2.7370            3     0.2630
    0.100       3.3219            4     0.6781
 
-Entropy H:       1.8480
-Avg length L:    1.9000
-Overhead L-H:    0.0520</code></pre>
-<p>The overhead comes entirely from rounding. In this example, 0.5 and 0.25 are exact powers of two, so they incur zero rounding. The other two probabilities are not powers of two, so their codewords must be rounded up — contributing to the overhead.</p>
-<p>When all probabilities are exact powers of two (like 0.5, 0.25, 0.125…), Huffman coding achieves the entropy exactly. In all other cases, there is some overhead, bounded by 1 bit per symbol.</p>
+Entropy H:       1.7427
+Rounded-code L:  1.8500
+Overhead L-H:    0.1073</code></pre>
+<p>The overhead comes entirely from rounding. In this example, 0.5 and 0.25 are exact powers of two, so they incur zero rounding. The other two probabilities are not powers of two, so their codewords must be rounded up — contributing to the overhead. The average length of this rounded code is 1.85 bits, so Huffman is guaranteed to achieve <strong>at most</strong> that average length on the same distribution.</p>
+<p>When all probabilities are exact powers of two (like 0.5, 0.25, 0.125…), Huffman coding achieves the entropy exactly. In all other cases, there is some overhead, but Huffman still stays within 1 bit per symbol of the entropy because it can never be worse than this rounded-length construction.</p>
 <p>This is the precise statement of Huffman’s limitation, and it directly motivates arithmetic coding: by encoding sequences of symbols together rather than one at a time, arithmetic coding amortizes the rounding error across many symbols, driving the overhead to nearly zero.</p>
 <hr>
 </section>
@@ -1124,11 +1128,12 @@ Overhead L-H:    0.0520</code></pre>
 <p>Output (example):</p>
 <pre><code>Symbol     Huffman    Canonical
 --------------------------------
-' '           101          000
-'b'          0110         0010
-'c'         11100         0011
-'d'          1000          010
-'e'          1101         0110
+' '           110          000
+'a'         01111        01000
+'b'         00100        01001
+'c'         00010        01010
+'d'         10010        01011
+'e'          1010         0010
 ...</code></pre>
 <p>The canonical codes have different bit patterns than the original Huffman codes, but the same lengths — and therefore the same average length and the same compression ratio. What changes is that they can be reconstructed from lengths alone, making the header smaller.</p>
 <p>This is why DEFLATE (the format inside gzip and PNG) uses canonical Huffman codes. The compressed stream stores only the code lengths, not the codes themselves, and the decoder reconstructs the canonical codes deterministically.</p>

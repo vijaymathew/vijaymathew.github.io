@@ -594,10 +594,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'0'</span> <span class="op">*</span> <span class="dv">1000</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>String B also has a short description: “the first 1000 binary digits of π - 3.” A program to generate it:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mpmath <span class="im">import</span> mp</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>mp.dps <span class="op">=</span> <span class="dv">350</span>  <span class="co"># Enough decimal places</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>pi_digits <span class="op">=</span> mp.nstr(mp.pi <span class="op">-</span> <span class="dv">3</span>, <span class="dv">340</span>, strip_zeros<span class="op">=</span><span class="va">False</span>).replace(<span class="st">'0.'</span>, <span class="st">''</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>binary <span class="op">=</span> <span class="bu">bin</span>(<span class="bu">int</span>(pi_digits.replace(<span class="st">'.'</span>, <span class="st">''</span>)))[<span class="dv">2</span>:][:<span class="dv">1000</span>]</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(binary)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>mp.dps <span class="op">=</span> <span class="dv">350</span>  <span class="co"># Enough decimal places for 1000 binary digits</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> mp.pi <span class="op">-</span> <span class="dv">3</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>bits <span class="op">=</span> []</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1000</span>):</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    x <span class="op">*=</span> <span class="dv">2</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> x <span class="op">&gt;=</span> <span class="dv">1</span>:</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        bits.append(<span class="st">'1'</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        x <span class="op">-=</span> <span class="dv">1</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        bits.append(<span class="st">'0'</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">''</span>.join(bits))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This program is perhaps 200 characters long — far shorter than the 1000-bit string it generates.</p>
 <p>String C is different. If it is truly random, there is no pattern to exploit. The shortest description of a truly random string is the string itself. You cannot do better than “here are the 1000 bits: 1101001011100010…”</p>
 <p>This is the intuition behind Kolmogorov complexity: <strong>the complexity of a string is the length of the shortest program that outputs it.</strong></p>
@@ -680,32 +689,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 data-number="9.5" class="anchored" data-anchor-id="incompressible-strings"><span class="header-section-number">9.5</span> Incompressible Strings</h2>
 <p>Most strings are incompressible. This is not an empirical observation — it is a counting argument we began in Chapter 4.</p>
 <p>There are 2ⁿ binary strings of length <em>n</em>. How many of them have Kolmogorov complexity less than <em>n - k</em>? A program of length <em>n - k</em> bits is itself a binary string of length <em>n - k</em>, and there are at most 2^(n-k) such programs. So at most 2^(n-k) strings of length <em>n</em> can have complexity less than <em>n - k</em>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fraction_with_complexity_below(n, threshold):</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Upper bound on the fraction of n-bit strings with</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Kolmogorov complexity below threshold bits.</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    max_programs    <span class="op">=</span> <span class="dv">2</span> <span class="op">**</span> threshold</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    total_strings   <span class="op">=</span> <span class="dv">2</span> <span class="op">**</span> n</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> max_programs <span class="op">/</span> total_strings</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fraction_log10_upper_bound(n, threshold):</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">    log10 of an upper bound on the fraction of n-bit strings with</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Kolmogorov complexity below threshold bits.</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (threshold <span class="op">-</span> n) <span class="op">*</span> math.log10(<span class="dv">2</span>)</span>
 <span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'n'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'threshold'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'fraction'</span><span class="sc">:&gt;15}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'1 in ...'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">48</span>)</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> n <span class="kw">in</span> [<span class="dv">100</span>, <span class="dv">1000</span>, <span class="dv">10000</span>]:</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ratio <span class="kw">in</span> [<span class="fl">0.5</span>, <span class="fl">0.9</span>]:</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>        threshold <span class="op">=</span> <span class="bu">int</span>(n <span class="op">*</span> ratio)</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        frac      <span class="op">=</span> fraction_with_complexity_below(n, threshold)</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>n<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>threshold<span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span>frac<span class="sc">:&gt;15.2e}</span><span class="ss"> "</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span><span class="ss">f'1 in 10^</span><span class="sc">{</span><span class="bu">int</span>(<span class="op">-</span>math.log10(frac))<span class="sc">}</span><span class="ss">'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> scientific_from_log10(log10_x):</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    exponent <span class="op">=</span> math.floor(log10_x)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    mantissa <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (log10_x <span class="op">-</span> exponent)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span>mantissa<span class="sc">:.2f}</span><span class="ss">e</span><span class="sc">{</span>exponent<span class="sc">:+d}</span><span class="ss">"</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'n'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'threshold'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'fraction'</span><span class="sc">:&gt;15}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'1 in ...'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">48</span>)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> n <span class="kw">in</span> [<span class="dv">100</span>, <span class="dv">1000</span>, <span class="dv">10000</span>]:</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ratio <span class="kw">in</span> [<span class="fl">0.5</span>, <span class="fl">0.9</span>]:</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>        threshold <span class="op">=</span> <span class="bu">int</span>(n <span class="op">*</span> ratio)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>        log10_frac <span class="op">=</span> fraction_log10_upper_bound(n, threshold)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>        frac_str   <span class="op">=</span> scientific_from_log10(log10_frac)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        rarity     <span class="op">=</span> <span class="ss">f"1 in 10^</span><span class="sc">{</span><span class="bu">int</span>(<span class="op">-</span>log10_frac)<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>n<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>threshold<span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span>frac_str<span class="sc">:&gt;15}</span><span class="ss"> </span><span class="sc">{</span>rarity<span class="sc">:&gt;12}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>     n    threshold        fraction     1 in ...
 ------------------------------------------------
-   100           50     1.00e-15    1 in 10^15
-   100           90     1.25e-03    1 in 10^3
-  1000          500     1.00e-151   1 in 10^151
-  1000          900     1.07e-44    1 in 10^44
- 10000         5000    3.05e-1506   1 in 10^1506
- 10000         9000    1.26e-436   1 in 10^436</code></pre>
+   100           50        8.88e-16   1 in 10^15
+   100           90         9.77e-4    1 in 10^3
+  1000          500       3.05e-151  1 in 10^150
+  1000          900        7.89e-31   1 in 10^30
+ 10000         5000      7.08e-1506 1 in 10^1505
+ 10000         9000       9.33e-302  1 in 10^301</code></pre>
 <p>The fraction of strings that can be compressed by even 10% is vanishingly small for long strings. A random string is almost certainly incompressible — not probably incompressible, but incompressible with probability that approaches 1 as length grows.</p>
 <p>We call a string <em>s</em> <strong>incompressible</strong> (or <em>Kolmogorov random</em>) if K(s) ≥ |s| - c for some small constant <em>c</em>. Such strings look completely random. They pass every statistical test for randomness. They have maximum entropy. They cannot be described more briefly than by listing their bits.</p>
 <p>This is a profoundly counterintuitive result: most strings are maximally complex, in the precise sense that they cannot be described more briefly than they already are. The strings that compress — the ones with patterns, regularities, and structure — are the exception, not the rule.</p>
@@ -761,12 +776,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 data-number="9.7" class="anchored" data-anchor-id="approximating-kolmogorov-complexity"><span class="header-section-number">9.7</span> Approximating Kolmogorov Complexity</h2>
 <p>Kolmogorov complexity is uncomputable, but we can approximate it. Any compression algorithm gives an upper bound: if algorithm <em>A</em> compresses string <em>s</em> to <em>m</em> bits, then K(s) ≤ m + c_A, where <em>c_A</em> is a constant accounting for the description of the algorithm itself.</p>
 <p>Better compressors give tighter upper bounds.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gzip, bz2, lzma</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gzip, bz2, hashlib, lzma</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kolmogorov_upper_bounds(s: <span class="bu">bytes</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute upper bounds on K(s) using various compressors.</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Each gives a different (increasingly tight) upper bound.</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Each gives a different upper bound.</span></span>
 <span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
 <span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    bounds <span class="op">=</span> {}</span>
 <span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    bounds[<span class="st">'Raw length'</span>]   <span class="op">=</span> <span class="bu">len</span>(s) <span class="op">*</span> <span class="dv">8</span></span>
@@ -776,41 +791,59 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> bounds</span>
 <span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare bounds on different types of data</span></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>test_cases <span class="op">=</span> {</span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Zeros (1KB)'</span>:       <span class="bu">bytes</span>(<span class="dv">1024</span>),</span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Random (1KB)'</span>:      <span class="bu">bytes</span>(<span class="bu">__import__</span>(<span class="st">'os'</span>).urandom(<span class="dv">1024</span>)),</span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">'English text'</span>:      <span class="st">b'the quick brown fox jumps over the lazy dog '</span> <span class="op">*</span> <span class="dv">23</span>,</span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Pi digits'</span>:         <span class="bu">str</span>(<span class="fl">3.14159265358979323846264338327950288419716</span>).encode() <span class="op">*</span> <span class="dv">30</span>,</span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Source code'</span>:       <span class="bu">open</span>(<span class="va">__file__</span>, <span class="st">'rb'</span>).read()[:<span class="dv">1024</span>] <span class="cf">if</span> <span class="va">True</span> <span class="cf">else</span> <span class="st">b''</span>,</span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>source_snippet <span class="op">=</span> (</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"def fib(n):</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"    a, b = 0, 1</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"    for _ in range(n):</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"        a, b = b, a + b</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"    return a</span><span class="ch">\n</span><span class="st">"</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>) <span class="op">*</span> <span class="dv">12</span></span>
 <span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, data <span class="kw">in</span> test_cases.items():</span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> data:</span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    bounds <span class="op">=</span> kolmogorov_upper_bounds(data)</span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">len</span>(data)<span class="sc">}</span><span class="ss"> bytes raw):"</span>)</span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method, bits <span class="kw">in</span> bounds.items():</span>
-<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  K(s) ≤ </span><span class="sc">{</span>bits<span class="sc">:&gt;8}</span><span class="ss"> bits  [</span><span class="sc">{</span>method<span class="sc">}</span><span class="ss">]"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Output (approximate):</p>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>test_cases <span class="op">=</span> {</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Zeros (1KB)'</span>:             <span class="bu">bytes</span>(<span class="dv">1024</span>),</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">'SHAKE256 stream (1KB)'</span>:   hashlib.shake_256(<span class="st">b'chapter7-upper-bounds'</span>).digest(<span class="dv">1024</span>),</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">'English text'</span>:            <span class="st">b'the quick brown fox jumps over the lazy dog '</span> <span class="op">*</span> <span class="dv">23</span>,</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Pi digits'</span>:               <span class="bu">str</span>(<span class="fl">3.14159265358979323846264338327950288419716</span>).encode() <span class="op">*</span> <span class="dv">30</span>,</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Source code'</span>:             source_snippet[:<span class="dv">1024</span>],</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, data <span class="kw">in</span> test_cases.items():</span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>    bounds <span class="op">=</span> kolmogorov_upper_bounds(data)</span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">len</span>(data)<span class="sc">}</span><span class="ss"> bytes raw):"</span>)</span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method, bits <span class="kw">in</span> bounds.items():</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  K(s) ≤ </span><span class="sc">{</span>bits<span class="sc">:&gt;8}</span><span class="ss"> bits  [</span><span class="sc">{</span>method<span class="sc">}</span><span class="ss">]"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
 <pre><code>Zeros (1KB) (1024 bytes raw):
   K(s) ≤    8192 bits  [Raw length]
-  K(s) ≤     216 bits  [gzip]
-  K(s) ≤     208 bits  [bz2]
-  K(s) ≤     408 bits  [lzma]
+  K(s) ≤     232 bits  [gzip]
+  K(s) ≤     336 bits  [bz2]
+  K(s) ≤     608 bits  [lzma]
 
-Random (1KB) (1024 bytes raw):
+SHAKE256 stream (1KB) (1024 bytes raw):
   K(s) ≤    8192 bits  [Raw length]
-  K(s) ≤    8312 bits  [gzip]
-  K(s) ≤    8248 bits  [bz2]
-  K(s) ≤    8680 bits  [lzma]
+  K(s) ≤    8376 bits  [gzip]
+  K(s) ≤   10472 bits  [bz2]
+  K(s) ≤    8672 bits  [lzma]
 
 English text (1012 bytes raw):
   K(s) ≤    8096 bits  [Raw length]
-  K(s) ≤    3584 bits  [gzip]
-  K(s) ≤    3456 bits  [bz2]
-  K(s) ≤    3320 bits  [lzma]</code></pre>
-<p>Notice that for the zeros, even gzip gives a tight bound — 216 bits versus the raw 8192. For random data, every compressor gives a bound <em>larger</em> than the raw length because of compression overhead. The true K for random data is close to 8192 bits; the true K for zeros is tiny (a few bytes to encode “1024 zeros”).</p>
-<p>For practical purposes, lzma usually gives the tightest upper bound because it uses a very large window and sophisticated context modeling. For research purposes, people have built specialized approximators for K based on ideas from prediction and model selection.</p>
+  K(s) ≤     576 bits  [gzip]
+  K(s) ≤     944 bits  [bz2]
+  K(s) ≤     960 bits  [lzma]
+
+Pi digits (510 bytes raw):
+  K(s) ≤    4080 bits  [Raw length]
+  K(s) ≤     336 bits  [gzip]
+  K(s) ≤     520 bits  [bz2]
+  K(s) ≤     736 bits  [lzma]
+
+Source code (1024 bytes raw):
+  K(s) ≤    8192 bits  [Raw length]
+  K(s) ≤     760 bits  [gzip]
+  K(s) ≤    1208 bits  [bz2]
+  K(s) ≤    1120 bits  [lzma]</code></pre>
+<p>Notice that for the zeros, even gzip gives a tight upper bound — 232 bits versus the raw 8192. For the SHAKE256 stream, every compressor gives a bound <em>larger</em> than the raw length because of compression overhead and the absence of exploitable structure. The true K for the all-zero string is tiny (a short program can say “print 1024 zeros”), while the compressor’s behavior on the SHAKE256 stream tells us only that it looks incompressible to these models.</p>
+<p>No one compressor is universally tightest. Large-window compressors like lzma often win on large structured inputs, but on short toy samples header costs matter, and gzip can easily come out ahead. For research purposes, people have built specialized approximators for K based on ideas from prediction and model selection.</p>
 <hr>
 </section>
 <section id="the-incompressibility-method" class="level2" data-number="9.8">
@@ -851,8 +884,8 @@ English text (1012 bytes raw):
        8          15.30       24.00   0.6375
       16          44.25       64.00   0.6914
       64         296.00      384.00   0.7708
-     256        1683.99     2048.00   0.8223
-    1024        8530.27     10240.00  0.8330</code></pre>
+     256        1684.00     2048.00   0.8223
+    1024        8769.01     10240.00  0.8563</code></pre>
 <p>The lower bound is tight — it matches the known optimal bounds within a constant factor, and it is derived without any analysis of specific algorithms. The incompressibility method gives us a lower bound essentially for free, simply from the counting argument that most permutations are hard to describe.</p>
 <p>This technique applies throughout algorithm analysis: lower bounds for searching, graph problems, data structures, communication complexity. It is one of the cleanest tools theoreticians have, and it flows directly from the definition of Kolmogorov complexity.</p>
 <hr>
@@ -940,46 +973,50 @@ MDL selects degree 2</code></pre>
 <p>Shannon entropy is a property of a <em>distribution</em>. It measures the average information content of samples from that distribution. It says nothing about individual strings.</p>
 <p>Kolmogorov complexity is a property of an <em>individual string</em>. It measures the intrinsic complexity of that specific string, regardless of how it was generated.</p>
 <p>The connection is this: <strong>for strings drawn from a distribution with entropy H, the expected Kolmogorov complexity is approximately H bits per symbol.</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> entropy_vs_kolmogorov():</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Illustrate the connection between entropy and K-complexity.</span></span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co">    We approximate K(s) with compression length as an upper bound.</span></span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> random</span>
-<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> []</span>
-<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p_heads <span class="kw">in</span> [<span class="fl">0.1</span>, <span class="fl">0.3</span>, <span class="fl">0.5</span>, <span class="fl">0.7</span>, <span class="fl">0.9</span>]:</span>
-<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Generate 1000 samples from a biased coin</span></span>
-<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>        bits <span class="op">=</span> <span class="st">''</span>.join(<span class="st">'1'</span> <span class="cf">if</span> random.random() <span class="op">&lt;</span> p_heads <span class="cf">else</span> <span class="st">'0'</span></span>
-<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>                       <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">10000</span>))</span>
-<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Shannon entropy of the distribution</span></span>
-<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>        p    <span class="op">=</span> p_heads</span>
-<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>        q    <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> p</span>
-<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>        H    <span class="op">=</span> <span class="op">-</span>(p <span class="op">*</span> math.log2(p) <span class="op">+</span> q <span class="op">*</span> math.log2(q)) <span class="cf">if</span> <span class="dv">0</span> <span class="op">&lt;</span> p <span class="op">&lt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="dv">0</span></span>
-<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Approximate K with gzip compression</span></span>
-<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>        compressed  <span class="op">=</span> gzip.compress(bits.encode(), compresslevel<span class="op">=</span><span class="dv">9</span>)</span>
-<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>        k_approx    <span class="op">=</span> <span class="bu">len</span>(compressed) <span class="op">*</span> <span class="dv">8</span> <span class="op">/</span> <span class="bu">len</span>(bits)  <span class="co"># bits per symbol</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gzip</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> entropy_vs_kolmogorov():</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Illustrate the connection between entropy and K-complexity.</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="co">    We approximate K(s) with compression length as an upper bound.</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    random.seed(<span class="dv">42</span>)</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> []</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p_heads <span class="kw">in</span> [<span class="fl">0.1</span>, <span class="fl">0.3</span>, <span class="fl">0.5</span>, <span class="fl">0.7</span>, <span class="fl">0.9</span>]:</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Generate a long sample from a biased coin</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>        bits <span class="op">=</span> <span class="st">''</span>.join(<span class="st">'1'</span> <span class="cf">if</span> random.random() <span class="op">&lt;</span> p_heads <span class="cf">else</span> <span class="st">'0'</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>                       <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">200000</span>))</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Shannon entropy of the distribution</span></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>        p    <span class="op">=</span> p_heads</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>        q    <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> p</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>        H    <span class="op">=</span> <span class="op">-</span>(p <span class="op">*</span> math.log2(p) <span class="op">+</span> q <span class="op">*</span> math.log2(q)) <span class="cf">if</span> <span class="dv">0</span> <span class="op">&lt;</span> p <span class="op">&lt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="dv">0</span></span>
 <span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>        results.append((p_heads, H, k_approx))</span>
-<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'p(heads)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'H (bits)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'K approx'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Ratio K/H'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
-<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p, H, K <span class="kw">in</span> results:</span>
-<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>        ratio <span class="op">=</span> K<span class="op">/</span>H <span class="cf">if</span> H <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="bu">float</span>(<span class="st">'inf'</span>)</span>
-<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:&gt;10.1f}</span><span class="ss"> </span><span class="sc">{</span>H<span class="sc">:&gt;10.4f}</span><span class="ss"> </span><span class="sc">{</span>K<span class="sc">:&gt;10.4f}</span><span class="ss"> </span><span class="sc">{</span>ratio<span class="sc">:&gt;10.4f}</span><span class="ss">"</span>)</span>
-<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>entropy_vs_kolmogorov()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Approximate K with gzip compression</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>        compressed  <span class="op">=</span> gzip.compress(bits.encode(), compresslevel<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>        k_approx    <span class="op">=</span> <span class="bu">len</span>(compressed) <span class="op">*</span> <span class="dv">8</span> <span class="op">/</span> <span class="bu">len</span>(bits)  <span class="co"># bits per symbol</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>        results.append((p_heads, H, k_approx))</span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'p(heads)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'H (bits)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'K approx'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Ratio K/H'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p, H, K <span class="kw">in</span> results:</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>        ratio <span class="op">=</span> K<span class="op">/</span>H <span class="cf">if</span> H <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="bu">float</span>(<span class="st">'inf'</span>)</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:&gt;10.1f}</span><span class="ss"> </span><span class="sc">{</span>H<span class="sc">:&gt;10.4f}</span><span class="ss"> </span><span class="sc">{</span>K<span class="sc">:&gt;10.4f}</span><span class="ss"> </span><span class="sc">{</span>ratio<span class="sc">:&gt;10.4f}</span><span class="ss">"</span>)</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>entropy_vs_kolmogorov()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>  p(heads)   H (bits)   K approx   Ratio K/H
 --------------------------------------------
-       0.1     0.4690     0.5821     1.2411
-       0.3     0.8813     0.9012     1.0225
-       0.5     1.0000     1.0089     1.0089
-       0.7     0.8813     0.9015     1.0229
-       0.9     0.4690     0.5798     1.2359</code></pre>
-<p>The approximate K tracks the Shannon entropy closely, especially near p = 0.5. The ratio is always ≥ 1 (K approximations are upper bounds) and approaches 1 as the distribution becomes less extreme. For very skewed distributions (p = 0.1 or 0.9), gzip’s approximation is looser because it cannot perfectly exploit the redundancy.</p>
+       0.1     0.4690     0.6568     1.4004
+       0.3     0.8813     1.1274     1.2792
+       0.5     1.0000     1.2207     1.2207
+       0.7     0.8813     1.1271     1.2789
+       0.9     0.4690     0.6525     1.3912</code></pre>
+<p>The approximate K tracks the <em>shape</em> of the Shannon entropy: it is symmetric around p = 0.5, largest at p = 0.5, and smaller for skewed distributions. But the upper bound is visibly loose. Gzip is compressing an ASCII bitstring, not using an ideal model for independent Bernoulli bits, so it leaves a substantial gap above the entropy rate. The ratio is always ≥ 1 because compression length is only an upper bound on K.</p>
 <p>The formal statement of this relationship is: for a string of length <em>n</em> generated by a stationary ergodic source with entropy rate <em>H</em>, the Kolmogorov complexity K(s) / n converges to <em>H</em> almost surely as <em>n</em> → ∞. Entropy is, in a deep sense, the expected Kolmogorov complexity per symbol.</p>
 <hr>
 </section>
@@ -988,64 +1025,73 @@ MDL selects degree 2</code></pre>
 <p>One of the most profound applications of Kolmogorov complexity is a rigorous definition of <em>randomness</em>.</p>
 <p>Classical probability theory can tell you that a sequence of fair coin flips has 50% heads on average. But it cannot tell you whether a specific sequence — say, <code>1010101010...</code> alternating perfectly — is “random.” That sequence has exactly 50% heads and passes many statistical tests, but it is clearly not random in any intuitive sense.</p>
 <p>Kolmogorov complexity fixes this. A string is <strong>Kolmogorov random</strong> (or <strong>1-random</strong>) if its complexity is maximal — if K(s) ≥ |s| - c for a small constant <em>c</em>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kolmogorov_randomness_test(s: <span class="bu">bytes</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Approximate test for Kolmogorov randomness.</span></span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co">    A string is 'more random' if it is harder to compress.</span></span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="co">    </span></span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="co">    This gives a necessary but not sufficient condition:</span></span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co">    an incompressible string is random, but compression</span></span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co">    success doesn't prove structure (maybe the compressor</span></span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">    doesn't know the right model).</span></span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    raw_bits   <span class="op">=</span> <span class="bu">len</span>(s) <span class="op">*</span> <span class="dv">8</span></span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>    compressed <span class="op">=</span> gzip.compress(s, compresslevel<span class="op">=</span><span class="dv">9</span>)</span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>    comp_bits  <span class="op">=</span> <span class="bu">len</span>(compressed) <span class="op">*</span> <span class="dv">8</span></span>
-<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>    ratio      <span class="op">=</span> comp_bits <span class="op">/</span> raw_bits</span>
-<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Ratio near 1.0 (or above) suggests high K-complexity</span></span>
-<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
-<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">'raw_bits'</span>:        raw_bits,</span>
-<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">'compressed_bits'</span>: comp_bits,</span>
-<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">'ratio'</span>:           ratio,</span>
-<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>        <span class="st">'assessment'</span>:      <span class="st">'Likely random (incompressible)'</span></span>
-<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>                           <span class="cf">if</span> ratio <span class="op">&gt;</span> <span class="fl">0.95</span></span>
-<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>                           <span class="cf">else</span> <span class="st">'Structured (compressible)'</span>,</span>
-<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Test various sequences</span></span>
-<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, struct</span>
-<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a>test_cases <span class="op">=</span> {</span>
-<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Alternating 01'</span>:    <span class="bu">bytes</span>([<span class="dv">0</span>, <span class="dv">255</span>] <span class="op">*</span> <span class="dv">512</span>),</span>
-<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">'All zeros'</span>:         <span class="bu">bytes</span>(<span class="dv">1024</span>),</span>
-<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">'os.urandom'</span>:        os.urandom(<span class="dv">1024</span>),</span>
-<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Pi bytes'</span>:          struct.pack(<span class="st">'d'</span>, <span class="fl">3.14159265358979</span>) <span class="op">*</span> <span class="dv">64</span>,</span>
-<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">'English text'</span>:      <span class="st">b'the quick brown fox jumps over the lazy dog '</span> <span class="op">*</span> <span class="dv">23</span>,</span>
-<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">'LFSR (pseudo-rng)'</span>: <span class="bu">bytes</span>(((i <span class="op">*</span> <span class="dv">1664525</span> <span class="op">+</span> <span class="dv">1013904223</span>) <span class="op">&amp;</span> <span class="bn">0xFF</span>)</span>
-<span id="cb23-37"><a href="#cb23-37" aria-hidden="true" tabindex="-1"></a>                               <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1024</span>)),</span>
-<span id="cb23-38"><a href="#cb23-38" aria-hidden="true" tabindex="-1"></a>}</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gzip</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> hashlib</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> struct</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kolmogorov_randomness_test(s: <span class="bu">bytes</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Approximate test for Kolmogorov randomness.</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co">    A string is 'more random' if it is harder to compress.</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">    </span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="co">    This gives a necessary but not sufficient condition:</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="co">    an incompressible string is random, but compression</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="co">    success doesn't prove structure (maybe the compressor</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="co">    doesn't know the right model).</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>    raw_bits   <span class="op">=</span> <span class="bu">len</span>(s) <span class="op">*</span> <span class="dv">8</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>    compressed <span class="op">=</span> gzip.compress(s, compresslevel<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>    comp_bits  <span class="op">=</span> <span class="bu">len</span>(compressed) <span class="op">*</span> <span class="dv">8</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>    ratio      <span class="op">=</span> comp_bits <span class="op">/</span> raw_bits</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Ratio near 1.0 (or above) suggests high K-complexity</span></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">'raw_bits'</span>:        raw_bits,</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>        <span class="st">'compressed_bits'</span>: comp_bits,</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>        <span class="st">'ratio'</span>:           ratio,</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>        <span class="st">'assessment'</span>:      <span class="st">'Likely random (incompressible)'</span></span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>                           <span class="cf">if</span> ratio <span class="op">&gt;</span> <span class="fl">0.95</span></span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>                           <span class="cf">else</span> <span class="st">'Structured (compressible)'</span>,</span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Test various sequences</span></span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lcg_bytes(n, seed<span class="op">=</span><span class="dv">1</span>):</span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a>    state <span class="op">=</span> seed</span>
+<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> <span class="bu">bytearray</span>()</span>
+<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a>        state <span class="op">=</span> (<span class="dv">1664525</span> <span class="op">*</span> state <span class="op">+</span> <span class="dv">1013904223</span>) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span></span>
+<span id="cb23-37"><a href="#cb23-37" aria-hidden="true" tabindex="-1"></a>        out.append(state <span class="op">&amp;</span> <span class="bn">0xFF</span>)</span>
+<span id="cb23-38"><a href="#cb23-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">bytes</span>(out)</span>
 <span id="cb23-39"><a href="#cb23-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-40"><a href="#cb23-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Source'</span><span class="sc">:&lt;22}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Raw'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Comp'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Ratio'</span><span class="sc">:&gt;8}</span><span class="ss">  Assessment"</span>)</span>
-<span id="cb23-41"><a href="#cb23-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">70</span>)</span>
-<span id="cb23-42"><a href="#cb23-42" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, data <span class="kw">in</span> test_cases.items():</span>
-<span id="cb23-43"><a href="#cb23-43" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> kolmogorov_randomness_test(data)</span>
-<span id="cb23-44"><a href="#cb23-44" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;22}</span><span class="ss"> </span><span class="sc">{</span>result[<span class="st">'raw_bits'</span>]<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
-<span id="cb23-45"><a href="#cb23-45" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>result[<span class="st">'compressed_bits'</span>]<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
-<span id="cb23-46"><a href="#cb23-46" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>result[<span class="st">'ratio'</span>]<span class="sc">:&gt;8.3f}</span><span class="ss">  </span><span class="sc">{</span>result[<span class="st">'assessment'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb23-40"><a href="#cb23-40" aria-hidden="true" tabindex="-1"></a>test_cases <span class="op">=</span> {</span>
+<span id="cb23-41"><a href="#cb23-41" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Alternating 01'</span>:     <span class="bu">bytes</span>([<span class="dv">0</span>, <span class="dv">255</span>] <span class="op">*</span> <span class="dv">512</span>),</span>
+<span id="cb23-42"><a href="#cb23-42" aria-hidden="true" tabindex="-1"></a>    <span class="st">'All zeros'</span>:          <span class="bu">bytes</span>(<span class="dv">1024</span>),</span>
+<span id="cb23-43"><a href="#cb23-43" aria-hidden="true" tabindex="-1"></a>    <span class="st">'SHAKE256 stream'</span>:    hashlib.shake_256(<span class="st">b'chapter7'</span>).digest(<span class="dv">1024</span>),</span>
+<span id="cb23-44"><a href="#cb23-44" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Pi bytes'</span>:           struct.pack(<span class="st">'d'</span>, <span class="fl">3.14159265358979</span>) <span class="op">*</span> <span class="dv">64</span>,</span>
+<span id="cb23-45"><a href="#cb23-45" aria-hidden="true" tabindex="-1"></a>    <span class="st">'English text'</span>:       <span class="st">b'the quick brown fox jumps over the lazy dog '</span> <span class="op">*</span> <span class="dv">23</span>,</span>
+<span id="cb23-46"><a href="#cb23-46" aria-hidden="true" tabindex="-1"></a>    <span class="st">'LCG (pseudo-rng)'</span>:   lcg_bytes(<span class="dv">1024</span>),</span>
+<span id="cb23-47"><a href="#cb23-47" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb23-48"><a href="#cb23-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-49"><a href="#cb23-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Source'</span><span class="sc">:&lt;22}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Raw'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Comp'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Ratio'</span><span class="sc">:&gt;8}</span><span class="ss">  Assessment"</span>)</span>
+<span id="cb23-50"><a href="#cb23-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">70</span>)</span>
+<span id="cb23-51"><a href="#cb23-51" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, data <span class="kw">in</span> test_cases.items():</span>
+<span id="cb23-52"><a href="#cb23-52" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> kolmogorov_randomness_test(data)</span>
+<span id="cb23-53"><a href="#cb23-53" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;22}</span><span class="ss"> </span><span class="sc">{</span>result[<span class="st">'raw_bits'</span>]<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
+<span id="cb23-54"><a href="#cb23-54" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>result[<span class="st">'compressed_bits'</span>]<span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
+<span id="cb23-55"><a href="#cb23-55" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>result[<span class="st">'ratio'</span>]<span class="sc">:&gt;8.3f}</span><span class="ss">  </span><span class="sc">{</span>result[<span class="st">'assessment'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Source                  Raw     Comp    Ratio  Assessment
 ----------------------------------------------------------------------
-Alternating 01         8192      216    0.026  Structured (compressible)
-All zeros              8192      160    0.020  Structured (compressible)
-os.urandom             8192     8256    1.008  Likely random (incompressible)
-Pi bytes               8192     6560    0.801  Structured (compressible)
-English text           8096     3456    0.427  Structured (compressible)
-LFSR (pseudo-rng)      8192     4288    0.523  Structured (compressible)</code></pre>
+Alternating 01         8192      240    0.029  Structured (compressible)
+All zeros              8192      232    0.028  Structured (compressible)
+SHAKE256 stream        8192     8376    1.022  Likely random (incompressible)
+Pi bytes               4096      264    0.064  Structured (compressible)
+English text           8096      576    0.071  Structured (compressible)
+LCG (pseudo-rng)       8192     2384    0.291  Structured (compressible)</code></pre>
 <p>Several things are worth noting here.</p>
-<p><code>os.urandom</code> is flagged as likely random — its compression ratio exceeds 1.0, meaning the compressor gives up and adds overhead. This is the behavior we expect from a cryptographically secure random number generator.</p>
-<p>The LFSR (a simple linear feedback shift register, a common pseudo-random generator) is flagged as structured — it compresses to about 52% of original. LFSRs have mathematical structure that a good compressor can find, even though their output passes many statistical randomness tests. This is why LFSRs are not suitable for cryptography.</p>
+<p>The SHAKE256 stream is flagged as likely random — its compression ratio exceeds 1.0, meaning the compressor gives up and adds overhead. This is the behavior we expect from a cryptographic pseudorandom stream: to a general-purpose compressor, it looks structureless.</p>
+<p>The LCG (a simple linear congruential generator) is flagged as structured — it compresses to about 29% of original. That is exactly what we would hope a rough Kolmogorov-style test would notice: cheap pseudo-random generators often leave obvious regularities in their low-order bits, which makes them unsuitable for cryptography.</p>
 <p>Pi’s bytes are compressible — not because pi is “non-random” in any simple statistical sense, but because the floating-point representation of 3.14159… repeated 64 times has obvious structure.</p>
 <p>This compression test is not a perfect randomness test — there exist highly compressible strings that pass statistical tests, and there exist incompressible strings that fail them. But it is a useful first check, and it is grounded in the most rigorous definition of randomness available.</p>
 <hr>
@@ -1056,34 +1102,37 @@ LFSR (pseudo-rng)      8192     4288    0.523  Structured (compressible)</code><
 <p>Given a string <em>s</em>, define its prior probability as:</p>
 <pre><code>P(s) = 2^(-K(s))</code></pre>
 <p>This is called the <em>Solomonoff prior</em> or <em>universal prior</em>. It assigns higher probability to simpler strings — strings with shorter descriptions — and lower probability to complex strings. It is “universal” in the sense that it dominates every computable probability distribution: for any computable distribution <em>Q</em> there exists a constant <em>c</em> such that P(s) ≥ c × Q(s) for all <em>s</em>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> universal_prior_intuition():</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Illustrate the Solomonoff universal prior.</span></span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co">    We approximate K(s) with compression length.</span></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    test_strings <span class="op">=</span> [</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"1000 zeros"</span>,    <span class="bu">bytes</span>(<span class="dv">1000</span>)),</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"pi digits"</span>,     <span class="bu">str</span>(<span class="fl">3.14159265358979323846</span>).encode() <span class="op">*</span> <span class="dv">55</span>),</span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"random bytes"</span>,  os.urandom(<span class="dv">1000</span>)),</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"English text"</span>,  <span class="st">b"the cat sat on the mat "</span> <span class="op">*</span> <span class="dv">43</span>),</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'String'</span><span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'K approx (bits)'</span><span class="sc">:&gt;18}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'2^-K (log scale)'</span><span class="sc">:&gt;20}</span><span class="ss">"</span>)</span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">58</span>)</span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, s <span class="kw">in</span> test_strings:</span>
-<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>        k_approx   <span class="op">=</span> <span class="bu">len</span>(gzip.compress(s, compresslevel<span class="op">=</span><span class="dv">9</span>)) <span class="op">*</span> <span class="dv">8</span></span>
-<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>        log2_prior <span class="op">=</span> <span class="op">-</span>k_approx  <span class="co"># log2(2^-K) = -K</span></span>
-<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span>k_approx<span class="sc">:&gt;18}</span><span class="ss"> </span><span class="sc">{</span>log2_prior<span class="sc">:&gt;18}</span><span class="ss"> bits"</span>)</span>
-<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>universal_prior_intuition()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gzip</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> hashlib</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> universal_prior_intuition():</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Illustrate the Solomonoff universal prior.</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="co">    We approximate K(s) with compression length.</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    test_strings <span class="op">=</span> [</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"1000 zeros"</span>,    <span class="bu">bytes</span>(<span class="dv">1000</span>)),</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"pi digits"</span>,     <span class="bu">str</span>(<span class="fl">3.14159265358979323846</span>).encode() <span class="op">*</span> <span class="dv">55</span>),</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"SHAKE256 stream"</span>, hashlib.shake_256(<span class="st">b'chapter7'</span>).digest(<span class="dv">1000</span>)),</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"English text"</span>,  <span class="st">b"the cat sat on the mat "</span> <span class="op">*</span> <span class="dv">43</span>),</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'String'</span><span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'K approx (bits)'</span><span class="sc">:&gt;18}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'2^-K (log scale)'</span><span class="sc">:&gt;20}</span><span class="ss">"</span>)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">58</span>)</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, s <span class="kw">in</span> test_strings:</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>        k_approx   <span class="op">=</span> <span class="bu">len</span>(gzip.compress(s, compresslevel<span class="op">=</span><span class="dv">9</span>)) <span class="op">*</span> <span class="dv">8</span></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>        log2_prior <span class="op">=</span> <span class="op">-</span>k_approx  <span class="co"># log2(2^-K) = -K</span></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;16}</span><span class="ss"> </span><span class="sc">{</span>k_approx<span class="sc">:&gt;18}</span><span class="ss"> </span><span class="sc">{</span>log2_prior<span class="sc">:&gt;18}</span><span class="ss"> bits"</span>)</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>universal_prior_intuition()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>String            K approx (bits)    2^-K (log scale)
 ----------------------------------------------------------
-1000 zeros                    216                 -216 bits
-pi digits                    3856                -3856 bits
-random bytes                 8256                -8256 bits
-English text                 3424                -3424 bits</code></pre>
-<p>The zeros have by far the highest prior probability — 2^(-216) is astronomically larger than 2^(-8256). In the Solomonoff framework, simple strings are a priori more likely, and this prior is updated as we observe data.</p>
+1000 zeros                    232                 -232 bits
+pi digits                     368                 -368 bits
+SHAKE256 stream              8184                -8184 bits
+English text                  384                 -384 bits</code></pre>
+<p>The zeros have by far the highest prior probability — 2^(-232) is astronomically larger than 2^(-8184). In the Solomonoff framework, simple strings are a priori more likely, and this prior is updated as we observe data.</p>
 <p>This might seem like a curiosity, but it is the foundation of a coherent theory of inductive inference. The Solomonoff prior is the unique prior that is “universal” — it gives non-zero probability to every computable sequence and dominates every other computable prior. If you want to do Bayesian inference without choosing a prior — if you want a prior that encodes only “prefer simpler explanations” — the Solomonoff prior is the answer.</p>
 <p>It is also completely uncomputable, for the same reason K is uncomputable. But its existence proves that such a prior is <em>coherent</em>, and MDL can be understood as a computable approximation to it.</p>
 <hr>

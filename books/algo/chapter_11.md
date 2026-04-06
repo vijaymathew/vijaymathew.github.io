@@ -61,8 +61,6 @@ Thompson's construction builds an NFA where each node is a state and each edge i
 
 ```
 -- Transition types
-let EPSILON: Integer := -1    -- epsilon transition (no character consumed)
-let ANY_CHAR: Integer := -2   -- dot: matches any character
 
 class NFA_State
   create
@@ -88,7 +86,11 @@ class NFA_State
     end
 
     add_epsilon(target: Integer) do
-      transitions.add([EPSILON, target])
+      transitions.add([-1, target])
+    end
+
+    mark_accepting() do
+      is_accepting := true
     end
 
   invariant
@@ -132,6 +134,15 @@ class NFA
       result := states.get(id)
     end
 
+    set_bounds(start_id: Integer, accept_id: Integer) do
+      start := start_id
+      accept := accept_id
+    end
+
+    mark_state_accepting(id: Integer) do
+      states.get(id).mark_accepting()
+    end
+
     add_transition(from_state: Integer, label: Integer, to_state: Integer) do
       get_state(from_state).add_transition(label, to_state)
     end
@@ -165,7 +176,7 @@ One start state, one accepting state, one character transition between them.
 
 **Case 2: Dot `.`**
 
-Same as literal but with ANY_CHAR label.
+Same as literal but with -2 label.
 
 ```
 [start] --ANY--> [accept]
@@ -225,9 +236,8 @@ class Thompson_Builder
     -- Entry point: parse the pattern and return the NFA
     build(): NFA do
       let fragment: Array[Integer] := parse_alternation()
-      nfa.start := fragment.get(0)
-      nfa.accept := fragment.get(1)
-      nfa.get_state(nfa.accept).is_accepting := true
+      nfa.set_bounds(fragment.get(0), fragment.get(1))
+      nfa.mark_state_accepting(fragment.get(1))
       result := nfa
     end
 
@@ -235,7 +245,7 @@ class Thompson_Builder
     parse_alternation(): Array[Integer] do
       let left: Array[Integer] := parse_concatenation()
 
-      if pos < pattern.length and pattern.char_at(pos) = '|' then
+      if pos < pattern.length and pattern.char_at(pos) = #| then
         pos := pos + 1
         let right: Array[Integer] := parse_alternation()
         result := make_alternation(left, right)
@@ -247,16 +257,20 @@ class Thompson_Builder
     -- Parse concatenation: AB
     parse_concatenation(): Array[Integer] do
       let left: Array[Integer] := parse_quantified()
+      let continue_parsing: Boolean := true
 
-      -- Concatenation is implicit; continue while more atoms remain
-      -- (stop at '|', ')', or end of pattern)
-      from
-        let more_atoms: Boolean := true
-      until
-        pos >= pattern.length or pattern.char_at(pos) = '|' or pattern.char_at(pos) = ')'
-      do
-        let right: Array[Integer] := parse_quantified()
-        left := make_concatenation(left, right)
+      -- Concatenation is implicit; continue while more atoms remain.
+      from until not continue_parsing do
+        if pos >= pattern.length then
+          continue_parsing := false
+        elseif pattern.char_at(pos) = #| then
+          continue_parsing := false
+        elseif pattern.char_at(pos) = #) then
+          continue_parsing := false
+        else
+          let right: Array[Integer] := parse_quantified()
+          left := make_concatenation(left, right)
+        end
       end
 
       result := left
@@ -268,16 +282,16 @@ class Thompson_Builder
 
       if pos < pattern.length then
         let c: Char := pattern.char_at(pos)
-        if c = '*' then
+        if c = #* then
           pos := pos + 1
           result := make_star(atom)
-        elseif c = '+' then
+        elseif c = #+ then
           pos := pos + 1
           -- A+ = A concatenated with A*
           let star: Array[Integer] := make_star(atom)
           let atom2: Array[Integer] := parse_atom_copy(atom)
           result := make_concatenation(atom2, star)
-        elseif c = '?' then
+        elseif c = #? then
           pos := pos + 1
           result := make_optional(atom)
         else
@@ -293,27 +307,26 @@ class Thompson_Builder
       if pos >= pattern.length then
         -- Empty: epsilon fragment
         result := make_epsilon_fragment()
-        return
-      end
-
-      let c: Char := pattern.char_at(pos)
-
-      if c = '(' then
-        pos := pos + 1
-        let inner: Array[Integer] := parse_alternation()
-        if pos < pattern.length and pattern.char_at(pos) = ')' then
-          pos := pos + 1
-        end
-        result := inner
-      elseif c = '.' then
-        pos := pos + 1
-        result := make_any_char()
-      elseif c = '\\' and pos + 1 < pattern.length then
-        pos := pos + 2
-        result := make_literal(pattern.char_at(pos - 1))
       else
-        pos := pos + 1
-        result := make_literal(c)
+        let c: Char := pattern.char_at(pos)
+
+        if c = #( then
+          pos := pos + 1
+          let inner: Array[Integer] := parse_alternation()
+          if pos < pattern.length and pattern.char_at(pos) = #) then
+            pos := pos + 1
+          end
+          result := inner
+        elseif c = #. then
+          pos := pos + 1
+          result := make_any_char()
+        elseif c = #\ and pos + 1 < pattern.length then
+          pos := pos + 2
+          result := make_literal(pattern.char_at(pos - 1))
+        else
+          pos := pos + 1
+          result := make_literal(c)
+        end
       end
     end
 
@@ -323,14 +336,14 @@ class Thompson_Builder
     make_literal(c: Char): Array[Integer] do
       let s: Integer := nfa.new_state()
       let a: Integer := nfa.new_state()
-      nfa.add_transition(s, c.to_integer(), a)
+      nfa.add_transition(s, c.hash(), a)
       result := [s, a]
     end
 
     make_any_char(): Array[Integer] do
       let s: Integer := nfa.new_state()
       let a: Integer := nfa.new_state()
-      nfa.add_transition(s, ANY_CHAR, a)
+      nfa.add_transition(s, -2, a)
       result := [s, a]
     end
 
@@ -426,17 +439,22 @@ class NFA_Simulator
     -- Compute epsilon closure of a set of states
     epsilon_closure(states: Set[Integer]): Set[Integer] do
       let closure: Set[Integer] := states
-      let worklist: Array[Integer] := states.to_array()
+      let worklist: Array[Integer] := []
+      across states as state_id do
+        worklist.add(state_id)
+      end
 
       from until worklist.is_empty() do
-        let state_id: Integer := worklist.remove_last()
+        let last_idx: Integer := worklist.length - 1
+        let state_id: Integer := worklist.get(last_idx)
+        worklist.remove(last_idx)
         let state: NFA_State := nfa.get_state(state_id)
 
         across state.transitions as transition do
           let label: Integer := transition.get(0)
           let target: Integer := transition.get(1)
 
-          if label = EPSILON and not closure.contains(target) then
+          if label = -1 and not closure.contains(target) then
             closure := closure.union(#{target})
             worklist.add(target)
           end
@@ -449,7 +467,7 @@ class NFA_Simulator
     -- Compute next states after consuming character c
     step(states: Set[Integer], c: Char): Set[Integer] do
       let next: Set[Integer] := #{}
-      let c_code: Integer := c.to_integer()
+      let c_code: Integer := c.hash()
 
       across states as state_id do
         let state: NFA_State := nfa.get_state(state_id)
@@ -457,7 +475,7 @@ class NFA_Simulator
           let label: Integer := transition.get(0)
           let target: Integer := transition.get(1)
 
-          if label = c_code or label = ANY_CHAR then
+          if label = c_code or label = -2 then
             next := next.union(#{target})
           end
         end
@@ -471,28 +489,33 @@ class NFA_Simulator
       -- Start with epsilon closure of the start state
       let current: Set[Integer] := epsilon_closure(#{nfa.start})
 
+      let match_possible: Boolean := true
       across input.chars() as c do
+        if match_possible then
         -- Step on current character
-        let next_raw: Set[Integer] := step(current, c)
+          let next_raw: Set[Integer] := step(current, c)
         -- Compute epsilon closure of resulting states
-        current := epsilon_closure(next_raw)
+          current := epsilon_closure(next_raw)
 
         -- Early termination: if no states remain, match is impossible
-        if current.is_empty() then
-          result := false
-          return
+          if current.is_empty() then
+            match_possible := false
+          end
         end
       end
 
-      -- Accept if any current state is accepting
-      across current as state_id do
-        if nfa.get_state(state_id).is_accepting then
-          result := true
-          return
+      if match_possible then
+        let accepted: Boolean := false
+        -- Accept if any current state is accepting
+        across current as state_id do
+          if not accepted and nfa.get_state(state_id).is_accepting then
+            accepted := true
+          end
         end
+        result := accepted
+      else
+        result := false
       end
-
-      result := false
     end
 
     -- Find all matches of the pattern in text (non-overlapping)
@@ -547,13 +570,13 @@ class NFA_Simulator
     end
 
     is_accepting_set(states: Set[Integer]): Boolean do
+      let accepted: Boolean := false
       across states as state_id do
-        if nfa.get_state(state_id).is_accepting then
-          result := true
-          return
+        if not accepted and nfa.get_state(state_id).is_accepting then
+          accepted := true
         end
       end
-      result := false
+      result := accepted
     end
 end
 ```
@@ -655,13 +678,15 @@ class DFA
       let worklist: Array[Integer] := [0]
 
       from until worklist.is_empty() do
-        let dfa_state_id: Integer := worklist.remove_last()
+        let last_idx: Integer := worklist.length - 1
+        let dfa_state_id: Integer := worklist.get(last_idx)
+        worklist.remove(last_idx)
         let dfa_state: DFA_State := states.get(dfa_state_id)
 
         -- For each possible input character, compute next DFA state
         -- In practice, use the alphabet of characters in the NFA
         across alphabet() as c do
-          let c_code: Integer := c.to_integer()
+          let c_code: Integer := c.hash()
           let next_nfa: Set[Integer] :=
             simulator.step(dfa_state.nfa_states, c)
           let next_closed: Set[Integer] :=
@@ -691,23 +716,33 @@ class DFA
 
     matches(input: String): Boolean do
       let current: Integer := start
+      let matched: Boolean := true
 
       across input.chars() as c do
-        let dfa_state: DFA_State := states.get(current)
-        let next: ?Integer := dfa_state.get_transition(c.to_integer())
-        if next = nil then
-          result := false
-          return
+        if matched then
+          let dfa_state: DFA_State := states.get(current)
+          let next: ?Integer := dfa_state.get_transition(c.hash())
+          if next = nil then
+            matched := false
+          else
+            current := next
+          end
         end
-        current := next
       end
 
-      result := states.get(current).is_accepting
+      if matched then
+        result := states.get(current).is_accepting
+      else
+        result := false
+      end
     end
 
     -- Serialise a set of integers as a canonical string key
     set_key(s: Set[Integer]): String do
-      let sorted: Array[Integer] := s.to_array()
+      let sorted: Array[Integer] := []
+      across s as item do
+        sorted.add(item)
+      end
       sorted := sort_integers(sorted)
       result := sorted.to_string()
     end
@@ -718,7 +753,7 @@ class DFA
       across nfa.states as state do
         across state.transitions as transition do
           let label: Integer := transition.get(0)
-          if label >= 0 then  -- not EPSILON or ANY_CHAR
+          if label >= 0 then  -- not -1 or -2
             chars := chars.union(#{label})
           end
         end
@@ -794,21 +829,20 @@ class Regex
       let matches_list: Array[Any] := find_all(text)
       if matches_list.is_empty() then
         result := text
-        return
+      else
+        let output: String := ""
+        let last_end: Integer := 0
+
+        across matches_list as match do
+          let start: Integer := match.get(0)
+          let end_pos: Integer := match.get(1)
+          output := output + text.substring(last_end, start) + replacement
+          last_end := end_pos
+        end
+
+        output := output + text.substring(last_end, text.length)
+        result := output
       end
-
-      let output: String := ""
-      let last_end: Integer := 0
-
-      across matches_list as match do
-        let start: Integer := match.get(0)
-        let end_pos: Integer := match.get(1)
-        output := output + text.substring(last_end, start) + replacement
-        last_end := end_pos
-      end
-
-      output := output + text.substring(last_end, text.length)
-      result := output
     end
 
     -- Split text on pattern matches

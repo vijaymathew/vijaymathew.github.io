@@ -52,7 +52,7 @@ def bandwidth_demo():
         elif bw >= 1e6:
             bw_str = f"{bw/1e6:.0f} MHz"
         elif bw >= 1e3:
-            bw_str = f"{bw/1e3:.0f} kHz"
+            bw_str = f"{bw/1e3:.1f} kHz" if bw < 10_000 else f"{bw/1e3:.0f} kHz"
         else:
             bw_str = f"{bw:.0f} Hz"
         print(f"{name:<25} {bw_str:>15}  {desc}")
@@ -136,24 +136,23 @@ Nyquist rate:          40.0 Msymbols/second
 
   Modulation    Bits/symbol    Nyquist cap       Shannon cap (SNR)
 -----------------------------------------------------------------
-        BPSK              1        40.0 Mbps         23.2 Mbps @ 5dB
-        QPSK              2        80.0 Mbps         66.4 Mbps @ 10dB
-      16-QAM              4       160.0 Mbps        132.9 Mbps @ 20dB
-      64-QAM              6       240.0 Mbps        166.1 Mbps @ 25dB
+        BPSK              1        40.0 Mbps         41.1 Mbps @ 5dB
+        QPSK              2        80.0 Mbps         69.2 Mbps @ 10dB
+      16-QAM              4       160.0 Mbps        133.2 Mbps @ 20dB
+      64-QAM              6       240.0 Mbps        166.2 Mbps @ 25dB
       256-QAM             8       320.0 Mbps        199.3 Mbps @ 30dB
-     1024-QAM            10       400.0 Mbps        232.5 Mbps @ 35dB
+      1024-QAM            10       400.0 Mbps        232.5 Mbps @ 35dB
 ```
 
-The Nyquist rate gives the symbol rate; the modulation scheme (BPSK, QPSK, QAM) determines how many bits each symbol carries. But the Nyquist rate ignores noise — it assumes perfect transmission. The Shannon limit accounts for noise and gives a lower, achievable bound.
+The Nyquist rate gives the symbol rate; the modulation scheme (BPSK, QPSK, QAM) determines how many bits each symbol carries. But the Nyquist calculation for a chosen modulation ignores how difficult those symbol distinctions are in noise. The Shannon limit accounts for noise and gives the true upper bound for the channel at that SNR.
 
-Notice that 256-QAM at 30 dB SNR offers 320 Mbps by the Nyquist calculation but only 199 Mbps by Shannon. The difference is the noise margin — not all 8 bits per symbol are reliably distinguishable at 30 dB SNR. The Shannon limit tells you the true ceiling.
+Low-order schemes like BPSK can sit far below Shannon because they are not using all of the channel's available constellation complexity. High-order schemes like 256-QAM push closer to the limit, but only if the SNR is high enough. At 30 dB SNR, 256-QAM offers 320 Mbps by the Nyquist calculation but only 199 Mbps by Shannon. The difference is the noise margin: not all 8 bits per symbol are reliably distinguishable at that SNR.
 
 ```python
-def minimum_snr_for_modulation(bits_per_symbol: float,
-                                bandwidth: float,
-                                target_rate: float) -> float:
+def minimum_snr_for_rate(bandwidth: float,
+                         target_rate: float) -> float:
     """
-    Minimum SNR required to achieve target_rate using given modulation
+    Minimum Shannon-theoretic SNR required to achieve target_rate
     on a channel of given bandwidth.
     From Shannon: SNR >= 2^(C/W) - 1
     """
@@ -162,29 +161,29 @@ def minimum_snr_for_modulation(bits_per_symbol: float,
     required_snr_db     = 10 * math.log10(required_snr_linear)
     return required_snr_db
 
-# What SNR does 802.11ac need for its highest MCS?
-bw           = 80e6    # 80 MHz channel
-target_rates = [433e6, 867e6, 1300e6]  # Mbps at various MIMO configs
+# What would a single 80 MHz stream need to support these rates?
+bw           = 80e6
+target_rates = [433e6, 867e6, 1300e6]
 
-print("Minimum SNR for 802.11ac rates (80 MHz channel):")
+print("Minimum SNR for raw rates on one 80 MHz channel:")
 print(f"{'Target rate':>14} {'Min SNR (dB)':>14}")
 print("-" * 32)
 for rate in target_rates:
-    snr_db = minimum_snr_for_modulation(
-        math.log2(256), bw, rate  # 256-QAM
-    )
+    snr_db = minimum_snr_for_rate(bw, rate)
     print(f"{rate/1e6:>12.0f} Mbps {snr_db:>12.1f} dB")
 ```
 
 Output:
 ```
-Minimum SNR for 802.11ac rates (80 MHz channel):
+Minimum SNR for raw rates on one 80 MHz channel:
    Target rate    Min SNR (dB)
 --------------------------------
-         433 Mbps          12.6 dB
-         867 Mbps          18.7 dB
-        1300 Mbps          22.1 dB
+         433 Mbps          16.2 dB
+         867 Mbps          32.6 dB
+        1300 Mbps          48.9 dB
 ```
+
+These numbers explain why the headline rates on 802.11ac and 802.11ax products are not single-stream numbers. Aggregate rates like 867 Mbps and 1300 Mbps rely on multiple spatial streams, coding, and protocol details layered on top of Shannon's per-channel constraint. A single 80 MHz stream would need unrealistically high SNR to deliver them on its own.
 
 ---
 
@@ -270,16 +269,16 @@ WiFi 802.11ac Link Budget (5 GHz, 80 MHz channel)
 
   Distance   Path loss   RX power     SNR     Capacity
 ----------------------------------------------------------
-       1m      46.4dB    -20.4dBm   47.3dB    480.0Mbps
-       5m      60.4dB    -34.4dBm   33.3dB    348.0Mbps
-      10m      66.4dB    -40.4dBm   27.3dB    295.3Mbps
-      20m      72.4dB    -46.4dBm   21.3dB    234.4Mbps
-      50m      80.4dB    -54.4dBm   13.3dB    152.7Mbps
-     100m      86.4dB    -60.4dBm    7.3dB     88.5Mbps
-     200m      92.4dB    -66.4dBm    1.3dB     23.8Mbps
+       1m      46.4dB    -20.4dBm   57.5dB   1528.8Mbps
+       5m      60.4dB    -34.4dBm   43.5dB   1157.3Mbps
+      10m      66.4dB    -40.4dBm   37.5dB    997.3Mbps
+      20m      72.4dB    -46.4dBm   31.5dB    837.3Mbps
+      50m      80.4dB    -54.4dBm   23.5dB    626.2Mbps
+     100m      86.4dB    -60.4dBm   17.5dB    467.8Mbps
+     200m      92.4dB    -66.4dBm   11.5dB    313.6Mbps
 ```
 
-The Shannon capacity drops precipitously with distance — from 480 Mbps at 1 meter to 24 Mbps at 200 meters — purely due to path loss. This is why 5 GHz WiFi has shorter range than 2.4 GHz: higher frequency means higher free-space path loss at the same distance.
+The Shannon capacity drops sharply with distance — from about 1.5 Gbps at 1 meter to 314 Mbps at 200 meters in this idealized free-space model — purely due to path loss. This is why 5 GHz WiFi has shorter range than 2.4 GHz: higher frequency means higher free-space path loss at the same distance.
 
 Free-space path loss is idealized. Real environments add wall attenuation, multipath reflections, and interference. But the fundamental relationship — capacity degrades with distance as SNR falls — holds in every real deployment.
 
@@ -338,23 +337,23 @@ WiFi 6 (802.11ax) Modulation and Coding Schemes
 
   MCS   Modulation  Code rate   SE (bits/s/Hz)   Min SNR (dB)
 --------------------------------------------------------------
-    0         BPSK        1/2             0.50           0.0
-    1         QPSK        1/2             1.00           3.0
-    2         QPSK        3/4             1.50           5.5
-    3       16-QAM        1/2             2.00           9.0
-    4       16-QAM        3/4             3.00          12.0
-    5       64-QAM        2/3             4.00          16.0
-    6       64-QAM        3/4             4.50          17.0
-    7       64-QAM        5/6             5.00          18.1
-    8      256-QAM        3/4             6.00          21.1
-    9      256-QAM        5/6             6.67          22.2
-   10     1024-QAM        3/4             7.50          24.8
-   11     1024-QAM        5/6             8.33          26.2
+    0         BPSK        1/2             0.50          -3.8
+    1         QPSK        1/2             1.00           0.0
+    2         QPSK        3/4             1.50           2.6
+    3       16-QAM        1/2             2.00           4.8
+    4       16-QAM        3/4             3.00           8.5
+    5       64-QAM        2/3             4.00          11.8
+    6       64-QAM        3/4             4.50          13.4
+    7       64-QAM        5/6             5.00          14.9
+    8      256-QAM        3/4             6.00          18.0
+    9      256-QAM        5/6             6.67          20.0
+   10     1024-QAM        3/4             7.50          22.6
+   11     1024-QAM        5/6             8.33          25.1
 ```
 
-This is the MCS table that your WiFi chip uses every moment of operation. The access point measures SNR and selects the highest MCS index that can be reliably decoded. When you walk away from your router and signal weakens, the chip drops to a lower MCS — slower but more robust.
+This is the shape of the MCS table that your WiFi chip uses every moment of operation. The access point measures SNR and selects the highest MCS index that can be reliably decoded. When you walk away from your router and the signal weakens, the chip drops to a lower MCS — slower but more robust.
 
-Notice that MCS 11 achieves 8.33 bits/s/Hz at 26 dB SNR. Shannon's limit at 26 dB SNR is log₂(1 + 398) ≈ 8.64 bits/s/Hz. Modern WiFi 6 achieves about 96% of the Shannon limit at high SNR — an astonishing engineering achievement compared to the 0.2% efficiency of the 56k modem we saw in Chapter 8.
+These SNR values are Shannon-theoretic lower bounds, not the actual thresholds that a real chipset needs in the field. Real implementations need additional margin for coding loss, channel estimation error, interference, and hardware non-idealities. The key point is the trend: each step up the MCS ladder costs progressively more SNR for a progressively smaller gain in spectral efficiency.
 
 ---
 
@@ -365,7 +364,12 @@ Real wireless channels are not flat across their bandwidth. Different frequencie
 Orthogonal Frequency Division Multiplexing (OFDM) solves this by dividing the channel into many narrow subcarriers, each narrow enough to be approximately flat. Each subcarrier is modulated independently at whatever rate its local SNR supports.
 
 ```python
-import numpy as np
+import random
+
+def rayleigh_sample(rng: random.Random, sigma: float = 1.0) -> float:
+    """Rayleigh sample from two underlying Gaussian components."""
+    u = max(rng.random(), 1e-12)
+    return sigma * math.sqrt(-2.0 * math.log(1.0 - u))
 
 def ofdm_channel_demo():
     """
@@ -376,11 +380,16 @@ def ofdm_channel_demo():
 
     # Simulate a frequency-selective channel: some subcarriers
     # have good SNR, some have poor SNR (due to multipath fading)
-    np.random.seed(42)
+    rng           = random.Random(42)
     base_snr_db   = 25  # Average SNR
     # Rayleigh fading causes ~6dB variation across subcarriers
-    snr_variation = np.random.rayleigh(scale=1.0, size=n_subcarriers)
-    snr_db_per_sub = base_snr_db + 20*np.log10(snr_variation/snr_variation.mean())
+    snr_variation = [rayleigh_sample(rng, sigma=1.0)
+                     for _ in range(n_subcarriers)]
+    mean_variation = sum(snr_variation) / len(snr_variation)
+    snr_db_per_sub = [
+        base_snr_db + 20 * math.log10(v / mean_variation)
+        for v in snr_variation
+    ]
 
     # Compute capacity per subcarrier
     capacity_per_sub = [
@@ -389,16 +398,16 @@ def ofdm_channel_demo():
     ]
 
     total_capacity  = sum(capacity_per_sub)
-    avg_snr_db      = 10 * math.log10(
+    eq_flat_snr_db  = 10 * math.log10(
         sum(10**(s/10) for s in snr_db_per_sub) / n_subcarriers
     )
     flat_capacity   = n_subcarriers * bw_per_sub * math.log2(
-        1 + 10**(avg_snr_db/10)
+        1 + 10**(eq_flat_snr_db/10)
     )
 
     print("OFDM Channel Analysis (64 subcarriers, 20 MHz total)")
     print()
-    print(f"Average SNR:             {avg_snr_db:.1f} dB")
+    print(f"Equivalent flat SNR:     {eq_flat_snr_db:.1f} dB")
     print(f"Total bandwidth:         {n_subcarriers*bw_per_sub/1e6:.1f} MHz")
     print()
     print(f"Flat-channel capacity:   {flat_capacity/1e6:.1f} Mbps")
@@ -422,23 +431,23 @@ Output:
 ```
 OFDM Channel Analysis (64 subcarriers, 20 MHz total)
 
-Average SNR:             25.0 dB
+Equivalent flat SNR:     26.1 dB
 Total bandwidth:         20.0 MHz
 
-Flat-channel capacity:   166.1 Mbps
-OFDM total capacity:     161.3 Mbps
-Gain from OFDM:          -2.9%
+Flat-channel capacity:   173.4 Mbps
+OFDM total capacity:     156.3 Mbps
+Gain from OFDM:          -9.8%
 
 SNR distribution across subcarriers:
    -10 to   0 dB:  (0)
-     0 to  10 dB: ██████████ (10)
-    10 to  20 dB: ██████████████████████ (22)
-    20 to  30 dB: ████████████████████ (20)
-    30 to  40 dB: ████████████ (12)
+     0 to  10 dB: █ (1)
+    10 to  20 dB: ████████████ (12)
+    20 to  30 dB: ██████████████████████████████████████████████ (46)
+    30 to  40 dB: █████ (5)
     40 to  50 dB: (0)
 ```
 
-Interestingly, OFDM at uniform power allocation is slightly *worse* than a hypothetical flat channel. This is because Shannon capacity is a concave function of SNR — the gain from good subcarriers does not fully compensate for the loss on bad ones. The true gain of OFDM is not in capacity but in *robustness*: handling frequency selectivity without complex equalization, and avoiding deep fades that would corrupt a wideband signal.
+Interestingly, OFDM with uniform power allocation is *worse* than a hypothetical flat channel with the same average received power. This is because Shannon capacity is a concave function of SNR — the gain from strong subcarriers does not fully compensate for the loss on weak ones. The true gain of OFDM is not free extra capacity but *robustness*: handling frequency selectivity without complex equalization, and letting the system adapt per subcarrier.
 
 The capacity gain comes from *water-filling* — allocating more power to subcarriers with better SNR:
 
@@ -484,10 +493,10 @@ def water_filling_demo():
     """
     Compare uniform vs water-filling power allocation.
     """
-    np.random.seed(42)
+    rng     = random.Random(42)
     n_sub   = 16
     snr_per = [10**(s/10) for s in
-               np.random.uniform(0, 30, n_sub)]
+               [rng.uniform(-5, 30) for _ in range(n_sub)]]
     P_total = n_sub  # Total power = n_sub units (1 per subcarrier average)
 
     # Uniform allocation
@@ -525,19 +534,19 @@ Water-filling power allocation (16 subcarriers)
 
   Sub   SNR (dB)    Uniform P     WF Power     WF Cap
 ------------------------------------------------------
-    0        8.3        1.000        0.847       3.0251
-    1       20.1        1.000        1.847       7.3401
-    2        2.7        1.000        0.000       0.0000
-    3       14.5        1.000        1.347       5.4892
-    4       22.3        1.000        2.047       8.1023
-    5        1.1        1.000        0.000       0.0000
-    6       18.9        1.000        1.747       7.0218
-    7       11.2        1.000        1.047       4.5821
+    0       17.4        1.000        1.507       6.3828
+    1       -4.1        1.000        0.000       0.0000
+    2        4.6        1.000        1.181       2.1460
+    3        2.8        1.000        1.002       1.5435
+    4       20.8        1.000        1.517       7.5111
+    5       18.7        1.000        1.512       6.8161
+    6       26.2        1.000        1.523       9.3214
+    7       -2.0        1.000        0.000       0.0000
     ...
 
-Uniform total capacity:     76.4812 bits/use
-Water-filling capacity:     80.2341 bits/use
-Gain from water-filling:    4.9%
+Uniform total capacity:     54.5059 bits/use
+Water-filling capacity:     56.9377 bits/use
+Gain from water-filling:    4.5%
 ```
 
 Water-filling allocates zero power to the worst subcarriers — those below the water level — and more power to the best ones. The gain is modest here (5%), but in highly frequency-selective channels or when power is severely constrained, water-filling can be essential.
@@ -557,31 +566,41 @@ C_MIMO = ∑ᵢ log₂(1 + λᵢ · P/(M·N))
 where λᵢ are the squared singular values of the channel matrix H, and P is the total transmit power. Each singular value corresponds to an independent spatial stream.
 
 ```python
-def mimo_capacity(H: np.ndarray, snr_per_antenna: float) -> float:
+def mimo_capacity_from_modes(mode_strengths: list[float],
+                             snr_per_antenna: float) -> float:
     """
-    Compute MIMO channel capacity.
-    H: channel matrix (n_rx x n_tx), complex-valued in general,
-       real-valued for illustration here.
-    snr_per_antenna: SNR available per transmit antenna.
+    Compute MIMO capacity from the channel's singular values.
+    mode_strengths: singular values of the channel matrix H
+                    (or a representative synthetic profile)
+    snr_per_antenna: SNR available per transmit antenna
     Returns capacity in bits per channel use.
     """
-    n_rx, n_tx = H.shape
-    # Singular value decomposition
-    _, singular_values, _ = np.linalg.svd(H)
-    lambdas = singular_values ** 2
+    n_tx = len(mode_strengths)
 
     # Capacity from each spatial stream
     capacity = sum(
-        math.log2(1 + lam * snr_per_antenna / n_tx)
-        for lam in lambdas
+        math.log2(1 + (sigma ** 2) * snr_per_antenna / n_tx)
+        for sigma in mode_strengths
     )
     return capacity
 
+def synthetic_mode_strengths(n_streams: int) -> list[float]:
+    """
+    Deterministic, descending singular-value profiles for a toy MIMO
+    channel. This keeps the example runnable without external linear
+    algebra libraries while preserving the core capacity formula.
+    """
+    if n_streams == 1:
+        return [1.0]
+    return [
+        math.sqrt(n_streams) * (0.35 + 0.65 * (1 - i / (n_streams - 1)))
+        for i in range(n_streams)
+    ]
+
 def mimo_demo():
     """
-    Compare SISO, 2x2 MIMO, and 4x4 MIMO capacity.
+    Compare SISO, 2x2 MIMO, and larger MIMO configurations.
     """
-    np.random.seed(42)
     snr_db  = 20  # 20 dB SNR
     snr     = 10 ** (snr_db / 10)
 
@@ -604,11 +623,8 @@ def mimo_demo():
             cap     = siso_cap
             streams = 1
         else:
-            # Random i.i.d. Rayleigh fading channel matrix
-            H       = (np.random.randn(n_rx, n_tx)
-                       + 1j * np.random.randn(n_rx, n_tx)) / math.sqrt(2)
-            H_real  = np.abs(H)  # Simplified real-valued version
-            cap     = mimo_capacity(H_real, snr)
+            modes   = synthetic_mode_strengths(min(n_tx, n_rx))
+            cap     = mimo_capacity_from_modes(modes, snr)
             streams = min(n_tx, n_rx)
 
         print(f"{name:<12} {streams:>9} {cap:>12.2f} bpcu "
@@ -624,19 +640,18 @@ MIMO Capacity Comparison (SNR = 20 dB)
 Config       Streams     Capacity      vs SISO
 --------------------------------------------------
 SISO               1        6.66 bpcu       1.0×
-2×2 MIMO           2       11.34 bpcu       1.7×
-4×4 MIMO           4       20.87 bpcu       3.1×
-8×8 MIMO           8       39.14 bpcu       5.9×
+2×2 MIMO           2       10.39 bpcu       1.6×
+4×4 MIMO           4       21.40 bpcu       3.2×
+8×8 MIMO           8       43.17 bpcu       6.5×
 ```
 
-In ideal i.i.d. Rayleigh fading, the capacity scales approximately linearly with min(n_tx, n_rx). This is why modern WiFi and 5G base stations invest heavily in antenna arrays — each additional antenna pair can approximately double the capacity up to practical limits.
+With a healthy spread of usable spatial modes, capacity scales approximately linearly with min(n_tx, n_rx). This is why modern WiFi and 5G base stations invest heavily in antenna arrays — each additional antenna pair can open another near-independent data path up to practical limits.
 
 ```python
 def massive_mimo_scaling():
     """
     Show how capacity scales with antenna count in massive MIMO.
     """
-    np.random.seed(0)
     snr_db  = 15
     snr     = 10 ** (snr_db / 10)
 
@@ -650,9 +665,9 @@ def massive_mimo_scaling():
         if n == 1:
             cap = math.log2(1 + snr)
         else:
-            H   = (np.random.randn(n, n)
-                   + 1j * np.random.randn(n, n)) / math.sqrt(2)
-            cap = mimo_capacity(np.abs(H), snr)
+            cap = mimo_capacity_from_modes(
+                synthetic_mode_strengths(n), snr
+            )
 
         se      = cap  # bits per channel use = bits/s/Hz for 1 Hz bw
         scaling = cap / math.log2(1 + snr)
@@ -669,17 +684,17 @@ Massive MIMO scaling (SNR = 15 dB)
 
   Antennas (NxN)   Capacity (bpcu)    bits/s/Hz     Scaling
 ------------------------------------------------------------
-             1×1              4.09          4.09        1.0×
-             2×2              6.81          6.81        1.7×
-             4×4             13.71         13.71        3.4×
-             8×8             26.02         26.02        6.4×
-            16×16            51.03         51.03       12.5×
-            32×32           100.14        100.14       24.5×
-            64×64           196.84        196.84       48.1×
-           128×128          390.38        390.38       95.4×
+             1×1              5.03          5.03        1.0×
+             2×2              7.31          7.31        1.5×
+             4×4             15.14         15.14        3.0×
+             8×8             30.59         30.59        6.1×
+            16×16            61.41         61.41       12.2×
+            32×32           123.04        123.04       24.5×
+            64×64           246.29        246.29       49.0×
+           128×128          492.79        492.79       98.0×
 ```
 
-With 128×128 antennas, the capacity is nearly 100× the single-antenna case — not by using more bandwidth or more power, but by exploiting the spatial dimension. This is the principle behind massive MIMO, the key technology in 5G base stations that can serve dozens of users simultaneously on the same frequency.
+With 128×128 antennas in this idealized mode profile, the capacity is about 98× the single-antenna case — not by using more bandwidth or more power, but by exploiting the spatial dimension. This is the principle behind massive MIMO, the key technology in 5G base stations that can serve many users simultaneously on the same frequency.
 
 ---
 
@@ -759,7 +774,7 @@ Network capacity concepts
    TDMA: 44.3 Mbps per user (132.9 Mbps total)
    FDMA: 44.3 Mbps per user (132.9 Mbps total)
    OFDMA: ≈ FDMA for uniform SNR, better for selective channels
-   SDMA (4×4 MIMO): 177.2 Mbps per user (531.6 Mbps total)
+   SDMA (4×4 MIMO): 177.6 Mbps per user (532.7 Mbps total)
 
 3. Shannon capacity is additive over orthogonal dimensions:
    Time × Frequency × Space × Code = total capacity
@@ -836,16 +851,16 @@ Optical Fiber Capacity Analysis
 
 C-band optical bandwidth:  5.0 THz
 Shannon limit per fiber:
-  Short haul (< 100km)         SNR=20dB  C = 33.2 Tbps
-  Metro (100-1000km)           SNR=15dB  C = 24.9 Tbps
-  Long haul (> 1000km)         SNR=10dB  C = 16.6 Tbps
+  Short haul (< 100km)         SNR=20dB  C = 33.3 Tbps
+  Metro (100-1000km)           SNR=15dB  C = 25.1 Tbps
+  Long haul (> 1000km)         SNR=10dB  C = 17.3 Tbps
 
 WDM: Wavelength Division Multiplexing
   Multiple wavelengths on one fiber = multiple parallel channels
 
-  C-band channels (50 GHz grid): 100
-  Capacity per channel:           332.2 Gbps
-  Total WDM capacity:             33.2 Tbps per fiber
+  C-band channels (50 GHz grid): 99
+  Capacity per channel:           251.4 Gbps
+  Total WDM capacity:             24.9 Tbps per fiber
 
   A single fiber pair can carry the entire
   internet's traffic many times over.
@@ -901,7 +916,7 @@ def physical_limits():
     E    = 1 * c**2  # 1 kg × c²
     bek  = 2 * math.pi * R * E / (hbar * c * math.log(2))
     print(f"   Bekenstein bound: {bek:.2e} bits")
-    print(f"   (~{bek/1e80:.1f} × 10^80 bits)")
+    print(f"   (~{bek/1e41:.1f} × 10^41 bits)")
     print()
 
     print("4. Practical takeaway:")
@@ -918,23 +933,23 @@ Ultimate Physical Limits on Communication
 
 1. Landauer's Principle
    Erasing one bit of information requires minimum energy:
-   E_min = kT ln(2) = 2.85e-21 Joules/bit
+   E_min = kT ln(2) = 2.77e-21 Joules/bit
    At room temperature and 1 GHz clock:
-   Min power = 2.85 pW per bit/s
+   Min power = 2.77 pW per bit/s
 
 2. Quantum Shannon Limit (Holevo bound)
    Maximum bits per photon at optical frequencies:
    Photon energy at 1550nm: 1.28e-19 J
-   At 1 mW: 7.81e+15 photons/second
-   Theoretical max: ~52.1 bits/photon
+   At 1 mW: 7.80e+15 photons/second
+   Theoretical max: ~52.8 bits/photon
 
 3. Bekenstein Bound
    Maximum information in a region of space:
    I ≤ 2π R E / (ℏ c ln 2)  bits
    where R is radius, E is energy content
    For 1 kg in 1 cm sphere:
-   Bekenstein bound: 2.58e+40 bits
-   (~2.6 × 10^40 bits)
+   Bekenstein bound: 2.58e+41 bits
+   (~2.6 × 10^41 bits)
 
 4. Practical takeaway:
    For the next several decades, the Shannon-Hartley limit
@@ -942,7 +957,7 @@ Ultimate Physical Limits on Communication
    many orders of magnitude beyond current engineering.
 ```
 
-The Bekenstein bound — the maximum information that can be stored in a region of space — is 10⁴⁰ bits for a kilogram of matter in a centimeter sphere. For context, all the data ever created by humanity is estimated at around 10²³ bits. We are nowhere near the physical limits of information storage or transmission. The binding constraints for the foreseeable future are economic and engineering, not physical.
+The Bekenstein bound — the maximum information that can be stored in a region of space — is on the order of 10⁴¹ bits for a kilogram of matter in a centimeter sphere. For context, all the data ever created by humanity is estimated at around 10²³ bits. We are nowhere near the physical limits of information storage or transmission. The binding constraints for the foreseeable future are economic and engineering, not physical.
 
 ---
 
@@ -972,16 +987,12 @@ def design_wireless_link():
     for bw_mhz in [10, 20, 40, 80, 160]:
         bw    = bw_mhz * 1e6
         se    = target_rate / bw  # bits/s/Hz needed
-        if se > 1:
-            snr_needed    = 2**se - 1
-            snr_needed_db = 10 * math.log10(snr_needed)
-            print(f"{bw_mhz:>10} MHz {se:>12.2f} b/s/Hz "
-                  f"{snr_needed_db:>12.1f} dB")
-        else:
-            print(f"{bw_mhz:>10} MHz {se:>12.2f} b/s/Hz "
-                  f"{'< 0 dB':>14} (feasible)")
+        snr_needed    = 2**se - 1
+        snr_needed_db = 10 * math.log10(snr_needed)
+        print(f"{bw_mhz:>10} MHz {se:>12.2f} b/s/Hz "
+              f"{snr_needed_db:>12.1f} dB")
 
-    # Choose 20 MHz bandwidth: requires ~3.3 dB SNR
+    # Choose 20 MHz bandwidth: requires ~14.9 dB SNR
     bw        = 20e6
     se        = target_rate / bw
     snr_min   = 2**se - 1
@@ -1051,13 +1062,13 @@ Step 1: SNR required for target rate
 
    Bandwidth    Required SE    Required SNR
 --------------------------------------------
-       10 MHz    10.00 b/s/Hz       30.0 dB
-       20 MHz     5.00 b/s/Hz       30.1 dB
-       40 MHz     2.50 b/s/Hz       18.1 dB
-       80 MHz     1.25 b/s/Hz        7.3 dB
-      160 MHz     0.63 b/s/Hz     < 0 dB (feasible)
+       10 MHz    10.00 b/s/Hz       30.1 dB
+       20 MHz     5.00 b/s/Hz       14.9 dB
+       40 MHz     2.50 b/s/Hz        6.7 dB
+       80 MHz     1.25 b/s/Hz        1.4 dB
+      160 MHz     0.63 b/s/Hz       -0.8 dB
 
-Choosing 20 MHz: need 30.1 dB SNR
+Choosing 20 MHz: need 14.9 dB SNR
 
 Step 2: Link budget analysis
 
@@ -1066,22 +1077,22 @@ Noise figure: 7 dB
 Implementation margin: 10 dB
 
 Thermal noise floor (20 MHz): -101.0 dBm
-Required Rx power: -53.9 dBm
-Required Tx power: 58.5 dBm = 707946 mW
+Required Rx power: -69.1 dBm
+Required Tx power: 31.4 dBm = 1370 mW
 
 Step 3: MIMO enhancement
 
-  1×1 MIMO: 30.1 dB SNR/stream, 707946.1 mW/antenna, 707946.1 mW total
-  2×2 MIMO: 15.1 dB SNR/stream, 86.7 mW/antenna, 173.4 mW total
-  4×4 MIMO: 7.5 dB SNR/stream, 3.6 mW/antenna, 14.5 mW total
+  1×1 MIMO: 14.9 dB SNR/stream, 1370.2 mW/antenna, 1370.2 mW total
+  2×2 MIMO: 6.7 dB SNR/stream, 205.8 mW/antenna, 411.7 mW total
+  4×4 MIMO: 1.4 dB SNR/stream, 60.9 mW/antenna, 243.7 mW total
 
 Conclusion:
-  Single antenna: feasible at moderate power
+  Single antenna: feasible, but power-hungry
   MIMO reduces per-antenna SNR requirement,
   trading antenna count for transmit power
 ```
 
-The numbers reveal exactly why MIMO is so important. A single-antenna link needs 708 watts — impossible for any portable device. A 4×4 MIMO system achieves the same throughput with just 14.5 milliwatts total, because each stream only needs to carry a quarter of the load and therefore needs dramatically less SNR. This is not a consequence of MIMO magic — it is Shannon-Hartley applied four times in parallel.
+The numbers reveal exactly why MIMO is so important. A single-antenna link is theoretically possible here, but it needs about 1.37 watts of transmit power in this idealized model — far too high for most battery-powered devices. A 4×4 MIMO system brings that down to about 244 milliwatts total by splitting the load across four spatial streams, each of which needs much less SNR. This is not MIMO magic — it is Shannon-Hartley applied four times in parallel.
 
 ---
 
@@ -1090,7 +1101,7 @@ The numbers reveal exactly why MIMO is so important. A single-antenna link needs
 - Bandwidth is the range of frequencies a channel occupies in Hertz. Shannon capacity grows linearly with bandwidth but logarithmically with SNR — making bandwidth more valuable than power in the high-SNR regime.
 - The Nyquist rate limits the symbol rate to 2W symbols per second for bandwidth W. The modulation scheme determines bits per symbol; noise determines reliability.
 - A link budget tracks every gain and loss from transmitter to receiver. Free-space path loss grows as the square of distance and linearly with frequency, explaining why higher-frequency signals have shorter range.
-- Spectral efficiency (bits/s/Hz) is the key figure of merit for wireless systems. Modern WiFi 6 achieves over 96% of the Shannon limit at high SNR, up from under 1% for 1990s modems.
+- Spectral efficiency (bits/s/Hz) is the key figure of merit for wireless systems. Real MCS tables trace how each additional bit/s/Hz demands more SNR, and practical systems operate a few dB away from the Shannon boundary for margin.
 - OFDM divides a wideband channel into many narrow subcarriers, each approximately flat. Water-filling allocates more power to stronger subcarriers to maximize total capacity.
 - MIMO uses multiple antennas to create parallel spatial streams. Capacity scales approximately linearly with the number of antenna pairs in ideal conditions, enabling massive throughput gains without additional bandwidth or power.
 - Optical fiber has terahertz-scale bandwidth and achieves tens of terabits per second per fiber pair — sufficient to carry the world's internet traffic many times over. The bottleneck is electronics, not the fiber.

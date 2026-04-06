@@ -73,12 +73,37 @@ class Trie_Node [V]
       result := children.get(c) /= nil
     end
 
-    get_child(c: Char): ?Trie_Node[V] do
-      result := children.get(c)
-    end
+    get_child(c: Char): Trie_Node[V]
+      require
+        has_child_key: has_child(c)
+      do
+        result := children.get(c)
+      end
 
     set_child(c: Char, node: Trie_Node[V]) do
       children.put(c, node)
+    end
+
+    increment_count() do
+      count := count + 1
+    end
+
+    decrement_count() do
+      count := count - 1
+    end
+
+    mark_terminal(v: V) do
+      this.is_terminal := true
+      this.value := v
+    end
+
+    clear_terminal() do
+      is_terminal := false
+      value := nil
+    end
+
+    remove_child(c: Char) do
+      children.remove(c)
     end
 
     child_count(): Integer do
@@ -117,21 +142,20 @@ class Trie [V]
         non_empty_key: key.length > 0
       do
         let node: Trie_Node[V] := root
-        node.count := node.count + 1
+        node.increment_count()
 
         across key.chars() as c do
           if not node.has_child(c) then
             node.set_child(c, create Trie_Node[V].make())
           end
           node := node.get_child(c)
-          node.count := node.count + 1
+          node.increment_count()
         end
 
         if not node.is_terminal then
           size := size + 1
         end
-        node.is_terminal := true
-        node.value := value
+        node.mark_terminal(value)
       ensure
         contains_key: contains(key)
         size_nondecreasing: size >= old size
@@ -140,8 +164,12 @@ class Trie [V]
     -- Look up an exact key
     get(key: String): ?V do
       let node: ?Trie_Node[V] := find_node(key)
-      if node /= nil and node.is_terminal then
-        result := node.value
+      if convert node to found_node: Trie_Node[V] then
+        if found_node.is_terminal then
+          result := found_node.value
+        else
+          result := nil
+        end
       else
         result := nil
       end
@@ -161,8 +189,8 @@ class Trie [V]
     keys_with_prefix(prefix: String): Array[String] do
       let results: Array[String] := []
       let node: ?Trie_Node[V] := find_node(prefix)
-      if node /= nil then
-        collect_keys(node, prefix, results)
+      if convert node to prefix_node: Trie_Node[V] then
+        collect_keys(prefix_node, prefix, results)
       end
       result := results
     end
@@ -171,8 +199,8 @@ class Trie [V]
     entries_with_prefix(prefix: String): Array[Any] do
       let results: Array[Any] := []
       let node: ?Trie_Node[V] := find_node(prefix)
-      if node /= nil then
-        collect_entries(node, prefix, results)
+      if convert node to prefix_node: Trie_Node[V] then
+        collect_entries(prefix_node, prefix, results)
       end
       result := results
     end
@@ -193,15 +221,21 @@ class Trie [V]
     -- Find the node representing a prefix (nil if prefix not in trie)
     find_node(prefix: String): ?Trie_Node[V] do
       let node: Trie_Node[V] := root
+      let found: Boolean := true
       across prefix.chars() as c do
-        let child: ?Trie_Node[V] := node.get_child(c)
-        if child = nil then
-          result := nil
-          return
+        if found then
+          if not node.has_child(c) then
+            found := false
+          else
+            node := node.get_child(c)
+          end
         end
-        node := child
       end
-      result := node
+      if found then
+        result := node
+      else
+        result := nil
+      end
     end
 
     -- Collect all keys in subtree rooted at node, prepending prefix
@@ -212,10 +246,12 @@ class Trie [V]
         results.add(prefix)
       end
       across node.children as entry do
-        let c: Char := entry.get(0)
-        let child: Trie_Node[Integer] := entry.get(1)
-        
-        collect_keys(child, prefix + c.to_string(), results)
+        if convert entry to pair: Array[Any] then
+          let c: Char := pair.get(0)
+          if convert pair.get(1) to child: Trie_Node[V] then
+            collect_keys(child, prefix + c.to_string(), results)
+          end
+        end
       end
     end
 
@@ -223,40 +259,47 @@ class Trie [V]
                     prefix: String,
                     results: Array[Any]) do
       if node.is_terminal then
-        results.add([prefix, node.value])
+        if convert node.value to current_value: V then
+          let entry: Array[Any] := []
+          entry.add(prefix)
+          entry.add(current_value)
+          results.add(entry)
+        end
       end
       across node.children as entry do
-        let c: Char := entry.get(0)
-        let child: Trie_Node[Integer] := entry.get(1)
-        
-        collect_entries(child, prefix + c.to_string(), results)
+        if convert entry to pair: Array[Any] then
+          let c: Char := pair.get(0)
+          if convert pair.get(1) to child: Trie_Node[V] then
+            collect_entries(child, prefix + c.to_string(), results)
+          end
+        end
       end
     end
 
     -- Recursive delete: returns true if the node should be removed
     delete(node: ?Trie_Node[V], key: String, depth: Integer): Boolean do
-      if node = nil then
-        result := false
-        return
-      end
-
-      if depth = key.length then
-        if node.is_terminal then
-          node.is_terminal := false
-          node.value := nil
-          result := node.is_leaf()
+      if convert node to current_node: Trie_Node[V] then
+        if depth = key.length then
+          if current_node.is_terminal then
+            current_node.clear_terminal()
+            result := current_node.is_leaf()
+          else
+            result := false
+          end
         else
-          result := false
+          let c: Char := key.char_at(depth)
+          if not current_node.has_child(c) then
+            result := false
+          else
+            let child: Trie_Node[V] := current_node.get_child(c)
+            if delete(child, key, depth + 1) then
+              current_node.remove_child(c)
+              result := not current_node.is_terminal and current_node.is_leaf()
+            else
+              result := false
+            end
+          end
         end
-        return
-      end
-
-      let c: Char := key.char_at(depth)
-      let child: ?Trie_Node[V] := node.get_child(c)
-
-      if delete(child, key, depth + 1) then
-        node.children.remove(c)
-        result := not node.is_terminal and node.is_leaf()
       else
         result := false
       end
@@ -264,10 +307,12 @@ class Trie [V]
 
     decrement_counts(key: String) do
       let node: Trie_Node[V] := root
-      root.count := root.count - 1
+      root.decrement_count()
       across key.chars() as c do
-        node := node.get_child(c)
-        node.count := node.count - 1
+        if node.has_child(c) then
+          node := node.get_child(c)
+          node.decrement_count()
+        end
       end
     end
 
@@ -310,7 +355,13 @@ class Autocomplete_Engine
       this.trie := create Trie[Integer].empty()
       this.total_entries := 0
       across entries as entry do
-        this.add(entry.get(0).to_lower(), entry.get(1))
+        if convert entry to pair: Array[Any] then
+          if convert pair.get(0) to word: String then
+            if convert pair.get(1) to score: Integer then
+              this.add(word.to_lower, score)
+            end
+          end
+        end
       end
     end
 
@@ -325,8 +376,10 @@ class Autocomplete_Engine
         positive_score: score > 0
       do
         let existing: ?Integer := trie.get(word)
-        let new_score: Integer :=
-          when existing /= nil existing + score else score end
+        let new_score: Integer := score
+        if convert existing to existing_score: Integer then
+          new_score := existing_score + score
+        end
         trie.put(word, new_score)
         if existing = nil then
           total_entries := total_entries + 1
@@ -345,15 +398,13 @@ class Autocomplete_Engine
         positive_k: k > 0
       do
         let lower: String := prefix.to_lower()
-        let node: ?Trie_Node[Integer] := trie.find_node(lower)
-
-        if node = nil then
-          result := []
-          return
+        let candidates: Array[Any] := trie.entries_with_prefix(lower)
+        candidates := sort_by_score(candidates)
+        if candidates.length > k then
+          result := candidates.slice(0, k)
+        else
+          result := candidates
         end
-
-        -- Best-first search from prefix node
-        result := best_first_search(node, lower, k)
       end
 
     -- Return all completions for a prefix (no limit)
@@ -366,41 +417,36 @@ class Autocomplete_Engine
       result := trie.has_prefix(prefix.to_lower())
     end
 
-    -- Best-first search: find k highest-scoring completions
-    best_first_search(start: Trie_Node[Integer],
-                       prefix: String,
-                       k: Integer): Array[Any] do
-      -- Priority queue: (score, word_so_far, node)
-      -- We want maximum score, so negate for min-heap or use max-heap
-      let pq: Max_Priority_Queue[Integer, String, Trie_Node[Integer]] :=
-        create Max_Priority_Queue.empty()
-      let results: Array[Any] := []
+    sort_by_score(entries: Array[Any]): Array[Any] do
+      let sorted: Array[Any] := entries.slice(0, entries.length)
+      from
+        let i: Integer := 1
+      until
+        i >= sorted.length
+      do
+        let current: Array[Any] := sorted.get(i)
+        let current_score: Integer :=
+          when current.get(1) /= nil current.get(1) else 0 end
+        let insert_pos: Integer := i
+        let shifting: Boolean := true
 
-      -- Seed with the start node
-      pq.insert([start.count, prefix, start])
-
-      from until pq.is_empty() or results.length >= k do
-        let top: Array := pq.extract_max()
-        let node: Trie_Node[Integer] := top.get(2)
-        let current_prefix: String := top.get(1)
-
-        if node.is_terminal then
-          results.add([current_prefix, node.value])
-          if results.length >= k then
-            return
+        from until insert_pos <= 0 or not shifting do
+          let prev: Array[Any] := sorted.get(insert_pos - 1)
+          let prev_score: Integer :=
+            when prev.get(1) /= nil prev.get(1) else 0 end
+          if prev_score < current_score then
+            sorted.set(insert_pos, prev)
+            insert_pos := insert_pos - 1
+          else
+            shifting := false
           end
         end
 
-        -- Enqueue children, ordered by their subtree count
-        across node.children as entry do
-        let c: Char := entry.get(0)
-        let child: Trie_Node[Integer] := entry.get(1)
-        
-          pq.insert([child.count, current_prefix + c.to_string(), child])
-        end
+        sorted.set(insert_pos, current)
+        i := i + 1
       end
 
-      result := results
+      result := sorted
     end
 
     -- Prefix search with fuzzy tolerance (edit distance ≤ max_errors)
@@ -427,43 +473,49 @@ class Autocomplete_Engine
                  max_errors: Integer,
                  results: Array[Any]) do
       -- Prune: if errors already exceed max, stop
-      if errors > max_errors then
-        return
-      end
+      if errors <= max_errors then
+        -- If we have consumed the prefix, collect all words below
+        if prefix_pos >= prefix.length then
+          if node.is_terminal then
+            if convert node.value to node_score: Integer then
+            let entry: Array[Any] := []
+            entry.add(current_word)
+            entry.add(node_score)
+            results.add(entry)
+          end
+          end
+          across node.children as entry do
+            if convert entry to pair: Array[Any] then
+              let c: Char := pair.get(0)
+              if convert pair.get(1) to child: Trie_Node[Integer] then
+                fuzzy_search(child, prefix, prefix_pos,
+                             current_word + c.to_string(),
+                             errors, max_errors, results)
+              end
+            end
+          end
+        else
+          let target_char: Char := prefix.char_at(prefix_pos)
 
-      -- If we have consumed the prefix, collect all words below
-      if prefix_pos >= prefix.length then
-        if node.is_terminal then
-          results.add([current_word, node.value])
+          -- Try each child
+          across node.children as entry do
+            if convert entry to pair: Array[Any] then
+              let c: Char := pair.get(0)
+              if convert pair.get(1) to child: Trie_Node[Integer] then
+                let new_errors: Integer :=
+                  when c = target_char errors else errors + 1 end
+                fuzzy_search(child, prefix, prefix_pos + 1,
+                             current_word + c.to_string(),
+                             new_errors, max_errors, results)
+              end
+            end
+          end
+
+          -- Try skipping a character in the prefix (deletion in query)
+          fuzzy_search(node, prefix, prefix_pos + 1,
+                       current_word, errors + 1, max_errors, results)
         end
-        across node.children as entry do
-        let c: Char := entry.get(0)
-        let child: Trie_Node[Integer] := entry.get(1)
-        
-          fuzzy_search(child, prefix, prefix_pos,
-                       current_word + c.to_string(),
-                       errors, max_errors, results)
-        end
-        return
       end
-
-      let target_char: Char := prefix.char_at(prefix_pos)
-
-      -- Try each child
-      across node.children as entry do
-        let c: Char := entry.get(0)
-        let child: Trie_Node[Integer] := entry.get(1)
-        
-        let new_errors: Integer :=
-          when c = target_char errors else errors + 1 end
-        fuzzy_search(child, prefix, prefix_pos + 1,
-                     current_word + c.to_string(),
-                     new_errors, max_errors, results)
-      end
-
-      -- Try skipping a character in the prefix (deletion in query)
-      fuzzy_search(node, prefix, prefix_pos + 1,
-                   current_word, errors + 1, max_errors, results)
     end
 
   invariant
@@ -533,6 +585,15 @@ class Radix_Node [V]
       result := children.is_empty()
     end
 
+    mark_terminal(v: V) do
+      this.is_terminal := true
+      this.value := v
+    end
+
+    set_label(new_label: String) do
+      this.label := new_label
+    end
+
   invariant
     non_empty_label: label.length > 0
 end
@@ -565,52 +626,37 @@ class Radix_Tree [V]
       if child = nil then
         -- No matching child: create a new leaf
         let new_node: Radix_Node[V] := create Radix_Node[V].make(key)
-        new_node.is_terminal := true
-        new_node.value := value
+        new_node.mark_terminal(value)
         node.children.put(first, new_node)
-        return
-      end
-
-      -- Find common prefix length between key and child.label
-      let common: Integer := common_prefix_length(key, child.label)
-
-      if common = child.label.length then
-        -- child.label is a full prefix of key
-        if common = key.length then
-          -- Exact match: update value
-          child.is_terminal := true
-          child.value := value
-          size := size - 1  -- undo the increment from put()
-        else
-          -- key extends beyond child.label: recurse
-          insert(child, key.substring(common, key.length), value)
-        end
       else
-        -- Split child at the common prefix
-        -- Create a new internal node with the common prefix as label
-        let split_node: Radix_Node[V] := create Radix_Node[V].make(
-          child.label.substring(0, common))
+        if convert child to current_child: Radix_Node[V] then
+          let common: Integer := common_prefix_length(key, current_child.label)
 
-        -- Reassign child with its remaining label
-        let old_first: Char := child.label.char_at(common)
-        child.label := child.label.substring(common, child.label.length)
-        split_node.children.put(old_first, child)
+          if common = current_child.label.length then
+            if common = key.length then
+              current_child.mark_terminal(value)
+              size := size - 1
+            else
+              insert(current_child, key.substring(common, key.length), value)
+            end
+          else
+            let split_node: Radix_Node[V] := create Radix_Node[V].make(
+              current_child.label.substring(0, common))
+            let old_first: Char := current_child.label.char_at(common)
+            current_child.set_label(current_child.label.substring(common, current_child.label.length))
+            split_node.children.put(old_first, current_child)
+            node.children.put(first, split_node)
 
-        -- Replace child in parent with split_node
-        node.children.put(first, split_node)
-
-        if common = key.length then
-          -- key ends exactly at split point
-          split_node.is_terminal := true
-          split_node.value := value
-        else
-          -- key continues past split point: add as new child
-          let new_first: Char := key.char_at(common)
-          let new_node: Radix_Node[V] := create Radix_Node[V].make(
-            key.substring(common, key.length))
-          new_node.is_terminal := true
-          new_node.value := value
-          split_node.children.put(new_first, new_node)
+            if common = key.length then
+              split_node.mark_terminal(value)
+            else
+              let new_first: Char := key.char_at(common)
+              let new_node: Radix_Node[V] := create Radix_Node[V].make(
+                key.substring(common, key.length))
+              new_node.mark_terminal(value)
+              split_node.children.put(new_first, new_node)
+            end
+          end
         end
       end
     end
@@ -626,24 +672,24 @@ class Radix_Tree [V]
         else
           result := nil
         end
-        return
-      end
-
-      let first: Char := key.char_at(0)
-      let child: ?Radix_Node[V] := node.children.get(first)
-
-      if child = nil then
-        result := nil
-        return
-      end
-
-      let common: Integer := common_prefix_length(key, child.label)
-
-      if common < child.label.length then
-        -- key diverges before consuming the full edge label
-        result := nil
       else
-        result := search(child, key.substring(common, key.length))
+        let first: Char := key.char_at(0)
+        let child: ?Radix_Node[V] := node.children.get(first)
+
+        if child = nil then
+          result := nil
+        else
+          if convert child to current_child: Radix_Node[V] then
+            let common: Integer := common_prefix_length(key, current_child.label)
+            if common < current_child.label.length then
+              result := nil
+            else
+              result := search(current_child, key.substring(common, key.length))
+            end
+          else
+            result := nil
+          end
+        end
       end
     end
 
@@ -662,44 +708,37 @@ class Radix_Tree [V]
                          accumulated: String,
                          results: Array[String]) do
       if remaining_prefix.length = 0 then
-        -- Prefix exhausted: collect all terminals in subtree
         if node.is_terminal then
           results.add(accumulated)
         end
         across node.children as entry do
-        let c: Char := entry.get(0)
-        let child: Trie_Node[Integer] := entry.get(1)
-        
-          collect_with_prefix(child, "", accumulated + child.label, results)
+          if convert entry to pair: Array[Any] then
+            if convert pair.get(1) to child: Radix_Node[V] then
+              collect_with_prefix(child, "", accumulated + child.label, results)
+            end
+          end
         end
-        return
-      end
-
-      let first: Char := remaining_prefix.char_at(0)
-      let child: ?Radix_Node[V] := node.children.get(first)
-
-      if child = nil then
-        return  -- no matches
-      end
-
-      let common: Integer := common_prefix_length(
-        remaining_prefix, child.label)
-
-      if common < remaining_prefix.length and common < child.label.length then
-        -- Prefix and label diverge: no matches
-        return
-      elseif common = child.label.length then
-        -- Consumed full label: recurse with remaining prefix
-        collect_with_prefix(child,
-          remaining_prefix.substring(common, remaining_prefix.length),
-          accumulated + child.label, results)
       else
-        -- Consumed full prefix within label: collect subtree
-        if node.is_terminal then
-          results.add(accumulated)
+        let first: Char := remaining_prefix.char_at(0)
+        let child: ?Radix_Node[V] := node.children.get(first)
+
+        if convert child to current_child: Radix_Node[V] then
+          let common: Integer := common_prefix_length(
+            remaining_prefix, current_child.label)
+          if not (common < remaining_prefix.length and common < current_child.label.length) then
+            if common = current_child.label.length then
+              collect_with_prefix(current_child,
+                remaining_prefix.substring(common, remaining_prefix.length),
+                accumulated + current_child.label, results)
+            else
+              if node.is_terminal then
+                results.add(accumulated)
+              end
+              collect_with_prefix(current_child, "",
+                accumulated + current_child.label, results)
+            end
+          end
         end
-        collect_with_prefix(child, "",
-          accumulated + child.label, results)
       end
     end
 
@@ -709,18 +748,19 @@ end
 
 function common_prefix_length(a: String, b: String): Integer do
   let max_len: Integer := a.length.min(b.length)
-  from
-    let i: Integer := 0
-  until
-    i >= max_len
-  do
+  let i: Integer := 0
+  let found_mismatch: Boolean := false
+  from until i >= max_len or found_mismatch do
     if a.char_at(i) /= b.char_at(i) then
       result := i
-      return
+      found_mismatch := true
+    else
+      i := i + 1
     end
-    i := i + 1
   end
-  result := max_len
+  if not found_mismatch then
+    result := max_len
+  end
 end
 ```
 
@@ -788,8 +828,20 @@ class Autocomplete_System
     open(directory: String) do
       this.engine := create Autocomplete_Engine.empty()
       this.dir := directory
+      let dir_path: Path := create Path.make(directory)
+      if not dir_path.exists() then
+        dir_path.create_directories()
+      end
       this.selection_log_path := directory + "/selections.log"
       this.dictionary_path := directory + "/dictionary.txt"
+      let log_path: Path := create Path.make(selection_log_path)
+      if not log_path.exists() then
+        log_path.create_file()
+      end
+      let dict_path: Path := create Path.make(dictionary_path)
+      if not dict_path.exists() then
+        dict_path.create_file()
+      end
       this.load()
     end
 
@@ -805,7 +857,9 @@ class Autocomplete_System
         engine.complete(prefix, 5)
       let words: Array[String] := []
       across completions as c do
-        words.add(c.get(0))
+        if convert c to completion: Array[Any] then
+          words.add(completion.get(0))
+        end
       end
       result := words
     end
@@ -821,7 +875,9 @@ class Autocomplete_System
         engine.fuzzy_complete(prefix, k, 1)
       let words: Array[String] := []
       across completions as c do
-        words.add(c.get(0))
+        if convert c to completion: Array[Any] then
+          words.add(completion.get(0))
+        end
       end
       result := words
     end
@@ -839,37 +895,37 @@ class Autocomplete_System
 
       -- Write all entries with their scores
       let all_entries: Array[Any] :=
-        engine.trie.entries_with_prefix("")
-      across all_entries as entry do
-        writer.write_line(entry.get(0) + "\t" + entry.get(1).to_string())
+        engine.trie.entries_with_prefix("")      across all_entries as entry do
+        if convert entry to row: Array[Any] then
+          writer.write_line(row.get(0).to_string() + "	" + row.get(1).to_string())
+        end
       end
 
       writer.close()
     end
 
     load() do
-            let path: Path := create Path.make(dictionary_path)
-      if not path.exists() then
-        return
-      end
-
-      let reader: Text_File := create Text_File.open_read(path)
-      from until true do
-        let line: ?String := reader.read_line()
-        if line = nil then
-          reader.close()
-          return
-        end
-        let parts: Array[String] := line.split("\t")
-        if parts.length = 2 then
-          let word: String := parts.get(0)
-          if parts.get(1).trim() /= "" then
-            let score: Integer := parts.get(1).to_integer()
-            engine.add(word, score)
+      let path: Path := create Path.make(dictionary_path)
+      if path.exists() then
+        let reader: Text_File := create Text_File.open_read(path)
+        let done: Boolean := false
+        from until done do
+          let line: ?String := reader.read_line()
+          if convert line to current_line: String then
+            let parts: Array[String] := current_line.split("	")
+            if parts.length = 2 then
+              let word: String := parts.get(0)
+              if parts.get(1).trim() /= "" then
+                let score: Integer := parts.get(1).to_integer()
+                engine.add(word, score)
+              end
+            end
+          else
+            done := true
           end
         end
+        reader.close()
       end
-      reader.close()
     end
 
     log_selection(word: String) do

@@ -174,12 +174,14 @@ print(f"Length:   {len(code)} bits")
 Output:
 ```
 Interval: [0.27, 0.30)
-Code:     01000110
-Value:    0.27343750
-Length:   8 bits
+Code:     01001
+Value:    0.28125000
+Length:   5 bits
 ```
 
-This is slightly longer than our theoretical estimate of 5.06 bits because our simple fraction-finding algorithm is not optimal. A production implementation uses a more sophisticated output mechanism — we will see this shortly.
+For this interval, the shortest dyadic fraction happens to be 5 bits long, which is exactly what you would expect from an interval of width 0.03: `-log₂(0.03) ≈ 5.06`, so any valid dyadic point will need at least 5 bits. Our helper finds `0.28125 = 9/32`, which lies inside the interval and is as short as possible.
+
+In production arithmetic coders, you do not search for a dyadic point after the fact like this. Instead, bits are emitted incrementally as the interval narrows and its high-order bits become fixed. We will get to that shortly.
 
 ---
 
@@ -228,24 +230,31 @@ print(f"Decoded:  {decoded}")
 print(f"Match:    {message == decoded}")
 
 H = -sum(p * math.log2(p) for p in probs.values())
-print(f"\nEntropy:          {H:.4f} bits/symbol")
-print(f"Bits used:        {len(code)}")
-print(f"Bits per symbol:  {len(code)/len(message):.4f}")
+message_prob = math.prod(probs[ch] for ch in message)
+print(f"\nMessage probability:  {message_prob:.6f}")
+print(f"Self-information:     {-math.log2(message_prob):.4f} bits")
+print(f"Source entropy:       {H:.4f} bits/symbol")
+print(f"Bits used here:       {len(code)}")
+print(f"Bits per symbol:      {len(code)/len(message):.4f}")
 ```
 
 Output:
 ```
 Original: abcaab
-Code:     0100011010 (10 bits)
+Code:     011 (3 bits)
 Decoded:  abcaab
 Match:    True
 
-Entropy:          1.4855 bits/symbol
-Bits used:        10
-Bits per symbol:  1.6667
+Message probability:  0.002250
+Self-information:     8.7959 bits
+Source entropy:       1.4855 bits/symbol
+Bits used here:       3
+Bits per symbol:      0.5000
 ```
 
-The decoder correctly recovers the original message. The efficiency (1.67 bits/symbol vs 1.49 bits/symbol entropy) is modest for this short message but improves as messages grow longer — the overhead is a fixed few bits regardless of message length.
+The decoder correctly recovers the original message. The surprisingly short 3-bit code is a reminder that this toy representation is **not** a full standalone compressed stream: the decoder is also being given the message length out of band, and we are choosing one dyadic point that happens to lie inside the message interval. Some particular messages get lucky and land on a very short dyadic fraction; many do not.
+
+So do not read this example as saying arithmetic coding can beat `-log₂(P(message))` for a fully specified message. The real point of this section is correctness of the interval logic. A production arithmetic coder turns that interval into a self-delimiting bitstream by emitting bits incrementally during renormalization, which is what we build next.
 
 ---
 
@@ -451,12 +460,9 @@ def arithmetic_decode_integer(bits: str, probs: dict,
     return ''.join(result)
 
 
-# Full round-trip test
-import random
+# Full round-trip test on a fixed message whose counts match the model exactly
 probs   = {'a': 0.5, 'b': 0.3, 'c': 0.2}
-message = ''.join(random.choices(list(probs.keys()),
-                                  weights=list(probs.values()),
-                                  k=1000))
+message = "a" * 500 + "b" * 300 + "c" * 200
 
 encoded = arithmetic_encode_integer(message, probs)
 decoded = arithmetic_decode_integer(encoded, probs, len(message))
@@ -475,13 +481,13 @@ Output:
 ```
 Message length:   1000 symbols
 Entropy:          1.4855 bits/symbol
-Encoded length:   1492 bits
-Bits per symbol:  1.4920
-Overhead:         0.0065 bits/symbol
+Encoded length:   1487 bits
+Bits per symbol:  1.4870
+Overhead:         0.0015 bits/symbol
 Round-trip OK:    True
 ```
 
-The overhead is now 0.007 bits per symbol — compared to Huffman's worst-case 1 bit per symbol. The integer implementation handles messages of arbitrary length without precision loss, and the round-trip is exact.
+The overhead is now about 0.002 bits per symbol — compared to Huffman's worst-case 1 bit per symbol. The integer implementation handles messages of arbitrary length without precision loss, and the round-trip is exact. Using a fixed message here makes the example reproducible and keeps the comparison anchored to the stated source distribution instead of one particular random draw.
 
 ---
 
@@ -576,17 +582,17 @@ def adaptive_encode(message: str, alphabet: list) -> str:
     return ''.join(output)
 
 
-# Test on English-like text
-import random
-
-# Generate text with English-like character distribution
+# Test on a fixed synthetic text with English-like character frequencies
 english_freq = {
     'e':13,'t':9,'a':8,'o':7,'i':7,'n':6,'s':6,
     'h':6,'r':6,'d':4,'l':4,' ':15,'c':3,'u':3,
 }
 alphabet = list(english_freq.keys())
 weights  = list(english_freq.values())
-message  = ''.join(random.choices(alphabet, weights=weights, k=500))
+
+# Build a deterministic message whose symbol counts match the model exactly.
+base_message = ''.join(sym * count for sym, count in english_freq.items())
+message      = base_message * 5
 
 encoded = adaptive_encode(message, alphabet)
 
@@ -602,14 +608,14 @@ print(f"Overhead:         {len(encoded)/len(message) - H_true:.4f} bits/symbol")
 
 Output:
 ```
-Message length:   500 symbols
-True entropy:     3.7612 bits/symbol
-Encoded length:   1937 bits
-Bits per symbol:  3.8740
-Overhead:         0.1128 bits/symbol
+Message length:   485 symbols
+True entropy:     3.6505 bits/symbol
+Encoded length:   1808 bits
+Bits per symbol:  3.7278
+Overhead:         0.0773 bits/symbol
 ```
 
-The overhead is higher than the static model (0.11 vs 0.007 bits) because the adaptive model starts with a poor estimate and converges as it sees more data. For longer messages, the overhead shrinks. For very long messages the adaptive model approaches the performance of the optimal static model — without requiring the distribution to be known in advance.
+The overhead is higher than in the fixed-model examples because the adaptive model starts with a poor estimate and converges as it sees more data. For longer messages, that startup cost is amortized away. For very long messages the adaptive model approaches the performance of the optimal static model — without requiring the distribution to be known in advance.
 
 ---
 
@@ -635,6 +641,8 @@ class ContextModel:
         self.context_buf   = []
 
     def _get_context(self) -> str:
+        if self.order == 0:
+            return ""
         return ''.join(self.context_buf[-self.order:])
 
     def _ensure_context(self, context: str):
@@ -720,7 +728,7 @@ alphabet = sorted(set(test_text))
 
 print(f"Text length: {len(test_text)} chars")
 print(f"Alphabet:    {len(alphabet)} symbols")
-print(f"True byte entropy: "
+print(f"Zeroth-order character entropy: "
       f"{-sum((test_text.count(c)/len(test_text))*math.log2(test_text.count(c)/len(test_text)) for c in alphabet):.4f} bits/char\n")
 
 print(f"{'Model':<20} {'Bits':>8} {'Bits/char':>12} {'vs entropy':>12}")
@@ -737,19 +745,19 @@ for order in [0, 1, 2, 3]:
 
 Output:
 ```
-Text length: 230 chars
-Alphabet:    15 symbols
-True byte entropy: 3.5218 bits/char
+Text length: 460 chars
+Alphabet:    12 symbols
+Zeroth-order character entropy: 3.0151 bits/char
 
 Model                   Bits    Bits/char   vs entropy
 --------------------------------------------------------
-Order-0 context          835       3.6304      +0.1086
-Order-1 context          718       3.1217      -0.4001
-Order-2 context          541       2.3522      -1.1696
-Order-3 context          463       2.0130      -1.5088
+Order-0 context         1422       3.0913      +0.0762
+Order-1 context          772       1.6783      -1.3368
+Order-2 context          682       1.4826      -1.5325
+Order-3 context          765       1.6630      -1.3520
 ```
 
-Higher-order context models compress far better than the zeroth-order entropy suggests — because they exploit structural redundancy that the symbol-frequency model cannot see. The order-3 model achieves 2.01 bits per character on text whose zeroth-order entropy is 3.52 bits — a 43% reduction from context modeling alone.
+Higher-order context models compress far better than the zeroth-order entropy suggests — because they exploit structural redundancy that the symbol-frequency model cannot see. On this text, the order-2 model is best, reaching 1.48 bits per character versus a zeroth-order entropy of 3.02. The order-3 model is slightly worse here, which is also instructive: on a short corpus, higher order can overfit sparse contexts and give back some of the gain.
 
 This is the compression principle that underlies PPM (Prediction by Partial Matching), one of the most effective general-purpose compression algorithms ever designed, and the conceptual ancestor of the neural language models in Chapter 15.
 
@@ -827,17 +835,19 @@ Output:
 ```
 rANS encoding 'abc':
   Encode 'a': state 256 -> 512
-  Encode 'b': state 512 -> 437
-  Encode 'c': state 437 -> 371
-Final state: 371
+  Encode 'b': state 512 -> 1714
+  Encode 'c': state 1714 -> 8684
+Final state: 8684
 
 rANS decoding:
-  Decoded 'c', state -> 437
+  Decoded 'c', state -> 1714
   Decoded 'b', state -> 512
   Decoded 'a', state -> 256
 ```
 
 Notice that ANS decodes in *reverse order* — the decoder reads symbols from last to first. This is an inherent property of ANS: it is a stack, not a queue. In practice this is handled by encoding in reverse or by buffering output.
+
+Also notice how quickly the state grows in this toy example. Real rANS coders use renormalization to keep the state within a bounded machine-word range while streaming out bits, just as arithmetic coding renormalizes its interval.
 
 The performance difference between ANS and arithmetic coding is substantial. zstd's tANS entropy coder can process several gigabytes per second on modern hardware — orders of magnitude faster than a naive arithmetic coder — while achieving compression ratios within a fraction of a percent of the theoretical optimum.
 

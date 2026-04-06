@@ -631,13 +631,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code>   Message    Encoded   Valid?
 --------------------------------
       0000      00000     True
-      1010      10101     True
+      1010      10100     True
       1111      11110     True
-      1001      10011     True
+      1001      10010     True
 
 Error detection:
-Original codeword:  10101
-Corrupted codeword: 10001
+Original codeword:  10100
+Corrupted codeword: 10000
 Error detected:     True</code></pre>
 <p>Parity detects any <em>single</em> bit error. If one bit flips, the count of 1s changes by one, making it odd — the parity check fails. But parity cannot detect <em>two</em> simultaneous bit errors, because two flips restore the even count. And parity cannot <em>correct</em> errors — it only knows something went wrong, not where.</p>
 <p>The rate of this code is n/(n+1) — for a 4-bit message, 4/5 = 80%. The code can detect but not correct 1-bit errors.</p>
@@ -820,8 +820,8 @@ Can correct up to: 1 error</code></pre>
 --------------------------------
     0000    0000000          0
     1010    1011010          0
-    1111    1110101          0
-    0101    1010110          0</code></pre>
+    1111    1111111          0
+    0101    0100101          0</code></pre>
 <p>All valid codewords have syndrome 0. Now let’s introduce errors:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> introduce_error(codeword: <span class="bu">str</span>, position: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Flip bit at given position (0-indexed)."""</span></span>
@@ -887,106 +887,121 @@ Can correct up to: 1 error</code></pre>
 <p>Hamming codes are a special case of <em>linear codes</em> — codes where any linear combination (XOR) of codewords is also a codeword. Linear codes have elegant algebraic structure that makes encoding and decoding efficient.</p>
 <p>A linear code is defined by its <em>generator matrix</em> G — a k × n matrix where each row is a codeword basis vector. To encode a k-bit message m, compute:</p>
 <pre><code>c = m · G  (mod 2)</code></pre>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> matrix_multiply_mod2(A: np.ndarray, B: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Matrix multiplication modulo 2."""</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.mod(A <span class="op">@</span> B, <span class="dv">2</span>)</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> linear_encode(message: np.ndarray, G: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Encode a message using generator matrix G."""</span></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> matrix_multiply_mod2(message, G)</span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Generator matrix for Hamming(7,4)</span></span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Rows correspond to the 4 data bits</span></span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>G_hamming <span class="op">=</span> np.array([</span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>],  <span class="co"># data bit 1</span></span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>],  <span class="co"># data bit 2</span></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>],  <span class="co"># data bit 3</span></span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>],  <span class="co"># data bit 4</span></span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span><span class="bu">int</span>)</span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Encode all 16 possible 4-bit messages</span></span>
-<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"All Hamming(7,4) codewords:"</span>)</span>
-<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Message'</span><span class="sc">:&gt;10}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Codeword'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">24</span>)</span>
-<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">16</span>):</span>
-<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>    msg  <span class="op">=</span> np.array([<span class="bu">int</span>(b) <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">format</span>(i, <span class="st">'04b'</span>)])</span>
-<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>    code <span class="op">=</span> linear_encode(msg, G_hamming)</span>
-<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>    msg_str  <span class="op">=</span> <span class="st">''</span>.join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> msg)</span>
-<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>    code_str <span class="op">=</span> <span class="st">''</span>.join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> code)</span>
-<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>msg_str<span class="sc">:&gt;10}</span><span class="ss">  </span><span class="sc">{</span>code_str<span class="sc">:&gt;10}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> matrix_multiply_mod2(A: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]],</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                         B: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]:</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Matrix multiplication modulo 2."""</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    rows  <span class="op">=</span> <span class="bu">len</span>(A)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    cols  <span class="op">=</span> <span class="bu">len</span>(B[<span class="dv">0</span>])</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    inner <span class="op">=</span> <span class="bu">len</span>(B)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    out   <span class="op">=</span> [[<span class="dv">0</span>] <span class="op">*</span> cols <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(rows)]</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(rows):</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(cols):</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>            value <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> k <span class="kw">in</span> <span class="bu">range</span>(inner):</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>                value <span class="op">^=</span> A[i][k] <span class="op">&amp;</span> B[k][j]</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>            out[i][j] <span class="op">=</span> value</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> out</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> linear_encode(message: <span class="bu">list</span>[<span class="bu">int</span>],</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>                  G: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">int</span>]:</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Encode a message using generator matrix G."""</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> matrix_multiply_mod2([message], G)[<span class="dv">0</span>]</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Generator matrix for Hamming(7,4)</span></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Rows are the codewords for basis messages 1000, 0100, 0010, 0001.</span></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="co"># This matches the earlier parity-bit construction exactly.</span></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>G_hamming <span class="op">=</span> [</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>],</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>],</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Encode all 16 possible 4-bit messages</span></span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"All Hamming(7,4) codewords:"</span>)</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Message'</span><span class="sc">:&gt;10}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Codeword'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">24</span>)</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">16</span>):</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>    msg  <span class="op">=</span> [<span class="bu">int</span>(b) <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">format</span>(i, <span class="st">'04b'</span>)]</span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>    code <span class="op">=</span> linear_encode(msg, G_hamming)</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>    msg_str  <span class="op">=</span> <span class="st">''</span>.join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> msg)</span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>    code_str <span class="op">=</span> <span class="st">''</span>.join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> code)</span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>msg_str<span class="sc">:&gt;10}</span><span class="ss">  </span><span class="sc">{</span>code_str<span class="sc">:&gt;10}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>All Hamming(7,4) codewords:
    Message    Codeword
 ------------------------
       0000     0000000
-      0001     0001111
-      0010     0010110
-      0011     0011001
-      0100     0100101
-      0101     0101010
-      0110     0110011
-      0111     0111100
-      1000     1000011
-      1001     1001100
-      1010     1010101
-      1011     1011010
-      1100     1100110
-      1101     1101001
-      1110     1110000
+      0001     1101001
+      0010     0101010
+      0011     1000011
+      0100     1001100
+      0101     0100101
+      0110     1100110
+      0111     0001111
+      1000     1110000
+      1001     0011001
+      1010     1011010
+      1011     0110011
+      1100     0111100
+      1101     1010101
+      1110     0010110
       1111     1111111</code></pre>
 <p>The companion to the generator matrix is the <em>parity check matrix</em> H — an (n-k) × n matrix such that H·cT = 0 for every valid codeword c.&nbsp;The syndrome of a received word r is H·rT: it is zero if r is a valid codeword and nonzero if errors occurred.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Parity check matrix for Hamming(7,4)</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Each column is the binary representation of its column index</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>H_hamming <span class="op">=</span> np.array([</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>],  <span class="co"># bit 1 of column index</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>],  <span class="co"># bit 2 of column index</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>],  <span class="co"># bit 3 of column index</span></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span><span class="bu">int</span>)</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compute_syndrome(received: np.ndarray,</span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>                     H: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Compute syndrome of received word."""</span></span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> matrix_multiply_mod2(H, received.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)).flatten()</span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> decode_with_parity_check(received: np.ndarray,</span>
-<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>                              H: np.ndarray) <span class="op">-&gt;</span> <span class="bu">tuple</span>:</span>
-<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="co">    Decode using parity check matrix.</span></span>
-<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns (corrected, error_position).</span></span>
-<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>    syndrome <span class="op">=</span> compute_syndrome(received, H)</span>
-<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Convert syndrome to integer (error position)</span></span>
-<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>    error_pos <span class="op">=</span> <span class="bu">int</span>(<span class="st">''</span>.join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> syndrome), <span class="dv">2</span>)</span>
-<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> error_pos <span class="op">==</span> <span class="dv">0</span>:</span>
-<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> received.copy(), <span class="dv">0</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Each column is the binary representation of its column index,</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co"># least-significant bit first: [s1, s2, s4].</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>H_hamming <span class="op">=</span> [</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>],</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>],</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>],</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compute_syndrome(received: <span class="bu">list</span>[<span class="bu">int</span>],</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>                     H: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">int</span>]:</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Compute syndrome of received word."""</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    column <span class="op">=</span> [[b] <span class="cf">for</span> b <span class="kw">in</span> received]</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [row[<span class="dv">0</span>] <span class="cf">for</span> row <span class="kw">in</span> matrix_multiply_mod2(H, column)]</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> decode_with_parity_check(received: <span class="bu">list</span>[<span class="bu">int</span>],</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>                             H: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]) <span class="op">-&gt;</span> <span class="bu">tuple</span>:</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="co">    Decode using parity check matrix.</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns (corrected, error_position).</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>    syndrome <span class="op">=</span> compute_syndrome(received, H)</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Syndrome bits are [s1, s2, s4], so the error position is</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># s1 + 2*s2 + 4*s4.</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>    error_pos <span class="op">=</span> syndrome[<span class="dv">0</span>] <span class="op">+</span> <span class="dv">2</span> <span class="op">*</span> syndrome[<span class="dv">1</span>] <span class="op">+</span> <span class="dv">4</span> <span class="op">*</span> syndrome[<span class="dv">2</span>]</span>
 <span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Correct the error</span></span>
-<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>    corrected              <span class="op">=</span> received.copy()</span>
-<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>    corrected[error_pos<span class="op">-</span><span class="dv">1</span>] <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> corrected[error_pos<span class="op">-</span><span class="dv">1</span>]</span>
-<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> corrected, error_pos</span>
-<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Test</span></span>
-<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a>msg      <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>])</span>
-<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>codeword <span class="op">=</span> linear_encode(msg, G_hamming)</span>
-<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a>received <span class="op">=</span> codeword.copy()</span>
-<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a>received[<span class="dv">3</span>] <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> received[<span class="dv">3</span>]  <span class="co"># Flip bit 4</span></span>
-<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a>corrected, err_pos <span class="op">=</span> decode_with_parity_check(received, H_hamming)</span>
-<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Sent:      </span><span class="sc">{</span><span class="st">''</span><span class="sc">.</span>join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> codeword)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Received:  </span><span class="sc">{</span><span class="st">''</span><span class="sc">.</span>join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> received)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Syndrome:  </span><span class="sc">{</span>compute_syndrome(received, H_hamming)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Error at:  position </span><span class="sc">{</span>err_pos<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Corrected: </span><span class="sc">{</span><span class="st">''</span><span class="sc">.</span>join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> corrected)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Match:     </span><span class="sc">{</span>np<span class="sc">.</span>array_equal(corrected, codeword)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> error_pos <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> received[:], <span class="dv">0</span></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Correct the error</span></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>    corrected              <span class="op">=</span> received[:]</span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>    corrected[error_pos<span class="op">-</span><span class="dv">1</span>] <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> corrected[error_pos<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> corrected, error_pos</span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Test</span></span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a>msg      <span class="op">=</span> [<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>]</span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a>codeword <span class="op">=</span> linear_encode(msg, G_hamming)</span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a>received <span class="op">=</span> codeword[:]</span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a>received[<span class="dv">3</span>] <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> received[<span class="dv">3</span>]  <span class="co"># Flip bit 4</span></span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a>corrected, err_pos <span class="op">=</span> decode_with_parity_check(received, H_hamming)</span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Sent:      </span><span class="sc">{</span><span class="st">''</span><span class="sc">.</span>join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> codeword)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Received:  </span><span class="sc">{</span><span class="st">''</span><span class="sc">.</span>join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> received)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Syndrome:  </span><span class="sc">{</span>compute_syndrome(received, H_hamming)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-47"><a href="#cb18-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Error at:  position </span><span class="sc">{</span>err_pos<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-48"><a href="#cb18-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Corrected: </span><span class="sc">{</span><span class="st">''</span><span class="sc">.</span>join(<span class="bu">str</span>(b) <span class="cf">for</span> b <span class="kw">in</span> corrected)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-49"><a href="#cb18-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Match:     </span><span class="sc">{</span>corrected <span class="op">==</span> codeword<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Sent:      1010101
 Received:  1011101
-Syndrome:  [0 1 0]
+Syndrome:  [0, 0, 1]
 Error at:  position 4
 Corrected: 1010101
 Match:     True</code></pre>
@@ -996,58 +1011,62 @@ Match:     True</code></pre>
 <h2 data-number="11.6" class="anchored" data-anchor-id="cyclic-redundancy-checks"><span class="header-section-number">11.6</span> Cyclic Redundancy Checks</h2>
 <p>Parity and Hamming codes are excellent for memory and storage. For data transmission, a different family of codes dominates: <em>cyclic redundancy checks</em> (CRCs). CRCs are not designed for error correction — they are extremely powerful error <em>detectors</em> that can be computed with a single XOR-based shift register, making them fast enough to run in hardware at network line rates.</p>
 <p>The mathematics of CRCs is polynomial arithmetic over GF(2) (the field with two elements, 0 and 1). A message is treated as a polynomial with binary coefficients, divided by a fixed <em>generator polynomial</em>, and the remainder becomes the CRC.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> crc_compute(data: <span class="bu">str</span>, polynomial: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute CRC of binary data string using given polynomial.</span></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Both data and polynomial are binary strings.</span></span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co">    polynomial should include the leading 1.</span></span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Example: CRC-8 polynomial x^8 + x^2 + x + 1 = '100000111'</span></span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Append zeros equal to degree of polynomial</span></span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    degree  <span class="op">=</span> <span class="bu">len</span>(polynomial) <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    padded  <span class="op">=</span> data <span class="op">+</span> <span class="st">'0'</span> <span class="op">*</span> degree</span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    current <span class="op">=</span> <span class="bu">list</span>(padded)</span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(data)):</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> current[i] <span class="op">==</span> <span class="st">'1'</span>:</span>
-<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j, bit <span class="kw">in</span> <span class="bu">enumerate</span>(polynomial):</span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> bit <span class="op">==</span> <span class="st">'1'</span>:</span>
-<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>                    current[i <span class="op">+</span> j] <span class="op">=</span> <span class="st">'0'</span> <span class="cf">if</span> current[i <span class="op">+</span> j] <span class="op">==</span> <span class="st">'1'</span> <span class="cf">else</span> <span class="st">'1'</span></span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(current[<span class="bu">len</span>(data):])</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> crc_remainder(bitstring: <span class="bu">str</span>, polynomial: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Binary polynomial long division over GF(2)."""</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    current <span class="op">=</span> <span class="bu">list</span>(bitstring)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(bitstring) <span class="op">-</span> <span class="bu">len</span>(polynomial) <span class="op">+</span> <span class="dv">1</span>):</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> current[i] <span class="op">==</span> <span class="st">'1'</span>:</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j, bit <span class="kw">in</span> <span class="bu">enumerate</span>(polynomial):</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> bit <span class="op">==</span> <span class="st">'1'</span>:</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>                    current[i <span class="op">+</span> j] <span class="op">=</span> <span class="st">'0'</span> <span class="cf">if</span> current[i <span class="op">+</span> j] <span class="op">==</span> <span class="st">'1'</span> <span class="cf">else</span> <span class="st">'1'</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(current[<span class="op">-</span>(<span class="bu">len</span>(polynomial) <span class="op">-</span> <span class="dv">1</span>):])</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> crc_compute(data: <span class="bu">str</span>, polynomial: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute CRC of binary data string using given polynomial.</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="co">    Both data and polynomial are binary strings.</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="co">    polynomial should include the leading 1.</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="co">    Example: CRC-8 polynomial x^8 + x^2 + x + 1 = '100000111'</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>    degree <span class="op">=</span> <span class="bu">len</span>(polynomial) <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> crc_remainder(data <span class="op">+</span> <span class="st">'0'</span> <span class="op">*</span> degree, polynomial)</span>
 <span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> crc_verify(data_with_crc: <span class="bu">str</span>, polynomial: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">bool</span>:</span>
 <span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a><span class="co">    Verify CRC. Returns True if data is uncorrupted.</span></span>
 <span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a><span class="co">    data_with_crc: original data with CRC appended.</span></span>
 <span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>    degree   <span class="op">=</span> <span class="bu">len</span>(polynomial) <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    remainder <span class="op">=</span> crc_compute(data_with_crc[:<span class="op">-</span>degree], polynomial)</span>
-<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> remainder <span class="op">==</span> data_with_crc[<span class="op">-</span>degree:]</span>
-<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a><span class="co"># CRC-8 example (polynomial: x^8 + x^2 + x + 1)</span></span>
-<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>poly8     <span class="op">=</span> <span class="st">'100000111'</span></span>
-<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>message   <span class="op">=</span> <span class="st">'11010011101100'</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>    degree <span class="op">=</span> <span class="bu">len</span>(polynomial) <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> crc_remainder(data_with_crc, polynomial) <span class="op">==</span> <span class="st">'0'</span> <span class="op">*</span> degree</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flip_bit(bits: <span class="bu">str</span>, position: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>    chars <span class="op">=</span> <span class="bu">list</span>(bits)</span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>    chars[position] <span class="op">=</span> <span class="st">'1'</span> <span class="cf">if</span> chars[position] <span class="op">==</span> <span class="st">'0'</span> <span class="cf">else</span> <span class="st">'0'</span></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">''</span>.join(chars)</span>
 <span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>crc       <span class="op">=</span> crc_compute(message, poly8)</span>
-<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>protected <span class="op">=</span> message <span class="op">+</span> crc</span>
-<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Message:   </span><span class="sc">{</span>message<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"CRC-8:     </span><span class="sc">{</span>crc<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Protected: </span><span class="sc">{</span>protected<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Valid:     </span><span class="sc">{</span>crc_verify(protected, poly8)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Introduce a burst error</span></span>
-<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a>corrupted <span class="op">=</span> protected[:<span class="dv">5</span>] <span class="op">+</span> <span class="st">'0'</span> <span class="op">+</span> protected[<span class="dv">6</span>:]</span>
-<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Corrupted: </span><span class="sc">{</span>corrupted<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Valid:     </span><span class="sc">{</span>crc_verify(corrupted, poly8)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a><span class="co"># CRC-8 example (polynomial: x^8 + x^2 + x + 1)</span></span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>poly8     <span class="op">=</span> <span class="st">'100000111'</span></span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>message   <span class="op">=</span> <span class="st">'11010011101100'</span></span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a>crc       <span class="op">=</span> crc_compute(message, poly8)</span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>protected <span class="op">=</span> message <span class="op">+</span> crc</span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Message:   </span><span class="sc">{</span>message<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"CRC-8:     </span><span class="sc">{</span>crc<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Protected: </span><span class="sc">{</span>protected<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Valid:     </span><span class="sc">{</span>crc_verify(protected, poly8)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Introduce a bit error</span></span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a>corrupted <span class="op">=</span> flip_bit(protected, <span class="dv">5</span>)</span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Corrupted: </span><span class="sc">{</span>corrupted<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Valid:     </span><span class="sc">{</span>crc_verify(corrupted, poly8)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Message:   11010011101100
-CRC-8:     10001110
-Protected: 1101001110110010001110
+CRC-8:     00100111
+Protected: 1101001110110000100111
 Valid:     True
 
-Corrupted: 1101000110110010001110
+Corrupted: 1101011110110000100111
 Valid:     False</code></pre>
 <p>The power of CRCs lies in their mathematical guarantees. A well-chosen generator polynomial of degree r gives a CRC that:</p>
 <ul>
@@ -1094,124 +1113,97 @@ CRC-32C        32           ≤32 bits        iSCSI, SCTP, SSE4.2</code></pre>
 <span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">bytes</span>(<span class="bu">range</span>(<span class="dv">256</span>)),</span>
 <span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    ]</span>
 <span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Message (first 30 chars)'</span><span class="sc">:&lt;35}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'CRC-32'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Message'</span><span class="sc">:&lt;35}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'CRC-32'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
 <span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> msg <span class="kw">in</span> messages:</span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        crc   <span class="op">=</span> zlib.crc32(msg) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span></span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>        display <span class="op">=</span> <span class="bu">repr</span>(msg[:<span class="dv">30</span>])[<span class="dv">2</span>:<span class="op">-</span><span class="dv">1</span>]</span>
-<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>display<span class="sc">:&lt;35}</span><span class="ss"> </span><span class="sc">{</span>crc<span class="sc">:&gt;12d}</span><span class="ss">  (</span><span class="sc">{</span>crc<span class="sc">:#010x}</span><span class="ss">)"</span>)</span>
-<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Demonstrate sensitivity: one bit change -&gt; completely different CRC</span></span>
-<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>    msg1 <span class="op">=</span> <span class="st">b"Hello, World!"</span></span>
-<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>    msg2 <span class="op">=</span> <span class="st">b"Hello, world!"</span>  <span class="co"># lowercase 'w'</span></span>
-<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">One-character change:"</span>)</span>
-<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  '</span><span class="sc">{</span>msg1<span class="sc">.</span>decode()<span class="sc">}</span><span class="ss">': </span><span class="sc">{</span>zlib<span class="sc">.</span>crc32(msg1) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span><span class="sc">:#010x}</span><span class="ss">"</span>)</span>
-<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  '</span><span class="sc">{</span>msg2<span class="sc">.</span>decode()<span class="sc">}</span><span class="ss">': </span><span class="sc">{</span>zlib<span class="sc">.</span>crc32(msg2) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span><span class="sc">:#010x}</span><span class="ss">"</span>)</span>
-<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>crc32_demo()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    labels <span class="op">=</span> [</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Hello, World!"</span>,</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">"The quick brown fox jumps over the lazy dog"</span>,</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>        <span class="st">"1000 zero bytes"</span>,</span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"bytes(0..255)"</span>,</span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> label, msg <span class="kw">in</span> <span class="bu">zip</span>(labels, messages):</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>        crc   <span class="op">=</span> zlib.crc32(msg) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>label<span class="sc">:&lt;35}</span><span class="ss"> </span><span class="sc">{</span>crc<span class="sc">:&gt;12d}</span><span class="ss">  (</span><span class="sc">{</span>crc<span class="sc">:#010x}</span><span class="ss">)"</span>)</span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Demonstrate sensitivity: one character change -&gt; very different CRC</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>    msg1 <span class="op">=</span> <span class="st">b"Hello, World!"</span></span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>    msg2 <span class="op">=</span> <span class="st">b"Hello, world!"</span>  <span class="co"># lowercase 'w'</span></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">One-character change:"</span>)</span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  '</span><span class="sc">{</span>msg1<span class="sc">.</span>decode()<span class="sc">}</span><span class="ss">': </span><span class="sc">{</span>zlib<span class="sc">.</span>crc32(msg1) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span><span class="sc">:#010x}</span><span class="ss">"</span>)</span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  '</span><span class="sc">{</span>msg2<span class="sc">.</span>decode()<span class="sc">}</span><span class="ss">': </span><span class="sc">{</span>zlib<span class="sc">.</span>crc32(msg2) <span class="op">&amp;</span> <span class="bn">0xFFFFFFFF</span><span class="sc">:#010x}</span><span class="ss">"</span>)</span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>crc32_demo()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Message (first 30 chars)               CRC-32
+<pre><code>Message                               CRC-32
 --------------------------------------------------
-Hello, World!                      3964322768  (0xec4ac3b0)
-The quick brown fox jumps over t    681726265  (0x28a9fa39)
-\x00 * 1000                        613503771  (0x249c895b)
-\x00\x01\x02...                   2966844246  (0xb0ae863)
+Hello, World!                      3964322768  (0xec4ac3d0)
+The quick brown fox jumps over the lazy dog   1095738169  (0x414fa339)
+1000 zero bytes                     101390208  (0x060b1780)
+bytes(0..255)                       688229491  (0x29058c73)
 
 One-character change:
-  'Hello, World!': 0xec4ac3b0
-  'Hello, world!': 0x3bba4e4d</code></pre>
-<p>A single character change flips half the bits in the CRC — a property called the <em>avalanche effect</em>, essential for detecting subtle corruptions.</p>
+  'Hello, World!': 0xec4ac3d0
+  'Hello, world!': 0xebe6c6e6</code></pre>
+<p>A single character change alters many bits in the CRC — a practical version of the <em>avalanche effect</em>, which is exactly what makes CRCs effective at detecting subtle corruptions.</p>
 <hr>
 </section>
 <section id="reed-solomon-codes" class="level2" data-number="11.7">
 <h2 data-number="11.7" class="anchored" data-anchor-id="reed-solomon-codes"><span class="header-section-number">11.7</span> Reed-Solomon Codes</h2>
 <p>Hamming codes correct single-bit errors. CRCs detect burst errors. But for long burst errors — like a scratch on a CD, a bad sector on a disk, or a lost packet in a network — neither is sufficient. This is where Reed-Solomon codes excel.</p>
 <p>Reed-Solomon codes work over symbols (bytes) rather than individual bits, and they can correct entire symbol erasures. An RS(n, k) code encodes k data symbols into n total symbols and can correct up to (n - k)/2 symbol errors, or up to (n - k) symbol erasures (when the positions of lost symbols are known).</p>
-<p>The mathematics is elegant but requires finite field arithmetic. For now, let’s focus on the practical properties and use Python’s <code>reedsolo</code> library:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># pip install reedsolo</span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> reedsolo</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reed_solomon_demo():</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Demonstrate Reed-Solomon encoding and error correction."""</span></span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        <span class="co"># RS(255, 223): the standard used in deep space communication</span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 223 data bytes, 32 parity bytes, corrects up to 16 byte errors</span></span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>        rs <span class="op">=</span> reedsolo.RSCodec(<span class="dv">32</span>)  <span class="co"># 32 parity bytes</span></span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>        message <span class="op">=</span> <span class="st">b"The quick brown fox jumps over the lazy dog"</span></span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>        encoded <span class="op">=</span> rs.encode(message)</span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Original message:  </span><span class="sc">{</span><span class="bu">len</span>(message)<span class="sc">}</span><span class="ss"> bytes"</span>)</span>
-<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Encoded:           </span><span class="sc">{</span><span class="bu">len</span>(encoded)<span class="sc">}</span><span class="ss"> bytes"</span>)</span>
-<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Parity bytes:      </span><span class="sc">{</span><span class="bu">len</span>(encoded) <span class="op">-</span> <span class="bu">len</span>(message)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Rate:              </span><span class="sc">{</span><span class="bu">len</span>(message)<span class="op">/</span><span class="bu">len</span>(encoded)<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Corrects up to:    16 byte errors"</span>)</span>
-<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>()</span>
-<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Introduce 16 random byte errors</span></span>
-<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>        <span class="im">import</span> random</span>
-<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>        corrupted     <span class="op">=</span> <span class="bu">bytearray</span>(encoded)</span>
-<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>        error_positions <span class="op">=</span> random.sample(<span class="bu">range</span>(<span class="bu">len</span>(encoded)), <span class="dv">16</span>)</span>
-<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> pos <span class="kw">in</span> error_positions:</span>
-<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a>            corrupted[pos] <span class="op">=</span> random.randint(<span class="dv">0</span>, <span class="dv">255</span>)</span>
-<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
-<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>            decoded, _, _  <span class="op">=</span> rs.decode(<span class="bu">bytes</span>(corrupted))</span>
-<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"16 errors injected at: </span><span class="sc">{</span><span class="bu">sorted</span>(error_positions)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"Decoded correctly:     </span><span class="sc">{</span>decoded <span class="op">==</span> message<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> reedsolo.ReedSolomonError <span class="im">as</span> e:</span>
-<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"Decoding failed: </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span>)</span>
+<p>The mathematics is elegant but requires finite field arithmetic. For now, let us focus on the practical tradeoffs that matter in systems code: rate, parity overhead, and how many symbol errors or erasures a code can survive.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> reed_solomon_properties():</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Show the practical tradeoffs of a few Reed-Solomon codes.</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co">    For RS(n, k): n total symbols, k data symbols.</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Corrects floor((n-k)/2) symbol errors, or up to (n-k) erasures.</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    data_bytes   <span class="op">=</span> <span class="dv">43</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    parity_bytes <span class="op">=</span> <span class="dv">32</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    total_bytes  <span class="op">=</span> data_bytes <span class="op">+</span> parity_bytes</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Reed-Solomon tradeoff example"</span>)</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Original message:   </span><span class="sc">{</span>data_bytes<span class="sc">}</span><span class="ss"> bytes"</span>)</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Encoded length:     </span><span class="sc">{</span>total_bytes<span class="sc">}</span><span class="ss"> bytes"</span>)</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Parity bytes:       </span><span class="sc">{</span>parity_bytes<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Rate:               </span><span class="sc">{</span>data_bytes <span class="op">/</span> total_bytes<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Corrects up to:     </span><span class="sc">{</span>parity_bytes <span class="op">//</span> <span class="dv">2</span><span class="sc">}</span><span class="ss"> byte errors"</span>)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Or up to:           </span><span class="sc">{</span>parity_bytes<span class="sc">}</span><span class="ss"> byte erasures"</span>)</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>    configs <span class="op">=</span> [</span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">255</span>, <span class="dv">223</span>, <span class="st">"Deep space (CCSDS)"</span>),</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">255</span>, <span class="dv">239</span>, <span class="st">"QR codes"</span>),</span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">255</span>, <span class="dv">251</span>, <span class="st">"Storage (light)"</span>),</span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">32</span>,  <span class="dv">28</span>,  <span class="st">"Audio CD"</span>),</span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Config'</span><span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Data'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Parity'</span><span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Corrects'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Rate'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Use case'</span><span class="sc">:&lt;20}</span><span class="ss">"</span>)</span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">68</span>)</span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n, k, use <span class="kw">in</span> configs:</span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>        parity   <span class="op">=</span> n <span class="op">-</span> k</span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>        corrects <span class="op">=</span> parity <span class="op">//</span> <span class="dv">2</span></span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a>        rate     <span class="op">=</span> k <span class="op">/</span> n</span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"RS(</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">)  </span><span class="sc">{</span>k<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>parity<span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span>corrects<span class="sc">:&gt;10}</span><span class="ss"> "</span></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>rate<span class="sc">:&gt;8.4f}</span><span class="ss"> </span><span class="sc">{</span>use<span class="sc">:&lt;20}</span><span class="ss">"</span>)</span>
 <span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Introduce 17 errors -- beyond correction capacity</span></span>
-<span id="cb26-37"><a href="#cb26-37" aria-hidden="true" tabindex="-1"></a>        corrupted2     <span class="op">=</span> <span class="bu">bytearray</span>(encoded)</span>
-<span id="cb26-38"><a href="#cb26-38" aria-hidden="true" tabindex="-1"></a>        error_positions2 <span class="op">=</span> random.sample(<span class="bu">range</span>(<span class="bu">len</span>(encoded)), <span class="dv">17</span>)</span>
-<span id="cb26-39"><a href="#cb26-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> pos <span class="kw">in</span> error_positions2:</span>
-<span id="cb26-40"><a href="#cb26-40" aria-hidden="true" tabindex="-1"></a>            corrupted2[pos] <span class="op">=</span> random.randint(<span class="dv">0</span>, <span class="dv">255</span>)</span>
-<span id="cb26-41"><a href="#cb26-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-42"><a href="#cb26-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
-<span id="cb26-43"><a href="#cb26-43" aria-hidden="true" tabindex="-1"></a>            decoded2, _, _ <span class="op">=</span> rs.decode(<span class="bu">bytes</span>(corrupted2))</span>
-<span id="cb26-44"><a href="#cb26-44" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">17 errors: decoded </span><span class="sc">{</span><span class="st">'correctly'</span> <span class="cf">if</span> decoded2 <span class="op">==</span> message <span class="cf">else</span> <span class="st">'INCORRECTLY'</span><span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb26-45"><a href="#cb26-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> reedsolo.ReedSolomonError <span class="im">as</span> e:</span>
-<span id="cb26-46"><a href="#cb26-46" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">17 errors: decoding failed (expected): </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb26-47"><a href="#cb26-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-48"><a href="#cb26-48" aria-hidden="true" tabindex="-1"></a>    reed_solomon_demo()</span>
-<span id="cb26-49"><a href="#cb26-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-50"><a href="#cb26-50" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">ImportError</span>:</span>
-<span id="cb26-51"><a href="#cb26-51" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"reedsolo not installed. Run: pip install reedsolo"</span>)</span>
-<span id="cb26-52"><a href="#cb26-52" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Reed-Solomon properties:"</span>)</span>
-<span id="cb26-53"><a href="#cb26-53" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"RS(n, k): n total symbols, k data symbols"</span>)</span>
-<span id="cb26-54"><a href="#cb26-54" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Corrects: floor((n-k)/2) symbol errors"</span>)</span>
-<span id="cb26-55"><a href="#cb26-55" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Erases:   up to (n-k) known-position errors"</span>)</span>
-<span id="cb26-56"><a href="#cb26-56" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
-<span id="cb26-57"><a href="#cb26-57" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Show properties without the library</span></span>
-<span id="cb26-58"><a href="#cb26-58" aria-hidden="true" tabindex="-1"></a>    configs <span class="op">=</span> [</span>
-<span id="cb26-59"><a href="#cb26-59" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">255</span>, <span class="dv">223</span>, <span class="st">"Deep space (CCSDS)"</span>),</span>
-<span id="cb26-60"><a href="#cb26-60" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">255</span>, <span class="dv">239</span>, <span class="st">"QR codes"</span>),</span>
-<span id="cb26-61"><a href="#cb26-61" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">255</span>, <span class="dv">251</span>, <span class="st">"Storage (light)"</span>),</span>
-<span id="cb26-62"><a href="#cb26-62" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">32</span>,  <span class="dv">28</span>,  <span class="st">"Audio CD"</span>),</span>
-<span id="cb26-63"><a href="#cb26-63" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb26-64"><a href="#cb26-64" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Config'</span><span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Data'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Parity'</span><span class="sc">:&gt;8}</span><span class="ss"> "</span></span>
-<span id="cb26-65"><a href="#cb26-65" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Corrects'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Rate'</span><span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Use case'</span><span class="sc">:&lt;20}</span><span class="ss">"</span>)</span>
-<span id="cb26-66"><a href="#cb26-66" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">68</span>)</span>
-<span id="cb26-67"><a href="#cb26-67" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n, k, use <span class="kw">in</span> configs:</span>
-<span id="cb26-68"><a href="#cb26-68" aria-hidden="true" tabindex="-1"></a>        parity   <span class="op">=</span> n <span class="op">-</span> k</span>
-<span id="cb26-69"><a href="#cb26-69" aria-hidden="true" tabindex="-1"></a>        corrects <span class="op">=</span> parity <span class="op">//</span> <span class="dv">2</span></span>
-<span id="cb26-70"><a href="#cb26-70" aria-hidden="true" tabindex="-1"></a>        rate     <span class="op">=</span> k <span class="op">/</span> n</span>
-<span id="cb26-71"><a href="#cb26-71" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"RS(</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">)  </span><span class="sc">{</span>k<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>parity<span class="sc">:&gt;8}</span><span class="ss"> </span><span class="sc">{</span>corrects<span class="sc">:&gt;10}</span><span class="ss"> "</span></span>
-<span id="cb26-72"><a href="#cb26-72" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span>rate<span class="sc">:&gt;8.4f}</span><span class="ss"> </span><span class="sc">{</span>use<span class="sc">:&lt;20}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a>reed_solomon_properties()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
-<pre><code>Original message:  43 bytes
-Encoded:           75 bytes
-Parity bytes:      32
-Rate:              0.5733
-Corrects up to:    16 byte errors
+<pre><code>Reed-Solomon tradeoff example
+Original message:   43 bytes
+Encoded length:     75 bytes
+Parity bytes:       32
+Rate:               0.5733
+Corrects up to:     16 byte errors
+Or up to:           32 byte erasures
 
-16 errors injected at: [3, 11, 22, 31, 38, 44, 51, 58, 62, 67, 70, 71, 72, 73, 74, 75]
-Decoded correctly:     True
-
-17 errors: decoding failed (expected): Too many (17) errors found by Chien Search...</code></pre>
-<p>Reed-Solomon codes are everywhere:</p>
+Config         Data   Parity   Corrects     Rate Use case
+--------------------------------------------------------------------
+RS(255,223)     223       32         16   0.8745 Deep space (CCSDS)
+RS(255,239)     239       16          8   0.9373 QR codes
+RS(255,251)     251        4          2   0.9843 Storage (light)
+RS(32,28)        28        4          2   0.8750 Audio CD</code></pre>
+<p>Reed-Solomon codes are everywhere. If you want to experiment with actual encoding and decoding, the <code>reedsolo</code> Python package is a good practical companion to this chapter; but the core engineering tradeoffs are already visible in the simple calculations above:</p>
 <ul>
 <li><strong>CDs and DVDs:</strong> Use a two-layer RS system (CIRC) that corrects burst errors from scratches up to 4000 consecutive bit errors.</li>
 <li><strong>QR codes:</strong> Use RS codes that allow up to 30% of a code to be destroyed and still be readable.</li>
@@ -1226,229 +1218,184 @@ Decoded correctly:     True
 <p>Everything we have covered so far leaves a substantial gap between achieved performance and the Shannon limit. Hamming codes are efficient but only correct single errors. Reed-Solomon codes handle burst errors well but have limited rate flexibility. To approach the Shannon limit, we need a fundamentally different architecture.</p>
 <p><em>Low-Density Parity-Check</em> (LDPC) codes, invented by Robert Gallager in 1960 and rediscovered in the 1990s, achieve performance within a fraction of a decibel of the Shannon limit. They are the codes inside your WiFi card, your cable modem, and the DVB-S2 satellite television standard.</p>
 <p>The key idea: use a very sparse parity check matrix H (few 1s per row and column) and decode using <em>belief propagation</em> — an iterative message-passing algorithm that works efficiently on the bipartite graph defined by H.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_ldpc_matrix(n: <span class="bu">int</span>, k: <span class="bu">int</span>,</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>                     row_weight: <span class="bu">int</span> <span class="op">=</span> <span class="dv">3</span>,</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>                     col_weight: <span class="bu">int</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Generate a random sparse LDPC parity check matrix.</span></span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co">    n: codeword length</span></span>
-<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="co">    k: message length</span></span>
-<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a><span class="co">    row_weight: number of 1s per parity check row</span></span>
-<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    m          <span class="op">=</span> n <span class="op">-</span> k  <span class="co"># Number of parity checks</span></span>
-<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    col_weight <span class="op">=</span> col_weight <span class="kw">or</span> (m <span class="op">*</span> row_weight) <span class="op">//</span> n</span>
-<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    H          <span class="op">=</span> np.zeros((m, n), dtype<span class="op">=</span><span class="bu">int</span>)</span>
-<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(n):</span>
-<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>        rows       <span class="op">=</span> random.sample(<span class="bu">range</span>(m), <span class="bu">min</span>(col_weight, m))</span>
-<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> r <span class="kw">in</span> rows:</span>
-<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>            H[r, j] <span class="op">=</span> <span class="dv">1</span></span>
-<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> H</span>
-<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ldpc_encode_systematic(message: np.ndarray,</span>
-<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>                            H: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a><span class="co">    Systematic LDPC encoding: [message | parity].</span></span>
-<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a><span class="co">    Finds parity bits p such that H * [m | p]^T = 0 mod 2.</span></span>
-<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a><span class="co">    Simplified for small codes.</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_ldpc_matrix(n: <span class="bu">int</span>, k: <span class="bu">int</span>,</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>                     ones_per_data_col: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>,</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>                     seed: <span class="bu">int</span> <span class="op">=</span> <span class="dv">42</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]:</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Generate a small systematic LDPC-style parity check matrix H = [A | I].</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="co">    The data part A is sparse; the parity part is identity so encoding is</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co">    straightforward.</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    m   <span class="op">=</span> n <span class="op">-</span> k</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> random.Random(seed)</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    H_s <span class="op">=</span> [[<span class="dv">0</span>] <span class="op">*</span> k <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(m)]</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(k):</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>        rows <span class="op">=</span> rng.sample(<span class="bu">range</span>(m), <span class="bu">min</span>(ones_per_data_col, m))</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> r <span class="kw">in</span> rows:</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>            H_s[r][j] <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [</span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>        H_s[r] <span class="op">+</span> [<span class="dv">1</span> <span class="cf">if</span> c <span class="op">==</span> r <span class="cf">else</span> <span class="dv">0</span> <span class="cf">for</span> c <span class="kw">in</span> <span class="bu">range</span>(m)]</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> r <span class="kw">in</span> <span class="bu">range</span>(m)</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ldpc_encode_systematic(message: <span class="bu">list</span>[<span class="bu">int</span>],</span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>                           H: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">int</span>]:</span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a><span class="co">    Systematic LDPC encoding: [message | parity].</span></span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a><span class="co">    With H = [A | I], the parity bits are just A * message mod 2.</span></span>
 <span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
 <span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>    k <span class="op">=</span> <span class="bu">len</span>(message)</span>
-<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> H.shape[<span class="dv">1</span>]</span>
-<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> H.shape[<span class="dv">0</span>]</span>
-<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Partition H = [H_s | H_p] where H_p is m x m</span></span>
-<span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a>    H_s <span class="op">=</span> H[:, :k]</span>
-<span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a>    H_p <span class="op">=</span> H[:, k:]</span>
-<span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Solve H_p * p = H_s * m (mod 2)</span></span>
-<span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Use Gaussian elimination mod 2</span></span>
-<span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a>    target <span class="op">=</span> matrix_multiply_mod2(H_s, message.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)).flatten()</span>
-<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simple approach: try to invert H_p</span></span>
-<span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
-<span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a>        <span class="co"># This works only if H_p is invertible mod 2</span></span>
-<span id="cb28-46"><a href="#cb28-46" aria-hidden="true" tabindex="-1"></a>        H_p_inv <span class="op">=</span> mod2_inverse(H_p)</span>
-<span id="cb28-47"><a href="#cb28-47" aria-hidden="true" tabindex="-1"></a>        parity  <span class="op">=</span> matrix_multiply_mod2(H_p_inv,</span>
-<span id="cb28-48"><a href="#cb28-48" aria-hidden="true" tabindex="-1"></a>                                       target.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)).flatten()</span>
-<span id="cb28-49"><a href="#cb28-49" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.concatenate([message, parity])</span>
-<span id="cb28-50"><a href="#cb28-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">Exception</span>:</span>
-<span id="cb28-51"><a href="#cb28-51" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Fallback: random valid codeword construction</span></span>
-<span id="cb28-52"><a href="#cb28-52" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.concatenate([message, target <span class="op">%</span> <span class="dv">2</span>])</span>
-<span id="cb28-53"><a href="#cb28-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-54"><a href="#cb28-54" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mod2_inverse(M: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb28-55"><a href="#cb28-55" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb28-56"><a href="#cb28-56" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute inverse of a matrix modulo 2 using Gaussian elimination.</span></span>
-<span id="cb28-57"><a href="#cb28-57" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb28-58"><a href="#cb28-58" aria-hidden="true" tabindex="-1"></a>    n   <span class="op">=</span> M.shape[<span class="dv">0</span>]</span>
-<span id="cb28-59"><a href="#cb28-59" aria-hidden="true" tabindex="-1"></a>    aug <span class="op">=</span> np.concatenate([M.copy(), np.eye(n, dtype<span class="op">=</span><span class="bu">int</span>)], axis<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb28-60"><a href="#cb28-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-61"><a href="#cb28-61" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> col <span class="kw">in</span> <span class="bu">range</span>(n):</span>
-<span id="cb28-62"><a href="#cb28-62" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Find pivot</span></span>
-<span id="cb28-63"><a href="#cb28-63" aria-hidden="true" tabindex="-1"></a>        pivot <span class="op">=</span> <span class="va">None</span></span>
-<span id="cb28-64"><a href="#cb28-64" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> row <span class="kw">in</span> <span class="bu">range</span>(col, n):</span>
-<span id="cb28-65"><a href="#cb28-65" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> aug[row, col] <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb28-66"><a href="#cb28-66" aria-hidden="true" tabindex="-1"></a>                pivot <span class="op">=</span> row</span>
-<span id="cb28-67"><a href="#cb28-67" aria-hidden="true" tabindex="-1"></a>                <span class="cf">break</span></span>
-<span id="cb28-68"><a href="#cb28-68" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> pivot <span class="kw">is</span> <span class="va">None</span>:</span>
-<span id="cb28-69"><a href="#cb28-69" aria-hidden="true" tabindex="-1"></a>            <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"Matrix is singular mod 2"</span>)</span>
+<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>    parity <span class="op">=</span> []</span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> row <span class="kw">in</span> H:</span>
+<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a>        bit <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> a, b <span class="kw">in</span> <span class="bu">zip</span>(row[:k], message):</span>
+<span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a>            bit <span class="op">^=</span> a <span class="op">&amp;</span> b</span>
+<span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a>        parity.append(bit)</span>
+<span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> message <span class="op">+</span> parity</span>
+<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> syndrome(bits: <span class="bu">list</span>[<span class="bu">int</span>], H: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]]) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">int</span>]:</span>
+<span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Compute H * bits^T mod 2."""</span></span>
+<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a>    syn <span class="op">=</span> []</span>
+<span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> row <span class="kw">in</span> H:</span>
+<span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a>        value <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> a, b <span class="kw">in</span> <span class="bu">zip</span>(row, bits):</span>
+<span id="cb28-46"><a href="#cb28-46" aria-hidden="true" tabindex="-1"></a>            value <span class="op">^=</span> a <span class="op">&amp;</span> b</span>
+<span id="cb28-47"><a href="#cb28-47" aria-hidden="true" tabindex="-1"></a>        syn.append(value)</span>
+<span id="cb28-48"><a href="#cb28-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> syn</span>
+<span id="cb28-49"><a href="#cb28-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-50"><a href="#cb28-50" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> BeliefPropagationDecoder:</span>
+<span id="cb28-51"><a href="#cb28-51" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb28-52"><a href="#cb28-52" aria-hidden="true" tabindex="-1"></a><span class="co">    Min-sum belief propagation on a sparse parity-check graph.</span></span>
+<span id="cb28-53"><a href="#cb28-53" aria-hidden="true" tabindex="-1"></a><span class="co">    This is a toy implementation, but it captures the structure of</span></span>
+<span id="cb28-54"><a href="#cb28-54" aria-hidden="true" tabindex="-1"></a><span class="co">    practical LDPC decoding.</span></span>
+<span id="cb28-55"><a href="#cb28-55" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb28-56"><a href="#cb28-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-57"><a href="#cb28-57" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, H: <span class="bu">list</span>[<span class="bu">list</span>[<span class="bu">int</span>]], max_iterations: <span class="bu">int</span> <span class="op">=</span> <span class="dv">50</span>):</span>
+<span id="cb28-58"><a href="#cb28-58" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H <span class="op">=</span> H</span>
+<span id="cb28-59"><a href="#cb28-59" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.m <span class="op">=</span> <span class="bu">len</span>(H)</span>
+<span id="cb28-60"><a href="#cb28-60" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.n <span class="op">=</span> <span class="bu">len</span>(H[<span class="dv">0</span>])</span>
+<span id="cb28-61"><a href="#cb28-61" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.max_iterations <span class="op">=</span> max_iterations</span>
+<span id="cb28-62"><a href="#cb28-62" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.check_neighbors <span class="op">=</span> [</span>
+<span id="cb28-63"><a href="#cb28-63" aria-hidden="true" tabindex="-1"></a>            [j <span class="cf">for</span> j, value <span class="kw">in</span> <span class="bu">enumerate</span>(row) <span class="cf">if</span> value]</span>
+<span id="cb28-64"><a href="#cb28-64" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> row <span class="kw">in</span> H</span>
+<span id="cb28-65"><a href="#cb28-65" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb28-66"><a href="#cb28-66" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.var_neighbors <span class="op">=</span> [</span>
+<span id="cb28-67"><a href="#cb28-67" aria-hidden="true" tabindex="-1"></a>            [i <span class="cf">for</span> i, row <span class="kw">in</span> <span class="bu">enumerate</span>(H) <span class="cf">if</span> row[j]]</span>
+<span id="cb28-68"><a href="#cb28-68" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n)</span>
+<span id="cb28-69"><a href="#cb28-69" aria-hidden="true" tabindex="-1"></a>        ]</span>
 <span id="cb28-70"><a href="#cb28-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-71"><a href="#cb28-71" aria-hidden="true" tabindex="-1"></a>        aug[[col, pivot]] <span class="op">=</span> aug[[pivot, col]]</span>
-<span id="cb28-72"><a href="#cb28-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-73"><a href="#cb28-73" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> row <span class="kw">in</span> <span class="bu">range</span>(n):</span>
-<span id="cb28-74"><a href="#cb28-74" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> row <span class="op">!=</span> col <span class="kw">and</span> aug[row, col] <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb28-75"><a href="#cb28-75" aria-hidden="true" tabindex="-1"></a>                aug[row] <span class="op">=</span> (aug[row] <span class="op">+</span> aug[col]) <span class="op">%</span> <span class="dv">2</span></span>
-<span id="cb28-76"><a href="#cb28-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-77"><a href="#cb28-77" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> aug[:, n:]</span>
-<span id="cb28-78"><a href="#cb28-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-79"><a href="#cb28-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-80"><a href="#cb28-80" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> BeliefPropagationDecoder:</span>
-<span id="cb28-81"><a href="#cb28-81" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb28-82"><a href="#cb28-82" aria-hidden="true" tabindex="-1"></a><span class="co">    Sum-product (belief propagation) LDPC decoder.</span></span>
-<span id="cb28-83"><a href="#cb28-83" aria-hidden="true" tabindex="-1"></a><span class="co">    Operates on log-likelihood ratios (LLRs).</span></span>
-<span id="cb28-84"><a href="#cb28-84" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb28-85"><a href="#cb28-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-86"><a href="#cb28-86" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, H: np.ndarray, max_iterations: <span class="bu">int</span> <span class="op">=</span> <span class="dv">50</span>):</span>
-<span id="cb28-87"><a href="#cb28-87" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H              <span class="op">=</span> H</span>
-<span id="cb28-88"><a href="#cb28-88" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.m, <span class="va">self</span>.n      <span class="op">=</span> H.shape</span>
-<span id="cb28-89"><a href="#cb28-89" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.max_iterations <span class="op">=</span> max_iterations</span>
-<span id="cb28-90"><a href="#cb28-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-91"><a href="#cb28-91" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> decode(<span class="va">self</span>, channel_llr: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb28-92"><a href="#cb28-92" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
-<span id="cb28-93"><a href="#cb28-93" aria-hidden="true" tabindex="-1"></a><span class="co">        Decode using belief propagation.</span></span>
-<span id="cb28-94"><a href="#cb28-94" aria-hidden="true" tabindex="-1"></a><span class="co">        channel_llr: log-likelihood ratios from channel</span></span>
-<span id="cb28-95"><a href="#cb28-95" aria-hidden="true" tabindex="-1"></a><span class="co">                     LLR &gt; 0 =&gt; bit is likely 0</span></span>
-<span id="cb28-96"><a href="#cb28-96" aria-hidden="true" tabindex="-1"></a><span class="co">                     LLR &lt; 0 =&gt; bit is likely 1</span></span>
-<span id="cb28-97"><a href="#cb28-97" aria-hidden="true" tabindex="-1"></a><span class="co">        Returns decoded bits.</span></span>
-<span id="cb28-98"><a href="#cb28-98" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
-<span id="cb28-99"><a href="#cb28-99" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Initialize variable-to-check messages</span></span>
-<span id="cb28-100"><a href="#cb28-100" aria-hidden="true" tabindex="-1"></a>        v2c <span class="op">=</span> np.zeros((<span class="va">self</span>.m, <span class="va">self</span>.n))</span>
-<span id="cb28-101"><a href="#cb28-101" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m):</span>
-<span id="cb28-102"><a href="#cb28-102" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n):</span>
-<span id="cb28-103"><a href="#cb28-103" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="va">self</span>.H[i, j] <span class="op">==</span> <span class="dv">1</span>:</span>
-<span id="cb28-104"><a href="#cb28-104" aria-hidden="true" tabindex="-1"></a>                    v2c[i, j] <span class="op">=</span> channel_llr[j]</span>
-<span id="cb28-105"><a href="#cb28-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-106"><a href="#cb28-106" aria-hidden="true" tabindex="-1"></a>        c2v <span class="op">=</span> np.zeros((<span class="va">self</span>.m, <span class="va">self</span>.n))</span>
-<span id="cb28-107"><a href="#cb28-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-108"><a href="#cb28-108" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> iteration <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.max_iterations):</span>
-<span id="cb28-109"><a href="#cb28-109" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Check-to-variable update (min-sum approximation)</span></span>
-<span id="cb28-110"><a href="#cb28-110" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m):</span>
-<span id="cb28-111"><a href="#cb28-111" aria-hidden="true" tabindex="-1"></a>                connected <span class="op">=</span> [j <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n)</span>
-<span id="cb28-112"><a href="#cb28-112" aria-hidden="true" tabindex="-1"></a>                             <span class="cf">if</span> <span class="va">self</span>.H[i, j] <span class="op">==</span> <span class="dv">1</span>]</span>
-<span id="cb28-113"><a href="#cb28-113" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> j <span class="kw">in</span> connected:</span>
-<span id="cb28-114"><a href="#cb28-114" aria-hidden="true" tabindex="-1"></a>                    others <span class="op">=</span> [v2c[i, k] <span class="cf">for</span> k <span class="kw">in</span> connected <span class="cf">if</span> k <span class="op">!=</span> j]</span>
-<span id="cb28-115"><a href="#cb28-115" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> others:</span>
-<span id="cb28-116"><a href="#cb28-116" aria-hidden="true" tabindex="-1"></a>                        sign    <span class="op">=</span> <span class="dv">1</span> <span class="cf">if</span> <span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> x <span class="kw">in</span> others <span class="cf">if</span> x <span class="op">&lt;</span> <span class="dv">0</span>) <span class="op">%</span> <span class="dv">2</span> <span class="op">==</span> <span class="dv">0</span> <span class="cf">else</span> <span class="op">-</span><span class="dv">1</span></span>
-<span id="cb28-117"><a href="#cb28-117" aria-hidden="true" tabindex="-1"></a>                        min_mag <span class="op">=</span> <span class="bu">min</span>(<span class="bu">abs</span>(x) <span class="cf">for</span> x <span class="kw">in</span> others)</span>
-<span id="cb28-118"><a href="#cb28-118" aria-hidden="true" tabindex="-1"></a>                        c2v[i, j] <span class="op">=</span> sign <span class="op">*</span> min_mag</span>
-<span id="cb28-119"><a href="#cb28-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-120"><a href="#cb28-120" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Variable-to-check update</span></span>
-<span id="cb28-121"><a href="#cb28-121" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n):</span>
-<span id="cb28-122"><a href="#cb28-122" aria-hidden="true" tabindex="-1"></a>                connected <span class="op">=</span> [i <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m)</span>
-<span id="cb28-123"><a href="#cb28-123" aria-hidden="true" tabindex="-1"></a>                             <span class="cf">if</span> <span class="va">self</span>.H[i, j] <span class="op">==</span> <span class="dv">1</span>]</span>
-<span id="cb28-124"><a href="#cb28-124" aria-hidden="true" tabindex="-1"></a>                total_llr <span class="op">=</span> channel_llr[j] <span class="op">+</span> <span class="bu">sum</span>(c2v[i, j]</span>
-<span id="cb28-125"><a href="#cb28-125" aria-hidden="true" tabindex="-1"></a>                                                   <span class="cf">for</span> i <span class="kw">in</span> connected)</span>
-<span id="cb28-126"><a href="#cb28-126" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> i <span class="kw">in</span> connected:</span>
-<span id="cb28-127"><a href="#cb28-127" aria-hidden="true" tabindex="-1"></a>                    v2c[i, j] <span class="op">=</span> total_llr <span class="op">-</span> c2v[i, j]</span>
-<span id="cb28-128"><a href="#cb28-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-129"><a href="#cb28-129" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Hard decision</span></span>
-<span id="cb28-130"><a href="#cb28-130" aria-hidden="true" tabindex="-1"></a>            total_llr <span class="op">=</span> np.array([</span>
-<span id="cb28-131"><a href="#cb28-131" aria-hidden="true" tabindex="-1"></a>                channel_llr[j] <span class="op">+</span> <span class="bu">sum</span>(c2v[i, j]</span>
-<span id="cb28-132"><a href="#cb28-132" aria-hidden="true" tabindex="-1"></a>                                     <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m)</span>
-<span id="cb28-133"><a href="#cb28-133" aria-hidden="true" tabindex="-1"></a>                                     <span class="cf">if</span> <span class="va">self</span>.H[i, j] <span class="op">==</span> <span class="dv">1</span>)</span>
-<span id="cb28-134"><a href="#cb28-134" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n)</span>
-<span id="cb28-135"><a href="#cb28-135" aria-hidden="true" tabindex="-1"></a>            ])</span>
-<span id="cb28-136"><a href="#cb28-136" aria-hidden="true" tabindex="-1"></a>            bits <span class="op">=</span> (total_llr <span class="op">&lt;</span> <span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
-<span id="cb28-137"><a href="#cb28-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-138"><a href="#cb28-138" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Check if valid codeword</span></span>
-<span id="cb28-139"><a href="#cb28-139" aria-hidden="true" tabindex="-1"></a>            syndrome <span class="op">=</span> matrix_multiply_mod2(<span class="va">self</span>.H, bits.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb28-140"><a href="#cb28-140" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> np.<span class="bu">all</span>(syndrome <span class="op">==</span> <span class="dv">0</span>):</span>
-<span id="cb28-141"><a href="#cb28-141" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> bits  <span class="co"># Converged</span></span>
-<span id="cb28-142"><a href="#cb28-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-143"><a href="#cb28-143" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Return best guess if no convergence</span></span>
-<span id="cb28-144"><a href="#cb28-144" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (total_llr <span class="op">&lt;</span> <span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
-<span id="cb28-145"><a href="#cb28-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-146"><a href="#cb28-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-147"><a href="#cb28-147" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ldpc_simulation():</span>
-<span id="cb28-148"><a href="#cb28-148" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb28-149"><a href="#cb28-149" aria-hidden="true" tabindex="-1"></a><span class="co">    Simulate LDPC code performance on BSC and AWGN channel.</span></span>
-<span id="cb28-150"><a href="#cb28-150" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb28-151"><a href="#cb28-151" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> random</span>
-<span id="cb28-152"><a href="#cb28-152" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> math</span>
-<span id="cb28-153"><a href="#cb28-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-154"><a href="#cb28-154" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Small LDPC code for demonstration</span></span>
-<span id="cb28-155"><a href="#cb28-155" aria-hidden="true" tabindex="-1"></a>    n, k <span class="op">=</span> <span class="dv">20</span>, <span class="dv">10</span></span>
-<span id="cb28-156"><a href="#cb28-156" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">42</span>)</span>
-<span id="cb28-157"><a href="#cb28-157" aria-hidden="true" tabindex="-1"></a>    random.seed(<span class="dv">42</span>)</span>
-<span id="cb28-158"><a href="#cb28-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-159"><a href="#cb28-159" aria-hidden="true" tabindex="-1"></a>    H       <span class="op">=</span> make_ldpc_matrix(n, k, row_weight<span class="op">=</span><span class="dv">3</span>)</span>
-<span id="cb28-160"><a href="#cb28-160" aria-hidden="true" tabindex="-1"></a>    decoder <span class="op">=</span> BeliefPropagationDecoder(H, max_iterations<span class="op">=</span><span class="dv">20</span>)</span>
-<span id="cb28-161"><a href="#cb28-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-162"><a href="#cb28-162" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"LDPC code simulation"</span>)</span>
-<span id="cb28-163"><a href="#cb28-163" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Code parameters: n=</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">, k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">, rate=</span><span class="sc">{</span>k<span class="op">/</span>n<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb28-164"><a href="#cb28-164" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Parity check matrix density: "</span></span>
-<span id="cb28-165"><a href="#cb28-165" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>H<span class="sc">.</span><span class="bu">sum</span>()<span class="op">/</span>(H.shape[<span class="dv">0</span>]<span class="op">*</span>H.shape[<span class="dv">1</span>])<span class="sc">:.3f}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb28-166"><a href="#cb28-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-167"><a href="#cb28-167" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simulate over AWGN channel at various SNRs</span></span>
-<span id="cb28-168"><a href="#cb28-168" aria-hidden="true" tabindex="-1"></a>    n_trials <span class="op">=</span> <span class="dv">500</span></span>
-<span id="cb28-169"><a href="#cb28-169" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'SNR (dB)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'BER (uncoded)'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'BER (LDPC)'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
-<span id="cb28-170"><a href="#cb28-170" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
-<span id="cb28-171"><a href="#cb28-171" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-172"><a href="#cb28-172" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> snr_db <span class="kw">in</span> [<span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">6</span>, <span class="dv">8</span>]:</span>
-<span id="cb28-173"><a href="#cb28-173" aria-hidden="true" tabindex="-1"></a>        snr_linear  <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (snr_db <span class="op">/</span> <span class="dv">10</span>)</span>
-<span id="cb28-174"><a href="#cb28-174" aria-hidden="true" tabindex="-1"></a>        sigma       <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> math.sqrt(<span class="dv">2</span> <span class="op">*</span> snr_linear <span class="op">*</span> k<span class="op">/</span>n)</span>
-<span id="cb28-175"><a href="#cb28-175" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-176"><a href="#cb28-176" aria-hidden="true" tabindex="-1"></a>        uncoded_errors <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb28-177"><a href="#cb28-177" aria-hidden="true" tabindex="-1"></a>        ldpc_errors    <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb28-178"><a href="#cb28-178" aria-hidden="true" tabindex="-1"></a>        total_bits     <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb28-179"><a href="#cb28-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-180"><a href="#cb28-180" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials):</span>
-<span id="cb28-181"><a href="#cb28-181" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Random message</span></span>
-<span id="cb28-182"><a href="#cb28-182" aria-hidden="true" tabindex="-1"></a>            message <span class="op">=</span> np.array([random.randint(<span class="dv">0</span>, <span class="dv">1</span>) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(k)])</span>
-<span id="cb28-183"><a href="#cb28-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-184"><a href="#cb28-184" aria-hidden="true" tabindex="-1"></a>            <span class="co"># BPSK modulation: 0 -&gt; +1, 1 -&gt; -1</span></span>
-<span id="cb28-185"><a href="#cb28-185" aria-hidden="true" tabindex="-1"></a>            tx_bits    <span class="op">=</span> np.concatenate([message,</span>
-<span id="cb28-186"><a href="#cb28-186" aria-hidden="true" tabindex="-1"></a>                                         np.zeros(n<span class="op">-</span>k, dtype<span class="op">=</span><span class="bu">int</span>)])</span>
-<span id="cb28-187"><a href="#cb28-187" aria-hidden="true" tabindex="-1"></a>            tx_symbols <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> tx_bits</span>
-<span id="cb28-188"><a href="#cb28-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-189"><a href="#cb28-189" aria-hidden="true" tabindex="-1"></a>            <span class="co"># AWGN channel</span></span>
-<span id="cb28-190"><a href="#cb28-190" aria-hidden="true" tabindex="-1"></a>            noise      <span class="op">=</span> np.random.normal(<span class="dv">0</span>, sigma, n)</span>
-<span id="cb28-191"><a href="#cb28-191" aria-hidden="true" tabindex="-1"></a>            rx_symbols <span class="op">=</span> tx_symbols <span class="op">+</span> noise</span>
-<span id="cb28-192"><a href="#cb28-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-193"><a href="#cb28-193" aria-hidden="true" tabindex="-1"></a>            <span class="co"># LLR computation: LLR = 2*rx/sigma^2</span></span>
-<span id="cb28-194"><a href="#cb28-194" aria-hidden="true" tabindex="-1"></a>            llr <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> rx_symbols <span class="op">/</span> (sigma <span class="op">**</span> <span class="dv">2</span>)</span>
-<span id="cb28-195"><a href="#cb28-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-196"><a href="#cb28-196" aria-hidden="true" tabindex="-1"></a>            <span class="co"># LDPC decode</span></span>
-<span id="cb28-197"><a href="#cb28-197" aria-hidden="true" tabindex="-1"></a>            decoded <span class="op">=</span> decoder.decode(llr)</span>
-<span id="cb28-198"><a href="#cb28-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-199"><a href="#cb28-199" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Count errors (data bits only)</span></span>
-<span id="cb28-200"><a href="#cb28-200" aria-hidden="true" tabindex="-1"></a>            ldpc_errors    <span class="op">+=</span> np.<span class="bu">sum</span>(decoded[:k] <span class="op">!=</span> message)</span>
-<span id="cb28-201"><a href="#cb28-201" aria-hidden="true" tabindex="-1"></a>            uncoded_errors <span class="op">+=</span> np.<span class="bu">sum</span>((rx_symbols[:k] <span class="op">&lt;</span> <span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
-<span id="cb28-202"><a href="#cb28-202" aria-hidden="true" tabindex="-1"></a>                                     <span class="op">!=</span> message)</span>
-<span id="cb28-203"><a href="#cb28-203" aria-hidden="true" tabindex="-1"></a>            total_bits     <span class="op">+=</span> k</span>
-<span id="cb28-204"><a href="#cb28-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-205"><a href="#cb28-205" aria-hidden="true" tabindex="-1"></a>        ber_uncoded <span class="op">=</span> uncoded_errors <span class="op">/</span> total_bits</span>
-<span id="cb28-206"><a href="#cb28-206" aria-hidden="true" tabindex="-1"></a>        ber_ldpc    <span class="op">=</span> ldpc_errors    <span class="op">/</span> total_bits</span>
-<span id="cb28-207"><a href="#cb28-207" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-208"><a href="#cb28-208" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>snr_db<span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span>ber_uncoded<span class="sc">:&gt;16.4f}</span><span class="ss"> </span><span class="sc">{</span>ber_ldpc<span class="sc">:&gt;14.4f}</span><span class="ss">"</span>)</span>
-<span id="cb28-209"><a href="#cb28-209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-210"><a href="#cb28-210" aria-hidden="true" tabindex="-1"></a>ldpc_simulation()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb28-71"><a href="#cb28-71" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> decode(<span class="va">self</span>, channel_llr: <span class="bu">list</span>[<span class="bu">float</span>]) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">int</span>]:</span>
+<span id="cb28-72"><a href="#cb28-72" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
+<span id="cb28-73"><a href="#cb28-73" aria-hidden="true" tabindex="-1"></a><span class="co">        Decode using the min-sum approximation to belief propagation.</span></span>
+<span id="cb28-74"><a href="#cb28-74" aria-hidden="true" tabindex="-1"></a><span class="co">        LLR &gt; 0 means bit 0 is more likely; LLR &lt; 0 means bit 1 is more likely.</span></span>
+<span id="cb28-75"><a href="#cb28-75" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb28-76"><a href="#cb28-76" aria-hidden="true" tabindex="-1"></a>        v2c <span class="op">=</span> {</span>
+<span id="cb28-77"><a href="#cb28-77" aria-hidden="true" tabindex="-1"></a>            (i, j): channel_llr[j]</span>
+<span id="cb28-78"><a href="#cb28-78" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m)</span>
+<span id="cb28-79"><a href="#cb28-79" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="va">self</span>.check_neighbors[i]</span>
+<span id="cb28-80"><a href="#cb28-80" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb28-81"><a href="#cb28-81" aria-hidden="true" tabindex="-1"></a>        c2v <span class="op">=</span> {</span>
+<span id="cb28-82"><a href="#cb28-82" aria-hidden="true" tabindex="-1"></a>            (i, j): <span class="fl">0.0</span></span>
+<span id="cb28-83"><a href="#cb28-83" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m)</span>
+<span id="cb28-84"><a href="#cb28-84" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="va">self</span>.check_neighbors[i]</span>
+<span id="cb28-85"><a href="#cb28-85" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb28-86"><a href="#cb28-86" aria-hidden="true" tabindex="-1"></a>        total_llr <span class="op">=</span> channel_llr[:]</span>
+<span id="cb28-87"><a href="#cb28-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-88"><a href="#cb28-88" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.max_iterations):</span>
+<span id="cb28-89"><a href="#cb28-89" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.m):</span>
+<span id="cb28-90"><a href="#cb28-90" aria-hidden="true" tabindex="-1"></a>                connected <span class="op">=</span> <span class="va">self</span>.check_neighbors[i]</span>
+<span id="cb28-91"><a href="#cb28-91" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> j <span class="kw">in</span> connected:</span>
+<span id="cb28-92"><a href="#cb28-92" aria-hidden="true" tabindex="-1"></a>                    others <span class="op">=</span> [v2c[(i, k)] <span class="cf">for</span> k <span class="kw">in</span> connected <span class="cf">if</span> k <span class="op">!=</span> j]</span>
+<span id="cb28-93"><a href="#cb28-93" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> <span class="kw">not</span> others:</span>
+<span id="cb28-94"><a href="#cb28-94" aria-hidden="true" tabindex="-1"></a>                        c2v[(i, j)] <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb28-95"><a href="#cb28-95" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">continue</span></span>
+<span id="cb28-96"><a href="#cb28-96" aria-hidden="true" tabindex="-1"></a>                    sign <span class="op">=</span> <span class="op">-</span><span class="fl">1.0</span> <span class="cf">if</span> <span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> x <span class="kw">in</span> others <span class="cf">if</span> x <span class="op">&lt;</span> <span class="dv">0</span>) <span class="op">%</span> <span class="dv">2</span> <span class="cf">else</span> <span class="fl">1.0</span></span>
+<span id="cb28-97"><a href="#cb28-97" aria-hidden="true" tabindex="-1"></a>                    min_mag <span class="op">=</span> <span class="bu">min</span>(<span class="bu">abs</span>(x) <span class="cf">for</span> x <span class="kw">in</span> others)</span>
+<span id="cb28-98"><a href="#cb28-98" aria-hidden="true" tabindex="-1"></a>                    c2v[(i, j)] <span class="op">=</span> sign <span class="op">*</span> min_mag</span>
+<span id="cb28-99"><a href="#cb28-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-100"><a href="#cb28-100" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n):</span>
+<span id="cb28-101"><a href="#cb28-101" aria-hidden="true" tabindex="-1"></a>                connected <span class="op">=</span> <span class="va">self</span>.var_neighbors[j]</span>
+<span id="cb28-102"><a href="#cb28-102" aria-hidden="true" tabindex="-1"></a>                total <span class="op">=</span> channel_llr[j] <span class="op">+</span> <span class="bu">sum</span>(c2v[(i, j)] <span class="cf">for</span> i <span class="kw">in</span> connected)</span>
+<span id="cb28-103"><a href="#cb28-103" aria-hidden="true" tabindex="-1"></a>                total_llr[j] <span class="op">=</span> total</span>
+<span id="cb28-104"><a href="#cb28-104" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> i <span class="kw">in</span> connected:</span>
+<span id="cb28-105"><a href="#cb28-105" aria-hidden="true" tabindex="-1"></a>                    v2c[(i, j)] <span class="op">=</span> total <span class="op">-</span> c2v[(i, j)]</span>
+<span id="cb28-106"><a href="#cb28-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-107"><a href="#cb28-107" aria-hidden="true" tabindex="-1"></a>            bits <span class="op">=</span> [<span class="dv">1</span> <span class="cf">if</span> total_llr[j] <span class="op">&lt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span> <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n)]</span>
+<span id="cb28-108"><a href="#cb28-108" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="bu">all</span>(value <span class="op">==</span> <span class="dv">0</span> <span class="cf">for</span> value <span class="kw">in</span> syndrome(bits, <span class="va">self</span>.H)):</span>
+<span id="cb28-109"><a href="#cb28-109" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> bits</span>
+<span id="cb28-110"><a href="#cb28-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-111"><a href="#cb28-111" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [<span class="dv">1</span> <span class="cf">if</span> total_llr[j] <span class="op">&lt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span> <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.n)]</span>
+<span id="cb28-112"><a href="#cb28-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-113"><a href="#cb28-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-114"><a href="#cb28-114" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ldpc_simulation():</span>
+<span id="cb28-115"><a href="#cb28-115" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb28-116"><a href="#cb28-116" aria-hidden="true" tabindex="-1"></a><span class="co">    Simulate a tiny LDPC code on an AWGN channel.</span></span>
+<span id="cb28-117"><a href="#cb28-117" aria-hidden="true" tabindex="-1"></a><span class="co">    This is far smaller than production codes, but it shows the shape</span></span>
+<span id="cb28-118"><a href="#cb28-118" aria-hidden="true" tabindex="-1"></a><span class="co">    of the gain from iterative decoding.</span></span>
+<span id="cb28-119"><a href="#cb28-119" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb28-120"><a href="#cb28-120" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> math</span>
+<span id="cb28-121"><a href="#cb28-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-122"><a href="#cb28-122" aria-hidden="true" tabindex="-1"></a>    n, k <span class="op">=</span> <span class="dv">20</span>, <span class="dv">10</span></span>
+<span id="cb28-123"><a href="#cb28-123" aria-hidden="true" tabindex="-1"></a>    H       <span class="op">=</span> make_ldpc_matrix(n, k, ones_per_data_col<span class="op">=</span><span class="dv">2</span>, seed<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb28-124"><a href="#cb28-124" aria-hidden="true" tabindex="-1"></a>    decoder <span class="op">=</span> BeliefPropagationDecoder(H, max_iterations<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb28-125"><a href="#cb28-125" aria-hidden="true" tabindex="-1"></a>    rng     <span class="op">=</span> random.Random(<span class="dv">42</span>)</span>
+<span id="cb28-126"><a href="#cb28-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-127"><a href="#cb28-127" aria-hidden="true" tabindex="-1"></a>    density <span class="op">=</span> <span class="bu">sum</span>(<span class="bu">sum</span>(row) <span class="cf">for</span> row <span class="kw">in</span> H) <span class="op">/</span> (<span class="bu">len</span>(H) <span class="op">*</span> <span class="bu">len</span>(H[<span class="dv">0</span>]))</span>
+<span id="cb28-128"><a href="#cb28-128" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"LDPC code simulation"</span>)</span>
+<span id="cb28-129"><a href="#cb28-129" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Code parameters: n=</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">, k=</span><span class="sc">{</span>k<span class="sc">}</span><span class="ss">, rate=</span><span class="sc">{</span>k<span class="op">/</span>n<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb28-130"><a href="#cb28-130" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Parity check matrix density: </span><span class="sc">{</span>density<span class="sc">:.3f}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb28-131"><a href="#cb28-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-132"><a href="#cb28-132" aria-hidden="true" tabindex="-1"></a>    n_trials <span class="op">=</span> <span class="dv">500</span></span>
+<span id="cb28-133"><a href="#cb28-133" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'SNR (dB)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'BER (uncoded)'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'BER (LDPC)'</span><span class="sc">:&gt;14}</span><span class="ss">"</span>)</span>
+<span id="cb28-134"><a href="#cb28-134" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
+<span id="cb28-135"><a href="#cb28-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-136"><a href="#cb28-136" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> snr_db <span class="kw">in</span> [<span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">6</span>, <span class="dv">8</span>]:</span>
+<span id="cb28-137"><a href="#cb28-137" aria-hidden="true" tabindex="-1"></a>        snr_linear <span class="op">=</span> <span class="dv">10</span> <span class="op">**</span> (snr_db <span class="op">/</span> <span class="dv">10</span>)</span>
+<span id="cb28-138"><a href="#cb28-138" aria-hidden="true" tabindex="-1"></a>        sigma      <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> math.sqrt(<span class="dv">2</span> <span class="op">*</span> snr_linear <span class="op">*</span> k <span class="op">/</span> n)</span>
+<span id="cb28-139"><a href="#cb28-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-140"><a href="#cb28-140" aria-hidden="true" tabindex="-1"></a>        uncoded_errors <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb28-141"><a href="#cb28-141" aria-hidden="true" tabindex="-1"></a>        ldpc_errors    <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb28-142"><a href="#cb28-142" aria-hidden="true" tabindex="-1"></a>        total_bits     <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb28-143"><a href="#cb28-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-144"><a href="#cb28-144" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials):</span>
+<span id="cb28-145"><a href="#cb28-145" aria-hidden="true" tabindex="-1"></a>            message   <span class="op">=</span> [rng.randint(<span class="dv">0</span>, <span class="dv">1</span>) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(k)]</span>
+<span id="cb28-146"><a href="#cb28-146" aria-hidden="true" tabindex="-1"></a>            codeword  <span class="op">=</span> ldpc_encode_systematic(message, H)</span>
+<span id="cb28-147"><a href="#cb28-147" aria-hidden="true" tabindex="-1"></a>            tx_symbols <span class="op">=</span> [<span class="dv">1</span> <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> bit <span class="cf">for</span> bit <span class="kw">in</span> codeword]</span>
+<span id="cb28-148"><a href="#cb28-148" aria-hidden="true" tabindex="-1"></a>            rx_symbols <span class="op">=</span> [symbol <span class="op">+</span> rng.gauss(<span class="dv">0</span>, sigma)</span>
+<span id="cb28-149"><a href="#cb28-149" aria-hidden="true" tabindex="-1"></a>                          <span class="cf">for</span> symbol <span class="kw">in</span> tx_symbols]</span>
+<span id="cb28-150"><a href="#cb28-150" aria-hidden="true" tabindex="-1"></a>            llr        <span class="op">=</span> [<span class="dv">2</span> <span class="op">*</span> value <span class="op">/</span> (sigma <span class="op">**</span> <span class="dv">2</span>) <span class="cf">for</span> value <span class="kw">in</span> rx_symbols]</span>
+<span id="cb28-151"><a href="#cb28-151" aria-hidden="true" tabindex="-1"></a>            decoded    <span class="op">=</span> decoder.decode(llr)</span>
+<span id="cb28-152"><a href="#cb28-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-153"><a href="#cb28-153" aria-hidden="true" tabindex="-1"></a>            ldpc_errors <span class="op">+=</span> <span class="bu">sum</span>(a <span class="op">!=</span> b <span class="cf">for</span> a, b <span class="kw">in</span> <span class="bu">zip</span>(decoded[:k], message))</span>
+<span id="cb28-154"><a href="#cb28-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-155"><a href="#cb28-155" aria-hidden="true" tabindex="-1"></a>            uncoded_rx   <span class="op">=</span> [<span class="dv">1</span> <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> bit <span class="op">+</span> rng.gauss(<span class="dv">0</span>, sigma)</span>
+<span id="cb28-156"><a href="#cb28-156" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">for</span> bit <span class="kw">in</span> message]</span>
+<span id="cb28-157"><a href="#cb28-157" aria-hidden="true" tabindex="-1"></a>            uncoded_bits <span class="op">=</span> [<span class="dv">1</span> <span class="cf">if</span> value <span class="op">&lt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="dv">0</span> <span class="cf">for</span> value <span class="kw">in</span> uncoded_rx]</span>
+<span id="cb28-158"><a href="#cb28-158" aria-hidden="true" tabindex="-1"></a>            uncoded_errors <span class="op">+=</span> <span class="bu">sum</span>(a <span class="op">!=</span> b <span class="cf">for</span> a, b <span class="kw">in</span> <span class="bu">zip</span>(uncoded_bits, message))</span>
+<span id="cb28-159"><a href="#cb28-159" aria-hidden="true" tabindex="-1"></a>            total_bits <span class="op">+=</span> k</span>
+<span id="cb28-160"><a href="#cb28-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-161"><a href="#cb28-161" aria-hidden="true" tabindex="-1"></a>        ber_uncoded <span class="op">=</span> uncoded_errors <span class="op">/</span> total_bits</span>
+<span id="cb28-162"><a href="#cb28-162" aria-hidden="true" tabindex="-1"></a>        ber_ldpc    <span class="op">=</span> ldpc_errors <span class="op">/</span> total_bits</span>
+<span id="cb28-163"><a href="#cb28-163" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>snr_db<span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span>ber_uncoded<span class="sc">:&gt;16.4f}</span><span class="ss"> </span><span class="sc">{</span>ber_ldpc<span class="sc">:&gt;14.4f}</span><span class="ss">"</span>)</span>
+<span id="cb28-164"><a href="#cb28-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-165"><a href="#cb28-165" aria-hidden="true" tabindex="-1"></a>ldpc_simulation()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output (approximate):</p>
 <pre><code>LDPC code simulation
 Code parameters: n=20, k=10, rate=0.50
 Parity check matrix density: 0.150
 
-  SNR (dB)   BER (uncoded)   BER (LDPC)
+  SNR (dB)    BER (uncoded)     BER (LDPC)
 --------------------------------------------
-         0          0.1588       0.2412
-         2          0.0870       0.1156
-         4          0.0372       0.0476
-         6          0.0116       0.0104
-         8          0.0022       0.0008</code></pre>
-<p>Even this tiny demonstration code (n=20) shows LDPC improving on uncoded transmission at high SNR. Real LDPC codes with n in the thousands show dramatic waterfall effects — near-zero error rates at SNRs within 0.1 dB of capacity.</p>
+         0           0.1548         0.1104
+         2           0.1024         0.0496
+         4           0.0530         0.0170
+         6           0.0218         0.0008
+         8           0.0066         0.0000</code></pre>
+<p>Even this tiny demonstration code (n=20) already improves on uncoded transmission across the tested SNR range. Real LDPC codes with n in the thousands show much sharper waterfall effects — near-zero error rates at SNRs within a fraction of a decibel of capacity.</p>
 <hr>
 </section>
 <section id="turbo-codes-and-polar-codes-the-modern-era" class="level2" data-number="11.9">
@@ -1553,7 +1500,7 @@ Why QR codes survive damage:
 <p>A code that can correct t errors must place “spheres” of radius t around each codeword such that no two spheres overlap. The sphere of radius t around a codeword contains all words within Hamming distance t of it. The total number of binary strings of length n is 2ⁿ. The volume of a sphere of radius t in {0,1}ⁿ is:</p>
 <pre><code>V(n, t) = ∑_{i=0}^{t} C(n, i)</code></pre>
 <p>For a code with M codewords that corrects t errors: M × V(n, t) ≤ 2ⁿ.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> math <span class="im">import</span> comb</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> math <span class="im">import</span> comb, log2</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sphere_volume(n: <span class="bu">int</span>, t: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">int</span>:</span>
 <span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Volume of Hamming sphere of radius t in {0,1}^n."""</span></span>
@@ -1571,7 +1518,7 @@ Why QR codes survive damage:
 <span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>    M    <span class="op">=</span> hamming_bound(n, t)</span>
 <span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> M <span class="op">&lt;=</span> <span class="dv">1</span>:</span>
 <span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="fl">0.0</span></span>
-<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> math.log2(M) <span class="op">/</span> n</span>
+<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> log2(M) <span class="op">/</span> n</span>
 <span id="cb35-20"><a href="#cb35-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb35-21"><a href="#cb35-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Hamming Bound: Maximum code size for given parameters</span><span class="ch">\n</span><span class="st">"</span>)</span>
 <span id="cb35-22"><a href="#cb35-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'n'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'t'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Sphere vol'</span><span class="sc">:&gt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Max codewords'</span><span class="sc">:&gt;16}</span><span class="ss"> "</span></span>
@@ -1592,16 +1539,16 @@ Why QR codes survive damage:
      7      3           64               2     0.1429
 
     15      1           16            2048     0.7333
-    15      2          121             270     0.4247
-    15      3          576              57     0.3800
+    15      2          121             270     0.5385
+    15      3          576              56     0.3872
 
-    23      1           24          349525     0.8696
-    23      2          277           30330     0.6599
+    23      1           24          349525     0.8007
+    23      2          277           30283     0.6472
     23      3         2048            4096     0.5217
 
-    31      1           32        67108864     1.0000
-    31      2          497         4325377     0.7204
-    31      3         4960          432891     0.5645</code></pre>
+    31      1           32        67108864     0.8387
+    31      2          497         4320892     0.7111
+    31      3         4992          430185     0.6037</code></pre>
 <p>A code that meets the Hamming bound with equality is called a <em>perfect code</em> — every binary string of length n is within distance t of exactly one codeword. Hamming codes are perfect codes for t=1. The binary Golay code (n=23, k=12, t=3) is one of only three known non-trivial perfect codes — it appears in the analysis of the Mathieu groups in group theory.</p>
 <p>The Hamming bound tells us how good a code can possibly be. When a code meets it, we know no improvement is possible. When a code falls short, we know there is room for a better construction.</p>
 <hr>

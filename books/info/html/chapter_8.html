@@ -590,52 +590,51 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 <p>The transition probability is the channel’s noise model. It captures everything about how the channel distorts the input. A noiseless channel has p(y|x) = 1 when y = x and 0 otherwise. A completely random channel has p(y|x) = 1/|Y| regardless of x — the output is independent of the input.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> defaultdict</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Channel:</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">    A discrete memoryless channel (DMC).</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Defined by input alphabet, output alphabet, and transition matrix.</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, inputs: <span class="bu">list</span>, outputs: <span class="bu">list</span>,</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>                 transition: <span class="bu">dict</span>):</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">        transition: dict mapping (x, y) -&gt; p(y|x)</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">        Must satisfy: sum_y p(y|x) = 1 for all x.</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.inputs     <span class="op">=</span> inputs</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.outputs    <span class="op">=</span> outputs</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.transition <span class="op">=</span> transition</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._validate()</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _validate(<span class="va">self</span>):</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> x <span class="kw">in</span> <span class="va">self</span>.inputs:</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>            total <span class="op">=</span> <span class="bu">sum</span>(<span class="va">self</span>.transition.get((x, y), <span class="dv">0</span>)</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">for</span> y <span class="kw">in</span> <span class="va">self</span>.outputs)</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="bu">abs</span>(total <span class="op">-</span> <span class="fl">1.0</span>) <span class="op">&gt;</span> <span class="fl">1e-9</span>:</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>                <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f"Transition probabilities for input '</span><span class="sc">{</span>x<span class="sc">}</span><span class="ss">' "</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f"sum to </span><span class="sc">{</span>total<span class="sc">}</span><span class="ss">, not 1.0"</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>                )</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> p(<span class="va">self</span>, x, y) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""P(output=y | input=x)"""</span></span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.transition.get((x, y), <span class="fl">0.0</span>)</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> transmit(<span class="va">self</span>, x) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Simulate transmitting symbol x through the channel."""</span></span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>        <span class="im">import</span> random</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>        outputs <span class="op">=</span> <span class="va">self</span>.outputs</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>        probs   <span class="op">=</span> [<span class="va">self</span>.p(x, y) <span class="cf">for</span> y <span class="kw">in</span> outputs]</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> random.choices(outputs, weights<span class="op">=</span>probs)[<span class="dv">0</span>]</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> transition_matrix(<span class="va">self</span>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Return the transition matrix as a numpy array."""</span></span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.array([</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>            [<span class="va">self</span>.p(x, y) <span class="cf">for</span> y <span class="kw">in</span> <span class="va">self</span>.outputs]</span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> x <span class="kw">in</span> <span class="va">self</span>.inputs</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>        ])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> defaultdict</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Channel:</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">    A discrete memoryless channel (DMC).</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Defined by input alphabet, output alphabet, and transition matrix.</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, inputs: <span class="bu">list</span>, outputs: <span class="bu">list</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>                 transition: <span class="bu">dict</span>):</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">        transition: dict mapping (x, y) -&gt; p(y|x)</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">        Must satisfy: sum_y p(y|x) = 1 for all x.</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">        """</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.inputs     <span class="op">=</span> inputs</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.outputs    <span class="op">=</span> outputs</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.transition <span class="op">=</span> transition</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>._validate()</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _validate(<span class="va">self</span>):</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> x <span class="kw">in</span> <span class="va">self</span>.inputs:</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>            total <span class="op">=</span> <span class="bu">sum</span>(<span class="va">self</span>.transition.get((x, y), <span class="dv">0</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">for</span> y <span class="kw">in</span> <span class="va">self</span>.outputs)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="bu">abs</span>(total <span class="op">-</span> <span class="fl">1.0</span>) <span class="op">&gt;</span> <span class="fl">1e-9</span>:</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>                <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f"Transition probabilities for input '</span><span class="sc">{</span>x<span class="sc">}</span><span class="ss">' "</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f"sum to </span><span class="sc">{</span>total<span class="sc">}</span><span class="ss">, not 1.0"</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> p(<span class="va">self</span>, x, y) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""P(output=y | input=x)"""</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.transition.get((x, y), <span class="fl">0.0</span>)</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> transmit(<span class="va">self</span>, x) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Simulate transmitting symbol x through the channel."""</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>        <span class="im">import</span> random</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>        outputs <span class="op">=</span> <span class="va">self</span>.outputs</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>        probs   <span class="op">=</span> [<span class="va">self</span>.p(x, y) <span class="cf">for</span> y <span class="kw">in</span> outputs]</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> random.choices(outputs, weights<span class="op">=</span>probs)[<span class="dv">0</span>]</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> transition_matrix(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>:</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Return the transition matrix as a nested list."""</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>            [<span class="va">self</span>.p(x, y) <span class="cf">for</span> y <span class="kw">in</span> <span class="va">self</span>.outputs]</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> x <span class="kw">in</span> <span class="va">self</span>.inputs</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>        ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Let’s define some standard channels:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> binary_symmetric_channel(p_error: <span class="bu">float</span>) <span class="op">-&gt;</span> Channel:</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
@@ -812,7 +811,7 @@ with uniform input distribution P(X=0) = P(X=1) = 0.5
           0.00         1.0000
           0.05         0.7136
           0.10         0.5310
-          0.20         0.2780
+          0.20         0.2781
           0.30         0.1187
           0.50         0.0000</code></pre>
 <p>At p = 0 (no noise), the channel transmits exactly 1 bit per use — perfect transmission. At p = 0.5 (completely random), the output is independent of the input: I(X;Y) = 0. In between, mutual information decreases monotonically with noise.</p>
@@ -825,56 +824,54 @@ with uniform input distribution P(X=0) = P(X=1) = 0.5
 <p>The channel capacity is the <em>maximum</em> mutual information over all possible input distributions:</p>
 <pre><code>C = max_{P(X)} I(X; Y)</code></pre>
 <p>Capacity is a property of the channel alone — it is the best we can do, optimizing over our choice of input distribution. It is measured in bits per channel use.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.optimize <span class="im">import</span> minimize</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> channel_capacity_binary(channel: Channel,</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>                             n_points: <span class="bu">int</span> <span class="op">=</span> <span class="dv">1000</span>) <span class="op">-&gt;</span> <span class="bu">tuple</span>:</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute channel capacity for a binary-input channel by</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">    searching over input distributions P(X=1) = p, P(X=0) = 1-p.</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns (capacity, optimal_p).</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    best_mi <span class="op">=</span> <span class="fl">0.0</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    best_p  <span class="op">=</span> <span class="fl">0.5</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n_points <span class="op">+</span> <span class="dv">1</span>):</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>        p   <span class="op">=</span> i <span class="op">/</span> n_points</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        dist <span class="op">=</span> {<span class="st">'0'</span>: <span class="dv">1</span> <span class="op">-</span> p, <span class="st">'1'</span>: p}</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        mi  <span class="op">=</span> mutual_information(channel, dist)</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> mi <span class="op">&gt;</span> best_mi:</span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>            best_mi <span class="op">=</span> mi</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>            best_p  <span class="op">=</span> p</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> channel_capacity_binary(channel: Channel,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                             n_points: <span class="bu">int</span> <span class="op">=</span> <span class="dv">1000</span>) <span class="op">-&gt;</span> <span class="bu">tuple</span>:</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute channel capacity for a binary-input channel by</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">    searching over input distributions P(X=1) = p, P(X=0) = 1-p.</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Returns (capacity, optimal_p).</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    best_mi <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    best_p  <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n_points <span class="op">+</span> <span class="dv">1</span>):</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        p   <span class="op">=</span> i <span class="op">/</span> n_points</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>        dist <span class="op">=</span> {<span class="st">'0'</span>: <span class="dv">1</span> <span class="op">-</span> p, <span class="st">'1'</span>: p}</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>        mi  <span class="op">=</span> mutual_information(channel, dist)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> mi <span class="op">&gt;</span> best_mi:</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>            best_mi <span class="op">=</span> mi</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>            best_p  <span class="op">=</span> p</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> best_mi, best_p</span>
 <span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> best_mi, best_p</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute capacity for each channel</span></span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> {</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.00)'</span>: binary_symmetric_channel(<span class="fl">0.00</span>),</span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.05)'</span>: binary_symmetric_channel(<span class="fl">0.05</span>),</span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.10)'</span>: binary_symmetric_channel(<span class="fl">0.10</span>),</span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.20)'</span>: binary_symmetric_channel(<span class="fl">0.20</span>),</span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.50)'</span>: binary_symmetric_channel(<span class="fl">0.50</span>),</span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BEC(0.20)'</span>: binary_erasure_channel(<span class="fl">0.20</span>),</span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BEC(0.50)'</span>: binary_erasure_channel(<span class="fl">0.50</span>),</span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Z-channel'</span>: z_channel(),</span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Channel'</span><span class="sc">:&lt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity (bits)'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Optimal P(X=1)'</span><span class="sc">:&gt;16}</span><span class="ss">"</span>)</span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, ch <span class="kw">in</span> channels.items():</span>
-<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>    C, p_opt <span class="op">=</span> channel_capacity_binary(ch)</span>
-<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;14}</span><span class="ss"> </span><span class="sc">{</span>C<span class="sc">:&gt;16.4f}</span><span class="ss"> </span><span class="sc">{</span>p_opt<span class="sc">:&gt;16.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute capacity for each channel</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> {</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.00)'</span>: binary_symmetric_channel(<span class="fl">0.00</span>),</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.05)'</span>: binary_symmetric_channel(<span class="fl">0.05</span>),</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.10)'</span>: binary_symmetric_channel(<span class="fl">0.10</span>),</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.20)'</span>: binary_symmetric_channel(<span class="fl">0.20</span>),</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BSC(0.50)'</span>: binary_symmetric_channel(<span class="fl">0.50</span>),</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BEC(0.20)'</span>: binary_erasure_channel(<span class="fl">0.20</span>),</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">'BEC(0.50)'</span>: binary_erasure_channel(<span class="fl">0.50</span>),</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Z-channel'</span>: z_channel(),</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Channel'</span><span class="sc">:&lt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity (bits)'</span><span class="sc">:&gt;16}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Optimal P(X=1)'</span><span class="sc">:&gt;16}</span><span class="ss">"</span>)</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, ch <span class="kw">in</span> channels.items():</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>    C, p_opt <span class="op">=</span> channel_capacity_binary(ch)</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;14}</span><span class="ss"> </span><span class="sc">{</span>C<span class="sc">:&gt;16.4f}</span><span class="ss"> </span><span class="sc">{</span>p_opt<span class="sc">:&gt;16.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Channel         Capacity (bits)   Optimal P(X=1)
 --------------------------------------------------
 BSC(0.00)                1.0000           0.5000
 BSC(0.05)                0.7136           0.5000
 BSC(0.10)                0.5310           0.5000
-BSC(0.20)                0.2780           0.5000
+BSC(0.20)                0.2781           0.5000
 BSC(0.50)                0.0000           0.5000
 BEC(0.20)                0.8000           0.5000
 BEC(0.50)                0.5000           0.5000
-Z-channel                0.3219           0.2929</code></pre>
+Z-channel                0.3219           0.4000</code></pre>
 <p>Several results here deserve comment.</p>
 <p><strong>BSC capacity formula:</strong> For the binary symmetric channel with crossover probability <em>p</em>, the capacity has a closed form:</p>
 <pre><code>C_BSC = 1 - H_b(p)</code></pre>
@@ -882,7 +879,7 @@ Z-channel                0.3219           0.2929</code></pre>
 <p><strong>BEC capacity formula:</strong> For the binary erasure channel with erasure probability ε:</p>
 <pre><code>C_BEC = 1 - ε</code></pre>
 <p>This is elegantly simple. If 20% of bits are erased, the channel delivers 80% of its maximum capacity. Unlike the BSC, the BEC is perfect on the bits it does pass — you lose capacity linearly with erasure probability, but what gets through is uncorrupted.</p>
-<p><strong>Z-channel:</strong> The optimal input distribution is not uniform (P(X=1) ≈ 0.29, not 0.5). Asymmetric channels have asymmetric optimal input distributions.</p>
+<p><strong>Z-channel:</strong> The optimal input distribution is not uniform (P(X=1) ≈ 0.40, not 0.5). Asymmetric channels generally have asymmetric optimal input distributions.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> bsc_capacity(p: <span class="bu">float</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Closed-form capacity of BSC(p)."""</span></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> p <span class="op">==</span> <span class="dv">0</span> <span class="kw">or</span> p <span class="op">==</span> <span class="dv">1</span>:</span>
@@ -909,7 +906,7 @@ Z-channel                0.3219           0.2929</code></pre>
 --------------------------------------------
    0.0        1.0000        1.0000       YES
    0.1        0.5310        0.5310       YES
-   0.2        0.2780        0.2780       YES
+  0.2        0.2781        0.2781       YES
    0.3        0.1187        0.1187       YES
    0.5        0.0000        0.0000       YES</code></pre>
 <hr>
@@ -929,57 +926,58 @@ Z-channel                0.3219           0.2929</code></pre>
 <span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co">    2. Above capacity: error rate stays bounded away from zero</span></span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> random</span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simple repetition code for BSC(0.1)</span></span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Capacity = 0.531 bits per channel use</span></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    p_error <span class="op">=</span> <span class="fl">0.1</span></span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    bsc     <span class="op">=</span> binary_symmetric_channel(p_error)</span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> repetition_encode(bit: <span class="bu">str</span>, n: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Encode by repeating n times."""</span></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> bit <span class="op">*</span> n</span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> repetition_decode(received: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Decode by majority vote."""</span></span>
-<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>        ones  <span class="op">=</span> received.count(<span class="st">'1'</span>)</span>
-<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>        zeros <span class="op">=</span> received.count(<span class="st">'0'</span>)</span>
-<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'1'</span> <span class="cf">if</span> ones <span class="op">&gt;</span> zeros <span class="cf">else</span> <span class="st">'0'</span></span>
-<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> simulate_repetition_code(n_reps: <span class="bu">int</span>,</span>
-<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>                                  n_trials: <span class="bu">int</span> <span class="op">=</span> <span class="dv">10000</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
-<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Measure block error rate for n-repetition code."""</span></span>
-<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>        errors <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials):</span>
-<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>            bit      <span class="op">=</span> random.choice([<span class="st">'0'</span>, <span class="st">'1'</span>])</span>
-<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>            encoded  <span class="op">=</span> repetition_encode(bit, n_reps)</span>
-<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>            received <span class="op">=</span> <span class="st">''</span>.join(bsc.transmit(b) <span class="cf">for</span> b <span class="kw">in</span> encoded)</span>
-<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>            decoded  <span class="op">=</span> repetition_decode(received)</span>
-<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> decoded <span class="op">!=</span> bit:</span>
-<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>                errors <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> errors <span class="op">/</span> n_trials</span>
-<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Repetition code on BSC(0.1)"</span>)</span>
-<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Channel capacity: </span><span class="sc">{</span>bsc_capacity(p_error)<span class="sc">:.4f}</span><span class="ss"> bits/use</span><span class="ch">\n</span><span class="ss">"</span>)</span>
-<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Reps'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Rate (bits/use)'</span><span class="sc">:&gt;18}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Error rate'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
-<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">40</span>)</span>
-<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">9</span>, <span class="dv">15</span>, <span class="dv">25</span>, <span class="dv">51</span>]:</span>
-<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>        rate     <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> n  <span class="co"># 1 bit per n channel uses</span></span>
-<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>        err_rate <span class="op">=</span> simulate_repetition_code(n)</span>
-<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>        below    <span class="op">=</span> <span class="st">"&lt; C"</span> <span class="cf">if</span> rate <span class="op">&lt;</span> bsc_capacity(p_error) <span class="cf">else</span> <span class="st">"&gt; C"</span></span>
-<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>n<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>rate<span class="sc">:&gt;18.4f}</span><span class="ss"> </span><span class="sc">{</span>err_rate<span class="sc">:&gt;12.4f}</span><span class="ss">  </span><span class="sc">{</span>below<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a>channel_coding_theorem_illustration()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Output (approximate):</p>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    random.seed(<span class="dv">42</span>)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Simple repetition code for BSC(0.1)</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Capacity = 0.531 bits per channel use</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    p_error <span class="op">=</span> <span class="fl">0.1</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>    bsc     <span class="op">=</span> binary_symmetric_channel(p_error)</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> repetition_encode(bit: <span class="bu">str</span>, n: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Encode by repeating n times."""</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> bit <span class="op">*</span> n</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> repetition_decode(received: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Decode by majority vote."""</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>        ones  <span class="op">=</span> received.count(<span class="st">'1'</span>)</span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>        zeros <span class="op">=</span> received.count(<span class="st">'0'</span>)</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'1'</span> <span class="cf">if</span> ones <span class="op">&gt;</span> zeros <span class="cf">else</span> <span class="st">'0'</span></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> simulate_repetition_code(n_reps: <span class="bu">int</span>,</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>                                  n_trials: <span class="bu">int</span> <span class="op">=</span> <span class="dv">10000</span>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Measure block error rate for n-repetition code."""</span></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>        errors <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials):</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>            bit      <span class="op">=</span> random.choice([<span class="st">'0'</span>, <span class="st">'1'</span>])</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>            encoded  <span class="op">=</span> repetition_encode(bit, n_reps)</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>            received <span class="op">=</span> <span class="st">''</span>.join(bsc.transmit(b) <span class="cf">for</span> b <span class="kw">in</span> encoded)</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>            decoded  <span class="op">=</span> repetition_decode(received)</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> decoded <span class="op">!=</span> bit:</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>                errors <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> errors <span class="op">/</span> n_trials</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Repetition code on BSC(0.1)"</span>)</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Channel capacity: </span><span class="sc">{</span>bsc_capacity(p_error)<span class="sc">:.4f}</span><span class="ss"> bits/use</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Reps'</span><span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Rate (bits/use)'</span><span class="sc">:&gt;18}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Error rate'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">40</span>)</span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">9</span>, <span class="dv">15</span>, <span class="dv">25</span>, <span class="dv">51</span>]:</span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>        rate     <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> n  <span class="co"># 1 bit per n channel uses</span></span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>        err_rate <span class="op">=</span> simulate_repetition_code(n)</span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>        below    <span class="op">=</span> <span class="st">"&lt; C"</span> <span class="cf">if</span> rate <span class="op">&lt;</span> bsc_capacity(p_error) <span class="cf">else</span> <span class="st">"&gt; C"</span></span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>n<span class="sc">:&gt;6}</span><span class="ss"> </span><span class="sc">{</span>rate<span class="sc">:&gt;18.4f}</span><span class="ss"> </span><span class="sc">{</span>err_rate<span class="sc">:&gt;12.4f}</span><span class="ss">  </span><span class="sc">{</span>below<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a>channel_coding_theorem_illustration()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
 <pre><code>Repetition code on BSC(0.1)
 Channel capacity: 0.5310 bits/use
 
   Reps   Rate (bits/use)   Error rate
 ----------------------------------------
-     1            1.0000       0.1000  &gt; C
-     3            0.3333       0.0280  &lt; C
-     5            0.2000       0.0086  &lt; C
-     9            0.1111       0.0009  &lt; C
+     1            1.0000       0.0989  &gt; C
+     3            0.3333       0.0285  &lt; C
+     5            0.2000       0.0087  &lt; C
+     9            0.1111       0.0007  &lt; C
     15            0.0667       0.0000  &lt; C
     25            0.0400       0.0000  &lt; C
     51            0.0196       0.0000  &lt; C</code></pre>
@@ -995,50 +993,43 @@ Channel capacity: 0.5310 bits/use
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Show that at rate 1.0 &gt; C = 0.531, error rate stays bounded.</span></span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
 <span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> random</span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> []</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p <span class="kw">in</span> [<span class="fl">0.01</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>, <span class="fl">0.20</span>, <span class="fl">0.30</span>, <span class="fl">0.50</span>]:</span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>        bsc      <span class="op">=</span> binary_symmetric_channel(p)</span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        capacity <span class="op">=</span> bsc_capacity(p)</span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rate = 1.0 (no encoding, raw transmission)</span></span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        n_trials <span class="op">=</span> <span class="dv">10000</span></span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>        errors   <span class="op">=</span> <span class="bu">sum</span>(</span>
-<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>            <span class="dv">1</span> <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials)</span>
-<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> bsc.transmit(random.choice([<span class="st">'0'</span>, <span class="st">'1'</span>])) <span class="op">!=</span></span>
-<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>               random.choice([<span class="st">'0'</span>, <span class="st">'1'</span>])  <span class="co"># Wrong: must compare correctly</span></span>
-<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Correct simulation: send random bit, check if received correctly</span></span>
-<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>        errors <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials):</span>
-<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>            bit      <span class="op">=</span> random.choice([<span class="st">'0'</span>, <span class="st">'1'</span>])</span>
-<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>            received <span class="op">=</span> bsc.transmit(bit)</span>
-<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> received <span class="op">!=</span> bit:</span>
-<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>                errors <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>        results.append((p, capacity, errors <span class="op">/</span> n_trials))</span>
-<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Raw transmission (rate=1.0) on BSC(p)"</span>)</span>
-<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'p'</span><span class="sc">:&gt;6}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Capacity'</span><span class="sc">:&gt;10}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Error rate'</span><span class="sc">:&gt;12}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Rate &gt; C?'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
-<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p, C, err <span class="kw">in</span> results:</span>
-<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a>        above <span class="op">=</span> rate <span class="op">&gt;</span> C <span class="cf">if</span> (rate <span class="op">:=</span> <span class="fl">1.0</span>) <span class="cf">else</span> <span class="va">False</span></span>
-<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:&gt;6.2f}</span><span class="ss">  </span><span class="sc">{</span>C<span class="sc">:&gt;10.4f}</span><span class="ss">  </span><span class="sc">{</span>err<span class="sc">:&gt;12.4f}</span><span class="ss">  "</span></span>
-<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span><span class="st">'YES'</span> <span class="cf">if</span> <span class="fl">1.0</span> <span class="op">&gt;</span> C <span class="cf">else</span> <span class="st">'NO'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
-<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a>converse_illustration()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    random.seed(<span class="dv">42</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> []</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p <span class="kw">in</span> [<span class="fl">0.01</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>, <span class="fl">0.20</span>, <span class="fl">0.30</span>, <span class="fl">0.50</span>]:</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        bsc      <span class="op">=</span> binary_symmetric_channel(p)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>        capacity <span class="op">=</span> bsc_capacity(p)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rate = 1.0 (no encoding, raw transmission)</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>        n_trials <span class="op">=</span> <span class="dv">10000</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>        errors <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_trials):</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>            bit      <span class="op">=</span> random.choice([<span class="st">'0'</span>, <span class="st">'1'</span>])</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>            received <span class="op">=</span> bsc.transmit(bit)</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> received <span class="op">!=</span> bit:</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>                errors <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>        results.append((p, capacity, errors <span class="op">/</span> n_trials))</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Raw transmission (rate=1.0) on BSC(p)"</span>)</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'p'</span><span class="sc">:&gt;6}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Capacity'</span><span class="sc">:&gt;10}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Error rate'</span><span class="sc">:&gt;12}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'Rate &gt; C?'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p, C, err <span class="kw">in</span> results:</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:&gt;6.2f}</span><span class="ss">  </span><span class="sc">{</span>C<span class="sc">:&gt;10.4f}</span><span class="ss">  </span><span class="sc">{</span>err<span class="sc">:&gt;12.4f}</span><span class="ss">  "</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span><span class="st">'YES'</span> <span class="cf">if</span> <span class="fl">1.0</span> <span class="op">&gt;</span> C <span class="cf">else</span> <span class="st">'NO'</span><span class="sc">:&gt;10}</span><span class="ss">"</span>)</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>converse_illustration()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Raw transmission (rate=1.0) on BSC(p)
      p    Capacity    Error rate   Rate &gt; C?
 --------------------------------------------
-  0.01      0.9192        0.0100        YES
-  0.05      0.7136        0.0500        YES
-  0.10      0.5310        0.1000        YES
-  0.20      0.2780        0.2000        YES
-  0.30      0.1187        0.3000        YES
-  0.50      0.0000        0.5000        YES</code></pre>
-<p>At rate 1.0 (always above capacity for p &gt; 0), the error rate equals exactly <em>p</em> — the raw channel error rate. You cannot do better without adding redundancy.</p>
+  0.01      0.9192        0.0087        YES
+  0.05      0.7136        0.0507        YES
+  0.10      0.5310        0.0991        YES
+  0.20      0.2781        0.2069        YES
+  0.30      0.1187        0.3034        YES
+  0.50      0.0000        0.4951        YES</code></pre>
+<p>At rate 1.0 (always above capacity for p &gt; 0), the measured error rate tracks <em>p</em> closely — it is just the raw channel error rate up to sampling noise. You cannot do better without adding redundancy.</p>
 <hr>
 </section>
 <section id="the-gaussian-channel-and-shannon-hartley" class="level2" data-number="10.8">
@@ -1098,11 +1089,11 @@ Channel capacity: 0.5310 bits/use
 
 Channel                       BW (Hz)   SNR (dB)       Capacity
 --------------------------------------------------------------------
-Phone line (POTS)                3400         30        33.93 kbps
-DSL (ADSL2+)                  2200000         40        29.21 Mbps
-WiFi 802.11n (2.4GHz)        20000000         25        83.22 Mbps
-WiFi 802.11ac (5GHz)         80000000         30       266.00 Mbps
-5G NR (sub-6GHz)            100000000         20       332.19 Mbps
+Phone line (POTS)                3400         30        33.89 kbps
+DSL (ADSL2+)                  2200000         40        29.23 Mbps
+WiFi 802.11n (2.4GHz)        20000000         25       166.19 Mbps
+WiFi 802.11ac (5GHz)         80000000         30       797.38 Mbps
+5G NR (sub-6GHz)            100000000         20       665.82 Mbps
 Fiber optic (single λ)    10000000000         40       132.88 Gbps</code></pre>
 <p>These are the theoretical ceilings. Real systems achieve a fraction of these numbers because of practical constraints: overhead from headers and protocols, hardware limitations, interference, and the gap between ideal codes and real codes.</p>
 <p>Let’s explore the SNR-capacity tradeoff:</p>
@@ -1112,42 +1103,42 @@ Fiber optic (single λ)    10000000000         40       132.88 Gbps</code></pre>
 <span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Key insight: capacity grows logarithmically with SNR</span></span>
 <span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co">    but linearly with bandwidth.</span></span>
 <span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    bandwidth <span class="op">=</span> <span class="fl">1e6</span>  <span class="co"># Fixed at 1 MHz</span></span>
 <span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    bandwidth <span class="op">=</span> <span class="fl">1e6</span>  <span class="co"># Fixed at 1 MHz</span></span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    snrs_db  <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(<span class="op">-</span><span class="dv">10</span>, <span class="dv">51</span>, <span class="dv">5</span>))</span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    snrs_lin <span class="op">=</span> [db_to_linear(s) <span class="cf">for</span> s <span class="kw">in</span> snrs_db]</span>
-<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    caps     <span class="op">=</span> [shannon_hartley_capacity(bandwidth, snr)</span>
-<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> snr <span class="kw">in</span> snrs_lin]</span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Capacity vs SNR (bandwidth = 1 MHz fixed)"</span>)</span>
-<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'SNR (dB)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'SNR (linear)'</span><span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity (Mbps)'</span><span class="sc">:&gt;16}</span><span class="ss">"</span>)</span>
-<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
-<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> snr_db, snr_lin, cap <span class="kw">in</span> <span class="bu">zip</span>(snrs_db, snrs_lin, caps):</span>
-<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>snr_db<span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span>snr_lin<span class="sc">:&gt;14.1f}</span><span class="ss"> </span><span class="sc">{</span>cap<span class="op">/</span><span class="fl">1e6</span><span class="sc">:&gt;16.4f}</span><span class="ss">"</span>)</span>
-<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Key observation:"</span>)</span>
-<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Doubling SNR (adding ~3 dB) adds only 1 bit/s/Hz to capacity."</span>)</span>
-<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Doubling bandwidth doubles capacity exactly."</span>)</span>
-<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"=&gt; Bandwidth is more valuable than SNR in the high-SNR regime."</span>)</span>
-<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>snr_capacity_tradeoff()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    snrs_db  <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(<span class="op">-</span><span class="dv">10</span>, <span class="dv">51</span>, <span class="dv">5</span>))</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    snrs_lin <span class="op">=</span> [db_to_linear(s) <span class="cf">for</span> s <span class="kw">in</span> snrs_db]</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    caps     <span class="op">=</span> [shannon_hartley_capacity(bandwidth, snr)</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> snr <span class="kw">in</span> snrs_lin]</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Capacity vs SNR (bandwidth = 1 MHz fixed)"</span>)</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'SNR (dB)'</span><span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'SNR (linear)'</span><span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Capacity (Mbps)'</span><span class="sc">:&gt;16}</span><span class="ss">"</span>)</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">44</span>)</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> snr_db, snr_lin, cap <span class="kw">in</span> <span class="bu">zip</span>(snrs_db, snrs_lin, caps):</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>snr_db<span class="sc">:&gt;10}</span><span class="ss"> </span><span class="sc">{</span>snr_lin<span class="sc">:&gt;14.1f}</span><span class="ss"> </span><span class="sc">{</span>cap<span class="op">/</span><span class="fl">1e6</span><span class="sc">:&gt;16.4f}</span><span class="ss">"</span>)</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Key observation:"</span>)</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Doubling SNR (adding ~3 dB) adds only 1 bit/s/Hz to capacity."</span>)</span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Doubling bandwidth doubles capacity exactly."</span>)</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"=&gt; Bandwidth is more valuable than SNR in the high-SNR regime."</span>)</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>snr_capacity_tradeoff()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Capacity vs SNR (bandwidth = 1 MHz fixed)
   SNR (dB)   SNR (linear)   Capacity (Mbps)
 --------------------------------------------
        -10            0.1           0.1375
-        -5            0.3           0.3785
+        -5            0.3           0.3964
          0            1.0           1.0000
-         5            3.2           2.0568
+         5            3.2           2.0574
         10           10.0           3.4594
-        15           31.6           4.9829
+        15           31.6           5.0278
         20          100.0           6.6582
-        25          316.2           8.3062
-        30         1000.0           9.9658
-        40        10000.0          13.2882
-        50       100000.0          16.6096
+        25          316.2           8.3094
+        30         1000.0           9.9672
+        35         3162.3          11.6272
+        40        10000.0          13.2879
+        45        31622.8          14.9487
+        50       100000.0          16.6097
 
 Key observation:
 Doubling SNR (adding ~3 dB) adds only 1 bit/s/Hz to capacity.
@@ -1165,43 +1156,52 @@ Doubling bandwidth doubles capacity exactly.
 <span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Spectral efficiency = actual_rate / bandwidth (bits/s/Hz)</span></span>
 <span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Shannon limit      = log2(1 + SNR)</span></span>
 <span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    systems <span class="op">=</span> [</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>        <span class="co"># (name, bandwidth_hz, snr_db, actual_rate_bps)</span></span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"56k modem"</span>,        <span class="dv">3400</span>,     <span class="dv">30</span>,       <span class="fl">56e3</span>),</span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"ADSL2+"</span>,         <span class="fl">2.2e6</span>,     <span class="dv">35</span>,       <span class="fl">24e6</span>),</span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"VDSL2"</span>,           <span class="fl">17e6</span>,     <span class="dv">40</span>,      <span class="fl">100e6</span>),</span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"802.11g"</span>,         <span class="fl">20e6</span>,     <span class="dv">20</span>,       <span class="fl">54e6</span>),</span>
-<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"802.11n MIMO"</span>,    <span class="fl">40e6</span>,     <span class="dv">25</span>,      <span class="fl">300e6</span>),</span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"802.11ac 4x4"</span>,    <span class="fl">80e6</span>,     <span class="dv">30</span>,     <span class="fl">1300e6</span>),</span>
-<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"LTE Cat 6"</span>,       <span class="fl">20e6</span>,     <span class="dv">20</span>,      <span class="fl">300e6</span>),</span>
-<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"5G NR mmWave"</span>,   <span class="fl">400e6</span>,     <span class="dv">15</span>,     <span class="fl">4000e6</span>),</span>
-<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'System'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Shannon limit'</span><span class="sc">:&gt;15}</span><span class="ss"> "</span></span>
-<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Actual rate'</span><span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Efficiency'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
-<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">65</span>)</span>
-<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, bw, snr_db, rate <span class="kw">in</span> systems:</span>
-<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>        snr      <span class="op">=</span> db_to_linear(snr_db)</span>
-<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>        limit    <span class="op">=</span> shannon_hartley_capacity(bw, snr)</span>
-<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>        eff      <span class="op">=</span> rate <span class="op">/</span> limit</span>
-<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>        limit_str <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>limit<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span></span>
-<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>        rate_str  <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>rate<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span></span>
-<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span>limit_str<span class="sc">:&gt;15}</span><span class="ss"> </span><span class="sc">{</span>rate_str<span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span>eff<span class="sc">:&gt;11.1%}</span><span class="ss">"</span>)</span>
-<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>spectral_efficiency_analysis()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Output (approximate):</p>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> format_rate(rate_bps):</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> rate_bps <span class="op">&gt;=</span> <span class="fl">1e9</span>:</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span>rate_bps<span class="op">/</span><span class="fl">1e9</span><span class="sc">:.1f}</span><span class="ss"> Gbps"</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> rate_bps <span class="op">&gt;=</span> <span class="fl">1e6</span>:</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span>rate_bps<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss"> Mbps"</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> rate_bps <span class="op">&gt;=</span> <span class="fl">1e3</span>:</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span>rate_bps<span class="op">/</span><span class="fl">1e3</span><span class="sc">:.1f}</span><span class="ss"> kbps"</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span>rate_bps<span class="sc">:.1f}</span><span class="ss"> bps"</span></span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    systems <span class="op">=</span> [</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>        <span class="co"># (name, bandwidth_hz, snr_db, actual_rate_bps)</span></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"33.6k modem"</span>,      <span class="dv">3400</span>,     <span class="dv">30</span>,     <span class="fl">33.6e3</span>),</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"ADSL2+"</span>,         <span class="fl">2.2e6</span>,     <span class="dv">35</span>,       <span class="fl">24e6</span>),</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"VDSL2"</span>,           <span class="fl">17e6</span>,     <span class="dv">40</span>,      <span class="fl">100e6</span>),</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"802.11g"</span>,         <span class="fl">20e6</span>,     <span class="dv">20</span>,       <span class="fl">54e6</span>),</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"802.11n MIMO"</span>,    <span class="fl">40e6</span>,     <span class="dv">25</span>,      <span class="fl">300e6</span>),</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"802.11ac 4x4"</span>,    <span class="fl">80e6</span>,     <span class="dv">30</span>,     <span class="fl">1300e6</span>),</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"LTE Cat 6"</span>,       <span class="fl">20e6</span>,     <span class="dv">20</span>,      <span class="fl">300e6</span>),</span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"5G NR mmWave"</span>,   <span class="fl">400e6</span>,     <span class="dv">15</span>,     <span class="fl">4000e6</span>),</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'System'</span><span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Shannon limit'</span><span class="sc">:&gt;15}</span><span class="ss"> "</span></span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Actual rate'</span><span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Efficiency'</span><span class="sc">:&gt;12}</span><span class="ss">"</span>)</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">65</span>)</span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, bw, snr_db, rate <span class="kw">in</span> systems:</span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>        snr      <span class="op">=</span> db_to_linear(snr_db)</span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>        limit    <span class="op">=</span> shannon_hartley_capacity(bw, snr)</span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>        eff      <span class="op">=</span> rate <span class="op">/</span> limit</span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>        limit_str <span class="op">=</span> format_rate(limit)</span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>        rate_str  <span class="op">=</span> format_rate(rate)</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;20}</span><span class="ss"> </span><span class="sc">{</span>limit_str<span class="sc">:&gt;15}</span><span class="ss"> </span><span class="sc">{</span>rate_str<span class="sc">:&gt;14}</span><span class="ss"> </span><span class="sc">{</span>eff<span class="sc">:&gt;11.1%}</span><span class="ss">"</span>)</span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a>spectral_efficiency_analysis()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Output:</p>
 <pre><code>System               Shannon limit    Actual rate   Efficiency
 -----------------------------------------------------------------
-56k modem               33.9 Mbps       0.1 Mbps        0.2%
-ADSL2+                  43.8 Mbps      24.0 Mbps       54.8%
-VDSL2                  266.0 Mbps     100.0 Mbps       37.6%
-802.11g                  83.2 Mbps      54.0 Mbps       64.9%
-802.11n MIMO            166.4 Mbps     300.0 Mbps      180.4%
-802.11ac 4x4            266.0 Mbps    1300.0 Mbps      488.7%
-LTE Cat 6                83.2 Mbps     300.0 Mbps      360.6%
-5G NR mmWave           1661.0 Mbps    4000.0 Mbps      240.8%</code></pre>
-<p>Some efficiencies exceed 100% — this seems to violate Shannon’s theorem. The reason: MIMO (multiple-input, multiple-output) systems use multiple antennas to create <em>multiple parallel channels</em>, effectively multiplying the available bandwidth. The Shannon-Hartley formula applies to a single channel; MIMO systems use 2, 4, or more spatial streams simultaneously. The correct comparison would account for this.</p>
-<p>The 56k modem at 0.2% efficiency shows how far modems were from the theoretical limit in the 1990s — and how much room there was for improvement. Modern systems achieve 40-65% of the Shannon limit for single-channel links, which represents decades of coding and signal processing research.</p>
+33.6k modem              33.9 kbps      33.6 kbps       99.1%
+ADSL2+                   25.6 Mbps      24.0 Mbps       93.8%
+VDSL2                   225.9 Mbps     100.0 Mbps       44.3%
+802.11g                 133.2 Mbps      54.0 Mbps       40.6%
+802.11n MIMO            332.4 Mbps     300.0 Mbps       90.3%
+802.11ac 4x4            797.4 Mbps       1.3 Gbps      163.0%
+LTE Cat 6               133.2 Mbps     300.0 Mbps      225.3%
+5G NR mmWave              2.0 Gbps       4.0 Gbps      198.9%</code></pre>
+<p>Some efficiencies exceed 100% — this seems to violate Shannon’s theorem. The reason is that systems like 802.11ac, LTE Cat 6, and 5G NR combine multiple spatial streams and/or aggregated channels. The Shannon-Hartley formula above is for a single channel. Once you account for MIMO and carrier aggregation, the apparent violation disappears.</p>
+<p>The 33.6k modem is already close to the single-channel Shannon limit of a telephone line, which is why classic dial-up modems plateaued where they did. Modern single-link systems in this toy table range from about 40% to 95% of the corresponding Shannon limit, while multi-stream systems exceed the single-link bound by opening multiple parallel channels.</p>
 <hr>
 </section>
 <section id="discrete-memoryless-channels-the-general-framework" class="level2" data-number="10.10">
@@ -1215,44 +1215,47 @@ LTE Cat 6                83.2 Mbps     300.0 Mbps      360.6%
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>                                       n_samples: <span class="bu">int</span> <span class="op">=</span> <span class="dv">10000</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co">    Empirically test whether a channel appears memoryless by checking</span></span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="co">    whether successive outputs are independent.</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="co">    whether successive outputs have near-zero lag-1 mutual information.</span></span>
 <span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
 <span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> random</span>
-<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>    <span class="im">from</span> scipy.stats <span class="im">import</span> chi2_contingency</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>    <span class="im">from</span> collections <span class="im">import</span> Counter</span>
 <span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Transmit a long sequence and collect pairs of consecutive outputs</span></span>
-<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>    inputs    <span class="op">=</span> [random.choice(channel.inputs) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_samples)]</span>
-<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>    outputs   <span class="op">=</span> [channel.transmit(x) <span class="cf">for</span> x <span class="kw">in</span> inputs]</span>
-<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build contingency table of (output_i, output_{i+1}) pairs</span></span>
-<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>    pairs     <span class="op">=</span> [(outputs[i], outputs[i<span class="op">+</span><span class="dv">1</span>])</span>
-<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>                 <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(outputs)<span class="op">-</span><span class="dv">1</span>)]</span>
-<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    unique_y  <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(channel.outputs))</span>
-<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>    table     <span class="op">=</span> [[<span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> p <span class="kw">in</span> pairs <span class="cf">if</span> p <span class="op">==</span> (y1, y2))</span>
-<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>                  <span class="cf">for</span> y2 <span class="kw">in</span> unique_y]</span>
-<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>                 <span class="cf">for</span> y1 <span class="kw">in</span> unique_y]</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>    random.seed(<span class="dv">42</span>)</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>    inputs    <span class="op">=</span> [random.choice(channel.inputs) <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_samples)]</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>    outputs   <span class="op">=</span> [channel.transmit(x) <span class="cf">for</span> x <span class="kw">in</span> inputs]</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Empirical lag-1 mutual information I(Y_t ; Y_{t+1})</span></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>    pairs       <span class="op">=</span> [(outputs[i], outputs[i<span class="op">+</span><span class="dv">1</span>]) <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(outputs)<span class="op">-</span><span class="dv">1</span>)]</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    pair_counts <span class="op">=</span> Counter(pairs)</span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>    single      <span class="op">=</span> Counter(outputs)</span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    total_pairs <span class="op">=</span> <span class="bu">len</span>(pairs)</span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    total_single <span class="op">=</span> <span class="bu">len</span>(outputs)</span>
 <span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Chi-squared test for independence</span></span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>    chi2, p_value, dof, expected <span class="op">=</span> chi2_contingency(table)</span>
-<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
-<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>        <span class="st">'chi2'</span>:     chi2,</span>
-<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a>        <span class="st">'p_value'</span>:  p_value,</span>
-<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>        <span class="st">'independent'</span>: p_value <span class="op">&gt;</span> <span class="fl">0.05</span>,</span>
-<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>        <span class="st">'verdict'</span>:  <span class="st">'Memoryless (outputs independent)'</span></span>
-<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> p_value <span class="op">&gt;</span> <span class="fl">0.05</span></span>
-<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span> <span class="st">'Has memory (outputs correlated)'</span>,</span>
-<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a><span class="co"># Test our DMC channels -- they should be memoryless by construction</span></span>
-<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, ch <span class="kw">in</span> [(<span class="st">"BSC(0.1)"</span>, binary_symmetric_channel(<span class="fl">0.1</span>)),</span>
-<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a>                  (<span class="st">"BEC(0.2)"</span>, binary_erasure_channel(<span class="fl">0.2</span>))]:</span>
-<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> is_memoryless_approximation_valid(ch)</span>
-<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: p-value=</span><span class="sc">{</span>result[<span class="st">'p_value'</span>]<span class="sc">:.3f}</span><span class="ss">  "</span></span>
-<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>result[<span class="st">'verdict'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>    lag_mi <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (y1, y2), count <span class="kw">in</span> pair_counts.items():</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>        p12 <span class="op">=</span> count <span class="op">/</span> total_pairs</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>        p1  <span class="op">=</span> single[y1] <span class="op">/</span> total_single</span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>        p2  <span class="op">=</span> single[y2] <span class="op">/</span> total_single</span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a>        lag_mi <span class="op">+=</span> p12 <span class="op">*</span> math.log2(p12 <span class="op">/</span> (p1 <span class="op">*</span> p2))</span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>        <span class="st">'lag_mi_bits'</span>: lag_mi,</span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>        <span class="st">'independent'</span>: lag_mi <span class="op">&lt;</span> <span class="fl">1e-3</span>,</span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>        <span class="st">'verdict'</span>:  <span class="st">'Memoryless (no detectable lag-1 dependence)'</span></span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> lag_mi <span class="op">&lt;</span> <span class="fl">1e-3</span></span>
+<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span> <span class="st">'Has memory (outputs correlated)'</span>,</span>
+<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Test our DMC channels -- they should be memoryless by construction</span></span>
+<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, ch <span class="kw">in</span> [(<span class="st">"BSC(0.1)"</span>, binary_symmetric_channel(<span class="fl">0.1</span>)),</span>
+<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a>                  (<span class="st">"BEC(0.2)"</span>, binary_erasure_channel(<span class="fl">0.2</span>))]:</span>
+<span id="cb30-40"><a href="#cb30-40" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> is_memoryless_approximation_valid(ch)</span>
+<span id="cb30-41"><a href="#cb30-41" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: lag MI=</span><span class="sc">{</span>result[<span class="st">'lag_mi_bits'</span>]<span class="sc">:.6f}</span><span class="ss"> bits  "</span></span>
+<span id="cb30-42"><a href="#cb30-42" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>result[<span class="st">'verdict'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output (approximate):</p>
-<pre><code>BSC(0.1): p-value=0.847  Memoryless (outputs independent)
-BEC(0.2): p-value=0.612  Memoryless (outputs independent)</code></pre>
+<pre><code>BSC(0.1): lag MI=0.000005 bits  Memoryless (no detectable lag-1 dependence)
+BEC(0.2): lag MI=0.000141 bits  Memoryless (no detectable lag-1 dependence)</code></pre>
 <p>Our simulated channels pass the independence test — as expected, since we constructed them to be memoryless.</p>
 <hr>
 </section>
@@ -1307,21 +1310,20 @@ BEC(0.2): p-value=0.612  Memoryless (outputs independent)</code></pre>
 <span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">30</span>, <span class="st">"SLC NAND (1 bit/cell)"</span>),</span>
 <span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">20</span>, <span class="st">"MLC NAND (2 bits/cell)"</span>),</span>
 <span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">15</span>, <span class="st">"TLC NAND (3 bits/cell)"</span>),</span>
-<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">10</span>, <span class="st">"QLC NAND (4 bits/cell)"</span>),</span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">12</span>, <span class="st">"QLC NAND (4 bits/cell)"</span>),</span>
 <span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>    ]:</span>
 <span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a>        snr      <span class="op">=</span> db_to_linear(snr_db)</span>
 <span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Effective capacity per cell (simplified)</span></span>
 <span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a>        cap      <span class="op">=</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr)</span>
-<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>        overhead <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> (cap <span class="op">/</span> math.log2(<span class="dv">1</span> <span class="op">+</span> snr))</span>
-<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>technology<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  SNR (approx):        </span><span class="sc">{</span>snr_db<span class="sc">}</span><span class="ss"> dB"</span>)</span>
-<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Shannon limit:       </span><span class="sc">{</span>cap<span class="sc">:.2f}</span><span class="ss"> bits/cell"</span>)</span>
-<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Nominal bits/cell:   "</span></span>
-<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span><span class="dv">1</span> <span class="cf">if</span> <span class="st">'SLC'</span> <span class="kw">in</span> technology <span class="cf">else</span> <span class="dv">2</span> <span class="cf">if</span> <span class="st">'MLC'</span> <span class="kw">in</span> technology <span class="cf">else</span> <span class="dv">3</span> <span class="cf">if</span> <span class="st">'TLC'</span> <span class="kw">in</span> technology <span class="cf">else</span> <span class="dv">4</span><span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>()</span>
-<span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a>capacity_headroom_analysis()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>technology<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  SNR (approx):        </span><span class="sc">{</span>snr_db<span class="sc">}</span><span class="ss"> dB"</span>)</span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Shannon limit:       </span><span class="sc">{</span>cap<span class="sc">:.2f}</span><span class="ss"> bits/cell"</span>)</span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Nominal bits/cell:   "</span></span>
+<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"</span><span class="sc">{</span><span class="dv">1</span> <span class="cf">if</span> <span class="st">'SLC'</span> <span class="kw">in</span> technology <span class="cf">else</span> <span class="dv">2</span> <span class="cf">if</span> <span class="st">'MLC'</span> <span class="kw">in</span> technology <span class="cf">else</span> <span class="dv">3</span> <span class="cf">if</span> <span class="st">'TLC'</span> <span class="kw">in</span> technology <span class="cf">else</span> <span class="dv">4</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>()</span>
+<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a>capacity_headroom_analysis()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output:</p>
 <pre><code>Storage channel capacity analysis
 (Simplified NAND flash model)
@@ -1342,8 +1344,8 @@ TLC NAND (3 bits/cell)
   Nominal bits/cell:   3
 
 QLC NAND (4 bits/cell)
-  SNR (approx):        10 dB
-  Shannon limit:       3.46 bits/cell
+  SNR (approx):        12 dB
+  Shannon limit:       4.07 bits/cell
   Nominal bits/cell:   4</code></pre>
 <p>Even QLC NAND (4 bits per cell) is well below the Shannon limit — there is room for error correction to operate. The error correction codes built into modern SSDs (LDPC codes) exploit exactly this headroom to deliver reliable storage from inherently noisy cells.</p>
 <hr>
@@ -1358,7 +1360,7 @@ QLC NAND (4 bits/cell)
 <li>Shannon’s channel coding theorem: for any R &lt; C, reliable communication is achievable. For any R &gt; C, it is not. Capacity is the sharp dividing line.</li>
 <li>The Shannon-Hartley theorem gives AWGN channel capacity: C = W log₂(1 + SNR). Capacity grows logarithmically with SNR but linearly with bandwidth.</li>
 <li>The theorem guarantees existence of good codes but says nothing about how to construct them, their computational complexity, or their finite-length performance.</li>
-<li>Real systems achieve 40-65% of the Shannon limit for single-channel links. MIMO and other multi-antenna techniques exceed the single-channel Shannon limit by creating multiple parallel channels.</li>
+<li>Real single-channel links often operate anywhere from roughly 40% to 95% of the Shannon limit, depending on engineering tradeoffs. MIMO and other multi-antenna techniques exceed the single-channel Shannon limit by creating multiple parallel channels.</li>
 </ul>
 <hr>
 </section>

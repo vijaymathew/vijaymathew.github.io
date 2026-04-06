@@ -100,20 +100,35 @@ The file has a special page at offset 0: the header page. It stores the page num
 intern io/Path
 intern io/Binary_File
 
-class Page_Manager
+function int_to_bytes(value: Integer, page: Array[Integer], offset: Integer)
+do
+  page.set(offset, value.bitwise_right_shift(24).bitwise_and(255))
+  page.set(offset + 1, value.bitwise_right_shift(16).bitwise_and(255))
+  page.set(offset + 2, value.bitwise_right_shift(8).bitwise_and(255))
+  page.set(offset + 3, value.bitwise_and(255))
+end
+
+function bytes_to_int(page: Array[Integer], offset: Integer): Integer
+do
+  result := page.get(offset).bitwise_and(255).bitwise_left_shift(24)
+             .bitwise_or(page.get(offset + 1).bitwise_and(255).bitwise_left_shift(16))
+             .bitwise_or(page.get(offset + 2).bitwise_and(255).bitwise_left_shift(8))
+             .bitwise_or(page.get(offset + 3).bitwise_and(255))
+end
+
+
+ class Page_Manager
   create
     open(path: String) do
       this.path := create Path.make(path)
       this.file_path := path
 
       if this.path.exists() then
-        this.file := create Binary_File.open_read(this.path)
-        this.read_only := true
-        -- Will be reopened read-write when needed
-      else
-        this.file := create Binary_File.open_write(this.path)
+        this.file := create Binary_File.open_append(this.path)
         this.read_only := false
-        -- Initialise header page
+      else
+        this.file := create Binary_File.open_append(this.path)
+        this.read_only := false
         this.write_header(0, -1)  -- root = page 0 (will be set later), free_list = -1
       end
 
@@ -126,6 +141,10 @@ class Page_Manager
     file: Binary_File
     read_only: Boolean
     page_count: Integer
+
+    reopen_for_read() do end
+
+    reopen_for_write() do end
 
     -- Read a page by page number
     read_page(page_num: Integer): Array[Integer]
@@ -166,7 +185,7 @@ class Page_Manager
       else
         -- Append a new page at the end of the file
         let new_page_num: Integer := page_count
-        let blank: Array[Integer] := Array.filled(PAGE_SIZE, 0)
+        let blank: Array[Integer] := create Array.filled(PAGE_SIZE, 0)
         write_page(new_page_num, blank)
         result := new_page_num
       end
@@ -178,7 +197,7 @@ class Page_Manager
         valid_page: page_num > 0  -- never free the header
       do
         let old_head: Integer := read_free_list_head()
-        let page: Array[Integer] := Array.filled(PAGE_SIZE, 0)
+        let page: Array[Integer] := create Array.filled(PAGE_SIZE, 0)
         -- Store old head in the first 4 bytes of the freed page
         int_to_bytes(old_head, page, 0)
         write_page(page_num, page)
@@ -189,6 +208,16 @@ class Page_Manager
     read_root(): Integer do
       let header: Array[Integer] := read_page(0)
       result := bytes_to_int(header, 0)
+    end
+
+    write_header(root_page: Integer, free_head: Integer) do
+      let header: Array[Integer] := create Array.filled(PAGE_SIZE, 0)
+      int_to_bytes(root_page, header, 0)
+      int_to_bytes(free_head, header, 4)
+      reopen_for_write()
+      file.seek(0)
+      file.write(header)
+      page_count := 1
     end
 
     write_root(root_page: Integer) do
@@ -349,6 +378,10 @@ class BTree_Node
     children: Array[Integer]  -- page numbers of children
     page_num: Integer
 
+    assign_page(page_num_value: Integer) do
+      page_num := page_num_value
+    end
+
     num_keys(): Integer do
       result := keys.length
     end
@@ -364,7 +397,7 @@ class BTree_Node
     -- Serialise this node to a PAGE_SIZE byte array
     to_page(): Array[Integer]
       do
-        let data: Array[Integer] := Array.filled(PAGE_SIZE, 0)
+        let data: Array[Integer] := create Array.filled(PAGE_SIZE, 0)
         data.set(OFFSET_IS_LEAF, when is_leaf 1 else 0 end)
         int_to_bytes(keys.length, data, OFFSET_NUM_KEYS)
 
@@ -517,7 +550,7 @@ class BTree
           -- Root is full: split it and create a new root
           let new_root: BTree_Node := create BTree_Node.internal()
           let new_root_page: Integer := pm.allocate_page()
-          new_root.page_num := new_root_page
+          new_root.assign_page(new_root_page)
           new_root.children.add(root_page)
 
           split_child(new_root, 0)
@@ -557,7 +590,7 @@ class BTree
           create BTree_Node.internal()
         end
         let new_page: Integer := pm.allocate_page()
-        new_node.page_num := new_page
+        new_node.assign_page(new_page)
 
         -- Median key goes up to parent
         let median_index: Integer := T - 1
