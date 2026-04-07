@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 21: Message Passing — Channels and the CSP Model – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./appendix_a.html" rel="next">
+<link href="./chapter_20.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_17.html">Concurrency-Aware Structures</a></li><li class="breadcrumb-item"><a href="./chapter_21.html"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-csp-model" id="toc-the-csp-model" class="nav-link active" data-scroll-target="#the-csp-model">21.1 The CSP Model</a></li>
+  <li><a href="#the-basic-channel" id="toc-the-basic-channel" class="nav-link" data-scroll-target="#the-basic-channel">21.2 The Basic Channel</a></li>
+  <li><a href="#pipelines-chaining-transformations" id="toc-pipelines-chaining-transformations" class="nav-link" data-scroll-target="#pipelines-chaining-transformations">21.3 Pipelines: Chaining Transformations</a>
+  <ul class="collapse">
+  <li><a href="#a-reusable-pipeline-stage" id="toc-a-reusable-pipeline-stage" class="nav-link" data-scroll-target="#a-reusable-pipeline-stage">A Reusable Pipeline Stage</a></li>
+  </ul></li>
+  <li><a href="#fan-out-distributing-work" id="toc-fan-out-distributing-work" class="nav-link" data-scroll-target="#fan-out-distributing-work">21.4 Fan-Out: Distributing Work</a>
+  <ul class="collapse">
+  <li><a href="#fan-out-with-results-ordering" id="toc-fan-out-with-results-ordering" class="nav-link" data-scroll-target="#fan-out-with-results-ordering">Fan-Out with Results Ordering</a></li>
+  </ul></li>
+  <li><a href="#fan-in-merging-results" id="toc-fan-in-merging-results" class="nav-link" data-scroll-target="#fan-in-merging-results">21.5 Fan-In: Merging Results</a>
+  <ul class="collapse">
+  <li><a href="#the-pipeline-fanout-fanin-pattern" id="toc-the-pipeline-fanout-fanin-pattern" class="nav-link" data-scroll-target="#the-pipeline-fanout-fanin-pattern">The Pipeline-FanOut-FanIn Pattern</a></li>
+  </ul></li>
+  <li><a href="#cancellation-and-done-channels" id="toc-cancellation-and-done-channels" class="nav-link" data-scroll-target="#cancellation-and-done-channels">21.6 Cancellation and Done Channels</a></li>
+  <li><a href="#the-select-statement" id="toc-the-select-statement" class="nav-link" data-scroll-target="#the-select-statement">21.7 The Select Statement</a></li>
+  <li><a href="#the-concurrent-pipeline-a-complete-example" id="toc-the-concurrent-pipeline-a-complete-example" class="nav-link" data-scroll-target="#the-concurrent-pipeline-a-complete-example">21.8 The Concurrent Pipeline: A Complete Example</a></li>
+  <li><a href="#rate-limiting-with-channels" id="toc-rate-limiting-with-channels" class="nav-link" data-scroll-target="#rate-limiting-with-channels">21.9 Rate Limiting with Channels</a></li>
+  <li><a href="#shared-state-vs-message-passing-when-to-use-each" id="toc-shared-state-vs-message-passing-when-to-use-each" class="nav-link" data-scroll-target="#shared-state-vs-message-passing-when-to-use-each">21.10 Shared State vs Message Passing: When to Use Each</a></li>
+  <li><a href="#nex-channels-and-the-task-system" id="toc-nex-channels-and-the-task-system" class="nav-link" data-scroll-target="#nex-channels-and-the-task-system">21.11 Nex Channels and the Task System</a></li>
+  <li><a href="#the-actor-model-a-close-relative" id="toc-the-actor-model-a-close-relative" class="nav-link" data-scroll-target="#the-actor-model-a-close-relative">21.12 The Actor Model: A Close Relative</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">21.13 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_17.html">Concurrency-Aware Structures</a></li><li class="breadcrumb-item"><a href="./chapter_21.html"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>There is a thought experiment that clarifies the fundamental difficulty of shared state concurrency. Imagine two people sharing one notebook. Both need to read and write notes. They agree on a protocol: before writing, check if the other person is writing; if so, wait. The protocol works, but it requires constant coordination — checking, waiting, checking again. If one person falls asleep mid-sentence, the other is stuck. If both check simultaneously and both see the other is free, both write at once and the notes become garbled.</p>
+<p>Now imagine a different arrangement. The two people each have their own notebook. When one needs to communicate with the other, they write a note and pass it across. The other receives it, reads it, writes a response, passes it back. No shared notebook. No checking. No waiting for the other to finish. Communication happens through the act of passing the note, not through watching a shared resource.</p>
+<p>This is the core intuition behind message passing: instead of sharing memory and synchronising access to it, share nothing and communicate explicitly. Each thread owns its own state. Interaction happens through channels — conduits through which messages flow from sender to receiver.</p>
+<p>The formal theory behind this intuition was developed by Tony Hoare in 1978 in a paper called “Communicating Sequential Processes.” CSP gave message passing a mathematical foundation and inspired the design of several programming languages, most prominently Occam (designed for parallel hardware), Erlang (for fault-tolerant distributed systems), and Go (for concurrent server programming). Nex’s channel and task system is directly in the CSP tradition.</p>
+<p>This chapter builds a complete understanding of message passing in Nex, develops the canonical concurrent patterns — pipelines, fan-out, fan-in, cancellation — and explains when channels are the right tool and when shared state (with appropriate synchronisation) is better.</p>
+<hr>
+<section id="the-csp-model" class="level2">
+<h2 class="anchored" data-anchor-id="the-csp-model">21.1 The CSP Model</h2>
+<p>In CSP, a program consists of processes that execute concurrently and communicate through synchronous message passing. The key properties:</p>
+<p><strong>Processes do not share memory.</strong> Each process has its own local state, inaccessible to other processes. There is no shared mutable state to protect.</p>
+<p><strong>Communication is synchronous.</strong> A send blocks until a receiver is ready. A receive blocks until a sender is ready. The two operations complete together — they rendezvous. This synchronisation is not incidental; it is the mechanism by which processes coordinate.</p>
+<p><strong>Communication is typed.</strong> A channel carries values of a specific type. Sending the wrong type is a compile-time error, not a runtime surprise.</p>
+<p><strong>Processes are lightweight.</strong> The model assumes that creating thousands of concurrent processes is practical, because each process is not a heavyweight OS thread — it is a lightweight task multiplexed over a pool of OS threads.</p>
+<p>Hoare’s synchronous rendezvous model is the strict version of CSP. Practical systems often use buffered channels — channels that can hold some number of messages without a receiver being ready, allowing the sender to continue. Buffering trades the strict coordination of synchronous rendezvous for flexibility and throughput. Both modes are useful; understanding when to use each is part of the skill.</p>
+<p>Nex implements both: <code>create Channel[T]</code> gives an unbuffered channel (synchronous rendezvous), and <code>create Channel[T].with_capacity(n)</code> gives a buffered channel that holds up to n messages before blocking senders.</p>
+<hr>
+</section>
+<section id="the-basic-channel" class="level2">
+<h2 class="anchored" data-anchor-id="the-basic-channel">21.2 The Basic Channel</h2>
+<pre><code>-- Unbuffered channel: sender blocks until receiver is ready
+let ch: Channel[Integer] := create Channel[Integer]
+
+let sender: Task := spawn do
+  ch.send(42)
+  print("sent")  -- prints after receiver is ready
+end
+
+let receiver: Task := spawn do
+  let value: Integer := ch.receive
+  print("received: " + value.to_string())
+end
+
+sender.await
+receiver.await
+-- Output: "received: 42" then "sent" (or simultaneously)</code></pre>
+<p>The unbuffered channel is a meeting point. Sender and receiver must both be present for the transfer to occur. The sender arrives first and waits. The receiver arrives, takes the value, and both proceed. The rendezvous is the synchronisation.</p>
+<pre><code>-- Buffered channel: sender can proceed without waiting for receiver
+let buffered: Channel[Integer] := create Channel[Integer].with_capacity(3)
+
+-- These three sends do not block: buffer has space
+buffered.send(1)
+buffered.send(2)
+buffered.send(3)
+
+-- This fourth send would block: buffer is full
+-- buffered.send(4)  -- blocks until someone receives
+
+-- Receives drain the buffer
+print(buffered.receive)  -- 1
+print(buffered.receive)  -- 2
+print(buffered.receive)  -- 3</code></pre>
+<p>The buffered channel is a queue with bounded capacity. Senders block only when the buffer is full. Receivers block only when the buffer is empty. The buffer decouples producer and consumer timing: they need not rendezvous, but the buffer prevents unbounded accumulation.</p>
+<hr>
+</section>
+<section id="pipelines-chaining-transformations" class="level2">
+<h2 class="anchored" data-anchor-id="pipelines-chaining-transformations">21.3 Pipelines: Chaining Transformations</h2>
+<p>The first and most fundamental concurrent pattern is the pipeline: a sequence of stages where each stage reads from an input channel, transforms the data, and writes to an output channel.</p>
+<pre><code>-- Pipeline: generate → transform → collect
+
+-- Stage 1: Generator — produces integers
+function generate(count: Integer): Channel[Integer] do
+  let out: Channel[Integer] := create Channel[Integer].with_capacity(16)
+
+  spawn do
+    from
+      let i: Integer := 0
+    until
+      i &lt; count
+    do
+      out.send(i)
+      i := i + 1
+    end
+    out.close  -- signal: no more values
+  end
+
+  result := out
+end
+
+-- Stage 2: Square — squares each integer
+function square(in_ch: Channel[Integer]): Channel[Integer] do
+  let out: Channel[Integer] := create Channel[Integer].with_capacity(16)
+
+  spawn do
+    from until true do
+      let value: ?Integer := in_ch.try_receive
+      if value = nil then
+        -- Check if channel is closed
+        if in_ch.is_closed then
+          out.close
+          return
+        end
+        -- Channel not closed but no value yet: keep trying
+      else
+        out.send(value * value)
+      end
+    end
+  end
+
+  result := out
+end
+
+-- Stage 3: Filter — keeps only even numbers
+function filter_even(in_ch: Channel[Integer]): Channel[Integer] do
+  let out: Channel[Integer] := create Channel[Integer].with_capacity(16)
+
+  spawn do
+    from until true do
+      let msg: ?Integer := receive_or_done(in_ch)
+      if msg = nil then
+        out.close
+        return
+      end
+      if msg % 2 = 0 then
+        out.send(msg)
+      end
+    end
+  end
+
+  result := out
+end
+
+-- Compose the pipeline
+let numbers: Channel[Integer] := generate(20)
+let squared: Channel[Integer] := square(numbers)
+let evens: Channel[Integer] := filter_even(squared)
+
+-- Collect results
+from until true do
+  let result: ?Integer := receive_or_done(evens)
+  if result = nil then break end
+  print(result.to_string())
+end
+-- Prints: 0, 4, 16, 36, 64, 100, 144, 196, 256, 324
+-- (squares of 0,2,4,6,8,10,12,14,16,18)</code></pre>
+<p>Each stage is a separate task. The buffered channels between stages allow each stage to run at its own pace — if squaring is faster than filtering, the squares buffer up; if filtering is faster, the filter waits. The pipeline naturally handles rate differences between stages.</p>
+<p>The <code>close</code> operation on a channel signals to receivers that no more values will come. Receivers can detect closure and propagate it downstream — each stage closes its output channel when it detects its input channel is closed. This clean shutdown propagation is a natural feature of the pipeline pattern.</p>
+<section id="a-reusable-pipeline-stage" class="level3">
+<h3 class="anchored" data-anchor-id="a-reusable-pipeline-stage">A Reusable Pipeline Stage</h3>
+<pre><code>class Pipeline [A, B]
+  create
+    make(transform: Function[A, B]) do
+      this.transform := transform
+    end
+
+  feature
+    transform: Function[A, B]
+
+    -- Connect: returns output channel, runs transform in background
+    connect(input: Channel[A]): Channel[B] do
+      let output: Channel[B] := create Channel[B].with_capacity(16)
+
+      spawn do
+        from until true do
+          let msg: ?A := receive_or_done(input)
+          if msg = nil then
+            output.close
+            return
+          end
+          output.send(transform(msg))
+        end
+      end
+
+      result := output
+    end
+
+    -- Chain multiple pipelines
+    then_apply(next: Pipeline[B, C]): Pipeline[A, C] do
+      result := create Pipeline[A, C].make(
+        fn a: A do
+          result := next.transform(transform(a))
+        end)
+    end
+end
+
+-- Utility: receive from channel, return nil if closed
+function receive_or_done [T] (ch: Channel[T]): ?T do
+  if ch.is_closed and ch.is_empty then
+    result := nil
+    return
+  end
+  result := ch.receive
+end</code></pre>
+<hr>
+</section>
+</section>
+<section id="fan-out-distributing-work" class="level2">
+<h2 class="anchored" data-anchor-id="fan-out-distributing-work">21.4 Fan-Out: Distributing Work</h2>
+<p>Fan-out distributes items from one channel to multiple workers, each processing items independently. This is the natural pattern for parallelising CPU-bound work.</p>
+<pre><code>-- Fan-out: distribute work across N workers
+function fan_out(input: Channel[Integer],
+                 num_workers: Integer,
+                 process: Function[Integer, Integer]): Channel[Integer] do
+  let output: Channel[Integer] := create Channel[Integer].with_capacity(64)
+  let workers_done: Atomic_Integer := create Atomic_Integer.make(0)
+
+  from
+    let w: Integer := 0
+  until
+    w &lt; num_workers
+  do
+    spawn do
+      from until true do
+        let item: ?Integer := receive_or_done(input)
+        if item = nil then
+          -- This worker is done
+          if workers_done.increment() = num_workers then
+            output.close  -- last worker closes output
+          end
+          return
+        end
+        output.send(process(item))
+      end
+    end
+    w := w + 1
+  end
+
+  result := output
+end</code></pre>
+<p>All workers read from the same input channel. Nex channels are safe for concurrent access — multiple goroutines can receive from the same channel, and each item is delivered to exactly one receiver. This creates natural load balancing: fast workers take more items, slow workers take fewer, without any explicit scheduling.</p>
+<pre><code>-- Example: parallel image processing
+let image_paths: Channel[String] := load_image_paths("/images")
+
+-- Fan out to 8 workers, each processing images independently
+let processed: Channel[String] := fan_out_string(
+  image_paths, 8,
+  fn path: String do
+    result := process_image(path)  -- CPU-intensive
+  end)
+
+-- Collect processed images
+from until true do
+  let result_path: ?String := receive_or_done(processed)
+  if result_path = nil then break end
+  save_result(result_path)
+end</code></pre>
+<section id="fan-out-with-results-ordering" class="level3">
+<h3 class="anchored" data-anchor-id="fan-out-with-results-ordering">Fan-Out with Results Ordering</h3>
+<p>The basic fan-out does not preserve order — workers finish at different times and emit results as they complete. If order matters, add sequence numbers:</p>
+<pre><code>class Ordered_Item [T]
+  create
+    make(sequence: Integer, value: T) do
+      this.sequence := sequence
+      this.value := value
+    end
+
+  feature
+    sequence: Integer
+    value: T
+end
+
+function ordered_fan_out(input: Channel[Integer],
+                          num_workers: Integer,
+                          process: Function[Integer, Integer]): Channel[Integer] do
+  -- Tag items with sequence numbers
+  let tagged: Channel[Ordered_Item[Integer]] :=
+    create Channel[Ordered_Item[Integer]].with_capacity(64)
+  let result_ch: Channel[Ordered_Item[Integer]] :=
+    create Channel[Ordered_Item[Integer]].with_capacity(64)
+  let output: Channel[Integer] := create Channel[Integer].with_capacity(64)
+
+  -- Tagging stage
+  spawn do
+    let seq: Integer := 0
+    from until true do
+      let item: ?Integer := receive_or_done(input)
+      if item = nil then
+        tagged.close
+        return
+      end
+      tagged.send(create Ordered_Item[Integer].make(seq, item))
+      seq := seq + 1
+    end
+  end
+
+  -- Workers
+  let workers_done: Atomic_Integer := create Atomic_Integer.make(0)
+  from
+    let w: Integer := 0
+  until
+    w &lt; num_workers
+  do
+    spawn do
+      from until true do
+        let item: ?Ordered_Item[Integer] := receive_or_done(tagged)
+        if item = nil then
+          if workers_done.increment() = num_workers then
+            result_ch.close
+          end
+          return
+        end
+        let processed: Integer := process(item.value)
+        result_ch.send(create Ordered_Item[Integer].make(item.sequence, processed))
+      end
+    end
+    w := w + 1
+  end
+
+  -- Reorder stage: reassemble in sequence order
+  spawn do
+    let next_seq: Integer := 0
+    let buffer: Map[Integer, Integer] := {}
+
+    from until true do
+      let item: ?Ordered_Item[Integer] := receive_or_done(result_ch)
+      if item = nil then
+        output.close
+        return
+      end
+
+      buffer.put(item.sequence, item.value)
+
+      -- Emit all consecutive completed items
+      from until not buffer.contains(next_seq) do
+        output.send(buffer.get(next_seq))
+        buffer.remove(next_seq)
+        next_seq := next_seq + 1
+      end
+    end
+  end
+
+  result := output
+end</code></pre>
+<hr>
+</section>
+</section>
+<section id="fan-in-merging-results" class="level2">
+<h2 class="anchored" data-anchor-id="fan-in-merging-results">21.5 Fan-In: Merging Results</h2>
+<p>Fan-in is the inverse: merge results from multiple channels into one. This is used to collect results from fan-out workers, aggregate data from multiple sources, or combine streams.</p>
+<pre><code>-- Fan-in: merge multiple input channels into one output channel
+function fan_in [T] (inputs: Array[Channel[T]]): Channel[T] do
+  let output: Channel[T] := create Channel[T].with_capacity(64)
+  let done_count: Atomic_Integer := create Atomic_Integer.make(0)
+  let n: Integer := inputs.length
+
+  across inputs as input do
+    spawn do
+      from until true do
+        let item: ?T := receive_or_done(input)
+        if item = nil then
+          if done_count.increment() = n then
+            output.close
+          end
+          return
+        end
+        output.send(item)
+      end
+    end
+  end
+
+  result := output
+end</code></pre>
+<p>Fan-in using Nex’s select statement is more elegant. <code>select</code> waits on multiple channel operations simultaneously, proceeding with whichever is ready first:</p>
+<pre><code>function fan_in_select [T] (inputs: Array[Channel[T]]): Channel[T] do
+  let output: Channel[T] := create Channel[T].with_capacity(64)
+
+  spawn do
+    let active: Integer := inputs.length
+
+    from until active = 0 do
+      -- select would handle this elegantly if we had dynamic channel lists
+      -- For static cases, select is cleaner
+      let found: Boolean := false
+      across inputs as input do
+        if not input.is_closed or not input.is_empty then
+          let item: ?T := input.try_receive
+          if item /= nil then
+            output.send(item)
+            found := true
+          elseif input.is_closed and input.is_empty then
+            active := active - 1
+          end
+        end
+      end
+      if not found then
+        -- No input ready: yield briefly
+        hint_yield()
+      end
+    end
+
+    output.close
+  end
+
+  result := output
+end</code></pre>
+<section id="the-pipeline-fanout-fanin-pattern" class="level3">
+<h3 class="anchored" data-anchor-id="the-pipeline-fanout-fanin-pattern">The Pipeline-FanOut-FanIn Pattern</h3>
+<p>These three primitives compose naturally into the scatter-gather pattern: scatter work across workers with fan-out, gather results with fan-in, process the combined stream.</p>
+<pre><code>function scatter_gather(input: Channel[String],
+                         num_workers: Integer): Channel[String] do
+  -- Fan out to workers
+  let worker_outputs: Array[Channel[String]] := []
+  from
+    let w: Integer := 0
+  until
+    w &lt; num_workers
+  do
+    let worker_output: Channel[String] :=
+      create Channel[String].with_capacity(16)
+    worker_outputs.add(worker_output)
+
+    spawn do
+      from until true do
+        let item: ?String := receive_or_done(input)
+        if item = nil then
+          worker_output.close
+          return
+        end
+        -- Each worker does some processing
+        worker_output.send(item.to_upper())
+      end
+    end
+
+    w := w + 1
+  end
+
+  -- Fan in results
+  result := fan_in(worker_outputs)
+end</code></pre>
+<hr>
+</section>
+</section>
+<section id="cancellation-and-done-channels" class="level2">
+<h2 class="anchored" data-anchor-id="cancellation-and-done-channels">21.6 Cancellation and Done Channels</h2>
+<p>Long-running pipelines need a way to stop. A worker that is blocked on a channel receive cannot be interrupted from outside — it needs to cooperate in its own termination. The standard mechanism: a done channel.</p>
+<p>A done channel carries no values — it is used purely for signalling. When the coordinator wants to stop the workers, it closes the done channel. Workers check the done channel periodically (or with select) and exit when it is closed.</p>
+<pre><code>class Cancellable_Pipeline
+  create
+    make() do
+      this.done := create Channel[Void]
+      this.cancelled := false
+    end
+
+  feature
+    done: Channel[Void]
+    cancelled: Boolean
+
+    -- Cancel: signal all workers to stop
+    cancel() do
+      if not cancelled then
+        cancelled := true
+        done.close  -- closing broadcasts to all receivers
+      end
+    end
+
+    -- Generate integers until cancelled
+    generate_until_cancelled(limit: Integer): Channel[Integer] do
+      let out: Channel[Integer] := create Channel[Integer].with_capacity(16)
+      let done_ref: Channel[Void] := done  -- capture for closure
+
+      spawn do
+        from
+          let i: Integer := 0
+        until
+          i &lt; limit
+        do
+          -- Check for cancellation using select
+          select
+            when out.send(i) then
+              i := i + 1
+            when done_ref.receive then
+              out.close
+              return
+          end
+        end
+        out.close
+      end
+
+      result := out
+    end
+
+    -- Process items until cancelled
+    process_until_cancelled(input: Channel[Integer],
+                             transform: Function[Integer, Integer]): Channel[Integer] do
+      let out: Channel[Integer] := create Channel[Integer].with_capacity(16)
+      let done_ref: Channel[Void] := done
+
+      spawn do
+        from until true do
+          select
+            when input.receive as value then
+              out.send(transform(value))
+            when done_ref.receive then
+              out.close
+              return
+            timeout 100 then
+              -- Check if input closed
+              if input.is_closed and input.is_empty then
+                out.close
+                return
+              end
+          end
+        end
+      end
+
+      result := out
+    end
+end</code></pre>
+<p>The done channel pattern is composable: each stage receives the done channel and propagates cancellation downstream by closing its output channel. A single <code>cancel()</code> call ripples through the entire pipeline.</p>
+<p>Using <code>select</code> with a done channel is the idiomatic pattern. It reacts to whichever event arrives first: a new value to process, or a cancellation signal. This prevents workers from being stuck blocked on receives when cancellation is requested.</p>
+<hr>
+</section>
+<section id="the-select-statement" class="level2">
+<h2 class="anchored" data-anchor-id="the-select-statement">21.7 The Select Statement</h2>
+<p>Nex’s <code>select</code> statement waits on multiple channel operations simultaneously and executes the first one that is ready. It is the primitive that makes complex concurrent coordination expressible without explicit polling.</p>
+<pre><code>-- Basic select: wait on two channels
+select
+  when ch1.receive as value then
+    print("from ch1: " + value.to_string())
+  when ch2.receive as value then
+    print("from ch2: " + value.to_string())
+end
+
+-- Select with send
+select
+  when output.send(result) then
+    print("sent result")
+  when done.receive then
+    print("cancelled")
+    return
+end
+
+-- Select with timeout
+select
+  when data.receive as value then
+    process(value)
+  timeout 1000 then
+    print("no data for 1 second")
+end
+
+-- Select with else: non-blocking
+select
+  when ch.receive as value then
+    process(value)
+  else
+    -- Channel not ready: do something else
+    do_background_work()
+end</code></pre>
+<p>The <code>select</code> statement is to channels what <code>switch</code> is to values: it chooses among alternatives based on readiness rather than value. Its semantics:</p>
+<ol type="1">
+<li>Evaluate all channel expressions to get the set of operations</li>
+<li>If multiple operations are ready simultaneously, choose one uniformly at random</li>
+<li>If none are ready and there is an <code>else</code> clause, execute it (non-blocking)</li>
+<li>If none are ready and there is no <code>else</code>, block until one becomes ready</li>
+<li>If there is a <code>timeout</code>, unblock and execute the timeout clause after the specified duration</li>
+</ol>
+<p>The random selection among ready operations prevents starvation: if two channels are frequently ready, neither is systematically ignored.</p>
+<hr>
+</section>
+<section id="the-concurrent-pipeline-a-complete-example" class="level2">
+<h2 class="anchored" data-anchor-id="the-concurrent-pipeline-a-complete-example">21.8 The Concurrent Pipeline: A Complete Example</h2>
+<p>Assembling all the patterns into a complete, realistic pipeline: a system that processes a stream of log entries, extracts metrics, and generates alerts.</p>
+<pre><code>class Log_Entry
+  create
+    make(timestamp: Integer64,
+         level: String,
+         message: String,
+         service: String) do
+      this.timestamp := timestamp
+      this.level := level
+      this.message := message
+      this.service := service
+    end
+
+  feature
+    timestamp: Integer64
+    level: String
+    message: String
+    service: String
+end
+
+class Metric
+  create
+    make(service: String,
+         error_count: Integer,
+         window_start: Integer64) do
+      this.service := service
+      this.error_count := error_count
+      this.window_start := window_start
+    end
+
+  feature
+    service: String
+    error_count: Integer
+    window_start: Integer64
+end
+
+class Alert
+  create
+    make(service: String, message: String) do
+      this.service := service
+      this.message := message
+    end
+
+  feature
+    service: String
+    message: String
+end
+
+class Log_Processing_Pipeline
+  create
+    make(done: Channel[Void]) do
+      this.done := done
+    end
+
+  feature
+    done: Channel[Void]
+
+    -- Stage 1: Parse raw log strings into LogEntry objects
+    parse_stage(raw_logs: Channel[String]): Channel[Log_Entry] do
+      let out: Channel[Log_Entry] := create Channel[Log_Entry].with_capacity(32)
+
+      spawn do
+        from until true do
+          select
+            when raw_logs.receive as line then
+              let entry: ?Log_Entry := parse_log_line(line)
+              if entry /= nil then
+                out.send(entry)
+              end
+            when done.receive then
+              out.close
+              return
+          end
+        end
+      end
+
+      result := out
+    end
+
+    -- Stage 2: Fan out to per-service processors
+    -- Returns map of service_name -&gt; channel
+    route_by_service(entries: Channel[Log_Entry],
+                      services: Array[String]): Map[String, Channel[Log_Entry]] do
+      let service_channels: Map[String, Channel[Log_Entry]] := {}
+
+      across services as service do
+        service_channels.put(service,
+          create Channel[Log_Entry].with_capacity(32))
+      end
+
+      let default_ch: Channel[Log_Entry] :=
+        create Channel[Log_Entry].with_capacity(32)
+      service_channels.put("other", default_ch)
+
+      spawn do
+        from until true do
+          select
+            when entries.receive as entry then
+              let target: ?Channel[Log_Entry] :=
+                service_channels.get(entry.service)
+              let ch: Channel[Log_Entry] :=
+                when target /= nil target else default_ch end
+              -- Non-blocking send: drop if service channel full
+              ch.try_send(entry)
+            when done.receive then
+              -- Close all service channels
+              across service_channels as name, ch do
+                ch.close
+              end
+              return
+          end
+        end
+      end
+
+      result := service_channels
+    end
+
+    -- Stage 3: Aggregate errors per service per time window
+    aggregate_errors(entries: Channel[Log_Entry],
+                      service: String,
+                      window_ms: Integer64): Channel[Metric] do
+      let out: Channel[Metric] := create Channel[Metric].with_capacity(8)
+
+      spawn do
+        let error_count: Integer := 0
+        let window_start: Integer64 := current_time_ms()
+
+        from until true do
+          select
+            when entries.receive as entry then
+              if entry.level = "ERROR" then
+                error_count := error_count + 1
+              end
+
+              let now: Integer64 := current_time_ms()
+              if now - window_start &gt;= window_ms then
+                -- Emit metric for completed window
+                out.send(create Metric.make(
+                  service, error_count, window_start))
+                error_count := 0
+                window_start := now
+              end
+
+            when done.receive then
+              -- Emit final window
+              if error_count &gt; 0 then
+                out.send(create Metric.make(
+                  service, error_count, window_start))
+              end
+              out.close
+              return
+
+            timeout window_ms.to_integer() then
+              -- Window elapsed with no entries: emit zero metric
+              out.send(create Metric.make(
+                service, error_count, window_start))
+              error_count := 0
+              window_start := current_time_ms()
+          end
+        end
+      end
+
+      result := out
+    end
+
+    -- Stage 4: Generate alerts when error rate exceeds threshold
+    alert_stage(metrics: Channel[Metric],
+                 threshold: Integer): Channel[Alert] do
+      let out: Channel[Alert] := create Channel[Alert].with_capacity(8)
+
+      spawn do
+        let recent_errors: Map[String, Array[Integer]] := {}
+
+        from until true do
+          select
+            when metrics.receive as metric then
+              -- Keep rolling window of last 5 metric periods
+              let history: ?Array[Integer] :=
+                recent_errors.get(metric.service)
+              let hist: Array[Integer] :=
+                when history /= nil history else [] end
+              hist.add(metric.error_count)
+              if hist.length &gt; 5 then
+                hist.remove(0)
+              end
+              recent_errors.put(metric.service, hist)
+
+              -- Alert if recent average exceeds threshold
+              let total: Integer := 0
+              across hist as count do total := total + count end
+              let avg: Integer := total / hist.length
+
+              if avg &gt; threshold then
+                out.send(create Alert.make(
+                  metric.service,
+                  "High error rate: " + avg.to_string() +
+                  " errors/window in " + metric.service))
+              end
+
+            when done.receive then
+              out.close
+              return
+          end
+        end
+      end
+
+      result := out
+    end
+
+    -- Assemble the complete pipeline
+    run(raw_logs: Channel[String],
+        services: Array[String]): Channel[Alert] do
+      -- Stage 1: parse
+      let entries: Channel[Log_Entry] := parse_stage(raw_logs)
+
+      -- Stage 2: route by service
+      let service_channels: Map[String, Channel[Log_Entry]] :=
+        route_by_service(entries, services)
+
+      -- Stage 3 + 4: aggregate and alert per service
+      let alert_channels: Array[Channel[Alert]] := []
+
+      across services as service do
+        let service_entries: Channel[Log_Entry] :=
+          service_channels.get(service)
+        let metrics: Channel[Metric] :=
+          aggregate_errors(service_entries, service, 10000)
+        let alerts: Channel[Alert] := alert_stage(metrics, 10)
+        alert_channels.add(alerts)
+      end
+
+      -- Fan in all alert channels
+      result := fan_in(alert_channels)
+    end
+
+    -- Parse a log line into a LogEntry
+    parse_log_line(line: String): ?Log_Entry do
+      -- Format: "TIMESTAMP LEVEL SERVICE: MESSAGE"
+      let parts: Array[String] := line.split(" ")
+      if parts.length &lt; 4 then
+        result := nil
+        return
+      end
+      let timestamp: ?Integer64 := Integer64.parse(parts.get(0))
+      if timestamp = nil then
+        result := nil
+        return
+      end
+      result := create Log_Entry.make(
+        timestamp,
+        parts.get(1),
+        parts.slice(3, parts.length).join(" "),
+        parts.get(2).trim_suffix(":"))
+    end
+end</code></pre>
+<p>Using the pipeline:</p>
+<pre><code>let done: Channel[Void] := create Channel[Void]
+let pipeline: Log_Processing_Pipeline :=
+  create Log_Processing_Pipeline.make(done)
+
+let raw_logs: Channel[String] := create Channel[String].with_capacity(64)
+
+let services: Array[String] := ["auth", "api", "database", "cache"]
+let alerts: Channel[Alert] := pipeline.run(raw_logs, services)
+
+-- Feed logs in (from file, network, etc.)
+let log_feeder: Task := spawn do
+  across read_log_file("/var/log/app.log") as line do
+    raw_logs.send(line)
+  end
+  raw_logs.close
+end
+
+-- Consume alerts
+let alert_handler: Task := spawn do
+  from until true do
+    let alert: ?Alert := receive_or_done(alerts)
+    if alert = nil then break end
+    notify_ops_team(alert)
+  end
+end
+
+-- Run for 60 seconds then cancel
+sleep(60000)
+done.close
+
+log_feeder.await
+alert_handler.await</code></pre>
+<p>The pipeline is self-describing. Each stage is a function that takes input channels and returns output channels. The stages are connected by their channels. The <code>done</code> channel provides a uniform cancellation mechanism across all stages. Adding a new stage is just writing a new function and connecting it.</p>
+<hr>
+</section>
+<section id="rate-limiting-with-channels" class="level2">
+<h2 class="anchored" data-anchor-id="rate-limiting-with-channels">21.9 Rate Limiting with Channels</h2>
+<p>Channels are a natural primitive for rate limiting. A rate limiter restricts how many operations can proceed per unit time.</p>
+<pre><code>class Rate_Limiter
+  create
+    -- Token bucket: N tokens per second
+    token_bucket(rate_per_second: Integer) do
+      this.tokens := create Channel[Void].with_capacity(rate_per_second)
+      this.rate := rate_per_second
+
+      -- Fill bucket initially
+      repeat rate_per_second do
+        tokens.try_send()
+      end
+
+      -- Refill at rate_per_second tokens per second
+      spawn do
+        let interval_ms: Integer := 1000 / rate_per_second
+        from until true do
+          sleep(interval_ms)
+          tokens.try_send()  -- non-blocking: drop if full
+        end
+      end
+    end
+
+  feature
+    tokens: Channel[Void]
+    rate: Integer
+
+    -- Wait for a token (blocks if rate limit exceeded)
+    acquire() do
+      tokens.receive  -- blocks until token available
+    end
+
+    -- Try to acquire without blocking
+    try_acquire(): Boolean do
+      result := tokens.try_receive /= nil
+    end
+
+    -- Acquire with timeout
+    acquire_timeout(timeout_ms: Integer): Boolean do
+      select
+        when tokens.receive then
+          result := true
+        timeout timeout_ms then
+          result := false
+      end
+    end
+end</code></pre>
+<p>Using the rate limiter in a pipeline:</p>
+<pre><code>-- Rate-limited API caller: max 100 calls per second
+let limiter: Rate_Limiter := create Rate_Limiter.token_bucket(100)
+
+function rate_limited_api_call(requests: Channel[String]): Channel[String] do
+  let out: Channel[String] := create Channel[String].with_capacity(16)
+
+  spawn do
+    from until true do
+      let req: ?String := receive_or_done(requests)
+      if req = nil then
+        out.close
+        return
+      end
+      limiter.acquire()  -- wait for rate limit token
+      out.send(make_api_call(req))
+    end
+  end
+
+  result := out
+end</code></pre>
+<p>The token bucket limiter uses a buffered channel as the token reservoir. The capacity of the channel equals the burst capacity. The background task adds tokens at the configured rate. Workers consume tokens before proceeding. When the channel is empty (all tokens consumed), workers block — naturally limiting throughput to the configured rate.</p>
+<hr>
+</section>
+<section id="shared-state-vs-message-passing-when-to-use-each" class="level2">
+<h2 class="anchored" data-anchor-id="shared-state-vs-message-passing-when-to-use-each">21.10 Shared State vs Message Passing: When to Use Each</h2>
+<p>The message passing model is powerful and eliminates entire classes of bugs. It is not universally better than shared state with synchronisation.</p>
+<p><strong>Use message passing when:</strong></p>
+<p>The problem is fundamentally about coordination between independent actors — each actor has its own state and communicates with others through well-defined messages. Network servers, event processing systems, worker pools, pipelines — these are natural fits for CSP.</p>
+<p>The ownership of data is clear — one goroutine owns a piece of data at a time, and transfers ownership by sending it through a channel. This makes the ownership model explicit and prevents the common bugs of shared ownership.</p>
+<p>Cancellation and timeout are important — select with a done channel provides clean, composable cancellation without the complexity of condition variables or manual flag polling.</p>
+<p><strong>Use shared state when:</strong></p>
+<p>Multiple threads need to access a shared data structure concurrently and independently — a cache, a counter, a leaderboard. These are not naturally modelled as message passing; they are truly shared.</p>
+<p>The data structure is read much more than written — a persistent structure or a striped concurrent map serves better than a goroutine serialising all access.</p>
+<p>Performance is critical and the synchronisation point is a single operation — an atomic increment or a CAS-based counter does not need the overhead of channels and goroutines.</p>
+<p><strong>The practical rule:</strong> Go’s original concurrency guidance was “Do not communicate by sharing memory; share memory by communicating.” This is wisdom, not dogma. For complex state that multiple actors legitimately share, shared state with appropriate synchronisation is the right model. For coordination between actors, message passing is cleaner. Use both where they fit.</p>
+<hr>
+</section>
+<section id="nex-channels-and-the-task-system" class="level2">
+<h2 class="anchored" data-anchor-id="nex-channels-and-the-task-system">21.11 Nex Channels and the Task System</h2>
+<p>Nex’s native channel and task system, introduced in Chapter 2 of the Nex tutorial, makes the patterns in this chapter idiomatic. The syntax we have used throughout is the real Nex syntax — no imports, no external libraries.</p>
+<pre><code>-- Nex native: spawn a task
+let t: Task[Integer] := spawn do
+  result := compute_something()
+end
+
+-- Await the result
+let value: Integer := t.await
+
+-- Channel creation
+let ch: Channel[String] := create Channel[String]
+let buffered: Channel[String] := create Channel[String].with_capacity(32)
+
+-- Send and receive
+ch.send("hello")
+let msg: String := ch.receive
+
+-- Non-blocking
+let sent: Boolean := ch.try_send("hello")
+let received: ?String := ch.try_receive
+
+-- Timed operations
+let sent_timeout: Boolean := ch.send("hello", 1000)  -- 1 second timeout
+let recv_timeout: ?String := ch.receive(1000)
+
+-- Close
+ch.close
+let is_closed: Boolean := ch.is_closed
+
+-- Select
+select
+  when ch1.receive as v then handle(v)
+  when ch2.send(value) then confirm_sent()
+  when done.receive then cleanup()
+  timeout 500 then handle_timeout()
+  else handle_no_activity()
+end
+
+-- Task groups
+let results: Array[Integer] := await_all([task1, task2, task3])
+let first: Integer := await_any([task1, task2, task3])</code></pre>
+<p>The <code>select</code> statement is particularly important. It is not syntactic sugar — it reflects a hardware-level or runtime-level primitive that can genuinely block on multiple channels simultaneously. Without <code>select</code>, implementing the done channel pattern requires polling, which wastes CPU and introduces latency. With <code>select</code>, the runtime efficiently multiplexes the blocked task over all its waiting channels.</p>
+<hr>
+</section>
+<section id="the-actor-model-a-close-relative" class="level2">
+<h2 class="anchored" data-anchor-id="the-actor-model-a-close-relative">21.12 The Actor Model: A Close Relative</h2>
+<p>CSP and the Actor model are closely related but distinct.</p>
+<p>In CSP: - Communication is through named channels - Sender and receiver are decoupled — they share a channel, not identities - Communication is synchronous in the pure model</p>
+<p>In the Actor model (Erlang, Akka): - Each actor has a unique address (mailbox) - Communication is to an actor’s mailbox (asynchronous, buffered) - Actors are identified, not channels</p>
+<p>Both models avoid shared mutable state. The difference is in how communication is structured: CSP through shared channels, actors through actor-addressed mailboxes.</p>
+<p>In practice, the distinction blurs. Go’s goroutines with channels are CSP. Erlang’s processes with mailboxes are actors. Both avoid shared mutable state and model concurrent computation as independent entities communicating through messages. The theoretical differences matter for language designers; for practitioners, the patterns — pipelines, fan-out, fan-in, cancellation — apply equally to both.</p>
+<p>Nex’s model is CSP with some actor-like features: channels are first-class and can be passed as values (CSP), but tasks have identities and can be awaited individually (actors).</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">21.13 Where This Lives in the Wild</h2>
+<p><strong>Go</strong> is the language that brought CSP to mainstream programming. Goroutines are lightweight tasks, channels are first-class values, and <code>select</code> is a core statement. The Go standard library and ecosystem are built around these primitives. Rob Pike’s 2012 talk “Concurrency is not Parallelism” — distinguishing concurrent program structure from parallel execution — remains the best accessible explanation of the CSP model.</p>
+<p><strong>Erlang</strong> implements the Actor model at language level. Erlang processes are extremely lightweight (spawning millions is routine), communicate only through message passing, and crash independently — a crashed process does not affect others. Erlang’s OTP (Open Telecom Platform) framework provides supervision trees: processes that monitor other processes and restart them on failure. This has made Erlang the language of choice for systems requiring extreme reliability — WhatsApp, Discord’s backend, and Ericsson’s telecom infrastructure all run Erlang.</p>
+<p><strong>Rust’s async/await</strong> with the Tokio runtime uses channels extensively. Tokio provides <code>mpsc</code>, <code>oneshot</code>, <code>broadcast</code>, and <code>watch</code> channel types, each optimised for different patterns. The Rust ownership system enforces the CSP discipline at compile time: sending a value through a channel transfers ownership, preventing the sender from using it afterward.</p>
+<p><strong>Unix pipes</strong> are the original channel-based pipeline. <code>ls | grep "\.txt" | wc -l</code> is a three-stage pipeline connected by two channels (pipes). Each stage is a process with its own memory. They share nothing except the byte streams flowing through the pipes. Unix’s designers built CSP into the operating system before Hoare formalised it.</p>
+<p><strong>Apache Kafka</strong> is a distributed channel. Producers send messages to topics; consumers receive from topics; the broker buffers and replicates messages. The Kafka model is CSP at datacenter scale: services communicate through Kafka topics rather than shared databases or direct API calls, achieving the same decoupling that channels provide within a single program.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Message passing, formalised by Hoare’s Communicating Sequential Processes in 1978, provides an alternative to shared-state concurrency. Instead of protecting shared mutable state with locks, processes own private state and communicate through channels. The result is concurrent programs that are easier to reason about, test, and cancel.</p>
+<p>Nex implements CSP natively: tasks are lightweight concurrent processes, channels are typed conduits for message passing, and <code>select</code> blocks on multiple channel operations simultaneously.</p>
+<p>The canonical patterns compose from three primitives. <strong>Pipelines</strong> chain stages connected by channels, each stage transforming its input and forwarding to the next, with clean shutdown propagation through channel closing. <strong>Fan-out</strong> distributes a single stream across multiple workers for parallel processing, with natural load balancing — fast workers take more items. <strong>Fan-in</strong> merges multiple streams into one, collecting results from parallel workers. <strong>Cancellation</strong> is implemented through a done channel: closing it signals all listening workers to stop, propagating cleanly through the pipeline.</p>
+<p>The <code>select</code> statement makes these patterns composable: any stage can simultaneously wait for new input, check for cancellation, and timeout — without polling or complex state machines. Rate limiting, backpressure, and timeouts all emerge naturally from the channel model.</p>
+<p>Channels and shared state are complementary tools, not competitors. Independent actors with well-defined communication belong in channels. Shared data structures with concurrent readers and writers belong in the concurrent maps and atomic structures of the previous chapters. The practitioner’s skill is recognising which model fits the problem.</p>
+<p>This concludes Part V, and with it, the technical content of the book. The appendices that follow provide reference material: the complete Nex language reference, a complexity and memory cheat sheet covering every structure in the book, a guide to the production systems where these structures live, and an annotated bibliography for going deeper.</p>
+<p>The structures in this book — B-trees, LSM trees, skip lists, suffix arrays, Huffman coders, introsort, lock-free queues, persistent HAMTs, and concurrent pipelines — are not academic exercises. They are in the databases you query, the editors you write in, the compilers that build your code, the filesystems that store your data, and the servers that answer your requests. Understanding them is not just knowing how they work. It is knowing why they work, why they were designed as they were, and when to reach for each one.</p>
+<p>That understanding is what this book was for.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_20.html" class="pagination-link" aria-label="Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./appendix_a.html" class="pagination-link" aria-label="Appendix A: Complexity and Memory Cheat Sheet">
+        <span class="nav-page-text"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

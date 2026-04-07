@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 9: The Fuzzy Match — Edit Distance – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_10.html" rel="next">
+<link href="./chapter_8.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_7.html">String Algorithms</a></li><li class="breadcrumb-item"><a href="./chapter_9.html"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-problem" id="toc-the-problem" class="nav-link active" data-scroll-target="#the-problem">9.1 The Problem</a></li>
+  <li><a href="#the-recursive-definition" id="toc-the-recursive-definition" class="nav-link" data-scroll-target="#the-recursive-definition">9.2 The Recursive Definition</a></li>
+  <li><a href="#why-the-recursion-is-catastrophically-slow" id="toc-why-the-recursion-is-catastrophically-slow" class="nav-link" data-scroll-target="#why-the-recursion-is-catastrophically-slow">9.3 Why the Recursion is Catastrophically Slow</a></li>
+  <li><a href="#dynamic-programming-the-right-way-to-think-about-it" id="toc-dynamic-programming-the-right-way-to-think-about-it" class="nav-link" data-scroll-target="#dynamic-programming-the-right-way-to-think-about-it">9.4 Dynamic Programming: The Right Way to Think About It</a></li>
+  <li><a href="#recovering-the-edit-sequence" id="toc-recovering-the-edit-sequence" class="nav-link" data-scroll-target="#recovering-the-edit-sequence">9.5 Recovering the Edit Sequence</a></li>
+  <li><a href="#space-optimisation" id="toc-space-optimisation" class="nav-link" data-scroll-target="#space-optimisation">9.6 Space Optimisation</a></li>
+  <li><a href="#the-spell-checker" id="toc-the-spell-checker" class="nav-link" data-scroll-target="#the-spell-checker">9.7 The Spell Checker</a></li>
+  <li><a href="#longest-common-subsequence-and-diff" id="toc-longest-common-subsequence-and-diff" class="nav-link" data-scroll-target="#longest-common-subsequence-and-diff">9.8 Longest Common Subsequence and Diff</a></li>
+  <li><a href="#sequence-alignment-in-bioinformatics" id="toc-sequence-alignment-in-bioinformatics" class="nav-link" data-scroll-target="#sequence-alignment-in-bioinformatics">9.9 Sequence Alignment in Bioinformatics</a></li>
+  <li><a href="#dynamic-programming-as-a-general-technique" id="toc-dynamic-programming-as-a-general-technique" class="nav-link" data-scroll-target="#dynamic-programming-as-a-general-technique">9.10 Dynamic Programming as a General Technique</a></li>
+  <li><a href="#variants-worth-knowing" id="toc-variants-worth-knowing" class="nav-link" data-scroll-target="#variants-worth-knowing">9.11 Variants Worth Knowing</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">9.12 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_7.html">String Algorithms</a></li><li class="breadcrumb-item"><a href="./chapter_9.html"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>In 1965, Vladimir Levenshtein was working on error-correcting codes — ways to detect and repair corruption in transmitted binary signals. He needed a way to measure how badly corrupted a signal was: how many single-bit errors had occurred between transmission and reception. He defined a distance measure between binary strings: the minimum number of single-character insertions, deletions, and substitutions required to transform one string into the other. The measure was named after him.</p>
+<p>Levenshtein did not know he was inventing a spell checker.</p>
+<p>Forty years later, his distance measure is embedded in every spell checker on every computer and phone on the planet. It is used to align DNA sequences in bioinformatics, to compute diffs in version control systems, to grade student answers in automated testing systems, to match names in fuzzy database searches, to detect translation memory in localisation software. It is one of those ideas that turned out to be useful so far beyond its original context that it has become part of the invisible infrastructure of computing.</p>
+<p>This chapter derives edit distance from first principles, implements it efficiently, and builds three of its most important applications: a spell checker, a diff utility, and a DNA aligner. Along the way, it introduces dynamic programming — the general technique that makes edit distance efficient — in the most concrete way possible: not as an abstract method but as the solution to the specific problem of avoiding redundant computation in a recursion that would otherwise be exponentially slow.</p>
+<hr>
+<section id="the-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem">9.1 The Problem</h2>
+<p>You have a dictionary. A user types “recieve.” You want to suggest “receive.”</p>
+<p>The two strings differ in exactly one way: the ‘i’ and ‘e’ in positions 3 and 4 are swapped relative to the correct spelling. But your program does not know that a swap happened — it only sees two strings that are different. It needs a way to measure how different they are, and to find the word in the dictionary that is least different from what the user typed.</p>
+<p>One approach: count characters in common. “recieve” and “receive” share 6 of 7 characters. But this does not account for position — “abc” and “cab” share all 3 characters despite being clearly different. And it does not distinguish between a one-character difference (a likely typo) and a five-character difference (probably a completely wrong word).</p>
+<p>A better approach: measure the minimum number of editing operations needed to transform one string into the other. Define three operations:</p>
+<ul>
+<li><strong>Insertion:</strong> insert a character at any position</li>
+<li><strong>Deletion:</strong> delete a character at any position</li>
+<li><strong>Substitution:</strong> replace a character at any position with a different character</li>
+</ul>
+<p>The <strong>edit distance</strong> (Levenshtein distance) between two strings A and B is the minimum number of these operations needed to transform A into B.</p>
+<p>“recieve” → “receive”: substitute ‘i’ for ‘e’ at position 4, substitute ‘e’ for ‘i’ at position 5. Two substitutions. Edit distance = 2.</p>
+<p>“cat” → “cart”: insert ‘r’ after position 2. One insertion. Edit distance = 1.</p>
+<p>“saturday” → “sunday”: this is less obvious. We will trace through it after building the machinery.</p>
+<hr>
+</section>
+<section id="the-recursive-definition" class="level2">
+<h2 class="anchored" data-anchor-id="the-recursive-definition">9.2 The Recursive Definition</h2>
+<p>The edit distance has a natural recursive structure. Let A[1..n] and B[1..m] be our two strings (1-indexed for clarity). Define <code>ed(i, j)</code> as the edit distance between the first i characters of A and the first j characters of B.</p>
+<p>Base cases: - <code>ed(0, j) = j</code>: transforming an empty string into B[1..j] requires j insertions - <code>ed(i, 0) = i</code>: transforming A[1..i] into an empty string requires i deletions</p>
+<p>Recursive case — if the last characters match, A[i] = B[j]: - <code>ed(i, j) = ed(i-1, j-1)</code>: no operation needed for the last characters; just solve the rest</p>
+<p>Recursive case — if the last characters differ, A[i] ≠ B[j]: - <code>ed(i, j) = 1 + min(ed(i-1, j), ed(i, j-1), ed(i-1, j-1))</code></p>
+<p>The three terms correspond to: - <code>ed(i-1, j)</code>: delete A[i], then transform A[1..i-1] into B[1..j] - <code>ed(i, j-1)</code>: transform A[1..i] into B[1..j-1], then insert B[j] - <code>ed(i-1, j-1)</code>: substitute A[i] for B[j], then transform A[1..i-1] into B[1..j-1]</p>
+<p>The minimum of these three is the cheapest way to handle the last characters.</p>
+<p>This recursion is correct. You can verify it on small examples by hand. But it is catastrophically slow.</p>
+<hr>
+</section>
+<section id="why-the-recursion-is-catastrophically-slow" class="level2">
+<h2 class="anchored" data-anchor-id="why-the-recursion-is-catastrophically-slow">9.3 Why the Recursion is Catastrophically Slow</h2>
+<p>Trace the recursion for two short strings, “ab” and “bc.”</p>
+<pre><code>ed(2, 2) calls:
+  ed(1, 2) calls:
+    ed(0, 2) = 2
+    ed(1, 1) calls:
+      ed(0, 1) = 1
+      ed(1, 0) = 1
+      ed(0, 0) = 0
+    ed(0, 1) = 1    ← computed again
+  ed(2, 1) calls:
+    ed(1, 1) calls:  ← computed again, in full
+      ed(0, 1) = 1   ← computed again
+      ed(1, 0) = 1   ← computed again
+      ed(0, 0) = 0   ← computed again
+    ed(2, 0) = 2
+  ed(1, 1)           ← computed again</code></pre>
+<p>For “ab” and “bc” (n = m = 2), the recursion already recomputes several subproblems. For strings of length 10, the recursion tree has thousands of nodes. For strings of length 100, it has more nodes than atoms in the universe.</p>
+<p>The source of the explosion is repeated subproblems. <code>ed(1, 1)</code> is computed three times in the example above. <code>ed(0, 1)</code> is computed twice. The recursion branches at each step and explores the same subproblems repeatedly from different paths.</p>
+<p>The total number of distinct subproblems, however, is small: just (n+1) × (m+1), one for each pair of prefix lengths. For strings of length 100, that is 10,201 distinct subproblems. If we compute each subproblem once and remember the result, the total work is O(nm). This is dynamic programming.</p>
+<hr>
+</section>
+<section id="dynamic-programming-the-right-way-to-think-about-it" class="level2">
+<h2 class="anchored" data-anchor-id="dynamic-programming-the-right-way-to-think-about-it">9.4 Dynamic Programming: The Right Way to Think About It</h2>
+<p>Dynamic programming is often presented as a technique — “fill a table bottom-up.” This is correct but misses the insight. The real idea is simpler and more general: <strong>if a recursion recomputes the same subproblems, compute each subproblem once and store the result.</strong></p>
+<p>There are two ways to do this.</p>
+<p><strong>Top-down with memoisation:</strong> keep the recursive structure but cache results. Before computing <code>ed(i, j)</code>, check if it is already cached. If so, return the cached value. If not, compute it recursively, cache it, and return it.</p>
+<p><strong>Bottom-up:</strong> observe the order in which subproblems are needed (smaller problems before larger ones) and fill a table in that order. No recursion needed.</p>
+<p>For edit distance, both work. Bottom-up is typically preferred for its simpler implementation and better cache behaviour — filling a table row by row accesses memory sequentially.</p>
+<p>The table has (n+1) rows and (m+1) columns. <code>table[i][j]</code> stores <code>ed(i, j)</code>. We fill it left-to-right, top-to-bottom, using the recurrence above.</p>
+<pre><code>function edit_distance(a: String, b: String): Integer do
+  let n: Integer := a.length
+  let m: Integer := b.length
+
+  -- Allocate (n+1) x (m+1) table
+  let table: Array[Array[Integer]] := []
+  from
+    let i: Integer := 0
+  until
+    i &gt; n
+  do
+    table.add(create Array.filled(m + 1, 0))
+    i := i + 1
+  end
+
+  -- Base cases: transforming empty string to prefix of b
+  from
+    let j: Integer := 0
+  until
+    j &lt;= m
+  do
+    table.get(0).set(j, j)
+    j := j + 1
+  end
+
+  -- Base cases: transforming prefix of a to empty string
+  from
+    let i: Integer := 0
+  until
+    i &lt;= n
+  do
+    table.get(i).set(0, i)
+    i := i + 1
+  end
+
+  -- Fill table
+  from
+    let i: Integer := 1
+  until
+    i &lt;= n
+  do
+    from
+      let j: Integer := 1
+    until
+      j &lt;= m
+    do
+      if a.char_at(i - 1) = b.char_at(j - 1) then
+        table.get(i).set(j, table.get(i - 1).get(j - 1))
+      else
+        let del_cost: Integer := table.get(i - 1).get(j) + 1
+        let ins_cost: Integer := table.get(i).get(j - 1) + 1
+        let sub_cost: Integer := table.get(i - 1).get(j - 1) + 1
+        table.get(i).set(j, del_cost.min(ins_cost).min(sub_cost))
+      end
+      j := j + 1
+    end
+    i := i + 1
+  end
+
+  result := table.get(n).get(m)
+end</code></pre>
+<p>Let us trace through “saturday” and “sunday” to see why the answer is not obvious.</p>
+<p>n = 8 (saturday), m = 6 (sunday). The table starts with:</p>
+<pre><code>     ""  s  u  n  d  a  y
+""    0  1  2  3  4  5  6
+s     1
+a     2
+t     3
+u     4
+r     5
+d     6
+a     7
+y     8</code></pre>
+<p>Filling in row by row (showing key values):</p>
+<pre><code>     ""  s  u  n  d  a  y
+""    0  1  2  3  4  5  6
+s     1  0  1  2  3  4  5
+a     2  1  1  2  3  3  4
+t     3  2  2  2  3  4  4
+u     4  3  2  3  3  4  5
+r     5  4  3  3  4  4  5
+d     6  5  4  4  3  4  5
+a     7  6  5  5  4  3  4
+y     8  7  6  6  5  4  3</code></pre>
+<p>The answer is <code>table[8][6] = 3</code>. Three operations transform “saturday” into “sunday”:</p>
+<ul>
+<li>Delete ‘a’ (position 2): “sturday” → wait, let us be careful. The edit sequence is not directly readable from the final number. We need the alignment, which requires tracing back through the table.</li>
+</ul>
+<hr>
+</section>
+<section id="recovering-the-edit-sequence" class="level2">
+<h2 class="anchored" data-anchor-id="recovering-the-edit-sequence">9.5 Recovering the Edit Sequence</h2>
+<p>The final value <code>table[n][m]</code> tells us the edit distance but not the sequence of operations. To recover the operations, trace back from <code>table[n][m]</code> to <code>table[0][0]</code> following the choices that produced each value.</p>
+<pre><code>function edit_operations(a: String, b: String): Array[String] do
+  let n: Integer := a.length
+  let m: Integer := b.length
+  let table: Array[Array[Integer]] := build_table(a, b)
+  let ops: Array[String] := []
+
+  let i: Integer := n
+  let j: Integer := m
+
+  from until i = 0 and j = 0 do
+    if i = 0 then
+      -- Must insert b[j]
+      ops.insert(0, "insert '" + b.char_at(j - 1).to_string() + "' at " +
+                    i.to_string())
+      j := j - 1
+    elseif j = 0 then
+      -- Must delete a[i]
+      ops.insert(0, "delete '" + a.char_at(i - 1).to_string() + "' at " +
+                    i.to_string())
+      i := i - 1
+    elseif a.char_at(i - 1) = b.char_at(j - 1) then
+      -- Characters match, no operation
+      i := i - 1
+      j := j - 1
+    else
+      let del_cost: Integer := table.get(i - 1).get(j)
+      let ins_cost: Integer := table.get(i).get(j - 1)
+      let sub_cost: Integer := table.get(i - 1).get(j - 1)
+      let min_cost: Integer := del_cost.min(ins_cost).min(sub_cost)
+
+      if sub_cost = min_cost then
+        ops.insert(0, "substitute '" + a.char_at(i - 1).to_string() +
+                      "' → '" + b.char_at(j - 1).to_string() +
+                      "' at " + i.to_string())
+        i := i - 1
+        j := j - 1
+      elseif del_cost = min_cost then
+        ops.insert(0, "delete '" + a.char_at(i - 1).to_string() +
+                      "' at " + i.to_string())
+        i := i - 1
+      else
+        ops.insert(0, "insert '" + b.char_at(j - 1).to_string() +
+                      "' at " + i.to_string())
+        j := j - 1
+      end
+    end
+  end
+
+  result := ops
+end</code></pre>
+<p>Tracing “saturday” → “sunday” through the table:</p>
+<p>Starting at (8, 6). <code>table[8][6] = 3</code>. - <code>a[8] = 'y'</code>, <code>b[6] = 'y'</code>: match. Move to (7, 5). - <code>a[7] = 'a'</code>, <code>b[5] = 'a'</code>: match. Move to (6, 4). - <code>a[6] = 'd'</code>, <code>b[4] = 'd'</code>: match. Move to (5, 3). - <code>a[5] = 'r'</code>, <code>b[3] = 'n'</code>: mismatch. <code>table[4][3] = 3</code> (sub), <code>table[4][2] = 2</code> (del), <code>table[5][2] = 3</code> (ins). Delete ‘r’. Move to (4, 3). - <code>a[4] = 'u'</code>, <code>b[3] = 'n'</code>: mismatch. <code>table[3][3] = 2</code> (sub), <code>table[3][2] = 2</code> (del), <code>table[4][2] = 2</code> (ins). Multiple equal choices — pick substitution. Substitute ‘u’ → ‘n’. Move to (3, 2). - <code>a[3] = 't'</code>, <code>b[2] = 'u'</code>: mismatch. <code>table[2][2] = 1</code> (sub), <code>table[2][1] = 1</code> (del), <code>table[3][1] = 2</code> (ins). Substitution. Substitute ‘t’ → ‘u’. Move to (2, 1). - <code>a[2] = 'a'</code>, <code>b[1] = 's'</code>: mismatch. <code>table[1][1] = 0</code> (sub), … Sub gives 0 + 1 = 1. Wait — we are at (2, 1), <code>table[2][1] = 1</code>. <code>table[1][1] = 0</code>, so substitution gives <code>0 + 1 = 1</code>, which equals <code>table[2][1]</code>. Substitute ‘a’ → ‘s’. Move to (1, 0). - j = 0. Delete <code>a[1] = 's'</code>. Move to (0, 0).</p>
+<p>Operations: delete ‘s’, substitute ‘a’→‘s’, substitute ‘t’→‘u’, delete ‘r’, 3 match steps.</p>
+<p>That is 4 operations — not 3. We made a suboptimal choice at (3, 2). The correct optimal path gives:</p>
+<ul>
+<li>Delete ‘a’ (position 2): “sturday”</li>
+<li>Delete ‘t’ (position 2): “surday”<br>
+</li>
+<li>Delete ‘r’ (position 3): “suday”</li>
+</ul>
+<p>No — that is 3 deletions and the result is wrong. Let me approach it differently. The 3-operation alignment of “saturday” and “sunday” is:</p>
+<pre><code>s a t u r d a y
+s - - u n d a y</code></pre>
+<p>Operations: delete ‘a’, delete ‘t’, substitute ‘r’ → ‘n’. Three operations. The traceback is correct — multiple equal-cost paths exist through the table, and we happened to follow one of them; a different path gives the more intuitive alignment.</p>
+<p>This multiplicity of optimal alignments is a feature of edit distance, not a bug. There may be many ways to achieve the minimum edit distance. The traceback returns one valid sequence; if you need the most “natural” alignment, additional heuristics (prefer substitutions to insertion-deletion pairs, prefer matches at the start) can bias the choice.</p>
+<hr>
+</section>
+<section id="space-optimisation" class="level2">
+<h2 class="anchored" data-anchor-id="space-optimisation">9.6 Space Optimisation</h2>
+<p>The O(nm) table is often too large. For strings of length 10,000, the table has 100 million entries — 400MB for 32-bit integers. For spell checking (short words, large dictionary), this is fine. For DNA alignment (sequences of length 10^6), it is not.</p>
+<p>If you only need the edit distance — not the edit operations — you can observe that computing row i of the table requires only row i-1. You need at most two rows simultaneously.</p>
+<pre><code>function edit_distance_space_optimised(a: String, b: String): Integer do
+  let n: Integer := a.length
+  let m: Integer := b.length
+
+  -- Use only two rows
+  let prev: Array[Integer] := create Array.filled(m + 1, 0)
+  let curr: Array[Integer] := create Array.filled(m + 1, 0)
+
+  -- Initialise first row
+  from
+    let j: Integer := 0
+  until
+    j &lt;= m
+  do
+    prev.set(j, j)
+    j := j + 1
+  end
+
+  from
+    let i: Integer := 1
+  until
+    i &lt;= n
+  do
+    curr.set(0, i)  -- base case: first column
+
+    from
+      let j: Integer := 1
+    until
+      j &lt;= m
+    do
+      if a.char_at(i - 1) = b.char_at(j - 1) then
+        curr.set(j, prev.get(j - 1))
+      else
+        curr.set(j, 1 + prev.get(j).min(curr.get(j - 1)).min(prev.get(j - 1)))
+      end
+      j := j + 1
+    end
+
+    -- Swap rows
+    let temp: Array[Integer] := prev
+    prev := curr
+    curr := temp
+    i := i + 1
+  end
+
+  result := prev.get(m)
+end</code></pre>
+<p>Space drops from O(nm) to O(m). For DNA alignment with sequences of length one million, this is the difference between 4TB and 4MB. The tradeoff is that recovering the edit operations is no longer possible without the full table — for that, you need Hirschberg’s algorithm, which recovers the alignment in O(m) space using a divide-and-conquer strategy, at the cost of roughly doubling the running time. We will not implement it here, but it is worth knowing it exists.</p>
+<hr>
+</section>
+<section id="the-spell-checker" class="level2">
+<h2 class="anchored" data-anchor-id="the-spell-checker">9.7 The Spell Checker</h2>
+<p>A spell checker takes a misspelled word and suggests corrections. Its core is: compute the edit distance from the misspelled word to every word in the dictionary, and return the words with the smallest distances.</p>
+<p>Naive implementation: O(n × m × |dictionary|) where n and m are typical word lengths. For a dictionary of 100,000 words with average length 8, checking a misspelled word takes 100,000 × 64 = 6.4 million operations. Fast enough.</p>
+<pre><code>class Spell_Checker
+  create
+    from_dictionary(words: Array[String]) do
+      this.dictionary := words
+      this.max_suggestions := 5
+      this.max_distance := 2
+    end
+
+    from_file(path: String) do
+            let file: Text_File := create Text_File.open_read(
+        create Path.make(path))
+      let words: Array[String] := []
+
+      from until true do
+        let line: ?String := file.read_line()
+        if line = nil then
+          file.close()
+          return
+        end
+        let word: String := line.trim().to_lower()
+        if word.length &gt; 0 then
+          words.add(word)
+        end
+      end
+
+      file.close()
+      this.dictionary := words
+      this.max_suggestions := 5
+      this.max_distance := 2
+    end
+
+  feature
+    dictionary: Array[String]
+    max_suggestions: Integer
+    max_distance: Integer
+
+    is_correct(word: String): Boolean do
+      let lower: String := word.to_lower()
+      across dictionary as w do
+        if w = lower then
+          result := true
+          return
+        end
+      end
+      result := false
+    end
+
+    suggest(word: String): Array[Any] do
+      let lower: String := word.to_lower()
+      let candidates: Array[Any] := []
+
+      -- Early exit: exact match
+      if is_correct(lower) then
+        result := [[lower, 0]]
+        return
+      end
+
+      -- Compute distance to each dictionary word
+      across dictionary as dict_word do
+        -- Pruning: skip words with very different lengths
+        let len_diff: Integer := (dict_word.length - lower.length).abs()
+        if len_diff &lt;= max_distance then
+          let dist: Integer := edit_distance(lower, dict_word)
+          if dist &lt;= max_distance then
+            candidates.add([dict_word, dist])
+          end
+        end
+      end
+
+      -- Sort by distance, then alphabetically
+      candidates := sort_by_distance(candidates)
+
+      -- Return top suggestions
+      if candidates.length &gt; max_suggestions then
+        result := candidates.slice(0, max_suggestions)
+      else
+        result := candidates
+      end
+    end
+
+    -- Check a text, returning all misspelled words and suggestions
+    check_text(text: String): Map[String, Array[String]] do
+      let results: Map[String, Array[String]] := {}
+      let words: Array[String] := tokenise(text)
+
+      across words as word do
+        let lower: String := word.to_lower()
+        if not is_correct(lower) and not results.contains(lower) then
+          let suggestions: Array[Any] := suggest(lower)
+          let suggestion_words: Array[String] := []
+          across suggestions as s do
+            suggestion_words.add(s.get(0))
+          end
+          results.put(lower, suggestion_words)
+        end
+      end
+
+      result := results
+    end
+
+  invariant
+    positive_max_suggestions: max_suggestions &gt; 0
+    positive_max_distance: max_distance &gt; 0
+end
+
+function tokenise(text: String): Array[String] do
+  let words: Array[String] := []
+  let current: String := ""
+  across text.chars() as c do
+    if c.is_letter() then
+      current := current + c.to_string()
+    else
+      if current.length &gt; 0 then
+        words.add(current)
+        current := ""
+      end
+    end
+  end
+  if current.length &gt; 0 then
+    words.add(current)
+  end
+  result := words
+end
+
+function sort_by_distance(candidates: Array[Any]):
+                           Array[Any] do
+  -- Simple insertion sort: candidates are typically small
+  from
+    let i: Integer := 1
+  until
+    i &gt;= candidates.length
+  do
+    let key: Array := candidates.get(i)
+    let j: Integer := i - 1
+    from until j &lt; 0 or candidates.get(j).get(1) &lt;= key.get(1) do
+      candidates.set(j + 1, candidates.get(j))
+      j := j - 1
+    end
+    candidates.set(j + 1, key)
+    i := i + 1
+  end
+  result := candidates
+end</code></pre>
+<p>The length-difference pruning is important in practice. If the misspelled word has length 7 and the dictionary word has length 14, the edit distance is at least 7 — no amount of substitutions can bridge a length difference of 7 in fewer than 7 operations. This prunes a large fraction of the dictionary without any table computation.</p>
+<p>More aggressive pruning uses an early termination trick in the DP table: if the current row’s minimum value already exceeds <code>max_distance</code>, abort and return infinity. This is correct because edit distance is monotone — no later row can have a smaller value than the current minimum plus the number of remaining rows.</p>
+<pre><code>function edit_distance_bounded(a: String, b: String,
+                                max_dist: Integer): Integer do
+  let n: Integer := a.length
+  let m: Integer := b.length
+  let prev: Array[Integer] := create Array.filled(m + 1, 0)
+  let curr: Array[Integer] := create Array.filled(m + 1, 0)
+
+  from
+    let j: Integer := 0
+  until
+    j &lt;= m
+  do
+    prev.set(j, j)
+    j := j + 1
+  end
+
+  from
+    let i: Integer := 1
+  until
+    i &lt;= n
+  do
+    curr.set(0, i)
+    let row_min: Integer := i
+
+    from
+      let j: Integer := 1
+    until
+      j &lt;= m
+    do
+      let val: Integer := when a.char_at(i - 1) = b.char_at(j - 1)
+        prev.get(j - 1)
+      else
+        1 + prev.get(j).min(curr.get(j - 1)).min(prev.get(j - 1))
+      end
+      curr.set(j, val)
+      row_min := row_min.min(val)
+      j := j + 1
+    end
+
+    -- Early termination: minimum possible distance exceeds bound
+    if row_min &gt; max_dist then
+      result := max_dist + 1
+      return
+    end
+
+    let temp: Array[Integer] := prev
+    prev := curr
+    curr := temp
+    i := i + 1
+  end
+
+  result := prev.get(m)
+end</code></pre>
+<p>This bounded variant reduces the average-case complexity dramatically for spell checking. Most dictionary words are quickly eliminated within the first few rows of the table.</p>
+<hr>
+</section>
+<section id="longest-common-subsequence-and-diff" class="level2">
+<h2 class="anchored" data-anchor-id="longest-common-subsequence-and-diff">9.8 Longest Common Subsequence and Diff</h2>
+<p>Edit distance measures transformation cost. A related concept, the longest common subsequence (LCS), measures what two strings share. The LCS of A and B is the longest sequence of characters that appears in both A and B, in order, not necessarily contiguously.</p>
+<p>LCS of “ABCBDAB” and “BDCAB” is “BCAB” or “BDAB” — length 4.</p>
+<p>The connection to edit distance: <code>ed(A, B) = n + m - 2 × |LCS(A, B)|</code> when only insertions and deletions are allowed (no substitutions). A substitution costs 2 in this formulation (delete old character, insert new one), so it is sometimes called the “indel distance.” This variant is used in diff utilities, which display changes as added and deleted lines rather than as line substitutions.</p>
+<p>The LCS DP table is almost identical to the edit distance table:</p>
+<pre><code>function lcs_length(a: String, b: String): Integer do
+  let n: Integer := a.length
+  let m: Integer := b.length
+  let prev: Array[Integer] := create Array.filled(m + 1, 0)
+  let curr: Array[Integer] := create Array.filled(m + 1, 0)
+
+  from
+    let i: Integer := 1
+  until
+    i &lt;= n
+  do
+    from
+      let j: Integer := 1
+    until
+      j &lt;= m
+    do
+      if a.char_at(i - 1) = b.char_at(j - 1) then
+        curr.set(j, prev.get(j - 1) + 1)
+      else
+        curr.set(j, prev.get(j).max(curr.get(j - 1)))
+      end
+      j := j + 1
+    end
+
+    let temp: Array[Integer] := prev
+    prev := curr
+    curr := temp
+    i := i + 1
+  end
+
+  result := prev.get(m)
+end</code></pre>
+<p>The difference from edit distance: instead of taking the minimum of three costs, we take the maximum of two (no-insertion/no-deletion alternatives), and the match case adds 1 (counting the shared character) instead of carrying the diagonal value unchanged.</p>
+<p><strong>Building a diff utility.</strong> A diff compares two sequences of lines (treating each line as a unit) and outputs the lines unique to each file and the lines they share, in order. It is the LCS of the two line sequences, with the non-LCS lines marked as additions or deletions.</p>
+<pre><code>class Diff
+  create
+    make() do end
+
+  feature
+    -- Compare two documents, returning a diff
+    diff(original: String, revised: String): Array[Diff_Line] do
+      let orig_lines: Array[String] := split_lines(original)
+      let rev_lines: Array[String] := split_lines(revised)
+      let table: Array[Array[Integer]] := lcs_table(orig_lines, rev_lines)
+      result := backtrack(table, orig_lines, rev_lines,
+                           orig_lines.length, rev_lines.length)
+    end
+
+    lcs_table(a: Array[String],
+              b: Array[String]): Array[Array[Integer]] do
+      let n: Integer := a.length
+      let m: Integer := b.length
+      let table: Array[Array[Integer]] := []
+
+      from
+        let i: Integer := 0
+      until
+        i &lt;= n
+      do
+        table.add(create Array.filled(m + 1, 0))
+        i := i + 1
+      end
+
+      from
+        let i: Integer := 1
+      until
+        i &lt;= n
+      do
+        from
+          let j: Integer := 1
+        until
+          j &lt;= m
+        do
+          if a.get(i - 1) = b.get(j - 1) then
+            table.get(i).set(j, table.get(i - 1).get(j - 1) + 1)
+          else
+            table.get(i).set(j,
+              table.get(i - 1).get(j).max(table.get(i).get(j - 1)))
+          end
+          j := j + 1
+        end
+        i := i + 1
+      end
+
+      result := table
+    end
+
+    backtrack(table: Array[Array[Integer]],
+              a: Array[String],
+              b: Array[String],
+              i: Integer,
+              j: Integer): Array[Diff_Line] do
+      if i = 0 and j = 0 then
+        result := []
+        return
+      elseif i = 0 then
+        let rest: Array[Diff_Line] := backtrack(table, a, b, i, j - 1)
+        rest.add(create Diff_Line.added(b.get(j - 1)))
+        result := rest
+      elseif j = 0 then
+        let rest: Array[Diff_Line] := backtrack(table, a, b, i - 1, j)
+        rest.add(create Diff_Line.removed(a.get(i - 1)))
+        result := rest
+      elseif a.get(i - 1) = b.get(j - 1) then
+        let rest: Array[Diff_Line] := backtrack(table, a, b, i - 1, j - 1)
+        rest.add(create Diff_Line.unchanged(a.get(i - 1)))
+        result := rest
+      elseif table.get(i - 1).get(j) &gt;= table.get(i).get(j - 1) then
+        let rest: Array[Diff_Line] := backtrack(table, a, b, i - 1, j)
+        rest.add(create Diff_Line.removed(a.get(i - 1)))
+        result := rest
+      else
+        let rest: Array[Diff_Line] := backtrack(table, a, b, i, j - 1)
+        rest.add(create Diff_Line.added(b.get(j - 1)))
+        result := rest
+      end
+    end
+
+    format_diff(diff_lines: Array[Diff_Line]): String do
+      let output: String := ""
+      across diff_lines as line do
+        case line.kind of
+          "added"     then output := output + "+ " + line.content + "\n"
+          "removed"   then output := output + "- " + line.content + "\n"
+          "unchanged" then output := output + "  " + line.content + "\n"
+        end
+      end
+      result := output
+    end
+end
+
+class Diff_Line
+  create
+    added(content: String) do
+      this.kind := "added"
+      this.content := content
+    end
+
+    removed(content: String) do
+      this.kind := "removed"
+      this.content := content
+    end
+
+    unchanged(content: String) do
+      this.kind := "unchanged"
+      this.content := content
+    end
+
+  feature
+    kind: String
+    content: String
+
+  invariant
+    valid_kind: kind = "added" or kind = "removed" or kind = "unchanged"
+end</code></pre>
+<p>Using it:</p>
+<pre><code>let differ: Diff := create Diff.make()
+
+let original: String :=
+  "the quick brown fox\njumps over the lazy dog\nand ran away"
+
+let revised: String :=
+  "the quick brown fox\nleaped over the lazy cat\nand ran away quickly"
+
+let changes: Array[Diff_Line] := differ.diff(original, revised)
+print(differ.format_diff(changes))</code></pre>
+<p>Output:</p>
+<pre><code>  the quick brown fox
+- jumps over the lazy dog
++ leaped over the lazy cat
+- and ran away
++ and ran away quickly</code></pre>
+<p>This is exactly what <code>git diff</code> shows, because <code>git diff</code> uses the same LCS-based algorithm.</p>
+<hr>
+</section>
+<section id="sequence-alignment-in-bioinformatics" class="level2">
+<h2 class="anchored" data-anchor-id="sequence-alignment-in-bioinformatics">9.9 Sequence Alignment in Bioinformatics</h2>
+<p>Edit distance and LCS have a cousin in bioinformatics: sequence alignment. Given two DNA or protein sequences, find the alignment that maximises a scoring function — assigning positive scores to matches, negative scores to mismatches, and penalties for gaps (insertions/deletions).</p>
+<p>The Needleman-Wunsch algorithm (1970) for global alignment and the Smith-Waterman algorithm (1981) for local alignment are both extensions of the edit distance DP, differing only in initialisation and the handling of negative scores.</p>
+<p>The key biological insight that changes the algorithm: in DNA alignment, a single insertion of k consecutive bases (an “indel”) is biologically more plausible than k separate single-base insertions. The gap penalty should not be k times the per-base penalty — it should be an affine function: <code>gap_open + k * gap_extend</code>, where <code>gap_open</code> is the cost of starting a gap and <code>gap_extend</code> is the much smaller cost of extending it. This is called affine gap penalties.</p>
+<p>Implementing affine gap penalties requires a modified DP that tracks three states: extending a gap in A, extending a gap in B, and not in a gap. The recurrence becomes:</p>
+<pre><code>-- M[i][j]: best alignment of A[1..i] and B[1..j] ending with a match/mismatch
+-- X[i][j]: best alignment ending with a gap in A (deletion from A's perspective)
+-- Y[i][j]: best alignment ending with a gap in B (insertion into A)
+
+M[i][j] = score(A[i], B[j]) + max(M[i-1][j-1], X[i-1][j-1], Y[i-1][j-1])
+X[i][j] = max(M[i-1][j] - gap_open, X[i-1][j] - gap_extend)
+Y[i][j] = max(M[i][j-1] - gap_open, Y[i][j-1] - gap_extend)</code></pre>
+<pre><code>class Sequence_Aligner
+  create
+    make(match_score: Integer,
+         mismatch_penalty: Integer,
+         gap_open: Integer,
+         gap_extend: Integer) do
+      this.match_score := match_score
+      this.mismatch_penalty := mismatch_penalty
+      this.gap_open := gap_open
+      this.gap_extend := gap_extend
+      this.negative_infinity := -1000000
+    end
+
+    dna_default() do
+      -- Common parameters for DNA alignment
+      this.match_score := 2
+      this.mismatch_penalty := -3
+      this.gap_open := -5
+      this.gap_extend := -2
+      this.negative_infinity := -1000000
+    end
+
+  feature
+    match_score: Integer
+    mismatch_penalty: Integer
+    gap_open: Integer
+    gap_extend: Integer
+    negative_infinity: Integer
+
+    align(seq_a: String, seq_b: String): Alignment do
+      let n: Integer := seq_a.length
+      let m: Integer := seq_b.length
+
+      -- Three DP tables
+      let M: Array[Array[Integer]] := init_table(n, m, negative_infinity)
+      let X: Array[Array[Integer]] := init_table(n, m, negative_infinity)
+      let Y: Array[Array[Integer]] := init_table(n, m, negative_infinity)
+
+      -- Base cases
+      M.get(0).set(0, 0)
+      from
+        let i: Integer := 1
+      until
+        i &lt;= n
+      do
+        X.get(i).set(0, gap_open + (i - 1) * gap_extend)
+        i := i + 1
+      end
+      from
+        let j: Integer := 1
+      until
+        j &lt;= m
+      do
+        Y.get(0).set(j, gap_open + (j - 1) * gap_extend)
+        j := j + 1
+      end
+
+      -- Fill tables
+      from
+        let i: Integer := 1
+      until
+        i &lt;= n
+      do
+        from
+          let j: Integer := 1
+        until
+          j &lt;= m
+        do
+          let s: Integer := when seq_a.char_at(i - 1) = seq_b.char_at(j - 1)
+            match_score
+          else
+            mismatch_penalty
+          end
+
+          M.get(i).set(j, s + max3(M.get(i-1).get(j-1),
+                                    X.get(i-1).get(j-1),
+                                    Y.get(i-1).get(j-1)))
+
+          X.get(i).set(j, max2(M.get(i-1).get(j) + gap_open,
+                                X.get(i-1).get(j) + gap_extend))
+
+          Y.get(i).set(j, max2(M.get(i).get(j-1) + gap_open,
+                                Y.get(i).get(j-1) + gap_extend))
+
+          j := j + 1
+        end
+        i := i + 1
+      end
+
+      -- Best score is max of three tables at (n, m)
+      let best_score: Integer := max3(M.get(n).get(m),
+                                       X.get(n).get(m),
+                                       Y.get(n).get(m))
+
+      -- Traceback to recover alignment
+      let aligned: Array[String] := traceback(M, X, Y, seq_a, seq_b)
+
+      result := create Alignment.make(aligned.get(0), aligned.get(1),
+                                       best_score)
+    end
+
+    traceback(M: Array[Array[Integer]],
+              X: Array[Array[Integer]],
+              Y: Array[Array[Integer]],
+              seq_a: String,
+              seq_b: String): Array[String] do
+      let aligned_a: String := ""
+      let aligned_b: String := ""
+      let n: Integer := seq_a.length
+      let m: Integer := seq_b.length
+      let i: Integer := n
+      let j: Integer := m
+
+      -- Determine starting table
+      let in_m: Boolean := M.get(n).get(m) &gt;= X.get(n).get(m) and
+                           M.get(n).get(m) &gt;= Y.get(n).get(m)
+      let in_x: Boolean := not in_m and
+                           X.get(n).get(m) &gt;= Y.get(n).get(m)
+      let state: String := "M"
+      if in_m then
+        state := "M"
+      elseif in_x then
+        state := "X"
+      else
+        state := "Y"
+      end
+
+      from until i = 0 and j = 0 do
+        if state = "M" then
+          aligned_a := seq_a.char_at(i - 1).to_string() + aligned_a
+          aligned_b := seq_b.char_at(j - 1).to_string() + aligned_b
+          -- Determine which table we came from
+          let prev: Integer := M.get(i - 1).get(j - 1)
+          let prev_x: Integer := X.get(i - 1).get(j - 1)
+          let prev_y: Integer := Y.get(i - 1).get(j - 1)
+          if prev &gt;= prev_x and prev &gt;= prev_y then
+            state := "M"
+          elseif prev_x &gt;= prev_y then
+            state := "X"
+          else
+            state := "Y"
+          end
+          i := i - 1
+          j := j - 1
+        elseif state = "X" then
+          aligned_a := seq_a.char_at(i - 1).to_string() + aligned_a
+          aligned_b := "-" + aligned_b
+          if M.get(i - 1).get(j) + gap_open &gt;=
+             X.get(i - 1).get(j) + gap_extend then
+            state := "M"
+          else
+            state := "X"
+          end
+          i := i - 1
+        else
+          aligned_a := "-" + aligned_a
+          aligned_b := seq_b.char_at(j - 1).to_string() + aligned_b
+          if M.get(i).get(j - 1) + gap_open &gt;=
+             Y.get(i).get(j - 1) + gap_extend then
+            state := "M"
+          else
+            state := "Y"
+          end
+          j := j - 1
+        end
+      end
+
+      result := [aligned_a, aligned_b]
+    end
+
+  invariant
+    positive_match: match_score &gt; 0
+end
+
+class Alignment
+  create
+    make(seq_a: String, seq_b: String, score: Integer) do
+      this.aligned_a := seq_a
+      this.aligned_b := seq_b
+      this.score := score
+    end
+
+  feature
+    aligned_a: String
+    aligned_b: String
+    score: Integer
+
+    format(): String do
+      let match_line: String := ""
+      from
+        let i: Integer := 0
+      until
+        i &gt;= aligned_a.length
+      do
+        if aligned_a.char_at(i) = aligned_b.char_at(i) and
+           aligned_a.char_at(i) /= '-' then
+          match_line := match_line + "|"
+        else
+          match_line := match_line + " "
+        end
+        i := i + 1
+      end
+      result := aligned_a + "\n" + match_line + "\n" + aligned_b
+    end
+end</code></pre>
+<p>Using the aligner:</p>
+<pre><code>let aligner: Sequence_Aligner := create Sequence_Aligner.dna_default()
+let result: Alignment := aligner.align("AGCACACA", "ACACACTA")
+print(result.format())</code></pre>
+<p>Output:</p>
+<pre><code>AGCACAC-A
+| ||||| |
+A-CACACTA</code></pre>
+<p>Score reflects: 7 matches, 1 mismatch, 1 gap open + 0 gap extend. This is the same alignment produced by BLAST and other bioinformatics tools for short sequences.</p>
+<hr>
+</section>
+<section id="dynamic-programming-as-a-general-technique" class="level2">
+<h2 class="anchored" data-anchor-id="dynamic-programming-as-a-general-technique">9.10 Dynamic Programming as a General Technique</h2>
+<p>Edit distance is the clearest example of dynamic programming, but the technique applies wherever:</p>
+<ol type="1">
+<li>The problem can be broken into overlapping subproblems</li>
+<li>The optimal solution to the whole problem contains optimal solutions to subproblems (optimal substructure)</li>
+<li>The number of distinct subproblems is polynomial</li>
+</ol>
+<p>The three-step recipe:</p>
+<p><strong>Step 1:</strong> Define the subproblems and their parameters. For edit distance: <code>ed(i, j)</code> = edit distance between A[1..i] and B[1..j].</p>
+<p><strong>Step 2:</strong> Write the recurrence. Express the answer to a larger subproblem in terms of smaller ones. For edit distance: the three-way minimum.</p>
+<p><strong>Step 3:</strong> Identify the evaluation order. Smaller subproblems before larger ones. For edit distance: increasing i and j.</p>
+<p>This recipe applies to dozens of classical problems — longest increasing subsequence, knapsack, matrix chain multiplication, all-pairs shortest paths — and to many problems you will encounter in practice that are not in textbooks. When you see a problem that requires finding an optimal value and the obvious recursive solution recomputes the same states, dynamic programming is the right framework.</p>
+<p>The specific form — fill a 2D table row by row — is the edit distance variant. Other problems have 1D tables (Fibonacci, coin change), 3D tables (some interval DP problems), or tables indexed differently. The shape of the table mirrors the structure of the subproblems.</p>
+<hr>
+</section>
+<section id="variants-worth-knowing" class="level2">
+<h2 class="anchored" data-anchor-id="variants-worth-knowing">9.11 Variants Worth Knowing</h2>
+<p><strong>Damerau-Levenshtein distance</strong> adds a fourth operation: transposition, swapping two adjacent characters. “recieve” → “receive” requires two substitutions in Levenshtein distance but only one transposition in Damerau-Levenshtein. For spell checking, this is more accurate — transpositions account for roughly 25% of typographical errors, and Damerau-Levenshtein catches them in one step.</p>
+<p>The DP recurrence for Damerau-Levenshtein requires tracking the last position in A and B where each character appeared, adding one case to the recurrence:</p>
+<pre><code>if a.char_at(i) = b.char_at(j - 1) and
+   a.char_at(i - 1) = b.char_at(j) then
+  let transposition_cost: Integer :=
+    table.get(i - 2).get(j - 2) + 1
+  -- compare with the other three costs and take the minimum
+end</code></pre>
+<p><strong>Jaro-Winkler distance</strong> is a similarity metric (not a distance) that is more appropriate for short strings like names. It counts matching characters within a window and transpositions among matched characters, then applies a prefix bonus for strings that share a common prefix. Name matching systems — merging customer databases, deduplicating records — typically use Jaro-Winkler rather than Levenshtein because it is more forgiving of common name variations (abbreviations, nicknames, different transliterations).</p>
+<p><strong>Normalised edit distance</strong> divides edit distance by the length of the longer string, giving a value between 0 and 1. This allows comparing edit distances across word pairs of different lengths. “ct” and “cat” have edit distance 1, as do “chromosome” and “chro9osome” — but they are clearly not equally similar. Normalised distance gives 0.33 and 0.1 respectively, which better reflects intuition.</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">9.12 Where This Lives in the Wild</h2>
+<p><strong>Every spell checker ever written</strong> uses edit distance or a close variant. Microsoft Word, Apple’s autocorrect, Android keyboard, iOS keyboard, Chrome’s spell checker — all of them compute some form of edit distance between the typed word and dictionary words. The only variation is in details: which operations are included, what the costs are, how the candidate word list is pruned, and how suggestions are ranked.</p>
+<p><strong>Git diff</strong>, GNU diff, and all Unix diff utilities use the LCS algorithm on lines. When you run <code>git diff</code>, git computes the LCS of the old and new versions of each file, treating lines as atomic units, and outputs the non-LCS lines as additions and deletions. The Myers diff algorithm, used by git, is a space-optimised LCS variant that finds the shortest edit script — the diff with the fewest total changes — in O(n + d²) time where d is the number of changed lines.</p>
+<p><strong>BLAST (Basic Local Alignment Search Tool)</strong> is the most widely used application in bioinformatics, performing billions of sequence alignments against databases containing trillions of nucleotides. It uses a heuristic version of Smith-Waterman local alignment: first identify short exact matches (seeds), then extend them using Smith-Waterman DP. The heuristic trades completeness for speed — BLAST can search the entire GenBank database in seconds.</p>
+<p><strong>Fuzzy string matching libraries</strong> in every major programming language — Python’s <code>difflib</code>, Java’s Apache Commons Text, JavaScript’s <code>fuse.js</code>, Rust’s <code>strsim</code> — implement edit distance variants for user-facing search and matching. When you search for a contact in your phone and it finds “Jeffrey” when you type “Jefrey,” edit distance is at work.</p>
+<p><strong>Database record linkage</strong> — merging datasets from different sources where the same entity appears with slightly different spellings — relies on edit distance to determine whether “Jon Smith, 5 Main St” and “John Smyth, 5 Main Street” refer to the same person. This is a significant data quality problem in healthcare (matching patient records), government (voter registration), and e-commerce (deduplicating customer records). The edit distance is typically one component of a larger similarity score combining name distance, address distance, date-of-birth match, and other fields.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Edit distance — the minimum number of insertions, deletions, and substitutions to transform one string into another — is one of computing’s most useful distance measures. Its recursive definition is intuitive; its naive recursive implementation is exponentially slow; dynamic programming reduces it to O(nm) time and O(m) space.</p>
+<p>The dynamic programming insight is general: when a recursion recomputes the same subproblems, compute each once and store the result. The table structure mirrors the structure of the subproblems — (n+1) × (m+1) for edit distance, since the subproblems are parameterised by two prefix lengths.</p>
+<p>Three direct applications: the spell checker uses bounded edit distance to find dictionary words close to a misspelled word; the diff utility uses LCS — a variant of edit distance restricted to insertions and deletions — to find added and removed lines between file versions; the sequence aligner uses affine-gap-penalty DP, a generalisation of edit distance with biologically motivated gap costs, to align DNA sequences.</p>
+<p>Dynamic programming is not a trick. It is the systematic exploitation of overlapping subproblems and optimal substructure. Recognising those two properties in a new problem is the skill — once recognised, the table formulation follows naturally from the recurrence, and the recurrence follows from thinking carefully about how to decompose the problem into smaller versions of itself.</p>
+<p>The next chapter turns from distance between strings to structure within strings: the trie, which organises a dictionary of strings for prefix search, autocomplete, and spell checking in time proportional to the query length rather than the dictionary size.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_8.html" class="pagination-link" aria-label="Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_10.html" class="pagination-link" aria-label="Chapter 10: Autocomplete — Tries">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

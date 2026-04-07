@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 18: The Lock-Free Queue — CAS in Practice – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_19.html" rel="next">
+<link href="./chapter_17.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_17.html">Concurrency-Aware Structures</a></li><li class="breadcrumb-item"><a href="./chapter_18.html"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#what-lock-free-means-precisely" id="toc-what-lock-free-means-precisely" class="nav-link active" data-scroll-target="#what-lock-free-means-precisely">18.1 What Lock-Free Means, Precisely</a></li>
+  <li><a href="#the-mpsc-queue-multiple-producers-single-consumer" id="toc-the-mpsc-queue-multiple-producers-single-consumer" class="nav-link" data-scroll-target="#the-mpsc-queue-multiple-producers-single-consumer">18.2 The MPSC Queue: Multiple Producers, Single Consumer</a>
+  <ul class="collapse">
+  <li><a href="#the-node-structure" id="toc-the-node-structure" class="nav-link" data-scroll-target="#the-node-structure">The Node Structure</a></li>
+  <li><a href="#the-lock-free-mpsc-queue" id="toc-the-lock-free-mpsc-queue" class="nav-link" data-scroll-target="#the-lock-free-mpsc-queue">The Lock-Free MPSC Queue</a></li>
+  <li><a href="#tracing-the-enqueue" id="toc-tracing-the-enqueue" class="nav-link" data-scroll-target="#tracing-the-enqueue">Tracing the Enqueue</a></li>
+  <li><a href="#the-two-step-enqueue" id="toc-the-two-step-enqueue" class="nav-link" data-scroll-target="#the-two-step-enqueue">The Two-Step Enqueue</a></li>
+  </ul></li>
+  <li><a href="#the-aba-problem-revisited" id="toc-the-aba-problem-revisited" class="nav-link" data-scroll-target="#the-aba-problem-revisited">18.3 The ABA Problem Revisited</a></li>
+  <li><a href="#a-complete-mpsc-queue-with-backpressure" id="toc-a-complete-mpsc-queue-with-backpressure" class="nav-link" data-scroll-target="#a-complete-mpsc-queue-with-backpressure">18.4 A Complete MPSC Queue with Backpressure</a></li>
+  <li><a href="#the-mpmc-queue-multiple-producers-multiple-consumers" id="toc-the-mpmc-queue-multiple-producers-multiple-consumers" class="nav-link" data-scroll-target="#the-mpmc-queue-multiple-producers-multiple-consumers">18.5 The MPMC Queue: Multiple Producers, Multiple Consumers</a>
+  <ul class="collapse">
+  <li><a href="#the-sequence-number-protocol" id="toc-the-sequence-number-protocol" class="nav-link" data-scroll-target="#the-sequence-number-protocol">The Sequence Number Protocol</a></li>
+  </ul></li>
+  <li><a href="#false-sharing-and-cache-line-padding" id="toc-false-sharing-and-cache-line-padding" class="nav-link" data-scroll-target="#false-sharing-and-cache-line-padding">18.6 False Sharing and Cache-Line Padding</a></li>
+  <li><a href="#lock-free-vs-mutex-an-honest-comparison" id="toc-lock-free-vs-mutex-an-honest-comparison" class="nav-link" data-scroll-target="#lock-free-vs-mutex-an-honest-comparison">18.7 Lock-Free vs Mutex: An Honest Comparison</a></li>
+  <li><a href="#when-lock-free-loses" id="toc-when-lock-free-loses" class="nav-link" data-scroll-target="#when-lock-free-loses">18.8 When Lock-Free Loses</a></li>
+  <li><a href="#a-practical-queue-with-both-strategies" id="toc-a-practical-queue-with-both-strategies" class="nav-link" data-scroll-target="#a-practical-queue-with-both-strategies">18.9 A Practical Queue with Both Strategies</a></li>
+  <li><a href="#the-work-stealing-deque" id="toc-the-work-stealing-deque" class="nav-link" data-scroll-target="#the-work-stealing-deque">18.10 The Work-Stealing Deque</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">18.11 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_17.html">Concurrency-Aware Structures</a></li><li class="breadcrumb-item"><a href="./chapter_18.html"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>In 2004, a team at a major financial exchange noticed something strange. Their order matching engine — the system that pairs buy orders with sell orders — was fast. Extremely fast. But at peak load, when thousands of orders arrived per second, latency spiked. Not continuously, but in brief, unpredictable bursts. An order that normally processed in 50 microseconds would occasionally take 5 milliseconds. The engineers investigated. The culprit was a mutex.</p>
+<p>The matching engine used a shared queue to pass orders from the network layer to the matching core. Multiple threads deposited orders into the queue; the matching thread consumed them. The queue was protected by a mutex. Under normal load, the mutex was uncontested and added negligible overhead. At peak load, multiple threads competed for the mutex simultaneously. One thread acquired it; the others blocked. The OS scheduler, noticing blocked threads, made scheduling decisions. Context switches occurred. Threads were preempted mid-critical-section. The latency spike was the sum of mutex contention, OS scheduling overhead, and cache thrashing from the context switches.</p>
+<p>The fix was a lock-free queue — a queue that multiple threads could enqueue to and dequeue from simultaneously, without any mutex, without any blocking, without giving the OS scheduler an opportunity to intervene. The implementation was more complex. The performance was transformatively better.</p>
+<p>Lock-free data structures use compare-and-swap directly, without mutexes, to achieve thread safety. They are harder to implement correctly than mutex-based structures, but they avoid the pathological latency spikes that mutexes introduce under contention. This chapter builds a lock-free MPSC (multiple-producer, single-consumer) queue — exactly the structure the matching engine needed.</p>
+<hr>
+<section id="what-lock-free-means-precisely" class="level2">
+<h2 class="anchored" data-anchor-id="what-lock-free-means-precisely">18.1 What Lock-Free Means, Precisely</h2>
+<p>The term “lock-free” is often used loosely to mean “fast concurrent” or “no mutexes.” Neither is the precise meaning.</p>
+<p>A data structure is <strong>lock-free</strong> if, at any point in time, at least one thread is making progress. This is a guarantee about system-wide progress, not individual thread progress. A lock-free structure can still make individual threads spin or retry — it just cannot cause all threads to block indefinitely.</p>
+<p>Compare this to <strong>mutex-based</strong> structures: if the thread holding the mutex is descheduled, all other threads block. No thread makes progress until the OS reschedules the mutex holder. The OS scheduler can introduce arbitrary delays. Lock-free structures do not have this property — even if one thread is preempted mid-operation, other threads continue making progress.</p>
+<p>A stronger guarantee is <strong>wait-free</strong>: every thread makes progress in a bounded number of steps, regardless of other threads. Wait-free structures are rare and complex to implement. For most applications, lock-free is sufficient and much easier to build.</p>
+<p>The lock-free guarantee does not mean fast. A badly implemented lock-free structure can be slower than a well-implemented mutex-based one. Lock-free avoids the specific pathology of blocking under contention — it does not magically eliminate contention’s cost.</p>
+<hr>
+</section>
+<section id="the-mpsc-queue-multiple-producers-single-consumer" class="level2">
+<h2 class="anchored" data-anchor-id="the-mpsc-queue-multiple-producers-single-consumer">18.2 The MPSC Queue: Multiple Producers, Single Consumer</h2>
+<p>Our target is a queue with multiple threads enqueueing (producers) and one thread dequeueing (consumer). This asymmetry — single consumer — simplifies the implementation considerably. The consumer never competes with another consumer, so we only need lock-free enqueue, not lock-free dequeue.</p>
+<p>Why MPSC specifically? It maps directly to many real patterns: - Network listeners (multiple) feeding a processing thread (single) - Worker threads (multiple) reporting results to a coordinator (single) - Event sources (multiple) feeding an event loop (single)</p>
+<p>The algorithm we implement is based on the intrusive linked list queue by Dmitry Vyukov, one of the most influential concurrency researchers of the past two decades. It uses a linked list of nodes where the tail pointer is updated with CAS.</p>
+<section id="the-node-structure" class="level3">
+<h3 class="anchored" data-anchor-id="the-node-structure">The Node Structure</h3>
+<pre><code>class Queue_Node [T]
+  create
+    make(value: T) do
+      this.value := value
+      this.next := nil  -- in real impl: Atomic_Reference
+    end
+
+    sentinel() do
+      -- Dummy node: head always points to a sentinel
+      -- to avoid null checks in the common path
+      this.next := nil
+    end
+
+  feature
+    value: ?T                        -- nil for sentinel node
+    next: ?Queue_Node[T]             -- atomic pointer to next node
+
+    next_node(): ?Queue_Node[T] do
+      result := next
+    end
+
+    item(): ?T do
+      result := value
+    end
+
+    compare_and_set_next(expected: ?Queue_Node[T],
+                         desired: ?Queue_Node[T]): Boolean do
+      if next = expected then
+        next := desired
+        result := true
+      else
+        result := false
+      end
+    end
+
+    clear_value() do
+      value := nil
+    end
+
+  invariant
+    next_pointer_consistent: true
+end</code></pre>
+</section>
+<section id="the-lock-free-mpsc-queue" class="level3">
+<h3 class="anchored" data-anchor-id="the-lock-free-mpsc-queue">The Lock-Free MPSC Queue</h3>
+<p>The queue maintains two pointers: - <strong>Head:</strong> points to the sentinel node (the node before the first real element). Only the consumer modifies head. Single consumer means no contention on head. - <strong>Tail:</strong> points to the last node. Multiple producers compete to update tail using CAS.</p>
+<pre><code>class MPSC_Queue [T]
+  create
+    empty() do
+      let sentinel: Queue_Node[T] := create Queue_Node[T].sentinel()
+      this.head := sentinel   -- in real impl: plain pointer (single consumer)
+      this.tail := sentinel   -- in real impl: atomic pointer (multiple producers)
+      this.size := create Atomic_Integer.make(0)
+    end
+
+  feature
+    head: Queue_Node[T]          -- only consumer modifies
+    tail: Queue_Node[T]          -- atomic: producers compete here
+    size: Atomic_Integer
+
+    -- Enqueue: called by any producer thread
+    -- Lock-free: uses CAS on tail
+    enqueue(value: T)
+      do
+        let node: Queue_Node[T] := create Queue_Node[T].make(value)
+        let linked: Boolean := false
+
+        -- Atomically swing tail to new node
+        -- This is the key CAS operation
+        from until linked do
+          let current_tail: Queue_Node[T] := tail
+
+          -- Try to link new node after current tail
+          if atomic_cas_next(current_tail, nil, node) then
+            -- Successfully linked: now update tail pointer
+            -- Note: another thread might update tail before us (that's ok)
+            atomic_cas_tail(current_tail, node)
+            size.increment()
+            linked := true
+          end
+
+          -- CAS failed: another producer linked a node after current_tail
+          -- Help advance tail and retry
+          let next_node: ?Queue_Node[T] := current_tail.next_node()
+          if convert next_node to linked_next: Queue_Node[T] then
+            atomic_cas_tail(current_tail, linked_next)
+          end
+        end
+      ensure
+        size_increased: size.load() &gt; old size.load()
+    end
+
+    -- Dequeue: called only by the single consumer thread
+    -- Not lock-free between consumers (single consumer assumed)
+    dequeue(): ?T do
+      let h: Queue_Node[T] := head
+      let next_node: ?Queue_Node[T] := h.next_node()
+
+      if next_node = nil then
+        result := nil  -- queue is empty
+      else
+        -- Advance head: next becomes the new sentinel
+        -- The value we are returning is in next
+        if convert next_node to next_value: Queue_Node[T] then
+          head := next_value
+          if convert next_value.item() to value: T then
+            next_value.clear_value()  -- help GC
+            size.decrement()
+            result := value
+          else
+            result := nil
+          end
+        else
+          result := nil
+        end
+      end
+    end
+
+    -- Peek at front without removing
+    peek(): ?T do
+      let next_node: ?Queue_Node[T] := head.next_node()
+      if next_node = nil then
+        result := nil
+      else
+        result := next_node.item()
+      end
+    end
+
+    is_empty(): Boolean do
+      result := head.next_node() = nil
+    end
+
+    length(): Integer do
+      result := size.load()
+    end
+
+    -- These simulate atomic operations in real implementation
+    -- In production Nex these would be hardware CAS instructions
+
+    atomic_cas_next(node: Queue_Node[T],
+                    expected: ?Queue_Node[T],
+                    desired: ?Queue_Node[T]): Boolean do
+      -- Atomically: if node.next == expected, set node.next = desired
+      result := node.compare_and_set_next(expected, desired)
+    end
+
+    atomic_cas_tail(expected: Queue_Node[T],
+                    desired: Queue_Node[T]) do
+      -- Best-effort tail update: if tail still points to expected,
+      -- advance it to desired
+      if tail = expected then
+        tail := desired
+      end
+    end
+
+  invariant
+    head_exists: head /= nil
+    tail_exists: tail /= nil
+    non_negative_size: size.load() &gt;= 0
+end</code></pre>
+</section>
+<section id="tracing-the-enqueue" class="level3">
+<h3 class="anchored" data-anchor-id="tracing-the-enqueue">Tracing the Enqueue</h3>
+<p>Let us trace a concurrent enqueue to understand why this is correct.</p>
+<p>Initial state: head → sentinel ← tail. The sentinel has next = nil.</p>
+<p><strong>Producer 1 enqueues value A:</strong> 1. Creates node A 2. Reads current_tail = sentinel 3. CAS: sentinel.next: nil → A. Succeeds. 4. CAS: tail: sentinel → A. Updates tail. 5. size.increment(). Done.</p>
+<p>State: head → sentinel → A ← tail.</p>
+<p><strong>Producers 2 and 3 enqueue B and C simultaneously:</strong></p>
+<p>Both read current_tail = A (the current tail).</p>
+<p>Producer 2 tries CAS: A.next: nil → B. Suppose this succeeds. Producer 3 tries CAS: A.next: nil → C. This fails — A.next is now B.</p>
+<p>Producer 2: CAS tail: A → B. Updates tail. Producer 3: CAS failed. Re-reads current_tail = A. Sees A.next = B (not nil). Helps advance tail: CAS tail: A → B (tail already B, no-op). Retries.</p>
+<p>Producer 3 re-reads current_tail = B. Producer 3 tries CAS: B.next: nil → C. Succeeds. Producer 3: CAS tail: B → C. Updates tail.</p>
+<p>State: head → sentinel → A → B → C ← tail.</p>
+<p>The important invariant: after the CAS on a node’s next pointer succeeds, that node is linked into the queue. The tail update is a best-effort optimisation — it is fine if tail lags behind the actual last node (some other thread will advance it).</p>
+</section>
+<section id="the-two-step-enqueue" class="level3">
+<h3 class="anchored" data-anchor-id="the-two-step-enqueue">The Two-Step Enqueue</h3>
+<p>Why two steps — link the node, then update tail? Why not one atomic operation?</p>
+<p>Because CAS can only atomically modify one memory location. Linking a node (updating the previous tail’s next pointer) and updating the tail pointer are two separate memory modifications. They cannot be done atomically together with a single CAS.</p>
+<p>The solution: do them separately, and design the algorithm so that a partial update (node linked, tail not yet updated) leaves the queue in a consistent state that other threads can detect and handle. The “help advance tail” code in the enqueue loop does this: if a thread sees that tail.next is not nil, it knows another thread linked a node but did not update tail yet, and it helpfully advances tail before retrying.</p>
+<p>This cooperative advancing is characteristic of many lock-free algorithms: threads help each other complete operations rather than waiting for the original thread to finish.</p>
+<hr>
+</section>
+</section>
+<section id="the-aba-problem-revisited" class="level2">
+<h2 class="anchored" data-anchor-id="the-aba-problem-revisited">18.3 The ABA Problem Revisited</h2>
+<p>Chapter 17 introduced the ABA problem abstractly. In a queue implementation, it is concrete and dangerous.</p>
+<p>Consider the dequeue operation in a multi-consumer version (not our MPSC queue, but the general MPMC case):</p>
+<ol type="1">
+<li>Thread 1 reads head = H, reads H.next = A.</li>
+<li>Thread 1 is preempted.</li>
+<li>Thread 2 dequeues A (advancing head to A, returning its value).</li>
+<li>Thread 3 dequeues the next element.</li>
+<li>Thread 2 enqueues a new node that gets allocated at the same memory address as the original sentinel node.</li>
+<li>Thread 1 resumes. Tries CAS: head: H → A.</li>
+</ol>
+<p>But H has been recycled — the memory address of H now contains a completely different node. Thread 1’s CAS succeeds (memory address matches), but the operation is now wrong — Thread 1 has advanced head over a node that was never the one it intended to skip.</p>
+<p>In our MPSC queue, the consumer is single-threaded, so this cannot happen on the dequeue side. The consumer never races with another consumer. This is exactly why the MPSC restriction simplifies the implementation: we only need to handle concurrent producers, not concurrent consumers.</p>
+<p>For a full MPMC (multiple producer, multiple consumer) queue, the ABA problem must be addressed. Solutions:</p>
+<ol type="1">
+<li><p><strong>Hazard pointers:</strong> before accessing a node, register a hazard pointer to it. A thread cannot free a node that any other thread has a hazard pointer to. Eliminates ABA but adds complexity.</p></li>
+<li><p><strong>Epoch-based reclamation:</strong> threads coordinate epoch numbers; nodes are reclaimed only when no thread is in an old epoch. Efficient but complex.</p></li>
+<li><p><strong>Tagged pointers:</strong> combine the pointer with a version counter in a single 64-bit word (on 64-bit systems, pointer addresses only use 48 bits, leaving 16 bits for a tag). CAS operates on the combined word; the tag defeats ABA.</p></li>
+<li><p><strong>Michael-Scott queue:</strong> the classic MPMC lock-free queue (Michael and Scott, 1996) uses a different node reuse strategy and careful algorithm design to avoid ABA without hardware tagging, though it requires that dequeued nodes are not immediately reused.</p></li>
+</ol>
+<hr>
+</section>
+<section id="a-complete-mpsc-queue-with-backpressure" class="level2">
+<h2 class="anchored" data-anchor-id="a-complete-mpsc-queue-with-backpressure">18.4 A Complete MPSC Queue with Backpressure</h2>
+<p>A bare queue without backpressure will grow without bound if producers outpace the consumer. A bounded queue — with a maximum capacity — applies backpressure: producers block (or return failure) when the queue is full.</p>
+<pre><code>class Bounded_MPSC_Queue [T]
+  create
+    with_capacity(capacity: Integer)
+      require
+        positive_capacity: capacity &gt; 0
+      do
+        this.capacity := capacity
+        this.queue := create MPSC_Queue[T].empty()
+        this.available := create Atomic_Integer.make(capacity)
+      end
+
+  feature
+    capacity: Integer
+    queue: MPSC_Queue[T]
+    available: Atomic_Integer  -- permits remaining = capacity - size
+
+    -- Try to enqueue without blocking
+    -- Returns false if queue is full
+    try_enqueue(value: T): Boolean do
+      -- Optimistically claim a slot
+      let remaining: Integer := available.load()
+      let claimed: Boolean := false
+
+      from until remaining &lt;= 0 or claimed do
+        if available.compare_and_set(remaining, remaining - 1) then
+          -- Claimed a slot: enqueue
+          queue.enqueue(value)
+          result := true
+          claimed := true
+        else
+          remaining := available.load()
+        end
+      end
+      if not claimed then
+        result := false  -- queue full
+      end
+    end
+
+    -- Enqueue, spinning until space is available
+    -- Returns after successfully enqueueing
+    enqueue_spin(value: T) do
+      from until try_enqueue(value) do
+        -- Spin: in practice, yield or sleep briefly
+        hint_spin()
+      end
+    end
+
+    -- Dequeue: consumer thread only
+    dequeue(): ?T do
+      let value: ?T := queue.dequeue()
+      if value /= nil then
+        available.increment()
+      end
+      result := value
+    end
+
+    is_full(): Boolean do
+      result := available.load() &lt;= 0
+    end
+
+    is_empty(): Boolean do
+      result := queue.is_empty()
+    end
+
+    size(): Integer do
+      result := capacity - available.load()
+    end
+
+  invariant
+    capacity_positive: capacity &gt; 0
+    available_bounded: available.load() &gt;= 0 and available.load() &lt;= capacity
+end</code></pre>
+<p>The <code>available</code> atomic integer is a semaphore-like counter of remaining capacity. Producers decrement it to claim a slot; the consumer increments it when dequeueing. The CAS on <code>available</code> ensures that two producers cannot claim the same slot.</p>
+<p>This structure separates two concerns: the queue itself (linked list, CAS on tail) handles ordering; the availability counter (atomic integer, CAS) handles backpressure. Separating these concerns makes each simpler.</p>
+<hr>
+</section>
+<section id="the-mpmc-queue-multiple-producers-multiple-consumers" class="level2">
+<h2 class="anchored" data-anchor-id="the-mpmc-queue-multiple-producers-multiple-consumers">18.5 The MPMC Queue: Multiple Producers, Multiple Consumers</h2>
+<p>The full general case — multiple producers, multiple consumers — is the hardest version. We implement Dmitry Vyukov’s cache-line-friendly array-based MPMC queue, which is both simpler than linked-list MPMC queues and faster in practice.</p>
+<p>The insight: instead of a linked list, use a fixed-size circular array. Each slot has a sequence number — a counter that indicates whether the slot is ready to be written (producer can claim it) or ready to be read (consumer can claim it).</p>
+<pre><code>class MPMC_Cell [T]
+  create
+    make(sequence: Integer) do
+      this.sequence := create Atomic_Integer.make(sequence)
+      this.data := nil
+    end
+
+  feature
+    sequence: Atomic_Integer
+    data: ?T
+end
+
+class MPMC_Queue [T]
+  create
+    with_capacity(capacity: Integer)
+      require
+        power_of_two: is_power_of_two(capacity)
+        positive: capacity &gt; 0
+      do
+        this.capacity := capacity
+        this.mask := capacity - 1  -- bitmask for fast modulo
+        this.buffer := create Array.filled(capacity, nil)
+        this.enqueue_pos := create Atomic_Integer.make(0)
+        this.dequeue_pos := create Atomic_Integer.make(0)
+
+        -- Initialise each cell's sequence number to its index
+        from
+          let i: Integer := 0
+        until
+          i &lt; capacity
+        do
+          this.buffer.set(i, create MPMC_Cell[T].make(i))
+          i := i + 1
+        end
+      end
+
+  feature
+    capacity: Integer
+    mask: Integer
+    buffer: Array[?MPMC_Cell[T]]
+    enqueue_pos: Atomic_Integer  -- next position to enqueue into
+    dequeue_pos: Atomic_Integer  -- next position to dequeue from
+
+    -- Try to enqueue, return false if full
+    try_enqueue(value: T): Boolean do
+      let done: Boolean := false
+      from until done do
+        let pos: Integer := enqueue_pos.load()
+        let cell: MPMC_Cell[T] := buffer.get(pos.bitwise_and(mask))
+        let seq: Integer := cell.sequence.load()
+        let diff: Integer := seq - pos
+
+        if diff = 0 then
+          -- Cell is ready: sequence equals position
+          -- Try to claim it
+          if enqueue_pos.compare_and_set(pos, pos + 1) then
+            -- Claimed: write data and advance sequence
+            cell.data := value
+            cell.sequence.store(pos + 1)
+            result := true
+            done := true
+          end
+          -- CAS failed: another producer claimed this cell, retry
+
+        elseif diff &lt; 0 then
+          -- Queue is full (cell not yet consumed)
+          result := false
+          done := true
+
+        else
+          -- Another producer already claimed this cell
+          -- Retry with fresh position read
+        end
+      end
+    end
+
+    -- Try to dequeue, return nil if empty
+    try_dequeue(): ?T do
+      let done: Boolean := false
+      from until done do
+        let pos: Integer := dequeue_pos.load()
+        let cell: MPMC_Cell[T] := buffer.get(pos.bitwise_and(mask))
+        let seq: Integer := cell.sequence.load()
+        let diff: Integer := seq - (pos + 1)
+
+        if diff = 0 then
+          -- Cell is ready: sequence equals position + 1
+          -- Try to claim it
+          if dequeue_pos.compare_and_set(pos, pos + 1) then
+            -- Claimed: read data and advance sequence for reuse
+            let value: T := cell.data
+            cell.data := nil
+            cell.sequence.store(pos + capacity)
+            result := value
+            done := true
+          end
+          -- CAS failed: another consumer claimed this cell, retry
+
+        elseif diff &lt; 0 then
+          -- Queue is empty
+          result := nil
+          done := true
+
+        else
+          -- Another consumer already claimed this cell, retry
+        end
+      end
+    end
+
+    is_empty(): Boolean do
+      let pos: Integer := dequeue_pos.load()
+      let cell: MPMC_Cell[T] := buffer.get(pos.bitwise_and(mask))
+      result := cell.sequence.load() - (pos + 1) /= 0
+    end
+
+    size(): Integer do
+      let eq: Integer := enqueue_pos.load()
+      let dq: Integer := dequeue_pos.load()
+      result := (eq - dq).max(0)
+    end
+
+  invariant
+    power_of_two_capacity: is_power_of_two(capacity)
+    mask_correct: mask = capacity - 1
+end
+
+function is_power_of_two(n: Integer): Boolean do
+  result := n &gt; 0 and n.bitwise_and(n - 1) = 0
+end</code></pre>
+<section id="the-sequence-number-protocol" class="level3">
+<h3 class="anchored" data-anchor-id="the-sequence-number-protocol">The Sequence Number Protocol</h3>
+<p>The sequence number in each cell is the key mechanism. Let us trace through it.</p>
+<p><strong>Initial state:</strong> capacity = 4. Cells at positions 0, 1, 2, 3 have sequences 0, 1, 2, 3. enqueue_pos = 0, dequeue_pos = 0.</p>
+<p><strong>First enqueue (Producer 1, value A):</strong> - pos = 0. cell = buffer[0 &amp; 3] = buffer[0]. seq = 0. diff = seq - pos = 0 - 0 = 0. ✓ - CAS enqueue_pos: 0 → 1. Success. - cell.data = A. cell.sequence.store(0 + 1) = 1. - Sequences: [1, 1, 2, 3]. enqueue_pos = 1.</p>
+<p><strong>First dequeue (Consumer 1):</strong> - pos = 0. cell = buffer[0]. seq = 1. diff = seq - (pos + 1) = 1 - 1 = 0. ✓ - CAS dequeue_pos: 0 → 1. Success. - value = A. cell.sequence.store(0 + 4) = 4. - Sequences: [4, 1, 2, 3]. dequeue_pos = 1.</p>
+<p><strong>Wrap-around enqueue (after 4 total enqueues/dequeues):</strong> - enqueue_pos = 4. cell = buffer[4 &amp; 3] = buffer[0]. seq = 4. diff = 4 - 4 = 0. ✓ - The cell is ready for reuse: its sequence (4) equals the new position (4).</p>
+<p>The sequence number tracks the “generation” of each cell. After each use cycle (one enqueue + one dequeue), the sequence advances by capacity, preventing the consumer from confusing old data with new.</p>
+<p>The <code>diff &lt; 0</code> check detects full/empty conditions: - In enqueue: if seq &lt; pos, the cell has not been consumed yet (the consumer is behind). Queue is full. - In dequeue: if seq &lt; pos + 1, the cell has not been enqueued yet (the producer is behind). Queue is empty.</p>
+<hr>
+</section>
+</section>
+<section id="false-sharing-and-cache-line-padding" class="level2">
+<h2 class="anchored" data-anchor-id="false-sharing-and-cache-line-padding">18.6 False Sharing and Cache-Line Padding</h2>
+<p>High-performance concurrent code must account for the structure of CPU caches. A cache line is typically 64 bytes — the unit of memory that is loaded and invalidated atomically. When two threads access different variables on the same cache line, modifying one invalidates the other thread’s cached copy of both — even though they are writing to different memory locations. This is <strong>false sharing</strong>.</p>
+<p>For our MPMC queue, <code>enqueue_pos</code> and <code>dequeue_pos</code> are frequently modified by producers and consumers respectively. If they share a cache line, every producer write invalidates the consumer’s cache, and vice versa, causing unnecessary cache-coherence traffic.</p>
+<p>The fix: pad each frequently-written variable to its own cache line.</p>
+<pre><code>-- Cache-line padded atomic integer
+-- On most architectures, cache lines are 64 bytes
+class Padded_Atomic_Integer
+  create
+    make(initial: Integer) do
+      this.value := create Atomic_Integer.make(initial)
+      -- Padding: remaining bytes to fill the cache line
+      -- In real implementation: align to 64-byte boundary
+      this.pad := create Array.filled(56, 0)  -- 64 - 8 bytes for the atomic
+    end
+
+  feature
+    value: Atomic_Integer
+    pad: Array[Integer]  -- explicit cache line padding
+
+    load(): Integer do result := value.load() end
+    store(v: Integer) do value.store(v) end
+    increment(): Integer do result := value.increment() end
+    compare_and_set(e: Integer, d: Integer): Boolean do
+      result := value.compare_and_set(e, d)
+    end
+end</code></pre>
+<p>Similarly, each MPMC cell should be padded to its own cache line to prevent false sharing between adjacent cells:</p>
+<pre><code>class Padded_MPMC_Cell [T]
+  create
+    make(sequence: Integer) do
+      this.sequence := create Atomic_Integer.make(sequence)
+      this.data := nil
+      this.pad := create Array.filled(48, 0)  -- pad to 64 bytes total
+    end
+
+  feature
+    sequence: Atomic_Integer  -- 8 bytes
+    data: ?T                  -- 8 bytes (pointer)
+    pad: Array[Integer]       -- 48 bytes padding
+    -- Total: 64 bytes = one cache line
+end</code></pre>
+<p>On a machine where producer and consumer run on different cores, padding eliminates a significant source of cache coherence traffic. Benchmarks on real hardware typically show 2-5x throughput improvement from proper cache-line alignment for contended data structures.</p>
+<hr>
+</section>
+<section id="lock-free-vs-mutex-an-honest-comparison" class="level2">
+<h2 class="anchored" data-anchor-id="lock-free-vs-mutex-an-honest-comparison">18.7 Lock-Free vs Mutex: An Honest Comparison</h2>
+<p>With the implementation in hand, we can make an honest comparison.</p>
+<pre><code>class Queue_Benchmark [T]
+  create
+    make() do end
+
+  feature
+    -- Benchmark: producers enqueue, consumer dequeues
+    -- Measure: throughput (operations per second)
+    run(queue_type: String,
+        num_producers: Integer,
+        operations: Integer) do
+      let items_per_producer: Integer := operations / num_producers
+      let consumed: Atomic_Integer := create Atomic_Integer.make(0)
+      let start: Integer64 := current_time_ns()
+
+      if queue_type = "mpsc_lockfree" then
+        benchmark_mpsc(num_producers, items_per_producer, consumed)
+      elseif queue_type = "mutex" then
+        benchmark_mutex(num_producers, items_per_producer, consumed)
+      end
+
+      let elapsed_ns: Integer64 := current_time_ns() - start
+      let throughput: Real :=
+        (operations.to_real() / elapsed_ns.to_real()) * 1000000000.0
+
+      print(queue_type + " | producers=" + num_producers.to_string() +
+            " | ops=" + operations.to_string() +
+            " | " + throughput.to_integer().to_string() + " ops/sec" +
+            " | " + (elapsed_ns / 1000000).to_string() + "ms")
+    end
+
+    benchmark_mpsc(num_producers: Integer,
+                   items_per_producer: Integer,
+                   consumed: Atomic_Integer) do
+      let queue: MPSC_Queue[Integer] := create MPSC_Queue[Integer].empty()
+      let total: Integer := num_producers * items_per_producer
+
+      -- Consumer task
+      let consumer: Task := spawn do
+        from until consumed.load() &gt;= total do
+          let item: ?Integer := queue.dequeue()
+          if item /= nil then
+            consumed.increment()
+          end
+        end
+      end
+
+      -- Producer tasks
+      let producers: Array[Task] := []
+      from
+        let p: Integer := 0
+      until
+        p &lt; num_producers
+      do
+        let p_copy: Integer := p
+        producers.add(spawn do
+          from
+            let i: Integer := 0
+          until
+            i &lt; items_per_producer
+          do
+            queue.enqueue(p_copy * items_per_producer + i)
+            i := i + 1
+          end
+        end)
+        p := p + 1
+      end
+
+      across producers as producer do producer.await end
+      consumer.await
+    end
+
+    benchmark_mutex(num_producers: Integer,
+                    items_per_producer: Integer,
+                    consumed: Atomic_Integer) do
+      let queue: Array[Integer] := []  -- Simple array as queue
+      let mu: Mutex := create Mutex.make()
+      let total: Integer := num_producers * items_per_producer
+
+      let consumer: Task := spawn do
+        from until consumed.load() &gt;= total do
+          mu.lock()
+          let item: ?Integer :=
+            when not queue.is_empty() queue.remove(0) else nil end
+          mu.unlock()
+          if item /= nil then consumed.increment() end
+        end
+      end
+
+      let producers: Array[Task] := []
+      from
+        let p: Integer := 0
+      until
+        p &lt; num_producers
+      do
+        let p_copy: Integer := p
+        producers.add(spawn do
+          from
+            let i: Integer := 0
+          until
+            i &lt; items_per_producer
+          do
+            mu.lock()
+            queue.add(p_copy * items_per_producer + i)
+            mu.unlock()
+            i := i + 1
+          end
+        end)
+        p := p + 1
+      end
+
+      across producers as producer do producer.await end
+      consumer.await
+    end
+end</code></pre>
+<p>Typical results on a modern multi-core machine (approximate, varies significantly by hardware):</p>
+<pre><code>-- 1 producer:
+mpsc_lockfree | producers=1  | ops=10M | 45,000,000 ops/sec | 222ms
+mutex         | producers=1  | ops=10M | 30,000,000 ops/sec | 333ms
+
+-- 4 producers:
+mpsc_lockfree | producers=4  | ops=10M | 38,000,000 ops/sec | 263ms
+mutex         | producers=4  | ops=10M |  8,000,000 ops/sec | 1250ms
+
+-- 8 producers:
+mpsc_lockfree | producers=8  | ops=10M | 35,000,000 ops/sec | 286ms
+mutex         | producers=8  | ops=10M |  3,500,000 ops/sec | 2857ms</code></pre>
+<p>The pattern: at one producer, the mutex queue is slower (overhead) but not dramatically. At four producers, the mutex queue is 5x slower. At eight, it is 10x slower. The mutex serialises all enqueues; adding more producers adds more contention, reducing throughput. The lock-free queue degrades gracefully — some slowdown from CAS contention, but far less than mutex serialisation.</p>
+<p>The latency story is starker. The mutex queue has occasional spikes of hundreds of microseconds when the OS makes scheduling decisions. The lock-free queue has consistent latency — each operation takes approximately the same time, making it predictable for latency-sensitive applications like financial order processing.</p>
+<hr>
+</section>
+<section id="when-lock-free-loses" class="level2">
+<h2 class="anchored" data-anchor-id="when-lock-free-loses">18.8 When Lock-Free Loses</h2>
+<p>Lock-free does not always win. There are situations where mutex-based queues outperform lock-free ones.</p>
+<p><strong>Low contention, short critical sections.</strong> When only one thread is enqueuing at a time (truly uncontended), a mutex acquires and releases with minimal overhead — often just an atomic CAS, identical to what the lock-free queue does. The lock-free queue’s extra complexity (retry loop, cooperative tail-advancement) adds overhead that a simple mutex avoids.</p>
+<p><strong>When threads do significant work per enqueue.</strong> If each enqueue is preceded by 100 microseconds of computation, the probability that two enqueues happen simultaneously is low. Mutex and lock-free perform identically — contention is rare.</p>
+<p><strong>High-throughput batching.</strong> A mutex-protected queue can be batched: a producer acquires the mutex, enqueues a hundred items, releases. One acquire/release for a hundred items amortises the mutex overhead. Lock-free queues typically enqueue one item at a time, with one CAS per item. For bulk operations, the mutex can be faster.</p>
+<p><strong>Very long queues.</strong> The lock-free queue’s linked list has poor cache performance for large queues — traversing the list follows pointers to scattered memory locations. The MPMC array-based queue has excellent cache performance (sequential access), but requires bounded capacity. For unbounded queues with high throughput, the cache performance difference can dominate.</p>
+<p>The practical guidance: default to a well-implemented mutex-based queue. If profiling identifies the queue as a throughput bottleneck, specifically due to contention, consider switching to a lock-free variant. Do not assume lock-free is faster — measure.</p>
+<hr>
+</section>
+<section id="a-practical-queue-with-both-strategies" class="level2">
+<h2 class="anchored" data-anchor-id="a-practical-queue-with-both-strategies">18.9 A Practical Queue with Both Strategies</h2>
+<p>A pragmatic implementation: the same interface backed by either strategy, selectable at construction time.</p>
+<pre><code>class Work_Queue [T]
+  create
+    mpsc(capacity: Integer) do
+      this.strategy := "mpsc"
+      this.mpsc_queue := create Bounded_MPSC_Queue[T].with_capacity(capacity)
+      this.mutex_queue := nil
+      this.mu := nil
+      this.mutex_items := nil
+    end
+
+    mpmc_array(capacity: Integer) do
+      this.strategy := "mpmc"
+      this.mpsc_queue := nil
+      this.mutex_queue := create MPMC_Queue[T].with_capacity(capacity)
+      this.mu := nil
+      this.mutex_items := nil
+    end
+
+    mutex_backed() do
+      this.strategy := "mutex"
+      this.mpsc_queue := nil
+      this.mutex_queue := nil
+      this.mu := create Mutex.make()
+      this.mutex_items := []
+    end
+
+  feature
+    strategy: String
+    mpsc_queue: ?Bounded_MPSC_Queue[T]
+    mutex_queue: ?MPMC_Queue[T]
+    mu: ?Mutex
+    mutex_items: ?Array[T]
+
+    enqueue(item: T): Boolean do
+      if strategy = "mpsc" then
+        result := mpsc_queue.try_enqueue(item)
+      elseif strategy = "mpmc" then
+        result := mutex_queue.try_enqueue(item)
+      else
+        mu.lock()
+        mutex_items.add(item)
+        mu.unlock()
+        result := true
+      end
+    end
+
+    dequeue(): ?T do
+      if strategy = "mpsc" then
+        result := mpsc_queue.dequeue()
+      elseif strategy = "mpmc" then
+        result := mutex_queue.try_dequeue()
+      else
+        mu.lock()
+        if mutex_items.is_empty() then
+          mu.unlock()
+          result := nil
+        else
+          let item: T := mutex_items.get(0)
+          mutex_items.remove(0)
+          mu.unlock()
+          result := item
+        end
+      end
+    end
+
+    -- Drain all available items (efficient for consumer)
+    drain(max_items: Integer): Array[T] do
+      let items: Array[T] := []
+      from until items.length &gt;= max_items do
+        let item: ?T := dequeue()
+        if item = nil then return end
+        items.add(item)
+      end
+      result := items
+    end
+
+    is_empty(): Boolean do
+      if strategy = "mpsc" then
+        result := mpsc_queue.is_empty()
+      elseif strategy = "mpmc" then
+        result := mutex_queue.is_empty()
+      else
+        mu.lock()
+        let empty: Boolean := mutex_items.is_empty()
+        mu.unlock()
+        result := empty
+      end
+    end
+
+  invariant
+    valid_strategy: strategy = "mpsc" or strategy = "mpmc" or strategy = "mutex"
+end</code></pre>
+<hr>
+</section>
+<section id="the-work-stealing-deque" class="level2">
+<h2 class="anchored" data-anchor-id="the-work-stealing-deque">18.10 The Work-Stealing Deque</h2>
+<p>For completeness, a related structure worth knowing: the work-stealing deque (double-ended queue), used in thread pool implementations.</p>
+<p>In a thread pool with N worker threads, each thread has its own local queue of tasks. When a thread finishes its tasks, rather than sitting idle, it <strong>steals</strong> tasks from the back of another thread’s queue while the owner takes from the front.</p>
+<p>This requires a deque where: - The owner thread pushes and pops from one end (front) — single-threaded, no synchronisation needed - Other threads steal from the other end (back) — concurrent, needs synchronisation</p>
+<p>The Chase-Lev work-stealing deque achieves this with: - Front operations: no synchronisation (single owner) - Back steal: CAS on the back pointer</p>
+<pre><code>class Work_Stealing_Deque [T]
+  create
+    make(capacity: Integer) do
+      this.buffer := create Array.filled(capacity, nil)
+      this.mask := capacity - 1
+      this.top := create Atomic_Integer.make(0)    -- stealers pop from here
+      this.bottom := 0  -- owner pushes/pops from here (not atomic: owner only)
+    end
+
+  feature
+    buffer: Array[?T]
+    mask: Integer
+    top: Atomic_Integer   -- concurrent: stealers modify
+    bottom: Integer       -- sequential: only owner modifies
+
+    -- Owner pushes task (no synchronisation needed)
+    push(task: T): Boolean do
+      let b: Integer := bottom
+      let t: Integer := top.load()
+      let size: Integer := b - t
+
+      if size &gt;= buffer.length then
+        result := false  -- full
+        return
+      end
+
+      buffer.set(b.bitwise_and(mask), task)
+      -- Memory fence: ensure task is written before bottom advances
+      -- In real impl: store-store fence here
+      bottom := b + 1
+      result := true
+    end
+
+    -- Owner pops task from its end (no synchronisation with other owners)
+    pop(): ?T do
+      let b: Integer := bottom - 1
+      bottom := b  -- speculatively decrement
+
+      let t: Integer := top.load()
+      let size: Integer := b - t
+
+      if size &lt; 0 then
+        -- Empty: restore bottom
+        bottom := t + 1
+        result := nil
+        return
+      end
+
+      let task: ?T := buffer.get(b.bitwise_and(mask))
+
+      if size &gt; 0 then
+        -- Not the last element: no contention with stealers
+        result := task
+        return
+      end
+
+      -- Last element: race with potential stealer
+      if not top.compare_and_set(t, t + 1) then
+        -- Stealer won the race
+        bottom := t + 1
+        result := nil
+      else
+        -- Owner won: successfully popped last element
+        bottom := t + 1
+        result := task
+      end
+    end
+
+    -- Stealer takes task from opposite end
+    steal(): ?T do
+      let t: Integer := top.load()
+      -- Memory fence: ensure we read bottom after top
+      let b: Integer := bottom
+
+      if t &gt;= b then
+        result := nil  -- empty
+        return
+      end
+
+      let task: ?T := buffer.get(t.bitwise_and(mask))
+
+      -- Try to claim this slot
+      if not top.compare_and_set(t, t + 1) then
+        -- Another stealer or the owner got it first
+        result := nil
+      else
+        result := task
+      end
+    end
+
+    size(): Integer do
+      let b: Integer := bottom
+      let t: Integer := top.load()
+      result := (b - t).max(0)
+    end
+
+    is_empty(): Boolean do
+      result := size() = 0
+    end
+
+  invariant
+    mask_correct: mask = buffer.length - 1
+end</code></pre>
+<p>The work-stealing deque is the data structure behind Java’s <code>ForkJoinPool</code>, Rust’s Rayon thread pool, and Go’s goroutine scheduler. The owner thread never contends with itself, and stealing is rare in well-balanced workloads — the CAS on steal is only exercised when there is actual work imbalance.</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">18.11 Where This Lives in the Wild</h2>
+<p><strong>Disruptor</strong> (LMAX, 2011) is a high-performance inter-thread messaging framework built on a ring buffer with sequence numbers — exactly the MPMC queue design in section 18.5. Developed for the LMAX financial exchange to handle millions of orders per second, Disruptor avoids lock contention entirely by using sequence numbers and memory barriers instead of CAS operations. The Disruptor pattern has been ported to Java, .NET, C++, Go, and Rust. Its performance paper, “LMAX Disruptor: High Performance Alternative to Bounded Queues for Exchanging Data Between Concurrent Threads,” is required reading for anyone building low-latency systems.</p>
+<p><strong>Java’s <code>java.util.concurrent</code></strong> package includes <code>ConcurrentLinkedQueue</code> (lock-free MPMC based on Michael-Scott queue), <code>LinkedTransferQueue</code> (a more sophisticated lock-free queue with synchronous handoff), and <code>ArrayBlockingQueue</code> (mutex-based bounded queue). The choice between them is the same analysis as this chapter: lock-free for high-throughput producer-consumer with many producers, mutex-based for simplicity when contention is low.</p>
+<p><strong>Go’s channel implementation</strong> uses a combination of lock-free and mutex-based approaches depending on channel type. Buffered channels use an internal ring buffer with mutex protection — Go’s channels are not lock-free, but they are well-optimised and rarely the bottleneck. Go’s scheduler uses a per-P (processor) run queue with a work-stealing deque for goroutines.</p>
+<p><strong>Rust’s crossbeam</strong> crate provides production-quality implementations of several queue variants: <code>crossbeam::queue::SegQueue</code> (unbounded MPMC), <code>crossbeam::queue::ArrayQueue</code> (bounded MPMC), and the work-stealing deque. These are implemented with careful attention to memory ordering and ABA prevention, and are the basis for Rayon’s thread pool.</p>
+<p><strong>Linux kernel</strong> uses multiple queue implementations for different purposes. <code>kfifo</code> is a single-producer single-consumer lock-free FIFO for kernel-to-user communication. The scheduler’s run queues use a more complex structure combining priority queues with per-CPU queues and work-stealing.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Lock-free data structures guarantee that at least one thread makes progress at all times — avoiding the latency spikes and priority inversion that mutex-based structures can suffer under contention.</p>
+<p>The MPSC queue uses a linked list with CAS on the tail pointer. Multiple producers compete to link new nodes by CAS-ing the previous tail’s next pointer. A cooperative design handles partial updates: if a producer sees that tail.next is not nil, it advances tail before retrying. The single consumer can advance head without any synchronisation, since it never races with another consumer.</p>
+<p>The MPMC queue uses a circular array with sequence numbers. Each cell’s sequence number encodes whether it is ready to be written (producer can claim it) or ready to be read (consumer can claim it). CAS on the enqueue and dequeue position pointers ensures that each slot is claimed by exactly one producer and consumed by exactly one consumer.</p>
+<p>False sharing — the performance penalty from multiple cores modifying variables on the same cache line — is addressed by padding each hot variable to its own 64-byte cache line. For high-throughput queues, this can provide 2-5x throughput improvement.</p>
+<p>Lock-free does not always win. Under low contention, mutex overhead is negligible and mutex-based queues are simpler. Under high contention with many concurrent producers, lock-free queues maintain throughput while mutex-based queues serialise. Measure before optimising — the choice between lock-free and mutex-based depends on contention patterns that only benchmarking on real workloads can reveal.</p>
+<p>The next chapter extends lock-free thinking to a more complex structure: the hash map. Where the queue has one hot pointer (the tail), a concurrent hash map has many, and the design choices — stripe locking, fine-grained locking, lock-free — reflect different tradeoffs between simplicity, scalability, and correctness.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_17.html" class="pagination-link" aria-label="Chapter 17: The Broken Counter — Memory Models and Visibility">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_19.html" class="pagination-link" aria-label="Chapter 19: The Concurrent Map — Stripe Locking and Beyond">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
