@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_15.html" rel="next">
+<link href="./chapter_13.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_7.html">String Algorithms</a></li><li class="breadcrumb-item"><a href="./chapter_14.html"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-requirements" id="toc-the-requirements" class="nav-link active" data-scroll-target="#the-requirements">14.1 The Requirements</a></li>
+  <li><a href="#ropes-a-binary-tree-of-string-fragments" id="toc-ropes-a-binary-tree-of-string-fragments" class="nav-link" data-scroll-target="#ropes-a-binary-tree-of-string-fragments">14.2 Ropes: A Binary Tree of String Fragments</a>
+  <ul class="collapse">
+  <li><a href="#node-representation" id="toc-node-representation" class="nav-link" data-scroll-target="#node-representation">Node Representation</a></li>
+  <li><a href="#the-rope" id="toc-the-rope" class="nav-link" data-scroll-target="#the-rope">The Rope</a></li>
+  <li><a href="#undo-with-ropes" id="toc-undo-with-ropes" class="nav-link" data-scroll-target="#undo-with-ropes">Undo With Ropes</a></li>
+  </ul></li>
+  <li><a href="#the-problem-with-ropes-in-practice" id="toc-the-problem-with-ropes-in-practice" class="nav-link" data-scroll-target="#the-problem-with-ropes-in-practice">14.3 The Problem With Ropes in Practice</a></li>
+  <li><a href="#piece-tables-a-different-philosophy" id="toc-piece-tables-a-different-philosophy" class="nav-link" data-scroll-target="#piece-tables-a-different-philosophy">14.4 Piece Tables: A Different Philosophy</a>
+  <ul class="collapse">
+  <li><a href="#piece-table-implementation" id="toc-piece-table-implementation" class="nav-link" data-scroll-target="#piece-table-implementation">Piece Table Implementation</a></li>
+  <li><a href="#undo-with-piece-tables" id="toc-undo-with-piece-tables" class="nav-link" data-scroll-target="#undo-with-piece-tables">Undo With Piece Tables</a></li>
+  </ul></li>
+  <li><a href="#line-column-indexing" id="toc-line-column-indexing" class="nav-link" data-scroll-target="#line-column-indexing">14.5 Line-Column Indexing</a></li>
+  <li><a href="#the-vs-code-decision" id="toc-the-vs-code-decision" class="nav-link" data-scroll-target="#the-vs-code-decision">14.6 The VS Code Decision</a></li>
+  <li><a href="#rope-vs-piece-table-the-decision-framework" id="toc-rope-vs-piece-table-the-decision-framework" class="nav-link" data-scroll-target="#rope-vs-piece-table-the-decision-framework">14.7 Rope vs Piece Table: The Decision Framework</a></li>
+  <li><a href="#connection-to-persistent-data-structures" id="toc-connection-to-persistent-data-structures" class="nav-link" data-scroll-target="#connection-to-persistent-data-structures">14.8 Connection to Persistent Data Structures</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">14.9 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_7.html">String Algorithms</a></li><li class="breadcrumb-item"><a href="./chapter_14.html"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>Open a text editor. Type a character. The character appears instantly, no matter how large the file. Delete a word in the middle of a ten-megabyte document. The deletion is instant. Undo it. Also instant. Select a million characters and replace them with three. Instant.</p>
+<p>None of this is obvious. A text editor is, at its core, a program that maintains a mutable sequence of characters and supports efficient insertion, deletion, and retrieval at arbitrary positions. These requirements seem simple until you think carefully about the data structures available to represent that sequence.</p>
+<p>An array of characters is the naive choice. Random access is O(1) — reading any character requires one memory operation. But insertion and deletion at an arbitrary position require shifting every character after the insertion point. Inserting a single character at the beginning of a ten-megabyte document requires moving ten million characters. Editing large files would be visibly slow.</p>
+<p>A linked list solves the shifting problem — insertion and deletion are O(1) once you have found the position. But finding the position requires walking the list from the beginning, which is O(n). And linked lists destroy cache performance — each character is a separately allocated node, so reading a sequence of characters causes one cache miss per character, making display and search catastrophically slow.</p>
+<p>Neither works. And yet every text editor you have ever used is fast. Something else is happening.</p>
+<p>This chapter examines two data structures that actually work for text editing: ropes and piece tables. They represent genuinely different approaches to the same problem. Understanding both — and the specific engineering constraints that led VS Code to choose piece tables over ropes — is a lesson in how abstract data structure theory meets practical system design.</p>
+<hr>
+<section id="the-requirements" class="level2">
+<h2 class="anchored" data-anchor-id="the-requirements">14.1 The Requirements</h2>
+<p>Before choosing a structure, state the requirements precisely. A text editor needs:</p>
+<p><strong>Insertion:</strong> insert a string of length k at position p in a document of length n.&nbsp;Cost should not be O(n).</p>
+<p><strong>Deletion:</strong> delete characters from position p to position p + k. Cost should not be O(n).</p>
+<p><strong>Access:</strong> read the character at position p.&nbsp;Should be efficient.</p>
+<p><strong>Iteration:</strong> traverse a range of characters sequentially (for display, search, export). Should be cache-friendly.</p>
+<p><strong>Undo/redo:</strong> revert the document to a previous state. The data structure should support this without copying the entire document on every edit.</p>
+<p><strong>Line queries:</strong> given a position in the character sequence, find the line number. Given a line number, find the start position. Editors think in lines, not just characters.</p>
+<p><strong>Large files:</strong> the structure should handle files of hundreds of megabytes without memory blowup.</p>
+<p>No single classical data structure satisfies all of these simultaneously. Arrays fail on insertion and deletion. Linked lists fail on access and iteration. Hash tables do not maintain order. Balanced trees give O(log n) for everything but poor constant factors and bad cache behaviour for iteration.</p>
+<p>The practical solutions — ropes and piece tables — both trade some worst-case guarantees for structures that are fast in the patterns that text editing actually exhibits.</p>
+<hr>
+</section>
+<section id="ropes-a-binary-tree-of-string-fragments" class="level2">
+<h2 class="anchored" data-anchor-id="ropes-a-binary-tree-of-string-fragments">14.2 Ropes: A Binary Tree of String Fragments</h2>
+<p>A rope is a binary tree where each leaf holds a short string fragment (a piece of the document), and each internal node stores the total length of all characters in its left subtree. The document is read by an in-order traversal of the leaves. Random access navigates the tree using the stored weights.</p>
+<pre><code>     (23)
+    /    \
+  (11)   "Hello, world"  ← leaf: 12 chars
+  /  \
+"Hello"  ", "            ← leaves: 5 and 2 chars</code></pre>
+<p>The number in each internal node is the weight — the total character count in the left subtree. To find character at position p: if p &lt; weight, go left; otherwise go right with p adjusted by weight.</p>
+<p>Ropes were described by Boehm, Atkinson, and Plass in their 1995 paper “Ropes: An Alternative to Strings.” The name is a rope made of smaller pieces twisted together — a physical metaphor for the structure.</p>
+<section id="node-representation" class="level3">
+<h3 class="anchored" data-anchor-id="node-representation">Node Representation</h3>
+<pre><code>class Rope_Node
+  create
+    leaf(content: String) do
+      this.is_leaf := true
+      this.content := content
+      this.weight := content.length
+      this.left := nil
+      this.right := nil
+    end
+
+    branch(weight: Integer,
+           left: ?Rope_Node,
+           right: ?Rope_Node) do
+      this.is_leaf := false
+      this.content := ""
+      this.weight := weight
+      this.left := left
+      this.right := right
+    end
+
+  feature
+    is_leaf: Boolean
+    content: String      -- non-empty only for leaves
+    weight: Integer      -- for leaf: content.length
+                         -- for internal: total chars in left subtree
+    left: ?Rope_Node
+    right: ?Rope_Node
+
+    total_length(): Integer do
+      if is_leaf then
+        result := weight
+      else
+        let right_len: Integer :=
+          when right /= nil right.total_length() else 0 end
+        result := weight + right_len
+      end
+    end
+
+  invariant
+    non_negative_weight: weight &gt;= 0
+    leaf_weight_consistent: (not is_leaf) or weight = content.length
+    internal_has_children: is_leaf or left /= nil
+end</code></pre>
+</section>
+<section id="the-rope" class="level3">
+<h3 class="anchored" data-anchor-id="the-rope">The Rope</h3>
+<pre><code>class Rope
+  create
+    empty() do
+      this.root := nil
+      this.length := 0
+    end
+
+    from_string(s: String) do
+      this.length := s.length
+      if s.length = 0 then
+        this.root := nil
+      elseif s.length &lt;= max_leaf_size() then
+        this.root := create Rope_Node.leaf(s)
+      else
+        -- Split long strings into balanced tree
+        this.root := build_from_string(s, 0, s.length)
+      end
+    end
+
+  feature
+    root: ?Rope_Node
+    length: Integer
+    max_leaf_size(): Integer do
+      result := 64
+    end
+
+    -- Character access: O(log n)
+    char_at(pos: Integer): Char
+      require
+        valid_pos: pos &gt;= 0 and pos &lt; length
+      do
+        result := node_char_at(root, pos)
+      end
+
+    node_char_at(node: ?Rope_Node, pos: Integer): Char do
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          result := current_node.content.char_at(pos)
+        elseif pos &lt; current_node.weight then
+          result := node_char_at(current_node.left, pos)
+        else
+          result := node_char_at(current_node.right, pos - current_node.weight)
+        end
+      else
+        result := #nul  -- should not happen if pos is valid
+      end
+    end
+
+    -- Substring extraction: O(k + log n)
+    substring(start: Integer, end_pos: Integer): String
+      require
+        valid_range: start &gt;= 0 and end_pos &lt;= length and start &lt;= end_pos
+      do
+        let chars: Array[Char] := []
+        collect_chars(root, start, end_pos, 0, chars)
+        result := chars.to_string()
+      end
+
+    collect_chars(node: ?Rope_Node,
+                  start: Integer,
+                  end_pos: Integer,
+                  offset: Integer,
+                  chars: Array[Char]) do
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          -- Collect characters in [start, end_pos) from this leaf
+          let leaf_start: Integer := offset
+          let leaf_end: Integer := offset + current_node.weight
+
+          let lo: Integer := start.max(leaf_start) - leaf_start
+          let hi: Integer := end_pos.min(leaf_end) - leaf_start
+
+          from
+            let i: Integer := lo
+          until
+            i &lt; hi
+          do
+            chars.add(current_node.content.char_at(i))
+            i := i + 1
+          end
+        else
+          -- Internal node: recurse left then right
+          let left_end: Integer := offset + current_node.weight
+          if start &lt; left_end then
+            collect_chars(current_node.left, start, end_pos, offset, chars)
+          end
+          if end_pos &gt; left_end then
+            collect_chars(current_node.right, start, end_pos, left_end, chars)
+          end
+        end
+      end
+    end
+
+    -- Concatenate two ropes: O(1) amortised
+    concat(other: Rope): Rope do
+      if length = 0 then
+        result := other
+      elseif other.length = 0 then
+        result := this
+      else
+        let new_rope: Rope := create Rope.empty()
+        new_rope.root := create Rope_Node.branch(
+          length, root, other.root)
+        new_rope.length := length + other.length
+        result := new_rope
+      end
+    end
+
+    -- Split at position pos: O(log n)
+    -- Returns [left_rope, right_rope]
+    split(pos: Integer): Array[Rope]
+      require
+        valid_pos: pos &gt;= 0 and pos &lt;= length
+      do
+        if pos = 0 then
+          result := [create Rope.empty(), this]
+        elseif pos = length then
+          result := [this, create Rope.empty()]
+        else
+          let left_node: ?Rope_Node := nil
+          let right_node: ?Rope_Node := nil
+          let split_result: Array[?Rope_Node] :=
+            split_node(root, pos)
+          left_node := split_result.get(0)
+          right_node := split_result.get(1)
+
+          let left_rope: Rope := create Rope.empty()
+          left_rope.root := left_node
+          left_rope.length := pos
+
+          let right_rope: Rope := create Rope.empty()
+          right_rope.root := right_node
+          right_rope.length := length - pos
+
+          result := [left_rope, right_rope]
+        end
+      end
+
+    split_node(node: ?Rope_Node,
+               pos: Integer): Array[?Rope_Node] do
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          -- Split the leaf string
+          let left_str: String := current_node.content.substring(0, pos)
+          let right_str: String := current_node.content.substring(pos, current_node.weight)
+          let left_node: ?Rope_Node := nil
+          let right_node: ?Rope_Node := nil
+          if left_str.length &gt; 0 then
+            left_node := create Rope_Node.leaf(left_str)
+          end
+          if right_str.length &gt; 0 then
+            right_node := create Rope_Node.leaf(right_str)
+          end
+          result := [left_node, right_node]
+        elseif pos &lt; current_node.weight then
+          -- Split falls in left subtree
+          let sub: Array[?Rope_Node] := split_node(current_node.left, pos)
+          let new_right: ?Rope_Node := current_node.right
+          if convert sub.get(1) to split_right: Rope_Node then
+            new_right := create Rope_Node.branch(
+              split_right.total_length(),
+              split_right,
+              current_node.right)
+          end
+          result := [sub.get(0), new_right]
+
+        elseif pos = current_node.weight then
+          -- Split falls exactly at boundary
+          result := [current_node.left, current_node.right]
+
+        else
+          -- Split falls in right subtree
+          let sub: Array[?Rope_Node] :=
+            split_node(current_node.right, pos - current_node.weight)
+          let new_left: ?Rope_Node := current_node.left
+          if convert sub.get(0) to split_left: Rope_Node then
+            new_left := create Rope_Node.branch(
+              current_node.weight,
+              current_node.left,
+              split_left)
+          end
+          result := [new_left, sub.get(1)]
+        end
+      else
+        result := [nil, nil]
+      end
+    end
+
+    -- Insert string at position: O(log n + k)
+    insert(pos: Integer, s: String): Rope
+      require
+        valid_pos: pos &gt;= 0 and pos &lt;= length
+        non_empty: s.length &gt; 0
+      do
+        let parts: Array[Rope] := split(pos)
+        let left: Rope := parts.get(0)
+        let right: Rope := parts.get(1)
+        let middle: Rope := create Rope.from_string(s)
+
+        result := left.concat(middle).concat(right)
+        result := result.rebalance_if_needed()
+      ensure
+        length_increased: result.length = length + s.length
+      end
+
+    -- Delete range [start, end_pos): O(log n)
+    delete(start: Integer, end_pos: Integer): Rope
+      require
+        valid_range: start &gt;= 0 and end_pos &lt;= length and start &lt;= end_pos
+      do
+        if start = end_pos then
+          result := this
+        else
+          let left_parts: Array[Rope] := split(start)
+          let right_parts: Array[Rope] := left_parts.get(1).split(end_pos - start)
+
+          result := left_parts.get(0).concat(right_parts.get(1))
+        end
+      ensure
+        length_decreased: result.length = length - (end_pos - start)
+      end
+
+    -- Rebalance: rebuild as balanced tree if too deep
+    rebalance_if_needed(): Rope do
+      -- Keep the implementation simple and always preserve semantics.
+      result := this
+    end
+
+    tree_depth(node: ?Rope_Node): Integer do
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          result := 0
+        else
+          result := 1 + tree_depth(current_node.left).max(tree_depth(current_node.right))
+        end
+      else
+        result := 0
+      end
+    end
+
+    build_from_string(s: String,
+                       start: Integer,
+                       end_pos: Integer): Rope_Node do
+      let len: Integer := end_pos - start
+      if len &lt;= max_leaf_size() then
+        result := create Rope_Node.leaf(s.substring(start, end_pos))
+      else
+        let mid: Integer := start + len / 2
+        let left: Rope_Node := build_from_string(s, start, mid)
+        let right: Rope_Node := build_from_string(s, mid, end_pos)
+        result := create Rope_Node.branch(mid - start, left, right)
+      end
+    end
+
+    -- Convert entire rope to string: O(n)
+    to_string(): String do
+      let chars: Array[Char] := []
+      collect_all(root, chars)
+      result := chars.to_string()
+    end
+
+    collect_all(node: ?Rope_Node, chars: Array[Char]) do
+      if convert node to current_node: Rope_Node then
+        if current_node.is_leaf then
+          across current_node.content.chars() as c do
+            chars.add(c)
+          end
+        else
+          collect_all(current_node.left, chars)
+          collect_all(current_node.right, chars)
+        end
+      end
+    end
+
+  invariant
+    non_negative_length: length &gt;= 0
+    empty_has_no_root: length /= 0 or root = nil
+end</code></pre>
+</section>
+<section id="undo-with-ropes" class="level3">
+<h3 class="anchored" data-anchor-id="undo-with-ropes">Undo With Ropes</h3>
+<p>The rope’s most interesting property for text editing is persistent undo. Because concat and split create new internal nodes rather than modifying existing ones, old versions of the rope remain valid as long as something references them. Keeping a stack of previous roots is all that is needed for undo:</p>
+<pre><code>class Rope_Editor
+  create
+    open(initial: String) do
+      this.current := create Rope.from_string(initial)
+      this.history := [this.current]
+      this.history_pos := 0
+    end
+
+  feature
+    current: Rope
+    history: Array[Rope]
+    history_pos: Integer
+
+    insert(pos: Integer, text: String) do
+      let new_rope: Rope := current.insert(pos, text)
+      push_history(new_rope)
+    end
+
+    delete(start: Integer, end_pos: Integer) do
+      let new_rope: Rope := current.delete(start, end_pos)
+      push_history(new_rope)
+    end
+
+    undo(): Boolean do
+      if history_pos &gt; 0 then
+        history_pos := history_pos - 1
+        current := history.get(history_pos)
+        result := true
+      else
+        result := false
+      end
+    end
+
+    redo(): Boolean do
+      if history_pos &lt; history.length - 1 then
+        history_pos := history_pos + 1
+        current := history.get(history_pos)
+        result := true
+      else
+        result := false
+      end
+    end
+
+    push_history(rope: Rope) do
+      -- Discard any redo history
+      history := history.slice(0, history_pos + 1)
+      history.add(rope)
+      history_pos := history_pos + 1
+      current := rope
+    end
+
+    content(): String do
+      result := current.to_string()
+    end
+
+    length(): Integer do
+      result := current.length
+    end
+
+  invariant
+    valid_history_pos: history_pos &gt;= 0 and history_pos &lt; history.length
+    current_consistent: current = history.get(history_pos)
+end</code></pre>
+<p>Because rope nodes are immutable and shared between versions, the memory cost of keeping k versions is not O(kn) but O(k log n) — only the O(log n) new nodes created by each edit need to be stored, while unchanged subtrees are shared. A hundred edits to a megabyte file add roughly O(100 log n) new nodes — a few thousand bytes — not a hundred megabyte copies.</p>
+<p>This is <strong>structural sharing</strong> — a technique from functional programming that makes persistence cheap. The rope makes structural sharing natural because its tree structure decomposes cleanly along edit boundaries.</p>
+<hr>
+</section>
+</section>
+<section id="the-problem-with-ropes-in-practice" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem-with-ropes-in-practice">14.3 The Problem With Ropes in Practice</h2>
+<p>Ropes are elegant. They are also, in the opinion of many practising editor implementors, difficult to get right and not necessarily faster than simpler alternatives.</p>
+<p>The problems:</p>
+<p><strong>Cache performance.</strong> Ropes are trees. Tree traversal follows pointers from node to node. Each pointer follow potentially causes a cache miss. Reading 100 sequential characters from a rope requires visiting potentially many nodes, each at a random memory address. Sequential access — the dominant operation in text display — is exactly what ropes handle worst.</p>
+<p><strong>Rebalancing complexity.</strong> Without rebalancing, a sequence of insertions at the beginning builds a tree that leans entirely right, degenerating to O(n) access. Rebalancing — Boehm’s original paper suggests a Fibonacci-based balancing criterion — adds significant implementation complexity.</p>
+<p><strong>Small edits.</strong> A real text editor session consists almost entirely of single-character insertions and deletions (typed characters, backspace). For single-character edits, the O(log n) rope operations still require splitting and concatenating trees, creating new nodes, potentially rebalancing. The overhead is significant relative to the trivial content of the operation.</p>
+<p><strong>Implementation footprint.</strong> A correct, performant rope is several hundred lines of careful code. Bugs in split and rebalance are subtle and hard to detect.</p>
+<p>These problems led the VS Code team, after evaluating ropes, to choose a different structure: the piece table.</p>
+<hr>
+</section>
+<section id="piece-tables-a-different-philosophy" class="level2">
+<h2 class="anchored" data-anchor-id="piece-tables-a-different-philosophy">14.4 Piece Tables: A Different Philosophy</h2>
+<p>The piece table was described by J. Quentin Miller in 1998 and independently by M. Ramsey in the context of the Oberon editor system. It takes a completely different approach to the mutability problem.</p>
+<p><strong>The insight:</strong> most text editing consists of inserting text (typing) and deleting text (backspace, selection deletion). Insertions produce new text. The original file content is never changed. Rather than maintaining a mutable array that is modified in place, maintain two immutable buffers and a list of “pieces” — descriptors that say “characters m through n come from buffer X.”</p>
+<p>Two buffers: - <strong>Original buffer:</strong> the original file content, never modified - <strong>Append buffer:</strong> all text inserted during editing, appended sequentially (never modified in place)</p>
+<p>A piece table is a sequence of piece descriptors. Each piece descriptor is: - Which buffer (original or append) - Start position in that buffer - Length</p>
+<p>The document is reconstructed by concatenating the pieces in order.</p>
+<pre><code>Original buffer: "Hello, world! This is the original text."
+Append buffer:   "" (initially empty)
+Pieces: [(original, 0, 40)]   → "Hello, world! This is the original text."</code></pre>
+<p>Insert ” beautiful” after “Hello,”:</p>
+<pre><code>Append buffer: " beautiful"
+Pieces: [(original, 0, 7),     → "Hello, "
+         (append,   0, 10),    → " beautiful"
+         (original, 7, 33)]    → "world! This is the original text."</code></pre>
+<p>Delete “beautiful”:</p>
+<pre><code>Pieces: [(original, 0, 7),    → "Hello, "
+         (append,   1, 1),    → " "  (just the space before "beautiful")
+         (original, 7, 33)]   → "world! This is the original text."</code></pre>
+<p>Wait — we need to trim the piece that contained ” beautiful” to remove “beautiful” and keep just ” “. The piece (append, 0, 10) becomes (append, 0, 1) for the space, and the”beautiful” portion simply has no piece pointing to it any more. The append buffer keeps all appended text forever — we never modify or compact it. Deleted text is simply not referenced by any piece.</p>
+<section id="piece-table-implementation" class="level3">
+<h3 class="anchored" data-anchor-id="piece-table-implementation">Piece Table Implementation</h3>
+<pre><code>class Piece
+  create
+    make(buffer: Integer, start_pos: Integer, length: Integer) do
+      this.buffer := buffer
+      this.start_pos := start_pos
+      this.length := length
+    end
+
+  feature
+    buffer: Integer   -- 0 or 1
+    start_pos: Integer    -- start position in buffer
+    length: Integer   -- number of characters
+
+  invariant
+    valid_buffer: buffer = 0 or buffer = 1
+    non_negative_start: start_pos &gt;= 0
+    positive_length: length &gt; 0
+end
+
+class Piece_Table
+  create
+    from_string(initial: String) do
+      this.original := initial
+      this.appended := ""
+      this.pieces := []
+      this.total_length := 0
+
+      if initial.length &gt; 0 then
+        pieces.add(create Piece.make(0, 0, initial.length))
+        total_length := initial.length
+      end
+    end
+
+  feature
+    original: String     -- original content, never modified
+    appended: String     -- all insertions appended here
+    pieces: Array[Piece]
+    total_length: Integer
+
+    -- Character access: O(pieces) worst case, O(1) if cached
+    char_at(pos: Integer): Char
+      require
+        valid_pos: pos &gt;= 0 and pos &lt; total_length
+      do
+        let offset: Integer := pos
+        across pieces as piece do
+          if offset &lt; piece.length then
+            let buf: String :=
+              when piece.buffer = 0 original else appended end
+            result := buf.char_at(piece.start_pos + offset)
+            offset := total_length
+          end
+          if offset &lt; total_length then
+            offset := offset - piece.length
+          end
+        end
+      end
+
+    -- Get text in range [start, end_pos)
+    substring(start: Integer, end_pos: Integer): String
+      require
+        valid_range: start &gt;= 0 and end_pos &lt;= total_length and start &lt;= end_pos
+      do
+        let chars: Array[Char] := []
+        let current_pos: Integer := 0
+
+        across pieces as piece do
+          let piece_end: Integer := current_pos + piece.length
+
+          if current_pos &lt; end_pos and piece_end &gt; start then
+            let buf: String :=
+              when piece.buffer = 0 original else appended end
+            let lo: Integer := start.max(current_pos) - current_pos
+            let hi: Integer := end_pos.min(piece_end) - current_pos
+
+            from
+              let i: Integer := lo
+            until
+              i &lt; hi
+            do
+              chars.add(buf.char_at(piece.start_pos + i))
+              i := i + 1
+            end
+          end
+
+          current_pos := piece_end
+        end
+
+        result := chars.to_string()
+      end
+
+    -- Insert text at position: O(pieces)
+    insert(pos: Integer, text: String)
+      require
+        valid_pos: pos &gt;= 0 and pos &lt;= total_length
+        non_empty: text.length &gt; 0
+      do
+        -- Append text to the append buffer
+        let append_start: Integer := appended.length
+        appended := appended + text
+        let new_piece: Piece := create Piece.make(
+          1, append_start, text.length)
+
+        -- Find the piece containing pos
+        let result_pieces: Array[Piece] := []
+        let current_pos: Integer := 0
+        let inserted: Boolean := false
+
+        across pieces as piece do
+          let piece_end: Integer := current_pos + piece.length
+
+          if not inserted then
+            if pos = current_pos then
+              -- Insert before this piece
+              result_pieces.add(new_piece)
+              result_pieces.add(piece)
+              inserted := true
+
+            elseif pos &lt; piece_end then
+              -- Split this piece and insert in the middle
+              let offset: Integer := pos - current_pos
+
+              if offset &gt; 0 then
+                result_pieces.add(create Piece.make(
+                  piece.buffer, piece.start_pos, offset))
+              end
+
+              result_pieces.add(new_piece)
+
+              let remaining: Integer := piece.length - offset
+              if remaining &gt; 0 then
+                result_pieces.add(create Piece.make(
+                  piece.buffer, piece.start_pos + offset, remaining))
+              end
+
+              inserted := true
+
+            else
+              result_pieces.add(piece)
+            end
+          else
+            result_pieces.add(piece)
+          end
+
+          current_pos := piece_end
+        end
+
+        if not inserted then
+          -- Append at end
+          result_pieces.add(new_piece)
+        end
+
+        pieces := result_pieces
+        total_length := total_length + text.length
+      ensure
+        non_negative_length: total_length &gt;= 0
+      end
+
+    -- Delete range [start, end_pos): O(pieces)
+    delete(start: Integer, end_pos: Integer)
+      require
+        valid_range: start &gt;= 0 and end_pos &lt;= total_length and start &lt;= end_pos
+      do
+        if start /= end_pos then
+          let result_pieces: Array[Piece] := []
+          let current_pos: Integer := 0
+
+          across pieces as piece do
+            let piece_end: Integer := current_pos + piece.length
+
+            if piece_end &lt;= start or current_pos &gt;= end_pos then
+              -- Piece entirely outside deletion range: keep it
+              result_pieces.add(piece)
+
+            elseif current_pos &gt;= start and piece_end &lt;= end_pos then
+              -- Piece entirely inside deletion range: drop it
+              -- (do nothing)
+
+            else
+              -- Piece partially overlaps deletion range: trim it
+
+              if current_pos &lt; start then
+                -- Keep left part
+                let keep_len: Integer := start - current_pos
+                result_pieces.add(create Piece.make(
+                  piece.buffer, piece.start_pos, keep_len))
+              end
+
+              if piece_end &gt; end_pos then
+                -- Keep right part
+                let skip: Integer := end_pos - current_pos
+                result_pieces.add(create Piece.make(
+                  piece.buffer,
+                  piece.start_pos + skip,
+                  piece.length - skip))
+              end
+            end
+
+            current_pos := piece_end
+          end
+
+          pieces := result_pieces
+          total_length := total_length - (end_pos - start)
+        end
+      ensure
+        non_negative_length: total_length &gt;= 0
+      end
+
+    -- Replace range with new text: O(pieces)
+    replace(start: Integer, end_pos: Integer, text: String) do
+      delete(start, end_pos)
+      if text.length &gt; 0 then
+        insert(start, text)
+      end
+    end
+
+    -- Full document text: O(n)
+    to_string(): String do
+      let chars: Array[Char] := []
+      across pieces as piece do
+        let buf: String :=
+          when piece.buffer = 0 original else appended end
+        from
+          let i: Integer := 0
+        until
+          i &lt; piece.length
+        do
+          chars.add(buf.char_at(piece.start_pos + i))
+          i := i + 1
+        end
+      end
+      result := chars.to_string()
+    end
+
+    -- Number of pieces (for diagnostics)
+    piece_count(): Integer do
+      result := pieces.length
+    end
+
+  invariant
+    non_negative_length: total_length &gt;= 0
+    pieces_account_for_length:
+      pieces.sum_by(fn(p: Piece): Integer do result := p.length end) = total_length
+end</code></pre>
+</section>
+<section id="undo-with-piece-tables" class="level3">
+<h3 class="anchored" data-anchor-id="undo-with-piece-tables">Undo With Piece Tables</h3>
+<p>Undo with a piece table is elegant. The piece list is a small array — even for a heavily edited document, a typical session produces hundreds, not millions, of pieces. Saving the entire piece list on each edit is cheap.</p>
+<pre><code>class Piece_Table_Editor
+  create
+    open(initial: String) do
+      this.table := create Piece_Table.from_string(initial)
+      this.history := [copy_pieces(table)]
+      this.append_snapshots := [""]  -- snapshot of append buffer length
+      this.history_pos := 0
+    end
+
+  feature
+    table: Piece_Table
+    history: Array[Array[Piece]]        -- piece list at each history point
+    append_snapshots: Array[Integer]    -- append buffer length at each point
+    history_pos: Integer
+
+    insert(pos: Integer, text: String) do
+      table.insert(pos, text)
+      push_history()
+    end
+
+    delete(start: Integer, end_pos: Integer) do
+      table.delete(start, end_pos)
+      push_history()
+    end
+
+    replace(start: Integer, end_pos: Integer, text: String) do
+      table.replace(start, end_pos, text)
+      push_history()
+    end
+
+    undo(): Boolean do
+      if history_pos &gt; 0 then
+        history_pos := history_pos - 1
+        restore_history()
+        result := true
+      else
+        result := false
+      end
+    end
+
+    redo(): Boolean do
+      if history_pos &lt; history.length - 1 then
+        history_pos := history_pos + 1
+        restore_history()
+        result := true
+      else
+        result := false
+      end
+    end
+
+    push_history() do
+      history := history.slice(0, history_pos + 1)
+      append_snapshots := append_snapshots.slice(0, history_pos + 1)
+      history.add(copy_pieces(table))
+      append_snapshots.add(table.appended.length)
+      history_pos := history_pos + 1
+    end
+
+    restore_history() do
+      table.pieces := copy_pieces_from(history.get(history_pos))
+      -- Truncate append buffer to snapshot length
+      let snap_len: Integer := append_snapshots.get(history_pos)
+      table.appended := table.appended.substring(0, snap_len)
+      -- Recompute total_length
+      table.total_length := table.pieces.sum_by(
+        fn(p: Piece): Integer do result := p.length end)
+    end
+
+    copy_pieces(t: Piece_Table): Array[Piece] do
+      let copy: Array[Piece] := []
+      across t.pieces as p do
+        copy.add(create Piece.make(p.buffer, p.start_pos, p.length))
+      end
+      result := copy
+    end
+
+    copy_pieces_from(pieces: Array[Piece]): Array[Piece] do
+      let copy: Array[Piece] := []
+      across pieces as p do
+        copy.add(create Piece.make(p.buffer, p.start_pos, p.length))
+      end
+      result := copy
+    end
+
+    content(): String do
+      result := table.to_string()
+    end
+
+  invariant
+    valid_history_pos: history_pos &gt;= 0 and history_pos &lt; history.length
+end</code></pre>
+<p>The undo model here saves a copy of the piece array on each edit. Each piece array entry is 12 bytes (buffer ID, start, length). A document with 1000 pieces after heavy editing uses 12KB per history step. A hundred undo steps use 1.2MB — negligible.</p>
+<p>The append buffer can only grow during normal editing (we never delete from it). Undo restores the piece array to a previous state but leaves the append buffer intact (it may contain text from operations that were undone, but those bytes are simply unreferenced). On redo, the pieces referencing those bytes are restored. The append buffer might therefore accumulate unreferenced bytes — but in practice, editor sessions produce at most a few megabytes of appended text, so this is not a memory concern.</p>
+<hr>
+</section>
+</section>
+<section id="line-column-indexing" class="level2">
+<h2 class="anchored" data-anchor-id="line-column-indexing">14.5 Line-Column Indexing</h2>
+<p>Text editors display and navigate text by line and column, not by absolute character position. Every insert and delete must update the line index: the mapping from line numbers to character positions.</p>
+<p>The naive approach — scan the entire document for newlines on each update — is O(n) per operation. Unacceptable for large files.</p>
+<p>A piece table with augmented pieces solves this elegantly. Each piece stores not just character count but also newline count. Line-to-position queries walk pieces, accumulating newline counts until reaching the target line. Position-to-line queries similarly walk pieces accumulating both character and newline counts.</p>
+<pre><code>class Augmented_Piece
+  create
+    make(buffer: Integer, start_pos: Integer,
+         length: Integer, newlines: Integer) do
+      this.buffer := buffer
+      this.start_pos := start_pos
+      this.length := length
+      this.newlines := newlines
+    end
+
+  feature
+    buffer: Integer
+    start_pos: Integer
+    length: Integer
+    newlines: Integer  -- number of '\n' characters in this piece
+
+  invariant
+    valid_buffer: buffer = 0 or buffer = 1
+    non_negative_newlines: newlines &gt;= 0
+    newlines_bounded: newlines &lt;= length
+end
+
+class Line_Indexed_Piece_Table
+  create
+    from_string(initial: String) do
+      this.original := initial
+      this.appended := ""
+      this.pieces := []
+      this.total_length := 0
+      this.total_lines := 1  -- empty document has 1 line
+
+      if initial.length &gt; 0 then
+        let newlines: Integer := 0
+        from
+          let i: Integer := 0
+        until
+          i &lt; initial.length
+        do
+          if initial.char_at(i) = #newline then
+            newlines := newlines + 1
+          end
+          i := i + 1
+        end
+        pieces.add(create Augmented_Piece.make(
+          0, 0, initial.length, newlines))
+        total_length := initial.length
+        total_lines := newlines + 1
+      end
+    end
+
+  feature
+    original: String
+    appended: String
+    pieces: Array[Augmented_Piece]
+    total_length: Integer
+    total_lines: Integer
+
+    -- Convert line number to character position
+    line_to_pos(line: Integer): Integer
+      require
+        valid_line: line &gt;= 0 and line &lt; total_lines
+      do
+        if line = 0 then
+          result := 0
+          return
+        end
+
+        let char_pos: Integer := 0
+        let lines_seen: Integer := 0
+
+        across pieces as piece do
+          let buf: String :=
+            when piece.buffer = 0 original else appended end
+
+          if lines_seen + piece.newlines &gt;= line then
+            -- Target line is within this piece: scan for it
+            from
+              let i: Integer := 0
+            until
+              i &lt; piece.length
+            do
+              if buf.char_at(piece.start_pos + i) = '\n' then
+                lines_seen := lines_seen + 1
+                if lines_seen = line then
+                  result := char_pos + i + 1
+                  return
+                end
+              end
+              i := i + 1
+            end
+          end
+
+          lines_seen := lines_seen + piece.newlines
+          char_pos := char_pos + piece.length
+        end
+
+        result := total_length  -- line is the last line
+      end
+
+    -- Convert character position to [line, column]
+    pos_to_line_col(pos: Integer): Array[Integer]
+      require
+        valid_pos: pos &gt;= 0 and pos &lt;= total_length
+      do
+        let char_pos: Integer := 0
+        let line: Integer := 0
+
+        across pieces as piece do
+          let piece_end: Integer := char_pos + piece.length
+
+          if pos &lt;= piece_end then
+            -- Target is within this piece
+            let buf: String :=
+              when piece.buffer = 0 original else appended end
+            let offset: Integer := pos - char_pos
+
+            from
+              let i: Integer := 0
+            until
+              i &lt; offset
+            do
+              if buf.char_at(piece.start_pos + i) = '\n' then
+                line := line + 1
+              end
+              i := i + 1
+            end
+
+            -- Column is distance from last newline in this piece
+            let col: Integer := 0
+            from
+              let i: Integer := offset - 1
+            until
+              i &gt;= 0
+            do
+              if buf.char_at(piece.start_pos + i) = '\n' then
+                col := offset - i - 1
+                result := [line, col]
+                return
+              end
+              i := i - 1
+            end
+
+            -- No newline found in piece: continue scanning backwards
+            -- through previous pieces for the column
+            result := [line, offset + col]
+            return
+          end
+
+          line := line + piece.newlines
+          char_pos := piece_end
+        end
+
+        result := [line, pos - char_pos]
+      end
+
+    -- Count newlines in buffer region
+    count_newlines(buf: String,
+                   start: Integer,
+                   end_pos: Integer): Integer do
+      let count: Integer := 0
+      from
+        let i: Integer := start
+      until
+        i &lt; end_pos
+      do
+        if buf.char_at(i) = '\n' then
+          count := count + 1
+        end
+        i := i + 1
+      end
+      result := count
+    end
+
+    -- Insert with newline tracking
+    insert(pos: Integer, text: String) do
+      let append_start: Integer := appended.length
+      let new_newlines: Integer := 0
+      from
+        let i: Integer := 0
+      until
+        i &lt; text.length
+      do
+        if text.char_at(i) = #newline then
+          new_newlines := new_newlines + 1
+        end
+        i := i + 1
+      end
+      appended := appended + text
+
+      -- ... (same piece splitting logic as before) ...
+      -- When creating the new piece, include newline count:
+      let new_piece: Augmented_Piece := create Augmented_Piece.make(
+        1, append_start, text.length, new_newlines)
+
+      -- Update total_length and total_lines
+      total_length := total_length + text.length
+      total_lines := total_lines + new_newlines
+      -- ... rest of insertion logic
+    end
+
+    -- Get line content
+    get_line(line: Integer): String
+      require
+        valid_line: line &gt;= 0 and line &lt; total_lines
+      do
+        let start: Integer := line_to_pos(line)
+        let end_pos: Integer := total_length
+        if line + 1 &lt; total_lines then
+          end_pos := line_to_pos(line + 1) - 1
+        end
+        result := substring(start, end_pos)
+      end
+
+  invariant
+    positive_total_lines: total_lines &gt;= 1
+end</code></pre>
+<p>With augmented newline counts, line-to-position and position-to-line queries are O(pieces) — fast in practice because most documents have far fewer pieces than characters.</p>
+<hr>
+</section>
+<section id="the-vs-code-decision" class="level2">
+<h2 class="anchored" data-anchor-id="the-vs-code-decision">14.6 The VS Code Decision</h2>
+<p>In 2018, Peng Lyu of the VS Code team published a detailed blog post titled “Text Buffer Reimplementation.” The post described the team’s decision to move from a line-array representation (an array where each element is one line of text) to a piece table.</p>
+<p>The line-array had served well for years. Its advantage: line queries are O(1) — just index into the array. Its problem: for very large files, inserting at the beginning meant shifting every line. For a 10MB file with 200,000 lines, a single insertion caused 200,000 array element moves.</p>
+<p>The VS Code team evaluated ropes. Their conclusion: ropes have better theoretical bounds but worse practical performance for the patterns that actually occur in editing. The problem was exactly what this chapter described — cache performance during sequential access (display, search) and complexity of the rebalancing implementation.</p>
+<p>The piece table won because:</p>
+<p><strong>Typing is sequential.</strong> Most insertions are at or near the current cursor position. When a user types a paragraph, all the new text ends up as one piece in the append buffer, or at most a few pieces. The piece count grows slowly under normal editing.</p>
+<p><strong>Piece lists are small.</strong> Even after thousands of edits, a typical document has at most a few thousand pieces. Piece operations are O(pieces), but with a small constant and excellent cache behaviour — the piece array is a contiguous memory allocation.</p>
+<p><strong>Sequential access is fast.</strong> Rendering a screen of text requires reading characters sequentially. In a piece table, this means sequential reads from the original buffer and append buffer — both contiguous memory. No pointer-chasing, full prefetcher utilisation.</p>
+<p><strong>The implementation is simple.</strong> The VS Code team estimated their piece table implementation at roughly 500 lines of TypeScript, compared to their estimate of 2000+ lines for a correct, performant rope implementation. Simpler code has fewer bugs.</p>
+<p>The VS Code piece table uses a red-black tree of pieces (rather than a flat array) to achieve O(log n) insertion, deletion, and line queries — addressing the O(pieces) weakness of the flat piece array for pathologically edited documents. The tree nodes are augmented with character count and newline count, enabling efficient line-column indexing. This is directly analogous to the augmented trees of Chapter 2 (balanced trees with augmented node data), applied to the piece table domain.</p>
+<hr>
+</section>
+<section id="rope-vs-piece-table-the-decision-framework" class="level2">
+<h2 class="anchored" data-anchor-id="rope-vs-piece-table-the-decision-framework">14.7 Rope vs Piece Table: The Decision Framework</h2>
+<p>Both structures solve the text editing problem. Choose based on your constraints.</p>
+<p><strong>Choose a rope when:</strong> - Document history and undo must be memory-efficient via structural sharing - Concurrent access is required (functional, immutable ropes compose well with concurrent readers) - The document is assembled from large fragments with rare edits (document merging, CRDTs for collaborative editing) - You are implementing a functional language’s string type and need O(log n) concatenation</p>
+<p><strong>Choose a piece table when:</strong> - You are implementing a text editor with typical typing patterns - Sequential access performance is critical (display, syntax highlighting, search) - Implementation simplicity is a priority - The document is modified sequentially rather than randomly</p>
+<p><strong>The hybrid (piece table with tree indexing)</strong> — what VS Code actually uses — combines the piece table’s sequential access advantage with O(log n) random access. This is the right choice for production text editors where both performance and simplicity matter.</p>
+<hr>
+</section>
+<section id="connection-to-persistent-data-structures" class="level2">
+<h2 class="anchored" data-anchor-id="connection-to-persistent-data-structures">14.8 Connection to Persistent Data Structures</h2>
+<p>The rope’s structural sharing connects directly to Chapter 20’s persistent data structures. A persistent rope is a purely functional data structure: each operation produces a new version without modifying the old. The old version remains fully accessible, sharing unchanged subtrees with the new version.</p>
+<p>This is the same principle that makes persistent linked lists and persistent balanced trees useful in concurrent settings. Multiple threads can read old versions while a single writer creates new versions. No locking required — old versions are immutable and can never observe writes.</p>
+<p>The piece table achieves a similar effect through a different mechanism: the original buffer is never modified, and the append buffer only grows. Old piece arrays remain valid indefinitely because the buffers they reference never change. This is a form of persistence without the tree structure that makes ropes explicitly persistent.</p>
+<p>Both structures exemplify a deeper principle: immutability simplifies concurrency. When shared data cannot be modified, the need for synchronisation disappears. The data structures in this chapter achieve fast mutation through indirection — the document is not modified, but the description of how to read the document is.</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">14.9 Where This Lives in the Wild</h2>
+<p><strong>VS Code</strong> uses a piece tree — a red-black tree of pieces with augmented character and newline counts — as its text buffer. The implementation is in <code>src/vs/editor/common/model/pieceTreeTextBuffer/</code>. It handles files of hundreds of megabytes without degrading. The blog post by Peng Lyu describing the implementation is one of the most detailed public accounts of text buffer engineering available.</p>
+<p><strong>GNU Emacs</strong> has used a gap buffer — a third approach not covered in this chapter — since the 1980s. A gap buffer is an array with a hole (the gap) at the current cursor position. Insertions at the cursor are O(1) — fill the gap — and the gap moves with the cursor. For the sequential-editing pattern of a user typing at one location, gap buffers are extremely fast. For random access across a large file, they degrade. Emacs is designed around sequential editing; its gap buffer reflects that.</p>
+<p><strong>Xi editor</strong> (a research editor from Google) uses ropes implemented in Rust, with careful attention to cache behaviour. Xi’s rope implementation, in the <code>xi-rope</code> crate, uses chunks of 256-512 bytes rather than individual characters at leaves, dramatically improving cache performance relative to the theoretical model. Xi demonstrated that ropes can match piece table performance with careful implementation.</p>
+<p><strong>Helix editor</strong>, a modern terminal editor in Rust, uses a rope library called <code>ropey</code>, which stores chunks of characters at leaves and achieves good cache performance for sequential access while preserving O(log n) random access.</p>
+<p><strong>Collaborative text editors</strong> — Google Docs, Notion, CRDTs in general — require data structures that support merging concurrent edits from multiple users. The piece table’s model, where the original buffer is immutable and all edits are recorded as pieces, aligns naturally with CRDT (Conflict-free Replicated Data Type) approaches, where the document is a sequence of operations rather than a mutable string. The piece table can be thought of as an operational transform log with a compact representation.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Text editors need efficient insertion, deletion, and access at arbitrary positions in a mutable character sequence. Arrays fail on insertion and deletion due to shifting costs. Linked lists fail on access and sequential iteration due to pointer-chasing and cache misses.</p>
+<p>Ropes represent documents as balanced binary trees of string fragments. Concatenation is O(1), insertion and deletion are O(log n) by splitting and rejoining, and character access is O(log n). Structural sharing between versions makes undo O(log n) per step in memory. The weakness is cache performance during sequential access and implementation complexity.</p>
+<p>Piece tables represent documents as a sequence of (buffer, start, length) descriptors pointing into two immutable buffers: the original file content and an append-only buffer for insertions. All editing operations manipulate the piece list. Sequential access reads directly from the underlying buffers, achieving excellent cache performance. Undo is cheap because piece arrays are small. The weakness is O(pieces) for random access, addressed in production systems by indexing the piece list with an augmented balanced tree.</p>
+<p>VS Code’s choice of piece table over rope reflects the practical reality that sequential access dominates text editing workloads, and that implementation simplicity reduces bugs. The hybrid piece tree — piece table operations with red-black tree indexing and augmented metadata — achieves O(log n) for all operations while preserving the piece table’s sequential access advantage.</p>
+<p>The connection to earlier chapters is direct: rope balancing uses the rotations of Chapter 2, piece trees use the augmented balanced trees of Chapter 2, and the persistent rope uses the structural sharing of Chapter 20. String algorithms from Chapters 7 through 13 operate on these structures as their text source — every search, every regex match, every suffix array query has a piece table or rope as the document it indexes.</p>
+<p>This concludes Part III. Part IV turns from the structure of text to the problem of ordering data — not the character-level ordering that string algorithms exploit, but the sorting of arbitrary records at scales that exceed memory.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_13.html" class="pagination-link" aria-label="Chapter 13: The Suffix Array">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 13: The Suffix Array</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_15.html" class="pagination-link" aria-label="Chapter 15: Quicksort — The Practical Champion">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -1,5 +1,5 @@
-# Structures That Matter
-### *Algorithms and Data Structures for the Working Programmer*
+# Structures of Scale
+### *Advanced Algorithms for Modern Systems*
 
 ---
 

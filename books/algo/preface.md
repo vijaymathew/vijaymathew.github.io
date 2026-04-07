@@ -12,7 +12,7 @@ These are the moments this book was written for.
 
 ## What This Book Is
 
-*Structures That Matter* is a book about the algorithms and data structures that power real systems — storage engines, databases, text editors, search infrastructure, concurrent servers — treated with full implementation honesty in a language designed for clarity.
+*Structures of Scale* is a book about the algorithms and data structures that power real systems — storage engines, databases, text editors, search infrastructure, concurrent servers — treated with full implementation honesty in a language designed for clarity.
 
 It is not an introduction. It assumes you already know what a hash table is and roughly how it works. It assumes you have written code professionally and have felt, at least once, the specific frustration of knowing that your current approach is wrong but not knowing what the right approach looks like. It starts where most books stop.
 

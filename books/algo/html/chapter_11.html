@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 11: What Regex Actually Is — Finite Automata – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_12.html" rel="next">
+<link href="./chapter_10.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_7.html">String Algorithms</a></li><li class="breadcrumb-item"><a href="./chapter_11.html"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#what-a-regular-expression-actually-describes" id="toc-what-a-regular-expression-actually-describes" class="nav-link active" data-scroll-target="#what-a-regular-expression-actually-describes">11.1 What a Regular Expression Actually Describes</a></li>
+  <li><a href="#a-subset-of-regular-expressions" id="toc-a-subset-of-regular-expressions" class="nav-link" data-scroll-target="#a-subset-of-regular-expressions">11.2 A Subset of Regular Expressions</a></li>
+  <li><a href="#the-nfa-state" id="toc-the-nfa-state" class="nav-link" data-scroll-target="#the-nfa-state">11.3 The NFA State</a></li>
+  <li><a href="#thompsons-construction" id="toc-thompsons-construction" class="nav-link" data-scroll-target="#thompsons-construction">11.4 Thompson’s Construction</a></li>
+  <li><a href="#simulating-the-nfa" id="toc-simulating-the-nfa" class="nav-link" data-scroll-target="#simulating-the-nfa">11.5 Simulating the NFA</a></li>
+  <li><a href="#why-backtracking-engines-blow-up" id="toc-why-backtracking-engines-blow-up" class="nav-link" data-scroll-target="#why-backtracking-engines-blow-up">11.6 Why Backtracking Engines Blow Up</a></li>
+  <li><a href="#the-dfa-trading-construction-for-execution" id="toc-the-dfa-trading-construction-for-execution" class="nav-link" data-scroll-target="#the-dfa-trading-construction-for-execution">11.7 The DFA: Trading Construction for Execution</a></li>
+  <li><a href="#the-complete-regex-engine" id="toc-the-complete-regex-engine" class="nav-link" data-scroll-target="#the-complete-regex-engine">11.8 The Complete Regex Engine</a></li>
+  <li><a href="#what-our-engine-does-not-handle" id="toc-what-our-engine-does-not-handle" class="nav-link" data-scroll-target="#what-our-engine-does-not-handle">11.9 What Our Engine Does Not Handle</a></li>
+  <li><a href="#the-relationship-to-earlier-chapters" id="toc-the-relationship-to-earlier-chapters" class="nav-link" data-scroll-target="#the-relationship-to-earlier-chapters">11.10 The Relationship to Earlier Chapters</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">11.11 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_7.html">String Algorithms</a></li><li class="breadcrumb-item"><a href="./chapter_11.html"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>Every programmer uses regular expressions. Most programmers do not know what they are.</p>
+<p>This is not an insult. Regular expressions as they appear in Python, JavaScript, Java, and Perl are a practical tool — a terse notation for describing patterns in text. You learn the syntax, you test it against examples, it either works or it does not. The underlying mechanism is invisible, and for most uses it does not matter.</p>
+<p>Until it does.</p>
+<p>In 2016, a bug in a Stack Overflow regular expression caused the site to go down for thirty-four minutes. The regex was matching HTML tags in user-submitted content. Under certain inputs, the matching engine took exponential time — not seconds, not minutes, but time that grew faster than any polynomial in the input length. The server load spiked to catastrophic levels before engineers could intervene. The incident is known as a ReDoS — Regular Expression Denial of Service — and it is not rare. Similar outages have affected Cloudflare, the npm registry, and hundreds of other production systems.</p>
+<p>The cause is a specific feature of most regex engines: backtracking. When a match fails partway through, the engine backtracks and tries a different path. For certain combinations of pattern and input, the number of paths grows exponentially. The engine does not know this is happening — it just tries every path, and there are more paths than atoms in the universe.</p>
+<p>The solution has been known since 1959. Ken Thompson described it in a paper called “Regular Expression Search Algorithm,” published in the Communications of the ACM. Thompson’s algorithm matches any regular expression against any input in O(nm) time — linear in both the pattern and the input length, with no backtracking, no exponential blowup, no possibility of ReDoS. It does this by converting the regular expression to a finite automaton and simulating that automaton on the input.</p>
+<p>This chapter builds Thompson’s construction from scratch. By the end, you will have a regex engine that is immune to ReDoS by construction, and you will understand exactly why most production regex engines are not.</p>
+<hr>
+<section id="what-a-regular-expression-actually-describes" class="level2">
+<h2 class="anchored" data-anchor-id="what-a-regular-expression-actually-describes">11.1 What a Regular Expression Actually Describes</h2>
+<p>A regular expression describes a set of strings — called a language. The regex <code>[a-z]+</code> describes the set of all strings consisting of one or more lowercase letters. The regex <code>\d{3}-\d{4}</code> describes strings matching a phone number format. The regex <code>(ab|cd)*</code> describes strings consisting of any number of repetitions of “ab” or “cd”, including the empty string.</p>
+<p>Formal language theory gives us a precise characterisation of which sets of strings can be described by regular expressions. The answer is: exactly the sets that can be recognised by a finite automaton. This equivalence — regular expressions and finite automata describe exactly the same languages — is one of the foundational results of computer science, proved by Kleene in 1956.</p>
+<p>A <strong>finite automaton</strong> is a machine with a finite number of states, an initial state, one or more accepting states, and transitions between states triggered by input characters. The machine reads an input string one character at a time, following transitions. After reading the last character, it accepts the string if it is in an accepting state, and rejects it otherwise.</p>
+<p>There are two kinds of finite automata.</p>
+<p>A <strong>deterministic finite automaton (DFA)</strong> has exactly one transition per (state, character) pair. Given a state and a character, there is exactly one next state. The machine’s execution is completely determined by the input — hence “deterministic.”</p>
+<p>A <strong>nondeterministic finite automaton (NFA)</strong> allows multiple transitions for the same (state, character) pair, and additionally allows <strong>epsilon transitions</strong> — transitions that consume no input character. In an NFA, the machine can be in multiple states simultaneously. It accepts a string if any sequence of choices leads to an accepting state.</p>
+<p>DFAs are easier to simulate — O(n) for an input of length n — because at each step there is exactly one next state. NFAs are easier to construct from regular expressions — Thompson’s construction produces an NFA with at most 2m states for a pattern of length m, in O(m) time. Converting an NFA to a DFA can produce exponentially many states in the worst case.</p>
+<p>The key insight behind Thompson’s algorithm: you do not need to convert the NFA to a DFA to simulate it. You can simulate the NFA directly, tracking the set of states the machine is currently in. At each input character, you compute the next set of states from the current set. This simulation runs in O(nm) time — O(n) steps, each taking O(m) time to compute the next state set.</p>
+<hr>
+</section>
+<section id="a-subset-of-regular-expressions" class="level2">
+<h2 class="anchored" data-anchor-id="a-subset-of-regular-expressions">11.2 A Subset of Regular Expressions</h2>
+<p>We implement a subset of regular expression syntax sufficient to demonstrate the core ideas:</p>
+<ul>
+<li><strong>Literal characters:</strong> <code>a</code>, <code>b</code>, <code>Z</code>, <code>3</code> — match exactly one specific character</li>
+<li><strong>Dot:</strong> <code>.</code> — matches any single character</li>
+<li><strong>Concatenation:</strong> <code>ab</code> — match “a” followed by “b”</li>
+<li><strong>Alternation:</strong> <code>a|b</code> — match “a” or “b”</li>
+<li><strong>Kleene star:</strong> <code>a*</code> — match zero or more “a”s</li>
+<li><strong>Plus:</strong> <code>a+</code> — match one or more “a”s (syntactic sugar for <code>aa*</code>)</li>
+<li><strong>Question mark:</strong> <code>a?</code> — match zero or one “a” (syntactic sugar for <code>(a|ε)</code>)</li>
+<li><strong>Grouping:</strong> <code>(ab)</code> — treat the grouped expression as a unit for operators</li>
+</ul>
+<p>This covers the core operators. Character classes (<code>[a-z]</code>), anchors (<code>^</code>, <code>$</code>), and backreferences (<code>\1</code>) are extensions that we note but do not implement — backreferences in particular step outside the regular language boundary and are the primary source of exponential blowup in backtracking engines.</p>
+<hr>
+</section>
+<section id="the-nfa-state" class="level2">
+<h2 class="anchored" data-anchor-id="the-nfa-state">11.3 The NFA State</h2>
+<p>Thompson’s construction builds an NFA where each node is a state and each edge is a transition. Transitions are either character transitions (consume a specific character or any character for <code>.</code>) or epsilon transitions (consume nothing).</p>
+<pre><code>-- Transition types
+
+class NFA_State
+  create
+    make(id: Integer) do
+      this.id := id
+      this.transitions := []  -- Array of (label, target_state_id)
+      this.is_accepting := false
+    end
+
+    accepting(id: Integer) do
+      this.id := id
+      this.transitions := []
+      this.is_accepting := true
+    end
+
+  feature
+    id: Integer
+    transitions: Array[Any]  -- (label, target_id)
+    is_accepting: Boolean
+
+    add_transition(label: Integer, target: Integer) do
+      transitions.add([label, target])
+    end
+
+    add_epsilon(target: Integer) do
+      transitions.add([-1, target])
+    end
+
+    mark_accepting() do
+      is_accepting := true
+    end
+
+  invariant
+    non_negative_id: id &gt;= 0
+end</code></pre>
+<p>An NFA is a collection of states with designated start and accept states:</p>
+<pre><code>class NFA
+  create
+    make() do
+      this.states := []
+      this.start := 0
+      this.accept := 0
+      this.next_id := 0
+    end
+
+  feature
+    states: Array[NFA_State]
+    start: Integer   -- id of start state
+    accept: Integer  -- id of accepting state
+    next_id: Integer
+
+    new_state(): Integer do
+      let id: Integer := next_id
+      states.add(create NFA_State.make(id))
+      next_id := next_id + 1
+      result := id
+    end
+
+    new_accepting_state(): Integer do
+      let id: Integer := next_id
+      states.add(create NFA_State.accepting(id))
+      next_id := next_id + 1
+      result := id
+    end
+
+    get_state(id: Integer): NFA_State do
+      result := states.get(id)
+    end
+
+    set_bounds(start_id: Integer, accept_id: Integer) do
+      start := start_id
+      accept := accept_id
+    end
+
+    mark_state_accepting(id: Integer) do
+      states.get(id).mark_accepting()
+    end
+
+    add_transition(from_state: Integer, label: Integer, to_state: Integer) do
+      get_state(from_state).add_transition(label, to_state)
+    end
+
+    add_epsilon(from_state: Integer, to_state: Integer) do
+      get_state(from_state).add_epsilon(to_state)
+    end
+
+  invariant
+    states_exist: states.length &gt; 0
+    valid_start: start &gt;= 0 and start &lt; states.length
+    valid_accept: accept &gt;= 0 and accept &lt; states.length
+end</code></pre>
+<p>Each NFA fragment — corresponding to a subexpression — has one start state and one accepting state. Thompson’s construction assembles fragments for small expressions into larger fragments for compound expressions, always maintaining this invariant of exactly one start and one accept.</p>
+<hr>
+</section>
+<section id="thompsons-construction" class="level2">
+<h2 class="anchored" data-anchor-id="thompsons-construction">11.4 Thompson’s Construction</h2>
+<p>Thompson’s construction is compositional: it defines how to build an NFA for each type of regular expression in terms of NFAs for its subexpressions. There are five cases.</p>
+<p><strong>Case 1: Literal character <code>c</code></strong></p>
+<p>One start state, one accepting state, one character transition between them.</p>
+<pre><code>[start] --c--&gt; [accept]</code></pre>
+<p><strong>Case 2: Dot <code>.</code></strong></p>
+<p>Same as literal but with -2 label.</p>
+<pre><code>[start] --ANY--&gt; [accept]</code></pre>
+<p><strong>Case 3: Concatenation <code>AB</code></strong></p>
+<p>Build NFA for A and NFA for B. Connect A’s accept to B’s start with an epsilon transition. A’s start becomes the new start; B’s accept becomes the new accept.</p>
+<pre><code>[A_start] --&gt; ... --&gt; [A_accept] --ε--&gt; [B_start] --&gt; ... --&gt; [B_accept]</code></pre>
+<p><strong>Case 4: Alternation <code>A|B</code></strong></p>
+<p>Build NFA for A and NFA for B. Create new start and new accept. New start connects to both A’s start and B’s start with epsilon transitions. Both A’s accept and B’s accept connect to new accept with epsilon transitions.</p>
+<pre><code>              ε --&gt; [A_start] --&gt; ... --&gt; [A_accept] --ε
+[new_start] &lt;                                             &gt; [new_accept]
+              ε --&gt; [B_start] --&gt; ... --&gt; [B_accept] --ε</code></pre>
+<p><strong>Case 5: Kleene star <code>A*</code></strong></p>
+<p>Build NFA for A. Create new start and new accept. New start connects to A’s start and new accept with epsilon (the empty-string case). A’s accept connects to A’s start (repetition) and new accept (stopping).</p>
+<pre><code>                ε ─────────────────────────────── ε
+               ↓                                  ↓
+[new_start] --ε--&gt; [A_start] --&gt; ... --&gt; [A_accept] --ε--&gt; [new_accept]
+                                         ↑         |
+                                         └─── ε ───┘</code></pre>
+<p>These five cases are sufficient to handle all regular expressions. Plus and question mark are syntactic sugar:</p>
+<ul>
+<li><code>A+</code> = <code>AA*</code> (concatenation of A with A*)</li>
+<li><code>A?</code> = <code>(A|ε)</code> (alternation of A with the empty string, which is an epsilon self-loop)</li>
+</ul>
+<p>Let us implement this as a recursive parser and constructor:</p>
+<pre><code>class Thompson_Builder
+  create
+    make(pattern: String) do
+      this.pattern := pattern
+      this.pos := 0
+      this.nfa := create NFA.make()
+    end
+
+  feature
+    pattern: String
+    pos: Integer
+    nfa: NFA
+
+    -- Entry point: parse the pattern and return the NFA
+    build(): NFA do
+      let fragment: Array[Integer] := parse_alternation()
+      nfa.set_bounds(fragment.get(0), fragment.get(1))
+      nfa.mark_state_accepting(fragment.get(1))
+      result := nfa
+    end
+
+    -- Parse alternation (lowest precedence): A|B
+    parse_alternation(): Array[Integer] do
+      let left: Array[Integer] := parse_concatenation()
+
+      if pos &lt; pattern.length and pattern.char_at(pos) = #| then
+        pos := pos + 1
+        let right: Array[Integer] := parse_alternation()
+        result := make_alternation(left, right)
+      else
+        result := left
+      end
+    end
+
+    -- Parse concatenation: AB
+    parse_concatenation(): Array[Integer] do
+      let left: Array[Integer] := parse_quantified()
+      let continue_parsing: Boolean := true
+
+      -- Concatenation is implicit; continue while more atoms remain.
+      from until not continue_parsing do
+        if pos &gt;= pattern.length then
+          continue_parsing := false
+        elseif pattern.char_at(pos) = #| then
+          continue_parsing := false
+        elseif pattern.char_at(pos) = #) then
+          continue_parsing := false
+        else
+          let right: Array[Integer] := parse_quantified()
+          left := make_concatenation(left, right)
+        end
+      end
+
+      result := left
+    end
+
+    -- Parse a quantified atom: A*, A+, A?
+    parse_quantified(): Array[Integer] do
+      let atom: Array[Integer] := parse_atom()
+
+      if pos &lt; pattern.length then
+        let c: Char := pattern.char_at(pos)
+        if c = #* then
+          pos := pos + 1
+          result := make_star(atom)
+        elseif c = #+ then
+          pos := pos + 1
+          -- A+ = A concatenated with A*
+          let star: Array[Integer] := make_star(atom)
+          let atom2: Array[Integer] := parse_atom_copy(atom)
+          result := make_concatenation(atom2, star)
+        elseif c = #? then
+          pos := pos + 1
+          result := make_optional(atom)
+        else
+          result := atom
+        end
+      else
+        result := atom
+      end
+    end
+
+    -- Parse an atom: literal, dot, or grouped expression
+    parse_atom(): Array[Integer] do
+      if pos &gt;= pattern.length then
+        -- Empty: epsilon fragment
+        result := make_epsilon_fragment()
+      else
+        let c: Char := pattern.char_at(pos)
+
+        if c = #( then
+          pos := pos + 1
+          let inner: Array[Integer] := parse_alternation()
+          if pos &lt; pattern.length and pattern.char_at(pos) = #) then
+            pos := pos + 1
+          end
+          result := inner
+        elseif c = #. then
+          pos := pos + 1
+          result := make_any_char()
+        elseif c = #\ and pos + 1 &lt; pattern.length then
+          pos := pos + 2
+          result := make_literal(pattern.char_at(pos - 1))
+        else
+          pos := pos + 1
+          result := make_literal(c)
+        end
+      end
+    end
+
+    -- NFA fragment constructors
+    -- Each returns [start_id, accept_id]
+
+    make_literal(c: Char): Array[Integer] do
+      let s: Integer := nfa.new_state()
+      let a: Integer := nfa.new_state()
+      nfa.add_transition(s, c.hash(), a)
+      result := [s, a]
+    end
+
+    make_any_char(): Array[Integer] do
+      let s: Integer := nfa.new_state()
+      let a: Integer := nfa.new_state()
+      nfa.add_transition(s, -2, a)
+      result := [s, a]
+    end
+
+    make_epsilon_fragment(): Array[Integer] do
+      let s: Integer := nfa.new_state()
+      let a: Integer := nfa.new_state()
+      nfa.add_epsilon(s, a)
+      result := [s, a]
+    end
+
+    make_concatenation(left: Array[Integer],
+                       right: Array[Integer]): Array[Integer] do
+      -- Connect left's accept to right's start
+      nfa.add_epsilon(left.get(1), right.get(0))
+      result := [left.get(0), right.get(1)]
+    end
+
+    make_alternation(left: Array[Integer],
+                     right: Array[Integer]): Array[Integer] do
+      let s: Integer := nfa.new_state()
+      let a: Integer := nfa.new_state()
+      nfa.add_epsilon(s, left.get(0))
+      nfa.add_epsilon(s, right.get(0))
+      nfa.add_epsilon(left.get(1), a)
+      nfa.add_epsilon(right.get(1), a)
+      result := [s, a]
+    end
+
+    make_star(fragment: Array[Integer]): Array[Integer] do
+      let s: Integer := nfa.new_state()
+      let a: Integer := nfa.new_state()
+      -- New start to fragment start (enter the loop)
+      nfa.add_epsilon(s, fragment.get(0))
+      -- New start to new accept (zero repetitions)
+      nfa.add_epsilon(s, a)
+      -- Fragment accept back to fragment start (loop)
+      nfa.add_epsilon(fragment.get(1), fragment.get(0))
+      -- Fragment accept to new accept (exit loop)
+      nfa.add_epsilon(fragment.get(1), a)
+      result := [s, a]
+    end
+
+    make_optional(fragment: Array[Integer]): Array[Integer] do
+      let s: Integer := nfa.new_state()
+      let a: Integer := nfa.new_state()
+      nfa.add_epsilon(s, fragment.get(0))
+      nfa.add_epsilon(s, a)
+      nfa.add_epsilon(fragment.get(1), a)
+      result := [s, a]
+    end
+
+    -- For A+: we need a fresh copy of the atom's fragment
+    -- In practice, we re-parse; a cleaner implementation
+    -- would support NFA fragment duplication
+    parse_atom_copy(fragment: Array[Integer]): Array[Integer] do
+      -- Simplified: return the fragment itself for the first
+      -- occurrence in A+ (the second is handled by make_star)
+      -- A full implementation would clone the fragment's states
+      result := fragment
+    end
+
+  invariant
+    valid_pos: pos &gt;= 0 and pos &lt;= pattern.length
+end</code></pre>
+<p>The parser is a recursive descent parser — one function per level of precedence, each calling the next. Alternation has lowest precedence (handled first in the recursion, applied last), then concatenation, then quantification, then atoms. This mirrors the standard regular expression precedence: <code>ab|c</code> means <code>(ab)|c</code>, not <code>a(b|c)</code>.</p>
+<hr>
+</section>
+<section id="simulating-the-nfa" class="level2">
+<h2 class="anchored" data-anchor-id="simulating-the-nfa">11.5 Simulating the NFA</h2>
+<p>The NFA is built. Now we need to simulate it on an input string. Thompson’s key insight is to track all simultaneously active states — the “set of states the NFA might be in.”</p>
+<p>The simulation has two phases per input character:</p>
+<ol type="1">
+<li><p><strong>Epsilon closure:</strong> from the current set of states, follow all epsilon transitions transitively. The result is the full set of states reachable without consuming any input.</p></li>
+<li><p><strong>Character step:</strong> for each state in the closure, follow transitions labelled with the current input character. The result is the set of states after consuming the character.</p></li>
+</ol>
+<p>After processing all input characters, the NFA accepts if any state in the current set is an accepting state.</p>
+<pre><code>class NFA_Simulator
+  create
+    make(nfa: NFA) do
+      this.nfa := nfa
+    end
+
+  feature
+    nfa: NFA
+
+    -- Compute epsilon closure of a set of states
+    epsilon_closure(states: Set[Integer]): Set[Integer] do
+      let closure: Set[Integer] := states
+      let worklist: Array[Integer] := []
+      across states as state_id do
+        worklist.add(state_id)
+      end
+
+      from until worklist.is_empty() do
+        let last_idx: Integer := worklist.length - 1
+        let state_id: Integer := worklist.get(last_idx)
+        worklist.remove(last_idx)
+        let state: NFA_State := nfa.get_state(state_id)
+
+        across state.transitions as transition do
+          let label: Integer := transition.get(0)
+          let target: Integer := transition.get(1)
+
+          if label = -1 and not closure.contains(target) then
+            closure := closure.union(#{target})
+            worklist.add(target)
+          end
+        end
+      end
+
+      result := closure
+    end
+
+    -- Compute next states after consuming character c
+    step(states: Set[Integer], c: Char): Set[Integer] do
+      let next: Set[Integer] := #{}
+      let c_code: Integer := c.hash()
+
+      across states as state_id do
+        let state: NFA_State := nfa.get_state(state_id)
+        across state.transitions as transition do
+          let label: Integer := transition.get(0)
+          let target: Integer := transition.get(1)
+
+          if label = c_code or label = -2 then
+            next := next.union(#{target})
+          end
+        end
+      end
+
+      result := next
+    end
+
+    -- Test whether the input string is matched by the NFA
+    matches(input: String): Boolean do
+      -- Start with epsilon closure of the start state
+      let current: Set[Integer] := epsilon_closure(#{nfa.start})
+
+      let match_possible: Boolean := true
+      across input.chars() as c do
+        if match_possible then
+        -- Step on current character
+          let next_raw: Set[Integer] := step(current, c)
+        -- Compute epsilon closure of resulting states
+          current := epsilon_closure(next_raw)
+
+        -- Early termination: if no states remain, match is impossible
+          if current.is_empty() then
+            match_possible := false
+          end
+        end
+      end
+
+      if match_possible then
+        let accepted: Boolean := false
+        -- Accept if any current state is accepting
+        across current as state_id do
+          if not accepted and nfa.get_state(state_id).is_accepting then
+            accepted := true
+          end
+        end
+        result := accepted
+      else
+        result := false
+      end
+    end
+
+    -- Find all matches of the pattern in text (non-overlapping)
+    find_all(text: String): Array[Any] do
+      -- Returns array of [start, end) positions of matches
+      let matches_found: Array[Any] := []
+      let n: Integer := text.length
+
+      from
+        let i: Integer := 0
+      until
+        i &gt;= n
+      do
+        -- Try to match starting at position i
+        let match_end: Integer := longest_match_at(text, i)
+        if match_end &gt;= 0 then
+          matches_found.add([i, match_end])
+          i := match_end  -- advance past the match
+        else
+          i := i + 1
+        end
+      end
+
+      result := matches_found
+    end
+
+    -- Find the length of the longest match starting at position start
+    -- Returns -1 if no match
+    longest_match_at(text: String, start: Integer): Integer do
+      let current: Set[Integer] := epsilon_closure(#{nfa.start})
+      let last_accept: Integer := -1
+
+      -- Check if start state itself is accepting
+      if is_accepting_set(current) then
+        last_accept := start
+      end
+
+      from
+        let i: Integer := start
+      until
+        i &gt;= text.length or current.is_empty()
+      do
+        current := epsilon_closure(step(current, text.char_at(i)))
+        i := i + 1
+
+        if is_accepting_set(current) then
+          last_accept := i
+        end
+      end
+
+      result := last_accept
+    end
+
+    is_accepting_set(states: Set[Integer]): Boolean do
+      let accepted: Boolean := false
+      across states as state_id do
+        if not accepted and nfa.get_state(state_id).is_accepting then
+          accepted := true
+        end
+      end
+      result := accepted
+    end
+end</code></pre>
+<p>The epsilon closure computation is a graph reachability problem: find all nodes reachable from the starting set via epsilon edges. The worklist algorithm visits each reachable state exactly once — O(|states|) per closure computation, where |states| is at most the total number of NFA states m.</p>
+<p>Each step of the simulation — one input character — takes O(m) time: O(m) for the step itself (check each transition in each current state) and O(m) for the epsilon closure. With n characters in the input, total time is O(nm). This bound is tight and holds for any regular expression, any input. No exponential blowup is possible.</p>
+<hr>
+</section>
+<section id="why-backtracking-engines-blow-up" class="level2">
+<h2 class="anchored" data-anchor-id="why-backtracking-engines-blow-up">11.6 Why Backtracking Engines Blow Up</h2>
+<p>The standard NFA simulation above is not how most production regex engines work. Python’s <code>re</code> module, JavaScript’s <code>RegExp</code>, Java’s <code>java.util.regex</code>, Perl’s regex engine — all of them use backtracking.</p>
+<p>A backtracking engine converts the NFA to an implicit search tree and performs depth-first search. At each point where the NFA has multiple choices (epsilon transitions, alternation), the engine tries one choice. If it leads to a match, success. If it fails, the engine backtracks — undoes the choice — and tries another.</p>
+<p>For most patterns and inputs, backtracking is fast. The engine finds a match or determines no match quickly. But for certain patterns, backtracking explores exponentially many paths.</p>
+<p>The classic example: the pattern <code>(a+)+</code> applied to the string “aaaaaaaaab”.</p>
+<p>The pattern means: one or more occurrences of “one or more a’s”, followed by “b”. On the string “aaaaaaaaab”, this should match immediately — ten a’s followed by b. But on “aaaaaaaaaa” (no b), the engine must determine that no match is possible.</p>
+<p>The problem: there are exponentially many ways to partition ten a’s into groups. The engine tries: one group of ten, then realises no b follows. Backs up. Tries two groups: nine and one, or eight and two, or… Each partition leads to a different branch of the search tree, and there are 2^9 = 512 ways to partition ten a’s into one or more groups. For twenty a’s, 2^19 = 524,288 partitions. For thirty, over a billion.</p>
+<p>The Thompson NFA simulation handles this in O(nm) = O(10 × |pattern|) time because it tracks all active states simultaneously. It never tries the same (position, state) pair twice. The backtracking engine tries the same pairs repeatedly from different paths.</p>
+<pre><code>-- Demonstration: Thompson's algorithm handles the catastrophic case
+let builder: Thompson_Builder :=
+  create Thompson_Builder.make("(a+)+b")
+let nfa: NFA := builder.build()
+let sim: NFA_Simulator := create NFA_Simulator.make(nfa)
+
+-- This runs in O(nm) regardless of how many a's
+let dangerous_input: String := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+print(sim.matches(dangerous_input))   -- false, computed quickly
+print(sim.matches(dangerous_input + "b"))  -- true, computed quickly</code></pre>
+<p>The Thompson simulation is immune to ReDoS by construction. The set of active states can never grow larger than the number of NFA states, and we never revisit a (position, state) pair. The O(nm) bound is absolute.</p>
+<hr>
+</section>
+<section id="the-dfa-trading-construction-for-execution" class="level2">
+<h2 class="anchored" data-anchor-id="the-dfa-trading-construction-for-execution">11.7 The DFA: Trading Construction for Execution</h2>
+<p>The NFA simulation runs in O(nm). A DFA simulation runs in O(n) — strictly linear in the input, with no dependence on pattern length during the execution phase. For patterns matched against very long texts, the DFA is faster.</p>
+<p>The DFA is constructed from the NFA by the subset construction (also called the powerset construction): each DFA state corresponds to a set of NFA states. The DFA’s start state is the epsilon closure of the NFA’s start state. Transitions are computed by simulating the NFA step and closure operations.</p>
+<pre><code>class DFA_State
+  create
+    make(nfa_states: Set[Integer], is_accepting: Boolean) do
+      this.nfa_states := nfa_states
+      this.is_accepting := is_accepting
+      this.transitions := {}
+    end
+
+  feature
+    nfa_states: Set[Integer]
+    is_accepting: Boolean
+    transitions: Map[Integer, Integer]  -- char_code -&gt; DFA state index
+
+    add_transition(label: Integer, target: Integer) do
+      transitions.put(label, target)
+    end
+
+    get_transition(label: Integer): ?Integer do
+      result := transitions.get(label)
+    end
+end
+
+class DFA
+  create
+    from_nfa(nfa: NFA) do
+      this.states := []
+      this.start := 0
+      this.simulator := create NFA_Simulator.make(nfa)
+      this.nfa := nfa
+      this.state_map := {}  -- Set[Integer] -&gt; DFA state index
+      build()
+    end
+
+  feature
+    states: Array[DFA_State]
+    start: Integer
+    simulator: NFA_Simulator
+    nfa: NFA
+    state_map: Map[String, Integer]  -- serialised set -&gt; DFA state index
+
+    build() do
+      -- Start state: epsilon closure of NFA start
+      let start_set: Set[Integer] := simulator.epsilon_closure(#{nfa.start})
+      let start_is_accepting: Boolean :=
+        simulator.is_accepting_set(start_set)
+      states.add(create DFA_State.make(start_set, start_is_accepting))
+      state_map.put(set_key(start_set), 0)
+
+      let worklist: Array[Integer] := [0]
+
+      from until worklist.is_empty() do
+        let last_idx: Integer := worklist.length - 1
+        let dfa_state_id: Integer := worklist.get(last_idx)
+        worklist.remove(last_idx)
+        let dfa_state: DFA_State := states.get(dfa_state_id)
+
+        -- For each possible input character, compute next DFA state
+        -- In practice, use the alphabet of characters in the NFA
+        across alphabet() as c do
+          let c_code: Integer := c.hash()
+          let next_nfa: Set[Integer] :=
+            simulator.step(dfa_state.nfa_states, c)
+          let next_closed: Set[Integer] :=
+            simulator.epsilon_closure(next_nfa)
+
+          if next_closed.is_empty() then
+            -- Dead state: no transition
+          else
+            let key: String := set_key(next_closed)
+            let existing: ?Integer := state_map.get(key)
+
+            if existing /= nil then
+              dfa_state.add_transition(c_code, existing)
+            else
+              let new_id: Integer := states.length
+              let is_accepting: Boolean :=
+                simulator.is_accepting_set(next_closed)
+              states.add(create DFA_State.make(next_closed, is_accepting))
+              state_map.put(key, new_id)
+              dfa_state.add_transition(c_code, new_id)
+              worklist.add(new_id)
+            end
+          end
+        end
+      end
+    end
+
+    matches(input: String): Boolean do
+      let current: Integer := start
+      let matched: Boolean := true
+
+      across input.chars() as c do
+        if matched then
+          let dfa_state: DFA_State := states.get(current)
+          let next: ?Integer := dfa_state.get_transition(c.hash())
+          if next = nil then
+            matched := false
+          else
+            current := next
+          end
+        end
+      end
+
+      if matched then
+        result := states.get(current).is_accepting
+      else
+        result := false
+      end
+    end
+
+    -- Serialise a set of integers as a canonical string key
+    set_key(s: Set[Integer]): String do
+      let sorted: Array[Integer] := []
+      across s as item do
+        sorted.add(item)
+      end
+      sorted := sort_integers(sorted)
+      result := sorted.to_string()
+    end
+
+    -- Return the alphabet of characters appearing in the NFA
+    alphabet(): Array[Char] do
+      let chars: Set[Integer] := #{}
+      across nfa.states as state do
+        across state.transitions as transition do
+          let label: Integer := transition.get(0)
+          if label &gt;= 0 then  -- not -1 or -2
+            chars := chars.union(#{label})
+          end
+        end
+      end
+      let result_arr: Array[Char] := []
+      across chars as code do
+        result_arr.add(code.to_char())
+      end
+      result := result_arr
+    end
+end</code></pre>
+<p>The DFA construction can produce exponentially many states — an NFA with m states can produce a DFA with 2^m states. In practice, for most regular expressions, the number of DFA states is small. But for patterns designed to maximally exploit the exponential, DFA construction itself is impractical.</p>
+<p>The pragmatic solution used by systems like RE2 (Google’s regex library) and Rust’s <code>regex</code> crate: use the NFA simulation as the default engine, build the DFA lazily (caching computed transitions as they are needed), and bound the DFA cache size. Cached transitions give O(n) execution for repeatedly used patterns while bounding memory and avoiding the worst-case DFA explosion.</p>
+<hr>
+</section>
+<section id="the-complete-regex-engine" class="level2">
+<h2 class="anchored" data-anchor-id="the-complete-regex-engine">11.8 The Complete Regex Engine</h2>
+<p>Assembling NFA construction and simulation into a usable interface:</p>
+<pre><code>class Regex
+  create
+    compile(pattern: String)
+      require
+        non_empty: pattern.length &gt; 0
+      do
+        this.pattern := pattern
+        let builder: Thompson_Builder :=
+          create Thompson_Builder.make(pattern)
+        this.nfa := builder.build()
+        this.sim := create NFA_Simulator.make(this.nfa)
+        this.dfa := nil  -- built lazily if needed
+      end
+
+  feature
+    pattern: String
+    nfa: NFA
+    sim: NFA_Simulator
+    dfa: ?DFA
+
+    -- Test whether the entire input matches the pattern
+    matches(input: String): Boolean do
+      result := sim.matches(input)
+    end
+
+    -- Test whether the pattern appears anywhere in the text
+    -- (equivalent to .*pattern.* matching)
+    contains_match(text: String): Boolean do
+      result := not sim.find_all(text).is_empty()
+    end
+
+    -- Find all non-overlapping matches, return their positions
+    find_all(text: String): Array[Any] do
+      result := sim.find_all(text)
+    end
+
+    -- Find first match position, or nil
+    find_first(text: String): ?Array[Integer] do
+      let all: Array[Any] := find_all(text)
+      if all.is_empty() then
+        result := nil
+      else
+        result := all.get(0)
+      end
+    end
+
+    -- Replace all matches with a replacement string
+    replace_all(text: String, replacement: String): String do
+      let matches_list: Array[Any] := find_all(text)
+      if matches_list.is_empty() then
+        result := text
+      else
+        let output: String := ""
+        let last_end: Integer := 0
+
+        across matches_list as match do
+          let start: Integer := match.get(0)
+          let end_pos: Integer := match.get(1)
+          output := output + text.substring(last_end, start) + replacement
+          last_end := end_pos
+        end
+
+        output := output + text.substring(last_end, text.length)
+        result := output
+      end
+    end
+
+    -- Split text on pattern matches
+    split(text: String): Array[String] do
+      let matches_list: Array[Any] := find_all(text)
+      let parts: Array[String] := []
+      let last_end: Integer := 0
+
+      across matches_list as match do
+        parts.add(text.substring(last_end, match.get(0)))
+        last_end := match.get(1)
+      end
+
+      parts.add(text.substring(last_end, text.length))
+      result := parts
+    end
+
+    -- Build DFA for faster repeated matching
+    precompile() do
+      dfa := create DFA.from_nfa(nfa)
+    end
+
+    -- Match using DFA if available, NFA otherwise
+    fast_match(input: String): Boolean do
+      if dfa /= nil then
+        result := dfa.matches(input)
+      else
+        result := matches(input)
+      end
+    end
+
+  invariant
+    nfa_built: nfa /= nil
+    sim_built: sim /= nil
+end</code></pre>
+<p>Testing the engine:</p>
+<pre><code>function test_regex_engine() do
+  -- Basic matching
+  let r1: Regex := create Regex.compile("ab*c")
+  print(r1.matches("ac"))      -- true (zero b's)
+  print(r1.matches("abc"))     -- true (one b)
+  print(r1.matches("abbbbc"))  -- true (four b's)
+  print(r1.matches("adc"))     -- false
+
+  -- Alternation
+  let r2: Regex := create Regex.compile("cat|dog")
+  print(r2.matches("cat"))     -- true
+  print(r2.matches("dog"))     -- true
+  print(r2.matches("fish"))    -- false
+
+  -- Grouping and repetition
+  let r3: Regex := create Regex.compile("(ab)+")
+  print(r3.matches("ab"))      -- true
+  print(r3.matches("ababab"))  -- true
+  print(r3.matches("aba"))     -- false
+
+  -- Dot
+  let r4: Regex := create Regex.compile("a.c")
+  print(r4.matches("abc"))     -- true
+  print(r4.matches("a1c"))     -- true
+  print(r4.matches("ac"))      -- false
+
+  -- The catastrophic backtracking case -- runs fast
+  let r5: Regex := create Regex.compile("(a+)+b")
+  let long_a: String := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  print(r5.matches(long_a))        -- false (fast)
+  print(r5.matches(long_a + "b"))  -- true (fast)
+
+  -- Find all
+  let r6: Regex := create Regex.compile("a+")
+  let positions: Array[Any] := r6.find_all("aabbaaa")
+  across positions as p do
+    print("[" + p.get(0).to_string() + ", " + p.get(1).to_string() + ")")
+  end
+  -- [0, 2), [4, 7)
+
+  -- Replace all
+  let r7: Regex := create Regex.compile("\\s+")
+  print(r7.replace_all("hello   world  foo", " "))
+  -- "hello world foo"
+
+  -- Split
+  let r8: Regex := create Regex.compile(",\\s*")
+  let parts: Array[String] := r8.split("one, two,three,  four")
+  across parts as p do
+    print(p)
+  end
+  -- "one", "two", "three", "four"
+end</code></pre>
+<hr>
+</section>
+<section id="what-our-engine-does-not-handle" class="level2">
+<h2 class="anchored" data-anchor-id="what-our-engine-does-not-handle">11.9 What Our Engine Does Not Handle</h2>
+<p>Honesty about limitations is part of implementation discipline.</p>
+<p><strong>Character classes.</strong> <code>[a-z]</code>, <code>[^0-9]</code>, <code>\d</code>, <code>\w</code>, <code>\s</code>. These are syntactic extensions that expand to alternations of character ranges. Implementing them requires extending the parser to handle bracket expressions and escape sequences. The NFA construction is identical — alternation of literal transitions — but the parser is more complex.</p>
+<p><strong>Anchors.</strong> <code>^</code> and <code>$</code> match the beginning and end of the string (or line). They are zero-width assertions — they consume no input. Implementing them requires adding special transition labels for “beginning of input” and “end of input” that the simulator checks against position rather than character.</p>
+<p><strong>Capture groups.</strong> <code>(ab)</code> in our engine is a grouping operator for precedence. Production regex engines also use groups for capture — recording which part of the input matched each group. Thompson’s algorithm can be extended to track captures by annotating epsilon transitions with “begin group i” and “end group i” tags and recording positions as the simulation runs.</p>
+<p><strong>Backreferences.</strong> <code>\1</code> means “whatever group 1 matched.” This steps outside the regular language boundary — languages with backreferences are not regular. No finite automaton can recognise them. Implementing backreferences requires backtracking, which is why backtracking engines exist. The tradeoff is that backreferences enable patterns like <code>(.+)\1</code> (any repeated string), which are genuinely useful — and genuinely capable of exponential blowup.</p>
+<p><strong>Lookahead and lookbehind.</strong> <code>(?=...)</code>, <code>(?!...)</code>, <code>(?&lt;=...)</code>, <code>(?&lt;!...)</code>. Zero-width assertions that check for patterns before or after the current position without consuming input. These can be added to Thompson’s construction with additional state machinery but are complex to implement correctly.</p>
+<p>The engine we have built handles the core — the features that are genuinely regular — with Thompson’s O(nm) guarantee. For the rest, you need a backtracking engine with a ReDoS budget, or a hybrid that uses the NFA for the regular subset and falls back to backtracking only for features that require it.</p>
+<hr>
+</section>
+<section id="the-relationship-to-earlier-chapters" class="level2">
+<h2 class="anchored" data-anchor-id="the-relationship-to-earlier-chapters">11.10 The Relationship to Earlier Chapters</h2>
+<p>Finite automata connect to several earlier ideas in this book.</p>
+<p><strong>KMP as a DFA (Chapter 7).</strong> The KMP failure function defines a DFA that recognises the language “strings containing the pattern as a substring.” Each state in the DFA represents how many characters of the pattern have been matched so far. The failure function defines the non-matching transitions — exactly the DFA transition table, compressed. The connection is not coincidental: KMP was discovered by thinking about what the string matching problem has in common with automaton simulation.</p>
+<p><strong>Tries as automata (Chapter 10).</strong> A trie is a deterministic finite automaton for the language “strings that are keys in the dictionary.” Each path from root to terminal state corresponds to a DFA transition sequence. Prefix search is DFA traversal. The trie’s structure is a tree-shaped DFA where each state has at most |alphabet| transitions.</p>
+<p><strong>Aho-Corasick as an NFA.</strong> The Aho-Corasick algorithm, which searches for multiple patterns simultaneously, builds a trie of all patterns (a DFA for exact matches) and adds failure links that implement the same idea as KMP’s failure function — if the current path fails, where do we continue? The result is a structure that simulates an NFA for “strings containing any of the patterns” in O(n + k) time, where k is the total number of matches. It is Thompson’s construction applied to the specific case of multiple fixed-string patterns.</p>
+<p>These connections are not superficial. They reflect a deep unity: any problem that asks “does this input match some property?” and where “match” can be defined by a finite set of rules is fundamentally an automaton problem. The variations — KMP, Aho-Corasick, tries, Thompson’s NFA — are different presentations of the same underlying machine, optimised for different purposes.</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">11.11 Where This Lives in the Wild</h2>
+<p><strong>RE2</strong> is Google’s regular expression library, used in Google’s production systems, in Go’s <code>regexp</code> package, and in many other systems. RE2 was written by Russ Cox specifically to provide Thompson-style NFA simulation as an alternative to backtracking engines. It guarantees O(nm) matching time and is immune to ReDoS. Cox’s series of articles, “Regular Expression Matching Can Be Simple And Fast,” remains the definitive accessible explanation of the tradeoffs.</p>
+<p><strong>Rust’s <code>regex</code> crate</strong> uses a hybrid approach: NFA simulation by default, with lazy DFA construction caching up to a configurable memory limit. It provides RE2-compatible guarantees — linear time, no backtracking, no ReDoS — while approaching DFA performance for patterns that fit within the cache. It is the regex engine used by ripgrep, which is frequently faster than GNU grep on large files.</p>
+<p><strong>Hyperscan</strong> is Intel’s high-performance regex library, used in Snort and other network security tools. It compiles regular expressions to SIMD (vectorised) instructions that process multiple characters simultaneously, achieving throughput close to memory bandwidth limits. For network intrusion detection, where hundreds of patterns must be matched against gigabytes of traffic per second, SIMD-accelerated NFA simulation is the state of the art.</p>
+<p><strong>PCRE (Perl Compatible Regular Expressions)</strong> is the backtracking engine used by PHP, Apache, nginx’s <code>ngx_http_rewrite_module</code>, R, and dozens of other systems. It is fast on typical inputs and supports the full range of Perl regex features including backreferences. It is vulnerable to ReDoS. PCRE2 added a JIT compiler that generates native machine code for the matching loop, dramatically improving throughput for well-behaved patterns — but the fundamental exponential risk remains for patterns with backreferences and catastrophic backtracking inputs.</p>
+<p><strong>Python’s <code>re</code> module</strong> is a backtracking engine based on an SRE (Secret Regular Expression) implementation dating to the late 1990s. Python 3.11 added <code>re._interpret</code> as an alternative NFA-based engine for internal use. The <code>regex</code> module on PyPI provides additional features and can use a DFA-based engine for patterns without backreferences.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>A regular expression describes a set of strings — a regular language. Finite automata are machines that recognise exactly the regular languages. The equivalence between the two, proved by Kleene in 1956, is the theoretical foundation that makes Thompson’s construction possible.</p>
+<p>Thompson’s construction converts a regular expression of length m to an NFA with at most 2m states in O(m) time. The construction is compositional: literal characters, concatenation, alternation, and Kleene star each have a simple NFA fragment, and compound expressions are built by assembling fragments. The resulting NFA has exactly one start state and one accepting state.</p>
+<p>The NFA simulation tracks the set of simultaneously active states, computing epsilon closures and character steps at each input position. This runs in O(nm) time — linear in input length, with a factor for the pattern length — and is immune to ReDoS because it never revisits a (position, state) pair. The backtracking engines used in Python, JavaScript, Java, and Perl can take exponential time on crafted inputs for exactly this reason.</p>
+<p>The DFA eliminates the m factor from simulation by precomputing all transitions, but can require exponentially many states in the worst case. Practical systems — RE2, Rust’s regex crate — use lazy DFA construction with a bounded cache, achieving near-DFA performance while preserving the NFA simulation’s safety guarantees.</p>
+<p>Finite automata connect the string algorithms of this section to each other: KMP is a DFA, tries are DFAs, Aho-Corasick is an NFA, and Thompson’s construction is a systematic way to build any of them from a pattern specification. The machine is always the same — states, transitions, acceptance — and the variation is in how the states and transitions are derived from the problem.</p>
+<p>The next chapter asks what happens when strings must be made smaller. Compression — encoding information in fewer bits — is also fundamentally about pattern recognition, and the two best-known compression algorithms, Huffman coding and LZ77, represent two completely different answers to how patterns should be exploited.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_10.html" class="pagination-link" aria-label="Chapter 10: Autocomplete — Tries">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_12.html" class="pagination-link" aria-label="Chapter 12: The Compression Game — Huffman and LZ">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

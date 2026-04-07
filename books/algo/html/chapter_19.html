@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 19: The Concurrent Map — Stripe Locking and Beyond – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_20.html" rel="next">
+<link href="./chapter_18.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_17.html">Concurrency-Aware Structures</a></li><li class="breadcrumb-item"><a href="./chapter_19.html"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-requirements" id="toc-the-requirements" class="nav-link active" data-scroll-target="#the-requirements">19.1 The Requirements</a></li>
+  <li><a href="#implementation-1-single-mutex" id="toc-implementation-1-single-mutex" class="nav-link" data-scroll-target="#implementation-1-single-mutex">19.2 Implementation 1: Single Mutex</a>
+  <ul class="collapse">
+  <li><a href="#what-coarse-locking-gets-right" id="toc-what-coarse-locking-gets-right" class="nav-link" data-scroll-target="#what-coarse-locking-gets-right">What Coarse Locking Gets Right</a></li>
+  <li><a href="#what-coarse-locking-gets-wrong" id="toc-what-coarse-locking-gets-wrong" class="nav-link" data-scroll-target="#what-coarse-locking-gets-wrong">What Coarse Locking Gets Wrong</a></li>
+  </ul></li>
+  <li><a href="#read-write-locks-separating-readers-from-writers" id="toc-read-write-locks-separating-readers-from-writers" class="nav-link" data-scroll-target="#read-write-locks-separating-readers-from-writers">19.3 Read-Write Locks: Separating Readers from Writers</a></li>
+  <li><a href="#implementation-2-stripe-locking" id="toc-implementation-2-stripe-locking" class="nav-link" data-scroll-target="#implementation-2-stripe-locking">19.4 Implementation 2: Stripe Locking</a>
+  <ul class="collapse">
+  <li><a href="#why-stripe-locking-works" id="toc-why-stripe-locking-works" class="nav-link" data-scroll-target="#why-stripe-locking-works">Why Stripe Locking Works</a></li>
+  <li><a href="#the-approximate-size-problem" id="toc-the-approximate-size-problem" class="nav-link" data-scroll-target="#the-approximate-size-problem">The Approximate Size Problem</a></li>
+  </ul></li>
+  <li><a href="#choosing-the-number-of-stripes" id="toc-choosing-the-number-of-stripes" class="nav-link" data-scroll-target="#choosing-the-number-of-stripes">19.5 Choosing the Number of Stripes</a></li>
+  <li><a href="#hotspot-resistance" id="toc-hotspot-resistance" class="nav-link" data-scroll-target="#hotspot-resistance">19.6 Hotspot Resistance</a></li>
+  <li><a href="#implementation-3-a-lock-free-hash-map-sketch" id="toc-implementation-3-a-lock-free-hash-map-sketch" class="nav-link" data-scroll-target="#implementation-3-a-lock-free-hash-map-sketch">19.7 Implementation 3: A Lock-Free Hash Map Sketch</a>
+  <ul class="collapse">
+  <li><a href="#lock-free-reads" id="toc-lock-free-reads" class="nav-link" data-scroll-target="#lock-free-reads">Lock-Free Reads</a></li>
+  <li><a href="#the-resizing-problem" id="toc-the-resizing-problem" class="nav-link" data-scroll-target="#the-resizing-problem">The Resizing Problem</a></li>
+  </ul></li>
+  <li><a href="#javas-concurrenthashmap-a-case-study-in-evolution" id="toc-javas-concurrenthashmap-a-case-study-in-evolution" class="nav-link" data-scroll-target="#javas-concurrenthashmap-a-case-study-in-evolution">19.8 Java’s ConcurrentHashMap: A Case Study in Evolution</a></li>
+  <li><a href="#implementing-java-8-style-node-locking-in-nex" id="toc-implementing-java-8-style-node-locking-in-nex" class="nav-link" data-scroll-target="#implementing-java-8-style-node-locking-in-nex">19.9 Implementing Java 8-Style Node Locking in Nex</a>
+  <ul class="collapse">
+  <li><a href="#the-distributed-counter" id="toc-the-distributed-counter" class="nav-link" data-scroll-target="#the-distributed-counter">The Distributed Counter</a></li>
+  </ul></li>
+  <li><a href="#benchmarking-all-three-implementations" id="toc-benchmarking-all-three-implementations" class="nav-link" data-scroll-target="#benchmarking-all-three-implementations">19.10 Benchmarking All Three Implementations</a></li>
+  <li><a href="#choosing-the-right-implementation" id="toc-choosing-the-right-implementation" class="nav-link" data-scroll-target="#choosing-the-right-implementation">19.11 Choosing the Right Implementation</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">19.12 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_17.html">Concurrency-Aware Structures</a></li><li class="breadcrumb-item"><a href="./chapter_19.html"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>A cache is perhaps the most common concurrent data structure in production software. Every web server maintains one: a map from request parameters to computed responses, from user IDs to session data, from database query results to their serialised form. Multiple threads read from it simultaneously. Multiple threads write to it simultaneously. The cache must be thread-safe, fast under high concurrency, and correct even when reads and writes overlap in every possible interleaving.</p>
+<p>The naive solution — a single mutex protecting the entire map — is correct but slow. Every read and every write acquires the same lock. On a machine with sixteen cores, fifteen threads wait while one executes. The cache, intended to speed up the server, becomes the bottleneck.</p>
+<p>This chapter builds three implementations of a concurrent map, each addressing the limitations of the previous one. The first uses a single mutex — correct, simple, the right starting point. The second uses stripe locking — dividing the map into independent shards, each with its own lock, allowing concurrent operations on different shards. The third examines the lock-free approach — reading without locks, writing with CAS, at the cost of substantial implementation complexity.</p>
+<p>By the end, you will understand how Java’s <code>ConcurrentHashMap</code> evolved through exactly these three phases across major JDK versions, and why the choices made at each stage were the right engineering decisions for that moment.</p>
+<hr>
+<section id="the-requirements" class="level2">
+<h2 class="anchored" data-anchor-id="the-requirements">19.1 The Requirements</h2>
+<p>A concurrent map must support:</p>
+<ul>
+<li><code>get(key)</code> — retrieve a value, or nil if absent. Typically the most frequent operation.</li>
+<li><code>put(key, value)</code> — insert or update a key-value pair.</li>
+<li><code>remove(key)</code> — delete a key.</li>
+<li><code>contains(key)</code> — test membership.</li>
+<li><code>size()</code> — approximate count of entries.</li>
+</ul>
+<p>All operations must be thread-safe: any concurrent interleaving of operations from multiple threads must leave the map in a consistent state and return correct results.</p>
+<p>Beyond correctness, we want:</p>
+<ul>
+<li><strong>High read throughput:</strong> reads from different threads should not block each other</li>
+<li><strong>High write throughput:</strong> writes to different keys should not block each other</li>
+<li><strong>Low latency:</strong> no operation should wait for an unrelated operation to complete</li>
+<li><strong>Scalability:</strong> throughput should increase as cores are added</li>
+</ul>
+<p>No single implementation maximises all of these simultaneously. Each design trades some properties for others.</p>
+<hr>
+</section>
+<section id="implementation-1-single-mutex" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-1-single-mutex">19.2 Implementation 1: Single Mutex</h2>
+<p>The simplest correct implementation: wrap a plain hash map with a single mutex. Every operation acquires the mutex, performs its work, and releases.</p>
+<pre><code>class Coarse_Locked_Map [K -&gt; Hashable, V]
+  create
+    empty() do
+      this.data := {}  -- plain hash map
+      this.mu := create Mutex.make()
+      this.entry_count := 0
+    end
+
+    with_capacity(initial_capacity: Integer) do
+      this.data := create Map[K, V].with_capacity(initial_capacity)
+      this.mu := create Mutex.make()
+      this.entry_count := 0
+    end
+
+  feature
+    data: Map[K, V]
+    mu: Mutex
+    entry_count: Integer
+
+    get(key: K): ?V do
+      mu.lock()
+      let value: ?V := data.get(key)
+      mu.unlock()
+      result := value
+    end
+
+    put(key: K, value: V)
+      do
+        mu.lock()
+        let was_present: Boolean := data.contains(key)
+        data.put(key, value)
+        if not was_present then
+          entry_count := entry_count + 1
+        end
+        mu.unlock()
+      ensure
+        contains_key: contains(key)
+      end
+
+    remove(key: K): Boolean do
+      mu.lock()
+      let was_present: Boolean := data.contains(key)
+      if was_present then
+        data.remove(key)
+        entry_count := entry_count - 1
+      end
+      mu.unlock()
+      result := was_present
+    end
+
+    contains(key: K): Boolean do
+      mu.lock()
+      let found: Boolean := data.contains(key)
+      mu.unlock()
+      result := found
+    end
+
+    size(): Integer do
+      mu.lock()
+      let n: Integer := entry_count
+      mu.unlock()
+      result := n
+    end
+
+    -- Atomic get-or-put: returns existing value or inserts and returns new
+    get_or_put(key: K, default_value: V): V do
+      mu.lock()
+      let existing: ?V := data.get(key)
+      if existing /= nil then
+        mu.unlock()
+        result := existing
+      else
+        data.put(key, default_value)
+        entry_count := entry_count + 1
+        mu.unlock()
+        result := default_value
+      end
+    end
+
+    -- Atomic compute: update value based on current value
+    compute(key: K,
+            update: Function[?V, V]): V do
+      mu.lock()
+      let current: ?V := data.get(key)
+      let new_value: V := update(current)
+      data.put(key, new_value)
+      if current = nil then
+        entry_count := entry_count + 1
+      end
+      mu.unlock()
+      result := new_value
+    end
+
+    -- Iterate: snapshot all entries under lock
+    entries(): Array[Any] do
+      mu.lock()
+      let snapshot: Array[Any] := data.entries()
+      mu.unlock()
+      result := snapshot
+    end
+
+  invariant
+    non_negative_count: entry_count &gt;= 0
+    count_matches_data: entry_count = data.size()
+end</code></pre>
+<section id="what-coarse-locking-gets-right" class="level3">
+<h3 class="anchored" data-anchor-id="what-coarse-locking-gets-right">What Coarse Locking Gets Right</h3>
+<p>The single-mutex map is correct. There is no race condition possible — every operation holds the exclusive lock while accessing shared state. It also supports composite atomic operations naturally: <code>get_or_put</code> and <code>compute</code> are atomic because the entire operation runs under the lock.</p>
+<p>It is also the right starting point for any new system. Until you have measured that the map is a bottleneck, the single-mutex map is the correct implementation to deploy. It is short, obviously correct, and easy to reason about. The more complex implementations in this chapter add difficulty without adding correctness — they only add performance. And performance you have not measured you do not need.</p>
+</section>
+<section id="what-coarse-locking-gets-wrong" class="level3">
+<h3 class="anchored" data-anchor-id="what-coarse-locking-gets-wrong">What Coarse Locking Gets Wrong</h3>
+<p>Under high concurrency, the single mutex serialises all operations. On sixteen cores:</p>
+<ul>
+<li>Sixteen threads can exist, all wanting to read from the map</li>
+<li>Only one reads at a time</li>
+<li>The other fifteen wait</li>
+<li>Effective parallelism: 1 out of 16</li>
+</ul>
+<p>For a read-heavy cache where most operations are gets, this is especially painful. Concurrent reads do not modify any shared state — they could safely execute in parallel without any locking at all. The coarse lock prevents this.</p>
+<hr>
+</section>
+</section>
+<section id="read-write-locks-separating-readers-from-writers" class="level2">
+<h2 class="anchored" data-anchor-id="read-write-locks-separating-readers-from-writers">19.3 Read-Write Locks: Separating Readers from Writers</h2>
+<p>Before stripe locking, an intermediate improvement: a read-write lock. Readers acquire a shared read lock (multiple readers allowed simultaneously). Writers acquire an exclusive write lock (no other readers or writers allowed).</p>
+<pre><code>class RW_Lock
+  create
+    make() do
+      this.readers := create Atomic_Integer.make(0)
+      this.writer := create Atomic_Integer.make(0)
+    end
+
+  feature
+    readers: Atomic_Integer   -- count of active readers
+    writer: Atomic_Integer    -- 1 if writer holds lock, 0 otherwise
+
+    -- Acquire shared read lock
+    read_lock() do
+      from until true do
+        -- Wait for any writer to finish
+        from until writer.load() = 0 do hint_spin() end
+        -- Atomically increment reader count
+        let r: Integer := readers.load()
+        if readers.compare_and_swap(r, r + 1) then
+          -- Check no writer snuck in
+          if writer.load() = 0 then
+            return  -- read lock acquired
+          end
+          -- Writer arrived: undo reader increment and retry
+          readers.decrement()
+        end
+      end
+    end
+
+    read_unlock() do
+      readers.decrement()
+    end
+
+    -- Acquire exclusive write lock
+    write_lock() do
+      -- Claim writer slot: only one writer at a time
+      from until writer.compare_and_swap(0, 1) do hint_spin() end
+      -- Wait for all current readers to finish
+      from until readers.load() = 0 do hint_spin() end
+    end
+
+    write_unlock() do
+      writer.store(0)
+    end
+
+  invariant
+    non_negative_readers: readers.load() &gt;= 0
+    writer_binary: writer.load() = 0 or writer.load() = 1
+    no_readers_during_write:
+      writer.load() /= 1 or readers.load() = 0
+end
+
+class RW_Locked_Map [K -&gt; Hashable, V]
+  create
+    empty() do
+      this.data := {}
+      this.rw := create RW_Lock.make()
+      this.entry_count := 0
+    end
+
+  feature
+    data: Map[K, V]
+    rw: RW_Lock
+    entry_count: Integer
+
+    get(key: K): ?V do
+      rw.read_lock()
+      let value: ?V := data.get(key)
+      rw.read_unlock()
+      result := value
+    end
+
+    put(key: K, value: V) do
+      rw.write_lock()
+      let was_present: Boolean := data.contains(key)
+      data.put(key, value)
+      if not was_present then entry_count := entry_count + 1 end
+      rw.write_unlock()
+    end
+
+    remove(key: K): Boolean do
+      rw.write_lock()
+      let was_present: Boolean := data.contains(key)
+      if was_present then
+        data.remove(key)
+        entry_count := entry_count - 1
+      end
+      rw.write_unlock()
+      result := was_present
+    end
+
+    contains(key: K): Boolean do
+      rw.read_lock()
+      let found: Boolean := data.contains(key)
+      rw.read_unlock()
+      result := found
+    end
+
+    size(): Integer do
+      result := entry_count  -- approximate: no lock needed for atomic read
+    end
+
+  invariant
+    non_negative_count: entry_count &gt;= 0
+end</code></pre>
+<p>A read-write lock improves read throughput dramatically for read-heavy workloads. Sixteen concurrent reads execute simultaneously. One writer blocks all sixteen readers until it completes, then releases them. For a web cache where 95% of operations are reads and 5% are writes, this is a substantial improvement over coarse locking.</p>
+<p>The limitation: writes still block everything. If writes are frequent, readers still spend significant time waiting.</p>
+<hr>
+</section>
+<section id="implementation-2-stripe-locking" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-2-stripe-locking">19.4 Implementation 2: Stripe Locking</h2>
+<p>Stripe locking addresses write contention. Instead of one lock for the entire map, divide the map into N independent shards (stripes), each with its own lock. Operations on different keys will usually fall in different stripes and can proceed concurrently.</p>
+<pre><code>class Striped_Map [K -&gt; Hashable, V]
+  create
+    empty() do
+      this.num_stripes := 16  -- default: 16 stripes
+      this.init_stripes()
+    end
+
+    with_stripes(num_stripes: Integer)
+      require
+        power_of_two: is_power_of_two(num_stripes)
+        at_least_one: num_stripes &gt;= 1
+      do
+        this.num_stripes := num_stripes
+        this.init_stripes()
+      end
+
+  feature
+    num_stripes: Integer
+    stripes: Array[Map[K, V]]       -- one hash map per stripe
+    locks: Array[RW_Lock]           -- one lock per stripe
+    counts: Array[Atomic_Integer]   -- one counter per stripe
+
+    init_stripes() do
+      stripes := []
+      locks := []
+      counts := []
+      repeat num_stripes do
+        stripes.add({})
+        locks.add(create RW_Lock.make())
+        counts.add(create Atomic_Integer.make(0))
+      end
+    end
+
+    -- Map a key to its stripe index
+    stripe_for(key: K): Integer do
+      -- Use upper bits of hash to avoid correlation with internal hash table
+      let h: Integer := key.hash()
+      -- Mix the hash: Wang hash for better distribution
+      let mixed: Integer := wang_hash(h)
+      result := mixed.bitwise_and(num_stripes - 1)  -- fast modulo for power-of-two
+    end
+
+    wang_hash(h: Integer): Integer do
+      let n: Integer := h
+      n := n.bitwise_xor(n.bitwise_right_shift(16)) * 0x45d9f3b
+      n := n.bitwise_xor(n.bitwise_right_shift(16)) * 0x45d9f3b
+      n := n.bitwise_xor(n.bitwise_right_shift(16))
+      result := n
+    end
+
+    get(key: K): ?V do
+      let s: Integer := stripe_for(key)
+      locks.get(s).read_lock()
+      let value: ?V := stripes.get(s).get(key)
+      locks.get(s).read_unlock()
+      result := value
+    end
+
+    put(key: K, value: V) do
+      let s: Integer := stripe_for(key)
+      locks.get(s).write_lock()
+      let was_present: Boolean := stripes.get(s).contains(key)
+      stripes.get(s).put(key, value)
+      if not was_present then
+        counts.get(s).increment()
+      end
+      locks.get(s).write_unlock()
+    end
+
+    remove(key: K): Boolean do
+      let s: Integer := stripe_for(key)
+      locks.get(s).write_lock()
+      let was_present: Boolean := stripes.get(s).contains(key)
+      if was_present then
+        stripes.get(s).remove(key)
+        counts.get(s).decrement()
+      end
+      locks.get(s).write_unlock()
+      result := was_present
+    end
+
+    contains(key: K): Boolean do
+      let s: Integer := stripe_for(key)
+      locks.get(s).read_lock()
+      let found: Boolean := stripes.get(s).contains(key)
+      locks.get(s).read_unlock()
+      result := found
+    end
+
+    -- Size: sum of all stripe counts (approximate)
+    -- No global lock: races possible, so count is approximate
+    size(): Integer do
+      let total: Integer := 0
+      across counts as count do
+        total := total + count.load()
+      end
+      result := total
+    end
+
+    -- Atomic get-or-put within a stripe
+    get_or_put(key: K, default_value: V): V do
+      let s: Integer := stripe_for(key)
+      locks.get(s).write_lock()
+      let existing: ?V := stripes.get(s).get(key)
+      if existing /= nil then
+        locks.get(s).write_unlock()
+        result := existing
+      else
+        stripes.get(s).put(key, default_value)
+        counts.get(s).increment()
+        locks.get(s).write_unlock()
+        result := default_value
+      end
+    end
+
+    -- Compute: atomic update within a stripe
+    compute(key: K, update: Function[?V, V]): V do
+      let s: Integer := stripe_for(key)
+      locks.get(s).write_lock()
+      let current: ?V := stripes.get(s).get(key)
+      let new_value: V := update(current)
+      let was_nil: Boolean := current = nil
+      stripes.get(s).put(key, new_value)
+      if was_nil then counts.get(s).increment() end
+      locks.get(s).write_unlock()
+      result := new_value
+    end
+
+    -- Iteration: must acquire all stripe locks for consistency
+    -- Expensive: avoid in hot paths
+    entries(): Array[K, V] do
+      -- Acquire all write locks in order (prevent deadlock)
+      from
+        let i: Integer := 0
+      until
+        i &lt; num_stripes
+      do
+        locks.get(i).write_lock()
+        i := i + 1
+      end
+
+      let all_entries: Array[K, V] := []
+      across stripes as stripe do
+        across stripe.entries() as entry do
+          all_entries.add(entry)
+        end
+      end
+
+      -- Release all locks in reverse order
+      from
+        let i: Integer := num_stripes - 1
+      until
+        i &gt;= 0
+      do
+        locks.get(i).write_unlock()
+        i := i - 1
+      end
+
+      result := all_entries
+    end
+
+  invariant
+    power_of_two_stripes: is_power_of_two(num_stripes)
+    consistent_stripe_count: stripes.length = num_stripes and
+                              locks.length = num_stripes and
+                              counts.length = num_stripes
+end</code></pre>
+<section id="why-stripe-locking-works" class="level3">
+<h3 class="anchored" data-anchor-id="why-stripe-locking-works">Why Stripe Locking Works</h3>
+<p>With 16 stripes, two operations on different keys that hash to different stripes execute completely concurrently — no waiting, no interaction. In a cache with a large key space and uniform access, the probability that two concurrent operations fall in the same stripe is approximately 1/16 ≈ 6%. For most workloads, this means concurrent operations rarely contend.</p>
+<p>Adding more stripes reduces contention further. Java’s <code>ConcurrentHashMap</code> used 16 stripes by default and allowed up to 216 = 65,536. In practice, 16-64 stripes provides most of the benefit — beyond that, the marginal reduction in contention is outweighed by the overhead of maintaining many stripe structures.</p>
+</section>
+<section id="the-approximate-size-problem" class="level3">
+<h3 class="anchored" data-anchor-id="the-approximate-size-problem">The Approximate Size Problem</h3>
+<p>Notice that <code>size()</code> acquires no locks and sums up per-stripe atomic counters. This is an approximation. Between reading stripe 0’s count and stripe 1’s count, another thread might insert into stripe 1 or remove from stripe 0. The returned size might be stale by the time the caller uses it.</p>
+<p>For most applications, an approximate size is perfectly acceptable. If you need an exact count at a specific point in time, you must acquire all stripe locks — as in <code>entries()</code> — which is expensive and should be avoided in hot paths.</p>
+<p>This approximation is a deliberate design decision, not a bug. The alternative — a global counter maintained under all stripe locks — would require every insert and delete to contend on a shared counter, reintroducing exactly the bottleneck stripe locking is designed to eliminate.</p>
+<hr>
+</section>
+</section>
+<section id="choosing-the-number-of-stripes" class="level2">
+<h2 class="anchored" data-anchor-id="choosing-the-number-of-stripes">19.5 Choosing the Number of Stripes</h2>
+<p>How many stripes are optimal? The answer depends on the access pattern.</p>
+<p><strong>Too few stripes:</strong> high contention. With 2 stripes and 16 threads, half the threads contend on each stripe. Not much better than a single lock.</p>
+<p><strong>Too many stripes:</strong> each stripe is too small, increasing the probability that a single stripe gets all the traffic (hotspot). Also increases memory overhead — each stripe needs its own lock, counter, and hash map structure.</p>
+<p><strong>Optimal:</strong> typically 2–4× the number of hardware threads. With 16 cores, 32–64 stripes. This ensures that even under high load, each stripe is accessed by at most 1–2 threads on average.</p>
+<p>For a general-purpose library (unknown hardware), the default of 16–64 stripes is a safe choice that performs well across a wide range of machines.</p>
+<pre><code>function optimal_stripe_count(): Integer do
+  -- Round up to nearest power of two for efficient modulo
+  let cores: Integer := available_processors()
+  let target: Integer := cores * 4
+  let power: Integer := 1
+  from until power &gt;= target do
+    power := power * 2
+  end
+  result := power.min(64)  -- cap at 64 for reasonable memory usage
+end</code></pre>
+<hr>
+</section>
+<section id="hotspot-resistance" class="level2">
+<h2 class="anchored" data-anchor-id="hotspot-resistance">19.6 Hotspot Resistance</h2>
+<p>Stripe locking handles uniformly distributed keys well. It handles hotspots — where many requests go to the same key — poorly.</p>
+<p>A hotspot occurs when one key is accessed far more frequently than others. A social media platform’s “follower count” for a celebrity account, a rate limiter’s counter for a popular API endpoint, a cache entry for a viral piece of content. All operations for the hot key go to the same stripe, serialised by one lock. The cache’s throughput for that key is limited to whatever the single stripe lock allows.</p>
+<p>For hotspot keys, a different strategy applies: cell-based replication.</p>
+<pre><code>class Hotspot_Resistant_Map [K -&gt; Hashable, V]
+  create
+    make(num_stripes: Integer,
+         replication_factor: Integer) do
+      this.primary := create Striped_Map[K, V].with_stripes(num_stripes)
+      this.replication_factor := replication_factor
+      this.hot_keys := create Striped_Map[K, Replicated_Value[V]].with_stripes(
+        num_stripes)
+    end
+
+  feature
+    primary: Striped_Map[K, V]
+    replication_factor: Integer
+    hot_keys: Striped_Map[K, Replicated_Value[V]]
+
+    -- Mark a key as hot: replicate its value across multiple cells
+    -- Reads are distributed across replicas
+    -- Writes must update all replicas
+    promote_to_hot(key: K, value: V) do
+      let replicas: Array[Atomic_Reference[V]] := []
+      repeat replication_factor do
+        replicas.add(create Atomic_Reference[V].make(value))
+      end
+      let rv: Replicated_Value[V] := create Replicated_Value[V].make(replicas)
+      hot_keys.put(key, rv)
+    end
+
+    get(key: K): ?V do
+      -- Check hot keys first: distribute read across replicas
+      let rv: ?Replicated_Value[V] := hot_keys.get(key)
+      if rv /= nil then
+        -- Pick a random replica to distribute load
+        result := rv.get_replica(random_integer() % replication_factor)
+        return
+      end
+      -- Fall through to primary map
+      result := primary.get(key)
+    end
+
+    put(key: K, value: V) do
+      -- If key is hot, update all replicas
+      let rv: ?Replicated_Value[V] := hot_keys.get(key)
+      if rv /= nil then
+        rv.update_all(value)
+        return
+      end
+      primary.put(key, value)
+    end
+end
+
+class Replicated_Value [V]
+  create
+    make(replicas: Array[Atomic_Reference[V]]) do
+      this.replicas := replicas
+    end
+
+  feature
+    replicas: Array[Atomic_Reference[V]]
+
+    get_replica(index: Integer): V do
+      result := replicas.get(index % replicas.length).load()
+    end
+
+    update_all(value: V) do
+      across replicas as replica do
+        replica.store(value)
+      end
+    end
+
+  invariant
+    non_empty: replicas.length &gt; 0
+end</code></pre>
+<p>Replication spreads reads across multiple locations, eliminating the single-point contention of a hot stripe. Writes update all replicas, paying a higher write cost for the gain in read throughput. This is the right tradeoff for read-heavy hotspots — which is the typical case for cached data.</p>
+<hr>
+</section>
+<section id="implementation-3-a-lock-free-hash-map-sketch" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-3-a-lock-free-hash-map-sketch">19.7 Implementation 3: A Lock-Free Hash Map Sketch</h2>
+<p>Full lock-free hash maps are extremely complex to implement correctly. The difficulty lies not in get (which can often be done without locks) but in the interaction of concurrent resizing, inserts, and deletes.</p>
+<p>We present the key ideas and partial implementation, honestly flagging where the full implementation becomes research-level complex.</p>
+<section id="lock-free-reads" class="level3">
+<h3 class="anchored" data-anchor-id="lock-free-reads">Lock-Free Reads</h3>
+<p>For a hash map where the internal array is never resized and entries are never deleted, lock-free reads are straightforward: reads access the array without any synchronisation, and writes use CAS to insert new entries.</p>
+<pre><code>class Lock_Free_Read_Map [K -&gt; Hashable, V]
+  create
+    with_capacity(capacity: Integer)
+      require
+        power_of_two: is_power_of_two(capacity)
+      do
+        this.capacity := capacity
+        this.mask := capacity - 1
+        this.buckets := create Array.filled(capacity, nil)
+        this.size := create Atomic_Integer.make(0)
+      end
+
+  feature
+    capacity: Integer
+    mask: Integer
+    buckets: Array[?Bucket[K, V]]   -- atomic references in real impl
+    size: Atomic_Integer
+
+    -- Lock-free get: no synchronisation needed for read
+    -- (assuming no concurrent resize, entries never deleted)
+    get(key: K): ?V do
+      let h: Integer := probe_start(key)
+
+      from
+        let i: Integer := 0
+      until
+        i &lt; capacity
+      do
+        let bucket: ?Bucket[K, V] := buckets.get((h + i).bitwise_and(mask))
+
+        if bucket = nil then
+          result := nil  -- empty bucket: key not present
+          return
+        end
+
+        if bucket.key = key then
+          result := bucket.value  -- found
+          return
+        end
+
+        -- Continue probing (linear probing)
+        i := i + 1
+      end
+
+      result := nil  -- full probe: not found
+    end
+
+    -- Lock-free put: CAS to claim empty bucket
+    -- Returns false if map is full
+    put(key: K, value: V): Boolean do
+      let h: Integer := probe_start(key)
+
+      from
+        let i: Integer := 0
+      until
+        i &lt; capacity
+      do
+        let idx: Integer := (h + i).bitwise_and(mask)
+        let bucket: ?Bucket[K, V] := buckets.get(idx)
+
+        if bucket = nil then
+          -- Try to claim this empty bucket
+          let new_bucket: Bucket[K, V] :=
+            create Bucket[K, V].make(key, value)
+          if atomic_cas_bucket(idx, nil, new_bucket) then
+            size.increment()
+            result := true
+            return
+          end
+          -- CAS failed: someone else claimed this bucket, reload and continue
+          bucket := buckets.get(idx)
+        end
+
+        if bucket /= nil and bucket.key = key then
+          -- Update existing key: CAS the entire bucket
+          let updated: Bucket[K, V] :=
+            create Bucket[K, V].make(key, value)
+          atomic_cas_bucket(idx, bucket, updated)
+          result := true
+          return
+        end
+
+        i := i + 1
+      end
+
+      result := false  -- table full
+    end
+
+    probe_start(key: K): Integer do
+      result := wang_hash(key.hash()).bitwise_and(mask)
+    end
+
+    wang_hash(h: Integer): Integer do
+      let n: Integer := h
+      n := n.bitwise_xor(n.bitwise_right_shift(16)) * 0x45d9f3b
+      n := n.bitwise_xor(n.bitwise_right_shift(16)) * 0x45d9f3b
+      n := n.bitwise_xor(n.bitwise_right_shift(16))
+      result := n
+    end
+
+    atomic_cas_bucket(idx: Integer,
+                       expected: ?Bucket[K, V],
+                       desired: ?Bucket[K, V]): Boolean do
+      -- In real implementation: CAS on the atomic reference at buckets[idx]
+      if buckets.get(idx) = expected then
+        buckets.set(idx, desired)
+        result := true
+      else
+        result := false
+      end
+    end
+
+  invariant
+    power_of_two_capacity: is_power_of_two(capacity)
+    non_negative_size: size.load() &gt;= 0
+end
+
+class Bucket [K, V]
+  create
+    make(key: K, value: V) do
+      this.key := key
+      this.value := value
+    end
+
+  feature
+    key: K
+    value: V
+end</code></pre>
+<p>This lock-free read map works correctly under the assumptions stated: no resizing, no deletion. For a read-mostly cache where entries are added but never removed and the capacity is known in advance, this is a practical and high-performance solution.</p>
+</section>
+<section id="the-resizing-problem" class="level3">
+<h3 class="anchored" data-anchor-id="the-resizing-problem">The Resizing Problem</h3>
+<p>The moment you add resizing, lock-free becomes dramatically harder. During a resize, the internal array is being replaced with a larger one. Concurrent operations might be operating on the old array while the resize is in progress. Reads must check both the old and new arrays. Writes must decide which array to write to. The resize itself must atomically migrate all entries.</p>
+<p>Jeff Hopscotch (Herlihy, Shavit, Tzafrir, 2008) and Cliff Click’s lock-free hash map (2007) are among the most sophisticated solutions. Both use a multi-step migration protocol where entries are moved from the old table to the new one incrementally, with each thread helping migrate entries it encounters.</p>
+<p>The complete implementation of a correct, high-performance, fully lock-free resizing hash map runs to several hundred lines of very careful code with subtle memory ordering requirements. This is not a simplification — it is research-level work. The implementors of these algorithms are among the leading experts in concurrent programming.</p>
+<p>For production use, the recommendation is clear: use stripe locking unless you have measured that it is insufficient, and have the expertise to implement and validate a lock-free variant.</p>
+<hr>
+</section>
+</section>
+<section id="javas-concurrenthashmap-a-case-study-in-evolution" class="level2">
+<h2 class="anchored" data-anchor-id="javas-concurrenthashmap-a-case-study-in-evolution">19.8 Java’s ConcurrentHashMap: A Case Study in Evolution</h2>
+<p>Java’s <code>ConcurrentHashMap</code> followed exactly the progression described in this chapter, over three major versions.</p>
+<p><strong>Java 1.2 (1998): <code>Hashtable</code>.</strong> A single mutex (the <code>synchronized</code> keyword on every method). Equivalent to our <code>Coarse_Locked_Map</code>. Correct, simple, badly performing under concurrency.</p>
+<p><strong>Java 5 (2004): <code>ConcurrentHashMap</code> with stripe locking.</strong> Doug Lea’s landmark implementation. Sixteen segments (stripes), each a separate hash table with its own <code>ReentrantReadWriteLock</code>. The segment count was configurable with a default of 16. This provided 16× concurrent write throughput over <code>Hashtable</code> for uniformly distributed keys.</p>
+<p>The implementation made one important addition: size() was computed without locking all segments. Instead, it read all segment size counters twice without locking. If the two readings agreed, it returned the sum. If they disagreed (indicating a concurrent modification), it acquired all segment locks and recomputed. This optimised the common case (no concurrent modification) while maintaining correctness in the rare case.</p>
+<p><strong>Java 8 (2014): <code>ConcurrentHashMap</code> with node-level locking.</strong> The implementation moved from segment-level locking to per-bucket locking. Instead of 16 coarse locks, each bucket in the hash table has its own lock — effectively N locks for an N-bucket table.</p>
+<p>The key changes:</p>
+<ul>
+<li><strong>Reads are lock-free:</strong> reads traverse bucket chains using volatile reads, no locking. This allowed reads to proceed with zero synchronisation.</li>
+<li><strong>Writes lock only the bucket head:</strong> a write acquires a <code>synchronized</code> lock on the first node in a bucket. Two writes to different buckets never contend.</li>
+<li><strong>Tree bins:</strong> when a bucket chain exceeds 8 entries, it is converted to a red-black tree (TreeBin) for O(log n) operations in that bucket.</li>
+<li><strong>Size estimation:</strong> uses <code>LongAdder</code> — a distributed counter that maintains separate counts per CPU, summed only when needed, avoiding counter contention entirely.</li>
+<li><strong>Concurrent resize:</strong> resize is cooperative. When a resize is in progress, threads helping with the resize move buckets from the old table to the new one. A thread encountering a forwarding node (a special marker placed during migration) helps migrate instead of waiting.</li>
+</ul>
+<p>This evolution from 16 locks to N locks to lock-free reads tracks the progression of hardware capability. In 2004, 16 cores was a server room configuration. By 2014, 16+ cores were on developer laptops. The implementation evolved to match.</p>
+<hr>
+</section>
+<section id="implementing-java-8-style-node-locking-in-nex" class="level2">
+<h2 class="anchored" data-anchor-id="implementing-java-8-style-node-locking-in-nex">19.9 Implementing Java 8-Style Node Locking in Nex</h2>
+<p>We implement the key ideas from Java 8’s <code>ConcurrentHashMap</code>: lock-free reads, per-bucket write locking, and a distributed counter for size.</p>
+<pre><code>class Concurrent_Bucket [K, V]
+  create
+    make(key: K, value: V, hash: Integer) do
+      this.key := key
+      this.value := value   -- volatile in real impl
+      this.hash := hash
+      this.next := nil      -- volatile in real impl
+    end
+
+  feature
+    key: K
+    value: V             -- written atomically
+    hash: Integer
+    next: ?Concurrent_Bucket[K, V]  -- written atomically
+
+  invariant
+    bucket_state_valid: true
+end
+
+class Node_Locked_Map [K -&gt; Hashable, V]
+  create
+    with_capacity(initial_capacity: Integer) do
+      let cap: Integer := next_power_of_two(initial_capacity.max(16))
+      this.table := create Array.filled(cap, nil)
+      this.size_counter := create Distributed_Counter.make()
+      this.resize_threshold := (cap.to_real() * 0.75).to_integer()
+      this.resize_in_progress := create Atomic_Integer.make(0)
+      this.next_table := nil
+      this.node_locks := {}
+      this.node_locks_mu := create Mutex.make()
+    end
+
+  feature
+    table: Array[?Concurrent_Bucket[K, V]]
+    size_counter: Distributed_Counter
+    resize_threshold: Integer
+    resize_in_progress: Atomic_Integer
+    next_table: ?Array[?Concurrent_Bucket[K, V]]
+
+    -- Lock-free get: follows chain without synchronisation
+    get(key: K): ?V do
+      let h: Integer := spread_hash(key.hash())
+      let t: Array[?Concurrent_Bucket[K, V]] := table
+
+      let bucket: ?Concurrent_Bucket[K, V] := t.get(h.bitwise_and(t.length - 1))
+
+      from until bucket = nil do
+        if bucket.hash = h and bucket.key = key then
+          result := bucket.value  -- volatile read
+          return
+        end
+        bucket := bucket.next  -- volatile read
+      end
+
+      result := nil
+    end
+
+    -- Put: locks the bucket head, then modifies chain
+    put(key: K, value: V) do
+      let h: Integer := spread_hash(key.hash())
+
+      from until true do
+        let t: Array[?Concurrent_Bucket[K, V]] := table
+        let idx: Integer := h.bitwise_and(t.length - 1)
+        let head: ?Concurrent_Bucket[K, V] := t.get(idx)
+
+        if head = nil then
+          -- Empty bucket: try to CAS new node as head
+          let new_node: Concurrent_Bucket[K, V] :=
+            create Concurrent_Bucket[K, V].make(key, value, h)
+          if atomic_cas_table(t, idx, nil, new_node) then
+            size_counter.increment()
+            check_resize()
+            return
+          end
+          -- CAS failed: retry from the top
+
+        else
+          -- Non-empty bucket: lock the head node and modify chain
+          -- synchronized(head) in Java: we simulate with a per-node lock
+          let node_lock: Mutex := get_or_create_node_lock(head)
+          node_lock.lock()
+
+          -- Re-verify head hasn't changed (table might have been resized)
+          if t.get(idx) /= head then
+            node_lock.unlock()
+            -- Table changed: retry
+          else
+            -- Walk chain looking for existing key
+            let found: Boolean := false
+            let prev: Concurrent_Bucket[K, V] := head
+            let curr: ?Concurrent_Bucket[K, V] := head
+
+            from until curr = nil do
+              if curr.hash = h and curr.key = key then
+                curr.value := value  -- update in place
+                found := true
+                node_lock.unlock()
+                return
+              end
+              prev := curr
+              curr := curr.next
+            end
+
+            -- Key not found: append new node to chain
+            let new_node: Concurrent_Bucket[K, V] :=
+              create Concurrent_Bucket[K, V].make(key, value, h)
+            prev.next := new_node  -- volatile write
+            size_counter.increment()
+            node_lock.unlock()
+            check_resize()
+            return
+          end
+        end
+      end
+    end
+
+    -- Remove: locks bucket head, removes from chain
+    remove(key: K): Boolean do
+      let h: Integer := spread_hash(key.hash())
+      let t: Array[?Concurrent_Bucket[K, V]] := table
+      let idx: Integer := h.bitwise_and(t.length - 1)
+      let head: ?Concurrent_Bucket[K, V] := t.get(idx)
+
+      if head = nil then
+        result := false
+        return
+      end
+
+      let node_lock: Mutex := get_or_create_node_lock(head)
+      node_lock.lock()
+
+      -- Re-verify head
+      if t.get(idx) /= head then
+        node_lock.unlock()
+        result := remove(key)  -- retry
+        return
+      end
+
+      -- Walk chain to find and remove key
+      let prev: ?Concurrent_Bucket[K, V] := nil
+      let curr: ?Concurrent_Bucket[K, V] := head
+
+      from until curr = nil do
+        if curr.hash = h and curr.key = key then
+          if prev = nil then
+            t.set(idx, curr.next)  -- volatile write: remove head
+          else
+            prev.next := curr.next  -- volatile write: bypass curr
+          end
+          size_counter.decrement()
+          node_lock.unlock()
+          result := true
+          return
+        end
+        prev := curr
+        curr := curr.next
+      end
+
+      node_lock.unlock()
+      result := false
+    end
+
+    -- Size: sum distributed counter
+    size(): Integer do
+      result := size_counter.sum()
+    end
+
+    -- Approximate contains (lock-free)
+    contains(key: K): Boolean do
+      result := get(key) /= nil
+    end
+
+    spread_hash(h: Integer): Integer do
+      -- Spread high bits into low bits to improve distribution
+      result := h.bitwise_xor(h.bitwise_right_shift(16))
+    end
+
+    check_resize() do
+      if size_counter.sum() &gt; resize_threshold then
+        begin_resize()
+      end
+    end
+
+    begin_resize() do
+      -- Simplified: a full lock-free resize is much more complex
+      -- Here we acquire a resize lock and do a simple resize
+      if resize_in_progress.compare_and_swap(0, 1) then
+        let old_table: Array[?Concurrent_Bucket[K, V]] := table
+        let new_capacity: Integer := old_table.length * 2
+        let new_table: Array[?Concurrent_Bucket[K, V]] :=
+          create Array.filled(new_capacity, nil)
+
+        -- Migrate all entries
+        from
+          let i: Integer := 0
+        until
+          i &lt; old_table.length
+        do
+          let head: ?Concurrent_Bucket[K, V] := old_table.get(i)
+          let curr: ?Concurrent_Bucket[K, V] := head
+
+          from until curr = nil do
+            let new_idx: Integer := curr.hash.bitwise_and(new_capacity - 1)
+            let new_node: Concurrent_Bucket[K, V] :=
+              create Concurrent_Bucket[K, V].make(
+                curr.key, curr.value, curr.hash)
+            new_node.next := new_table.get(new_idx)
+            new_table.set(new_idx, new_node)
+            curr := curr.next
+          end
+
+          i := i + 1
+        end
+
+        table := new_table
+        resize_threshold := (new_capacity.to_real() * 0.75).to_integer()
+        resize_in_progress.store(0)
+      end
+    end
+
+    atomic_cas_table(t: Array[?Concurrent_Bucket[K, V]],
+                      idx: Integer,
+                      expected: ?Concurrent_Bucket[K, V],
+                      desired: ?Concurrent_Bucket[K, V]): Boolean do
+      if t.get(idx) = expected then
+        t.set(idx, desired)
+        result := true
+      else
+        result := false
+      end
+    end
+
+    -- Per-node lock registry (simplified: in real impl, intrinsic to the node)
+    node_locks: Map[Integer, Mutex]
+    node_locks_mu: Mutex
+
+    get_or_create_node_lock(node: Concurrent_Bucket[K, V]): Mutex do
+      let id: Integer := node.identity_hash()  -- object identity
+      node_locks_mu.lock()
+      let existing: ?Mutex := node_locks.get(id)
+      if existing /= nil then
+        node_locks_mu.unlock()
+        result := existing
+      else
+        let mu: Mutex := create Mutex.make()
+        node_locks.put(id, mu)
+        node_locks_mu.unlock()
+        result := mu
+      end
+    end
+
+    next_power_of_two(n: Integer): Integer do
+      let p: Integer := 1
+      from until p &gt;= n do p := p * 2 end
+      result := p
+    end
+
+  invariant
+    table_power_of_two: is_power_of_two(table.length)
+    non_negative_size: size_counter.sum() &gt;= 0
+end</code></pre>
+<section id="the-distributed-counter" class="level3">
+<h3 class="anchored" data-anchor-id="the-distributed-counter">The Distributed Counter</h3>
+<p>The size counter deserves its own treatment. Maintaining an exact count with a single atomic integer causes contention — every insert and delete competes on the same variable. The solution: <code>LongAdder</code> in Java, called a striped counter or distributed counter here.</p>
+<pre><code>class Distributed_Counter
+  create
+    make() do
+      -- One cell per CPU, plus a base cell
+      let num_cells: Integer := available_processors() * 2
+      this.cells := create Array.filled(num_cells, create Atomic_Integer.make(0))
+      this.base := create Atomic_Integer.make(0)
+    end
+
+  feature
+    cells: Array[Atomic_Integer]
+    base: Atomic_Integer
+
+    increment() do
+      add(1)
+    end
+
+    decrement() do
+      add(-1)
+    end
+
+    add(delta: Integer) do
+      -- Try to add to the cell for the current thread
+      -- Hash thread ID to cell index
+      let cell_idx: Integer := thread_id().bitwise_and(cells.length - 1)
+      let cell: Atomic_Integer := cells.get(cell_idx)
+
+      -- Try CAS on the cell; fall back to base on contention
+      let current: Integer := cell.load()
+      if not cell.compare_and_swap(current, current + delta) then
+        -- Contention: fall back to base (avoids infinite retry loop)
+        base.fetch_and_add(delta)
+      end
+    end
+
+    sum(): Integer do
+      -- Sum all cells and base
+      let total: Integer := base.load()
+      across cells as cell do
+        total := total + cell.load()
+      end
+      result := total
+    end
+
+    reset() do
+      base.store(0)
+      across cells as cell do
+        cell.store(0)
+      end
+    end
+
+  invariant
+    cells_exist: cells.length &gt; 0
+end</code></pre>
+<p>The distributed counter eliminates contention on the size counter by spreading increments and decrements across multiple cells, one per CPU. Reading the size requires summing all cells — O(cells) rather than O(1) — but reads of size are rare compared to updates, so this is the right tradeoff.</p>
+<p>This is the same principle as the probabilistic structures from Chapter 6 (count-min sketch specifically): distribute the counter across multiple cells, accept slight inaccuracy at any instant, sum for accuracy when needed.</p>
+<hr>
+</section>
+</section>
+<section id="benchmarking-all-three-implementations" class="level2">
+<h2 class="anchored" data-anchor-id="benchmarking-all-three-implementations">19.10 Benchmarking All Three Implementations</h2>
+<pre><code>class Map_Benchmark
+  create
+    make() do end
+
+  feature
+    run(map_type: String,
+        num_threads: Integer,
+        operations: Integer,
+        read_fraction: Real) do
+      let ops_per_thread: Integer := operations / num_threads
+      let reads_per_thread: Integer :=
+        (ops_per_thread.to_real() * read_fraction).to_integer()
+      let writes_per_thread: Integer := ops_per_thread - reads_per_thread
+
+      -- Pre-populate with some data
+      let initial_keys: Array[Integer] := generate_keys(1000)
+
+      let map: Any := nil
+      if map_type = "coarse" then
+        map := create Coarse_Locked_Map[Integer, Integer].empty()
+      elseif map_type = "striped" then
+        map := create Striped_Map[Integer, Integer].with_stripes(64)
+      else
+        map := create Node_Locked_Map[Integer, Integer].with_capacity(1024)
+      end
+
+      -- Populate initial data
+      across initial_keys as k do
+        call_put(map, map_type, k, k * 10)
+      end
+
+      let start: Integer64 := current_time_ns()
+
+      -- Run concurrent operations
+      let tasks: Array[Task] := []
+      from
+        let t: Integer := 0
+      until
+        t &lt; num_threads
+      do
+        tasks.add(spawn do
+          -- Mix of reads and writes
+          let keys: Array[Integer] := generate_keys(ops_per_thread)
+
+          from
+            let i: Integer := 0
+          until
+            i &lt; ops_per_thread
+          do
+            let key: Integer := keys.get(i)
+            if i &lt; reads_per_thread then
+              call_get(map, map_type, key)
+            else
+              call_put(map, map_type, key, key * 10)
+            end
+            i := i + 1
+          end
+        end)
+        t := t + 1
+      end
+
+      across tasks as task do task.await end
+
+      let elapsed_ns: Integer64 := current_time_ns() - start
+      let throughput: Real :=
+        operations.to_real() / elapsed_ns.to_real() * 1000000000.0
+
+      print(map_type.pad_right(10) +
+            " | threads=" + num_threads.to_string().pad_left(2) +
+            " | reads=" + (read_fraction * 100.0).to_integer().to_string() + "%" +
+            " | " + throughput.to_integer().to_string() + " ops/sec")
+    end
+
+    generate_keys(n: Integer): Array[Integer] do
+      let keys: Array[Integer] := []
+      repeat n do
+        keys.add(random_integer() % 10000)
+      end
+      result := keys
+    end
+
+    call_get(map: Object, map_type: String, key: Integer): ?Integer do
+      if map_type = "coarse" then
+        if convert map to m: Coarse_Locked_Map[Integer, Integer] then
+          result := m.get(key)
+        end
+      elseif map_type = "striped" then
+        if convert map to m: Striped_Map[Integer, Integer] then
+          result := m.get(key)
+        end
+      else
+        if convert map to m: Node_Locked_Map[Integer, Integer] then
+          result := m.get(key)
+        end
+      end
+    end
+
+    call_put(map: Object, map_type: String, key: Integer, value: Integer) do
+      if map_type = "coarse" then
+        if convert map to m: Coarse_Locked_Map[Integer, Integer] then
+          m.put(key, value)
+        end
+      elseif map_type = "striped" then
+        if convert map to m: Striped_Map[Integer, Integer] then
+          m.put(key, value)
+        end
+      else
+        if convert map to m: Node_Locked_Map[Integer, Integer] then
+          m.put(key, value)
+        end
+      end
+    end
+end</code></pre>
+<p>Expected results (approximate, 8-core machine, 10M operations):</p>
+<pre><code>-- 95% reads, 5% writes:
+coarse     | threads= 8 | reads=95% | 12,000,000 ops/sec
+striped    | threads= 8 | reads=95% | 75,000,000 ops/sec
+node       | threads= 8 | reads=95% | 140,000,000 ops/sec
+
+-- 50% reads, 50% writes:
+coarse     | threads= 8 | reads=50% | 8,000,000 ops/sec
+striped    | threads= 8 | reads=50% | 55,000,000 ops/sec
+node       | threads= 8 | reads=50% | 90,000,000 ops/sec
+
+-- 5% reads, 95% writes:
+coarse     | threads= 8 | reads= 5% | 5,000,000 ops/sec
+striped    | threads= 8 | reads= 5% | 40,000,000 ops/sec
+node       | threads= 8 | reads= 5% | 60,000,000 ops/sec</code></pre>
+<p>The pattern: node locking dominates across all read/write ratios. Striped locking is a substantial improvement over coarse locking. Both node-locked and striped are worth the complexity compared to coarse, at these contention levels.</p>
+<hr>
+</section>
+<section id="choosing-the-right-implementation" class="level2">
+<h2 class="anchored" data-anchor-id="choosing-the-right-implementation">19.11 Choosing the Right Implementation</h2>
+<p>Three implementations, three deployment scenarios.</p>
+<p><strong>Use coarse locking when:</strong> - Concurrency is low (fewer than 4 threads accessing the map) - Correctness is paramount and testing resources are limited - The map is accessed infrequently relative to other bottlenecks - You need atomic composite operations (<code>compute</code>, <code>get_or_put</code>) and cannot afford the complexity of implementing them correctly in a concurrent structure</p>
+<p><strong>Use stripe locking when:</strong> - Multiple threads contend on the map and profiling confirms it is a bottleneck - The key space is well-distributed (no severe hotspots) - You need bounded memory overhead (fixed number of stripes and locks) - You need atomic composite operations per-key (<code>compute</code> within a stripe is atomic)</p>
+<p><strong>Use node-level locking when:</strong> - Read throughput is critical (reads must be lock-free) - Contention is high with many concurrent writers - Memory overhead of per-node locks is acceptable - You have the implementation expertise to validate the more complex code</p>
+<p>For most production systems, the sequence is: start with coarse locking, measure, switch to stripe locking if needed, measure again, consider node locking only if stripe locking is still insufficient. Each step adds implementation complexity; each step should be justified by measurement.</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">19.12 Where This Lives in the Wild</h2>
+<p><strong>Java’s <code>ConcurrentHashMap</code></strong> (JDK 8+) is the most widely used concurrent hash map in existence. Its evolution from <code>Hashtable</code> to segmented to node-locked directly mirrors this chapter. The JDK source (<code>java.util.concurrent.ConcurrentHashMap</code>) is approximately 6,000 lines of Java — a measure of how much engineering the full correct implementation requires.</p>
+<p><strong>Redis</strong> uses a global lock for its main data structures. Redis is single-threaded for command processing by design — the reasoning being that network I/O, not CPU, is the bottleneck for typical Redis workloads. Redis 6.0 added threaded I/O for reading/writing network data while keeping command processing single-threaded. For Redis’s specific workload, this is the right tradeoff.</p>
+<p><strong>Go’s <code>sync.Map</code></strong> provides a concurrent map optimised for the case where keys are written once and read many times. It maintains two internal maps: a read-only <code>atomic.Value</code> snapshot for lock-free reads, and a mutex-protected dirty map for writes. Reads check the snapshot first; misses fall through to the dirty map under a lock. This is a specialised optimisation for the “write once, read many” pattern, not a general-purpose concurrent map.</p>
+<p><strong>Rust’s <code>DashMap</code></strong> crate provides a concurrent hash map using stripe locking (called “sharding” in its documentation). It uses <code>RwLock</code> per shard, defaulting to <code>num_cpus * 4</code> shards. DashMap is the most widely used concurrent map in the Rust ecosystem, reflecting the assessment that stripe locking is the practical sweet spot.</p>
+<p><strong>Memcached</strong> uses a global lock per slab (memory size class) for its hash table. The slab-level locking is coarser than stripe locking but works because Memcached’s bottleneck is network I/O, not hash table access.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Concurrent hash maps require balancing correctness, throughput, and implementation complexity. Three implementations represent distinct points in this tradeoff space.</p>
+<p>Coarse locking wraps a plain hash map with a single mutex. It is correct, simple, and appropriate when concurrency is low. Every operation serialises — at most one thread operates at a time — which is the fundamental limitation.</p>
+<p>Stripe locking divides the map into N independent shards, each with its own read-write lock. Operations on different keys usually fall in different stripes and proceed concurrently. With 64 stripes, write contention drops by ~64×. The size counter is approximate, computed by summing per-stripe counters without global locking. Composite atomic operations remain correct within a stripe.</p>
+<p>Node-level locking takes the stripe-locking idea to its limit: one lock per bucket, making concurrent writes to different buckets contention-free. Reads are lock-free — they traverse bucket chains using volatile reads with no synchronisation. The size counter uses a distributed counter (one cell per CPU) to eliminate counter contention entirely. This is approximately the design of Java 8’s <code>ConcurrentHashMap</code>.</p>
+<p>The decision between implementations is a measurement question. Coarse locking is the right default. Stripe locking is the right upgrade when profiling confirms the map as a bottleneck. Node locking is the right choice for high-read workloads where lock-free reads provide measurable throughput improvements.</p>
+<p>The next chapter asks a different question entirely: what if shared state did not need to be protected at all, because it was never modified? Immutability and persistent data structures take a fundamentally different approach to concurrency — one where threads share data freely because the data cannot change.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_18.html" class="pagination-link" aria-label="Chapter 18: The Lock-Free Queue — CAS in Practice">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_20.html" class="pagination-link" aria-label="Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

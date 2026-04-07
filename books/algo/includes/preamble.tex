@@ -1,0 +1,122 @@
+% =============================================================
+%  Print-quality preamble for "The Well-Set Typographer"
+%  Engine: LuaLaTeX   Class: scrbook (KOMA-Script)
+%  Note: Quarto loads microtype, hyperref, fontspec, and
+%        bookmark after this header — only add what is safe here.
+% =============================================================
+
+% --- Microtypography configuration ---------------------------
+% Quarto loads microtype; we configure it with \microtypesetup.
+\microtypesetup{
+  activate={true,nocompatibility},
+  final,
+  tracking=true,
+  factor=1100,
+  stretch=10,
+  shrink=10
+}
+% Widen tracking on small-caps for an airy, classical feel
+\SetTracking{encoding={*}, shape=sc}{40}
+
+% --- Paragraph and page-break penalties ----------------------
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\brokenpenalty=4991
+
+% Encourage slightly looser spacing over hyphenation cascades
+\tolerance=1414
+\hbadness=1414
+\emergencystretch=1.5em
+\hfuzz=0.3pt
+
+% --- Unicode fallback for symbols (✓ ✗ etc.) ----------------
+% EB Garamond lacks many symbol glyphs; fall back to DejaVu Sans
+% for any codepoint the main font cannot cover.
+\directlua{
+  luaotfload.add_fallback("mainfallback", { "DejaVuSans:mode=harf;" })
+}
+\AtBeginDocument{%
+  \setmainfont{EB Garamond}[
+    Numbers=OldStyle,
+    Ligatures=Common,
+    Contextuals=Alternate,
+    RawFeature={fallback=mainfallback}
+  ]%
+}
+
+% --- Selnolig: suppress ugly ligatures (LuaLaTeX only) ------
+\usepackage{selnolig}
+
+% --- Headers and footers (KOMA-Script layer) -----------------
+\usepackage{scrlayer-scrpage}
+\clearpairofpagestyles
+\ohead[\pagemark]{\pagemark}
+\ihead{\headmark}
+\automark[chapter]{chapter}
+
+% --- Refined float placement ---------------------------------
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.15}
+\renewcommand{\floatpagefraction}{0.66}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+
+% --- Table refinements ----------------------------------------
+% Shrink all longtable environments so wide tables (6+ columns)
+% fit inside the 6×9 text block.  Also allow tables to break
+% across pages and tighten row padding.
+\AtBeginDocument{%
+  \let\oldlongtable\longtable
+  \let\oldendlongtable\endlongtable
+  \renewenvironment{longtable}{%
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}%
+    \oldlongtable
+  }{%
+    \oldendlongtable
+  }%
+}
+
+% --- Code-block refinements ----------------------------------
+% Shrink code to ~8pt and allow line-breaking so long lines
+% (e.g. font paths, URLs) stay inside the text block
+% fvextra must be loaded early (before Quarto defines Highlighting)
+\usepackage{fvextra}
+% Redefine both environments at \begin{document}, after Quarto's
+% own definitions so ours win.
+\AtBeginDocument{%
+  \renewenvironment{Shaded}{%
+    \begin{snugshade}%
+    \footnotesize
+  }{%
+    \end{snugshade}%
+  }%
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{%
+    breaklines=true,
+    breakanywhere=true,
+    commandchars=\\\{\}
+  }%
+}
+\usepackage{ellipsis}          % correct spacing around …
+\usepackage{csquotes}          % context-sensitive quotation marks
+
+% --- PDF metadata (applied after hyperref loads) -------------
+\AtBeginDocument{%
+  \hypersetup{
+    pdftitle={The Well-Set Typographer},
+    pdfauthor={Vijay Mathew},
+    pdfsubject={Typography, Typesetting, and Document Production from the Command Line},
+    pdfcreator={LuaLaTeX with microtype},
+    pdfstartview=FitH,
+    breaklinks=true,
+    pdfborder={0 0 0}
+  }%
+}
+
+% --- Crop marks for print-ready output -----------------------
+% Uncomment the next two lines when sending to a print shop:
+% \usepackage[cam,width=6.125in,height=9.25in,center]{crop}
+% (adds 1/8" bleed on each side of the 6×9 trim)

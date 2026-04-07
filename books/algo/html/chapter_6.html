@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 6: Good Enough Answers — Probabilistic Data Structures – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_7.html" rel="next">
+<link href="./chapter_5.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_2.html">Ordered Structures and Probabilistic Thinking</a></li><li class="breadcrumb-item"><a href="./chapter_6.html"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-philosophy-of-approximate-answers" id="toc-the-philosophy-of-approximate-answers" class="nav-link active" data-scroll-target="#the-philosophy-of-approximate-answers">6.1 The Philosophy of Approximate Answers</a></li>
+  <li><a href="#bloom-filters" id="toc-bloom-filters" class="nav-link" data-scroll-target="#bloom-filters">6.2 Bloom Filters</a>
+  <ul class="collapse">
+  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">The Problem</a></li>
+  <li><a href="#the-structure" id="toc-the-structure" class="nav-link" data-scroll-target="#the-structure">The Structure</a></li>
+  <li><a href="#optimal-parameters" id="toc-optimal-parameters" class="nav-link" data-scroll-target="#optimal-parameters">Optimal Parameters</a></li>
+  <li><a href="#what-bloom-filters-cannot-do" id="toc-what-bloom-filters-cannot-do" class="nav-link" data-scroll-target="#what-bloom-filters-cannot-do">What Bloom Filters Cannot Do</a></li>
+  </ul></li>
+  <li><a href="#the-count-min-sketch" id="toc-the-count-min-sketch" class="nav-link" data-scroll-target="#the-count-min-sketch">6.3 The Count-Min Sketch</a>
+  <ul class="collapse">
+  <li><a href="#the-problem-1" id="toc-the-problem-1" class="nav-link" data-scroll-target="#the-problem-1">The Problem</a></li>
+  <li><a href="#the-structure-1" id="toc-the-structure-1" class="nav-link" data-scroll-target="#the-structure-1">The Structure</a></li>
+  <li><a href="#why-the-minimum-is-a-good-estimate" id="toc-why-the-minimum-is-a-good-estimate" class="nav-link" data-scroll-target="#why-the-minimum-is-a-good-estimate">Why the Minimum Is a Good Estimate</a></li>
+  <li><a href="#error-bounds" id="toc-error-bounds" class="nav-link" data-scroll-target="#error-bounds">Error Bounds</a></li>
+  <li><a href="#heavy-hitters" id="toc-heavy-hitters" class="nav-link" data-scroll-target="#heavy-hitters">Heavy Hitters</a></li>
+  </ul></li>
+  <li><a href="#hyperloglog" id="toc-hyperloglog" class="nav-link" data-scroll-target="#hyperloglog">6.4 HyperLogLog</a>
+  <ul class="collapse">
+  <li><a href="#the-problem-2" id="toc-the-problem-2" class="nav-link" data-scroll-target="#the-problem-2">The Problem</a></li>
+  <li><a href="#the-intuition" id="toc-the-intuition" class="nav-link" data-scroll-target="#the-intuition">The Intuition</a></li>
+  <li><a href="#the-structure-2" id="toc-the-structure-2" class="nav-link" data-scroll-target="#the-structure-2">The Structure</a></li>
+  <li><a href="#correctness-of-the-merge-operation" id="toc-correctness-of-the-merge-operation" class="nav-link" data-scroll-target="#correctness-of-the-merge-operation">Correctness of the Merge Operation</a></li>
+  <li><a href="#memory-vs-accuracy" id="toc-memory-vs-accuracy" class="nav-link" data-scroll-target="#memory-vs-accuracy">Memory vs Accuracy</a></li>
+  </ul></li>
+  <li><a href="#combining-the-structures" id="toc-combining-the-structures" class="nav-link" data-scroll-target="#combining-the-structures">6.5 Combining the Structures</a></li>
+  <li><a href="#a-unified-interface" id="toc-a-unified-interface" class="nav-link" data-scroll-target="#a-unified-interface">6.6 A Unified Interface</a></li>
+  <li><a href="#error-budget-thinking" id="toc-error-budget-thinking" class="nav-link" data-scroll-target="#error-budget-thinking">6.7 Error Budget Thinking</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">6.8 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_2.html">Ordered Structures and Probabilistic Thinking</a></li><li class="breadcrumb-item"><a href="./chapter_6.html"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>There is a question that appears, in various forms, across almost every large-scale system ever built.</p>
+<p><em>Is this thing in this set?</em></p>
+<p>Is this URL one we have already crawled? Is this password one that has been compromised in a known data breach? Is this credit card number on the fraud watchlist? Is this IP address blocked? Is this word in the dictionary? Is this user ID one we have seen today?</p>
+<p>For small sets the answer is trivial — load the set into a hash table, check membership in O(1). For large sets the answer becomes uncomfortable. A billion crawled URLs, stored as strings averaging 60 bytes each, requires 60GB of memory for the hash table alone. A database of 600 million compromised passwords, as in the Have I Been Pwned dataset, cannot be loaded into the RAM of a single machine without displacing everything else.</p>
+<p>The brute-force answer — more memory, larger machines, distributed hash tables — works but is expensive. There is a better question to ask first: <em>how much accuracy do we actually need?</em></p>
+<p>For many applications, the answer is surprising. A web crawler that occasionally recrawls a URL it has already seen wastes a little bandwidth but causes no serious harm. A fraud detection system that occasionally checks the database for a card number it has already cleared wastes a little latency but causes no transaction failures. A cache that occasionally fetches a value it already has wastes a little compute but returns the correct result.</p>
+<p>In these cases, a small probability of error is acceptable. And if a small probability of error is acceptable, the memory requirements drop by orders of magnitude.</p>
+<p>This is the domain of probabilistic data structures — structures that trade a controlled, bounded probability of error for dramatic reductions in memory, time, or both. They are not approximations born of laziness or ignorance. They are precise engineering choices with well-understood error characteristics. The error is not random noise — it is a specific kind of error, in a specific direction, with a specific probability that you set when you build the structure.</p>
+<p>This chapter covers three: the bloom filter, which answers set membership queries with no false negatives and a tunable false positive rate; the count-min sketch, which estimates frequencies with bounded overestimation; and HyperLogLog, which counts distinct elements using a fixed amount of memory regardless of how many elements there are.</p>
+<p>Each one appears in production systems you use every day.</p>
+<hr>
+<section id="the-philosophy-of-approximate-answers" class="level2">
+<h2 class="anchored" data-anchor-id="the-philosophy-of-approximate-answers">6.1 The Philosophy of Approximate Answers</h2>
+<p>Before the structures, the mindset.</p>
+<p>Classical data structures are exact. A hash table either contains a key or it does not. A B-tree either finds a value or returns nil. A sort either produces sorted output or it does not. Exactness is the implicit contract, and we rarely question it.</p>
+<p>Probabilistic data structures break this contract deliberately, in exchange for something valuable. The exchange is always explicit — you choose the error rate when you build the structure — and the error is always bounded. “Bounded” is the crucial word. These structures do not produce unpredictably wrong answers. They produce answers that are wrong in a specific, quantifiable way, with a probability you control.</p>
+<p>There are two kinds of error worth distinguishing.</p>
+<p>A <strong>false positive</strong> is reporting that something is in the set when it is not. The structure says “yes” when the true answer is “no.” Bloom filters have false positives. A bloom filter might tell a web crawler that it has already seen a URL when it has not — causing the crawler to skip a URL it should crawl. This is an error, but a recoverable one.</p>
+<p>A <strong>false negative</strong> is reporting that something is not in the set when it is. The structure says “no” when the true answer is “yes.” Bloom filters have no false negatives. If a bloom filter says “not in the set,” it is definitely not in the set. This asymmetry is not accidental — it is a design choice that makes bloom filters useful for exactly the applications where false negatives would be catastrophic (a fraud watchlist that misses a fraud is far worse than one that occasionally double-checks a clean card).</p>
+<p>Count-min sketch errors are one-sided: frequency estimates are always greater than or equal to the true frequency, never less. HyperLogLog errors are symmetric but bounded by a standard error that decreases as you allocate more memory.</p>
+<p>Understanding the direction and probability of error is not optional. A structure whose error characteristics you do not understand is not a useful approximation — it is noise. The structures in this chapter have been analysed rigorously, and their error properties are not empirical observations but mathematical proofs. We will derive the key results, not just quote them.</p>
+<hr>
+</section>
+<section id="bloom-filters" class="level2">
+<h2 class="anchored" data-anchor-id="bloom-filters">6.2 Bloom Filters</h2>
+<section id="the-problem" class="level3">
+<h3 class="anchored" data-anchor-id="the-problem">The Problem</h3>
+<p>You are building a web crawler. Before fetching a URL, you want to know whether you have already fetched it. Your crawl history contains ten billion URLs. You have 8GB of RAM available for this check.</p>
+<p>A hash set of ten billion 60-byte strings requires at least 600GB. A disk-based lookup adds tens of milliseconds of latency to every URL check, and you are checking millions of URLs per minute. Neither is acceptable.</p>
+<p>You can tolerate a 1% chance of skipping a URL you have not yet crawled. The crawler will re-encounter those URLs later through other links, and crawling them twice would have been wasteful anyway. You cannot tolerate any chance of crawling a URL you have definitely already crawled and finding it has not changed — that would violate your freshness guarantees.</p>
+<p>In other words: false positives are acceptable, false negatives are not.</p>
+<p>This is exactly the bloom filter’s contract.</p>
+</section>
+<section id="the-structure" class="level3">
+<h3 class="anchored" data-anchor-id="the-structure">The Structure</h3>
+<p>A bloom filter is a bit array of m bits, all initialised to zero, and k independent hash functions, each of which maps an element to a position in the bit array.</p>
+<p><strong>Adding an element:</strong> apply all k hash functions to the element, obtain k positions in the bit array, and set all k bits to 1.</p>
+<p><strong>Querying an element:</strong> apply all k hash functions, check all k positions. If all k bits are 1, report “possibly in set.” If any bit is 0, report “definitely not in set.”</p>
+<p>The asymmetry of error falls directly from this structure. A false negative — reporting “not in set” for something that was added — is impossible: adding an element always sets its k bits to 1, and checking those same bits will always find them set. A false positive — reporting “possibly in set” for something never added — is possible when the k positions of a queried element happen to all be set by other elements that were added previously.</p>
+<pre><code>class Bloom_Filter
+  create
+    with_capacity(expected_elements: Integer, false_positive_rate: Real)
+      require
+        positive_elements: expected_elements &gt; 0
+        valid_rate: false_positive_rate &gt; 0.0 and false_positive_rate &lt; 1.0
+      do
+        -- Optimal bit array size
+        this.m := optimal_m(expected_elements, false_positive_rate)
+        -- Optimal number of hash functions
+        this.k := optimal_k(this.m, expected_elements)
+        this.bits := create Array.filled(this.m, false)
+        this.count := 0
+      end
+
+    from_bytes(data: Array[Integer])
+      do
+        -- Reconstruct from serialised form (for SSTable loading)
+        this.m := bytes_to_int(data, 0)
+        this.k := bytes_to_int(data, 4)
+        this.count := bytes_to_int(data, 8)
+        this.bits := create Array.filled(this.m, false)
+        from
+          let i: Integer := 0
+        until
+          i &gt;= this.m
+        do
+          let byte_index: Integer := 12 + (i / 8)
+          let bit_index: Integer := i % 8
+          this.bits.set(i, data.get(byte_index).bitwise_right_shift(bit_index).bitwise_and(1) = 1)
+          i := i + 1
+        end
+      end
+
+  feature
+    m: Integer          -- bit array size
+    k: Integer          -- number of hash functions
+    bits: Array[Boolean]
+    count: Integer      -- number of elements added (approximate)
+
+    add(element: String)
+      do
+        across hash_positions(element) as pos do
+          bits.set(pos, true)
+        end
+        count := count + 1
+      ensure
+        might_contain_after: might_contain(element)
+      end
+
+    might_contain(element: String): Boolean do
+      across hash_positions(element) as pos do
+        if not bits.get(pos) then
+          result := false
+          return
+        end
+      end
+      result := true
+    end
+
+    -- Serialise for storage in SSTable footer
+    to_bytes(): Array[Integer] do
+      let data: Array[Integer] := []
+      int_to_bytes(m, data, 0)
+      int_to_bytes(k, data, 4)
+      int_to_bytes(count, data, 8)
+
+      -- Pack bits into bytes
+      let num_bytes: Integer := (m + 7) / 8
+      from
+        let byte_i: Integer := 0
+      until
+        byte_i &gt;= num_bytes
+      do
+        let byte_val: Integer := 0
+        from
+          let bit_i: Integer := 0
+        until
+          bit_i &gt;= 8
+        do
+          let pos: Integer := byte_i * 8 + bit_i
+          if pos &lt; m and bits.get(pos) then
+            byte_val := byte_val.bitwise_or((1).bitwise_left_shift(bit_i))
+          end
+          bit_i := bit_i + 1
+        end
+        data.add(byte_val)
+        byte_i := byte_i + 1
+      end
+
+      result := data
+    end
+
+    current_false_positive_rate(): Real do
+      -- (1 - e^(-k*n/m))^k where n is count
+      let exponent: Real := (-1.0 * k.to_real() * count.to_real()) /
+                             m.to_real()
+      result := (1.0 - exp(exponent)) ^ k.to_real()
+    end
+
+  invariant
+    positive_m: m &gt; 0
+    positive_k: k &gt; 0
+    bits_correct_size: bits.length = m
+    non_negative_count: count &gt;= 0
+end</code></pre>
+<p>The hash positions are generated using double hashing — a technique that simulates k independent hash functions using only two underlying hash functions, avoiding the cost of computing k truly independent hashes:</p>
+<pre><code>function hash_positions(element: String): Array[Integer] do
+  let h1: Integer := murmur_hash3(element, 0)
+  let h2: Integer := murmur_hash3(element, h1)
+  let positions: Array[Integer] := []
+  from
+    let i: Integer := 0
+  until
+    i &gt;= k
+  do
+    -- Kirsch-Mitzenmacher technique: h1 + i*h2 gives k positions
+    -- with the same error properties as k independent hash functions
+    let pos: Integer := ((h1 + i * h2) % m + m) % m
+    positions.add(pos)
+    i := i + 1
+  end
+  result := positions
+end</code></pre>
+<p>The Kirsch-Mitzenmacher technique is not an approximation — it is proven to achieve the same asymptotic false positive rate as k truly independent hash functions, which would be expensive to compute. Using two underlying hash functions and combining them linearly is both faster and theoretically equivalent.</p>
+</section>
+<section id="optimal-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="optimal-parameters">Optimal Parameters</h3>
+<p>Two parameters control a bloom filter’s behaviour: the bit array size m and the number of hash functions k. Given a desired false positive rate p and an expected number of elements n, the optimal values are derived from calculus — minimising the false positive rate with respect to m and k simultaneously.</p>
+<p>The false positive probability for a bloom filter with m bits, k hash functions, and n elements is:</p>
+<pre><code>p ≈ (1 - e^(-kn/m))^k</code></pre>
+<p>Taking the derivative with respect to k and setting it to zero gives the optimal k:</p>
+<pre><code>k_optimal = (m/n) * ln(2)</code></pre>
+<p>Substituting back and solving for m given a target false positive rate p:</p>
+<pre><code>m_optimal = -n * ln(p) / (ln(2))^2</code></pre>
+<p>In Nex:</p>
+<pre><code>function optimal_m(n: Integer, p: Real): Integer do
+  result := ((-1.0 * n.to_real() * ln(p)) /
+              (ln(2.0) ^ 2.0)).ceiling().to_integer()
+end
+
+function optimal_k(m: Integer, n: Integer): Integer do
+  result := ((m.to_real() / n.to_real()) * ln(2.0)).round().to_integer()
+            .max(1)
+end</code></pre>
+<p>Let us compute the concrete numbers for the web crawler problem. Ten billion URLs, 1% false positive rate:</p>
+<ul>
+<li>m = -(10,000,000,000 × ln(0.01)) / (ln(2))² ≈ 95.9 billion bits ≈ 11.5GB</li>
+<li>k = (95.9 billion / 10 billion) × ln(2) ≈ 6.6, rounded to 7</li>
+</ul>
+<p>11.5GB for 1% false positive rate over ten billion URLs. Still too large for the scenario as stated. Reduce to 0.1% false positive rate and memory triples to 34GB. But accept 2% false positive rate and memory drops to 9.6GB — within the 8GB constraint if we are willing to accept 2% recrawl rate.</p>
+<p>This is the engineering conversation a probabilistic data structure enables. Not “how much memory do we need?” but “how much accuracy can we afford, and what does accuracy cost?” The bloom filter makes that tradeoff explicit and tunable.</p>
+</section>
+<section id="what-bloom-filters-cannot-do" class="level3">
+<h3 class="anchored" data-anchor-id="what-bloom-filters-cannot-do">What Bloom Filters Cannot Do</h3>
+<p>Bloom filters do not support deletion. Setting k bits when adding an element cannot be undone — clearing one of those bits might clear a bit that is also set by a different element. A counting bloom filter addresses this by storing a small integer at each position rather than a single bit, and decrementing on deletion — but at a factor of 4-8x memory increase, which often defeats the purpose.</p>
+<p>Bloom filters are also one-shot: once built, the bit array cannot be resized without rebuilding from scratch. If the actual number of elements significantly exceeds the expected count, the false positive rate rises above the design target. For dynamic sets, this requires periodic rebuilding or the use of scalable bloom filter variants that add new bit arrays as the set grows.</p>
+<hr>
+</section>
+</section>
+<section id="the-count-min-sketch" class="level2">
+<h2 class="anchored" data-anchor-id="the-count-min-sketch">6.3 The Count-Min Sketch</h2>
+<section id="the-problem-1" class="level3">
+<h3 class="anchored" data-anchor-id="the-problem-1">The Problem</h3>
+<p>You operate a content delivery network. At any moment, you want to know approximately how many times each URL has been requested in the last hour — not for billing, where exactness matters, but for cache eviction decisions: which URLs are hot enough to keep cached?</p>
+<p>There are a hundred million distinct URLs in your system. Storing an exact count for each requires several gigabytes of memory in a hash map. But you do not need exact counts — you need to know, with reasonable accuracy, which URLs are being requested most frequently. If a URL has been requested 10,000 times, knowing it was requested 10,200 times instead of 9,800 times makes no difference to your cache eviction decision.</p>
+<p>A bloom filter answers set membership but not counting. You need something different: a frequency estimator that works in bounded memory.</p>
+<p>The count-min sketch is that structure.</p>
+</section>
+<section id="the-structure-1" class="level3">
+<h3 class="anchored" data-anchor-id="the-structure-1">The Structure</h3>
+<p>A count-min sketch is a two-dimensional array of integers: d rows and w columns, all initialised to zero. It has d hash functions, one per row, each mapping elements to positions in [0, w).</p>
+<p><strong>Incrementing the count of an element:</strong> apply each of the d hash functions to the element, obtaining d positions (one per row), and increment the integer at each position.</p>
+<p><strong>Querying the estimated count of an element:</strong> apply the same d hash functions, look up all d values, and return the minimum.</p>
+<pre><code>class Count_Min_Sketch
+  create
+    with_parameters(width: Integer, depth: Integer)
+      require
+        positive_width: width &gt; 0
+        positive_depth: depth &gt; 0
+      do
+        this.w := width
+        this.d := depth
+        this.table := create Array.filled(depth, create Array.filled(width, 0))
+        this.seeds := generate_seeds(depth)
+        this.total := 0
+      end
+
+    with_error_bounds(epsilon: Real, delta: Real)
+      require
+        valid_epsilon: epsilon &gt; 0.0 and epsilon &lt; 1.0
+        valid_delta: delta &gt; 0.0 and delta &lt; 1.0
+      do
+        -- Width and depth derived from error bounds:
+        -- w = ceil(e / epsilon), d = ceil(ln(1 / delta))
+        this.w := (euler.to_real() / epsilon).ceiling().to_integer()
+        this.d := (ln(1.0 / delta)).ceiling().to_integer()
+        this.table := create Array.filled(this.d, create Array.filled(this.w, 0))
+        this.seeds := generate_seeds(this.d)
+        this.total := 0
+      end
+
+  feature
+    w: Integer
+    d: Integer
+    table: Array[Array[Integer]]
+    seeds: Array[Integer]
+    total: Integer
+
+    increment(element: String) do
+      increment_by(element, 1)
+    end
+
+    increment_by(element: String, count: Integer)
+      require
+        positive_count: count &gt; 0
+      do
+        from
+          let row: Integer := 0
+        until
+          row &gt;= d
+        do
+          let col: Integer := hash_for_row(element, row)
+          table.get(row).set(col, table.get(row).get(col) + count)
+          row := row + 1
+        end
+        total := total + count
+      end
+
+    estimate(element: String): Integer do
+      let min_val: Integer := 2147483647
+      from
+        let row: Integer := 0
+      until
+        row &gt;= d
+      do
+        let col: Integer := hash_for_row(element, row)
+        let val: Integer := table.get(row).get(col)
+        if val &lt; min_val then
+          min_val := val
+        end
+        row := row + 1
+      end
+      result := min_val
+    end
+
+    -- Merge another sketch into this one (for distributed aggregation)
+    merge(other: Count_Min_Sketch)
+      require
+        compatible: other.w = w and other.d = d
+      do
+        from
+          let row: Integer := 0
+        until
+          row &gt;= d
+        do
+          from
+            let col: Integer := 0
+          until
+            col &gt;= w
+          do
+            table.get(row).set(col,
+              table.get(row).get(col) + other.table.get(row).get(col))
+            col := col + 1
+          end
+          row := row + 1
+        end
+        total := total + other.total
+      end
+
+  invariant
+    positive_w: w &gt; 0
+    positive_d: d &gt; 0
+    non_negative_total: total &gt;= 0
+end
+
+function hash_for_row(element: String, row: Integer): Integer do
+  result := murmur_hash3(element, seeds.get(row)) % w
+end
+
+function generate_seeds(count: Integer): Array[Integer] do
+  let seeds: Array[Integer] := []
+  from
+    let i: Integer := 0
+  until
+    i &gt;= count
+  do
+    seeds.add(random_integer())
+    i := i + 1
+  end
+  result := seeds
+end</code></pre>
+</section>
+<section id="why-the-minimum-is-a-good-estimate" class="level3">
+<h3 class="anchored" data-anchor-id="why-the-minimum-is-a-good-estimate">Why the Minimum Is a Good Estimate</h3>
+<p>The sketch can only overestimate, never underestimate. Here is why.</p>
+<p>When you increment element X, you add 1 to d positions — one per row. Each of those positions may also be incremented by other elements that hash to the same position in that row (collisions). So the value at any given position is the true count of X plus the counts of all other elements that collided with X in that row.</p>
+<p>The true count is a lower bound on any individual cell’s value. The minimum across all d rows is the best estimate — it is most likely to have fewest collisions. The more rows you have, the less likely all rows have their minimum position contaminated.</p>
+<p>This one-sided error has a useful consequence: <code>estimate(element) &gt;= true_count(element)</code> always. You can rely on this. A count-min sketch that tells you a URL has been requested 5,000 times means the true count is at most 5,000 — possibly less, but never more. For cache eviction — where underestimates are dangerous (you might evict something hot) but overestimates are harmless — this is exactly the right error direction.</p>
+</section>
+<section id="error-bounds" class="level3">
+<h3 class="anchored" data-anchor-id="error-bounds">Error Bounds</h3>
+<p>With width w = ⌈e/ε⌉ and depth d = ⌈ln(1/δ)⌉, the count-min sketch guarantees:</p>
+<pre><code>P(estimate(x) ≤ true_count(x) + ε * total) ≥ 1 - δ</code></pre>
+<p>Where total is the sum of all counts ever added. In plain English: with probability at least 1-δ, the estimated count for any element is at most the true count plus ε times the total count.</p>
+<p>For our CDN example: if we want error no greater than 0.1% of total requests (ε = 0.001) with probability 99% (δ = 0.01):</p>
+<ul>
+<li>w = ⌈e / 0.001⌉ = ⌈2718⌉ = 2718 columns</li>
+<li>d = ⌈ln(100)⌉ = ⌈4.6⌉ = 5 rows</li>
+</ul>
+<p>Memory: 2718 × 5 × 4 bytes (32-bit integers) = 54,360 bytes ≈ 53KB.</p>
+<p>Fifty-three kilobytes to estimate request frequencies for a hundred million distinct URLs with 99% accuracy within 0.1% of total traffic. A hash map of exact counts for a hundred million URLs would require several gigabytes. This is the magnitude of the gain.</p>
+</section>
+<section id="heavy-hitters" class="level3">
+<h3 class="anchored" data-anchor-id="heavy-hitters">Heavy Hitters</h3>
+<p>A natural application of the count-min sketch is finding heavy hitters — elements whose frequency exceeds some threshold, like the top 100 most-requested URLs. The sketch alone does not identify heavy hitters; it only estimates frequency for a given element. But combined with a small heap of candidates, it does:</p>
+<pre><code>class Heavy_Hitter_Tracker
+  create
+    make(sketch: Count_Min_Sketch, threshold_fraction: Real) do
+      this.sketch := sketch
+      this.threshold_fraction := threshold_fraction
+      this.candidates := create Min_Heap[Integer, String].empty()
+      this.candidate_set := create Skip_List[String, Boolean].empty()
+    end
+
+  feature
+    sketch: Count_Min_Sketch
+    threshold_fraction: Real
+    candidates: Min_Heap[Integer, String]
+    candidate_set: Skip_List[String, Boolean]
+
+    observe(element: String) do
+      sketch.increment(element)
+      let estimated: Integer := sketch.estimate(element)
+      let threshold: Integer := (threshold_fraction *
+                                  sketch.total.to_real()).to_integer()
+
+      if estimated &gt;= threshold and not candidate_set.contains(element) then
+        candidates.insert([estimated, element])
+        candidate_set.put(element, true)
+      end
+    end
+
+    top_k(k: Integer): Array[Any] do
+      let results: Array[Any] := []
+      let temp: Array[Any] := []
+
+      from until candidates.is_empty() or temp.length &gt;= k do
+        let entry: Array := candidates.extract_max()
+        let element: String := entry.get(1)
+        let estimated: Integer := sketch.estimate(element)
+        temp.add([element, estimated])
+      end
+
+      result := temp
+    end
+end</code></pre>
+<p>This pattern — sketch for frequency estimation, small heap for tracking candidates — appears in network monitoring (finding elephant flows), database query optimisation (finding common query patterns), and recommendation systems (finding trending items).</p>
+<hr>
+</section>
+</section>
+<section id="hyperloglog" class="level2">
+<h2 class="anchored" data-anchor-id="hyperloglog">6.4 HyperLogLog</h2>
+<section id="the-problem-2" class="level3">
+<h3 class="anchored" data-anchor-id="the-problem-2">The Problem</h3>
+<p>You are a product analyst. Every day, you need to know how many distinct users visited the site. Your site receives a billion page views per day, from perhaps 200 million distinct users. The naive approach — store all user IDs in a set, count the set — requires storing up to 200 million IDs, perhaps 1.6GB for 8-byte IDs.</p>
+<p>You need the answer within a few percent accuracy. You do not need to know which users visited, just how many distinct ones. Can you do this in a few kilobytes?</p>
+<p>HyperLogLog can.</p>
+</section>
+<section id="the-intuition" class="level3">
+<h3 class="anchored" data-anchor-id="the-intuition">The Intuition</h3>
+<p>HyperLogLog is based on an observation about random bit patterns. If you hash each element to a random bit string, and you look at the position of the first 1-bit in each hash value, the maximum first-1-bit position you observe tells you something about how many distinct elements you have seen.</p>
+<p>Here is the intuition. A random bit string has a 1 in the first position with probability 1/2, a 0 followed by a 1 with probability 1/4, two zeros followed by a 1 with probability 1/8, and so on. If you have seen n distinct elements, you would expect to have seen at least one element whose hash has a leading 1-bit pattern of length about log₂(n) before the first 1. So the maximum leading zero count you observe is approximately log₂(n).</p>
+<p>If the maximum leading zeros you have seen is R, your estimate of distinct elements is 2^R.</p>
+<p>This estimate is crude. But with a simple improvement — maintaining m separate registers rather than one, using the first few bits of the hash to select which register each element goes into, and combining the estimates from all registers using a harmonic mean — HyperLogLog achieves a standard error of approximately 1.04 / √m.</p>
+<p>With m = 2048 registers, standard error is about 2.3%. With m = 4096, it is 1.6%. With m = 16384, it is 0.8%.</p>
+</section>
+<section id="the-structure-2" class="level3">
+<h3 class="anchored" data-anchor-id="the-structure-2">The Structure</h3>
+<pre><code>class HyperLogLog
+  create
+    with_precision(precision: Integer)
+      require
+        valid_precision: precision &gt;= 4 and precision &lt;= 18
+      do
+        -- precision p gives m = 2^p registers
+        -- Standard error ≈ 1.04 / sqrt(m)
+        this.p := precision
+        this.m := (1).bitwise_left_shift(precision)  -- 2^precision registers
+        this.registers := create Array.filled(this.m, 0)
+        this.alpha := compute_alpha(this.m)
+      end
+
+  feature
+    p: Integer
+    m: Integer
+    registers: Array[Integer]
+    alpha: Real
+
+    add(element: String) do
+      let hash: Integer64 := hash_64(element)
+
+      -- Use first p bits to select register
+      let register_index: Integer :=
+        hash.bitwise_right_shift(64 - p).to_integer().bitwise_and(m - 1)
+
+      -- Count leading zeros in remaining bits + 1
+      let remaining: Integer64 := hash.bitwise_left_shift(p)
+      let leading_zeros: Integer := count_leading_zeros(remaining) + 1
+
+      -- Update register with maximum
+      if leading_zeros &gt; registers.get(register_index) then
+        registers.set(register_index, leading_zeros)
+      end
+    end
+
+    count(): Integer64 do
+      -- Compute harmonic mean of 2^register values
+      let sum: Real := 0.0
+      across registers as reg do
+        sum := sum + (1.0 / ((1).bitwise_left_shift(reg)).to_real())
+      end
+
+      let estimate: Real := alpha * m.to_real() * m.to_real() / sum
+
+      -- Small range correction
+      if estimate &lt;= 2.5 * m.to_real() then
+        let zeros: Integer := count_zero_registers()
+        if zeros &gt; 0 then
+          -- Linear counting for small estimates
+          estimate := m.to_real() * ln(m.to_real() / zeros.to_real())
+        end
+      end
+
+      -- Large range correction
+      -- (2^32 limit for 32-bit hashes; for 64-bit hashes this
+      --  correction is rarely needed in practice)
+
+      result := estimate.round().to_integer64()
+    end
+
+    -- Merge two HyperLogLog structures for distributed counting
+    merge(other: HyperLogLog)
+      require
+        same_precision: other.p = p
+      do
+        from
+          let i: Integer := 0
+        until
+          i &gt;= m
+        do
+          if other.registers.get(i) &gt; registers.get(i) then
+            registers.set(i, other.registers.get(i))
+          end
+          i := i + 1
+        end
+      end
+
+    -- Estimate memory usage in bytes
+    memory_bytes(): Integer do
+      result := m  -- one byte per register (registers fit in 0..64)
+    end
+
+  invariant
+    valid_p: p &gt;= 4 and p &lt;= 18
+    correct_m: m = (1).bitwise_left_shift(p)
+    registers_correct_size: registers.length = m
+end
+
+function count_leading_zeros(value: Integer64): Integer do
+  if value = 0 then
+    result := 64
+    return
+  end
+  let count: Integer := 0
+  let v: Integer64 := value
+  from until v.bitwise_and((1).bitwise_left_shift(63)) /= 0 do
+    count := count + 1
+    v := v.bitwise_left_shift(1)
+  end
+  result := count
+end
+
+function compute_alpha(m: Integer): Real do
+  -- Bias correction constant, derived analytically
+  case m of
+    16 then result := 0.673
+    32 then result := 0.697
+    64 then result := 0.709
+    else result := 0.7213 / (1.0 + 1.079 / m.to_real())
+  end
+end</code></pre>
+</section>
+<section id="correctness-of-the-merge-operation" class="level3">
+<h3 class="anchored" data-anchor-id="correctness-of-the-merge-operation">Correctness of the Merge Operation</h3>
+<p>The merge operation is worth examining carefully, because it is what makes HyperLogLog useful in distributed systems.</p>
+<p>The merge takes the element-wise maximum of two register arrays. This is correct because each register stores the maximum leading-zero count seen for all elements that hashed to that register’s index. If machine A has seen elements that pushed register 7 to value 12, and machine B has seen elements that pushed register 7 to value 15, the merged register 7 should be 15 — the maximum either machine has seen. Taking the element-wise maximum of all registers gives exactly the register state that would result from processing all elements on a single machine.</p>
+<p>This is not obvious. Most data structures cannot be merged — you cannot merge two hash sets without examining every element of both sets. HyperLogLog’s register-maximum merge is O(m), completely independent of the number of elements observed. For distributed counting — one HyperLogLog per machine, merged at query time — this is invaluable.</p>
+</section>
+<section id="memory-vs-accuracy" class="level3">
+<h3 class="anchored" data-anchor-id="memory-vs-accuracy">Memory vs Accuracy</h3>
+<p>The concrete numbers for HyperLogLog are striking:</p>
+<p>With precision p = 12 (m = 4096 registers, each one byte): 4KB of memory, standard error 1.6%.</p>
+<p>With precision p = 14 (m = 16384 registers): 16KB, standard error 0.8%.</p>
+<p>With precision p = 16 (m = 65536 registers): 64KB, standard error 0.4%.</p>
+<p>For the product analytics problem — 200 million distinct users, 2% accuracy acceptable — precision p = 12 requires 4KB. The hash set storing all user IDs requires 1.6GB. HyperLogLog uses 0.00025% of that memory.</p>
+<p>The error is not degradation under load — it is a fixed statistical property of the algorithm that holds regardless of how many elements are added, as long as the number of distinct elements is large relative to the number of registers. For small cardinalities, HyperLogLog switches to linear counting — the small range correction in the implementation above — which is exact for very small sets and smoothly transitions to the probabilistic estimate as cardinality grows.</p>
+<hr>
+</section>
+</section>
+<section id="combining-the-structures" class="level2">
+<h2 class="anchored" data-anchor-id="combining-the-structures">6.5 Combining the Structures</h2>
+<p>These three structures are not isolated tools. They appear together, often in the same system, each solving a different subproblem.</p>
+<p>In Chapter 5, bloom filters appeared as a first-class component of LSM trees. Each SSTable has a bloom filter in its footer, loaded into memory when the SSTable is opened. Before performing a disk read to check whether a key is present in an SSTable, the bloom filter is consulted. A “definitely not present” answer saves a disk read. A “possibly present” answer triggers the disk read. With a 1% false positive rate, 99% of absent-key lookups in any given SSTable are resolved without disk I/O.</p>
+<p>Now consider adding a count-min sketch and HyperLogLog to the same system. The count-min sketch tracks access frequency for cache management — which keys are accessed most often and should be kept in a memory cache in front of the LSM tree. The HyperLogLog tracks distinct key count — how many unique keys the system has stored, a useful metric for capacity planning and bloom filter sizing.</p>
+<p>Together, the three structures give you: - Membership testing without loading the full dataset (bloom filter) - Frequency estimation without tracking per-key counts (count-min sketch)<br>
+- Cardinality estimation without storing the elements (HyperLogLog)</p>
+<p>All three from a few megabytes of memory, regardless of dataset size.</p>
+<hr>
+</section>
+<section id="a-unified-interface" class="level2">
+<h2 class="anchored" data-anchor-id="a-unified-interface">6.6 A Unified Interface</h2>
+<p>Since all three structures answer different questions about a stream of elements, wrapping them in a unified stream analyser makes their complementary nature visible:</p>
+<pre><code>class Stream_Analyser
+  create
+    make(expected_elements: Integer,
+         fp_rate: Real,
+         freq_epsilon: Real,
+         freq_delta: Real,
+         hll_precision: Integer) do
+      this.membership := create Bloom_Filter.with_capacity(
+        expected_elements, fp_rate)
+      this.frequency := create Count_Min_Sketch.with_error_bounds(
+        freq_epsilon, freq_delta)
+      this.cardinality := create HyperLogLog.with_precision(hll_precision)
+    end
+
+  feature
+    membership: Bloom_Filter
+    frequency: Count_Min_Sketch
+    cardinality: HyperLogLog
+
+    observe(element: String) do
+      membership.add(element)
+      frequency.increment(element)
+      cardinality.add(element)
+    end
+
+    seen_before(element: String): Boolean do
+      result := membership.might_contain(element)
+    end
+
+    estimated_frequency(element: String): Integer do
+      result := frequency.estimate(element)
+    end
+
+    estimated_distinct_count(): Integer64 do
+      result := cardinality.count()
+    end
+
+    memory_bytes(): Integer do
+      result := membership.m / 8 +
+                frequency.w * frequency.d * 4 +
+                cardinality.m
+    end
+end</code></pre>
+<p>Using it:</p>
+<pre><code>-- CDN request analyser: track 10M expected URLs,
+-- 1% false positive rate, 0.1% frequency error with 99% confidence,
+-- 1.6% cardinality error
+let analyser: Stream_Analyser := create Stream_Analyser.make(
+  10000000, 0.01, 0.001, 0.01, 14)
+
+-- Process requests
+analyser.observe("https://cdn.example.com/video/1042.mp4")
+analyser.observe("https://cdn.example.com/image/logo.png")
+-- ... billions more ...
+
+-- Query
+print(analyser.seen_before("https://cdn.example.com/video/9999.mp4"))
+print(analyser.estimated_frequency("https://cdn.example.com/video/1042.mp4"))
+print(analyser.estimated_distinct_count())
+print("Memory used: " + analyser.memory_bytes().to_string() + " bytes")</code></pre>
+<p>The memory usage of this analyser for ten million expected URLs: the bloom filter takes about 11.5MB, the count-min sketch takes about 53KB, the HyperLogLog takes 16KB. Approximately 12MB total to answer three categories of questions about a stream of billions of requests.</p>
+<hr>
+</section>
+<section id="error-budget-thinking" class="level2">
+<h2 class="anchored" data-anchor-id="error-budget-thinking">6.7 Error Budget Thinking</h2>
+<p>Probabilistic data structures introduce a discipline that is valuable beyond the specific structures themselves: error budget thinking.</p>
+<p>Every probabilistic structure has parameters that control its error. The bloom filter has a false positive rate. The count-min sketch has ε and δ. HyperLogLog has precision p.&nbsp;These parameters are not set-and-forgotten configuration values — they are explicit statements about how much inaccuracy your application can tolerate.</p>
+<p>Before choosing parameters, you must answer: what does an error cost? A bloom filter false positive in a web crawler costs one redundant HTTP request. A bloom filter false positive in a fraud detection system might cost a customer declined transaction — far more expensive. A count-min sketch overestimate in a cache eviction system keeps a cache entry longer than necessary — cheap. A count-min sketch overestimate in a billing system charges a customer more than they owe — catastrophic.</p>
+<p>The error budget is a conversation between the data structure’s mathematical properties and the application’s cost model. That conversation should happen explicitly, before deploying any probabilistic structure. The structures themselves are precise tools. Using them wisely requires being equally precise about the consequences of their errors.</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">6.8 Where This Lives in the Wild</h2>
+<p><strong>Bloom filters</strong> are pervasive. Google’s Bigtable uses bloom filters per SSTable for exactly the same purpose as our LSM tree in Chapter 5. PostgreSQL’s query planner uses bloom indexes to speed up WHERE clause evaluation for low-selectivity predicates. Chrome uses a bloom filter for its Safe Browsing feature — when you visit a URL, Chrome checks a locally-stored bloom filter of known malicious URLs before querying Google’s servers, reducing network requests while maintaining near-perfect safety coverage. Akamai uses bloom filters to decide what to cache — a page that has been requested at least twice is almost certainly worth caching.</p>
+<p><strong>Count-min sketch</strong> appears wherever frequency estimation matters at scale. Apache Flink and Apache Spark both include count-min sketch implementations for streaming analytics. Twitter uses it for trending topic detection. Cloudflare uses it for DDoS detection — a sudden spike in request frequency for a particular IP or URL pattern triggers investigation. Redis has a <code>CMS.INCRBY</code> and <code>CMS.QUERY</code> command for count-min sketch operations built into the database.</p>
+<p><strong>HyperLogLog</strong> is perhaps the most widely deployed of the three, because distinct count is such a universal analytics primitive. Redis implements HyperLogLog natively via the <code>PFADD</code> and <code>PFCOUNT</code> commands — the <code>PF</code> prefix honours Philippe Flajolet, who with Éric Fusy, Olivier Gandouet, and Frédéric Meunier published the HyperLogLog paper in 2007. Google’s BigQuery uses HyperLogLog++ (an improved variant) for its <code>APPROX_COUNT_DISTINCT</code> function. Amazon Redshift, Apache Spark, and Presto all implement HyperLogLog for scalable distinct counting. Every time you query “how many unique users visited this page last month?” in any major analytics platform, there is a good chance HyperLogLog is doing the counting.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Probabilistic data structures are not a concession to imprecision. They are a precise engineering choice: trade a controlled, bounded, well-understood probability of error for dramatic reductions in memory and time. The error is not random — it is specific in direction and probability, chosen when the structure is built.</p>
+<p>The bloom filter answers “is this in the set?” with no false negatives and a tunable false positive rate. Its memory cost is determined by the false positive rate and the number of expected elements, derived analytically from the optimal bit array size and hash function count. It is the structure that makes LSM tree reads practical by eliminating unnecessary disk I/O.</p>
+<p>The count-min sketch estimates “how often has this been seen?” using a two-dimensional counter array, returning the minimum across rows as the frequency estimate. It can only overestimate, never underestimate, and its error is bounded by ε × total with probability 1-δ, where ε and δ are chosen at construction time.</p>
+<p>HyperLogLog answers “how many distinct elements have been seen?” using a few kilobytes of memory regardless of cardinality, by tracking the maximum leading-zero count in hashed values across m registers. Its standard error is 1.04 / √m, controllable by choosing the precision parameter. It merges in O(m) time, making it ideal for distributed distinct counting.</p>
+<p>Together, these three structures solve three different questions about large data streams — membership, frequency, cardinality — from a few megabytes of memory. They appear throughout production systems precisely because the questions they answer arise constantly and the exact answers are too expensive to maintain.</p>
+<p>The next chapter begins Part III, where we turn from storing and finding data to the specific and rich world of algorithms on strings — which is where working programmers spend far more time than most algorithms books acknowledge.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_5.html" class="pagination-link" aria-label="Chapter 5: The Write-Heavy Problem — LSM Trees">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_7.html" class="pagination-link" aria-label="Chapter 7: Does This File Contain That Word? — Exact String Matching">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

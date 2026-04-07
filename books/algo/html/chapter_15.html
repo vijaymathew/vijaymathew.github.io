@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chapter 15: Quicksort — The Practical Champion – Structures of Scale</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./chapter_16.html" rel="next">
+<link href="./chapter_14.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-dbbeff591a41ce4be65870f4f9bf39de.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-38745204ba274c839d3140748e68f1fe.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_15.html">Sorting at Scale</a></li><li class="breadcrumb-item"><a href="./chapter_15.html"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Structures of Scale</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preface.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">When Simple Structures Break Down</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_1.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 1: The Limits of What You Know</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Ordered Structures and Probabilistic Thinking</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_2.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 2: The Balanced Bookshelf — Self-Balancing Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_3.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 3: The Casino Data Structure — Skip Lists</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_4.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 4: When the Library Overflows — B-Trees on Disk</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_5.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 5: The Write-Heavy Problem — LSM Trees</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_6.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 6: Good Enough Answers — Probabilistic Data Structures</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">String Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_7.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 7: Does This File Contain That Word? — Exact String Matching</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_8.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 8: The Repeating Pattern — Rabin-Karp and Rolling Hashes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_9.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 9: The Fuzzy Match — Edit Distance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_10.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 10: Autocomplete — Tries</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_11.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 11: What Regex Actually Is — Finite Automata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_12.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 12: The Compression Game — Huffman and LZ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_13.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 13: The Suffix Array</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_14.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sorting at Scale</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_15.html" class="sidebar-item-text sidebar-link active"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_16.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Concurrency-Aware Structures</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_17.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 17: The Broken Counter — Memory Models and Visibility</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_18.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 18: The Lock-Free Queue — CAS in Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_19.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 19: The Concurrent Map — Stripe Locking and Beyond</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_20.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 20: Immutability as a Concurrency Strategy — Persistent Structures</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./chapter_21.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Chapter 21: Message Passing — Channels and the CSP Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_a.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix A: Complexity and Memory Cheat Sheet</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendix_b.html" class="sidebar-item-text sidebar-link"><span class="chapter-title">Appendix B: Annotated Bibliography</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-core-idea" id="toc-the-core-idea" class="nav-link active" data-scroll-target="#the-core-idea">15.1 The Core Idea</a></li>
+  <li><a href="#partitioning-lomuto-and-hoare" id="toc-partitioning-lomuto-and-hoare" class="nav-link" data-scroll-target="#partitioning-lomuto-and-hoare">15.2 Partitioning: Lomuto and Hoare</a>
+  <ul class="collapse">
+  <li><a href="#lomuto-partitioning" id="toc-lomuto-partitioning" class="nav-link" data-scroll-target="#lomuto-partitioning">Lomuto Partitioning</a></li>
+  <li><a href="#hoare-partitioning" id="toc-hoare-partitioning" class="nav-link" data-scroll-target="#hoare-partitioning">Hoare Partitioning</a></li>
+  <li><a href="#swap" id="toc-swap" class="nav-link" data-scroll-target="#swap">Swap</a></li>
+  </ul></li>
+  <li><a href="#the-basic-quicksort" id="toc-the-basic-quicksort" class="nav-link" data-scroll-target="#the-basic-quicksort">15.3 The Basic Quicksort</a></li>
+  <li><a href="#the-pivot-choice-problem" id="toc-the-pivot-choice-problem" class="nav-link" data-scroll-target="#the-pivot-choice-problem">15.4 The Pivot Choice Problem</a>
+  <ul class="collapse">
+  <li><a href="#solution-randomised-pivot" id="toc-solution-randomised-pivot" class="nav-link" data-scroll-target="#solution-randomised-pivot">Solution: Randomised Pivot</a></li>
+  <li><a href="#solution-median-of-three" id="toc-solution-median-of-three" class="nav-link" data-scroll-target="#solution-median-of-three">Solution: Median-of-Three</a></li>
+  </ul></li>
+  <li><a href="#the-equal-elements-problem-three-way-partitioning" id="toc-the-equal-elements-problem-three-way-partitioning" class="nav-link" data-scroll-target="#the-equal-elements-problem-three-way-partitioning">15.5 The Equal Elements Problem: Three-Way Partitioning</a></li>
+  <li><a href="#the-small-partition-problem-insertion-sort-cutoff" id="toc-the-small-partition-problem-insertion-sort-cutoff" class="nav-link" data-scroll-target="#the-small-partition-problem-insertion-sort-cutoff">15.6 The Small Partition Problem: Insertion Sort Cutoff</a></li>
+  <li><a href="#introsort-the-real-world-solution" id="toc-introsort-the-real-world-solution" class="nav-link" data-scroll-target="#introsort-the-real-world-solution">15.7 Introsort: The Real World Solution</a></li>
+  <li><a href="#stability-and-when-it-matters" id="toc-stability-and-when-it-matters" class="nav-link" data-scroll-target="#stability-and-when-it-matters">15.8 Stability and When It Matters</a></li>
+  <li><a href="#a-generic-introsort-in-nex" id="toc-a-generic-introsort-in-nex" class="nav-link" data-scroll-target="#a-generic-introsort-in-nex">15.9 A Generic Introsort in Nex</a></li>
+  <li><a href="#benchmarking-where-quicksort-wins-and-loses" id="toc-benchmarking-where-quicksort-wins-and-loses" class="nav-link" data-scroll-target="#benchmarking-where-quicksort-wins-and-loses">15.10 Benchmarking: Where Quicksort Wins and Loses</a></li>
+  <li><a href="#parallel-quicksort" id="toc-parallel-quicksort" class="nav-link" data-scroll-target="#parallel-quicksort">15.11 Parallel Quicksort</a></li>
+  <li><a href="#when-not-to-use-quicksort" id="toc-when-not-to-use-quicksort" class="nav-link" data-scroll-target="#when-not-to-use-quicksort">15.12 When Not to Use Quicksort</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">15.13 Where This Lives in the Wild</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./chapter_15.html">Sorting at Scale</a></li><li class="breadcrumb-item"><a href="./chapter_15.html"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-title">Chapter 15: Quicksort — The Practical Champion</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<hr>
+<p>In 1959, Tony Hoare was a twenty-five-year-old working on a machine translation project in Moscow. He needed to sort a list of Russian words so that their translations could be looked up efficiently. He knew about insertion sort and bubble sort — the standard methods of the time — but they were too slow for his purposes. On a bus ride, he thought of a different approach. He called it quicksort.</p>
+<p>Hoare’s algorithm is still the dominant general-purpose sorting algorithm sixty-five years later. Java’s <code>Arrays.sort</code> uses it for primitive types. C’s <code>qsort</code> is typically a variant of it. Python’s <code>sorted</code> uses Timsort, a hybrid that includes insertion sort, but Timsort’s performance characteristics were derived by studying quicksort’s behavior. Rust’s <code>sort_unstable</code> uses pattern-defeating quicksort. The algorithm that appeared to a young researcher on a Moscow bus is in the standard library of virtually every mainstream programming language in existence.</p>
+<p>Why? Not because quicksort is theoretically optimal — merge sort achieves the same O(n log n) average case with a better worst case. Not because it is the simplest to implement — insertion sort is simpler. Quicksort dominates because it is fast in practice, in the way that matters most: on real hardware, on real data, in real memory.</p>
+<p>This chapter explains why quicksort wins in practice, how its simple idea degrades catastrophically on certain inputs, how decades of engineering have addressed those degradations, and what the resulting standard library implementations actually look like. By the end, you will understand not just quicksort but the engineering discipline of taking a theoretically imperfect algorithm and making it reliably fast.</p>
+<hr>
+<section id="the-core-idea" class="level2">
+<h2 class="anchored" data-anchor-id="the-core-idea">15.1 The Core Idea</h2>
+<p>Quicksort is a divide-and-conquer algorithm. Its central operation is partitioning: rearrange the array so that all elements smaller than some chosen pivot are to the left, all elements larger are to the right, and the pivot is in its final sorted position. Then recursively sort the left and right partitions.</p>
+<p>The elegance is in what partitioning achieves: without knowing anything about where elements belong in the final sorted order, it places one element — the pivot — exactly where it belongs. Every call to partition makes permanent progress.</p>
+<p>Contrast with merge sort: merge sort divides the array in half, sorts each half recursively, then merges. The merge step does useful work, but it requires extra memory proportional to the array size. Quicksort partitions in place — it rearranges elements within the existing array using O(1) extra memory, just a few temporary variables for swapping.</p>
+<p>This in-place property is why quicksort has better cache behavior than merge sort. Merge sort’s merge step reads from one buffer and writes to another, accessing two distinct memory regions alternately. Quicksort’s partition step scans the array from both ends toward the center, accessing a single contiguous region in a predictable pattern. On modern hardware, where a cache miss to main memory costs 100-300x a cache hit, this difference is decisive.</p>
+<hr>
+</section>
+<section id="partitioning-lomuto-and-hoare" class="level2">
+<h2 class="anchored" data-anchor-id="partitioning-lomuto-and-hoare">15.2 Partitioning: Lomuto and Hoare</h2>
+<p>There are two main partitioning schemes, with meaningfully different properties.</p>
+<section id="lomuto-partitioning" class="level3">
+<h3 class="anchored" data-anchor-id="lomuto-partitioning">Lomuto Partitioning</h3>
+<p>Lomuto’s scheme (attributed to Nico Lomuto, popularised by Sedgewick) uses a single scanning pointer. The pivot is chosen as the last element. A boundary pointer <code>i</code> tracks the boundary between elements known to be smaller than the pivot (left of <code>i</code>) and unexamined elements. A scanning pointer <code>j</code> walks left to right; when it finds an element smaller than the pivot, that element is swapped to position <code>i</code> and <code>i</code> advances.</p>
+<pre><code>function lomuto_partition(arr: Array[Integer],
+                           low: Integer,
+                           high: Integer): Integer
+  require
+    valid_range: low &gt;= 0 and high &lt; arr.length and low &lt;= high
+  do
+    let pivot: Integer := arr.get(high)
+    let i: Integer := low - 1  -- boundary: all arr[low..i] &lt; pivot
+
+    from
+      let j: Integer := low
+    until
+      j &gt;= high
+    do
+      if arr.get(j) &lt;= pivot then
+        i := i + 1
+        swap(arr, i, j)
+      end
+      j := j + 1
+    end
+
+    -- Place pivot in its final position
+    swap(arr, i + 1, high)
+    result := i + 1  -- pivot's final position
+  end</code></pre>
+<p>Lomuto is simple and correct. Its weakness: when many elements equal the pivot, many unnecessary swaps occur. On an array of all equal elements, Lomuto performs O(n²) swaps.</p>
+</section>
+<section id="hoare-partitioning" class="level3">
+<h3 class="anchored" data-anchor-id="hoare-partitioning">Hoare Partitioning</h3>
+<p>Hoare’s original scheme uses two pointers scanning from opposite ends. The left pointer advances until it finds an element ≥ pivot. The right pointer retreats until it finds an element ≤ pivot. The two elements are swapped. Repeat until the pointers cross.</p>
+<pre><code>function hoare_partition(arr: Array[Integer],
+                          low: Integer,
+                          high: Integer): Integer
+  require
+    valid_range: low &gt;= 0 and high &lt; arr.length and low &lt;= high
+  do
+    let pivot: Integer := arr.get(low + (high - low) / 2)
+    let i: Integer := low - 1
+    let j: Integer := high + 1
+
+    from until false do
+      -- Advance i until arr[i] &gt;= pivot
+      from
+        i := i + 1
+      until
+        arr.get(i) &gt;= pivot
+      do
+      end
+
+      -- Retreat j until arr[j] &lt;= pivot
+      from
+        j := j - 1
+      until
+        arr.get(j) &lt;= pivot
+      do
+      end
+
+      -- If pointers have crossed, partitioning is complete
+      if i &gt;= j then
+        result := j
+        return
+      end
+
+      swap(arr, i, j)
+    end
+  end</code></pre>
+<p>Hoare’s scheme performs fewer swaps than Lomuto on typical inputs — about three times fewer — and handles equal elements better. The pivot ends up somewhere in the middle of the array (not necessarily at exactly j or j+1), and both partitions are non-empty as long as the array has at least two elements. Hoare’s partition is the basis of most practical quicksort implementations.</p>
+</section>
+<section id="swap" class="level3">
+<h3 class="anchored" data-anchor-id="swap">Swap</h3>
+<pre><code>function swap(arr: Array[Integer], i: Integer, j: Integer)
+  require
+    valid_i: i &gt;= 0 and i &lt; arr.length
+    valid_j: j &gt;= 0 and j &lt; arr.length
+  do
+    let temp: Integer := arr.get(i)
+    arr.set(i, arr.get(j))
+    arr.set(j, temp)
+  end</code></pre>
+<hr>
+</section>
+</section>
+<section id="the-basic-quicksort" class="level2">
+<h2 class="anchored" data-anchor-id="the-basic-quicksort">15.3 The Basic Quicksort</h2>
+<pre><code>function quicksort(arr: Array[Integer],
+                   low: Integer,
+                   high: Integer) do
+  if low &lt; high then
+    let p: Integer := hoare_partition(arr, low, high)
+    quicksort(arr, low, p)
+    quicksort(arr, p + 1, high)
+  end
+end
+
+function sort(arr: Array[Integer]) do
+  if arr.length &gt; 1 then
+    quicksort(arr, 0, arr.length - 1)
+  end
+end</code></pre>
+<p>This is correct. On random input, it runs in O(n log n) expected time. It sorts in place using O(log n) stack space for recursion.</p>
+<p>Now let us understand exactly why it sometimes fails catastrophically, and how to fix each failure mode.</p>
+<hr>
+</section>
+<section id="the-pivot-choice-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-pivot-choice-problem">15.4 The Pivot Choice Problem</h2>
+<p>Quicksort’s performance depends entirely on how well the pivot splits the array. A perfect pivot — the median of the array — splits it exactly in half every time, giving O(n log n) recursion depth. A catastrophic pivot — the minimum or maximum — splits into partitions of size 0 and n-1, giving O(n²) total work and O(n) recursion depth.</p>
+<p>The basic implementation above chooses the middle element as pivot. On random data, this is essentially random, which works well in expectation. On structured data — already sorted, reverse sorted, or containing many duplicates — it can be catastrophic.</p>
+<p><strong>Already sorted input.</strong> If the array is [1, 2, 3, 4, 5, …, n] and we pick the middle element as pivot, partition gives roughly equal splits. But many real-world quicksort implementations pick the first or last element as pivot. Then sorted input gives the worst case: every partition produces one empty partition and one of size n-1.</p>
+<p><strong>Nearly sorted input.</strong> Real data is often nearly sorted — logs are timestamp-ordered, names are nearly alphabetical, files are already somewhat organised. The basic quicksort degrades badly on this very common case.</p>
+<p><strong>All equal elements.</strong> An array of identical values causes both Lomuto and basic Hoare to produce maximally unbalanced partitions. O(n²) even on trivial input.</p>
+<section id="solution-randomised-pivot" class="level3">
+<h3 class="anchored" data-anchor-id="solution-randomised-pivot">Solution: Randomised Pivot</h3>
+<p>The simplest fix: choose the pivot randomly. A random element is unlikely to be near the minimum or maximum, so a random pivot gives expected O(n log n) regardless of input order.</p>
+<pre><code>function randomised_partition(arr: Array[Integer],
+                               low: Integer,
+                               high: Integer): Integer do
+  let pivot_index: Integer := low + random_integer() % (high - low + 1)
+  swap(arr, pivot_index, low + (high - low) / 2)
+  result := hoare_partition(arr, low, high)
+end</code></pre>
+<p>Randomised quicksort has expected O(n log n) time for any input. The adversary cannot craft a worst-case input because they do not know which element will be chosen as pivot. This is essentially the same principle as skip lists — internal randomness defeats adversarial inputs.</p>
+</section>
+<section id="solution-median-of-three" class="level3">
+<h3 class="anchored" data-anchor-id="solution-median-of-three">Solution: Median-of-Three</h3>
+<p>A deterministic alternative: choose the median of the first, middle, and last elements as pivot. This costs three comparisons but avoids the common worst cases without the unpredictability of true randomness.</p>
+<pre><code>function median_of_three(arr: Array[Integer],
+                          low: Integer,
+                          high: Integer): Integer do
+  let mid: Integer := low + (high - low) / 2
+
+  -- Sort low, mid, high into order
+  if arr.get(low) &gt; arr.get(mid) then
+    swap(arr, low, mid)
+  end
+  if arr.get(low) &gt; arr.get(high) then
+    swap(arr, low, high)
+  end
+  if arr.get(mid) &gt; arr.get(high) then
+    swap(arr, mid, high)
+  end
+
+  -- arr[low] &lt;= arr[mid] &lt;= arr[high]
+  -- Use arr[mid] as pivot, move it to high-1 for Lomuto-style
+  swap(arr, mid, high - 1)
+  result := high - 1  -- index of pivot
+end</code></pre>
+<p>Median-of-three eliminates the sorted and reverse-sorted worst cases. It does not fully solve the all-equal-elements case — that requires a different partitioning scheme.</p>
+<hr>
+</section>
+</section>
+<section id="the-equal-elements-problem-three-way-partitioning" class="level2">
+<h2 class="anchored" data-anchor-id="the-equal-elements-problem-three-way-partitioning">15.5 The Equal Elements Problem: Three-Way Partitioning</h2>
+<p>Consider sorting an array where 90% of elements have the same value. Basic quicksort, even with good pivot selection, still processes all equal elements at every level of recursion. Djikstra’s three-way partitioning (also called Dutch National Flag partitioning, named after Dijkstra’s famous problem) solves this.</p>
+<p>Three-way partitioning divides the array into three sections: elements less than pivot, elements equal to pivot, elements greater than pivot. Equal elements are excluded from both recursive calls — they are already in their final positions.</p>
+<pre><code>-- Three-way partition: returns [lt, gt] where
+-- arr[low..lt-1] &lt; pivot
+-- arr[lt..gt] = pivot
+-- arr[gt+1..high] &gt; pivot
+function three_way_partition(arr: Array[Integer],
+                              low: Integer,
+                              high: Integer): Array[Integer]
+  require
+    valid_range: low &gt;= 0 and high &lt; arr.length and low &lt;= high
+  do
+    let pivot: Integer := arr.get(low + (high - low) / 2)
+    let lt: Integer := low     -- arr[low..lt-1] &lt; pivot
+    let gt: Integer := high    -- arr[gt+1..high] &gt; pivot
+    let i: Integer := low      -- arr[lt..i-1] = pivot, arr[i..gt] unexamined
+
+    from until i &gt; gt do
+      if arr.get(i) &lt; pivot then
+        swap(arr, lt, i)
+        lt := lt + 1
+        i := i + 1
+      elseif arr.get(i) &gt; pivot then
+        swap(arr, i, gt)
+        gt := gt - 1
+        -- Do not advance i: arr[gt] just moved to arr[i] and is unexamined
+      else
+        i := i + 1
+      end
+    end
+
+    result := [lt, gt]
+  end
+
+function three_way_quicksort(arr: Array[Integer],
+                              low: Integer,
+                              high: Integer) do
+  if low &gt;= high then return end
+
+  let bounds: Array[Integer] := three_way_partition(arr, low, high)
+  let lt: Integer := bounds.get(0)
+  let gt: Integer := bounds.get(1)
+
+  three_way_quicksort(arr, low, lt - 1)
+  three_way_quicksort(arr, gt + 1, high)
+  -- No recursive call for arr[lt..gt] — all equal to pivot, already sorted
+end</code></pre>
+<p>On an array of all equal elements, three-way partitioning produces lt = low and gt = high after one pass, making zero recursive calls. O(n) total work. On general inputs, three-way quicksort matches standard quicksort’s O(n log n) performance while achieving O(n) on inputs with many equal elements.</p>
+<p>Three-way quicksort is also theoretically optimal in an information-theoretic sense: it performs O(n × H) comparisons where H is the entropy of the input’s value distribution. When values are uniformly distributed, H = log₂(n) and we get O(n log n). When values are highly repeated, H is small and we get closer to O(n). This is the optimal behavior — you cannot do better without additional assumptions about the input.</p>
+<hr>
+</section>
+<section id="the-small-partition-problem-insertion-sort-cutoff" class="level2">
+<h2 class="anchored" data-anchor-id="the-small-partition-problem-insertion-sort-cutoff">15.6 The Small Partition Problem: Insertion Sort Cutoff</h2>
+<p>Recursive algorithms have overhead: function call setup, stack frame allocation, bookkeeping. For large n, this overhead is negligible. For small n — say, n &lt; 16 — the overhead of recursive calls exceeds the actual sorting work.</p>
+<p>Insertion sort is O(n²) in general but has low overhead and good cache behavior for small arrays. It also exploits near-sortedness: for an array that is almost sorted, insertion sort runs in nearly O(n). After several levels of quicksort partitioning, each partition tends to be nearly sorted (elements are roughly in the right region), making insertion sort efficient for the final cleanup.</p>
+<p>The standard optimisation: use insertion sort for partitions of size below some threshold (typically 8-32 elements) and quicksort for larger partitions.</p>
+<pre><code>let INSERTION_SORT_THRESHOLD: Integer := 16
+
+function insertion_sort(arr: Array[Integer],
+                         low: Integer,
+                         high: Integer) do
+  from
+    let i: Integer := low + 1
+  until
+    i &lt;= high
+  do
+    let key: Integer := arr.get(i)
+    let j: Integer := i - 1
+    from until j &lt; low or arr.get(j) &lt;= key do
+      arr.set(j + 1, arr.get(j))
+      j := j - 1
+    end
+    arr.set(j + 1, key)
+    i := i + 1
+  end
+end
+
+function hybrid_quicksort(arr: Array[Integer],
+                           low: Integer,
+                           high: Integer) do
+  from until high - low &lt; INSERTION_SORT_THRESHOLD do
+    let bounds: Array[Integer] := three_way_partition(arr, low, high)
+    let lt: Integer := bounds.get(0)
+    let gt: Integer := bounds.get(1)
+
+    -- Tail call optimisation: recurse on smaller partition,
+    -- iterate on larger
+    if lt - 1 - low &lt; high - gt - 1 then
+      hybrid_quicksort(arr, low, lt - 1)
+      low := gt + 1
+    else
+      hybrid_quicksort(arr, gt + 1, high)
+      high := lt - 1
+    end
+  end
+
+  insertion_sort(arr, low, high)
+end</code></pre>
+<p>The tail call optimisation deserves explanation. Quicksort’s two recursive calls are not symmetric — one is larger than the other (or they are equal). If we always recurse on both, the maximum recursion depth is O(n) in the worst case (even with good pivot selection, a sequence of slightly unbalanced splits can exhaust the stack). The fix: always recurse on the smaller partition and iterate (tail-call optimise) on the larger. This bounds recursion depth at O(log n), preventing stack overflow even on adversarial inputs.</p>
+<hr>
+</section>
+<section id="introsort-the-real-world-solution" class="level2">
+<h2 class="anchored" data-anchor-id="introsort-the-real-world-solution">15.7 Introsort: The Real World Solution</h2>
+<p>The hybrid quicksort above handles most cases well. But there remains a theoretical vulnerability: even with median-of-three pivot selection and randomisation, it is possible (though unlikely) for quicksort to degrade to O(n²). For a general-purpose library sort, “unlikely” is not good enough. A standard library sort must handle every input correctly.</p>
+<p>Introsort (introspective sort), invented by David Musser in 1997, solves this by combining three algorithms:</p>
+<ol type="1">
+<li><strong>Quicksort</strong> for the general case (fast in practice)</li>
+<li><strong>Heapsort</strong> as a fallback when recursion depth exceeds 2 log₂(n) (guarantees O(n log n) worst case)</li>
+<li><strong>Insertion sort</strong> for small partitions (fast for small n)</li>
+</ol>
+<p>The key insight: when quicksort’s recursion depth exceeds a threshold, it is making poor pivot choices and heading toward O(n²) behavior. Switch to heapsort — O(n log n) guaranteed — for the remainder of the sort.</p>
+<p>Heapsort is slower than quicksort on typical inputs (worse cache behavior) but has a guaranteed O(n log n) worst case. By using heapsort only as a fallback, introsort gets quicksort’s typical speed with heapsort’s worst-case guarantee.</p>
+<pre><code>class Introsort
+  create
+    make() do end
+
+  feature
+    max_depth_factor(): Real do
+      result := 2.0
+    end
+
+    sort(arr: Array[Integer]) do
+      if arr.length &lt;= 1 then return end
+      let max_depth: Integer :=
+        (arr.length.to_real().log2() * max_depth_factor()).to_integer()
+      introsort(arr, 0, arr.length - 1, max_depth)
+    end
+
+    introsort(arr: Array[Integer],
+              low: Integer,
+              high: Integer,
+              depth_limit: Integer) do
+      let size: Integer := high - low + 1
+
+      if size &lt;= INSERTION_SORT_THRESHOLD then
+        insertion_sort(arr, low, high)
+        return
+      end
+
+      if depth_limit = 0 then
+        -- Depth limit exceeded: fall back to heapsort
+        heapsort(arr, low, high)
+        return
+      end
+
+      -- Choose pivot using median-of-three
+      let pivot_idx: Integer := median_of_three_index(arr, low, high)
+      swap(arr, pivot_idx, high)
+
+      -- Lomuto partition (simpler with pivot at high)
+      let p: Integer := lomuto_partition(arr, low, high)
+
+      introsort(arr, low, p - 1, depth_limit - 1)
+      introsort(arr, p + 1, high, depth_limit - 1)
+    end
+
+    median_of_three_index(arr: Array[Integer],
+                           low: Integer,
+                           high: Integer): Integer do
+      let mid: Integer := low + (high - low) / 2
+
+      if arr.get(low) &gt; arr.get(mid) then
+        if arr.get(mid) &gt; arr.get(high) then
+          result := mid
+        elseif arr.get(low) &gt; arr.get(high) then
+          result := high
+        else
+          result := low
+        end
+      else
+        if arr.get(low) &gt; arr.get(high) then
+          result := low
+        elseif arr.get(mid) &gt; arr.get(high) then
+          result := high
+        else
+          result := mid
+        end
+      end
+    end
+
+    -- Heapsort for fallback: O(n log n) guaranteed
+    heapsort(arr: Array[Integer],
+             low: Integer,
+             high: Integer) do
+      let n: Integer := high - low + 1
+
+      -- Build max-heap
+      from
+        let i: Integer := n / 2 - 1
+      until
+        i &gt;= 0
+      do
+        sift_down(arr, low, i, n)
+        i := i - 1
+      end
+
+      -- Extract elements one by one
+      from
+        let i: Integer := n - 1
+      until
+        i &gt; 0
+      do
+        swap(arr, low, low + i)
+        sift_down(arr, low, 0, i)
+        i := i - 1
+      end
+    end
+
+    sift_down(arr: Array[Integer],
+              base: Integer,
+              root: Integer,
+              size: Integer) do
+      from until true do
+        let largest: Integer := root
+        let left: Integer := 2 * root + 1
+        let right: Integer := 2 * root + 2
+
+        if left &lt; size and arr.get(base + left) &gt; arr.get(base + largest) then
+          largest := left
+        end
+
+        if right &lt; size and arr.get(base + right) &gt; arr.get(base + largest) then
+          largest := right
+        end
+
+        if largest = root then
+          return
+        end
+
+        swap(arr, base + root, base + largest)
+        root := largest
+      end
+    end
+
+  invariant
+    stateless_sorter: true
+end</code></pre>
+<p>Introsort’s guarantees: - O(n log n) worst case (heapsort fallback) - O(n log n) average case (quicksort dominates) - O(n) for nearly sorted input with insertion sort for small partitions - O(log n) stack space (tail call optimisation prevents deep recursion)</p>
+<p>This is why introsort is the algorithm standard libraries ship. It is not theoretically perfect — merge sort has a better worst case and is stable — but it is the right tradeoff for a general-purpose sort that must be fast on all inputs without requiring extra memory.</p>
+<hr>
+</section>
+<section id="stability-and-when-it-matters" class="level2">
+<h2 class="anchored" data-anchor-id="stability-and-when-it-matters">15.8 Stability and When It Matters</h2>
+<p>Introsort, like all variants of quicksort, is <strong>unstable</strong>: equal elements may appear in any order in the output, not necessarily the order they appeared in the input.</p>
+<p>Stability matters when you sort by one key and want a previous sort by another key to be preserved. Example: sort a list of employees by department, then sort the result by salary. A stable sort preserves department order within each salary tier. An unstable sort scrambles the department order.</p>
+<p>For primitive types (integers, floating point), stability is irrelevant — equal elements are indistinguishable. This is why Java uses introsort for primitive type arrays (<code>Arrays.sort(int[])</code>) but uses a stable merge sort for object arrays (<code>Arrays.sort(Object[])</code>).</p>
+<p>If you need a stable sort for integers or simple records, merge sort is the right choice. If you are sorting objects and need stability, either use merge sort or implement a stable variant of quicksort using an auxiliary array for the partition step (which loses the in-place property).</p>
+<hr>
+</section>
+<section id="a-generic-introsort-in-nex" class="level2">
+<h2 class="anchored" data-anchor-id="a-generic-introsort-in-nex">15.9 A Generic Introsort in Nex</h2>
+<p>The implementations above sort integers. A practical sort must handle any type with a comparison function.</p>
+<pre><code>class Generic_Introsort [T]
+  create
+    make(compare: Function[T, T, Integer]) do
+      this.compare := compare
+    end
+
+  feature
+    compare: Function[T, T, Integer]
+    -- compare(a, b) returns negative if a &lt; b, 0 if a = b, positive if a &gt; b
+
+    sort(arr: Array[T]) do
+      if arr.length &lt;= 1 then return end
+      let max_depth: Integer :=
+        (arr.length.to_real().log2() * 2.0).to_integer()
+      do_introsort(arr, 0, arr.length - 1, max_depth)
+    end
+
+    do_introsort(arr: Array[T],
+                 low: Integer,
+                 high: Integer,
+                 depth_limit: Integer) do
+      from until high - low &lt; INSERTION_SORT_THRESHOLD do
+        if depth_limit = 0 then
+          do_heapsort(arr, low, high)
+          return
+        end
+
+        -- Median-of-three pivot selection
+        let mid: Integer := low + (high - low) / 2
+        sort_three(arr, low, mid, high)
+        -- arr[low] &lt;= arr[mid] &lt;= arr[high]
+        -- Use arr[mid] as pivot
+        swap(arr, mid, high - 1)
+        let pivot: T := arr.get(high - 1)
+
+        -- Three-way partition
+        let lt: Integer := low
+        let gt: Integer := high - 1
+        let i: Integer := low
+
+        from until i &gt; gt do
+          let cmp: Integer := compare(arr.get(i), pivot)
+          if cmp &lt; 0 then
+            swap(arr, lt, i)
+            lt := lt + 1
+            i := i + 1
+          elseif cmp &gt; 0 then
+            swap(arr, i, gt)
+            gt := gt - 1
+          else
+            i := i + 1
+          end
+        end
+
+        -- Restore pivot
+        swap(arr, gt, high - 1)
+
+        -- Tail call optimise: iterate on larger partition
+        depth_limit := depth_limit - 1
+        if lt - low &lt; high - gt then
+          do_introsort(arr, low, lt - 1, depth_limit)
+          low := gt + 1
+        else
+          do_introsort(arr, gt + 1, high, depth_limit)
+          high := lt - 1
+        end
+      end
+
+      do_insertion_sort(arr, low, high)
+    end
+
+    sort_three(arr: Array[T], a: Integer, b: Integer, c: Integer) do
+      if compare(arr.get(a), arr.get(b)) &gt; 0 then swap(arr, a, b) end
+      if compare(arr.get(a), arr.get(c)) &gt; 0 then swap(arr, a, c) end
+      if compare(arr.get(b), arr.get(c)) &gt; 0 then swap(arr, b, c) end
+    end
+
+    do_insertion_sort(arr: Array[T], low: Integer, high: Integer) do
+      from
+        let i: Integer := low + 1
+      until
+        i &lt;= high
+      do
+        let key: T := arr.get(i)
+        let j: Integer := i - 1
+        from until j &lt; low or compare(arr.get(j), key) &lt;= 0 do
+          arr.set(j + 1, arr.get(j))
+          j := j - 1
+        end
+        arr.set(j + 1, key)
+        i := i + 1
+      end
+    end
+
+    do_heapsort(arr: Array[T], low: Integer, high: Integer) do
+      let n: Integer := high - low + 1
+      from
+        let i: Integer := n / 2 - 1
+      until
+        i &gt;= 0
+      do
+        do_sift_down(arr, low, i, n)
+        i := i - 1
+      end
+      from
+        let i: Integer := n - 1
+      until
+        i &gt; 0
+      do
+        swap(arr, low, low + i)
+        do_sift_down(arr, low, 0, i)
+        i := i - 1
+      end
+    end
+
+    do_sift_down(arr: Array[T],
+                 base: Integer,
+                 root: Integer,
+                 size: Integer) do
+      from until true do
+        let largest: Integer := root
+        let left: Integer := 2 * root + 1
+        let right: Integer := 2 * root + 2
+        if left &lt; size and
+           compare(arr.get(base + left), arr.get(base + largest)) &gt; 0 then
+          largest := left
+        end
+        if right &lt; size and
+           compare(arr.get(base + right), arr.get(base + largest)) &gt; 0 then
+          largest := right
+        end
+        if largest = root then return end
+        swap(arr, base + root, base + largest)
+        root := largest
+      end
+    end
+
+    swap(arr: Array[T], i: Integer, j: Integer) do
+      let temp: T := arr.get(i)
+      arr.set(i, arr.get(j))
+      arr.set(j, temp)
+    end
+
+  invariant
+    compare_exists: compare /= nil
+end</code></pre>
+<p>Using the generic sort:</p>
+<pre><code>-- Sort integers
+let int_sorter: Generic_Introsort[Integer] :=
+  create Generic_Introsort[Integer].make(
+    fn(a: Integer, b: Integer): Integer do result := a - b end)
+
+let nums: Array[Integer] := [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]
+int_sorter.sort(nums)
+print(nums.to_string())  -- [1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 9]
+
+-- Sort strings
+let str_sorter: Generic_Introsort[String] :=
+  create Generic_Introsort[String].make(
+    fn(a: String, b: String): Integer do result := a.compare_to(b) end)
+
+let words: Array[String] := ["banana", "apple", "cherry", "date"]
+str_sorter.sort(words)
+print(words.to_string())  -- [apple, banana, cherry, date]
+
+-- Sort records by field
+class Person
+  create
+    make(name: String, age: Integer) do
+      this.name := name
+      this.age := age
+    end
+  feature
+    name: String
+    age: Integer
+end
+
+let person_sorter: Generic_Introsort[Person] :=
+  create Generic_Introsort[Person].make(
+    fn(a: Person, b: Person): Integer do result := a.age - b.age end)
+
+let people: Array[Person] := [
+  create Person.make("Alice", 30),
+  create Person.make("Bob", 25),
+  create Person.make("Carol", 35)
+]
+person_sorter.sort(people)
+across people as p do
+  print(p.name + ": " + p.age.to_string())
+end
+-- Bob: 25
+-- Alice: 30
+-- Carol: 35</code></pre>
+<hr>
+</section>
+<section id="benchmarking-where-quicksort-wins-and-loses" class="level2">
+<h2 class="anchored" data-anchor-id="benchmarking-where-quicksort-wins-and-loses">15.10 Benchmarking: Where Quicksort Wins and Loses</h2>
+<p>Understanding when to use introsort versus alternatives requires knowing the constants behind the asymptotic bounds.</p>
+<pre><code>class Sort_Benchmark
+  create
+    make() do end
+
+  feature
+    run(n: Integer) do
+      let random_data: Array[Integer] := generate_random(n)
+      let sorted_data: Array[Integer] := generate_sorted(n)
+      let reverse_data: Array[Integer] := generate_reverse(n)
+      let equal_data: Array[Integer] := generate_equal(n)
+      let nearly_sorted: Array[Integer] := generate_nearly_sorted(n)
+
+      let sorter: Generic_Introsort[Integer] :=
+        create Generic_Introsort[Integer].make(
+          fn(a: Integer, b: Integer): Integer do result := a - b end)
+
+      print("n = " + n.to_string())
+      benchmark("Random",        sorter, random_data.copy())
+      benchmark("Sorted",        sorter, sorted_data.copy())
+      benchmark("Reverse sorted",sorter, reverse_data.copy())
+      benchmark("All equal",     sorter, equal_data.copy())
+      benchmark("Nearly sorted", sorter, nearly_sorted.copy())
+    end
+
+    benchmark(name: String,
+              sorter: Generic_Introsort[Integer],
+              data: Array[Integer]) do
+      let start: Integer64 := current_time_microseconds()
+      sorter.sort(data)
+      let elapsed: Integer64 := current_time_microseconds() - start
+      print("  " + name + ": " + elapsed.to_string() + "μs")
+      assert_sorted(data)
+    end
+
+    assert_sorted(arr: Array[Integer]) do
+      from
+        let i: Integer := 1
+      until
+        i &gt;= arr.length
+      do
+        if arr.get(i) &lt; arr.get(i - 1) then
+          print("  ERROR: not sorted at position " + i.to_string())
+          return
+        end
+        i := i + 1
+      end
+    end
+
+    generate_random(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := []
+      repeat n do arr.add(random_integer() % n) end
+      result := arr
+    end
+
+    generate_sorted(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := []
+      from
+        let i: Integer := 0
+      until
+        i &gt;= n
+      do
+        arr.add(i)
+        i := i + 1
+      end
+      result := arr
+    end
+
+    generate_reverse(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := []
+      from
+        let i: Integer := n - 1
+      until
+        i &gt;= 0
+      do
+        arr.add(i)
+        i := i - 1
+      end
+      result := arr
+    end
+
+    generate_equal(n: Integer): Array[Integer] do
+      result := create Array.filled(n, 42)
+    end
+
+    generate_nearly_sorted(n: Integer): Array[Integer] do
+      let arr: Array[Integer] := generate_sorted(n)
+      -- Swap 1% of elements randomly
+      repeat n / 100 do
+        let i: Integer := random_integer() % n
+        let j: Integer := random_integer() % n
+        swap(arr, i, j)
+      end
+      result := arr
+    end
+end</code></pre>
+<p>Expected results for n = 1,000,000 on modern hardware (approximate):</p>
+<pre><code>n = 1000000
+  Random:         85ms    (reference case)
+  Sorted:         45ms    (insertion sort handles small partitions fast)
+  Reverse sorted: 48ms    (median-of-three handles this well)
+  All equal:      12ms    (three-way partitioning: O(n))
+  Nearly sorted:  50ms    (slightly better than random)</code></pre>
+<p>Compare to what naive quicksort (first element pivot, no three-way) gives:</p>
+<pre><code>  Sorted:         &gt;10s    (O(n²) blowup)
+  All equal:      &gt;10s    (O(n²) blowup)</code></pre>
+<p>The engineering — median-of-three, three-way partitioning, insertion sort cutoff, depth limit — transforms a theoretically fragile algorithm into one that handles every case efficiently.</p>
+<hr>
+</section>
+<section id="parallel-quicksort" class="level2">
+<h2 class="anchored" data-anchor-id="parallel-quicksort">15.11 Parallel Quicksort</h2>
+<p>Quicksort’s divide-and-conquer structure maps naturally to parallel execution. After the first partition, the two subproblems are completely independent — they operate on disjoint portions of the array and can be sorted simultaneously on different CPU cores.</p>
+<pre><code>class Parallel_Introsort [T]
+  create
+    make(compare: Function[T, T, Integer],
+         parallelism_threshold: Integer) do
+      this.compare := compare
+      this.threshold := parallelism_threshold
+    end
+
+  feature
+    compare: Function[T, T, Integer]
+    threshold: Integer  -- minimum size to sort in parallel
+
+    sort(arr: Array[T]) do
+      let max_depth: Integer :=
+        (arr.length.to_real().log2() * 2.0).to_integer()
+      parallel_introsort(arr, 0, arr.length - 1, max_depth)
+    end
+
+    parallel_introsort(arr: Array[T],
+                       low: Integer,
+                       high: Integer,
+                       depth_limit: Integer) do
+      let size: Integer := high - low + 1
+
+      if size &lt;= INSERTION_SORT_THRESHOLD then
+        do_insertion_sort(arr, low, high)
+        return
+      end
+
+      if depth_limit = 0 then
+        do_heapsort(arr, low, high)
+        return
+      end
+
+      -- Partition
+      let bounds: Array[Integer] := three_way_partition_generic(
+        arr, low, high, compare)
+      let lt: Integer := bounds.get(0)
+      let gt: Integer := bounds.get(1)
+
+      -- Spawn parallel tasks for large partitions
+      if size &gt;= threshold then
+        let left_task: Task := spawn do
+          parallel_introsort(arr, low, lt - 1, depth_limit - 1)
+        end
+        parallel_introsort(arr, gt + 1, high, depth_limit - 1)
+        left_task.await
+      else
+        parallel_introsort(arr, low, lt - 1, depth_limit - 1)
+        parallel_introsort(arr, gt + 1, high, depth_limit - 1)
+      end
+    end
+end</code></pre>
+<p>The <code>spawn</code> and <code>await</code> here use Nex’s native task system from Chapter 21. Parallel quicksort achieves near-linear speedup on multi-core hardware for large arrays, since the partitioning at each level creates independent work that can be distributed across cores.</p>
+<p>The parallelism threshold prevents spawning tasks for tiny subproblems — the overhead of task creation exceeds the sorting work for small arrays. A threshold of 10,000-100,000 elements is typical.</p>
+<hr>
+</section>
+<section id="when-not-to-use-quicksort" class="level2">
+<h2 class="anchored" data-anchor-id="when-not-to-use-quicksort">15.12 When Not to Use Quicksort</h2>
+<p>Quicksort is the right default. It is not always the right choice.</p>
+<p><strong>When you need stability:</strong> use merge sort. Stable sort preserves the relative order of equal elements, which matters when sorting composite records by one field while preserving previous ordering by another.</p>
+<p><strong>When memory is extremely constrained:</strong> quicksort uses O(log n) stack space. This is usually negligible but matters for embedded systems. Heapsort uses O(1) extra space.</p>
+<p><strong>When the data is on disk:</strong> quicksort’s random access pattern is catastrophic for disk I/O. Chapter 16 addresses external sorting specifically.</p>
+<p><strong>When the data is a linked list:</strong> quicksort requires O(1) random access to the middle of the array (for median-of-three), which linked lists do not support. Merge sort on linked lists is O(n log n) with O(log n) stack space and no pointer chasing.</p>
+<p><strong>When worst-case matters more than average case and you cannot afford the heapsort fallback:</strong> merge sort guarantees O(n log n) for every input with no fallback needed. In real-time systems where latency spikes are unacceptable, merge sort’s consistent performance is preferable to introsort’s occasional heapsort fallback.</p>
+<p><strong>When the data is nearly sorted:</strong> Timsort (Python’s sort, Java’s object sort) is specifically optimised for nearly-sorted data by detecting and exploiting existing runs of sorted elements. For data that comes pre-sorted with occasional inversions — common in practical systems — Timsort can approach O(n) while introsort remains O(n log n).</p>
+<hr>
+</section>
+<section id="where-this-lives-in-the-wild" class="level2">
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">15.13 Where This Lives in the Wild</h2>
+<p><strong>C++ STL</strong> (<code>std::sort</code>) is required by the standard to be O(n log n) average case. All major implementations — GCC’s libstdc++, LLVM’s libc++, MSVC’s STL — use introsort. GCC’s implementation uses median-of-three pivot selection, three-way partitioning for equal elements, insertion sort for small partitions (threshold typically 16), and heapsort fallback at depth 2 log₂(n). The implementation in <code>&lt;algorithm&gt;</code> is roughly what this chapter describes.</p>
+<p><strong>Rust’s <code>sort_unstable</code></strong> uses pattern-defeating quicksort (pdqsort), invented by Orson Peters in 2016. Pdqsort extends introsort with pattern detection: it identifies inputs that are already sorted, reverse sorted, or have many equal elements, and handles them with specialised O(n) code paths before falling back to introsort. On random data, pdqsort matches introsort. On structured data, it can be 2-10x faster. Rust’s <code>sort</code> (stable) uses a merge sort variant.</p>
+<p><strong>Java’s <code>Arrays.sort(int[])</code></strong> uses dual-pivot quicksort, invented by Vladimir Yaroslavskiy in 2009. Dual-pivot quicksort uses two pivots to create three partitions: elements less than the smaller pivot, elements between the two pivots, and elements greater than the larger pivot. This reduces the expected number of comparisons by about 5% relative to single-pivot quicksort and has better cache behavior. Java’s implementation also includes insertion sort for small subarrays and a counting sort for arrays of byte values.</p>
+<p><strong>Go’s <code>sort.Ints</code></strong> (and the generic <code>slices.Sort</code> added in 1.21) uses pdqsort, the same algorithm as Rust. Go’s implementation is notable for explicitly handling the three common patterns (sorted, reverse, many equal) with O(n) detection before starting the general sort.</p>
+<p><strong>Redis’s <code>SORT</code> command</strong> uses quicksort for numeric sorts and a lexicographic variant for string sorts. Redis’s implementation is in <code>src/sort.c</code> — a straightforward introsort variant without some of the advanced patterns of the language standard libraries.</p>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Quicksort dominates general-purpose sorting because it is fast in practice: excellent cache behavior from in-place partitioning, low overhead per comparison, and adaptability to common input patterns.</p>
+<p>The naive implementation — first element pivot, basic partition, no fallback — has a O(n²) worst case on sorted and nearly-sorted input that is unacceptable for production use. Three engineering decisions transform it into a reliable general-purpose sort:</p>
+<p><strong>Pivot selection</strong> via median-of-three eliminates the worst cases that arise from sorted and reverse-sorted input, while randomisation protects against adversarial inputs that know the pivot selection strategy.</p>
+<p><strong>Three-way partitioning</strong> (Dijkstra’s Dutch National Flag) handles repeated elements efficiently. Instead of O(n²) on all-equal input, three-way quicksort achieves O(n). More generally, it achieves O(n × H) where H is the entropy of the input distribution — optimal for any sorting algorithm on that distribution.</p>
+<p><strong>Introsort</strong> combines quicksort’s typical performance with a heapsort fallback when recursion depth exceeds 2 log₂(n), guaranteeing O(n log n) worst case for any input. Insertion sort for partitions below a threshold of ~16 elements adds a final speed improvement by exploiting insertion sort’s low overhead and good cache behavior on small, nearly-sorted arrays.</p>
+<p>The result handles random data near the theoretical optimum, sorted and reverse-sorted data efficiently, all-equal data in linear time, and adversarial inputs without degradation. This is the algorithm in your standard library, doing its work invisibly on every call to sort.</p>
+<p>The next chapter removes the fundamental assumption that has held throughout Part IV: that the data fits in memory. When a dataset exceeds RAM — a 500GB log file on a machine with 8GB of RAM — none of the algorithms in this chapter apply. A completely different approach is required, and it connects directly back to the B-tree chapter and its understanding of disk I/O costs.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+(function () {
+  function adjustNumber(el) {
+    const text = el.textContent.trim();
+    const parts = text.split('.');
+    const chapterNum = Number(parts[0]);
+    if (!Number.isNaN(chapterNum) && chapterNum > 1) {
+      parts[0] = String(chapterNum - 1);
+      el.textContent = parts.join('.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Adjust chapter numbers in titles
+    document.querySelectorAll('.chapter-number').forEach(adjustNumber);
+    // Adjust section numbers in headers
+    document.querySelectorAll('.header-section-number').forEach(adjustNumber);
+    // Adjust section numbers in TOC
+    document.querySelectorAll('.toc-section-number').forEach(adjustNumber);
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./chapter_14.html" class="pagination-link" aria-label="Chapter 14: The Editor's Data Structure — Ropes and Piece Tables">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-title">Chapter 14: The Editor’s Data Structure — Ropes and Piece Tables</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./chapter_16.html" class="pagination-link" aria-label="Chapter 16: Sorting Bigger Than RAM — External Mergesort">
+        <span class="nav-page-text"><span class="chapter-title">Chapter 16: Sorting Bigger Than RAM — External Mergesort</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
