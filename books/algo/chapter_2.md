@@ -39,37 +39,56 @@ The binary search tree (BST) is the natural starting point. Every node stores a 
 In Nex:
 
 ```
-class Node [K, V]
-  create
-    make(key: K, value: V) do
-      this.key := key
-      this.value := value
-      this.left := nil
-      this.right := nil
-      this.height := 1
-    end
-  feature
-    key: K
-    value: ?V
-    left: ?Node[K, V]
-    right: ?Node[K, V]
-    height: Integer
+class Node [K -> Comparable, V]
+create
+  make(key: K, value: V) do
+    this.key := key
+    this.value := value
+    this.height := 1
+  end
+feature
+  key: K
+  value: ?V
+  left: ?Node[K, V]
+  right: ?Node[K, V]
+  height: Integer
+
+  set_value(v: V) do
+    this.value := v
+  end
+
+  set_left(n: ?Node[K, V]) do
+    this.left := n
+  end
+
+  set_right(n: ?Node[K, V]) do
+    this.right := n
+  end
+
+  set_height(h: Integer) do
+    this.height := h
+  end
 end
 ```
 
 Search is clean and recursive:
 
 ```
-function search(node: ?Node[K, V], key: K): ?V
+function search(node: ?Node[K, V], key: Comparable): ?V
 do
   if node = nil then
     result := nil
-  elseif key < node.key then
-    result := search(node.left, key)
-  elseif key > node.key then
-    result := search(node.right, key)
   else
-    result := node.value
+    do
+	  let c := key.compare(node.key)
+      if c < 0 then
+	    result := search(node.left, key)
+      elseif c > 0 then
+        result := search(node.right, key)
+      else
+        result := node.value
+      end
+	end
   end
 end
 ```
@@ -100,14 +119,18 @@ do
   result := when node = nil 0 else node.height end
 end
 
-function update_height(node: Node[K, V])
+function update_height(node: ?Node[K, V])
 do
-  node.height := 1 + height(node.left).max(height(node.right))
+  node?.set_height(1 + height(node?.left).max(height(node?.right)))
 end
 
-function balance_factor(node: Node[K, V]): Integer
+function balance_factor(node: ?Node[K, V]): Integer
 do
-  result := height(node.left) - height(node.right)
+  if node /= nil then
+    result := height(node.left) - height(node.right)
+  else
+    result := 0
+  end
 end
 ```
 
@@ -131,34 +154,40 @@ In Nex:
 
 ```
 function rotate_right(y: Node[K, V]): Node[K, V]
-  require
-    has_left_child: y.left /= nil
-  do
-    let x: Node[K, V] := y.left
+require
+  has_left_child: y.left /= nil
+do
+  if convert y.left to x: Node[K, V] then
     let b: ?Node[K, V] := x.right
-    x.right := y
-    y.left := b
+    x.set_right(y)
+    y.set_left(b)
     update_height(y)
     update_height(x)
     result := x
+  else
+    result := y
   end
+end
 ```
 
 A left rotation is the mirror image:
 
 ```
 function rotate_left(x: Node[K, V]): Node[K, V]
-  require
-    has_right_child: x.right /= nil
-  do
-    let y: Node[K, V] := x.right
+require
+  has_right_child: x.right /= nil
+do
+  if convert x.right to y: Node[K, V] then
     let b: ?Node[K, V] := y.left
-    y.left := x
-    x.right := b
-    update_height(x)
-    update_height(y)
-    result := y
+    y.set_left(x)
+	x.set_right(b)
+	update_height(x)
+	update_height(y)
+	result := y
+  else
+    result := x
   end
+end
 ```
 
 **The four imbalance cases.** After every insertion, we walk back up the tree checking balance factors. When we find a node with balance factor +2 or -2, we have an imbalance that must be fixed. There are exactly four cases, distinguished by where the imbalance originated.
@@ -185,8 +214,12 @@ do
 
   -- Left-Right
   elseif bf > 1 and balance_factor(node.left) < 0 then
-    node.left := rotate_left(node.left)
-    result := rotate_right(node)
+    if convert node.left to left_child: Node[K, V] then
+      node.set_left(rotate_left(left_child))
+      result := rotate_right(node)
+    else
+      result := node
+    end
 
   -- Right-Right
   elseif bf < -1 and balance_factor(node.right) <= 0 then
@@ -194,11 +227,30 @@ do
 
   -- Right-Left
   elseif bf < -1 and balance_factor(node.right) > 0 then
-    node.right := rotate_right(node.right)
-    result := rotate_left(node)
+    if convert node.right to right_child: Node[K, V] then
+      node.set_right(rotate_right(right_child))
+      result := rotate_left(node)
+    else
+      result := node
+    end
 
   else
     result := node
+  end
+end
+
+function is_balanced(node: ?Node[K, V]): Boolean
+do
+  if node = nil then
+    result := true
+  else 
+    let bf: Integer := balance_factor(node)
+
+    if bf < -1 or bf > 1 then
+      result := false
+    else
+      result := is_balanced(node.left) and is_balanced(node.right)
+    end
   end
 end
 ```
@@ -211,13 +263,13 @@ do
   if node = nil then
     result := create Node[K, V].make(key, value)
   elseif key < node.key then
-    node.left := insert(node.left, key, value)
+    node.set_left(insert(node.left, key, value))
     result := rebalance(node)
   elseif key > node.key then
-    node.right := insert(node.right, key, value)
+    node.set_right(insert(node.right, key, value))
     result := rebalance(node)
   else
-    node.value := value
+    node.set_value(value)
     result := node
   end
 end
@@ -229,16 +281,22 @@ The recursion descends to the insertion point, creates a leaf, then rebalances o
 
 ```
 function find_min(node: Node[K, V]): Node[K, V]
-do
-  result := when node.left = nil node else find_min(node.left) end
-end
+  do
+    if convert node.left to left_child: Node[K, V] then
+      result := find_min(left_child)
+    else
+      result := node
+    end
+  end
 
 function delete_min(node: Node[K, V]): ?Node[K, V]
 do
   if node.left = nil then
     result := node.right
   else
-    node.left := delete_min(node.left)
+    if convert node.left to left_child: Node[K, V] then
+      node.set_left(delete_min(left_child))
+	end
     result := rebalance(node)
   end
 end
@@ -248,22 +306,47 @@ do
   if node = nil then
     result := nil
   elseif key < node.key then
-    node.left := delete(node.left, key)
-    result := rebalance(node)
+    node.set_left(delete(node.left, key))
+	if convert node to n: Node[K, V] then
+      result := rebalance(n) 
+	else 
+	  result := node 
+    end
   elseif key > node.key then
-    node.right := delete(node.right, key)
-    result := rebalance(node)
+    node.set_right(delete(node.right, key))
+	if convert node to n: Node[K, V] then
+      result := rebalance(n) 
+	else 
+	  result := node
+	end
   else
     if node.right = nil then
       result := node.left
     elseif node.left = nil then
       result := node.right
-    else
-      let successor: Node[K, V] := find_min(node.right)
-      successor.right := delete_min(node.right)
-      successor.left := node.left
+    elseif convert node.right to right_child: Node[K, V] then
+      let successor: Node[K, V] := find_min(right_child)
+      successor.set_right(delete_min(right_child))
+      successor.set_left(node.left)
       result := rebalance(successor)
+	else
+	  result := nil
     end
+  end
+end
+```
+
+**Traversal.** To visit all keys in sorted-order we need to perform an in-order walk of the BST. It recursively visits the left subtree, 
+appends the current node’s key to result_arr, then visits the right subtree. Because AVL trees preserve BST ordering, this produces all keys in 
+sorted order in O(n) time.
+
+```
+function traverse(node: ?Node[K, V], result_arr: Array[K])
+do
+  if convert node to current: Node[K, V] then
+    traverse(current.left, result_arr)
+    result_arr.add(current.key)
+    traverse(current.right, result_arr)
   end
 end
 ```
@@ -272,52 +355,55 @@ end
 
 ```
 class AVL_Map [K -> Comparable, V]
-  create
-    empty() do
-      this.root := nil
-      this.count := 0
-    end
+create
+  empty() do
+    this.root := nil
+    this.count := 0
+  end
 
-  feature
-    root: ?Node[K, V]
-    count: Integer
+feature
+  root: ?Node[K, V]
+  count: Integer
 
-    get(key: K): ?V do
-      result := search(root, key)
-    end
+  get(key: K): ?V do
+    result := search(root, key)
+  end
 
-    put(key: K, value: V)
-      do
-        let was_present: Boolean := get(key) /= nil
-        root := insert(root, key, value)
-        if not was_present then
-          count := count + 1
-        end
-      ensure
-        key_present: get(key) /= nil
-        count_nondecreasing: count >= old count
+  put(key: K, value: V)
+    do
+      let was_present: Boolean := get(key) /= nil
+      root := insert(root, key, value)
+      if not was_present then
+        count := count + 1
       end
-
-    remove(key: K)
-      do
-        let was_present: Boolean := get(key) /= nil
-        root := delete(root, key)
-        if was_present then
-          count := count - 1
-        end
-      ensure
-        key_absent: get(key) = nil
-      end
-
-    in_order(): Array[K] do
-      let result_arr: Array[K] := []
-      traverse(root, result_arr)
-      result := result_arr
+    ensure
+      key_present: get(key) /= nil
+      count_nondecreasing: count >= old count
     end
 
-  invariant
-    non_negative_count: count >= 0
-    balanced: is_balanced(root)
+  remove(key: K)
+    do
+      let was_present: Boolean := get(key) /= nil
+      root := delete(root, key)
+      if was_present then
+        count := count - 1
+      end
+    ensure
+      key_absent: get(key) = nil
+    end
+
+  in_order(): Array[K] do
+    let result_arr: Array[K] := []
+    traverse(root, result_arr)
+    result := result_arr
+  end
+
+  is_balanced_tree(): Boolean do
+    result := is_balanced(root)
+  end
+invariant
+  non_negative_count: count >= 0
+  balanced: is_balanced_tree()
 end
 ```
 
@@ -355,25 +441,34 @@ This is slightly worse than AVL's 1.44 log₂(n), but the difference in practice
 
 ```
 class RB_Node [K, V]
-  create
-    make(key: K, value: V, red: Boolean) do
-      this.key := key
-      this.value := value
-      this.red := red
-      this.left := nil
-      this.right := nil
-    end
-  feature
-    key: K
-    value: ?V
-    red: Boolean
-    left: ?RB_Node[K, V]
-    right: ?RB_Node[K, V]
+create
+  make(key: K, value: V, red: Boolean) do
+    this.key := key
+    this.value := value
+    this.red := red
+    this.left := nil
+    this.right := nil
+  end
+feature
+  key: K
+  value: ?V
+  red: Boolean
+  left: ?RB_Node[K, V]
+  right: ?RB_Node[K, V]
+
+  mark_red(flag: Boolean) do this.red := flag end
+  set_left(n: ?RB_Node[K, V]) do this.left := n end
+  set_right(n: ?RB_Node[K, V]) do this.right := n end
+  set_value(v: V) do this.value := v end
 end
 
 function is_red(node: ?RB_Node[K, V]): Boolean
 do
-  result := node /= nil and node.red
+  if node /= nil then
+    result := node.red
+  else
+    result := false
+  end
 end
 ```
 
@@ -387,51 +482,56 @@ A colour flip is used when both children of a node are red — we push the redne
 
 ```
 function flip_colors(node: RB_Node[K, V])
-  require
-    both_children_red: is_red(node.left) and is_red(node.right)
-  do
-    node.red := true
-    if convert node.left to left_child: RB_Node[K, V] then
-      left_child.red := false
-    end
-    if convert node.right to right_child: RB_Node[K, V] then
-      right_child.red := false
-    end
+require
+  both_children_red: is_red(node.left) and is_red(node.right)
+do
+  node.mark_red(true)
+  if convert node.left to left_child: RB_Node[K, V] then
+    left_child.mark_red(false)
   end
+  if convert node.right to right_child: RB_Node[K, V] then
+    right_child.mark_red(false)
+  end
+end
 ```
 
 Insertion descends to the correct leaf, inserts a red node, then fixes violations on the way back up with a standard sequence of checks:
 
 ```
+function rb_insert_helper(node: RB_Node[K, V], key: K, value: V): RB_Node[K, V]
+do
+  if key < node.key then
+    node.set_left(rb_insert(node.left, key, value))
+  elseif key > node.key then
+    node.set_right(rb_insert(node.right, key, value))
+  else
+    node.set_value(value)
+  end
+  
+  -- Fix right-leaning red link
+  if is_red(node.right) and not is_red(node.left) then
+    node := rotate_left(node)
+  end
+
+  -- Fix two consecutive left reds
+  if is_red(node.left) and convert node.left to left_child: RB_Node[K, V] then
+    if is_red(left_child.left) then
+      node := rotate_right(node)
+    end
+  end
+
+  -- Split 4-nodes
+  if is_red(node.left) and is_red(node.right) then
+    flip_colors(node)
+  end
+end
+
 function rb_insert(node: ?RB_Node[K, V], key: K, value: V): RB_Node[K, V]
 do
   if node = nil then
     result := create RB_Node[K, V].make(key, value, true)
   else
-    if key < node.key then
-      node.left := rb_insert(node.left, key, value)
-    elseif key > node.key then
-      node.right := rb_insert(node.right, key, value)
-    else
-      node.value := value
-    end
-
-    -- Fix right-leaning red link
-    if is_red(node.right) and not is_red(node.left) then
-      node := rotate_left(node)
-    end
-
-    -- Fix two consecutive left reds
-    if is_red(node.left) and is_red(node.left.left) then
-      node := rotate_right(node)
-    end
-
-    -- Split 4-nodes
-    if is_red(node.left) and is_red(node.right) then
-      flip_colors(node)
-    end
-
-    result := node
+    result := rb_insert_helper(node, key, value)
   end
 end
 ```
@@ -439,10 +539,10 @@ end
 After insertion, the root is always set to black:
 
 ```
-function put(key: K, value: V)
+function put(root: ?RB_Node[K, V], key: K, value: V)
 do
-  root := rb_insert(root, key, value)
-  root.red := false
+  let node := rb_insert(root, key, value)
+  node.mark_red(false)
 end
 ```
 
