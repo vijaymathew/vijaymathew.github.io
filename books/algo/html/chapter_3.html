@@ -485,16 +485,18 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#the-problem-again" id="toc-the-problem-again" class="nav-link active" data-scroll-target="#the-problem-again">3.1 The Problem, Again</a></li>
   <li><a href="#from-sorted-linked-list-to-skip-list" id="toc-from-sorted-linked-list-to-skip-list" class="nav-link" data-scroll-target="#from-sorted-linked-list-to-skip-list">3.2 From Sorted Linked List to Skip List</a></li>
   <li><a href="#structure-and-invariants" id="toc-structure-and-invariants" class="nav-link" data-scroll-target="#structure-and-invariants">3.3 Structure and Invariants</a></li>
-  <li><a href="#random-level-generation" id="toc-random-level-generation" class="nav-link" data-scroll-target="#random-level-generation">3.4 Random Level Generation</a></li>
-  <li><a href="#search" id="toc-search" class="nav-link" data-scroll-target="#search">3.5 Search</a></li>
-  <li><a href="#insertion" id="toc-insertion" class="nav-link" data-scroll-target="#insertion">3.6 Insertion</a></li>
-  <li><a href="#deletion" id="toc-deletion" class="nav-link" data-scroll-target="#deletion">3.7 Deletion</a></li>
-  <li><a href="#range-queries" id="toc-range-queries" class="nav-link" data-scroll-target="#range-queries">3.8 Range Queries</a></li>
-  <li><a href="#the-probabilistic-analysis" id="toc-the-probabilistic-analysis" class="nav-link" data-scroll-target="#the-probabilistic-analysis">3.9 The Probabilistic Analysis</a></li>
-  <li><a href="#memory-and-the-probability-parameter" id="toc-memory-and-the-probability-parameter" class="nav-link" data-scroll-target="#memory-and-the-probability-parameter">3.10 Memory and the Probability Parameter</a></li>
-  <li><a href="#complete-skip-list-implementation" id="toc-complete-skip-list-implementation" class="nav-link" data-scroll-target="#complete-skip-list-implementation">3.11 Complete Skip List Implementation</a></li>
-  <li><a href="#skip-lists-vs-balanced-trees-the-honest-comparison" id="toc-skip-lists-vs-balanced-trees-the-honest-comparison" class="nav-link" data-scroll-target="#skip-lists-vs-balanced-trees-the-honest-comparison">3.12 Skip Lists vs Balanced Trees: The Honest Comparison</a></li>
-  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">3.13 Where This Lives in the Wild</a></li>
+  <li><a href="#search" id="toc-search" class="nav-link" data-scroll-target="#search">3.4 Search</a></li>
+  <li><a href="#insertion" id="toc-insertion" class="nav-link" data-scroll-target="#insertion">3.5 Insertion</a>
+  <ul class="collapse">
+  <li><a href="#random-level-generation" id="toc-random-level-generation" class="nav-link" data-scroll-target="#random-level-generation">Random Level Generation</a></li>
+  </ul></li>
+  <li><a href="#deletion" id="toc-deletion" class="nav-link" data-scroll-target="#deletion">3.6 Deletion</a></li>
+  <li><a href="#range-queries" id="toc-range-queries" class="nav-link" data-scroll-target="#range-queries">3.7 Range Queries</a></li>
+  <li><a href="#the-probabilistic-analysis" id="toc-the-probabilistic-analysis" class="nav-link" data-scroll-target="#the-probabilistic-analysis">3.8 The Probabilistic Analysis</a></li>
+  <li><a href="#memory-and-the-probability-parameter" id="toc-memory-and-the-probability-parameter" class="nav-link" data-scroll-target="#memory-and-the-probability-parameter">3.9 Memory and the Probability Parameter</a></li>
+  <li><a href="#complete-skip-list-implementation" id="toc-complete-skip-list-implementation" class="nav-link" data-scroll-target="#complete-skip-list-implementation">3.10 Complete Skip List Implementation</a></li>
+  <li><a href="#skip-lists-vs-balanced-trees-the-honest-comparison" id="toc-skip-lists-vs-balanced-trees-the-honest-comparison" class="nav-link" data-scroll-target="#skip-lists-vs-balanced-trees-the-honest-comparison">3.11 Skip Lists vs Balanced Trees: The Honest Comparison</a></li>
+  <li><a href="#where-this-lives-in-the-wild" id="toc-where-this-lives-in-the-wild" class="nav-link" data-scroll-target="#where-this-lives-in-the-wild">3.12 Where This Lives in the Wild</a></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
   </ul>
 </nav>
@@ -554,27 +556,30 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="structure-and-invariants">3.3 Structure and Invariants</h2>
 <p>A skip list consists of a header node and a maximum level, currently in use. Each node has a key, a value, and an array of forward pointers — one per level the node participates in. The header node participates in all levels and serves as the entry point for search at every level.</p>
 <pre><code>class Skip_Node [K, V]
-  create
-    make(key: ?K, value: ?V, level: Integer) do
-      this.key := key
-      this.value := value
-      this.forward := []
-      repeat level do
-        this.forward.add(nil)
-      end
+create
+  make(key: ?K, value: ?V, level: Integer) do
+    this.key := key
+    this.value := value
+    repeat level do
+      this.forward.add(nil)
     end
-  feature
-    key: ?K
-    value: ?V
-    forward: Array[?Skip_Node[K, V]]
+  end
+feature
+  key: ?K
+  value: ?V
+  forward: Array[?Skip_Node[K, V]]
 
-    set_value(new_value: V) do
-      value := new_value
-    end
+  set_key(new_key: K) do
+    key := new_key
+  end
 
-    level(): Integer do
-      result := forward.length
-    end
+  set_value(new_value: V) do
+    value := new_value
+  end
+
+  level(): Integer do
+    result := forward.length
+  end
 end</code></pre>
 <p>The header node has a nil key — it is a sentinel, never matched by any real search. Its forward array has length equal to the maximum level the skip list supports. We set a practical maximum of 32 levels, which is sufficient for datasets up to 2³² entries.</p>
 <pre><code>class Skip_List [K -&gt; Comparable, V]
@@ -600,44 +605,102 @@ end</code></pre>
 <p>The <code>probability</code> field controls the coin flip — 0.5 gives you the classic half-and-half distribution, resulting in expected O(log n) height. Values closer to 1 give taller structures with more levels but fewer nodes per level; values closer to 0 give shorter structures. Redis uses 0.25, trading a slightly larger constant factor in search time for lower memory use per node. We will return to this tradeoff.</p>
 <hr>
 </section>
-<section id="random-level-generation" class="level2">
-<h2 class="anchored" data-anchor-id="random-level-generation">3.4 Random Level Generation</h2>
-<p>The random level function is the heart of the skip list. It determines how high each new node reaches.</p>
-<pre class="text"><code>function random_level(max_level: Integer, probability: Real): Integer
-do
-  let level: Integer := 1
-  let done: Boolean := false
-  repeat max_level - 1 do
-    if not done then
-      if random_real() &lt; probability then
-        level := level + 1
-      else
-        -- stop as soon as the coin comes up tails
+<section id="search" class="level2">
+<h2 class="anchored" data-anchor-id="search">3.4 Search</h2>
+<p>Search is the operation that reveals why the multi-level structure works. The snippets below show only the relevant <code>Skip_List</code> members:</p>
+<pre class="nex"><code>class Skip_List [K -&gt; Comparable, V]
+feature
+  search(key: K): ?V do
+    let current: Skip_Node[K, V] := header
+    from
+      let level: Integer := current_level
+    until
+      level &lt; 1
+    do
+      from
+        let done: Boolean := false
+      until
+        done
+      do
         done := true
+        if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
+          if convert next_node.key to next_key: K then
+            if next_key.compare(key) &lt; 0 then
+              current := next_node
+              done := false
+            end
+          end
+        end
+      end
+      level := level - 1
+    end
+
+    result := nil
+    let candidate: ?Skip_Node[K, V] := current.forward.get(0)
+    if convert candidate to candidate_node: Skip_Node[K, V] then
+      if convert candidate_node.key to candidate_key: K then
+        if candidate_key.compare(key) = 0 then
+          result := candidate_node.value
+        end
       end
     end
   end
-  result := level
 end</code></pre>
-<p>With probability 0.5, this returns 1 half the time, 2 a quarter of the time, 3 an eighth of the time, and so on. The expected number of nodes at level k is n / 2^(k-1). The expected maximum level for n nodes is log₂(n). For a million nodes, expected maximum level is 20. The cap at <code>max_level</code> prevents pathological outcomes — without it, a very unlucky sequence of coin flips could create a node at level a thousand.</p>
-<p>Notice what is not happening here: no global state is consulted, no other nodes are modified, no rebalancing is triggered. The level is assigned independently of everything else in the structure. This local independence is the source of the skip list’s concurrency friendliness.</p>
+<p>Trace this on a concrete example. Suppose the skip list contains keys 3, 7, 12, 19, 26, 37, 55, and we are searching for 19.</p>
+<p>At the highest level, say level 3, suppose the forward pointers go 3 → 19 → 55. We advance past 3, stop before 19 (since 19 is not less than 19), and drop to level 2.</p>
+<p>At level 2, we are at node 3. Suppose level 2 forward pointers give us 3 → 7 → 19 → 37. We advance past 7, stop before 19, drop to level 1.</p>
+<p>At level 1, every node is present. We advance past 7, stop at 19 — which equals our target — and return its value.</p>
+<p>The key insight: at each level we eliminated large stretches of the list. At level 3 we skipped from 3 directly to the vicinity of 55. At level 2 we narrowed to the vicinity of 19. At level 1 we landed exactly. The total work was proportional to the number of levels, not the number of nodes.</p>
 <hr>
 </section>
-<section id="search" class="level2">
-<h2 class="anchored" data-anchor-id="search">3.5 Search</h2>
-<p>Search is the operation that reveals why the multi-level structure works. Start at the highest current level of the header. Walk forward as long as the next node’s key is less than the target key. When you cannot advance, drop down one level and continue. Repeat until you reach level 1 and either find the key or determine it is absent.</p>
-<pre class="text"><code>function search(key: K): ?V
-do
-  let current: Skip_Node[K, V] := header
-  let level: Integer := current_level
+<section id="insertion" class="level2">
+<h2 class="anchored" data-anchor-id="insertion">3.5 Insertion</h2>
+<p>Insertion has two phases. First, search for the insertion point while recording, for each level, the last node we were at before descending — the <em>update array</em>. These are the nodes whose forward pointers must be modified to include the new node.</p>
+<section id="random-level-generation" class="level3">
+<h3 class="anchored" data-anchor-id="random-level-generation">Random Level Generation</h3>
+<p>The random level function is the heart of the skip list, but it is not a public operation on the data structure. No external caller should ask a skip list to “generate a level”; level generation is an insertion detail, driven by the list’s own <code>max_level</code> and <code>probability</code> fields.</p>
+<p>So in Nex, the right place for this logic is as a private feature of <code>Skip_List</code>. The algorithm itself is unchanged. With probability 0.5, it returns 1 half the time, 2 a quarter of the time, 3 an eighth of the time, and so on. The expected number of nodes at level <code>k</code> is <code>n / 2^(k - 1)</code>. The expected maximum level for <code>n</code> nodes is <code>log₂(n)</code>. For a million nodes, expected maximum level is about 20. The cap at <code>max_level</code> prevents pathological outcomes: without it, an extremely unlucky sequence of coin flips could create a node at level a thousand.</p>
+<p>Notice what is not happening here: no global state is consulted, no other nodes are modified, no rebalancing is triggered. The level is assigned independently of everything else in the structure. This local independence is the source of the skip list’s concurrency friendliness.</p>
+<pre class="nex"><code>class Skip_List [K -&gt; Comparable, V]
+--
+--
+private feature
+  random_level(): Integer
+    require
+      valid_max_level: max_level &gt;= 1
+      valid_probability: probability &gt; 0.0 and probability &lt; 1.0
+    do
+      let level: Integer := 1
+      let done: Boolean := false
+      repeat max_level - 1 do
+        if not done then
+          if random_real() &lt; probability then
+            level := level + 1
+          else
+            done := true
+          end
+        end
+      end
+      result := level
+    end
+
+feature
+  put(key: K, value: V)
+    do
+      let update: Array[Skip_Node[K, V]] := []
+      repeat max_level do
+        update.add(header)
+      end
+      let current: Skip_Node[K, V] := header
+
+      let level: Integer := current_level
+      from until
+        level &lt; 1
+      do
+        let done: Boolean := false
         from until
-          level &lt; 1
+          done
         do
-    -- Advance as far as possible at this level
-    let done: Boolean := false
-          from until
-            done
-          do
           if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
             if convert next_node.key to next_key: K then
               if next_key.compare(key) &lt; 0 then
@@ -652,154 +715,92 @@ do
             done := true
           end
         end
-    level := level - 1
-  end
-
-  -- Check if the next node at level 1 is our target
-  let candidate: ?Skip_Node[K, V] := current.forward.get(0)
-  if convert candidate to candidate_node: Skip_Node[K, V] then
-        if candidate_node.key = key then
-          result := candidate_node.value
-        else
-          result := nil
-        end
-      else
-        result := nil
+        update.set(level - 1, current)
+        level := level - 1
       end
-end</code></pre>
-<p>Trace this on a concrete example. Suppose the skip list contains keys 3, 7, 12, 19, 26, 37, 55, and we are searching for 19.</p>
-<p>At the highest level, say level 3, suppose the forward pointers go 3 → 19 → 55. We advance past 3, stop before 19 (since 19 is not less than 19), and drop to level 2.</p>
-<p>At level 2, we are at node 3. Suppose level 2 forward pointers give us 3 → 7 → 19 → 37. We advance past 7, stop before 19, drop to level 1.</p>
-<p>At level 1, every node is present. We advance past 7, stop at 19 — which equals our target — and return its value.</p>
-<p>The key insight: at each level we eliminated large stretches of the list. At level 3 we skipped from 3 directly to the vicinity of 55. At level 2 we narrowed to the vicinity of 19. At level 1 we landed exactly. The total work was proportional to the number of levels, not the number of nodes.</p>
-<hr>
-</section>
-<section id="insertion" class="level2">
-<h2 class="anchored" data-anchor-id="insertion">3.6 Insertion</h2>
-<p>Insertion has two phases. First, search for the insertion point while recording, for each level, the last node we were at before descending — the <em>update array</em>. These are the nodes whose forward pointers must be modified to include the new node.</p>
-<pre class="text"><code>function put(key: K, value: V)
-  do
-    let update: Array[?Skip_Node[K, V]] := create Array.filled(max_level, nil)
-    let current: Skip_Node[K, V] := header
 
-    -- Find update positions at each level
-    let level: Integer := current_level
-        from until
-          level &lt; 1
-        do
-      let done: Boolean := false
-          from until
-            done
-          do
-          if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
-            if next_node.key &lt; key then
-              current := next_node
-            else
-              done := true
-            end
-          else
-            done := true
-          end
-        end
-      update.set(level - 1, current)
-      level := level - 1
-    end
+      let candidate: ?Skip_Node[K, V] := current.forward.get(0)
+      let found_existing: Boolean := false
 
-    -- Check if key already exists
-    let candidate: ?Skip_Node[K, V] := current.forward.get(0)
-    if convert candidate to candidate_node: Skip_Node[K, V] then
-          if candidate_node.key = key then
+      if convert candidate to candidate_node: Skip_Node[K, V] then
+        if convert candidate_node.key to candidate_key: K then
+          if candidate_key.compare(key) = 0 then
             candidate_node.set_value(value)
-          else
-      -- New node
-          let new_level: Integer := random_level()
-
-      -- If new node reaches higher than current maximum,
-      -- point the extra update positions to the header
-      if new_level &gt; current_level then
-        from
-          let i: Integer := current_level
-        until
-          i &gt;= new_level
-        do
-          update.set(i, header)
-          i := i + 1
+            found_existing := true
+          end
         end
-        current_level := new_level
       end
 
-      let new_node: Skip_Node[K, V] :=
-        create Skip_Node[K, V].make(key, value, new_level)
+      if not found_existing then
+        let new_level: Integer := random_level()
 
-      -- Splice new node into each level
-      from
-        let i: Integer := 0
-      until
-        i &gt;= new_level
-      do
-        new_node.forward.set(i, update.get(i).forward.get(i))
-        update.get(i).forward.set(i, new_node)
-        i := i + 1
-      end
-          count := count + 1
-          end
-        else
-          let new_level: Integer := random_level()
-
-          if new_level &gt; current_level then
-            from
-              let i: Integer := current_level
-            until
-              i &gt;= new_level
-            do
-              update.set(i, header)
-              i := i + 1
-            end
-            current_level := new_level
-          end
-
-          let new_node: Skip_Node[K, V] :=
-            create Skip_Node[K, V].make(key, value, new_level)
-
+        if new_level &gt; current_level then
           from
-            let i: Integer := 0
+            let i: Integer := current_level
           until
             i &gt;= new_level
           do
-            new_node.forward.set(i, update.get(i).forward.get(i))
-            update.get(i).forward.set(i, new_node)
+            update.set(i, header)
             i := i + 1
           end
-
-          count := count + 1
+          current_level := new_level
         end
-      ensure
-    key_present: search(key) /= nil
-    count_nondecreasing: count &gt;= old count
-  end</code></pre>
+
+        let new_node: Skip_Node[K, V] :=
+          create Skip_Node[K, V].make(key, value, new_level)
+
+        from
+          let i: Integer := 0
+        until
+          i &gt;= new_level
+        do
+          new_node.forward.set(i, update.get(i).forward.get(i))
+          update.get(i).forward.set(i, new_node)
+          i := i + 1
+        end
+
+        count := count + 1
+      end
+    ensure
+      key_present: search(key) /= nil
+      count_nondecreasing: count &gt;= old count
+    end
+end</code></pre>
 <p>The splicing step — for each level the new node participates in, rewire the predecessor’s forward pointer to the new node, and set the new node’s forward pointer to the old successor — is the entire structural modification. No rotations, no colour flips, no propagating changes up to a grandparent. Each level is handled independently, in a simple loop.</p>
 <p>This is the skip list’s structural simplicity made concrete. Insertion touches only the nodes in the update array — a set of at most <code>current_level</code> nodes — and the new node itself. Everything else in the structure is undisturbed.</p>
 <hr>
 </section>
+</section>
 <section id="deletion" class="level2">
-<h2 class="anchored" data-anchor-id="deletion">3.7 Deletion</h2>
-<p>Deletion mirrors insertion. Search for the node while building the update array, verify the node exists, then splice it out at each level it participates in.</p>
-<pre class="text"><code>function remove(key: K)
-  do
-    let update: Array[?Skip_Node[K, V]] := create Array.filled(max_level, nil)
-    let current: Skip_Node[K, V] := header
+<h2 class="anchored" data-anchor-id="deletion">3.6 Deletion</h2>
+<p>Deletion mirrors insertion. As a class method, it uses the same update-array search pattern, then rewires the forward pointers of the predecessor nodes that currently point at the target.</p>
+<pre class="nex"><code>class Skip_List [K -&gt; Comparable, V]
+--
+--
+feature
+  remove(key: K)
+    do
+      let update: Array[Skip_Node[K, V]] := []
+      repeat max_level do
+        update.add(header)
+      end
+      let current: Skip_Node[K, V] := header
 
-    let level: Integer := current_level
+      let level: Integer := current_level
+      from until
+        level &lt; 1
+      do
+        let done: Boolean := false
         from until
-          level &lt; 1
+          done
         do
-      let done: Boolean := false
-          from until
-            done
-          do
           if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
-            if next_node.key &lt; key then
-              current := next_node
+            if convert next_node.key to next_key: K then
+              if next_key.compare(key) &lt; 0 then
+                current := next_node
+              else
+                done := true
+              end
             else
               done := true
             end
@@ -807,49 +808,52 @@ end</code></pre>
             done := true
           end
         end
-      update.set(level - 1, current)
-      level := level - 1
+        update.set(level - 1, current)
+        level := level - 1
+      end
+
+      let target: ?Skip_Node[K, V] := current.forward.get(0)
+
+      if convert target to target_node: Skip_Node[K, V] then
+        if convert target_node.key to target_key: K then
+          if target_key.compare(key) = 0 then
+            from
+              let i: Integer := 0
+            until
+              i &gt;= current_level
+            do
+              if update.get(i).forward.get(i) = target then
+                update.get(i).forward.set(i, target_node.forward.get(i))
+              end
+              i := i + 1
+            end
+
+            from until
+              current_level &lt;= 1 or
+              header.forward.get(current_level - 1) /= nil
+            do
+              current_level := current_level - 1
+            end
+
+            count := count - 1
+          end
+        end
+      end
+    ensure
+      key_absent: search(key) = nil
     end
-
-    let target: ?Skip_Node[K, V] := current.forward.get(0)
-
-    if convert target to target_node: Skip_Node[K, V] then
-          if target_node.key = key then
-      -- Splice out at each level
-      from
-        let i: Integer := 0
-      until
-        i &gt;= current_level
-      do
-        if update.get(i).forward.get(i) /= target then
-          -- target does not participate at this level, stop
-          i := current_level -- break
-        else
-          update.get(i).forward.set(i, target_node.forward.get(i))
-          i := i + 1
-        end
-      end
-
-      -- Reduce current level if top levels are now empty
-      from until
-        current_level &lt;= 1 or
-        header.forward.get(current_level - 1) /= nil
-      do
-        current_level := current_level - 1
-      end
-          count := count - 1
-        end
-      end
-  ensure
-    key_absent: search(key) = nil
-  end</code></pre>
+end</code></pre>
 <p>The level reduction at the end is a housekeeping step: if deletion left the top levels empty — no real node participates at those levels — we shrink <code>current_level</code> accordingly. This keeps subsequent searches from wasting time at levels that carry no information.</p>
 <hr>
 </section>
 <section id="range-queries" class="level2">
-<h2 class="anchored" data-anchor-id="range-queries">3.8 Range Queries</h2>
+<h2 class="anchored" data-anchor-id="range-queries">3.7 Range Queries</h2>
 <p>Range queries are even simpler than in a balanced tree, because the bottom level of a skip list is a plain sorted linked list. To find all keys between low and high, search for low at the bottom level and walk forward until you exceed high.</p>
-<pre class="text"><code>function range(low: K, high: K): Array[Any]
+<pre class="text"><code>class Skip_List [K -&gt; Comparable, V]
+--
+--
+feature
+  range(low: K, high: K): Array[Any]
   require
     valid_range: low &lt;= high
   do
@@ -906,7 +910,7 @@ end</code></pre>
 <hr>
 </section>
 <section id="the-probabilistic-analysis" class="level2">
-<h2 class="anchored" data-anchor-id="the-probabilistic-analysis">3.9 The Probabilistic Analysis</h2>
+<h2 class="anchored" data-anchor-id="the-probabilistic-analysis">3.8 The Probabilistic Analysis</h2>
 <p>We have been saying “expected O(log n)” throughout this chapter. It is time to be precise about what that means and what guarantees it provides.</p>
 <p><strong>Expected height.</strong> With probability p that a node at level i also appears at level i+1, the probability that a node reaches exactly level k is p^(k-1)(1-p). This is a geometric distribution. The expected maximum level among n nodes is log_{1/p}(n). With p = 0.5, this is log₂(n). For n = one million, expected maximum level is 20.</p>
 <p><strong>Expected search time.</strong> The expected number of nodes examined during a search is O(log_{1/p}(n)). The analysis is more involved — it traces backward from the found node, accounting for the probability of climbing a level at each step — but the result is the same order as a balanced tree.</p>
@@ -916,7 +920,7 @@ end</code></pre>
 <hr>
 </section>
 <section id="memory-and-the-probability-parameter" class="level2">
-<h2 class="anchored" data-anchor-id="memory-and-the-probability-parameter">3.10 Memory and the Probability Parameter</h2>
+<h2 class="anchored" data-anchor-id="memory-and-the-probability-parameter">3.9 Memory and the Probability Parameter</h2>
 <p>Each node in a skip list stores not one pointer but <code>level</code> pointers — one per level it participates in. The expected number of pointers per node with probability p is 1/(1-p). With p = 0.5, each node has on average 2 pointers. With p = 0.25, each node has on average 1.33 pointers.</p>
 <p>The memory comparison to a red-black tree is instructive. A red-black tree node stores: key, value, left pointer, right pointer, parent pointer (in most implementations), and a colour bit. That is roughly five words of overhead per node, always. A skip list node with p = 0.5 stores on average two forward pointers — less than half the overhead, and no parent pointer, which also makes certain operations simpler.</p>
 <p>Redis chose p = 0.25 specifically to reduce memory use. The tradeoff: slightly more expected comparisons per search (since nodes at each level are sparser), but meaningfully lower memory per node. For a database storing millions of sorted set members, this is a significant practical consideration.</p>
@@ -924,7 +928,7 @@ end</code></pre>
 <hr>
 </section>
 <section id="complete-skip-list-implementation" class="level2">
-<h2 class="anchored" data-anchor-id="complete-skip-list-implementation">3.11 Complete Skip List Implementation</h2>
+<h2 class="anchored" data-anchor-id="complete-skip-list-implementation">3.10 Complete Skip List Implementation</h2>
 <p>Assembling everything into a complete, contract-annotated class:</p>
 <pre><code>class Skip_List [K -&gt; Comparable, V]
   create
@@ -954,57 +958,39 @@ end</code></pre>
     header: Skip_Node[K, V]
     probability: Real
 
-    random_level(): Integer do
-      let level: Integer := 1
-      let done: Boolean := false
-      repeat max_level - 1 do
-        if not done then
-          if random_real() &lt; probability then
-            level := level + 1
-          else
-            done := true
-          end
-        end
-      end
-      result := level
-    end
-
     search(key: K): ?V do
       let current: Skip_Node[K, V] := header
-      let level: Integer := current_level
-        from until
-          level &lt; 1
+      from
+        let level: Integer := current_level
+      until
+        level &lt; 1
+      do
+        from
+          let done: Boolean := false
+        until
+          done
         do
-        let done: Boolean := false
-          from until
-            done
-          do
+          done := true
           if convert current.forward.get(level - 1) to next_node: Skip_Node[K, V] then
-            if next_node.key &lt; key then
-              current := next_node
-            else
-              done := true
+            if convert next_node.key to next_key: K then
+              if next_key.compare(key) &lt; 0 then
+                current := next_node
+                done := false
+              end
             end
-          else
-            done := true
           end
         end
         level := level - 1
       end
 
+      result := nil
       let candidate: ?Skip_Node[K, V] := current.forward.get(0)
       if convert candidate to candidate_node: Skip_Node[K, V] then
         if convert candidate_node.key to candidate_key: K then
           if candidate_key.compare(key) = 0 then
             result := candidate_node.value
-          else
-            result := nil
           end
-        else
-          result := nil
         end
-      else
-        result := nil
       end
     end
 
@@ -1016,6 +1002,27 @@ end</code></pre>
       result := search(key) /= nil
     end
 
+  private feature
+    random_level(): Integer
+      require
+        valid_max_level: max_level &gt;= 1
+        valid_probability: probability &gt; 0.0 and probability &lt; 1.0
+      do
+        let level: Integer := 1
+        let done: Boolean := false
+        repeat max_level - 1 do
+          if not done then
+            if random_real() &lt; probability then
+              level := level + 1
+            else
+              done := true
+            end
+          end
+        end
+        result := level
+      end
+
+  feature
     put(key: K, value: V)
       do
         let update: Array[Skip_Node[K, V]] := []
@@ -1245,7 +1252,7 @@ end</code></pre>
 <hr>
 </section>
 <section id="skip-lists-vs-balanced-trees-the-honest-comparison" class="level2">
-<h2 class="anchored" data-anchor-id="skip-lists-vs-balanced-trees-the-honest-comparison">3.12 Skip Lists vs Balanced Trees: The Honest Comparison</h2>
+<h2 class="anchored" data-anchor-id="skip-lists-vs-balanced-trees-the-honest-comparison">3.11 Skip Lists vs Balanced Trees: The Honest Comparison</h2>
 <p>A skip list is not strictly better than a red-black tree. The choice between them is genuine and workload-dependent.</p>
 <p><strong>Where skip lists win:</strong> - Implementation simplicity — significantly fewer cases to handle, especially in deletion - Concurrent access — forward pointer updates are more localised than rotations, making lock-free variants feasible - Memory — lower expected overhead per node with appropriate probability - Range queries — the bottom level is a plain linked list, making traversal cache-friendly in a way tree traversal is not</p>
 <p><strong>Where red-black trees win:</strong> - Worst-case guarantees — red-black trees guarantee O(log n); skip lists guarantee O(log n) only in expectation, though the probability of deviation is negligible in practice - Cache behaviour for point queries — a red-black tree’s nodes can be allocated in a cache-friendly arena; skip list nodes with variable-length forward arrays are harder to pack - Determinism — if reproducibility across runs matters (for testing or debugging), a deterministic structure is easier to reason about than a randomised one</p>
@@ -1254,7 +1261,7 @@ end</code></pre>
 <hr>
 </section>
 <section id="where-this-lives-in-the-wild" class="level2">
-<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">3.13 Where This Lives in the Wild</h2>
+<h2 class="anchored" data-anchor-id="where-this-lives-in-the-wild">3.12 Where This Lives in the Wild</h2>
 <p><strong>Redis sorted sets</strong> are the most prominent production use. Every <code>ZADD</code>, <code>ZRANGE</code>, <code>ZRANK</code>, and <code>ZRANGEBYSCORE</code> command you have ever issued against Redis has operated on a skip list. Redis uses p = 0.25 and a maximum level of 32, which it describes in its source code with characteristic directness: <em>“We use p=1/4 to save memory.”</em></p>
 <p><strong>LevelDB and RocksDB</strong> use skip lists for their in-memory MemTable — the structure that holds recently written keys before they are flushed to disk as an SSTable. The MemTable must support concurrent writes from multiple threads, and the skip list’s concurrency friendliness makes it the natural choice. Chapter 5 will revisit this when we build an LSM tree.</p>
 <p><strong>Apache Lucene</strong>, the search engine library underlying Elasticsearch, uses skip lists in its inverted index to accelerate the intersection of posting lists — the lists of documents containing each search term. When you search for documents containing both “distributed” and “systems,” Lucene uses skip pointers to skip over large stretches of one posting list that cannot possibly appear in the other.</p>
