@@ -1090,10 +1090,14 @@ blockquote .attr{font-size:12px;color:var(--ink3);font-style:normal;font-family:
   </div>
   <div class="ws-ctxpanel" id="ws-ctx-panel"></div>
   <div class="ws-cpane" id="ws-cpane">
-    <textarea class="ws-ta" id="ws-pysrc" rows="8" spellcheck="false">income     = 8500
+    <textarea class="ws-ta" id="ws-pysrc" rows="11" spellcheck="false">income     = 8500
 categories = ["Rent","Insurance","Loan","Food","Transport","Software","Training"]
 budget     = [2200,  340,       680,  600,  180,        350,       200]
 actual     = [2200,  340,       680,  635,  210,        290,       200]
+
+# Derived columns for the table below
+delta    = [a - b for a, b in zip(actual, budget)]
+pct_used = [a / b * 100 for a, b in zip(actual, budget)]
 
 total_budget = sum(budget)
 total_actual = sum(actual)
@@ -1162,6 +1166,248 @@ print(f"Surplus:  £{surplus:,}  ({surplus/income*100:.1f}% of income)")</textar
 
 </div><!-- end ws-doc -->
 
+<script type="text/plain" id="ql-py-worker-source">
+import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.mjs';
+
+let pyodide = null;
+
+async function initPyodide() {
+  if (pyodide) return;
+
+  pyodide = await loadPyodide();
+  await pyodide.runPythonAsync(`
+import io
+import contextlib
+import traceback
+from collections import Counter
+from datetime import datetime, timedelta
+from types import SimpleNamespace
+
+
+class AttrRecord(SimpleNamespace):
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+
+def _wrap(value):
+    if isinstance(value, dict):
+        return AttrRecord(**{str(k): _wrap(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return [_wrap(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_wrap(v) for v in value)
+    return value
+
+
+def _export(value, depth=0):
+    if depth > 4:
+        return repr(value)
+    if isinstance(value, AttrRecord):
+        return {k: _export(v, depth + 1) for k, v in vars(value).items()}
+    if isinstance(value, list):
+        return [_export(v, depth + 1) for v in value]
+    if isinstance(value, tuple):
+        return [_export(v, depth + 1) for v in value]
+    if isinstance(value, set):
+        return [_export(v, depth + 1) for v in sorted(value, key=repr)]
+    if isinstance(value, dict):
+        return {str(k): _export(v, depth + 1) for k, v in value.items()}
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return repr(value)
+
+
+def _parse_date(value):
+    return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+class CalNamespace:
+    def __init__(self, events, today):
+        self._events = list(events)
+        self._today = today
+
+    def events(self, date=None, days=None, attendee=None):
+        result = list(self._events)
+        if date == "today":
+            result = [event for event in result if event.date == self._today]
+        if days is not None:
+            start = _parse_date(self._today)
+            end = start + timedelta(days=int(days))
+            result = [
+                event for event in result
+                if start <= _parse_date(event.date) <= end
+            ]
+        if attendee is not None:
+            result = [event for event in result if attendee in event.attendees]
+        return result
+
+
+class TaskNamespace:
+    def __init__(self, tasks):
+        self._tasks = list(tasks)
+
+    def query(self, done=None, overdue=False, tag=None, contact=None, limit=None):
+        result = list(self._tasks)
+        if done is not None:
+            result = [task for task in result if task.done == done]
+        if overdue:
+            result = [task for task in result if task.overdue]
+        if tag:
+            result = [task for task in result if task.tag == tag]
+        if contact:
+            result = [task for task in result if task.contact == contact]
+        if limit:
+            result = result[:int(limit)]
+        return result
+
+
+class EmailNamespace:
+    def __init__(self, messages):
+        self._messages = list(messages)
+
+    def query(
+        self,
+        unread=None,
+        starred=False,
+        days=None,
+        from_any=None,
+        subject_contains=None,
+        limit=None,
+    ):
+        result = list(self._messages)
+        if unread is not None:
+            result = [message for message in result if message.unread == unread]
+        if starred:
+            result = [message for message in result if message.starred]
+        if days is not None:
+            result = [message for message in result if message.days_ago <= int(days)]
+        if from_any:
+            allowed = set(from_any)
+            result = [message for message in result if message.sender in allowed]
+        if subject_contains:
+            needle = str(subject_contains).lower()
+            result = [
+                message for message in result
+                if needle in message.subject.lower()
+            ]
+        if limit:
+            result = result[:int(limit)]
+        return result
+
+
+class ContactsNamespace:
+    def __init__(self, contacts):
+        self._contacts = list(contacts)
+
+    def get(self, addr):
+        for contact in self._contacts:
+            if contact.email == addr:
+                return contact
+        return None
+
+    def all(self):
+        return list(self._contacts)
+
+
+class FilesNamespace:
+    def __init__(self, files):
+        self._files = list(files)
+
+    def recent(self, mentioned_by=None, days=None):
+        result = list(self._files)
+        if mentioned_by:
+            people = set(mentioned_by)
+            result = [
+                file for file in result
+                if people.intersection(set(file.mentioned_by))
+            ]
+        if days is not None:
+            result = [file for file in result if file.days_ago <= int(days)]
+        return result
+
+
+def _figure8_run(code, datasets):
+    app = datasets["APP"]
+    today = datasets["TODAY"]
+    table_rows = {"value": None}
+
+    def table(rows):
+        table_rows["value"] = _export(rows)
+        return rows
+
+    shared = {
+        "__builtins__": __builtins__,
+        "Counter": Counter,
+        "table": table,
+        "cal": CalNamespace(_wrap(app["cal_events"]), today),
+        "tasks": TaskNamespace(_wrap(app["tasks"])),
+        "email": EmailNamespace(_wrap(app["email"])),
+        "contacts": ContactsNamespace(_wrap(app["contacts"])),
+        "files": FilesNamespace(_wrap(app["files"])),
+    }
+
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, shared)
+        stdout = buf.getvalue().splitlines()
+        return {
+            "stdout": stdout,
+            "error": None,
+            "table": table_rows["value"],
+        }
+    except Exception:
+        stdout = buf.getvalue().splitlines()
+        return {
+            "stdout": stdout,
+            "error": traceback.format_exc().rstrip(),
+            "table": table_rows["value"],
+        }
+`);
+}
+
+self.onmessage = async (event) => {
+  const { type, requestId, code, datasets } = event.data || {};
+
+  try {
+    if (type === 'init') {
+      await initPyodide();
+      self.postMessage({ type: 'ready' });
+      return;
+    }
+
+    if (type === 'exec') {
+      await initPyodide();
+      const datasetProxy = pyodide.toPy(datasets || {});
+      pyodide.globals.set('__figure8_code', code || '');
+      pyodide.globals.set('__figure8_datasets', datasetProxy);
+      try {
+        const result = await pyodide.runPythonAsync(
+          '_figure8_run(__figure8_code, __figure8_datasets)'
+        );
+        const resultJs = result.toJs({ dict_converter: Object.fromEntries });
+        result.destroy();
+        self.postMessage({
+          type: 'result',
+          requestId,
+          result: resultJs
+        });
+      } finally {
+        pyodide.globals.delete('__figure8_code');
+        pyodide.globals.delete('__figure8_datasets');
+        datasetProxy.destroy();
+      }
+    }
+  } catch (err) {
+    self.postMessage({
+      type: 'error',
+      requestId,
+      error: err?.message || String(err)
+    });
+  }
+};
+</script>
+
 <script>
 (function(){
 // ── State ──
@@ -1203,7 +1449,19 @@ function wsEval(src) {
     if (am) {
       try {
         const v = am[2].trim();
-        if (v.startsWith('[')) wsCtx[am[1]] = JSON.parse(v.replace(/'/g,'"'));
+        const zm = v.match(/^\[(.+) for (.+) in zip\((.+)\)\]$/);
+        if (zm) {
+          const expr = zm[1], vars = zm[2].split(',').map(s=>s.trim()), srcs = zm[3].split(',').map(s=>s.trim());
+          const iters = srcs.map(s => wsCtx[s] || []);
+          const len = Math.min(...iters.map(it => it.length));
+          const res = [];
+          for (let i=0; i<len; i++) {
+            let e = expr;
+            vars.forEach((vr, vi) => e = e.replace(new RegExp('\\b'+vr+'\\b','g'), iters[vi][i]));
+            res.push(Function('"use strict";return ('+e+')')());
+          }
+          wsCtx[am[1]] = res;
+        } else if (v.startsWith('[')) wsCtx[am[1]] = JSON.parse(v.replace(/'/g,'"'));
         else {
           let expr = v;
           for (const [k,val] of Object.entries(wsCtx)) {
@@ -1224,7 +1482,15 @@ function wsBuildRows() {
   const cats = wsCtx.categories || [];
   const bud  = wsCtx.budget || [];
   const act  = wsCtx.actual || [];
-  return cats.map((c,i) => ({cat:c, budget:bud[i]||0, actual:act[i]||0}));
+  const del  = wsCtx.delta || [];
+  const pct  = wsCtx.pct_used || [];
+  return cats.map((c,i) => ({
+    cat:c, 
+    budget:bud[i]||0, 
+    actual:act[i]||0,
+    delta: del[i] !== undefined ? del[i] : (act[i]||0) - (bud[i]||0),
+    pct_used: pct[i] !== undefined ? pct[i] : (bud[i] ? (act[i]||0)/bud[i]*100 : 0)
+  }));
 }
 
 // ── Run ──
@@ -1289,7 +1555,7 @@ function wsRenderTable() {
   });
   sorted.forEach(r=>{
     const ri=wsRows.indexOf(r);
-    const d=r.actual-r.budget, pct=r.budget?r.actual/r.budget*100:0;
+    const d=r.delta, pct=r.pct_used;
     const dc=d>0?'ws-over':d<0?'ws-under':'';
     const tr=document.createElement('tr');
     ['cat','budget','actual'].forEach(col=>{
@@ -1319,6 +1585,10 @@ function wsCell(td) {
   const raw=td.textContent.replace(/,/g,'').trim();
   if(col==='cat') wsRows[ri].cat=raw;
   else {const n=parseFloat(raw);if(!isNaN(n))wsRows[ri][col]=n;}
+  
+  wsRows[ri].delta = wsRows[ri].actual - wsRows[ri].budget;
+  wsRows[ri].pct_used = wsRows[ri].budget ? wsRows[ri].actual / wsRows[ri].budget * 100 : 0;
+  
   wsEdited.add(`${ri}:${col}`);
   if(!wsDetached){wsDiverged=true;wsUpdateBadge();}
   wsAddLog(`<span class="ws-lk">::table</span> cell [${wsRows[ri].cat}, ${col}] = <span class="ws-lv">${raw}</span> — ${wsDetached?'detached':'diverged from ::py source'}`);
@@ -1826,126 +2096,179 @@ const files={
     return fs;
   }
 };
-function Counter(arr){const c={};arr.forEach(x=>c[x]=(c[x]||0)+1);return c;}
+function Counter(arr){const c={};(arr||[]).forEach(x=>c[x]=(c[x]||0)+1);return c;}
 let _tblOut=null;
 function table(rows){_tblOut=rows;}
 
-// ── Render mini table ──
-function miniTbl(el,rows){
-  if(!rows||!rows.length){el.innerHTML='';return;}
+function qlEscape(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+function miniTbl(el, rows){
+  if(!el)return;
+  if(!Array.isArray(rows)||!rows.length){el.innerHTML='';return;}
   const keys=Object.keys(rows[0]);
-  el.innerHTML=`<table class="ql-mtbl"><thead><tr>${keys.map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>${
+  el.innerHTML=`<table class="ql-mtbl"><thead><tr>${keys.map(k=>`<th>${qlEscape(k)}</th>`).join('')}</tr></thead><tbody>${
     rows.map(r=>`<tr>${keys.map(k=>{
       const v=r[k];
-      if(typeof v==='boolean') return `<td class="${v?'ql-ok':'ql-warn'}">${v?'yes':'no'}</td>`;
-      if(typeof v==='number') return `<td>${v}</td>`;
-      return `<td>${v??'—'}</td>`;
+      if(typeof v==='boolean')return `<td class="${v?'ql-ok':'ql-warn'}">${v?'yes':'no'}</td>`;
+      if(v===null||v===undefined)return '<td>—</td>';
+      return `<td>${qlEscape(v)}</td>`;
     }).join('')}</tr>`).join('')
   }</tbody></table>`;
 }
 
-// ── Scenario runners ──
-function runW(){
-  const meetings_today=cal.events({date:"today"});
-  const overdue_tasks=tasks.query({done:false,overdue:true});
-  const unread_starred=email.query({unread:true,starred:true});
-  const people_in_mtgs=[...new Set(meetings_today.flatMap(e=>e.attendees))];
+const qlPy={
+  worker:null,
+  ready:null,
+  pending:new Map(),
+  seq:0
+};
 
-  document.getElementById('ql-w-stdout').innerHTML=[
-    `Meetings today:      ${meetings_today.length}`,
-    `Overdue tasks:       ${overdue_tasks.length}`,
-    `Unread & starred:    ${unread_starred.length}`,
-    `People in meetings:  ${people_in_mtgs.length}`,
-  ].map(l=>`<div class="ql-oline">${l}</div>`).join('');
+function qlEnsurePy(){
+  if(qlPy.ready)return qlPy.ready;
+  qlPy.ready=new Promise((resolve,reject)=>{
+    const sourceEl=document.getElementById('ql-py-worker-source');
+    const workerSrc=sourceEl ? sourceEl.textContent : '';
+    const workerBlob=new Blob([workerSrc],{type:'text/javascript'});
+    const workerUrl=URL.createObjectURL(workerBlob);
+    const worker=new Worker(workerUrl,{type:'module'});
+    URL.revokeObjectURL(workerUrl);
+    qlPy.worker=worker;
+    let initialised=false;
 
-  const rows=[
-    {namespace:'cal',   query:'events(date="today")',        result:`${meetings_today.length} events`,    type:'cal'},
-    {namespace:'tasks', query:'query(done=False,overdue=True)',result:`${overdue_tasks.length} overdue`,  type:'task'},
-    {namespace:'email', query:'query(unread=True,starred=True)',result:`${unread_starred.length} messages`,type:'email'},
-  ];
-  const tbl=document.getElementById('ql-w-table');
-  tbl.innerHTML=`<table class="ql-mtbl"><thead><tr><th>namespace</th><th>query</th><th>result</th></tr></thead><tbody>${
-    rows.map(r=>`<tr><td><span class="ql-tag-${r.type}">${r.namespace}</span></td><td style="font-family:var(--mono);font-size:11px;color:var(--ink2)">${r.query}</td><td>${r.result}</td></tr>`).join('')
-  }</tbody></table>`;
-  qlLog(`<span class="ql-lk">::py[weekly-briefing]</span> — queried <span class="ql-lv">cal, tasks, email</span>`);
-}
+    const failInit=(message)=>{
+      if(initialised)return;
+      qlPy.ready=null;
+      reject(new Error(message));
+    };
 
-function runC(){
-  const meetings=cal.events({date:"today"});
-  const prep=meetings.map(m=>{
-    const re=email.query({from_any:m.attendees,subject_contains:m.title.split(' ')[0],limit:3});
-    const ot=tasks.query({done:false,tag:m.title.toLowerCase().replace(/ /g,'-')});
-    const rf=files.recent({mentioned_by:m.attendees,days:7});
-    return{meeting:m.title,time:m.time,emails:re.length,tasks:ot.length,files:rf.length,ready:ot.length===0};
+    worker.onmessage=(event)=>{
+      const {type,requestId,result,error}=event.data||{};
+      if(type==='ready'){
+        initialised=true;
+        resolve(worker);
+        return;
+      }
+      if(type==='result'){
+        const pending=qlPy.pending.get(requestId);
+        if(!pending)return;
+        qlPy.pending.delete(requestId);
+        pending.resolve(result||{stdout:[],error:null,table:null});
+        return;
+      }
+      if(type==='error'){
+        const pending=qlPy.pending.get(requestId);
+        if(pending){
+          qlPy.pending.delete(requestId);
+          pending.reject(new Error(error||'Python evaluation failed.'));
+          return;
+        }
+        failInit(error||'Python worker failed to initialise.');
+      }
+    };
+
+    worker.onerror=(event)=>{
+      failInit(event.message||'Python worker failed to load.');
+    };
+
+    worker.postMessage({type:'init'});
   });
-  miniTbl(document.getElementById('ql-c-table'),prep);
-  qlLog(`<span class="ql-lk">::py[meeting-prep]</span> — 4-way join across <span class="ql-lv">cal × email × tasks × files</span>`);
+  return qlPy.ready;
 }
 
-function runP(){
-  const recent=APP.email;
-  const freq={};
-  recent.forEach(m=>freq[m.sender]=(freq[m.sender]||0)+1);
-  const known=Object.keys(freq).map(addr=>contacts.get(addr)).filter(Boolean);
-  const no_mtg=known.filter(c=>!cal.events({attendee:c.email,days:7}).length);
-  const ranked=no_mtg.sort((a,b)=>(freq[b.email]||0)-(freq[a.email]||0)).slice(0,5);
-  const lines=ranked.map(c=>{
-    const last=tasks.query({contact:c.email,done:true,limit:1});
-    const ld=last.length?last[0].due:"never";
-    return`${c.name.padEnd(22)} ${String(freq[c.email]||0).padStart(3)} emails  last task: ${ld}`;
+async function pyExec(code){
+  await qlEnsurePy();
+  const requestId=`ql-py-${++qlPy.seq}`;
+  return new Promise((resolve,reject)=>{
+    qlPy.pending.set(requestId,{resolve,reject});
+    qlPy.worker.postMessage({
+      type:'exec',
+      requestId,
+      code,
+      datasets:{TODAY,APP}
+    });
   });
-  document.getElementById('ql-p-stdout').innerHTML=lines.map(l=>`<div class="ql-oline">${l}</div>`).join('');
-
-  const stages=[
-    {l:'email.query(days=30)',active:true},
-    {l:'Counter(senders)',active:true},
-    {l:'contacts.get()',active:true},
-    {l:'cal.events()',active:true},
-    {l:'tasks.query()',active:true},
-    {l:'stdout',active:false},
-  ];
-  document.getElementById('ql-p-pipe').innerHTML=stages.map((s,i)=>
-    `<span class="ql-pnode${s.active?' active':''}">${s.l}</span>${i<stages.length-1?'<span class="ql-parrow">→</span>':''}`
-  ).join('');
-
-  const maxF=Math.max(...ranked.map(c=>freq[c.email]||0),1);
-  document.getElementById('ql-p-bars').innerHTML=ranked.map(c=>`
-    <div class="ql-brow">
-      <div class="ql-blbl">${c.name}</div>
-      <div class="ql-btrack"><div class="ql-bfill" style="width:${Math.round((freq[c.email]||0)/maxF*100)}%;background:#2d5a3d"></div></div>
-      <div class="ql-bval">${freq[c.email]||0}</div>
-    </div>`).join('');
-  qlLog(`<span class="ql-lk">::py[follow-up-pipeline]</span> — pipeline across <span class="ql-lv">email → contacts → cal → tasks</span>`);
 }
 
-function runQ(){
-  _tblOut=null;
-  const stdout=[],errs=[];
+function qlRenderOutput(id, stdout, error){
+  const lines=[
+    ...(stdout||[]).map(line=>`<div class="ql-oline">${qlEscape(line)}</div>`),
+    ...((error?String(error).split('\n'):[]).map(line=>`<div class="ql-errline">${qlEscape(line)}</div>`))
+  ];
+  document.getElementById(`ql-${id}-stdout`).innerHTML=
+    lines.join('')||'<div class="ql-oline" style="color:var(--ink3)">(no output)</div>';
+}
+
+async function runScenario(id, tag) {
+  _tblOut = null;
+  const src = document.getElementById(`ql-${id}-src`).value;
+  qlRenderOutput(id, ['initialising Python runtime...'], null);
+
+  let result;
   try{
-    const fn=new Function('cal','tasks','email','contacts','files','table','Counter','print',
-      document.getElementById('ql-q-src').value);
-    fn(cal,tasks,email,contacts,files,table,Counter,(...a)=>stdout.push(a.join(' ')));
-  }catch(e){errs.push(e.message);}
-  document.getElementById('ql-q-stdout').innerHTML=[
-    ...stdout.map(l=>`<div class="ql-oline">${l}</div>`),
-    ...errs.map(l=>`<div class="ql-errline">${l}</div>`)
-  ].join('')||'<div class="ql-oline" style="color:var(--ink3)">(no output)</div>';
-  if(_tblOut?.length){
-    document.getElementById('ql-q-widget').classList.remove('hidden');
-    miniTbl(document.getElementById('ql-q-table'),_tblOut);
+    result=await pyExec(src);
+  }catch(err){
+    result={stdout:[],error:err.message,table:null};
   }
-  const usedNs=['cal','tasks','email','contacts','files'].filter(ns=>document.getElementById('ql-q-src').value.includes(ns+'.'));
-  qlLog(`<span class="ql-lk">::py[custom]</span> — queried <span class="ql-lv">${usedNs.join(', ')||'(none)'}</span>`);
+
+  _tblOut=result.table||null;
+  qlRenderOutput(id, result.stdout, result.error);
+
+  if (id === 'w') {
+    const counts = {cal: cal.events({date:'today'}).length, tasks: tasks.query({done:false,overdue:true}).length, email: email.query({unread:true,starred:true}).length};
+    const rows = [
+      {namespace:'cal',   query:'events(date="today")',        result:`${counts.cal} events`,    type:'cal'},
+      {namespace:'tasks', query:'query(done=False,overdue=True)',result:`${counts.tasks} overdue`,  type:'task'},
+      {namespace:'email', query:'query(unread=True,starred=True)',result:`${counts.email} messages`,type:'email'},
+    ];
+    document.getElementById('ql-w-table').innerHTML = `<table class="ql-mtbl"><thead><tr><th>namespace</th><th>query</th><th>result</th></tr></thead><tbody>${
+      rows.map(r=>`<tr><td><span class="ql-tag-${r.type}">${r.namespace}</span></td><td style="font-family:var(--mono);font-size:11px;color:var(--ink2)">${r.query}</td><td>${r.result}</td></tr>`).join('')
+    }</tbody></table>`;
+  } else if (id === 'c') {
+    miniTbl(document.getElementById('ql-c-table'), result.error ? null : _tblOut);
+  } else if (id === 'p') {
+    if (result.error) {
+      document.getElementById('ql-p-bars').innerHTML = '';
+      document.getElementById('ql-p-pipe').innerHTML = '';
+    } else {
+      const recent = APP.email, freq = {}; recent.forEach(m=>freq[m.sender]=(freq[m.sender]||0)+1);
+      const known = Object.keys(freq).map(addr=>contacts.get(addr)).filter(Boolean);
+      const no_mtg = known.filter(c=>!cal.events({attendee:c.email,days:7}).length);
+      const ranked = no_mtg.sort((a,b)=>(freq[b.email]||0)-(freq[a.email]||0)).slice(0,5);
+      const maxF = Math.max(...ranked.map(c=>freq[c.email]||0), 1);
+      document.getElementById('ql-p-bars').innerHTML = ranked.map(c=>`
+        <div class="ql-brow">
+          <div class="ql-blbl">${c.name}</div>
+          <div class="ql-btrack"><div class="ql-bfill" style="width:${Math.round((freq[c.email]||0)/maxF*100)}%;background:#2d5a3d"></div></div>
+          <div class="ql-bval">${freq[c.email]||0}</div>
+        </div>`).join('');
+      const stages = [{l:'email.query(days=30)',active:true},{l:'Counter(senders)',active:true},{l:'contacts.get()',active:true},{l:'cal.events()',active:true},{l:'tasks.query()',active:true},{l:'stdout',active:false}];
+      document.getElementById('ql-p-pipe').innerHTML = stages.map((s,i)=>`<span class="ql-pnode${s.active?' active':''}">${s.l}</span>${i<stages.length-1?'<span class="ql-parrow">→</span>':''}`).join('');
+    }
+  } else if (id === 'q') {
+    const widget=document.getElementById('ql-q-widget');
+    widget.classList.toggle('hidden', !(_tblOut && !result.error));
+    miniTbl(document.getElementById('ql-q-table'), result.error ? null : _tblOut);
+  }
+
+  const used = ['cal','tasks','email','contacts','files'].filter(ns=>src.includes(ns+'.'));
+  const status = result.error ? ' — <span class="ql-errline">error</span>' : '';
+  qlLog(`<span class="ql-lk">::py[${tag}]</span> — queried <span class="ql-lv">${used.join(', ')||'(none)'}</span>${status}`);
 }
 
 // ── UI helpers ──
 const sceneMap={w:'weekly',c:'cross',p:'pipeline',q:'custom'};
-window.qlRun=function(id){
-  if(id==='w'){runW();qlView('w','output');}
-  else if(id==='c'){runC();qlView('c','output');}
-  else if(id==='p'){runP();qlView('p','output');}
-  else{runQ();qlView('q','output');}
+const tagMap={w:'weekly-briefing',c:'meeting-prep',p:'follow-up-pipeline',q:'custom'};
+
+window.qlRun=async function(id){
+  await runScenario(id, tagMap[id]);
+  qlView(id, 'output');
 };
+
 window.qlView=function(id,v){
   const cp=document.getElementById('ql-'+id+'-code');
   const op=document.getElementById('ql-'+id+'-output');
@@ -1955,12 +2278,14 @@ window.qlView=function(id,v){
   if(wid)wid.classList.toggle('hidden',v==='code');
   document.querySelectorAll(`#ql-${sceneMap[id]} .ql-pill`).forEach((p,i)=>p.classList.toggle('on',i===(v==='output'?0:1)));
 };
+
 window.qlTab=function(id,btn){
   document.querySelectorAll('.ql-scene').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.ql-tab').forEach(b=>b.classList.remove('on'));
   document.getElementById('ql-'+id).classList.add('on');
   btn.classList.add('on');
 };
+
 function qlLog(html){
   const ll=document.getElementById('ql-loglines');
   const d=document.createElement('div');
@@ -1972,7 +2297,7 @@ function qlLog(html){
 }
 
 // Boot
-runW();
+runScenario('w', 'weekly-briefing');
 })();
 </script>
 </div><!-- fig-box -->
@@ -2009,21 +2334,21 @@ runW();
 <div class="fig-label">Figure 8.2 — Viewport-driven rendering: drag the viewport to see directives activate and deactivate</div>
 <div class="fig-box">
 <style>
-.vr-root{font-family:var(--sans);padding:1.25rem;max-width:580px;margin:0 auto;user-select:none}
-.vr-cols{display:grid;grid-template-columns:48px 1fr 180px;gap:12px;align-items:stretch}
-.vr-minimap{position:relative;background:var(--paper2);border:.5px solid var(--rule2);border-radius:6px;height:360px;cursor:ns-resize}
+.vr-root{font-family:var(--sans);padding:1.25rem;max-width:640px;margin:0 auto;user-select:none}
+.vr-cols{display:grid;grid-template-columns:50px 1fr 160px;gap:15px;align-items:stretch}
+.vr-minimap{position:relative;background:var(--paper2);border:.5px solid var(--rule2);border-radius:6px;height:380px;cursor:ns-resize}
 .vr-mm-line{position:absolute;left:6px;right:6px;height:2px;border-radius:1px;transition:background .2s}
 .vr-mm-line.dir{background:var(--accent);opacity:.6}
 .vr-mm-line.prose{background:var(--ink4);opacity:.3}
 .vr-mm-line.active{background:var(--accent);opacity:1;height:3px}
 .vr-viewport{position:absolute;left:0;right:0;background:rgba(29,158,117,.1);border:1.5px solid var(--accent);border-radius:4px;pointer-events:none;transition:top .05s}
 .vr-threshold{position:absolute;left:0;right:0;background:rgba(29,158,117,.04);border-top:1px dashed rgba(29,158,117,.25);border-bottom:1px dashed rgba(29,158,117,.25);pointer-events:none;transition:top .05s,height .05s}
-.vr-doc{display:flex;flex-direction:column;gap:0;border:.5px solid var(--rule2);border-radius:8px;overflow:hidden;height:360px;overflow-y:auto;background:var(--paper)}
-.vr-line{padding:2px 10px;font-size:11px;line-height:1.7;font-family:var(--mono);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:.5px solid transparent;transition:all .25s}
-.vr-line.rendered{background:var(--paper2);color:var(--ink);border-bottom-color:var(--rule2);border-left:2px solid var(--accent);font-family:var(--sans)}
+.vr-doc{display:flex;flex-direction:column;gap:0;border:.5px solid var(--rule2);border-radius:8px;overflow:hidden;height:380px;overflow-y:auto;background:var(--paper)}
+.vr-line{padding:3px 12px;font-size:11px;line-height:1.6;font-family:var(--mono);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:.5px solid transparent;transition:all .25s}
+.vr-line.rendered{background:var(--paper2);color:var(--ink);border-bottom-color:var(--rule2);border-left:3px solid var(--accent);font-family:var(--sans);padding:6px 12px;margin:2px 0;white-space:normal;overflow:visible;text-overflow:clip}
 .vr-line.in-threshold{color:var(--ink2)}
 .vr-line.dir-line{color:var(--accent);font-weight:500}
-.vr-line.dir-line.rendered{color:var(--ink)}
+.vr-line.dir-line.rendered{color:var(--ink);font-weight:600}
 .vr-stats{display:flex;flex-direction:column;gap:8px;font-size:11px;font-family:var(--sans)}
 .vr-stat{border:.5px solid var(--rule2);border-radius:8px;padding:8px 10px;background:var(--paper)}
 .vr-stat-label{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:4px}
