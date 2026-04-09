@@ -1036,6 +1036,7 @@ blockquote .attr{font-size:12px;color:var(--ink3);font-style:normal;font-family:
 .ws-opane.hidden{display:none}
 .ws-outlbl{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:5px;font-family:var(--sans)}
 .ws-oline{font-family:var(--mono);font-size:12px;color:var(--ink);line-height:1.7}
+.ws-errline{font-family:var(--mono);font-size:12px;color:#8b1a14;line-height:1.7}
 .ws-ctxpanel{background:var(--paper2);border-top:.5px solid var(--rule2);padding:8px 12px;display:none;font-family:var(--mono);font-size:11px;color:var(--ink2)}
 .ws-ctxpanel.show{display:block}
 .ws-ctxkey{color:var(--ink)}
@@ -1166,7 +1167,7 @@ print(f"Surplus:  £{surplus:,}  ({surplus/income*100:.1f}% of income)")</textar
 
 </div><!-- end ws-doc -->
 
-<script type="text/plain" id="ql-py-worker-source">
+<script type="text/plain" id="book-py-worker-source">
 import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.mjs';
 
 let pyodide = null;
@@ -1363,11 +1364,51 @@ def _figure8_run(code, datasets):
             "error": traceback.format_exc().rstrip(),
             "table": table_rows["value"],
         }
+
+
+def _worksheet_run(code):
+    shared = {
+        "__builtins__": __builtins__,
+    }
+
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, shared)
+        stdout = buf.getvalue().splitlines()
+        context = {
+            name: _export(value)
+            for name, value in shared.items()
+            if not name.startswith("__")
+        }
+        return {
+            "stdout": stdout,
+            "error": None,
+            "context": context,
+        }
+    except Exception:
+        stdout = buf.getvalue().splitlines()
+        context = {
+            name: _export(value)
+            for name, value in shared.items()
+            if not name.startswith("__")
+        }
+        return {
+            "stdout": stdout,
+            "error": traceback.format_exc().rstrip(),
+            "context": context,
+        }
+
+
+def _book_run(mode, code, datasets):
+    if mode == "worksheet":
+        return _worksheet_run(code)
+    return _figure8_run(code, datasets)
 `);
 }
 
 self.onmessage = async (event) => {
-  const { type, requestId, code, datasets } = event.data || {};
+  const { type, requestId, mode, code, datasets } = event.data || {};
 
   try {
     if (type === 'init') {
@@ -1379,11 +1420,12 @@ self.onmessage = async (event) => {
     if (type === 'exec') {
       await initPyodide();
       const datasetProxy = pyodide.toPy(datasets || {});
+      pyodide.globals.set('__book_mode', mode || 'figure8');
       pyodide.globals.set('__figure8_code', code || '');
       pyodide.globals.set('__figure8_datasets', datasetProxy);
       try {
         const result = await pyodide.runPythonAsync(
-          '_figure8_run(__figure8_code, __figure8_datasets)'
+          '_book_run(__book_mode, __figure8_code, __figure8_datasets)'
         );
         const resultJs = result.toJs({ dict_converter: Object.fromEntries });
         result.destroy();
@@ -1393,6 +1435,7 @@ self.onmessage = async (event) => {
           result: resultJs
         });
       } finally {
+        pyodide.globals.delete('__book_mode');
         pyodide.globals.delete('__figure8_code');
         pyodide.globals.delete('__figure8_datasets');
         datasetProxy.destroy();
@@ -1409,6 +1452,86 @@ self.onmessage = async (event) => {
 </script>
 
 <script>
+window.bookPy=(function(){
+  const state={
+    worker:null,
+    ready:null,
+    pending:new Map(),
+    seq:0
+  };
+
+  function ensure(){
+    if(state.ready)return state.ready;
+    state.ready=new Promise((resolve,reject)=>{
+      const sourceEl=document.getElementById('book-py-worker-source');
+      const workerSrc=sourceEl ? sourceEl.textContent : '';
+      const workerBlob=new Blob([workerSrc],{type:'text/javascript'});
+      const workerUrl=URL.createObjectURL(workerBlob);
+      const worker=new Worker(workerUrl,{type:'module'});
+      URL.revokeObjectURL(workerUrl);
+      state.worker=worker;
+      let initialised=false;
+
+      const failInit=(message)=>{
+        if(initialised)return;
+        state.ready=null;
+        reject(new Error(message));
+      };
+
+      worker.onmessage=(event)=>{
+        const {type,requestId,result,error}=event.data||{};
+        if(type==='ready'){
+          initialised=true;
+          resolve(worker);
+          return;
+        }
+        if(type==='result'){
+          const pending=state.pending.get(requestId);
+          if(!pending)return;
+          state.pending.delete(requestId);
+          pending.resolve(result||{stdout:[],error:null});
+          return;
+        }
+        if(type==='error'){
+          const pending=state.pending.get(requestId);
+          if(pending){
+            state.pending.delete(requestId);
+            pending.reject(new Error(error||'Python evaluation failed.'));
+            return;
+          }
+          failInit(error||'Python worker failed to initialise.');
+        }
+      };
+
+      worker.onerror=(event)=>{
+        failInit(event.message||'Python worker failed to load.');
+      };
+
+      worker.postMessage({type:'init'});
+    });
+    return state.ready;
+  }
+
+  async function exec({mode='figure8', code='', datasets={}}={}){
+    await ensure();
+    const requestId=`book-py-${++state.seq}`;
+    return new Promise((resolve,reject)=>{
+      state.pending.set(requestId,{resolve,reject});
+      state.worker.postMessage({
+        type:'exec',
+        requestId,
+        mode,
+        code,
+        datasets
+      });
+    });
+  }
+
+  return {ensure,exec};
+})();
+</script>
+
+<script>
 (function(){
 // ── State ──
 let wsCtx = {};
@@ -1418,64 +1541,20 @@ let wsDiverged = false;
 let wsDetached = false;
 let wsSortCol = -1, wsSortAsc = true;
 
-// ── Python evaluator ──
-function wsEval(src) {
-  wsCtx = {};
-  const stdout = [];
-  for (const raw of src.split('\n')) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const pm = line.match(/^print\(f?"(.*)"\)$/);
-    if (pm) {
-      let s = pm[1];
-      s = s.replace(/\{([^}:]+)(?::[^}]*)?\}/g, (_, e) => {
-        try {
-          let expr = e.trim();
-          for (const [k,v] of Object.entries(wsCtx)) {
-            if (typeof v === 'number') expr = expr.replace(new RegExp('\\b'+k+'\\b','g'), v);
-          }
-          const r = Function('"use strict";return ('+expr+')')();
-          if (typeof r === 'number') {
-            if (_.includes(',.1f')) return r.toFixed(1);
-            if (_.includes(',.0f') || _.includes(':,')) return Math.round(r).toLocaleString();
-          }
-          return r;
-        } catch { return '?'; }
-      });
-      stdout.push(s);
-      continue;
-    }
-    const am = line.match(/^([a-zA-Z_]\w*)\s*=\s*(.+)$/);
-    if (am) {
-      try {
-        const v = am[2].trim();
-        const zm = v.match(/^\[(.+) for (.+) in zip\((.+)\)\]$/);
-        if (zm) {
-          const expr = zm[1], vars = zm[2].split(',').map(s=>s.trim()), srcs = zm[3].split(',').map(s=>s.trim());
-          const iters = srcs.map(s => wsCtx[s] || []);
-          const len = Math.min(...iters.map(it => it.length));
-          const res = [];
-          for (let i=0; i<len; i++) {
-            let e = expr;
-            vars.forEach((vr, vi) => e = e.replace(new RegExp('\\b'+vr+'\\b','g'), iters[vi][i]));
-            res.push(Function('"use strict";return ('+e+')')());
-          }
-          wsCtx[am[1]] = res;
-        } else if (v.startsWith('[')) wsCtx[am[1]] = JSON.parse(v.replace(/'/g,'"'));
-        else {
-          let expr = v;
-          for (const [k,val] of Object.entries(wsCtx)) {
-            if (typeof val === 'number') expr = expr.replace(new RegExp('\\b'+k+'\\b','g'), val);
-            if (Array.isArray(val) && expr.includes('sum('+k+')')) {
-              expr = expr.replace('sum('+k+')', val.reduce((a,b)=>a+b,0));
-            }
-          }
-          wsCtx[am[1]] = Function('"use strict";return ('+expr+')')();
-        }
-      } catch(e) {}
-    }
-  }
-  return stdout;
+function wsEscape(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+function wsRenderOutput(stdout, error){
+  const lines=[
+    ...(stdout||[]).map(line=>`<div class="ws-oline">${wsEscape(line)}</div>`),
+    ...((error?String(error).split('\n'):[]).map(line=>`<div class="ws-errline">${wsEscape(line)}</div>`))
+  ];
+  document.getElementById('ws-stdout').innerHTML=
+    lines.join('')||'<div class="ws-oline" style="color:var(--ink3)">(no output)</div>';
 }
 
 function wsBuildRows() {
@@ -1494,21 +1573,39 @@ function wsBuildRows() {
 }
 
 // ── Run ──
-function wsRunPy() {
-  const stdout = wsEval(document.getElementById('ws-pysrc').value);
-  document.getElementById('ws-stdout').innerHTML =
-    stdout.map(l=>`<div class="ws-oline">${l}</div>`).join('') ||
-    '<div class="ws-oline" style="color:var(--ink3)">(no output)</div>';
+async function wsRunPy({logOnSuccess=true}={}) {
+  const src=document.getElementById('ws-pysrc').value;
+  wsRenderOutput(['initialising Python runtime...'], null);
+
+  let result;
+  try{
+    result=await window.bookPy.exec({
+      mode:'worksheet',
+      code:src
+    });
+  }catch(err){
+    result={stdout:[],error:err.message,context:{}};
+  }
+
+  wsCtx=result.context||{};
+  wsRenderOutput(result.stdout, result.error);
   wsRenderCtx();
-  if (!wsDetached) {
+
+  if (result.error) {
+    wsAddLog(`<span class="ws-lk">::py[budget-march]</span> evaluation failed — <span class="ws-errline">${wsEscape(result.error.split('\n').pop()||'error')}</span>`);
+  } else if (!wsDetached) {
     wsRows = wsBuildRows();
     wsEdited.clear();
     wsDiverged = false;
     wsUpdateBadge();
     wsRenderTable();
-    wsAddLog(`<span class="ws-lk">::py[budget-march]</span> re-evaluated — <span class="ws-lv">::table[budget-breakdown]</span> regenerated`);
+    if(logOnSuccess){
+      wsAddLog(`<span class="ws-lk">::py[budget-march]</span> re-evaluated — <span class="ws-lv">::table[budget-breakdown]</span> regenerated`);
+    }
   } else {
-    wsAddLog(`<span class="ws-lk">::py[budget-march]</span> re-evaluated — table detached, not updated`);
+    if(logOnSuccess){
+      wsAddLog(`<span class="ws-lk">::py[budget-march]</span> re-evaluated — table detached, not updated`);
+    }
   }
   wsPyView('output');
 }
@@ -1535,7 +1632,7 @@ window.wsPyView = function(v) {
   document.getElementById('ws-pc').classList.toggle('on', v==='code');
 };
 
-window.wsRunPy = wsRunPy;
+window.wsRunPy = () => wsRunPy();
 
 // ── Table ──
 window.wsSort = function(col) {
@@ -1662,7 +1759,7 @@ window.wsLogTask = function(cb) {
 };
 
 // Boot
-wsRunPy();
+wsRunPy({logOnSuccess:false});
 })();
 </script>
 </div><!-- fig-box -->
@@ -2121,76 +2218,11 @@ function miniTbl(el, rows){
   }</tbody></table>`;
 }
 
-const qlPy={
-  worker:null,
-  ready:null,
-  pending:new Map(),
-  seq:0
-};
-
-function qlEnsurePy(){
-  if(qlPy.ready)return qlPy.ready;
-  qlPy.ready=new Promise((resolve,reject)=>{
-    const sourceEl=document.getElementById('ql-py-worker-source');
-    const workerSrc=sourceEl ? sourceEl.textContent : '';
-    const workerBlob=new Blob([workerSrc],{type:'text/javascript'});
-    const workerUrl=URL.createObjectURL(workerBlob);
-    const worker=new Worker(workerUrl,{type:'module'});
-    URL.revokeObjectURL(workerUrl);
-    qlPy.worker=worker;
-    let initialised=false;
-
-    const failInit=(message)=>{
-      if(initialised)return;
-      qlPy.ready=null;
-      reject(new Error(message));
-    };
-
-    worker.onmessage=(event)=>{
-      const {type,requestId,result,error}=event.data||{};
-      if(type==='ready'){
-        initialised=true;
-        resolve(worker);
-        return;
-      }
-      if(type==='result'){
-        const pending=qlPy.pending.get(requestId);
-        if(!pending)return;
-        qlPy.pending.delete(requestId);
-        pending.resolve(result||{stdout:[],error:null,table:null});
-        return;
-      }
-      if(type==='error'){
-        const pending=qlPy.pending.get(requestId);
-        if(pending){
-          qlPy.pending.delete(requestId);
-          pending.reject(new Error(error||'Python evaluation failed.'));
-          return;
-        }
-        failInit(error||'Python worker failed to initialise.');
-      }
-    };
-
-    worker.onerror=(event)=>{
-      failInit(event.message||'Python worker failed to load.');
-    };
-
-    worker.postMessage({type:'init'});
-  });
-  return qlPy.ready;
-}
-
 async function pyExec(code){
-  await qlEnsurePy();
-  const requestId=`ql-py-${++qlPy.seq}`;
-  return new Promise((resolve,reject)=>{
-    qlPy.pending.set(requestId,{resolve,reject});
-    qlPy.worker.postMessage({
-      type:'exec',
-      requestId,
-      code,
-      datasets:{TODAY,APP}
-    });
+  return window.bookPy.exec({
+    mode:'figure8',
+    code,
+    datasets:{TODAY,APP}
   });
 }
 
