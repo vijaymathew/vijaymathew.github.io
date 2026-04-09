@@ -1854,6 +1854,14 @@ wsRunPy({logOnSuccess:false});
 .ql-outlbl{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:5px;font-family:var(--sans)}
 .ql-oline{font-family:var(--mono);font-size:12px;color:var(--ink);line-height:1.7}
 .ql-errline{font-family:var(--mono);font-size:12px;color:#8b1a14;line-height:1.7}
+.ql-ranklist{display:flex;flex-direction:column;gap:8px}
+.ql-rankrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:.5px solid var(--rule2);border-radius:8px;background:var(--paper2)}
+.ql-rankmain{min-width:0}
+.ql-rankname{font-size:12px;color:var(--ink);font-weight:500;font-family:var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ql-rankmeta{font-size:11px;color:var(--ink3);font-family:var(--sans);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ql-rankside{text-align:right}
+.ql-rankcount{font-family:var(--mono);font-size:12px;color:#1a4a2a;font-weight:600}
+.ql-ranklast{font-size:11px;color:var(--ink3);font-family:var(--sans);margin-top:2px}
 .ql-rw{padding:10px 12px;background:var(--paper);border-top:.5px solid var(--rule2)}
 .ql-rwlbl{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px;font-family:var(--sans)}
 .ql-mtbl{width:100%;border-collapse:collapse;font-size:12px}
@@ -2035,7 +2043,7 @@ for c in ranked[:5]:
 </textarea>
   </div>
   <div class="ql-opane" id="ql-p-output">
-    <div class="ql-outlbl">stdout</div>
+    <div class="ql-outlbl">top contacts widget</div>
     <div id="ql-p-stdout"></div>
   </div>
   <div class="ql-rw" id="ql-p-widget">
@@ -2235,6 +2243,31 @@ function qlRenderOutput(id, stdout, error){
     lines.join('')||'<div class="ql-oline" style="color:var(--ink3)">(no output)</div>';
 }
 
+function qlRenderPipelineWidget(ranked, freq){
+  const host=document.getElementById('ql-p-stdout');
+  if(!host)return;
+  if(!ranked.length){
+    host.innerHTML='<div class="ql-oline" style="color:var(--ink3)">(no matching contacts)</div>';
+    return;
+  }
+  host.innerHTML=`<div class="ql-ranklist">${
+    ranked.map(c=>{
+      const last=tasks.query({contact:c.email,done:true,limit:1});
+      const lastDate=last.length?last[0].due:'never';
+      return `<div class="ql-rankrow">
+        <div class="ql-rankmain">
+          <div class="ql-rankname">${qlEscape(c.name)}</div>
+          <div class="ql-rankmeta">${qlEscape(c.role)} · ${qlEscape(c.email)}</div>
+        </div>
+        <div class="ql-rankside">
+          <div class="ql-rankcount">${freq[c.email]||0} emails</div>
+          <div class="ql-ranklast">last task: ${qlEscape(lastDate)}</div>
+        </div>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
 async function runScenario(id, tag) {
   _tblOut = null;
   const src = document.getElementById(`ql-${id}-src`).value;
@@ -2271,6 +2304,7 @@ async function runScenario(id, tag) {
       const known = Object.keys(freq).map(addr=>contacts.get(addr)).filter(Boolean);
       const no_mtg = known.filter(c=>!cal.events({attendee:c.email,days:7}).length);
       const ranked = no_mtg.sort((a,b)=>(freq[b.email]||0)-(freq[a.email]||0)).slice(0,5);
+      qlRenderPipelineWidget(ranked, freq);
       const maxF = Math.max(...ranked.map(c=>freq[c.email]||0), 1);
       document.getElementById('ql-p-bars').innerHTML = ranked.map(c=>`
         <div class="ql-brow">
@@ -2578,7 +2612,7 @@ init();
 <h2>9.1.1 Two kinds of state: owned and mirrored</h2>
 <p>The phrase "source of truth" has to be handled carefully here, because the architecture uses it in two related but distinct senses. If this distinction is blurred, the system begins to sound cleaner than it is, and therefore less trustworthy than it should be.</p>
 <p>Owned state is state for which the document text is the sole canonical source. A <code>::task</code> directive is owned state. A <code>::py</code> block is owned state. A <code>::table</code> whose data lives inline in the document is owned state. A transcluded note, though it may be viewed from multiple places, is still owned by text in a source document. For owned state, the claim is absolute: the document is not a representation of the system. It is the system. To change the state is to change the text.</p>
-<p>Mirrored state is different. An <code>::email</code> embed projects mail that remains canonical on a mail server. A <code>::cal</code> embed projects events whose authoritative record remains in a calendar backend. A chat embed projects messages that remain canonical on the chat service. In these cases the document is not the remote database and should never pretend to be. What it is, instead, is the durable user-owned orchestration layer above those systems: the place where the relevant slice of remote state is brought into context, where actions are taken in that context, and where those actions are recorded in a permanent textual history.</p>
+<p>Mirrored state is different. An <code>::email</code> embed projects mail that remains canonical on a mail server. A <code>::cal</code> embed projects events whose authoritative record remains in a calendar backend. A <code>::chat</code> embed projects messages that remain canonical on the chat service. In these cases the document is not the remote database and should never pretend to be. What it is, instead, is the durable user-owned orchestration layer above those systems: the place where the relevant slice of remote state is brought into context, where actions are taken in that context, and where those actions are recorded in a permanent textual history.</p>
 <p>So the architecture makes two promises, not one. For owned state, the document is the source of truth in the strongest possible sense. For mirrored state, the document is the authoritative personal record of what the user saw, decided, and did in relation to external systems. This is a narrower promise than "the document is the database of everything." It is also the promise that can actually be kept.</p>
 </div>
 
@@ -2969,13 +3003,28 @@ window.f92go=function(n){
 <h2>10.6 The soft budget</h2>
 <p>The Appendix B specification states a 64MB memory limit per document context and a 10-second execution time limit per document open. These are hard limits — the sandbox enforces them. But they are implementation constraints, not user-facing guidance. The user needs a softer signal: your document is getting large, and here is what that means.</p>
 <p>The renderer should maintain a <strong>line-count budget</strong> — a configurable threshold (default: 5,000 lines) above which the renderer displays a non-intrusive advisory:</p>
-<div class="code-block">
-<div class="cm">┌────────────────────────────────────────────────────┐</div>
-<div class="cm">│ This document has 6,200 lines (24 directives).    │</div>
-<div class="cm">│ Consider archiving resolved sections or spawning   │</div>
-<div class="cm">│ a new document.                                    │</div>
-<div class="cm">│                        [compact now]  [dismiss]    │</div>
-<div class="cm">└────────────────────────────────────────────────────┘</div>
+<style>
+.budget-widget{margin:1rem 0;padding:14px 16px;border:.5px solid #d7d2c4;border-radius:12px;background:linear-gradient(180deg,#fbfaf6 0%,#f4f0e6 100%);box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.budget-widget-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.budget-widget-title{font:600 13px var(--sans);color:#2d2a26}
+.budget-widget-meta{font:11px var(--mono);color:#6e685d;white-space:nowrap}
+.budget-widget-body{font:13px/1.6 var(--sans);color:#4a443c;max-width:44ch}
+.budget-widget-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.budget-widget-btn{font:12px var(--sans);padding:5px 10px;border-radius:8px;border:.5px solid #cfc7b7;background:rgba(255,255,255,.55);color:#4a443c}
+.budget-widget-btn.primary{background:#ece7d9;border-color:#bdb39d;color:#2d2a26;font-weight:500}
+</style>
+<div class="budget-widget">
+  <div class="budget-widget-head">
+    <div class="budget-widget-title">Document Budget Advisory</div>
+    <div class="budget-widget-meta">6,200 lines · 24 directives</div>
+  </div>
+  <div class="budget-widget-body">
+    Consider archiving resolved sections or spawning a new document to keep rendering responsive.
+  </div>
+  <div class="budget-widget-actions">
+    <button class="budget-widget-btn primary" type="button">compact now</button>
+    <button class="budget-widget-btn" type="button">dismiss</button>
+  </div>
 </div>
 <p>The advisory is a renderer behaviour — it does not mutate the document. It is not an error. It is not a warning that blocks functionality. It is information: your document is in the range where viewport-driven rendering (§8.6) is doing meaningful work to keep the experience responsive, and the lifecycle tools described in this chapter — spawn, compact, archive — can reduce the load if you choose.</p>
 <p>The budget is deliberately soft. A user who writes a 10,000-line document because that is how their thinking works should not be punished by the tool. The document will be slower to open, the directive index larger, the proximity threshold doing more work — but it will function. The advisory makes the cost visible. Making the cost visible is what "no hidden state" demands: if the system is working harder, the user should know. What the system must never do is silently degrade — dropping directives, refusing to render, truncating content. The document is the user's. The budget is advice, not a cage.</p>
