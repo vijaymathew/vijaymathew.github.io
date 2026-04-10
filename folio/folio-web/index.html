@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folio — The Document is the Computer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="src/shell/styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="header-left">
+                <div class="menu-wrap">
+                <button class="menu-btn" id="menu-btn" title="Menu">
+                    <span></span><span></span><span></span>
+                </button>
+                <div class="menu-dropdown" id="menu-dropdown">
+                    <button id="btn-new">New document</button>
+                    <button id="btn-save">Save to file</button>
+                    <button id="btn-load">Load from file</button>
+                    <button id="btn-clear-persisted">Clear persisted document</button>
+                    <button id="btn-new-generated-document">Generate document</button>
+                    <div class="menu-sep"></div>
+                    <button id="btn-toggle-trust">Trust document</button>
+                    <div class="menu-sep"></div>
+                    <div class="menu-subwrap">
+                        <button class="menu-subtoggle" id="help-menu-toggle">Help <span class="menu-caret">›</span></button>
+                        <div class="menu-submenu">
+                            <button id="help-tour">Quick tour</button>
+                            <button id="help-manual">Usage manual</button>
+                            <a href="../../books/ui/the-document-is-the-computer.html" target="_blank">Architecture document</a>
+                        </div>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept=".txt,.md,.folio" style="display:none">
+                </div>
+                <div class="logo">Folio</div>
+                <div class="proto-badge">Prototype</div>
+                <button class="view-toggle-btn" id="global-view-toggle" title="Switch to Full Text View">
+                    <i class="fa fa-code"></i>
+                </button>
+            </div>
+            <div class="status" id="status-bar">Substrate loaded</div>
+            <div class="status" id="security-bar">Untrusted document</div>
+        </header>
+        <main>
+            <div id="editor-container"></div>
+            <div id="canvas-container">
+                <div class="document-page" id="render-canvas"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { DocumentStore } from './src/core/DocumentStore.js';
+        import { DocumentSecurityPolicy } from './src/core/DocumentSecurityPolicy.js';
+        import { SyncBus } from './src/core/SyncBus.js';
+        import { DirectiveParser } from './src/core/DirectiveParser.js';
+        import { CapabilityRegistry } from './src/core/CapabilityRegistry.js';
+        import { NamespaceBridge } from './src/python/NamespaceBridge.js';
+        import { RenderCanvas } from './src/shell/RenderCanvas.js';
+        import { DocumentEditor } from './src/shell/DocumentEditor.js';
+        import { DirectiveAssistant } from './src/shell/DirectiveAssistant.js';
+        import { OpenAICompatibleSimulationLLMClient } from './src/simulation/OpenAICompatibleSimulationLLMClient.js';
+        import { SimulationProfileStore } from './src/simulation/SimulationProfileStore.js';
+        import { SimulationScenarioStore } from './src/simulation/SimulationScenarioStore.js';
+        import { SimulationSecretsStore } from './src/simulation/SimulationSecretsStore.js';
+        import { SimulationSettingsStore } from './src/simulation/SimulationSettingsStore.js';
+        import { SimulationCoordinator } from './src/simulation/SimulationCoordinator.js';
+        
+        // Renderers
+        import { MetaRenderer } from './src/renderers/MetaRenderer.js';
+        import { NoteRenderer } from './src/renderers/NoteRenderer.js';
+        import { SpawnRenderer } from './src/renderers/SpawnRenderer.js';
+        import { TaskRenderer } from './src/renderers/TaskRenderer.js';
+        import { CalRenderer } from './src/renderers/CalRenderer.js';
+        import { EmailRenderer } from './src/renderers/EmailRenderer.js';
+        import { TableRenderer } from './src/renderers/TableRenderer.js';
+        import { ContactRenderer } from './src/renderers/ContactRenderer.js';
+        import { FileRenderer } from './src/renderers/FileRenderer.js';
+        import { ChatRenderer } from './src/renderers/ChatRenderer.js';
+        import { WebRenderer } from './src/renderers/WebRenderer.js';
+        import { PyRenderer } from './src/renderers/mock/PyRenderer.js';
+
+        function localSeedDate(offsetDays = 0) {
+            const value = new Date();
+            value.setHours(0, 0, 0, 0);
+            value.setDate(value.getDate() + offsetDays);
+            const year = value.getFullYear();
+            const month = String(value.getMonth() + 1).padStart(2, '0');
+            const day = String(value.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function buildSeedDocument() {
+            const today = localSeedDate(0);
+            const tomorrow = localSeedDate(1);
+            return `${formatDocumentHeading(today)}
+Picked up where Friday left off — the Q3 analysis is nearly done, just needs the hardware line clarified with finance before I can send it to Sara.
+
+::meta[status]{value=active}
+
+::cal[today]{view=agenda}
+::end
+
+::email[inbox]{filter=unread}
+::end
+
+::email[thread-q3-budget]{limit=3}
+::end
+
+::contact[sara.chen]
+name = Sara Chen
+email = sara@example.com
+role = Head of Product
+org = Example Ltd
+notes = Needs Q3 numbers before Thursday board pack.
+::end
+
+::contact[finance.team]
+name = Finance Team
+email = finance@folio.local
+phone = ext. 4102
+notes = Contact for Q3 budget queries.
+::end
+
+::note[finance-contact]{source=contact:finance.team field=notes}
+::end
+
+The hardware budget breakdown per region:
+
+The hardware overrun from last week — I ran the numbers again this morning:
+
+::py[q3-check]{run=auto}
+result = [
+    {'region': 'North', 'q1': 3500, 'q2': 4200, 'q3': 4200, 'status': 'On Track'},
+    {'region': 'South', 'q1': 2000, 'q2': 2100, 'q3': 1850, 'status': 'Under'},
+    {'region': 'East', 'q1': 5000, 'q2': 5800, 'q3': 6700, 'status': 'Over'},
+    {'region': 'West', 'q1': 3000, 'q2': 3200, 'q3': 3100, 'status': 'On Track'},
+    {'region': 'Global', 'q1': 1200, 'q2': 1100, 'q3': 950, 'status': 'On Track'},
+]
+actuals = [d['q3'] for d in result]
+budget  = [d['q1'] for d in result]
+
+# Querying the 'note' namespace
+note_data = note.query({'id': 'finance-contact'})
+print(f"Contacting: {note_data['id']}")
+print(f"Total Overrun: {sum(a-b for a,b in zip(actuals,budget)):+,}")
+::end
+
+::table[q3-budget-table]{source=q3-check editable=true}
+| Region | Q1 | Q2 | Q3 | Status |
+| North | 3500 | 4200 | 4200 | On Track |
+| South | 2000 | 2100 | 1850 | Under |
+| East | 5000 | 5800 | 6700 | Over |
+| West | 3000 | 3200 | 3100 | On Track |
+| Global | 1200 | 1100 | 950 | On Track |
+::end
+
+::task[call-finance]{due=today priority=high status=todo}
+::task[send-q3-sara]{due=${tomorrow} blocked-by=call-finance status=todo}
+
+::file[~/docs/q3-hardware-report.pdf]{preview=true}
+
+::chat[#finance]{limit=5}
+::end
+
+::web[https://example.com/hardware-budget-variance]{view=reader}
+title = Understanding Hardware Budget Variance
+summary = An analysis of common causes for hardware budget overruns in enterprise Q3 reporting.
+---
+Relevant to the East region overrun we are investigating. The section on procurement lag matches our pattern.
+::end
+
+::spawn[next]{doc=daily:${tomorrow} title="${formatDocumentHeading(tomorrow)}" after-status=dormant}
+`;
+        }
+
+        const seedDoc = buildSeedDocument();
+
+        // Bump version when the seed document structure changes
+        // (e.g., directives move from inline to block format).
+        const STORAGE_KEY = 'folio:document:v6';
+        const SEED_DOCUMENT_ID = 'seed:v6';
+
+        function hashText(text) {
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        function makeLoadedDocumentId(name, text) {
+            return `file:${name}:${hashText(text)}`;
+        }
+
+        // 1. Core Triad (auto-persists to localStorage)
+        const hadSavedDocument = DocumentStore.hasSaved(STORAGE_KEY);
+        const store = new DocumentStore(seedDoc, STORAGE_KEY, SEED_DOCUMENT_ID);
+        const bus = new SyncBus(store);
+        const parser = new DirectiveParser();
+        const policy = new DocumentSecurityPolicy('folio:policy');
+        const profileStore = new SimulationProfileStore('folio:simulation');
+        const scenarioStore = new SimulationScenarioStore('folio:simulation');
+        const simulationSecretsStore = new SimulationSecretsStore('folio:simulation:secrets');
+        const simulationSettingsStore = new SimulationSettingsStore('folio:simulation:settings');
+        const simulation = new SimulationCoordinator({ profileStore, scenarioStore });
+        policy.setDocument(store.getDocumentId());
+        window.folioDebug = {
+            store,
+            policy,
+            simulation,
+            simulationProfileStore: profileStore,
+            simulationScenarioStore: scenarioStore,
+            simulationSecretsStore,
+            simulationSettingsStore,
+            OpenAICompatibleSimulationLLMClient
+        };
+
+        // 2. Registry & Bridge
+        const registry = new CapabilityRegistry(policy);
+        const bridge = new NamespaceBridge(registry, parser, store, policy);
+        const appApi = {
+            parser,
+            directiveAssistant: null,
+            simulation,
+            openDocument: (documentId) => {
+                const doc = store.getDocument(documentId);
+                if (!doc) return;
+                renderDocument(doc.text, documentId);
+            },
+            setStatus: (text) => {
+                statusBar.textContent = text;
+            }
+        };
+        window.folioDebug.openDocument = appApi.openDocument;
+
+        registry.register('meta', MetaRenderer);
+        registry.register('note', NoteRenderer);
+        registry.register('spawn', SpawnRenderer);
+        registry.register('task', TaskRenderer);
+        registry.register('cal', CalRenderer);
+        registry.register('email', EmailRenderer);
+        registry.register('table', TableRenderer);
+        registry.register('contact', ContactRenderer);
+        registry.register('file', FileRenderer);
+        registry.register('chat', ChatRenderer);
+        registry.register('web', WebRenderer);
+        registry.register('py', PyRenderer);
+        parser.setKnownTypes(Array.from(registry.classes.keys()));
+
+        const directiveAssistant = new DirectiveAssistant({ registry, store, parser, profileStore });
+        appApi.directiveAssistant = directiveAssistant;
+
+        // 3. Shell
+        const editor = new DocumentEditor(document.getElementById('editor-container'), bus);
+        const scrollRoot = document.getElementById('canvas-container');
+        const canvas = new RenderCanvas(
+            document.getElementById('render-canvas'), registry, bus, parser, scrollRoot, { appApi }
+        );
+
+        // 4. Orchestration (with debounced editor updates)
+        let editorTimer = null;
+        const EDITOR_DEBOUNCE_MS = 300;
+        const editorContainer = document.getElementById('editor-container');
+        const canvasContainer = document.getElementById('canvas-container');
+        const statusBar = document.getElementById('status-bar');
+        const securityBar = document.getElementById('security-bar');
+        const trustBtn = document.getElementById('btn-toggle-trust');
+        const onboardingOverlay = document.getElementById('onboarding-overlay');
+        const onboardingCloseBtn = document.getElementById('onboarding-close');
+        const onboardingPrevBtn = document.getElementById('onboarding-prev');
+        const onboardingNextBtn = document.getElementById('onboarding-next');
+        const onboardingDoneBtn = document.getElementById('onboarding-done');
+        const onboardingSlides = Array.from(document.querySelectorAll('.onboarding-slide'));
+        const onboardingDots = Array.from(document.querySelectorAll('.onboarding-dot'));
+        const profileOverlay = document.getElementById('profile-overlay');
+        const profileCloseBtn = document.getElementById('profile-close');
+        const profileSkipBtn = document.getElementById('profile-skip');
+        const profileSaveBtn = document.getElementById('profile-save');
+        const profileContactsList = document.getElementById('profile-contacts-list');
+        const profileAddContactBtn = document.getElementById('profile-add-contact');
+        const simulationRemoteEndpoint = document.getElementById('simulation-remote-endpoint');
+        const simulationRemoteModel = document.getElementById('simulation-remote-model');
+        const simulationRemoteApiKey = document.getElementById('simulation-remote-api-key');
+        const simulationRemoteApiKeyStatus = document.getElementById('simulation-remote-api-key-status');
+        const simulationRemoteClearKeyBtn = document.getElementById('simulation-remote-clear-key');
+        const simulationSettingsSummary = document.getElementById('simulation-settings-summary');
+        const simulationSettingsStatus = document.getElementById('simulation-settings-status');
+        let simulationStatusUnsubscribe = null;
+        let simulationSettings = simulationSettingsStore.getSettings();
+        const ONBOARDING_KEY = 'folio:onboarding:v1';
+        let onboardingIndex = 0;
+
+        function refreshCurrentDocument(forceRebuild = true) {
+            const text = store.getContents();
+            const index = parser.parse(text);
+            bridge.syncDocument(text, index);
+            canvas.update(text, index, bridge, forceRebuild);
+            syncGlobalToggleUI();
+        }
+
+        function slugify(value, fallback = 'item') {
+            const slug = String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            return slug || fallback;
+        }
+
+        function normalizeChannelId(value, fallback) {
+            const trimmed = String(value || '').trim();
+            if (!trimmed) return fallback;
+            return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+        }
+
+        function parseProfileList(value) {
+            return String(value || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean);
+        }
+
+        function clearProfileContacts() {
+            profileContactsList.innerHTML = '';
+        }
+
+        function appendProfileContact(contact = {}) {
+            const card = document.createElement('div');
+            card.className = 'profile-contact-card';
+
+            const grid = document.createElement('div');
+            grid.className = 'profile-contact-grid';
+
+            const fields = [
+                { key: 'name', label: 'Name', type: 'text', placeholder: 'Alex Rivera' },
+                { key: 'email', label: 'Email', type: 'email', placeholder: 'alex@example.com' },
+                { key: 'role', label: 'Role', type: 'text', placeholder: 'Curator, client, collaborator...' },
+                { key: 'relationship', label: 'Relationship', type: 'text', placeholder: 'friend, client, sibling...' }
+            ];
+
+            for (const field of fields) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'profile-field';
+
+                const label = document.createElement('label');
+                label.textContent = field.label;
+                wrapper.appendChild(label);
+
+                const input = document.createElement('input');
+                input.type = field.type;
+                input.placeholder = field.placeholder;
+                input.value = contact[field.key] || '';
+                input.dataset.contactField = field.key;
+                wrapper.appendChild(input);
+                grid.appendChild(wrapper);
+            }
+
+            card.appendChild(grid);
+
+            const actions = document.createElement('div');
+            actions.className = 'profile-contact-actions';
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'profile-contact-remove';
+            removeBtn.textContent = 'Remove contact';
+            removeBtn.onclick = () => {
+                card.remove();
+            };
+            actions.appendChild(removeBtn);
+            card.appendChild(actions);
+
+            profileContactsList.appendChild(card);
+        }
+
+        function readProfileContacts(domain) {
+            const cards = Array.from(profileContactsList.querySelectorAll('.profile-contact-card'));
+            const counts = new Map();
+            return cards
+                .map((card, index) => {
+                    const values = {};
+                    for (const input of card.querySelectorAll('[data-contact-field]')) {
+                        values[input.dataset.contactField] = input.value.trim();
+                    }
+                    const hasContent = Object.values(values).some(Boolean);
+                    if (!hasContent) return null;
+
+                    const baseId = slugify(values.name || values.role || values.relationship || `contact-${index + 1}`, `contact-${index + 1}`);
+                    const nextCount = (counts.get(baseId) || 0) + 1;
+                    counts.set(baseId, nextCount);
+                    const id = nextCount === 1 ? baseId : `${baseId}-${nextCount}`;
+
+                    return {
+                        id,
+                        name: values.name || `Contact ${index + 1}`,
+                        email: values.email || `${id}@${domain}`,
+                        role: values.role || 'Contact',
+                        relationship: values.relationship || 'contact'
+                    };
+                })
+                .filter(Boolean);
+        }
+
+        function populateProfileForm(profile = profileStore.getCurrentProfile()) {
+            const contacts = profile?.contacts || [];
+            const project = profile?.projects?.[0] || {};
+            const primaryChannel = profile?.channels?.[0] || {};
+            const secondaryChannel = profile?.channels?.[1] || {};
+
+            document.getElementById('profile-name').value = profile?.user?.name || '';
+            document.getElementById('profile-email').value = profile?.user?.email || '';
+            document.getElementById('profile-role').value = profile?.user?.role || '';
+            document.getElementById('profile-org').value = profile?.organization?.name || '';
+            document.getElementById('profile-bio').value = profile?.user?.bio || '';
+            document.getElementById('profile-interests').value = Array.isArray(profile?.user?.interests)
+                ? profile.user.interests.join(', ')
+                : '';
+            document.getElementById('profile-project').value = project.name || '';
+            document.getElementById('profile-primary-channel').value = primaryChannel.id || '#general';
+            document.getElementById('profile-secondary-channel').value = secondaryChannel.id || '#updates';
+
+            clearProfileContacts();
+            if (contacts.length) {
+                contacts.forEach((contact) => appendProfileContact(contact));
+            } else {
+                appendProfileContact();
+            }
+        }
+
+        function openProfileSetup(firstRun = false) {
+            populateProfileForm();
+            populateSimulationSettingsForm();
+            profileOverlay.dataset.firstRun = firstRun ? 'true' : 'false';
+            profileSkipBtn.style.display = firstRun ? 'inline-flex' : 'inline-flex';
+            profileCloseBtn.style.display = firstRun ? 'none' : 'inline-block';
+            profileOverlay.classList.add('open');
+        }
+
+        function closeProfileSetup() {
+            profileOverlay.classList.remove('open');
+        }
+
+        function markOnboardingSeen() {
+            localStorage.setItem(ONBOARDING_KEY, 'seen');
+        }
+
+        function hasSeenOnboarding() {
+            return localStorage.getItem(ONBOARDING_KEY) === 'seen';
+        }
+
+        function renderOnboardingSlide(index) {
+            onboardingIndex = Math.max(0, Math.min(index, onboardingSlides.length - 1));
+            onboardingSlides.forEach((slide, slideIndex) => {
+                slide.classList.toggle('active', slideIndex === onboardingIndex);
+            });
+            onboardingDots.forEach((dot, dotIndex) => {
+                dot.classList.toggle('active', dotIndex === onboardingIndex);
+            });
+            onboardingPrevBtn.disabled = onboardingIndex === 0;
+            onboardingNextBtn.style.display = onboardingIndex === onboardingSlides.length - 1 ? 'none' : 'inline-flex';
+            onboardingDoneBtn.style.display = onboardingIndex === onboardingSlides.length - 1 ? 'inline-flex' : 'none';
+        }
+
+        function openOnboarding() {
+            resetOnboardingMocks();
+            renderOnboardingSlide(0);
+            onboardingOverlay.classList.add('open');
+        }
+
+        function closeOnboarding() {
+            markOnboardingSeen();
+            onboardingOverlay.classList.remove('open');
+        }
+
+        function resetOnboardingMocks() {
+            onboardingOverlay.querySelectorAll('[data-demo-task]').forEach((row) => {
+                row.classList.remove('done');
+            });
+            onboardingOverlay.querySelectorAll('[data-demo-event]').forEach((event) => {
+                const status = event.querySelector('[data-demo-event-status]');
+                if (status && event.dataset.initialStatus) {
+                    status.textContent = event.dataset.initialStatus;
+                }
+                event.querySelectorAll('[data-demo-event-action]').forEach((button) => {
+                    button.classList.toggle('active', button.dataset.demoEventAction === event.dataset.initialAction);
+                });
+            });
+            onboardingOverlay.querySelectorAll('.onboarding-email-item.interactive').forEach((item, index) => {
+                item.classList.toggle('open', index === 0);
+            });
+            onboardingOverlay.querySelectorAll('[data-demo-mode-group]').forEach((group) => {
+                const nextMode = group.dataset.defaultMode || 'text';
+                group.querySelectorAll('[data-demo-mode-button]').forEach((button) => {
+                    button.classList.toggle('active', button.dataset.demoModeButton === nextMode);
+                });
+                group.querySelectorAll('[data-demo-mode-pane]').forEach((pane) => {
+                    pane.classList.toggle('active', pane.dataset.demoModePane === nextMode);
+                });
+            });
+        }
+
+        function buildProfileFromForm(existingProfile = profileStore.getCurrentProfile()) {
+            const name = document.getElementById('profile-name').value.trim();
+            const email = document.getElementById('profile-email').value.trim();
+            const role = document.getElementById('profile-role').value.trim();
+            const org = document.getElementById('profile-org').value.trim();
+            const bio = document.getElementById('profile-bio').value.trim();
+            const interests = parseProfileList(document.getElementById('profile-interests').value);
+            const projectName = document.getElementById('profile-project').value.trim();
+            const primaryChannel = normalizeChannelId(document.getElementById('profile-primary-channel').value, '#general');
+            const secondaryChannel = normalizeChannelId(document.getElementById('profile-secondary-channel').value, '#updates');
+
+            const projectId = slugify(projectName || 'primary-project', 'primary-project');
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+            const domain = email.includes('@') ? email.split('@')[1] : 'folio.local';
+            const rawContacts = readProfileContacts(domain);
+            const identityChanged = profileIdentityChanged(existingProfile, {
+                name,
+                email,
+                role,
+                bio,
+                org,
+                projectName,
+                interests
+            });
+            const contacts = identityChanged && contactsMatchExisting(rawContacts, existingProfile?.contacts || [])
+                ? []
+                : rawContacts;
+            const defaultChannels = [
+                { id: '#general', topic: 'Primary coordination space' },
+                { id: '#updates', topic: 'Secondary updates space' }
+            ];
+            const nextChannels = identityChanged && channelsMatchExisting([
+                { id: primaryChannel, topic: 'Primary coordination space' },
+                { id: secondaryChannel, topic: 'Secondary updates space' }
+            ], existingProfile?.channels || [])
+                ? defaultChannels
+                : [
+                    { id: primaryChannel, topic: 'Primary coordination space' },
+                    { id: secondaryChannel, topic: 'Secondary updates space' }
+                ];
+            const stakeholders = contacts.slice(0, 4).map((contact) => contact.id);
+
+            return {
+                id: existingProfile?.id || 'profile:default',
+                label: `${name || 'Simulation'} profile`,
+                user: {
+                    name: name || 'User',
+                    email: email || 'user@folio.local',
+                    role: role || 'Generalist',
+                    bio,
+                    interests,
+                    timezone,
+                    working_hours: existingProfile?.user?.working_hours || '09:00-18:00'
+                },
+                organization: {
+                    name: org || 'Personal',
+                    domain,
+                    departments: []
+                },
+                contacts,
+                projects: [
+                    {
+                        id: projectId,
+                        name: projectName || `${role || 'Current'} focus`,
+                        status: 'active',
+                        stakeholders,
+                        deadlines: []
+                    }
+                ],
+                channels: nextChannels
+            };
+        }
+
+        function profileIdentityChanged(existingProfile, next) {
+            if (!existingProfile) return false;
+            const previous = {
+                name: existingProfile.user?.name || '',
+                email: existingProfile.user?.email || '',
+                role: existingProfile.user?.role || '',
+                bio: existingProfile.user?.bio || '',
+                org: existingProfile.organization?.name || '',
+                projectName: existingProfile.projects?.[0]?.name || '',
+                interests: Array.isArray(existingProfile.user?.interests) ? existingProfile.user.interests : []
+            };
+            return JSON.stringify(previous) !== JSON.stringify({
+                name: next.name || '',
+                email: next.email || '',
+                role: next.role || '',
+                bio: next.bio || '',
+                org: next.org || '',
+                projectName: next.projectName || '',
+                interests: Array.isArray(next.interests) ? next.interests : []
+            });
+        }
+
+        function contactsMatchExisting(nextContacts, existingContacts) {
+            return JSON.stringify(normalizeContactsForComparison(nextContacts)) === JSON.stringify(normalizeContactsForComparison(existingContacts));
+        }
+
+        function channelsMatchExisting(nextChannels, existingChannels) {
+            return JSON.stringify(normalizeChannelsForComparison(nextChannels)) === JSON.stringify(normalizeChannelsForComparison(existingChannels));
+        }
+
+        function normalizeContactsForComparison(contacts) {
+            return (Array.isArray(contacts) ? contacts : []).map((contact) => ({
+                name: contact.name || '',
+                email: contact.email || '',
+                role: contact.role || '',
+                relationship: contact.relationship || ''
+            }));
+        }
+
+        function normalizeChannelsForComparison(channels) {
+            return (Array.isArray(channels) ? channels : []).map((channel) => ({
+                id: channel.id || '',
+                topic: channel.topic || ''
+            }));
+        }
+
+        function populateSimulationSettingsForm(settings = simulationSettingsStore.getSettings()) {
+            simulationRemoteEndpoint.value = settings.remote?.endpoint || 'https://api.openai.com/v1/chat/completions';
+            simulationRemoteModel.value = settings.remote?.model || 'gpt-4.1-mini';
+            simulationRemoteApiKey.value = '';
+            renderSimulationSettingsStatus(simulation.getClientStatus(), settings);
+        }
+
+        function readSimulationSettingsForm() {
+            return {
+                provider: 'remote-openai',
+                remote: {
+                    ...simulationSettings.remote,
+                    endpoint: simulationRemoteEndpoint.value.trim() || simulationSettings.remote?.endpoint,
+                    model: simulationRemoteModel.value.trim() || simulationSettings.remote?.model
+                }
+            };
+        }
+
+        function describeSimulationProvider(settings = simulationSettings) {
+            return {
+                requested: 'Remote API',
+                resolved: 'remote-openai',
+                summary: 'Provider: Remote OpenAI-compatible API'
+            };
+        }
+
+        function renderSimulationSettingsStatus(status = simulation.getClientStatus(), settings = simulationSettings) {
+            const provider = describeSimulationProvider(settings);
+            const info = simulation.getClientInfo();
+            const remoteModel = settings.remote?.model || info.model || 'gpt-4.1-mini';
+            const remoteEndpoint = settings.remote?.endpoint || info.endpoint || 'https://api.openai.com/v1/chat/completions';
+            const hasRemoteSecret = simulationSecretsStore.hasSecret('remote-openai');
+            simulationRemoteEndpoint.disabled = false;
+            simulationRemoteModel.disabled = false;
+            simulationRemoteApiKey.disabled = false;
+            simulationRemoteClearKeyBtn.disabled = !hasRemoteSecret;
+            simulationRemoteApiKeyStatus.textContent = hasRemoteSecret
+                ? 'Saved API key present. Leave the field blank to keep it.'
+                : 'No saved API key.';
+            simulationSettingsSummary.textContent = provider.summary;
+            const capability = hasRemoteSecret ? 'API key saved' : 'API key missing';
+            simulationSettingsStatus.textContent = `${capability}. Model: ${remoteModel}. Endpoint: ${remoteEndpoint}. ${status?.message || 'Remote provider selected.'}`;
+        }
+
+        function subscribeSimulationClientStatus(client, settingsSnapshot) {
+            if (simulationStatusUnsubscribe) {
+                simulationStatusUnsubscribe();
+                simulationStatusUnsubscribe = null;
+            }
+            if (!client || typeof client.subscribe !== 'function') {
+                renderSimulationSettingsStatus(simulation.getClientStatus(), settingsSnapshot);
+                return;
+            }
+            simulationStatusUnsubscribe = client.subscribe((status) => {
+                renderSimulationSettingsStatus(status, simulationSettings);
+                if (status.phase === 'loading-runtime' || status.phase === 'initializing' || status.phase === 'generating') {
+                    statusBar.textContent = status.message;
+                }
+            });
+        }
+
+        async function applySimulationSettings(nextSettings = simulationSettingsStore.getSettings(), { persist = false, announce = false } = {}) {
+            const settingsToUse = persist
+                ? simulationSettingsStore.saveSettings(nextSettings)
+                : nextSettings;
+            simulationSettings = settingsToUse;
+            const client = new OpenAICompatibleSimulationLLMClient({
+                endpoint: settingsToUse.remote?.endpoint,
+                model: settingsToUse.remote?.model,
+                apiKey: simulationSecretsStore.getSecret('remote-openai'),
+                temperature: settingsToUse.remote?.temperature,
+                maxTokens: settingsToUse.remote?.maxTokens
+            });
+
+            simulation.setLLMClient(client);
+            window.folioDebug.simulationLLMClient = client;
+            subscribeSimulationClientStatus(client, settingsToUse);
+            if (typeof client.isAvailable === 'function') {
+                await client.isAvailable();
+            }
+            renderSimulationSettingsStatus(simulation.getClientStatus(), settingsToUse);
+
+            if (announce) {
+                statusBar.textContent = `Simulation provider set to remote API${client.getClientInfo().model ? ` (${client.getClientInfo().model})` : ''}`;
+            }
+            return {
+                settings: settingsToUse,
+                resolvedProvider: 'remote-openai'
+            };
+        }
+
+        async function runGenerateToday() {
+            if (!policy.isTrusted()) {
+                policy.setTrusted(true);
+            }
+            ['email.read', 'chat.read', 'cal.read'].forEach((grant) => {
+                if (!policy.hasGrant(grant)) {
+                    policy.setGrant(grant, true);
+                }
+            });
+
+            if (simulation.getClientInfo().kind !== 'remote-openai') {
+                await applySimulationSettings(simulationSettings, { persist: false, announce: false });
+            }
+
+            let clientInfo = simulation.getClientInfo();
+            if (!simulationSecretsStore.hasSecret('remote-openai')) {
+                const message = 'Add a remote API key in Simulation settings to generate today.';
+                statusBar.textContent = message;
+                renderSimulationSettingsStatus(simulation.getClientStatus(), simulationSettings);
+                return {
+                    status: 'error',
+                    error: message
+                };
+            }
+
+            statusBar.textContent = clientInfo.kind === 'remote-openai'
+                ? 'Generating simulated workday with remote provider...'
+                : 'Generating simulated workday...';
+            let result;
+            try {
+                result = await simulation.generateDay();
+            } catch (error) {
+                statusBar.textContent = error?.message || 'Remote simulation generation failed.';
+                return {
+                    status: 'error',
+                    error: error?.message || 'Remote simulation generation failed.'
+                };
+            }
+            if (result.status !== 'generated') {
+                statusBar.textContent = result.error || 'Simulation generation failed';
+                return result;
+            }
+
+            syncDateHeading(result.scenario?.date);
+            syncMirroredProjectionTargets(result.profile, result);
+            refreshCurrentDocument(true);
+            const profileName = result.profile?.user?.name || result.profile?.label || 'profile';
+            const providerLabel = simulation.getClientInfo().label || 'simulation provider';
+            statusBar.textContent = `Generated simulated workday for ${profileName} with ${providerLabel} (${result.summary.counts.email} email, ${result.summary.counts.chat} chat, ${result.summary.counts.cal} calendar)`;
+            return result;
+        }
+
+        async function runGenerateDocument() {
+            if (!policy.isTrusted()) {
+                policy.setTrusted(true);
+            }
+            ['email.read', 'chat.read', 'cal.read'].forEach((grant) => {
+                if (!policy.hasGrant(grant)) {
+                    policy.setGrant(grant, true);
+                }
+            });
+
+            if (simulation.getClientInfo().kind !== 'remote-openai') {
+                await applySimulationSettings(simulationSettings, { persist: false, announce: false });
+            }
+
+            if (!simulationSecretsStore.hasSecret('remote-openai')) {
+                const message = 'Add a remote API key in Simulation settings to generate a document.';
+                statusBar.textContent = message;
+                renderSimulationSettingsStatus(simulation.getClientStatus(), simulationSettings);
+                return {
+                    status: 'error',
+                    error: message
+                };
+            }
+
+            statusBar.textContent = 'Generating profile-specific document with remote provider...';
+            let result;
+            try {
+                result = await simulation.generateDocument();
+            } catch (error) {
+                statusBar.textContent = error?.message || 'Document generation failed.';
+                return {
+                    status: 'error',
+                    error: error?.message || 'Document generation failed.'
+                };
+            }
+
+            if (result.status !== 'generated' || !result.text) {
+                statusBar.textContent = result.error || 'Document generation failed';
+                return result;
+            }
+
+            renderDocument(result.text, store.getDocumentId());
+            const profileName = result.profile?.user?.name || result.profile?.label || 'profile';
+            statusBar.textContent = `Generated profile-specific document for ${profileName}.`;
+            return result;
+        }
+
+        function formatDocumentHeading(date) {
+            const value = new Date(`${date}T00:00:00`);
+            const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(value);
+            const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(value);
+            const day = value.getDate();
+            const year = value.getFullYear();
+            return `${weekday}, ${day} ${month} ${year}.`;
+        }
+
+        function serializeDirectiveLine(type, id, params = {}) {
+            const entries = Object.entries(params).filter(([_, value]) => value != null && value !== '');
+            if (!entries.length) return `::${type}[${id}]`;
+            const paramStr = entries
+                .map(([key, value]) => String(value).includes(' ') ? `${key}="${value}"` : `${key}=${value}`)
+                .join(' ');
+            return `::${type}[${id}]{${paramStr}}`;
+        }
+
+        function replaceDirectiveHeader(descriptor, nextLine) {
+            if (!descriptor || descriptor.raw === nextLine) return;
+            bus.emit({
+                timestamp: new Date().toISOString(),
+                source: 'simulation',
+                type: 'replace',
+                payload: {
+                    targetDocId: 'current',
+                    lineStart: descriptor.lineStart,
+                    lineEnd: descriptor.lineStart,
+                    text: nextLine
+                }
+            });
+        }
+
+        function syncMirroredProjectionTargets(profile, result) {
+            const index = parser.parse(store.getContents());
+            const firstChannel = Object.keys(result?.generated?.chat || {})[0]
+                || profile?.channels?.[0]?.id
+                || '#general';
+            const firstThread = result?.scenario?.threads?.[0]?.thread_id
+                || result?.generated?.email?.[0]?.threadId
+                || null;
+
+            const inboxDescriptor = index.find((descriptor) => descriptor.type === 'email' && descriptor.id === 'inbox');
+            if (inboxDescriptor) {
+                replaceDirectiveHeader(inboxDescriptor, serializeDirectiveLine('email', 'inbox', { filter: 'unread' }));
+            }
+
+            const threadDescriptor = index.find((descriptor) => descriptor.type === 'email' && descriptor.id && descriptor.id !== 'inbox' && descriptor.id !== 'draft');
+            if (threadDescriptor && firstThread) {
+                replaceDirectiveHeader(threadDescriptor, serializeDirectiveLine('email', firstThread, threadDescriptor.params));
+            }
+
+            const chatDescriptor = index.find((descriptor) => descriptor.type === 'chat');
+            if (chatDescriptor && firstChannel) {
+                replaceDirectiveHeader(chatDescriptor, serializeDirectiveLine('chat', firstChannel, chatDescriptor.params));
+            }
+        }
+
+        function syncDateHeading(date) {
+            const text = store.getContents();
+            const lines = text.split('\n');
+            if (!lines.length) return;
+
+            const looksLikeDateHeading = /^[A-Za-z]+,\s+\d{1,2}\s+[A-Za-z]+\s+\d{4}\.?$/.test(lines[0].trim());
+            if (!looksLikeDateHeading) return;
+
+            const nextHeading = formatDocumentHeading(date);
+            if (lines[0] === nextHeading) return;
+
+            bus.emit({
+                timestamp: new Date().toISOString(),
+                source: 'simulation',
+                type: 'replace',
+                payload: {
+                    targetDocId: 'current',
+                    lineStart: 0,
+                    lineEnd: 0,
+                    text: nextHeading
+                }
+            });
+        }
+
+        function updateSecurityUI() {
+            const state = policy.getState();
+            const grants = Object.keys(state.grants).sort();
+            securityBar.textContent = state.trusted
+                ? `Trusted document${grants.length ? ` · ${grants.join(', ')}` : ''}`
+                : 'Untrusted document';
+            trustBtn.textContent = state.trusted ? 'Mark untrusted' : 'Trust document';
+        }
+
+        updateSecurityUI();
+
+        // Global view toggle
+        const globalToggle = document.getElementById('global-view-toggle');
+
+        function syncWorkspaceView() {
+            const fullTextView = canvas.isGlobalTextMode();
+            editorContainer.classList.toggle('active', fullTextView);
+            canvasContainer.classList.toggle('hidden', fullTextView);
+
+            if (fullTextView && editor.textarea) {
+                requestAnimationFrame(() => {
+                    if (canvas.isGlobalTextMode() && editor.textarea) {
+                        editor.textarea.focus({ preventScroll: true });
+                    }
+                });
+            }
+        }
+
+        function syncGlobalToggleUI() {
+            const fullTextView = canvas.isGlobalTextMode();
+            if (fullTextView) {
+                globalToggle.classList.add('active');
+                globalToggle.title = 'Switch to Live Widgets View';
+                globalToggle.innerHTML = '<i class="fa fa-eye"></i>';
+            } else {
+                globalToggle.classList.remove('active');
+                globalToggle.title = 'Switch to Full Text View';
+                globalToggle.innerHTML = '<i class="fa fa-code"></i>';
+            }
+            syncWorkspaceView();
+        }
+
+        globalToggle.onclick = () => {
+            const nextMode = !canvas.isGlobalTextMode();
+            canvas.toggleAll(nextMode);
+            syncGlobalToggleUI();
+
+            if (nextMode) {
+                statusBar.textContent = 'Switched to Full Text View';
+            } else {
+                statusBar.textContent = 'Switched to Live Widgets View';
+            }
+        };
+        syncGlobalToggleUI();
+
+        bus.subscribe((event) => {
+            const text = store.getContents();
+            const index = parser.parse(text);
+
+            if (event.source !== 'editor') {
+                editor.update(text);
+            }
+
+            statusBar.textContent = `Sync: ${event.type} @ ${event.timestamp.split('T')[1].split('.')[0]}`;
+
+            if (event.source === 'editor') {
+                clearTimeout(editorTimer);
+                editorTimer = setTimeout(() => {
+                    bridge.syncDocument(text, index);
+                    canvas.update(text, index, bridge);
+                }, EDITOR_DEBOUNCE_MS);
+            } else if (event.source === 'widget') {
+                bridge.syncDocument(text, index);
+                // Widget already updated its own DOM — active ::py blocks subscribe
+                // to runtime updates and refresh without a full canvas rebuild.
+            } else {
+                bridge.syncDocument(text, index);
+                canvas.update(text, index, bridge);
+            }
+        });
+
+        // ── Full re-render helper (used by load/reset) ─────────
+        function renderDocument(text, documentId = store.getDocumentId()) {
+            store.load(text, documentId);
+            policy.setDocument(documentId);
+            editor.update(text);
+            bridge.syncDocument(text, parser.parse(text));
+            canvas.update(text, parser.parse(text), bridge);
+            syncGlobalToggleUI();
+        }
+
+        // ── Toolbar: New / Save / Load ─────────────────────────
+        document.getElementById('btn-new').onclick = () => {
+            if (!confirm('Discard current document and start from the seed?')) return;
+            renderDocument(seedDoc, SEED_DOCUMENT_ID);
+            statusBar.textContent = 'New document loaded';
+        };
+
+        document.getElementById('btn-save').onclick = () => {
+            const blob = new Blob([store.getContents()], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'document.folio.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            statusBar.textContent = 'Document saved to file';
+        };
+
+        const fileInput = document.getElementById('file-input');
+        document.getElementById('btn-load').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                renderDocument(reader.result, makeLoadedDocumentId(file.name, reader.result));
+                statusBar.textContent = `Loaded: ${file.name}`;
+            };
+            reader.readAsText(file);
+            fileInput.value = '';
+        };
+
+        document.getElementById('btn-clear-persisted').onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            if (!confirm('Clear all Folio persisted documents, history, and trust grants from this browser, then reload?')) return;
+
+            Object.keys(localStorage)
+                .filter((key) => key.startsWith('folio:'))
+                .forEach((key) => localStorage.removeItem(key));
+
+            location.reload();
+        };
+
+        // ── Hamburger menu ────────────────────────────────────
+        const menuDropdown = document.getElementById('menu-dropdown');
+        const menuBtn = document.getElementById('menu-btn');
+        const helpMenuWrap = document.querySelector('.menu-subwrap');
+        const helpMenuToggle = document.getElementById('help-menu-toggle');
+        menuBtn.onclick = (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('open');
+            menuBtn.classList.toggle('open');
+            if (!menuDropdown.classList.contains('open')) {
+                helpMenuWrap?.classList.remove('open');
+            }
+        };
+        document.addEventListener('click', () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            helpMenuWrap?.classList.remove('open');
+        });
+        menuDropdown.addEventListener('click', (e) => e.stopPropagation());
+        helpMenuToggle.onclick = (e) => {
+            e.stopPropagation();
+            helpMenuWrap.classList.toggle('open');
+        };
+
+        document.getElementById('help-manual').onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            helpMenuWrap?.classList.remove('open');
+            document.getElementById('manual-overlay').classList.add('open');
+        };
+        document.getElementById('help-tour').onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            helpMenuWrap?.classList.remove('open');
+            openOnboarding();
+        };
+        onboardingCloseBtn.onclick = () => {
+            closeOnboarding();
+            statusBar.textContent = 'Explore the seed document or generate your own when ready';
+        };
+        onboardingPrevBtn.onclick = () => {
+            renderOnboardingSlide(onboardingIndex - 1);
+        };
+        onboardingNextBtn.onclick = () => {
+            renderOnboardingSlide(onboardingIndex + 1);
+        };
+        onboardingDoneBtn.onclick = () => {
+            closeOnboarding();
+            statusBar.textContent = 'Explore the seed document or generate your own when ready';
+        };
+        onboardingOverlay.addEventListener('click', (event) => {
+            const taskRow = event.target.closest('[data-demo-task]');
+            if (taskRow) {
+                taskRow.classList.toggle('done');
+                return;
+            }
+
+            const actionButton = event.target.closest('[data-demo-event-action]');
+            if (actionButton) {
+                const eventCard = actionButton.closest('[data-demo-event]');
+                if (!eventCard) return;
+                const status = eventCard.querySelector('[data-demo-event-status]');
+                if (status) {
+                    status.textContent = actionButton.dataset.demoEventLabel || actionButton.textContent.trim().toLowerCase();
+                }
+                eventCard.querySelectorAll('[data-demo-event-action]').forEach((button) => {
+                    button.classList.toggle('active', button === actionButton);
+                });
+                return;
+            }
+
+            const emailItem = event.target.closest('.onboarding-email-item.interactive');
+            if (emailItem) {
+                emailItem.classList.toggle('open');
+                return;
+            }
+
+            const modeButton = event.target.closest('[data-demo-mode-button]');
+            if (modeButton) {
+                const group = modeButton.closest('[data-demo-mode-group]');
+                if (!group) return;
+                const nextMode = modeButton.dataset.demoModeButton;
+                group.querySelectorAll('[data-demo-mode-button]').forEach((button) => {
+                    button.classList.toggle('active', button === modeButton);
+                });
+                group.querySelectorAll('[data-demo-mode-pane]').forEach((pane) => {
+                    pane.classList.toggle('active', pane.dataset.demoModePane === nextMode);
+                });
+            }
+        });
+        document.getElementById('btn-new-generated-document').onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            openProfileSetup(false);
+        };
+        trustBtn.onclick = () => {
+            menuDropdown.classList.remove('open');
+            menuBtn.classList.remove('open');
+            policy.setTrusted(!policy.isTrusted());
+            statusBar.textContent = policy.isTrusted() ? 'Document marked trusted' : 'Document marked untrusted';
+        };
+        document.getElementById('manual-close').onclick = () => {
+            document.getElementById('manual-overlay').classList.remove('open');
+        };
+        profileCloseBtn.onclick = () => {
+            closeProfileSetup();
+        };
+        profileSkipBtn.onclick = () => {
+            closeProfileSetup();
+            statusBar.textContent = 'Using default simulation profile';
+        };
+        profileSaveBtn.onclick = async () => {
+            profileSaveBtn.disabled = true;
+            try {
+                const profile = buildProfileFromForm();
+                profileStore.saveProfile(profile);
+                const nextSettings = readSimulationSettingsForm();
+                if (simulationRemoteApiKey.value.trim()) {
+                    simulationSecretsStore.setSecret('remote-openai', simulationRemoteApiKey.value.trim());
+                    simulationRemoteApiKey.value = '';
+                }
+                await applySimulationSettings(nextSettings, { persist: true, announce: false });
+                closeProfileSetup();
+                await runGenerateDocument();
+            } finally {
+                profileSaveBtn.disabled = false;
+            }
+        };
+        profileAddContactBtn.onclick = () => {
+            appendProfileContact();
+        };
+        simulationRemoteEndpoint.oninput = () => {
+            const next = readSimulationSettingsForm();
+            renderSimulationSettingsStatus(simulation.getClientStatus(), next);
+        };
+        simulationRemoteModel.oninput = () => {
+            const next = readSimulationSettingsForm();
+            renderSimulationSettingsStatus(simulation.getClientStatus(), next);
+        };
+        simulationRemoteClearKeyBtn.onclick = () => {
+            simulationSecretsStore.clearSecret('remote-openai');
+            simulationRemoteApiKey.value = '';
+            renderSimulationSettingsStatus(simulation.getClientStatus(), simulationSettings);
+        };
+
+        policy.subscribe(() => {
+            updateSecurityUI();
+            refreshCurrentDocument(true);
+        });
+
+        // ── Bootstrap ──────────────────────────────────────────
+        const initialText = store.getContents();
+        editor.init(initialText);
+
+        Promise.all([
+            registry.init(),
+            bridge.init()
+        ]).then(async () => {
+            await applySimulationSettings(simulationSettings, { persist: false, announce: false });
+            refreshCurrentDocument(true);
+            if (!hadSavedDocument && !hasSeenOnboarding()) {
+                openOnboarding();
+                statusBar.textContent = 'Welcome to Folio — browse the short introduction, then explore the seed document';
+            } else if (DocumentStore.hasSaved(STORAGE_KEY)) {
+                statusBar.textContent = 'Restored from local storage';
+            }
+        });
+    </script>
+
+    <div class="onboarding-overlay" id="onboarding-overlay">
+        <div class="onboarding-modal">
+            <div class="onboarding-header">
+                <span class="onboarding-title">Welcome to Folio</span>
+                <button class="manual-close" id="onboarding-close">&times;</button>
+            </div>
+            <div class="onboarding-body">
+                <div class="onboarding-slides">
+                    <section class="onboarding-slide active">
+                        <div class="onboarding-step">Slide 1 of 4</div>
+                        <h2>Your day, tools, and notes can live in one document.</h2>
+                        <p>Folio is a document-based workspace. Instead of keeping thoughts in one app, tasks in another, and communication somewhere else, Folio lets the document become the surface where all of that work comes together.</p>
+                        <p>You can read it as plain text, but parts of that text can also render as live widgets. The goal is simple: keep the document readable, but make it powerful enough to act like a working environment.</p>
+                        <div class="onboarding-highlight">
+                            <div class="onboarding-highlight-title">The core idea</div>
+                            <div class="onboarding-doc">Write once as text.
+Render when useful.
+Keep the document understandable even without the widgets.</div>
+                        </div>
+                    </section>
+
+                    <section class="onboarding-slide">
+                        <div class="onboarding-step">Slide 2 of 4</div>
+                        <h2>Tasks stay in the text, but become interactive when rendered.</h2>
+                        <p>In Folio, a task is not hidden inside an app database. It is a line in the document. When rendered, that line becomes a checkbox with metadata like due dates, priority, and blockers.</p>
+                        <div class="onboarding-compare">
+                            <div class="onboarding-panel">
+                                <div class="onboarding-panel-label">Text in the document</div>
+                                <div class="onboarding-panel-body">
+                                    <div class="onboarding-code">::task[send-followup]{due=today priority=high status=todo}
+::task[prepare-notes]{due=tomorrow blocked-by=send-followup status=todo}</div>
+                                </div>
+                            </div>
+                            <div class="onboarding-panel">
+                                <div class="onboarding-panel-label">Rendered task widget</div>
+                                <div class="onboarding-panel-body">
+                                            <div class="onboarding-widget">
+                                        <div class="onboarding-widget-head">::task</div>
+                                        <div class="onboarding-widget-body onboarding-task-list">
+                                            <div class="onboarding-task-row" data-demo-task>
+                                                <span class="onboarding-checkbox"></span>
+                                                <div>
+                                                    <div class="onboarding-task-title">send follow-up</div>
+                                                    <div class="onboarding-task-meta">
+                                                        <span class="onboarding-chip">due today</span>
+                                                        <span class="onboarding-chip">high</span>
+                                                        <span class="onboarding-chip">todo</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="onboarding-task-row" data-demo-task>
+                                                <span class="onboarding-checkbox"></span>
+                                                <div>
+                                                    <div class="onboarding-task-title">prepare notes</div>
+                                                    <div class="onboarding-task-meta">
+                                                        <span class="onboarding-chip">due tomorrow</span>
+                                                        <span class="onboarding-chip">blocked</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="onboarding-slide">
+                        <div class="onboarding-step">Slide 3 of 4</div>
+                        <h2>Email and calendar come into the document without pretending they live there.</h2>
+                        <p>Some things still belong to remote systems. Your inbox and calendar stay in their own backends, but Folio can project them into the document so you can review them alongside notes, tasks, and analysis.</p>
+                        <div class="onboarding-compare">
+                            <div class="onboarding-panel">
+                                <div class="onboarding-panel-label">Text in the document</div>
+                                <div class="onboarding-panel-body">
+                                    <div class="onboarding-code">::cal[today]{view=agenda}
+::end
+
+::email[inbox]{filter=unread}
+::end</div>
+                                </div>
+                            </div>
+                            <div class="onboarding-panel">
+                                <div class="onboarding-panel-label">Rendered calendar + inbox</div>
+                                <div class="onboarding-panel-body">
+                                    <div class="onboarding-widget">
+                                        <div class="onboarding-widget-head">::cal</div>
+                                        <div class="onboarding-widget-body onboarding-agenda">
+                                            <div class="onboarding-event" data-demo-event data-initial-status="pending" data-initial-action="">
+                                                <div class="onboarding-event-time">09:00</div>
+                                                <div>
+                                                    <div class="onboarding-event-title">Venue planning call</div>
+                                                    <div class="onboarding-event-meta">30 min · <span data-demo-event-status>pending</span></div>
+                                                    <div class="onboarding-event-actions">
+                                                        <button class="onboarding-mini-btn" type="button" data-demo-event-action="accept" data-demo-event-label="accepted">accept</button>
+                                                        <button class="onboarding-mini-btn" type="button" data-demo-event-action="decline" data-demo-event-label="declined">decline</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="onboarding-event" data-demo-event data-initial-status="accepted" data-initial-action="accept">
+                                                <div class="onboarding-event-time">14:00</div>
+                                                <div>
+                                                    <div class="onboarding-event-title">Budget check-in</div>
+                                                    <div class="onboarding-event-meta">45 min · <span data-demo-event-status>accepted</span></div>
+                                                    <div class="onboarding-event-actions">
+                                                        <button class="onboarding-mini-btn active" type="button" data-demo-event-action="accept" data-demo-event-label="accepted">accept</button>
+                                                        <button class="onboarding-mini-btn" type="button" data-demo-event-action="decline" data-demo-event-label="declined">decline</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="height:10px"></div>
+                                    <div class="onboarding-widget">
+                                        <div class="onboarding-widget-head">::email</div>
+                                        <div class="onboarding-widget-body onboarding-email-list">
+                                            <div class="onboarding-email-item interactive open">
+                                                <div class="onboarding-email-top">
+                                                    <span class="onboarding-email-from">Mira Patel</span>
+                                                    <span class="onboarding-email-time">08:42</span>
+                                                </div>
+                                                <div class="onboarding-email-subject">Updated rehearsal notes</div>
+                                                <div class="onboarding-email-snippet">Sent the revised arrangement and marked two bars for review.</div>
+                                                <div class="onboarding-email-body">Sent the revised arrangement and marked two bars for review.
+
+If you are happy with it, I will send the score to the rest of the group before noon.</div>
+                                            </div>
+                                            <div class="onboarding-email-item interactive">
+                                                <div class="onboarding-email-top">
+                                                    <span class="onboarding-email-from">Jordan Lee</span>
+                                                    <span class="onboarding-email-time">07:58</span>
+                                                </div>
+                                                <div class="onboarding-email-subject">Need confirmation before noon</div>
+                                                <div class="onboarding-email-snippet">Can you confirm the final timing before I send the venue update?</div>
+                                                <div class="onboarding-email-body">Can you confirm the final timing before I send the venue update?
+
+I can hold the room until noon, but after that they may release it.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="onboarding-slide">
+                        <div class="onboarding-step">Slide 4 of 4</div>
+                        <h2>The document underneath is always visible.</h2>
+                        <p>Use the code icon in the header to switch between rendered widgets and the full text substrate. That makes Folio useful for both exploration and inspection: you can see the live interface, then see the exact text that drives it.</p>
+                        <div data-demo-mode-group data-default-mode="text">
+                            <div class="onboarding-mode-toggle">
+                                <button class="onboarding-mini-btn active" type="button" data-demo-mode-button="text">Text</button>
+                                <button class="onboarding-mini-btn" type="button" data-demo-mode-button="rendered">Rendered</button>
+                            </div>
+                            <div class="onboarding-mode-pane active" data-demo-mode-pane="text">
+                            <div class="onboarding-panel">
+                                <div class="onboarding-panel-label">Full text substrate</div>
+                                <div class="onboarding-panel-body">
+                                    <div class="onboarding-doc">Morning planning
+
+::email[inbox]{filter=unread}
+
+Follow up with the venue after rehearsal numbers are confirmed.
+
+::task[confirm-venue]{due=today priority=high status=todo}</div>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="onboarding-mode-pane" data-demo-mode-pane="rendered">
+                            <div class="onboarding-panel">
+                                <div class="onboarding-panel-label">Same section, rendered</div>
+                                <div class="onboarding-panel-body">
+                                    <div class="onboarding-doc-slice">
+                                        <p>Morning planning</p>
+                                    </div>
+                                    <div class="onboarding-widget">
+                                        <div class="onboarding-widget-head">::email</div>
+                                        <div class="onboarding-widget-body onboarding-email-list">
+                                            <div class="onboarding-email-item interactive open">
+                                                <div class="onboarding-email-top">
+                                                    <span class="onboarding-email-from">Avery Gomez</span>
+                                                    <span class="onboarding-email-time">09:10</span>
+                                                </div>
+                                                <div class="onboarding-email-subject">Venue confirmation</div>
+                                                <div class="onboarding-email-snippet">We can hold the room until 4pm if you confirm today.</div>
+                                                <div class="onboarding-email-body">We can hold the room until 4pm if you confirm today.
+
+If you want the extra rehearsal setup, I need the final headcount before lunch.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="height:10px"></div>
+                                    <div class="onboarding-doc-slice">
+                                        <p>Follow up with the venue after rehearsal numbers are confirmed.</p>
+                                    </div>
+                                    <div class="onboarding-widget">
+                                        <div class="onboarding-widget-head">::task</div>
+                                        <div class="onboarding-widget-body onboarding-task-list">
+                                            <div class="onboarding-task-row" data-demo-task>
+                                                <span class="onboarding-checkbox"></span>
+                                                <div>
+                                                    <div class="onboarding-task-title">confirm venue</div>
+                                                    <div class="onboarding-task-meta">
+                                                        <span class="onboarding-chip">due today</span>
+                                                        <span class="onboarding-chip">high</span>
+                                                        <span class="onboarding-chip">todo</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        <p>The default document is already loaded for you. Explore it first. If you want a profile-specific opening later, open <strong>Generate document</strong> from the menu, then add local directives yourself as you work.</p>
+                    </section>
+                </div>
+                <div class="onboarding-footer">
+                    <div class="onboarding-dots">
+                        <span class="onboarding-dot active"></span>
+                        <span class="onboarding-dot"></span>
+                        <span class="onboarding-dot"></span>
+                        <span class="onboarding-dot"></span>
+                    </div>
+                    <div class="onboarding-actions">
+                        <button class="profile-btn" id="onboarding-prev" type="button">Back</button>
+                        <button class="profile-btn" id="onboarding-next" type="button">Next</button>
+                        <button class="profile-btn primary" id="onboarding-done" type="button" style="display:none">Start exploring</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-overlay" id="profile-overlay">
+        <div class="profile-modal">
+            <div class="profile-header">
+                <span class="profile-title">Generate Document</span>
+                <button class="manual-close" id="profile-close">&times;</button>
+            </div>
+            <div class="profile-body">
+                <p>Describe the person and context you want Folio to generate for. Saving this form will replace the current document with a profile-specific opening date and prose.</p>
+                <div class="profile-grid">
+                    <div class="profile-field">
+                        <label for="profile-name">Your name</label>
+                        <input id="profile-name" type="text" placeholder="John Doe">
+                    </div>
+                    <div class="profile-field">
+                        <label for="profile-email">Your email</label>
+                        <input id="profile-email" type="email" placeholder="you@example.com">
+                    </div>
+                    <div class="profile-field">
+                        <label for="profile-role">Your role</label>
+                        <input id="profile-role" type="text" placeholder="Finance analyst, artist, parent, consultant...">
+                    </div>
+                    <div class="profile-field">
+                        <label for="profile-org">Organization</label>
+                        <input id="profile-org" type="text" placeholder="Company, studio, household, community...">
+                    </div>
+                    <div class="profile-field wide">
+                        <label for="profile-bio">Bio</label>
+                        <textarea id="profile-bio" placeholder="A short description of your work, routines, and what tends to fill your days."></textarea>
+                    </div>
+                    <div class="profile-field wide">
+                        <label for="profile-interests">Interests</label>
+                        <input id="profile-interests" type="text" placeholder="budgeting, illustration, school planning, gardening...">
+                    </div>
+                    <div class="profile-field wide">
+                        <label for="profile-project">Primary focus or project</label>
+                        <input id="profile-project" type="text" placeholder="Q3 budget, gallery show, family planning, client work...">
+                    </div>
+                    <div class="profile-field">
+                        <label for="profile-primary-channel">Primary channel</label>
+                        <input id="profile-primary-channel" type="text" placeholder="#general">
+                    </div>
+                    <div class="profile-field">
+                        <label for="profile-secondary-channel">Secondary channel</label>
+                        <input id="profile-secondary-channel" type="text" placeholder="#updates">
+                    </div>
+                </div>
+                <div class="profile-section">
+                    <div class="profile-section-title">Contacts</div>
+                    <p class="profile-section-copy">Add the people who shape your day: coworkers, clients, collaborators, family, teachers, friends, or community members. Their roles help the generator produce more realistic email, chat, and calendar activity.</p>
+                    <div class="profile-contacts-list" id="profile-contacts-list"></div>
+                    <button class="profile-btn inline" id="profile-add-contact" type="button">Add contact</button>
+                </div>
+                <div class="profile-section">
+                    <div class="profile-section-title">Remote Provider</div>
+                    <p class="profile-section-copy">Folio generates mirrored data and full documents through a remote OpenAI-compatible API. These settings are saved with the generation flow.</p>
+                    <div class="settings-grid">
+                        <div class="settings-field wide">
+                            <label for="simulation-remote-endpoint">Remote endpoint</label>
+                            <input id="simulation-remote-endpoint" type="text" placeholder="https://api.openai.com/v1/chat/completions">
+                        </div>
+                        <div class="settings-field wide">
+                            <label for="simulation-remote-model">Remote model</label>
+                            <input id="simulation-remote-model" type="text" placeholder="gpt-4.1-mini">
+                        </div>
+                        <div class="settings-field wide">
+                            <label for="simulation-remote-api-key">Remote API key</label>
+                            <input id="simulation-remote-api-key" type="password" placeholder="Enter a new API key to save">
+                            <p class="settings-note" id="simulation-remote-api-key-status">No saved API key.</p>
+                            <button class="profile-btn inline" id="simulation-remote-clear-key" type="button">Clear saved key</button>
+                        </div>
+                    </div>
+                    <div class="settings-panel">
+                        <div class="settings-panel-title">Provider status</div>
+                        <p class="settings-summary" id="simulation-settings-summary"></p>
+                        <p class="settings-status" id="simulation-settings-status"></p>
+                        <p class="settings-note">If no API key is saved, generation will stop and ask you to configure the remote provider first.</p>
+                    </div>
+                </div>
+                <div class="profile-actions">
+                    <button class="profile-btn" id="profile-skip">Skip for now</button>
+                    <button class="profile-btn primary" id="profile-save">Generate document</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usage Manual overlay -->
+    <div class="manual-overlay" id="manual-overlay">
+        <div class="manual">
+            <div class="manual-header">
+                <span class="manual-title">Folio Usage Manual</span>
+                <button class="manual-close" id="manual-close">&times;</button>
+            </div>
+            <div class="manual-body">
+
+<h2>What is Folio?</h2>
+<p>Folio is a document-based personal computing environment. Owned state such as tasks, source blocks, tables, and local computation lives directly in the text document. Mirrored state such as calendar, email, and chat is projected into that document so you can act on it in context without pretending the remote backend lives in the file.</p>
+<p>Every change you make &mdash; checking a task, editing a table cell, filing an email, accepting a calendar event &mdash; becomes a text edit. For owned state, the document is the system of record. For mirrored state, the document keeps the projection parameters, local notes, and a durable journal of what you did.</p>
+
+<h2>Toolbar</h2>
+<dl>
+<dt>New</dt><dd>Reset to the example seed document.</dd>
+<dt>Save</dt><dd>Download the current document as a <code>.folio.txt</code> file.</dd>
+<dt>Load</dt><dd>Open a previously saved document from disk.</dd>
+<dt>Clear persisted document</dt><dd>Remove all Folio local state stored in this browser, including saved documents, history, snapshots, and trust grants, then reload the app.</dd>
+<dt>Generate document</dt><dd>Open one modal for both profile and remote provider settings, save them together, and immediately generate a new opening date and prose for the current document.</dd>
+<dt>Trust document</dt><dd>Toggle whether the current document may access mirrored capabilities. Untrusted documents open with all mirrored access denied.</dd>
+</dl>
+
+<h2>More Docs</h2>
+<p>For implementation details, architecture mapping, and the main JS modules in the prototype, use these companion docs:</p>
+<div class="manual-links">
+<a class="manual-link-btn" href="./docs/implementation-guide.html" target="_blank">Implementation guide</a>
+<a class="manual-link-btn" href="./docs/class-reference.html" target="_blank">Class reference</a>
+</div>
+
+<h2>Directives</h2>
+<p>Directives are lines that start with <code>::</code> and summon live widgets into the document. They are readable as plain text even without a renderer. Projection-style directives can render after <code>Enter</code> or blur; content-bearing blocks still require <code>::end</code>.</p>
+
+<h3>::meta &mdash; Lifecycle Metadata</h3>
+<p>An owned-state directive for document metadata. <code>::meta[status]{value=active}</code> controls lifecycle state. <code>active</code> allows normal widget activation, <code>dormant</code> keeps mirrored widgets in fallback text unless opened manually, and <code>archived</code> leaves the document in text-first mode by default.</p>
+
+<h3>::spawn &mdash; Next Document</h3>
+<p>Creates the next document and a roll-up document by reference. The generated next document carries open tasks forward as cross-document <code>::note</code> transclusions instead of copying them. <strong>compact done</strong> removes completed tasks from the current document as an explicit text mutation.</p>
+<pre>::spawn[next]{doc=daily:2026-03-24 title="Tuesday, 24 March 2026." after-status=dormant}</pre>
+
+<h3>::cal &mdash; Calendar</h3>
+<p>Renders an agenda from the calendar backend. The directive line selects the projection; the body stores only local log lines and sync annotations. You can insert a projection-only calendar view as a single line and render it with <code>Enter</code> or blur; add <code>::end</code> only when you want to keep a local body. If no mirrored calendar data exists yet, the first render may generate it through the remote provider. Pending events show <strong>accept</strong> / <strong>decline</strong> buttons; clicking one updates the backend first, then journals the confirmed action into the document.</p>
+<pre>::cal[today]{view=agenda}
+::end</pre>
+
+<h3>::email &mdash; Email</h3>
+<p><strong>Inbox</strong> (<code>::email[inbox]{filter=unread}</code>) shows filtered messages with a <strong>file</strong> action that logs to the document. <strong>Thread</strong> (<code>::email[thread-id]{limit=3}</code>) renders a conversation with a reply bar. Inbox and thread projections can render after <code>Enter</code> or blur without <code>::end</code>; if mirrored mail is empty, the first render may generate it through the remote provider. <strong>Draft</strong> (<code>::email[draft]{to=... subject=...}</code>) is a compose form whose body is the message text, stays local, does not invoke the remote provider, and still requires <code>::end</code>. Sending replaces the block with a sent log line; discarding deletes it.</p>
+
+<h3>::contact &mdash; Contacts</h3>
+<p>A contact card with <code>key = value</code> fields in the body (name, email, role, org, phone, notes). Click <strong>edit</strong> to modify fields inline. <strong>email</strong> and <strong>call</strong> buttons log actions to the document.</p>
+<pre>::contact[sara.chen]
+name = Sara Chen
+email = sara@example.com
+::end</pre>
+
+<h3>::note &mdash; Notes</h3>
+<p>A transclusion block. <code>source=type:id</code> points at another block in the document, and optional <code>field=...</code> selects a structured field from that block. A pure transclusion note can render after <code>Enter</code> or blur without <code>::end</code>; if you want an inline note body, keep it as a full block and close it with <code>::end</code>. Editing the rendered note writes back to the source block; <strong>freeze</strong> replaces the transclusion with literal text.</p>
+<pre>::note[finance-contact]{source=contact:finance.team field=notes}
+::end</pre>
+
+<h3>::table &mdash; Tables</h3>
+<p>A text-native table with pipe-delimited rows. If <code>editable=true</code>, click any cell to edit it. Edits are written back to the document text. If linked to a <code>::py</code> block via <code>source=</code>, the value is the source block id: <code>::table[budget]{source=q3-check}</code> reads from <code>::py[q3-check]</code>. The table reads exported variables from the Python block&apos;s runtime context, not from <code>print()</code> output. By default it looks for <code>result</code> (then <code>table_result</code>); use <code>source-var=</code> to override that variable name. Accepted source shapes are either a list of row objects or an object with <code>headers</code> and <code>rows</code>. <strong>re-sync</strong> re-runs the source block and rewrites the table body from the latest computed output; the <strong>divergence protocol</strong> tracks manual edits against that computed source:</p>
+<ul>
+<li><strong>Synchronised</strong> &mdash; table matches source output.</li>
+<li><strong>Diverged</strong> &mdash; cells edited, "edited" badge shown. Use <strong>re-sync</strong> to discard edits or <strong>detach</strong> to break the link.</li>
+</ul>
+<pre>::table[budget]{source=analysis editable=true}
+| Region | Q1 | Q2 |
+| North | 3500 | 4200 |
+::end</pre>
+<pre>::py[analysis]{run=auto}
+result = [
+  {"region": "North", "q1": 3500, "q2": 4200},
+  {"region": "South", "q1": 2000, "q2": 2100}
+]
+::end</pre>
+
+<h3>::py &mdash; Python</h3>
+<p>A computation block that runs inside a document-scoped Python context. Blocks execute top to bottom, sharing state through one namespace for the document. By default, Python can read owned-state namespaces such as <code>table.query({&apos;id&apos;: &apos;budget&apos;})</code>, <code>note.query(...)</code>, and <code>task.query(...)</code>. Mirrored namespaces such as calendar or email require both a trusted document and explicit grants. Click <strong>run</strong> to re-evaluate the document context through this block; <code>run=auto</code> evaluates automatically on load and after document changes.</p>
+<pre>::py[analysis]{run=auto}
+result = [
+  {'region': 'North', 'q1': 3500, 'q2': 4200},
+  {'region': 'South', 'q1': 2000, 'q2': 2100}
+]
+print(sum(d['q1'] for d in result))
+::end</pre>
+
+<h3>::task &mdash; Tasks</h3>
+<p>A single-line directive with a checkbox. All metadata (<code>due=</code>, <code>priority=</code>, <code>blocked-by=</code>, <code>status=</code>) is preserved when you toggle it. Completed tasks get a <code>completed=</code> timestamp. A task with <code>blocked-by=other-task</code> is disabled until the blocker is done.</p>
+<pre>::task[call-finance]{due=today priority=high status=todo}</pre>
+
+<h3>::file &mdash; Files</h3>
+<p>A reference to a file on disk. Renders a card with filename, path, and type icon. Set <code>preview=true</code> for a preview area.</p>
+<pre>::file[~/docs/report.pdf]{preview=true}</pre>
+
+<h3>::chat &mdash; Chat</h3>
+<p>A slice of a chat channel from the chat backend. A projection-only channel view can render after <code>Enter</code> or blur without <code>::end</code>; add a body only when you want to keep document-local log lines such as posted or promoted actions. If mirrored chat data is empty, the first render may generate it through the remote provider. Type a message and click <strong>Send</strong> to post to the backend and append a journal line; click <strong>promote</strong> to write a message out as prose below the embed.</p>
+<pre>::chat[#design]{limit=5}
+posted to #design: "Ready for review?" — 09:15
+::end</pre>
+
+<h3>::web &mdash; Web Clips</h3>
+<p>Embeds a URL reference with reader-mode rendering. Body lines above <code>---</code> are metadata (<code>title =</code>, <code>summary =</code>); lines below are your annotations, editable inline.</p>
+<pre>::web[https://example.com/article]{view=reader}
+title = An Interesting Article
+summary = Key findings about...
+---
+My notes on this article.
+::end</pre>
+
+<h2>Key Principles</h2>
+<ul>
+<li><strong>Owned state lives in text</strong> &mdash; tasks, notes, tables, and local computation are canonical in the document.</li>
+<li><strong>Mirrored state is journaled in text</strong> &mdash; calendar, email, and chat remain canonical in their backends while the document records your context and actions.</li>
+<li><strong>Every action is a text edit</strong> &mdash; checking a task, sending a reply, filing an email all modify the document.</li>
+<li><strong>Graceful degradation</strong> &mdash; directives are readable as plain text, even without a renderer.</li>
+<li><strong>Auto-saved</strong> &mdash; every change persists to browser local storage automatically.</li>
+</ul>
+
+<h2>Security</h2>
+<p>Folio keeps a per-document trust policy. Owned-state directives always run from document text. Mirrored directives and mirrored namespaces inside <code>::py</code> require both a trusted document and an explicit read grant such as <code>email.read</code> or <code>cal.read</code>. Marking a document untrusted clears its mirrored grants.</p>
+
+<h2>Inspection</h2>
+<p>The prototype exposes <code>window.folioDebug.store</code>, <code>window.folioDebug.policy</code>, <code>window.folioDebug.simulation</code>, <code>window.folioDebug.simulationProfileStore</code>, <code>window.folioDebug.simulationScenarioStore</code>, <code>window.folioDebug.simulationSecretsStore</code>, <code>window.folioDebug.simulationSettingsStore</code>, <code>window.folioDebug.simulationLLMClient</code>, <code>window.folioDebug.OpenAICompatibleSimulationLLMClient</code>, and <code>window.folioDebug.openDocument(id)</code> in the browser console. Use <code>store.listDocuments()</code>, <code>store.getHistory()</code>, <code>store.getSnapshots()</code>, <code>simulation.exportState()</code>, <code>simulationScenarioStore.getLedger()</code>, <code>simulationScenarioStore.getSnapshot(profileId)</code>, <code>simulationScenarioStore.listSnapshots()</code>, and <code>simulation.getClientStatus()</code> to inspect persisted state, saved mirrored-backend snapshots, and the active generation provider.</p>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
