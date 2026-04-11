@@ -60,7 +60,11 @@ A font outline is a mathematical description of a letter's shape, defined by cur
 
 At large sizes, rasterization is straightforward: the grid is fine enough that the outline can be followed closely, and the result looks smooth. At small sizes, rasterization becomes difficult: the grid is coarse relative to the feature size of the letter, and small decisions about which pixels to fill can dramatically affect legibility. The stem of a lowercase letter at 8 points on a 96dpi screen might be only one or two pixels wide. Whether those pixels are filled fully or partially, and how anti-aliasing softens the edges, determines whether the type is readable.
 
+![The journey from a mathematically perfect curve (left) to a pixel grid where edge squares are filled at fractional gray values to approximate the outline (centre), producing results that look smooth at large sizes but degrade to a handful of ambiguous pixels at small ones (right).](images/rasterization.svg)
+
 *Hinting* is the mechanism by which type designers (or font-generation tools) encode instructions to guide the rasterizer at small sizes. Hints tell the rasterizer: snap this stem to the nearest pixel grid, align these three bowls to the same height, maintain this minimum stroke width even when the outline would suggest thinner. Good hinting is laborious to produce by hand and requires deep expertise. It is one reason that high-quality fonts from professional foundries differ from free or automatically generated fonts, particularly at screen sizes below 16px.
+
+![Hinting snaps a stem that would straddle pixel columns (left, blurred across three gray columns) to the nearest clean boundary (right, two fully black columns).](images/hinting.svg)
 
 Modern screen rendering systems use *subpixel rendering* and *anti-aliasing* to improve apparent resolution. ClearType on Windows and CoreText on macOS both use knowledge of the physical layout of LCD subpixels (each physical pixel is composed of red, green, and blue subpixels arranged horizontally) to provide effective horizontal resolution three times higher than the pixel count would suggest. Anti-aliasing softens the stepped edges of letterforms by setting edge pixels to intermediate gray values rather than full black or full white.
 

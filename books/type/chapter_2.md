@@ -15,9 +15,15 @@ The *baseline* is the invisible line on which letters sit. Most lowercase letter
 
 Above the x-height, ascenders reach toward the *cap height* — the top of capital letters — and sometimes beyond it. Below the baseline, descenders reach toward the *descender line*. The distance from the descender line to the cap height (or in some systems, to the top of the tallest ascender) is the overall *body height* of the type.
 
+![Anatomy of a typeface: baseline, x-height, cap height, ascenders, and descenders.](images/typography_concepts.svg)
+
 Individual letterforms are built from *strokes*. A stroke that ends in a tapered, wedge-shaped, or bracketed terminal is characteristic of *serif* typefaces; the serifs themselves are the small cross-strokes at the ends of the main strokes. A typeface with no such terminals is *sans-serif* — without serif. The *stem* is the primary vertical stroke of a letter. The *bowl* is a curved stroke that encloses a counter: the round space inside a b, d, o, p, or q. The *counter* itself — that enclosed space — matters enormously to readability; as type gets smaller, counters close up first, which is why typefaces intended for small sizes are designed with more open counters.
 
+![Strokes of a letterform: stem, bowl, serif, and counter.](images/strokes.svg)
+
 *Stress* describes the axis of thick-to-thin variation in a letterform. In Renaissance typefaces, this axis is diagonal, echoing the angle at which a broad-nib pen is held. In neoclassical typefaces, it is vertical. In slab-serif faces, there is little variation at all. Stress is a useful diagnostic: when you are trying to identify or compare typefaces, the angle of stress is one of the first things to look at.
+
+![Stress: the axis of thick-to-thin variation.](images/stress.svg)
 
 *Optical size* is a concept that hot-metal type embodied and digital type initially abandoned. A typeface designed to be set at 8 points looks different from the same typeface designed for 72 points — the strokes are proportionally heavier, the counters more open, the letter spacing slightly wider. This is not because the type was scaled; it is because the designer drew it differently for each size, compensating for the way the eye reads at different scales. In metal, you had no choice but to do this: each size was a separate physical artifact. In early digital type, it was common to use a single master for all sizes, scaling it mathematically, which produced results that looked fine at display sizes and often looked weak or crowded in the text range. Variable fonts, introduced in 2016 as part of the OpenType specification, allow type designers to encode optical size as a continuous axis, among other variations. We will return to this in Chapter 3.
 
@@ -40,6 +46,8 @@ Type classification systems are maps, and like all maps they simplify. The most 
 
 *Display* typefaces are designed for use at large sizes — above approximately 24 points — and are not suitable for body text. They include decorative faces, script faces, and extremely high-contrast or eccentric designs that become illegible when reduced.
 
+![Illustrative comparison of humanist, transitional, didone, slab-serif, sans-serif, and display typeface classes.](images/typeface_classes.svg)
+
 For the practical work in this book, you will most often be working with serif faces for body text in print-oriented documents, humanist sans-serif faces for screen-oriented documents, and monospace faces for code. The document examples in Part IV will specify typefaces by name and explain the reasoning behind each choice.
 
 
@@ -56,6 +64,8 @@ In LaTeX, tracking is controlled by the `microtype` package, which we will discu
 The distinction between tracking and kerning matters because they solve different problems. Tracking adjusts all spacing globally; kerning adjusts specific pairs. In practice, you should rely on the kerning built into your typeface and adjust it only rarely. What you should ensure is that kerning is turned on — some applications and pipelines disable it by default, especially in small print runs or quick previews, because it is computationally expensive. In LaTeX, kerning is enabled by default in the traditional engines and requires `microtype` for additional refinement. In CSS, font kerning can be enabled with `font-kerning: normal`.
 
 *Leading* (pronounced *ledding*, from the lead strips of the hot-metal era) is the vertical distance from the baseline of one line to the baseline of the next. In digital typography, this concept is expressed as *line-height* in CSS and as `\baselineskip` in LaTeX. The relationship between leading and type size determines how dense or airy the text feels. A line-height of 1.0 (equal to the type size) means lines sit directly against each other with no breathing room — practically unreadable for body text. A line-height of 2.0 creates generous space but can fragment the text into islands that the eye struggles to connect. For body text in most contexts, a line-height of 1.4 to 1.6 times the type size is appropriate; wider columns benefit from slightly more leading, narrower columns from slightly less.
+
+![Illustration of tracking across a word, kerning in the AV pair, and leading between baselines.](images/spacing.svg)
 
 The relationship between type size, line length, and leading forms an interconnected system. The reader's eye needs to be able to track from the end of one line to the beginning of the next without losing its place. A long line makes this journey more difficult and requires more leading to compensate. A short line can survive with less leading. Robert Bringhurst, in *The Elements of Typographic Style* — the book that professional typographers most often cite as essential — states this as a principle: for a measure of approximately 65 characters, a leading of 1.2× to 1.4× is appropriate; for a measure of 80 to 90 characters, 1.4× to 1.6× is better.
 
