@@ -650,13 +650,15 @@ console.log(<span class="str">"Count:"</span>, result.length, <span class="str">
     <h2>Embeddings</h2>
   </div>
   <p>Token IDs are just integers — they have no geometry. An <strong>embedding table</strong> maps each ID to a dense vector of floats (768 numbers in GPT-2 small). This vector is the token's "meaning" according to the model.</p>
-  <p>GPT learns two embedding tables: one for <strong>token identity</strong> and one for <strong>position</strong>. They're added together so the model knows both <em>what</em> a token is and <em>where</em> it sits in the sequence.</p>
+  <p>GPT learns two embedding tables: one for <strong>token identity</strong> and one for <strong>position</strong>. The demo below isolates the <em>token</em> lookup first. In the real model, a same-sized <strong>position embedding</strong> is then added elementwise, so the final input vector carries both <em>what</em> the token is and <em>where</em> it appears.</p>
+  <p>The vectors shown in the diagram and in the code snippet below are <strong>hand-picked toy data</strong> chosen to make the geometry visible. They are not computed from text and they are not copied from a trained GPT checkpoint.</p>
 
   <div class="demo">
-    <div class="demo-label">Embedding vectors (16 dims shown) — click a word</div>
+    <div class="demo-label">Token embedding vectors (16 dims shown)</div>
+    <div style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text3);margin:.1rem 0 .55rem">GPT input at position <em>i</em>: <code>x_i = token_embedding(token_i) + position_embedding(i)</code></div>
     <div class="btn-row" id="emb-words"></div>
     <div class="emb-grid" id="emb-grid"></div>
-    <div style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text3);margin-top:.4rem" id="emb-hint">Each cell = one dimension. Blue → negative, orange → positive.</div>
+    <div style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text3);margin-top:.4rem" id="emb-hint">Click a word to inspect its token embedding. Blue → negative, orange → positive.</div>
   </div>
 
   <div class="code-block">
@@ -687,7 +689,8 @@ console.log(<span class="str">"Count:"</span>, result.length, <span class="str">
   <span class="kw">return</span> dot / (normA * normB);
 }
 
-<span class="cmt">// Tiny vocab: 5 tokens, 4-dimensional embeddings</span>
+<span class="cmt">// Tiny vocab: 5 tokens, 4-dimensional toy embeddings</span>
+<span class="cmt">// These rows are hand-chosen for illustration, not learned from training.</span>
 <span class="kw">const</span> vocab = {<span class="str">"cat"</span>: <span class="num">0</span>, <span class="str">"dog"</span>: <span class="num">1</span>, <span class="str">"king"</span>: <span class="num">2</span>, <span class="str">"queen"</span>: <span class="num">3</span>, <span class="str">"the"</span>: <span class="num">4</span>};
 <span class="kw">const</span> table = [
   [ <span class="num">0.8</span>, <span class="num">0.2</span>, -<span class="num">0.5</span>,  <span class="num">0.1</span>],  <span class="cmt">// cat</span>
@@ -710,6 +713,7 @@ console.log(<span class="str">"Count:"</span>, result.length, <span class="str">
   </div>
 
   <p>Notice <code>cat</code>/<code>dog</code> and <code>king</code>/<code>queen</code> will show high cosine similarity — their vectors point in similar directions. This geometric structure is what lets GPT generalize: tokens with similar meanings cluster together in embedding space.</p>
+  <p>In a real GPT, an embedding vector is just one learned row of the model's embedding matrix. Training starts with small random values, runs the forward pass to predict the next token, measures the error, then <strong>backpropagation</strong> sends gradients back through the network to every parameter that contributed to that prediction, including the embedding rows that were looked up. The optimizer nudges those rows a little on each step. After many updates, tokens that play similar roles in prediction tend to end up with similar vectors, which is where the geometry comes from in practice.</p>
 </section>
 
 <!-- ======== SECTION 4 ======== -->
@@ -793,6 +797,7 @@ console.log(<span class="str">"--- Attention weights per token ---"</span>);
     <h2>The transformer block</h2>
   </div>
   <p>Attention alone isn't enough. Each attention output is fed into a small <strong>feedforward network (MLP)</strong> applied independently per token. This is where the model stores most of its "factual" knowledge. The two operations are wrapped in a <strong>block</strong> with residual connections and layer normalization.</p>
+  <p>A feedforward network here just means a tiny neural network applied to <em>one token vector at a time</em>. Attention mixes information <em>between</em> tokens; the feedforward step then takes the mixed vector for a single token, pushes it through a couple of learned matrix multiplies plus a nonlinearity, and rewrites that token into a richer representation. "Feedforward" simply means the data moves straight through those layers in one direction during the forward pass, unlike attention which explicitly looks sideways at other tokens.</p>
 
   <div class="demo">
     <div class="demo-label">Transformer block — click each component</div>
@@ -1262,7 +1267,7 @@ function showEmb(i) {
     const abs = Math.abs(v), hue = v > 0 ? '30' : '210';
     return `<div class="emb-cell" style="background:hsl(${hue},70%,${15+Math.round(abs*40)}%);opacity:${0.4+abs*0.6}" title="${v.toFixed(2)}"></div>`;
   }).join('');
-  document.getElementById('emb-hint').textContent = `${EMB_WORDS[i]}: [${EMB_VECS[i].map(v=>v.toFixed(2)).join(', ')}]`;
+  document.getElementById('emb-hint').textContent = `Token embedding for ${EMB_WORDS[i]}: [${EMB_VECS[i].map(v=>v.toFixed(2)).join(', ')}]. GPT then adds a position vector of the same width before attention.`;
 }
 showEmb(0);
 
@@ -1308,7 +1313,7 @@ const BLOCK_LAYERS = [
   { name: 'CausalSelfAttention', sub: 'Multi-head, causal mask', tag: 'core', detail: 'The heart of GPT. Each token queries all previous tokens, computes attention weights via dot(Q,K)/√d, applies softmax, then takes a weighted sum of V vectors. Run in parallel across H heads.' },
   { name: 'Residual +', sub: 'x = x + attn_out', tag: 'skip connection', detail: 'The attention output is added back to the original x. This "residual stream" lets gradients flow cleanly during backprop and lets each block make incremental refinements.' },
   { name: 'LayerNorm 2', sub: 'ln_2', tag: 'before MLP', detail: 'Same normalization before the feedforward network. Two separate layer norms — one before attention, one before MLP.' },
-  { name: 'MLP', sub: 'c_fc → GELU → c_proj', tag: '4× hidden', detail: 'A two-layer feedforward network applied per token. Expands to 4× the model dimension, applies GELU activation, then projects back. This is where factual knowledge is stored.' },
+  { name: 'MLP', sub: 'c_fc → GELU → c_proj', tag: '4× hidden', detail: 'A feedforward network is just a small neural net applied to one token vector at a time. It expands the token to 4× width, applies GELU, then projects back down. Attention mixes tokens together; the MLP transforms each token individually after that mixing.' },
   { name: 'Residual +', sub: 'x = x + mlp_out', tag: 'skip connection', detail: 'Another residual: MLP output added back to x. After N blocks, the final x flows to layer norm → lm_head → logits.' },
 ];
 const stack = document.getElementById('block-stack');
