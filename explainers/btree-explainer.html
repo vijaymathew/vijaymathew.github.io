@@ -230,7 +230,7 @@ button.btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--r
 
   <p>The naive approach — a flat list you scan linearly — is <strong>O(n)</strong>. With 10 million files and a disk seek costing ~10ms, that's potentially minutes. Even a sorted array with binary search does O(log n) comparisons, but each comparison might require a separate disk read if the array doesn't fit in RAM. That's still thousands of seeks.</p>
 
-  <div class="callout info">The key insight: disk I/O dominates everything else. A disk seek costs ~10,000× more than a RAM lookup. The goal isn't to minimize <em>comparisons</em> — it's to minimize <em>disk reads</em>.</div>
+  <div class="callout info">The key insight: disk I/O dominates everything else. A disk seek costs roughly 100,000× more than a RAM lookup in this toy cost model. The goal isn't to minimize <em>comparisons</em> — it's to minimize <em>disk reads</em>.</div>
 
   <p>A B-Tree solves this by packing many keys into a single node (one disk page), so each disk read eliminates a huge number of candidates at once. A B-Tree of order 100 over 10 million files needs at most <strong>log₁₀₀(10,000,000) ≈ 3.5 → 4 disk reads</strong> to find any file.</p>
 
@@ -329,10 +329,10 @@ console.log(<span class="str">"B-Tree packs ~100+ keys per node → each seek el
 
   console.log(<span class="str">`Depth ${depth}: ${node.keys.length} keys [${node.keys.join(",")}] leaf=${node.isLeaf}`</span>);
   console.assert(node.keys.length >= min, <span class="str">`Too few keys at depth ${depth}`</span>);
-  console.assert(node.keys.length <= max, <span class="str">`Too many keys at depth ${depth}`</span>);
+  console.assert(node.keys.length &lt;= max, <span class="str">`Too many keys at depth ${depth}`</span>);
 
   <span class="cmt">// Keys must be sorted</span>
-  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">1</span>; i < node.keys.length; i++)
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">1</span>; i &lt; node.keys.length; i++)
     console.assert(node.keys[i] > node.keys[i-<span class="num">1</span>], <span class="str">"Keys not sorted"</span>);
 
   <span class="kw">if</span> (!node.isLeaf) {
@@ -392,9 +392,9 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
 
   <span class="cmt">// Binary search within this node's keys</span>
   <span class="kw">let</span> lo = <span class="num">0</span>, hi = node.keys.length - <span class="num">1</span>;
-  <span class="kw">while</span> (lo <= hi) {
+  <span class="kw">while</span> (lo &lt;= hi) {
     <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
-    <span class="kw">if</span>      (key < node.keys[mid]) hi = mid - <span class="num">1</span>;
+    <span class="kw">if</span>      (key &lt; node.keys[mid]) hi = mid - <span class="num">1</span>;
     <span class="kw">else if</span> (key > node.keys[mid]) lo = mid + <span class="num">1</span>;
     <span class="kw">else</span>    <span class="kw">return</span> { found: <span class="kw">true</span>, value: node.values?.[mid], reads };
   }
@@ -501,7 +501,7 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
   <span class="kw">if</span> (node.isLeaf) {
     <span class="cmt">// Shift keys right and insert in sorted position</span>
     node.keys.push(<span class="num">0</span>); node.values.push(<span class="kw">null</span>);
-    <span class="kw">while</span> (i >= <span class="num">0</span> && key < node.keys[i]) {
+    <span class="kw">while</span> (i >= <span class="num">0</span> && key &lt; node.keys[i]) {
       node.keys[i+<span class="num">1</span>]   = node.keys[i];
       node.values[i+<span class="num">1</span>] = node.values[i];
       i--;
@@ -510,7 +510,7 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
     node.values[i+<span class="num">1</span>] = value;
   } <span class="kw">else</span> {
     <span class="cmt">// Find correct child, split it if full, recurse</span>
-    <span class="kw">while</span> (i >= <span class="num">0</span> && key < node.keys[i]) i--;
+    <span class="kw">while</span> (i >= <span class="num">0</span> && key &lt; node.keys[i]) i--;
     i++;
     <span class="kw">if</span> (node.children[i].keys.length === <span class="num">2</span> * t - <span class="num">1</span>) {
       <span class="fn">splitChild</span>(node, i);
@@ -618,7 +618,7 @@ console.log(<span class="str">"\nFinal tree:"</span>);
     <span class="kw">return</span>;
   }
 
-  <span class="kw">if</span> (idx < node.keys.length && node.keys[idx] === key) {
+  <span class="kw">if</span> (idx &lt; node.keys.length && node.keys[idx] === key) {
     <span class="cmt">// Key is in this internal node — replace with in-order predecessor</span>
     <span class="kw">let</span> pred = node.children[idx];
     <span class="kw">while</span> (!pred.isLeaf) pred = pred.children[pred.children.length - <span class="num">1</span>];
@@ -633,17 +633,17 @@ console.log(<span class="str">"\nFinal tree:"</span>);
   <span class="kw">const</span> childIdx = idx === -<span class="num">1</span> ? node.children.length - <span class="num">1</span> : idx;
   <span class="kw">const</span> child = node.children[childIdx];
 
-  <span class="kw">if</span> (child.keys.length < t) {
+  <span class="kw">if</span> (child.keys.length &lt; t) {
     <span class="cmt">// Child has minimum keys — fix it before descending</span>
     <span class="kw">if</span> (childIdx > <span class="num">0</span> && node.children[childIdx-<span class="num">1</span>].keys.length >= t)
       <span class="fn">borrowFromLeft</span>(node, childIdx);
-    <span class="kw">else if</span> (childIdx < node.children.length-<span class="num">1</span> && node.children[childIdx+<span class="num">1</span>].keys.length >= t)
+    <span class="kw">else if</span> (childIdx &lt; node.children.length-<span class="num">1</span> && node.children[childIdx+<span class="num">1</span>].keys.length >= t)
       <span class="fn">borrowFromRight</span>(node, childIdx);
     <span class="kw">else</span>
       <span class="fn">merge</span>(node, childIdx > <span class="num">0</span> ? childIdx - <span class="num">1</span> : <span class="num">0</span>);
   }
 
-  <span class="fn">deleteKey</span>(node.children[childIdx > <span class="num">0</span> && child.keys.length < t ? childIdx-<span class="num">1</span> : childIdx], key, <span class="kw">false</span>);
+  <span class="fn">deleteKey</span>(node.children[childIdx > <span class="num">0</span> && child.keys.length &lt; t ? childIdx-<span class="num">1</span> : childIdx], key, <span class="kw">false</span>);
 }
 
 <span class="kw">function</span> <span class="fn">printTree</span>(node, d=<span class="num">0</span>) {
@@ -671,7 +671,7 @@ console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</sp
 <section class="section" id="s6">
   <div class="sec-head"><span class="sec-n">06</span><h2>The filesystem layer</h2></div>
 
-  <p>Real filesystems use B-Trees (or their variant, B+ Trees) at multiple levels. Here's how three major filesystems map the concepts:</p>
+  <p>Real filesystems often use B-Trees or close relatives, but not all in exactly the same place or with exactly the same key/value layout. Here's a rough map for three major filesystems:</p>
 
   <div class="demo" style="padding:0;overflow:hidden">
     <table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -684,17 +684,17 @@ console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</sp
         </tr>
       </thead>
       <tbody>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">ext4</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Linux</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">HTree (B-Tree variant) for dir entries; extents B-Tree per inode for block mapping</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">filename hash</td></tr>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">HFS+</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">macOS</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">B-Tree for catalog (all files/dirs), B-Tree for extents overflow</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">CNID (catalog node ID)</td></tr>
-        <tr><td style="padding:9px 14px;font-weight:500">NTFS</td><td style="padding:9px 14px;color:var(--text2)">Windows</td><td style="padding:9px 14px;color:var(--text2)">B-Tree per directory ($INDEX_ROOT and $INDEX_ALLOCATION), MFT for file metadata</td><td style="padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--accent)">filename (unicode)</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">ext4</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Linux</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">HTree (hashed directory index) for large indexed directories; extent tree in each inode for file block mapping</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">dir: filename hash; extents: logical block</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">HFS+</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">macOS</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Global catalog B-tree for file/folder records; extents overflow B-tree for extra extents beyond the first eight</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">parent CNID + Unicode name</td></tr>
+        <tr><td style="padding:9px 14px;font-weight:500">NTFS</td><td style="padding:9px 14px;color:var(--text2)">Windows</td><td style="padding:9px 14px;color:var(--text2)">Per-directory index structure ($INDEX_ROOT / $INDEX_ALLOCATION); MFT stores the main file records</td><td style="padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--accent)">filename within a directory</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p>In all cases, the <strong>key</strong> is something you'd look up a file by, and the <strong>value</strong> is either an inode number or a direct pointer to file metadata. The tree structure guarantees O(log n) lookup regardless of directory size.</p>
+  <p>Across these systems, the <strong>key</strong> is whatever that particular structure is indexing: a filename, a filename hash, a catalog key, or a logical block offset. The associated value is metadata directly, or a pointer to metadata or data extents. The common idea is still logarithmic lookup with high fan-out nodes.</p>
 
   <h3>The inode and the two-tree problem</h3>
-  <p>Finding a file actually requires two separate lookups. First, the <strong>directory B-Tree</strong> maps <code>filename → inode number</code>. Then, the <strong>extent tree</strong> inside that inode maps <code>logical block offset → physical disk block</code>. This two-level indirection lets files be sparse, have holes, and grow without moving their data on disk.</p>
+  <p>A common pattern is a two-stage lookup. First, a directory index or catalog structure maps a human-facing name to file metadata. Then, the file's block-mapping metadata resolves <code>logical block offset → physical disk block</code>. The exact structures differ across ext4, HFS+, and NTFS, but this indirection is what lets files be sparse, fragmented, and still efficiently addressable.</p>
 
   <div class="demo">
     <div class="demo-lbl">Simulated disk — visualising inode and B-Tree blocks</div>
@@ -710,8 +710,8 @@ console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</sp
 
   <div class="cb">
     <div class="cb-head"><span>inode.js — the two-level lookup: filename → inode → disk blocks</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
-    <pre class="code" id="c6"><span class="cmt">// Two-level filesystem lookup: directory B-Tree + extent tree</span>
-<span class="cmt">// This mirrors how ext4 / HFS+ / NTFS actually work</span>
+    <pre class="code" id="c6"><span class="cmt">// Simplified two-level filesystem lookup: directory index + extent lookup</span>
+<span class="cmt">// Representative of real filesystems, not a byte-for-byte model of ext4/HFS+/NTFS</span>
 
 <span class="kw">class</span> <span class="cls">Inode</span> {
   <span class="fn">constructor</span>(id, size, mode = <span class="str">"rw-r--r--"</span>) {
@@ -733,10 +733,10 @@ console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</sp
   <span class="fn">logicalToPhysical</span>(logBlock) {
     <span class="cmt">// Binary search the extent tree — O(log e) where e = number of extents</span>
     <span class="kw">let</span> lo = <span class="num">0</span>, hi = <span class="kw">this</span>.extents.length - <span class="num">1</span>;
-    <span class="kw">while</span> (lo <= hi) {
+    <span class="kw">while</span> (lo &lt;= hi) {
       <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
       <span class="kw">const</span> e = <span class="kw">this</span>.extents[mid];
-      <span class="kw">if</span>      (logBlock < e.logStart) hi = mid - <span class="num">1</span>;
+      <span class="kw">if</span>      (logBlock &lt; e.logStart) hi = mid - <span class="num">1</span>;
       <span class="kw">else if</span> (logBlock >= e.logEnd)  lo = mid + <span class="num">1</span>;
       <span class="kw">else    return</span> e.physStart + (logBlock - e.logStart);
     }
@@ -797,7 +797,7 @@ fs.<span class="fn">read</span>(f, <span class="num">0</span>);   <span class="c
 fs.<span class="fn">read</span>(f, <span class="num">63</span>);  <span class="cmt">// last block of 512KB file</span>
 fs.<span class="fn">read</span>(f, <span class="num">200</span>); <span class="cmt">// beyond EOF (sparse)</span>
 
-console.log(<span class="str">\`\ntry { fs.open("missing.txt") } → \`</span>);
+console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } ->"</span>);
 <span class="kw">try</span> { fs.<span class="fn">open</span>(<span class="str">"missing.txt"</span>) } <span class="kw">catch</span>(e) { console.log(<span class="str">`  ${e.message}`</span>) };</pre>
     <div class="out" id="o6"></div>
   </div>
@@ -807,7 +807,7 @@ console.log(<span class="str">\`\ntry { fs.open("missing.txt") } → \`</span>);
 <section class="section" id="s7">
   <div class="sec-head"><span class="sec-n">07</span><h2>A mini-filesystem in JS</h2></div>
 
-  <p>Putting it all together: a structurally complete in-memory filesystem backed by a real B-Tree. It supports <code>mkdir</code>, <code>create</code>, <code>write</code>, <code>read</code>, <code>ls</code>, <code>stat</code>, and <code>find</code>. Each directory is a B-Tree keyed by filename. Files store their data as byte arrays.</p>
+  <p>Putting it all together: a structurally complete in-memory filesystem backed by a real B-Tree. It supports <code>mkdir</code>, <code>create</code>, <code>cat</code>, <code>ls</code>, <code>stat</code>, <code>find</code>, <code>rm</code>, <code>mv</code>, <code>cd</code>, <code>pwd</code>, and <code>tree</code>. Each directory is a B-Tree keyed by filename. Files store their data as byte arrays.</p>
 
   <div class="demo">
     <div class="demo-lbl">Interactive filesystem terminal</div>
@@ -853,10 +853,10 @@ console.log(<span class="str">\`\ntry { fs.open("missing.txt") } → \`</span>);
     <span class="kw">let</span> i = node.keys.length-<span class="num">1</span>;
     <span class="kw">if</span> (node.isLeaf) {
       node.keys.push(<span class="kw">null</span>); node.vals.push(<span class="kw">null</span>);
-      <span class="kw">while</span> (i>=<span class="num">0</span> && key<node.keys[i]) { node.keys[i+<span class="num">1</span>]=node.keys[i]; node.vals[i+<span class="num">1</span>]=node.vals[i]; i--; }
+      <span class="kw">while</span> (i>=<span class="num">0</span> && key&lt;node.keys[i]) { node.keys[i+<span class="num">1</span>]=node.keys[i]; node.vals[i+<span class="num">1</span>]=node.vals[i]; i--; }
       node.keys[i+<span class="num">1</span>]=key; node.vals[i+<span class="num">1</span>]=val;
     } <span class="kw">else</span> {
-      <span class="kw">while</span> (i>=<span class="num">0</span> && key<node.keys[i]) i--; i++;
+      <span class="kw">while</span> (i>=<span class="num">0</span> && key&lt;node.keys[i]) i--; i++;
       <span class="kw">if</span> (node.children[i].keys.length===<span class="num">2</span>*T-<span class="num">1</span>) { <span class="kw">this</span>.<span class="fn">_splitChild</span>(node,i); <span class="kw">if</span> (key>node.keys[i]) i++; }
       <span class="kw">this</span>.<span class="fn">_insertNF</span>(node.children[i],key,val);
     }
@@ -873,7 +873,7 @@ console.log(<span class="str">\`\ntry { fs.open("missing.txt") } → \`</span>);
   }
 
   <span class="fn">keys</span>() {
-    <span class="kw">const</span> res = [], <span class="fn">walk</span> = n => { <span class="kw">if</span> (n.isLeaf) { res.push(...n.keys); <span class="kw">return</span>; } n.children.forEach((c,i)=>{ <span class="fn">walk</span>(c); <span class="kw">if</span>(i<n.keys.length) res.push(n.keys[i]); }); };
+    <span class="kw">const</span> res = [], <span class="fn">walk</span> = n => { <span class="kw">if</span> (n.isLeaf) { res.push(...n.keys); <span class="kw">return</span>; } n.children.forEach((c,i)=>{ <span class="fn">walk</span>(c); <span class="kw">if</span>(i&lt;n.keys.length) res.push(n.keys[i]); }); };
     <span class="fn">walk</span>(<span class="kw">this</span>.root); <span class="kw">return</span> res;
   }
 }
@@ -1225,7 +1225,7 @@ buildSplitPanels();
 
 /* ============ DELETE STEPPER ============ */
 const DEL_PANELS = [
-  { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Starting state: a B-Tree where every node has 2 keys (at the minimum for t=2).</div><div style="font-family:var(--mono);font-size:13px;color:var(--text2);line-height:2"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 20 | 40 ]</span></div><div style="display:flex;justify-content:space-around;margin-top:10px"><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 10 | 15 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 25 | 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
+  { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Starting state: a B-Tree where every leaf currently has 2 keys. For t=2, the true minimum for a non-root node is <code>t-1 = 1</code> key, so these leaves have one spare key above the minimum.</div><div style="font-family:var(--mono);font-size:13px;color:var(--text2);line-height:2"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 20 | 40 ]</span></div><div style="display:flex;justify-content:space-around;margin-top:10px"><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 10 | 15 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 25 | 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
   { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Delete <code>10</code> from the left leaf. After deletion it has only 1 key — but t-1=1, so... it's actually fine! Underflow only occurs when keys drop <em>below</em> t-1.</div><div style="font-family:var(--mono);font-size:13px;line-height:2;display:flex;flex-direction:column;gap:10px"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 20 | 40 ]</span></div><div style="display:flex;justify-content:space-around"><span style="background:var(--accent-bg);color:var(--accent);padding:3px 12px;border-radius:4px;border:1px solid var(--accent-border)">[ 15 ]  ← still valid</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 25 | 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
   { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Now delete <code>15</code>. The left leaf becomes empty — real underflow. The right sibling <code>[25|30]</code> has 2 keys (> t-1), so we can <strong>borrow</strong>: rotate 20 down from the parent into the left, push 25 up to parent.</div><div style="font-family:var(--mono);font-size:13px;line-height:2;display:flex;flex-direction:column;gap:10px"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 25 | 40 ]  ← 20→left, 25→parent</span></div><div style="display:flex;justify-content:space-around"><span style="background:var(--accent-bg);color:var(--accent);padding:3px 12px;border-radius:4px;border:1px solid var(--accent-border)">[ 20 ]  ← borrowed</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
   { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">If <em>neither</em> sibling can spare a key, we <strong>merge</strong>: pull the separator key down from the parent and combine the two children into one node. The parent loses a key; this can cascade up to the root.</div><div style="font-family:var(--mono);font-size:13px;line-height:1.9;display:flex;flex-direction:column;gap:8px"><div style="text-align:center"><span style="background:var(--amber-bg);color:var(--amber);padding:3px 12px;border-radius:4px;border:1px solid var(--amber)">parent loses separator ↓</span></div><div style="display:flex;justify-content:space-around"><span style="background:var(--red-bg);color:var(--red);padding:3px 12px;border-radius:4px;border:1px solid var(--red)">[ underflowed ]</span><span style="color:var(--text3)">+sep+</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ sibling ]</span></div><div style="text-align:center;color:var(--text3)">↓ merge</div><div style="text-align:center"><span style="background:var(--accent-bg);color:var(--accent);padding:3px 12px;border-radius:4px;border:1px solid var(--accent-border)">[ underflowed | sep | sibling keys ]</span></div></div>` },
@@ -1254,10 +1254,10 @@ const DISK_LAYOUT = [
   {t:'free',l:''},   {t:'data',l:'D'},  {t:'data',l:'D'},  {t:'data',l:'D'},
 ];
 const BLOCK_INFO = {
-  sb:   'Superblock — stores filesystem metadata: block size, inode count, free block count, B-Tree root pointer.',
+  sb:   'Superblock / volume header — stores core filesystem metadata such as block size, counts, feature flags, and pointers to major metadata structures.',
   btree:'B-Tree node — one disk page of the directory or extent B-Tree. Contains sorted keys and child/value pointers.',
   data: 'File data block — raw file content (4KB). Located via the inode extent tree.',
-  free: 'Free block — unallocated. Tracked in the block bitmap (another B-Tree structure in some filesystems).',
+  free: 'Free block — unallocated. Usually tracked by a bitmap or related allocation metadata, depending on the filesystem.',
 };
 const DB_EL = document.getElementById('disk-blocks');
 DB_EL.innerHTML = DISK_LAYOUT.map((b,i) =>
