@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorting Bigger Than RAM - External Mergesort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f5f2;
+  --bg2:#e7ece7;
+  --bg3:#dbe3dd;
+  --surface:#fcfdfb;
+  --ink:#182019;
+  --ink2:#566156;
+  --ink3:#889388;
+  --rule:rgba(24,32,25,.10);
+  --rule2:rgba(24,32,25,.18);
+  --green:#2f6b57;
+  --green-bg:#e3f2eb;
+  --blue:#355f92;
+  --blue-bg:#e6edf8;
+  --amber:#9c671a;
+  --amber-bg:#f5ebdb;
+  --red:#a33f3f;
+  --red-bg:#f7e8e8;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"Public Sans", sans-serif;
+  --serif:"Source Serif 4", serif;
+  --r:9px;
+  --r-lg:14px;
+  --shadow:0 18px 44px rgba(24,32,25,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101411;
+    --bg2:#171d18;
+    --bg3:#212923;
+    --surface:#171d18;
+    --ink:#e8eee8;
+    --ink2:#a5b0a5;
+    --ink3:#6c776d;
+    --rule:rgba(255,255,255,.08);
+    --rule2:rgba(255,255,255,.15);
+    --green:#86c8ac;
+    --green-bg:#10221a;
+    --blue:#8fb6e6;
+    --blue-bg:#11202f;
+    --amber:#e0ad69;
+    --amber-bg:#2a1f10;
+    --red:#e18989;
+    --red-bg:#2a1313;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(53,95,146,.08), transparent 22rem),
+    linear-gradient(180deg, rgba(47,107,87,.05), transparent 18rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:900px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:1.2rem 0;border-bottom:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--green)}
+.hero{padding:4.2rem 0 3.2rem;border-bottom:1px solid var(--rule)}
+.hero-kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);font-size:clamp(2.8rem,6vw,4.2rem);font-weight:400;line-height:1.03;max-width:12ch;margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:var(--amber)}
+.hero p{max-width:46rem;color:var(--ink2);font-size:17px;line-height:1.76;margin-bottom:1.45rem}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
+  background:var(--bg2);border:1px solid var(--rule2);color:var(--ink2);font-family:var(--mono);font-size:11px;
+}
+.pill b{color:var(--green);font-weight:500}
+.toc{
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:2.6rem 0 3.4rem;
+  background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-lg);overflow:hidden;
+}
+.toc a{display:flex;gap:10px;padding:11px 14px;background:var(--surface);color:var(--ink2);text-decoration:none;font-size:14px}
+.toc a:hover{background:var(--bg2);color:var(--ink)}
+.toc-n{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:16px;padding-top:1px}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:.9rem;margin-bottom:1.35rem}
+.sec-n{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+h2{font-family:var(--serif);font-size:1.95rem;font-weight:400;line-height:1.14}
+p{font-size:15.5px;line-height:1.8;color:var(--ink2);margin-bottom:.95rem}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--blue)}
+code{font-family:var(--mono);font-size:12.5px;padding:1px 5px;border-radius:4px;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink)}
+.callout{
+  border-left:3px solid var(--green);background:var(--green-bg);color:var(--green);
+  border-radius:0 var(--r) var(--r) 0;padding:.84rem 1.05rem;margin:1.15rem 0;font-size:14px;line-height:1.7;
+}
+.callout.warn{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.callout.info{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.demo,.cb{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:1.25rem 0 1.8rem}
+.demo{padding:1.25rem}
+.demo-lbl{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-bottom:.95rem}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.95rem}
+.btn{border:1px solid var(--rule2);border-radius:var(--r);background:transparent;color:var(--ink2);padding:5px 11px;font-family:var(--mono);font-size:12px;cursor:pointer}
+.btn:hover{background:var(--bg2);color:var(--ink)}
+.btn.act{background:var(--green-bg);color:var(--green);border-color:rgba(47,107,87,.28)}
+.preview{
+  background:linear-gradient(180deg,var(--bg2),transparent);border:1px solid var(--rule);border-radius:var(--r);
+  padding:.9rem 1rem;font-family:var(--mono);font-size:13px;line-height:1.72;color:var(--ink);white-space:pre-wrap;
+}
+.grid-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{border:1px solid var(--rule);border-radius:var(--r);background:var(--bg2);padding:1rem}
+.card h4{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.6rem}
+.big{font-family:var(--serif);font-size:1.45rem;color:var(--ink);line-height:1.08;margin-bottom:.55rem}
+.card p{font-size:14px;line-height:1.68;margin:0}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:.95rem}
+.stat{border:1px solid var(--rule);border-radius:var(--r);background:var(--bg2);padding:.8rem .9rem}
+.stat-k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.42rem}
+.stat-v{font-size:1.18rem;font-weight:600;color:var(--ink)}
+.disk-stack{display:grid;gap:10px;margin-top:.95rem}
+.disk-row{border:1px solid var(--rule);border-radius:var(--r);background:var(--bg2);padding:.85rem}
+.disk-head{display:flex;justify-content:space-between;gap:1rem;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.65rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--surface);
+  border:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink);
+}
+.chip.run{background:var(--blue-bg);border-color:rgba(53,95,146,.28);color:var(--blue)}
+.chip.out{background:var(--green-bg);border-color:rgba(47,107,87,.28);color:var(--green)}
+.table{width:100%;border-collapse:collapse;font-size:14px}
+.table th,.table td{text-align:left;border-bottom:1px solid var(--rule);padding:.55rem .5rem}
+.table th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.table tr:last-child td{border-bottom:none}
+.good{color:var(--green);font-weight:600}
+.bad{color:var(--red);font-weight:600}
+.cb-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.75rem .95rem;border-bottom:1px solid var(--rule);background:var(--bg2);border-radius:var(--r-lg) var(--r-lg) 0 0;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.run-btn{border:1px solid var(--rule2);border-radius:999px;padding:4px 10px;background:transparent;color:var(--ink2);cursor:pointer;font-family:var(--mono);font-size:11px}
+.run-btn:hover{background:var(--surface);color:var(--ink)}
+.code{margin:0;padding:1rem 1.05rem;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink);white-space:pre}
+.out{display:none;margin:0;padding:.95rem 1.05rem 1.1rem;border-top:1px solid var(--rule);background:linear-gradient(180deg,transparent,rgba(53,95,146,.04));font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;color:var(--ink)}
+.out.on{display:block}
+.out.err{color:var(--red)}
+.footer-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:1rem}
+.footer-links a{font-size:14px;color:var(--ink2);text-decoration:none}
+.footer-links a:hover{color:var(--green)}
+@media (max-width:760px){
+  .toc,.grid-two,.stat-grid{grid-template-columns:1fr}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Disk Algorithms</div>
+    <h1>Sorting Bigger Than RAM - <em>External Mergesort</em></h1>
+    <p>If the file is 500GB and memory is 8GB, the main algorithmic question is no longer comparison count. It is I/O shape. External mergesort wins because it touches disk in long sequential passes, first creating sorted runs that fit in memory and then merging those runs with a heap.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Run generation</b> in RAM-sized chunks</span>
+      <span class="pill"><b>K-way merge</b> with a heap</span>
+      <span class="pill"><b>Sequential I/O</b> over seeks</span>
+      <span class="pill">Simulated <code>BinaryFile</code> with <code>seek</code></span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>Why quicksort fails on disk</a>
+    <a href="#s2"><span class="toc-n">02</span>Run generation</a>
+    <a href="#s3"><span class="toc-n">03</span>K-way merge</a>
+    <a href="#s4"><span class="toc-n">04</span>I/O patterns</a>
+    <a href="#s5"><span class="toc-n">05</span>A simulated external sort in JS</a>
+    <a href="#s6"><span class="toc-n">06</span>The B-tree connection</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>Why quicksort fails on disk</h2></div>
+    <p>Quicksort assumes cheap random access. Its partition pass reaches back and forth across the array, which is fine when the array lives in RAM. But on disk, that pattern becomes a seek-heavy disaster. What looks like a few arithmetic operations in memory turns into repeated repositioning of the read head.</p>
+    <p>External mergesort changes the goal. Instead of trying to sort the whole file in place, it makes a small number of long sequential passes. That single design choice is why a 500GB file is a practical job instead of an absurd one.</p>
+    <div class="callout warn">For disk-resident data, the right question is not “what has the nicest in-memory constants?” It is “what minimises seeks and maximises sequential throughput?”</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Cost model</div>
+      <div class="grid-two">
+        <div class="card">
+          <h4>Random-access mindset</h4>
+          <div class="big">Seek all over the file</div>
+          <p>Quicksort’s partitioning pattern is a cache story in RAM and a seek story on disk.</p>
+        </div>
+        <div class="card">
+          <h4>External mergesort mindset</h4>
+          <div class="big">Sequential passes</div>
+          <p>Read a chunk, sort in memory, write a run. Then merge runs in order using buffered reads.</p>
+        </div>
+      </div>
+      <div class="preview" id="cost-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">File size</div><div class="stat-v">500GB</div></div>
+        <div class="stat"><div class="stat-k">RAM</div><div class="stat-v">8GB</div></div>
+        <div class="stat"><div class="stat-k">Initial runs</div><div class="stat-v">63</div></div>
+        <div class="stat"><div class="stat-k">Right pattern</div><div class="stat-v">sequential</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>Run generation</h2></div>
+    <p>The first phase is simple: read as many records as fit in memory, sort that chunk in RAM, and write the result out as a sorted run. Repeat until the whole file has been turned into runs.</p>
+    <p>This phase is where your in-memory sorter still matters. If the chunk fits in RAM, use the fast in-memory algorithm there. External mergesort is not replacing introsort inside RAM; it is orchestrating introsort across many disk-sized chunks.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Run generation pipeline</div>
+      <div class="btn-row">
+        <button class="btn" onclick="stepRuns(1)">Generate one run</button>
+        <button class="btn" onclick="stepRuns(3)">Generate three runs</button>
+        <button class="btn" onclick="resetRuns()">Reset</button>
+      </div>
+      <div class="preview" id="run-preview"></div>
+      <div class="disk-stack" id="run-stack"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Records processed</div><div class="stat-v" id="run-records">0</div></div>
+        <div class="stat"><div class="stat-k">Runs generated</div><div class="stat-v" id="run-count">0</div></div>
+        <div class="stat"><div class="stat-k">Chunk size</div><div class="stat-v" id="run-chunk">0</div></div>
+        <div class="stat"><div class="stat-k">Pass type</div><div class="stat-v">sequential read/write</div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>run_generation.js - sorting memory-sized chunks into runs</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>K-way merge</h2></div>
+    <p>Once you have sorted runs, the merge phase is conceptually straightforward: keep one current record from each run, repeatedly emit the smallest one, and then replace it with the next record from the same run. The right data structure for that is a min-heap of size <code>k</code>.</p>
+    <p>Each output record costs one heap pop and, unless a run is exhausted, one heap push. That gives <code>O(n log k)</code> merge work, where <code>k</code> is the number of runs being merged in the current pass.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Three-way merge</div>
+      <div class="btn-row">
+        <button class="btn" onclick="stepMerge(1)">Next output</button>
+        <button class="btn" onclick="stepMerge(5)">Next five</button>
+        <button class="btn" onclick="resetMerge()">Reset</button>
+      </div>
+      <div class="preview" id="merge-preview"></div>
+      <div class="grid-two">
+        <div class="card">
+          <h4>Heap front</h4>
+          <div class="big" id="merge-heap"></div>
+          <p>The heap stores the smallest current record from each live run.</p>
+        </div>
+        <div class="card">
+          <h4>Output</h4>
+          <div class="big" id="merge-out"></div>
+          <p>Every pop emits the next global minimum across all runs.</p>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Heap size</div><div class="stat-v" id="merge-heap-size">0</div></div>
+        <div class="stat"><div class="stat-k">Output records</div><div class="stat-v" id="merge-out-count">0</div></div>
+        <div class="stat"><div class="stat-k">Run readers</div><div class="stat-v" id="merge-runs">0</div></div>
+        <div class="stat"><div class="stat-k">Comparison pattern</div><div class="stat-v">log k</div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>k_way_merge.js - merging sorted runs with a min-heap</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>I/O patterns</h2></div>
+    <p>External sorting lives or dies by buffering and access order. Reads should be sequential within each run. Writes should be sequential into the output file. Random seeks should happen only when opening a run, switching buffers, or repositioning within a simulated file abstraction.</p>
+    <p>This is also why multi-pass merging exists. If you cannot afford one input buffer per run, do not force it. Merge a manageable number of runs into larger runs, then merge those larger runs in the next pass.</p>
+    <div class="callout info">The unit of thought is the same as in B-trees: a page or buffer is valuable because one I/O should move a useful amount of ordered information.</div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>A simulated external sort in JavaScript</h2></div>
+    <p>The implementation below uses a browser-side <code>BinaryFile</code>-style class with <code>seek</code>, <code>readInt32</code>, and <code>writeInt32</code>. It is not real disk I/O, but it preserves the important part for an explainer: a file cursor, run files, and a merge phase that treats files as streams rather than plain arrays.</p>
+    <div class="callout">This is the right compromise for the page: faithful file semantics and cursor-based access, without pretending the browser is a storage engine or a full buffered I/O stack.</div>
+
+    <div class="cb">
+      <div class="cb-head"><span>external_sort.js - simulated BinaryFile + run generation + k-way merge</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+      <pre class="code" id="c3"></pre>
+      <div class="out" id="o3"></div>
+    </div>
+  </section>
+
+  <section class="section footer" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>The B-tree connection</h2></div>
+    <p>External mergesort and B-trees are solving neighboring problems with the same physical intuition. Both assume that disk I/O dominates CPU time, both organize work around page-sized transfers, and both try to get as much value as possible out of each seek.</p>
+    <p>The difference is the access pattern. A B-tree is optimized for <strong>random lookup</strong>: a few page reads to find one key. External mergesort is optimized for <strong>sequential processing</strong>: a small number of full passes to reorder an entire file. Same page-size thinking, different job.</p>
+  </section>
+</div>
+
+<script>
+const CODE_SNIPPETS = {
+  c1: String.raw`function generateRuns(data, chunkSize) {
+  const runs = [];
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.slice(i, i + chunkSize).sort((a, b) => a - b);
+    runs.push(chunk);
+  }
+  return runs;
+}
+
+const data = [9, 4, 7, 1, 3, 8, 2, 6, 5, 0];
+const runs = generateRuns(data, 4);
+console.log("runs:", JSON.stringify(runs));`,
+  c2: String.raw`class MinHeap {
+  constructor(compare) { this.compare = compare; this.data = []; }
+  push(x) {
+    this.data.push(x);
+    let i = this.data.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.compare(this.data[i], this.data[p]) >= 0) break;
+      [this.data[i], this.data[p]] = [this.data[p], this.data[i]];
+      i = p;
+    }
+  }
+  pop() {
+    if (!this.data.length) return null;
+    const top = this.data[0];
+    const last = this.data.pop();
+    if (this.data.length) {
+      this.data[0] = last;
+      let i = 0;
+      while (true) {
+        let left = i * 2 + 1;
+        let right = left + 1;
+        let best = i;
+        if (left < this.data.length && this.compare(this.data[left], this.data[best]) < 0) best = left;
+        if (right < this.data.length && this.compare(this.data[right], this.data[best]) < 0) best = right;
+        if (best === i) break;
+        [this.data[i], this.data[best]] = [this.data[best], this.data[i]];
+        i = best;
+      }
+    }
+    return top;
+  }
+}
+
+function mergeRuns(runs) {
+  const heap = new MinHeap((a, b) => a.value - b.value);
+  const out = [];
+  runs.forEach((run, runId) => {
+    if (run.length) heap.push({ value: run[0], runId, index: 0 });
+  });
+  while (heap.data.length) {
+    const cur = heap.pop();
+    out.push(cur.value);
+    const nextIndex = cur.index + 1;
+    if (nextIndex < runs[cur.runId].length) {
+      heap.push({ value: runs[cur.runId][nextIndex], runId: cur.runId, index: nextIndex });
+    }
+  }
+  return out;
+}
+
+console.log("merged:", JSON.stringify(mergeRuns([[1,4,8],[2,3,7],[0,5,6]])));`,
+  c3: String.raw`class BinaryFile {
+  constructor() {
+    this.bytes = [];
+    this.pos = 0;
+  }
+  seek(byteOffset) { this.pos = byteOffset; }
+  position() { return this.pos; }
+  writeInt32(value) {
+    for (let i = 0; i < 4; i++) {
+      this.bytes[this.pos + i] = (value >>> (i * 8)) & 255;
+    }
+    this.pos += 4;
+  }
+  readInt32() {
+    if (this.pos + 4 > this.bytes.length) return null;
+    let value = 0;
+    for (let i = 0; i < 4; i++) value |= this.bytes[this.pos + i] << (i * 8);
+    this.pos += 4;
+    return value | 0;
+  }
+  length() { return this.bytes.length; }
+}
+
+class MinHeap {
+  constructor(compare) { this.compare = compare; this.data = []; }
+  push(x) {
+    this.data.push(x);
+    let i = this.data.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.compare(this.data[i], this.data[p]) >= 0) break;
+      [this.data[i], this.data[p]] = [this.data[p], this.data[i]];
+      i = p;
+    }
+  }
+  pop() {
+    if (!this.data.length) return null;
+    const top = this.data[0];
+    const last = this.data.pop();
+    if (this.data.length) {
+      this.data[0] = last;
+      let i = 0;
+      while (true) {
+        let left = i * 2 + 1;
+        let right = left + 1;
+        let best = i;
+        if (left < this.data.length && this.compare(this.data[left], this.data[best]) < 0) best = left;
+        if (right < this.data.length && this.compare(this.data[right], this.data[best]) < 0) best = right;
+        if (best === i) break;
+        [this.data[i], this.data[best]] = [this.data[best], this.data[i]];
+        i = best;
+      }
+    }
+    return top;
+  }
+}
+
+function writeRun(values) {
+  const file = new BinaryFile();
+  values.forEach(v => file.writeInt32(v));
+  file.seek(0);
+  return file;
+}
+
+function readAll(file) {
+  const out = [];
+  file.seek(0);
+  while (true) {
+    const v = file.readInt32();
+    if (v === null) break;
+    out.push(v);
+  }
+  return out;
+}
+
+function externalSort(values, chunkSize) {
+  const runs = [];
+  for (let i = 0; i < values.length; i += chunkSize) {
+    const chunk = values.slice(i, i + chunkSize).sort((a, b) => a - b);
+    runs.push(writeRun(chunk));
+  }
+
+  const heap = new MinHeap((a, b) => a.value - b.value);
+  runs.forEach((run, runId) => {
+    const value = run.readInt32();
+    if (value !== null) heap.push({ value, runId });
+  });
+
+  const out = new BinaryFile();
+  while (heap.data.length) {
+    const cur = heap.pop();
+    out.writeInt32(cur.value);
+    const next = runs[cur.runId].readInt32();
+    if (next !== null) heap.push({ value: next, runId: cur.runId });
+  }
+  out.seek(0);
+  return { runs, output: out };
+}
+
+const result = externalSort([9,4,7,1,3,8,2,6,5,0], 4);
+console.log("runs:", result.runs.map(readAll));
+console.log("sorted:", readAll(result.output));`
+};
+
+const RUN_DATA = [42, 7, 19, 3, 11, 25, 1, 18, 30, 6, 9, 14, 2, 27, 8, 21];
+const MERGE_RUNS = [[1, 8, 13, 20], [2, 7, 15, 19], [0, 5, 9, 22]];
+
+const state = {
+  runIndex: 0,
+  runs: [],
+  merge: null
+};
+
+class DemoBinaryFile {
+  constructor() {
+    this.bytes = [];
+    this.pos = 0;
+  }
+  seek(byteOffset) { this.pos = byteOffset; }
+  position() { return this.pos; }
+  writeInt32(value) {
+    for (let i = 0; i < 4; i++) this.bytes[this.pos + i] = (value >>> (i * 8)) & 255;
+    this.pos += 4;
+  }
+  readInt32() {
+    if (this.pos + 4 > this.bytes.length) return null;
+    let value = 0;
+    for (let i = 0; i < 4; i++) value |= this.bytes[this.pos + i] << (i * 8);
+    this.pos += 4;
+    return value | 0;
+  }
+  length() { return this.bytes.length; }
+}
+
+function writeDemoRun(values) {
+  const file = new DemoBinaryFile();
+  values.forEach(v => file.writeInt32(v));
+  file.seek(0);
+  return file;
+}
+
+function readDemoFile(file) {
+  const out = [];
+  file.seek(0);
+  while (true) {
+    const value = file.readInt32();
+    if (value === null) break;
+    out.push(value);
+  }
+  return out;
+}
+
+function renderCost() {
+  document.getElementById("cost-preview").textContent =
+    "500GB / 8GB ≈ 63 initial runs.\n" +
+    "External mergesort works because those 63 runs can be produced and merged with a small number of sequential passes instead of random seeks across the whole file.";
+}
+
+function stepRuns(count) {
+  for (let c = 0; c < count; c++) {
+    if (state.runIndex >= RUN_DATA.length) break;
+    const chunk = RUN_DATA.slice(state.runIndex, state.runIndex + 4).sort((a, b) => a - b);
+    state.runs.push(writeDemoRun(chunk));
+    state.runIndex += 4;
+  }
+  renderRuns();
+}
+
+function resetRuns() {
+  state.runIndex = 0;
+  state.runs = [];
+  renderRuns();
+}
+
+function renderRuns() {
+  document.getElementById("run-preview").textContent =
+    "Read a chunk that fits in memory, sort it in RAM, then write those records into a simulated run file. The page is still in-memory, but the run files now use the same BinaryFile-style cursor model as the implementation below.";
+  document.getElementById("run-stack").innerHTML = state.runs.map((run, i) => {
+    const values = readDemoFile(run);
+    return "<div class='disk-row'><div class='disk-head'><span>Run " + (i + 1) + "</span><span>" + values.length + " records / " + run.length() + " bytes</span></div><div class='chips'>" +
+    values.map(v => "<span class='chip run'>" + v + "</span>").join("") +
+    "</div></div>"
+  }).join("") || "<div class='disk-row'><div class='disk-head'><span>No runs yet</span><span>-</span></div><div class='chips'><span class='chip'>empty</span></div></div>";
+  document.getElementById("run-records").textContent = state.runIndex;
+  document.getElementById("run-count").textContent = state.runs.length;
+  document.getElementById("run-chunk").textContent = "4 recs";
+}
+
+class MinHeap {
+  constructor(compare) { this.compare = compare; this.data = []; }
+  push(x) {
+    this.data.push(x);
+    let i = this.data.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.compare(this.data[i], this.data[p]) >= 0) break;
+      [this.data[i], this.data[p]] = [this.data[p], this.data[i]];
+      i = p;
+    }
+  }
+  pop() {
+    if (!this.data.length) return null;
+    const top = this.data[0];
+    const last = this.data.pop();
+    if (this.data.length) {
+      this.data[0] = last;
+      let i = 0;
+      while (true) {
+        const left = i * 2 + 1;
+        const right = left + 1;
+        let best = i;
+        if (left < this.data.length && this.compare(this.data[left], this.data[best]) < 0) best = left;
+        if (right < this.data.length && this.compare(this.data[right], this.data[best]) < 0) best = right;
+        if (best === i) break;
+        [this.data[i], this.data[best]] = [this.data[best], this.data[i]];
+        i = best;
+      }
+    }
+    return top;
+  }
+}
+
+function resetMerge() {
+  const heap = new MinHeap((a, b) => a.value - b.value);
+  const positions = MERGE_RUNS.map(() => 0);
+  MERGE_RUNS.forEach((run, runId) => {
+    heap.push({ value: run[0], runId, index: 0 });
+    positions[runId] = 1;
+  });
+  state.merge = { heap, positions, output: [] };
+  renderMerge();
+}
+
+function stepMerge(count) {
+  if (!state.merge) resetMerge();
+  for (let i = 0; i < count; i++) {
+    const cur = state.merge.heap.pop();
+    if (!cur) break;
+    state.merge.output.push(cur.value);
+    const nextIndex = state.merge.positions[cur.runId];
+    if (nextIndex < MERGE_RUNS[cur.runId].length) {
+      state.merge.heap.push({ value: MERGE_RUNS[cur.runId][nextIndex], runId: cur.runId, index: nextIndex });
+      state.merge.positions[cur.runId] = nextIndex + 1;
+    }
+  }
+  renderMerge();
+}
+
+function renderMerge() {
+  const heapFront = state.merge ? state.merge.heap.data.map(x => x.value).join(", ") : "";
+  const output = state.merge ? state.merge.output.join(", ") : "";
+  document.getElementById("merge-preview").textContent =
+    "Each run contributes at most one live candidate to the heap. That is why the merge cost is about log(k), not log(total records).";
+  document.getElementById("merge-heap").textContent = heapFront ? "[" + heapFront + "]" : "[]";
+  document.getElementById("merge-out").textContent = output ? "[" + output + "]" : "[]";
+  document.getElementById("merge-heap-size").textContent = state.merge ? state.merge.heap.data.length : 0;
+  document.getElementById("merge-out-count").textContent = state.merge ? state.merge.output.length : 0;
+  document.getElementById("merge-runs").textContent = MERGE_RUNS.length;
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(formatValue).join(" ")),
+    error: (...args) => lines.push(args.map(formatValue).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function formatValue(v) {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+}
+
+initCodeBlocks();
+renderCost();
+resetRuns();
+resetMerge();
+</script>
+</body>
+</html>

@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Practical Champion - Introsort and Quicksort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6f1;
+  --bg2:#e9ece3;
+  --bg3:#dde3d5;
+  --surface:#fcfdf9;
+  --ink:#1a1f18;
+  --ink2:#576055;
+  --ink3:#8a9388;
+  --rule:rgba(26,31,24,.10);
+  --rule2:rgba(26,31,24,.18);
+  --green:#2d6b4f;
+  --green-bg:#e4f2ea;
+  --orange:#a9631f;
+  --orange-bg:#f6e9dd;
+  --blue:#2e5f94;
+  --blue-bg:#e4edf8;
+  --red:#a63f3f;
+  --red-bg:#f7e7e7;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"Instrument Sans", sans-serif;
+  --serif:"Newsreader", serif;
+  --r:9px;
+  --r-lg:14px;
+  --shadow:0 18px 44px rgba(26,31,24,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#10130f;
+    --bg2:#171b17;
+    --bg3:#212721;
+    --surface:#171b17;
+    --ink:#e8ede5;
+    --ink2:#a8b0a5;
+    --ink3:#6d766d;
+    --rule:rgba(255,255,255,.08);
+    --rule2:rgba(255,255,255,.15);
+    --green:#84c9a5;
+    --green-bg:#102219;
+    --orange:#e0a06c;
+    --orange-bg:#281b0f;
+    --blue:#8ab6ea;
+    --blue-bg:#102030;
+    --red:#e08a8a;
+    --red-bg:#2b1313;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top left, rgba(45,107,79,.08), transparent 24rem),
+    linear-gradient(180deg, rgba(169,99,31,.04), transparent 18rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:880px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:1.2rem 0;
+  border-bottom:1px solid var(--rule);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--green)}
+.hero{
+  padding:4.2rem 0 3.2rem;
+  border-bottom:1px solid var(--rule);
+}
+.hero-kicker{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--green);
+  margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);
+  font-size:clamp(2.8rem, 6vw, 4.2rem);
+  font-weight:400;
+  line-height:1.03;
+  max-width:11ch;
+  margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:var(--orange)}
+.hero p{
+  max-width:45rem;
+  color:var(--ink2);
+  font-size:17px;
+  line-height:1.76;
+  margin-bottom:1.45rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 11px;
+  border-radius:999px;
+  background:var(--bg2);
+  border:1px solid var(--rule2);
+  color:var(--ink2);
+  font-family:var(--mono);
+  font-size:11px;
+}
+.pill b{color:var(--green);font-weight:500}
+.toc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin:2.6rem 0 3.4rem;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.toc a{
+  display:flex;
+  gap:10px;
+  padding:11px 14px;
+  background:var(--surface);
+  color:var(--ink2);
+  text-decoration:none;
+  font-size:14px;
+}
+.toc a:hover{background:var(--bg2);color:var(--ink)}
+.toc-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  min-width:16px;
+  padding-top:1px;
+}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  border-bottom:1px solid var(--rule);
+  padding-bottom:.9rem;
+  margin-bottom:1.35rem;
+}
+.sec-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
+h2{
+  font-family:var(--serif);
+  font-size:1.95rem;
+  font-weight:400;
+  line-height:1.14;
+}
+p{
+  font-size:15.5px;
+  line-height:1.8;
+  color:var(--ink2);
+  margin-bottom:.95rem;
+}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--blue)}
+code{
+  font-family:var(--mono);
+  font-size:12.5px;
+  padding:1px 5px;
+  border-radius:4px;
+  border:1px solid var(--rule2);
+  background:var(--bg2);
+  color:var(--ink);
+}
+.callout{
+  border-left:3px solid var(--green);
+  background:var(--green-bg);
+  color:var(--green);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.84rem 1.05rem;
+  margin:1.15rem 0;
+  font-size:14px;
+  line-height:1.7;
+}
+.callout.warn{border-color:var(--orange);background:var(--orange-bg);color:var(--orange)}
+.callout.info{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.demo,.cb{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow);
+  margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.95rem}
+.btn{
+  border:1px solid var(--rule2);
+  border-radius:var(--r);
+  background:transparent;
+  color:var(--ink2);
+  padding:5px 11px;
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+}
+.btn:hover{background:var(--bg2);color:var(--ink)}
+.btn.act{background:var(--green-bg);color:var(--green);border-color:rgba(45,107,79,.28)}
+.preview{
+  background:linear-gradient(180deg,var(--bg2),transparent);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.9rem 1rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--ink);
+  white-space:pre-wrap;
+}
+.grid-two{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.card{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:1rem;
+}
+.card h4{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.6rem;
+}
+.big{
+  font-family:var(--serif);
+  font-size:1.45rem;
+  color:var(--ink);
+  line-height:1.08;
+  margin-bottom:.55rem;
+}
+.card p{font-size:14px;line-height:1.68;margin:0}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.stat{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.8rem .9rem;
+}
+.stat-k{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.42rem;
+}
+.stat-v{
+  font-size:1.18rem;
+  font-weight:600;
+  color:var(--ink);
+}
+.table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+.table th,.table td{
+  text-align:left;
+  border-bottom:1px solid var(--rule);
+  padding:.55rem .5rem;
+}
+.table th{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.table tr:last-child td{border-bottom:none}
+.good{color:var(--green);font-weight:600}
+.bad{color:var(--red);font-weight:600}
+.cb-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:.75rem .95rem;
+  border-bottom:1px solid var(--rule);
+  background:var(--bg2);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink2);
+}
+.run-btn{
+  border:1px solid var(--rule2);
+  border-radius:999px;
+  padding:4px 10px;
+  background:transparent;
+  color:var(--ink2);
+  cursor:pointer;
+  font-family:var(--mono);
+  font-size:11px;
+}
+.run-btn:hover{background:var(--surface);color:var(--ink)}
+.code{
+  margin:0;
+  padding:1rem 1.05rem;
+  overflow:auto;
+  font-family:var(--mono);
+  font-size:12.5px;
+  line-height:1.7;
+  color:var(--ink);
+  white-space:pre;
+}
+.out{
+  display:none;
+  margin:0;
+  padding:.95rem 1.05rem 1.1rem;
+  border-top:1px solid var(--rule);
+  background:linear-gradient(180deg, transparent, rgba(45,107,79,.04));
+  font-family:var(--mono);
+  font-size:12.5px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  color:var(--ink);
+}
+.out.on{display:block}
+.out.err{color:var(--red)}
+.footer-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:1rem;
+}
+.footer-links a{
+  font-size:14px;
+  color:var(--ink2);
+  text-decoration:none;
+}
+.footer-links a:hover{color:var(--green)}
+@media (max-width:760px){
+  .toc,.grid-two,.stat-grid{grid-template-columns:1fr}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Sorting In Memory</div>
+    <h1><em>The Practical Champion</em></h1>
+    <p>If you need to sort ten million records in memory, the argument is not about elegance. It is about branch behavior, cache movement, recursion depth, and what happens when the input shape gets hostile. Quicksort wins often because partitioning is cheap and in-place, but production libraries do not ship naive quicksort. They ship a hardened hybrid.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Partitioning</b> is the core move</span>
+      <span class="pill"><b>Pivot choice</b> decides your fate</span>
+      <span class="pill"><b>Introsort</b> is the real workhorse</span>
+      <span class="pill">Heapsort as fallback</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>Why partitioning wins</a>
+    <a href="#s2"><span class="toc-n">02</span>Lomuto versus Hoare</a>
+    <a href="#s3"><span class="toc-n">03</span>Pivot selection</a>
+    <a href="#s4"><span class="toc-n">04</span>Introsort</a>
+    <a href="#s5"><span class="toc-n">05</span>When not to use quicksort</a>
+    <a href="#s6"><span class="toc-n">06</span>Library practice</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>Why partitioning wins</h2></div>
+    <p>Quicksort's core idea is not recursion. It is <strong>partitioning</strong>. Pick a pivot, move smaller elements to one side and larger elements to the other, and you have turned one big problem into two smaller in-place problems with very little extra memory.</p>
+    <p>That is why quicksort stays competitive on large in-memory sorts. The partition pass is mostly linear scanning and swapping. When pivot choice is reasonable, the recursion stays shallow and the constant factors are excellent.</p>
+    <div class="callout">The practical story of quicksort is simple: partition cheaply, recurse on roughly balanced subarrays, and avoid letting a bad pivot policy turn linear partitioning into quadratic pain.</div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>Lomuto versus Hoare</h2></div>
+    <p>Two partition schemes show up again and again. <strong>Lomuto</strong> is easy to teach: scan once, keep a boundary of smaller elements, and swap the pivot into place at the end. <strong>Hoare</strong> uses two moving pointers from the ends and often performs fewer swaps, but its control flow is trickier and its returned partition index means something different.</p>
+    <p>That trade matters because partitioning is the hot loop. A teaching-friendly scheme is not always the one you want in a standard-library sort.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Same array, two partition schemes</div>
+      <div class="btn-row" id="partition-mode-buttons">
+        <button class="btn act" data-partition="lomuto" onclick="setPartitionMode('lomuto')">Lomuto</button>
+        <button class="btn" data-partition="hoare" onclick="setPartitionMode('hoare')">Hoare</button>
+      </div>
+      <div class="preview" id="partition-preview"></div>
+      <div class="grid-two">
+        <div class="card">
+          <h4>Partition result</h4>
+          <div class="big" id="partition-array"></div>
+          <p id="partition-note"></p>
+        </div>
+        <div class="card">
+          <h4>Cost sketch</h4>
+          <div class="big" id="partition-cost"></div>
+          <p id="partition-cost-note"></p>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Comparisons</div><div class="stat-v" id="partition-comps">0</div></div>
+        <div class="stat"><div class="stat-k">Swaps</div><div class="stat-v" id="partition-swaps">0</div></div>
+        <div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="partition-pivot">0</div></div>
+        <div class="stat"><div class="stat-k">Returned index</div><div class="stat-v" id="partition-index">0</div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>partition.js - Lomuto and Hoare side by side</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Pivot selection</h2></div>
+    <p>Naive pivot choice is where quicksort gets into trouble. Always choosing the first or last element is fine on random data until the day the input is already sorted, reverse sorted, or adversarially shaped. Then the recursion tree collapses into something close to a linked list and your <code>O(n log n)</code> intuition disappears.</p>
+    <p>Common defenses are random pivots and <strong>median-of-three</strong>, which samples the first, middle, and last elements and uses their median as the pivot. Production implementations go further, but even this simple move makes bad splits less common.</p>
+    <div class="callout warn">The dangerous belief is "quicksort is fast." The more honest version is "quicksort is fast if your pivot policy stops the input from humiliating you."</div>
+
+    <div class="demo">
+      <div class="demo-lbl">How the split changes with input shape</div>
+      <div class="btn-row" id="pivot-input-buttons">
+        <button class="btn act" data-pivot-input="sorted" onclick="setPivotInput('sorted')">Sorted</button>
+        <button class="btn" data-pivot-input="reverse" onclick="setPivotInput('reverse')">Reverse</button>
+        <button class="btn" data-pivot-input="mixed" onclick="setPivotInput('mixed')">Mixed</button>
+      </div>
+      <div class="btn-row" id="pivot-strategy-buttons">
+        <button class="btn act" data-pivot-strategy="first" onclick="setPivotStrategy('first')">First</button>
+        <button class="btn" data-pivot-strategy="random" onclick="setPivotStrategy('random')">Random</button>
+        <button class="btn" data-pivot-strategy="median3" onclick="setPivotStrategy('median3')">Median-of-three</button>
+      </div>
+      <div class="preview" id="pivot-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="pivot-value">0</div></div>
+        <div class="stat"><div class="stat-k">Left size</div><div class="stat-v" id="pivot-left">0</div></div>
+        <div class="stat"><div class="stat-k">Right size</div><div class="stat-v" id="pivot-right">0</div></div>
+        <div class="stat"><div class="stat-k">Balance ratio</div><div class="stat-v" id="pivot-balance">0</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>Introsort</h2></div>
+    <p>Introsort starts as quicksort because quicksort is usually the fast path. But it watches the recursion depth. If the partition tree gets too deep, it gives up on quicksort and falls back to heapsort, guaranteeing <code>O(n log n)</code> worst-case behavior. Most implementations also switch to insertion sort for very small partitions.</p>
+    <p>That combination is the practical champion: quicksort's average-case speed, heapsort's worst-case guardrail, and insertion sort's tiny-range efficiency. Heaps deserve their own explainer someday, but here they matter because they stop quicksort from becoming a disaster.</p>
+    <div class="callout info">Introsort is not an academic curiosity. C++ library implementations use introspective sort hybrids because "usually fast" is not enough for a general-purpose standard library.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Depth guard in action</div>
+      <div class="btn-row" id="intro-shape-buttons">
+        <button class="btn act" data-intro-shape="sorted" onclick="setIntroShape('sorted')">Sorted input</button>
+        <button class="btn" data-intro-shape="mixed" onclick="setIntroShape('mixed')">Mixed input</button>
+      </div>
+      <div class="preview" id="intro-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Quicksort calls</div><div class="stat-v" id="intro-qcalls">0</div></div>
+        <div class="stat"><div class="stat-k">Heap fallback calls</div><div class="stat-v" id="intro-heaps">0</div></div>
+        <div class="stat"><div class="stat-k">Insertion passes</div><div class="stat-v" id="intro-insertions">0</div></div>
+        <div class="stat"><div class="stat-k">Max depth seen</div><div class="stat-v" id="intro-depth">0</div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>introsort.js - introsort with median-of-three, insertion sort, and heap fallback</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>When not to use quicksort</h2></div>
+    <p>Quicksort and introsort are not the answer to every sorting question. If you need <strong>stability</strong>, they are the wrong default because equal elements are not guaranteed to preserve input order. If the data is already nearly sorted, insertion sort and timsort-style strategies can exploit that structure better. If you need predictable worst-case behavior from the start, mergesort or heapsort may be easier to reason about.</p>
+    <table class="table">
+      <thead>
+        <tr><th>Situation</th><th>Quicksort / Introsort fit?</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Large in-memory random data</td><td class="good">Usually yes</td><td>Excellent average constants and in-place partitioning.</td></tr>
+        <tr><td>Stable sort required</td><td class="bad">No</td><td>Equivalent elements may reorder.</td></tr>
+        <tr><td>Nearly sorted data</td><td class="bad">Often no</td><td>Adaptive algorithms can exploit order better.</td></tr>
+        <tr><td>Tiny partitions</td><td class="good">Only as a hybrid</td><td>Insertion sort usually wins once ranges get small.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section footer" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Library practice</h2></div>
+    <p>Modern sort implementations are less dogmatic than textbook chapters. libstdc++ still shows the classic introsort structure plainly: median-of-three partitioning, a depth limit, heap-based fallback, and a final insertion-sort cleanup. libc++ keeps the same introspective skeleton while layering in additional practical ideas such as better pivot sampling and partition refinements.</p>
+    <p>That is why the right mental model for standard-library sorting is not "quicksort" in the naive classroom sense. It is "an aggressively engineered hybrid built around quicksort's partitioning advantage."</p>
+    <div class="footer-links">
+      <a href="https://gcc.gnu.org/onlinedocs/gcc-10.3.0/libstdc%2B%2B/api/a00590_source.html">libstdc++ sort source</a>
+      <a href="https://codebrowser.dev/llvm/libcxx/include/__algorithm/sort.h.html">libc++ sort source</a>
+    </div>
+  </section>
+</div>
+
+<script>
+const CODE_SNIPPETS = {
+  c1: String.raw`function lomutoPartition(arr) {
+  const a = arr.slice();
+  const pivot = a[a.length - 1];
+  let i = 0;
+  let swaps = 0;
+  for (let j = 0; j < a.length - 1; j++) {
+    if (a[j] < pivot) {
+      [a[i], a[j]] = [a[j], a[i]];
+      swaps++;
+      i++;
+    }
+  }
+  [a[i], a[a.length - 1]] = [a[a.length - 1], a[i]];
+  swaps++;
+  return { array: a, pivotIndex: i, swaps };
+}
+
+function hoarePartition(arr) {
+  const a = arr.slice();
+  const pivot = a[Math.floor(a.length / 2)];
+  let i = -1;
+  let j = a.length;
+  let swaps = 0;
+  while (true) {
+    do { i++; } while (a[i] < pivot);
+    do { j--; } while (a[j] > pivot);
+    if (i >= j) return { array: a, pivotIndex: j, swaps };
+    [a[i], a[j]] = [a[j], a[i]];
+    swaps++;
+  }
+}
+
+const sample = [9, 4, 8, 3, 1, 2, 5];
+console.log("lomuto:", JSON.stringify(lomutoPartition(sample)));
+console.log("hoare:", JSON.stringify(hoarePartition(sample)));`,
+  c2: String.raw`function insertionSort(a, lo, hi, compare) {
+  for (let i = lo + 1; i < hi; i++) {
+    const x = a[i];
+    let j = i - 1;
+    while (j >= lo && compare(x, a[j]) < 0) {
+      a[j + 1] = a[j];
+      j--;
+    }
+    a[j + 1] = x;
+  }
+}
+
+function heapSortRange(a, lo, hi, compare) {
+  const n = hi - lo;
+  function siftDown(root, end) {
+    while (true) {
+      let child = root * 2 + 1;
+      if (child >= end) return;
+      if (child + 1 < end && compare(a[lo + child], a[lo + child + 1]) < 0) child++;
+      if (compare(a[lo + root], a[lo + child]) >= 0) return;
+      [a[lo + root], a[lo + child]] = [a[lo + child], a[lo + root]];
+      root = child;
+    }
+  }
+  for (let start = Math.floor(n / 2) - 1; start >= 0; start--) siftDown(start, n);
+  for (let end = n - 1; end > 0; end--) {
+    [a[lo], a[lo + end]] = [a[lo + end], a[lo]];
+    siftDown(0, end);
+  }
+}
+
+function medianOfThree(a, i, j, k, compare) {
+  if (compare(a[i], a[j]) > 0) [i, j] = [j, i];
+  if (compare(a[j], a[k]) > 0) [j, k] = [k, j];
+  if (compare(a[i], a[j]) > 0) [i, j] = [j, i];
+  return j;
+}
+
+function introsort(input, compare = (x, y) => x - y) {
+  const a = input.slice();
+  const limit = 16;
+  const maxDepth = 2 * Math.floor(Math.log2(Math.max(1, a.length)));
+
+  function partition(lo, hi) {
+    const mid = lo + ((hi - lo) >> 1);
+    const pivotIndex = medianOfThree(a, lo, mid, hi - 1, compare);
+    const pivot = a[pivotIndex];
+    [a[pivotIndex], a[hi - 1]] = [a[hi - 1], a[pivotIndex]];
+    let store = lo;
+    for (let i = lo; i < hi - 1; i++) {
+      if (compare(a[i], pivot) < 0) {
+        [a[store], a[i]] = [a[i], a[store]];
+        store++;
+      }
+    }
+    [a[store], a[hi - 1]] = [a[hi - 1], a[store]];
+    return store;
+  }
+
+  function sort(lo, hi, depth) {
+    while (hi - lo > limit) {
+      if (depth === 0) {
+        heapSortRange(a, lo, hi, compare);
+        return;
+      }
+      depth--;
+      const p = partition(lo, hi);
+      sort(p + 1, hi, depth);
+      hi = p;
+    }
+    insertionSort(a, lo, hi, compare);
+  }
+
+  sort(0, a.length, maxDepth);
+  return a;
+}
+
+const sample = [9, 1, 5, 3, 7, 2, 8, 6, 4];
+console.log("sorted:", JSON.stringify(introsort(sample)));
+console.log("still original:", JSON.stringify(sample));`
+};
+
+const PARTITION_SAMPLE = [9, 4, 8, 3, 1, 2, 5];
+const PIVOT_INPUTS = {
+  sorted: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  reverse: [9, 8, 7, 6, 5, 4, 3, 2, 1],
+  mixed: [7, 2, 9, 1, 5, 8, 3, 4, 6]
+};
+const INTRO_INPUTS = {
+  sorted: Array.from({ length: 32 }, (_, i) => i + 1),
+  mixed: [12, 4, 19, 1, 8, 7, 25, 3, 16, 11, 5, 30, 2, 14, 23, 9, 10, 18, 20, 6, 17, 21, 24, 15, 13, 22, 26, 28, 27, 31, 29, 32]
+};
+
+const state = {
+  partitionMode: "lomuto",
+  pivotInput: "sorted",
+  pivotStrategy: "first",
+  introShape: "sorted"
+};
+
+function lomutoPartition(arr) {
+  const a = arr.slice();
+  const pivot = a[a.length - 1];
+  let i = 0;
+  let swaps = 0;
+  let comps = 0;
+  for (let j = 0; j < a.length - 1; j++) {
+    comps++;
+    if (a[j] < pivot) {
+      [a[i], a[j]] = [a[j], a[i]];
+      swaps++;
+      i++;
+    }
+  }
+  [a[i], a[a.length - 1]] = [a[a.length - 1], a[i]];
+  swaps++;
+  return { array: a, pivotIndex: i, swaps, comps, pivot };
+}
+
+function hoarePartition(arr) {
+  const a = arr.slice();
+  const pivot = a[Math.floor(a.length / 2)];
+  let i = -1;
+  let j = a.length;
+  let swaps = 0;
+  let comps = 0;
+  while (true) {
+    do { i++; comps++; } while (a[i] < pivot);
+    do { j--; comps++; } while (a[j] > pivot);
+    if (i >= j) return { array: a, pivotIndex: j, swaps, comps, pivot };
+    [a[i], a[j]] = [a[j], a[i]];
+    swaps++;
+  }
+}
+
+function setPartitionMode(mode) {
+  state.partitionMode = mode;
+  document.querySelectorAll("[data-partition]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.partition === mode);
+  });
+  renderPartition();
+}
+
+function renderPartition() {
+  const result = state.partitionMode === "lomuto"
+    ? lomutoPartition(PARTITION_SAMPLE)
+    : hoarePartition(PARTITION_SAMPLE);
+  document.getElementById("partition-preview").textContent =
+    "Partitioning is where quicksort spends its life. Lomuto is simpler to reason about; Hoare often performs fewer swaps but returns a different cut index.";
+  document.getElementById("partition-array").textContent = "[" + result.array.join(", ") + "]";
+  document.getElementById("partition-note").textContent =
+    state.partitionMode === "lomuto"
+      ? "Pivot ends at its final index. Elements to the left are smaller; elements to the right are greater or equal."
+      : "Pointers cross and return a split point. The pivot is not necessarily sitting at that exact returned index.";
+  document.getElementById("partition-cost").textContent =
+    state.partitionMode === "lomuto" ? "Teachability first" : "Usually fewer swaps";
+  document.getElementById("partition-cost-note").textContent =
+    state.partitionMode === "lomuto"
+      ? "Simple invariant, but it tends to swap more."
+      : "More subtle control flow, but often better partition mechanics.";
+  document.getElementById("partition-comps").textContent = result.comps;
+  document.getElementById("partition-swaps").textContent = result.swaps;
+  document.getElementById("partition-pivot").textContent = result.pivot;
+  document.getElementById("partition-index").textContent = result.pivotIndex;
+}
+
+function setPivotInput(name) {
+  state.pivotInput = name;
+  document.querySelectorAll("[data-pivot-input]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.pivotInput === name);
+  });
+  renderPivot();
+}
+
+function setPivotStrategy(name) {
+  state.pivotStrategy = name;
+  document.querySelectorAll("[data-pivot-strategy]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.pivotStrategy === name);
+  });
+  renderPivot();
+}
+
+function choosePivot(arr, strategy) {
+  if (strategy === "first") return { index: 0, value: arr[0] };
+  if (strategy === "random") {
+    const index = Math.floor(Math.random() * arr.length);
+    return { index, value: arr[index] };
+  }
+  const i = 0;
+  const j = Math.floor(arr.length / 2);
+  const k = arr.length - 1;
+  const trio = [
+    { index: i, value: arr[i] },
+    { index: j, value: arr[j] },
+    { index: k, value: arr[k] }
+  ].sort((a, b) => a.value - b.value);
+  return trio[1];
+}
+
+function renderPivot() {
+  const arr = PIVOT_INPUTS[state.pivotInput];
+  const pivot = choosePivot(arr, state.pivotStrategy);
+  let left = 0;
+  let right = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (i === pivot.index) continue;
+    if (arr[i] < pivot.value) left++;
+    else right++;
+  }
+  const balance = left === 0 || right === 0 ? "bad split" : Math.min(left, right) + ":" + Math.max(left, right);
+  document.getElementById("pivot-preview").textContent =
+    "Input: [" + arr.join(", ") + "]\n" +
+    "A naive pivot can create a nearly one-sided recursion tree. Median-of-three is a cheap defense that often improves the split.";
+  document.getElementById("pivot-value").textContent = pivot.value;
+  document.getElementById("pivot-left").textContent = left;
+  document.getElementById("pivot-right").textContent = right;
+  document.getElementById("pivot-balance").textContent = balance;
+}
+
+function insertionSort(a, lo, hi, compare, stats) {
+  stats.insertions++;
+  for (let i = lo + 1; i < hi; i++) {
+    const x = a[i];
+    let j = i - 1;
+    while (j >= lo && compare(x, a[j]) < 0) {
+      a[j + 1] = a[j];
+      j--;
+    }
+    a[j + 1] = x;
+  }
+}
+
+function heapSortRange(a, lo, hi, compare, stats) {
+  stats.heapFallbacks++;
+  const n = hi - lo;
+  function siftDown(root, end) {
+    while (true) {
+      let child = root * 2 + 1;
+      if (child >= end) return;
+      if (child + 1 < end && compare(a[lo + child], a[lo + child + 1]) < 0) child++;
+      if (compare(a[lo + root], a[lo + child]) >= 0) return;
+      [a[lo + root], a[lo + child]] = [a[lo + child], a[lo + root]];
+      root = child;
+    }
+  }
+  for (let start = Math.floor(n / 2) - 1; start >= 0; start--) siftDown(start, n);
+  for (let end = n - 1; end > 0; end--) {
+    [a[lo], a[lo + end]] = [a[lo + end], a[lo]];
+    siftDown(0, end);
+  }
+}
+
+function medianOfThreeIndex(a, i, j, k, compare) {
+  if (compare(a[i], a[j]) > 0) [i, j] = [j, i];
+  if (compare(a[j], a[k]) > 0) [j, k] = [k, j];
+  if (compare(a[i], a[j]) > 0) [i, j] = [j, i];
+  return j;
+}
+
+function runIntroDemo(shape) {
+  const a = INTRO_INPUTS[shape].slice();
+  const stats = { qcalls: 0, heapFallbacks: 0, insertions: 0, maxDepthSeen: 0, pivotPolicy: shape === "sorted" ? "first-element (hostile demo)" : "median-of-three" };
+  const compare = (x, y) => x - y;
+  const limit = 16;
+  const maxDepth = 2 * Math.floor(Math.log2(Math.max(1, a.length)));
+
+  function partition(lo, hi) {
+    const pivotIndex = shape === "sorted"
+      ? lo
+      : medianOfThreeIndex(a, lo, lo + ((hi - lo) >> 1), hi - 1, compare);
+    const pivot = a[pivotIndex];
+    [a[pivotIndex], a[hi - 1]] = [a[hi - 1], a[pivotIndex]];
+    let store = lo;
+    for (let i = lo; i < hi - 1; i++) {
+      if (compare(a[i], pivot) < 0) {
+        [a[store], a[i]] = [a[i], a[store]];
+        store++;
+      }
+    }
+    [a[store], a[hi - 1]] = [a[hi - 1], a[store]];
+    return store;
+  }
+
+  function sort(lo, hi, depth, seen) {
+    stats.maxDepthSeen = Math.max(stats.maxDepthSeen, seen);
+    while (hi - lo > limit) {
+      stats.qcalls++;
+      if (depth === 0) {
+        heapSortRange(a, lo, hi, compare, stats);
+        return;
+      }
+      depth--;
+      const p = partition(lo, hi);
+      sort(p + 1, hi, depth, seen + 1);
+      hi = p;
+    }
+    insertionSort(a, lo, hi, compare, stats);
+  }
+
+  sort(0, a.length, maxDepth, 1);
+  return stats;
+}
+
+function setIntroShape(name) {
+  state.introShape = name;
+  document.querySelectorAll("[data-intro-shape]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.introShape === name);
+  });
+  renderIntro();
+}
+
+function renderIntro() {
+  const stats = runIntroDemo(state.introShape);
+  document.getElementById("intro-preview").textContent =
+    state.introShape === "sorted"
+      ? "This view uses a deliberately hostile first-element pivot on sorted input so the depth guard has a chance to fire. The real runnable implementation below still uses median-of-three."
+      : "With a healthier pivot policy, introsort stays on the quicksort path and never needs the heap fallback on this input.";
+  document.getElementById("intro-qcalls").textContent = stats.qcalls;
+  document.getElementById("intro-heaps").textContent = stats.heapFallbacks;
+  document.getElementById("intro-insertions").textContent = stats.insertions;
+  document.getElementById("intro-depth").textContent = stats.maxDepthSeen;
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(formatValue).join(" ")),
+    error: (...args) => lines.push(args.map(formatValue).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function formatValue(v) {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+}
+
+initCodeBlocks();
+setPartitionMode("lomuto");
+setPivotInput("sorted");
+setPivotStrategy("first");
+setIntroShape("sorted");
+</script>
+</body>
+</html>
