@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Compression Game — Huffman and LZ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f7f4;
+  --bg2:#ebf1ec;
+  --bg3:#dfe8e2;
+  --surface:#ffffff;
+  --border:rgba(18,32,28,.10);
+  --border2:rgba(18,32,28,.18);
+  --text:#13201c;
+  --text2:#55615c;
+  --text3:#88928d;
+  --accent:#0c6a63;
+  --accent-bg:#dff3f0;
+  --accent-2:#a85f16;
+  --accent-2-bg:#faead9;
+  --accent-3:#365d9d;
+  --accent-3-bg:#e4edf8;
+  --red:#9b2d30;
+  --red-bg:#f7e8e9;
+  --mono:'IBM Plex Mono', monospace;
+  --sans:'IBM Plex Sans', sans-serif;
+  --serif:'Instrument Serif', serif;
+  --r:9px;
+  --r-lg:14px;
+  --shadow:0 18px 44px rgba(17,29,24,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1413;
+    --bg2:#151b19;
+    --bg3:#1d2623;
+    --surface:#151b19;
+    --border:rgba(255,255,255,.08);
+    --border2:rgba(255,255,255,.15);
+    --text:#e8edea;
+    --text2:#a1aaa5;
+    --text3:#67706c;
+    --accent:#74d4ca;
+    --accent-bg:#0f2826;
+    --accent-2:#e0a25d;
+    --accent-2-bg:#281b0d;
+    --accent-3:#8eb2ea;
+    --accent-3-bg:#111c2d;
+    --red:#e17b7f;
+    --red-bg:#2b1316;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    linear-gradient(180deg, rgba(12,106,99,.04), transparent 18rem),
+    radial-gradient(circle at top right, rgba(168,95,22,.08), transparent 24rem),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:860px;margin:0 auto;padding:0 1.75rem 6rem}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  gap:1rem;
+  align-items:center;
+  padding:1.2rem 0;
+  border-bottom:1px solid var(--border);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--text3);
+}
+.topbar a{color:var(--text2);text-decoration:none}
+.topbar a:hover{color:var(--accent)}
+.hero{
+  padding:4.2rem 0 3.2rem;
+  border-bottom:1px solid var(--border);
+}
+.hero-kicker{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);
+  font-size:clamp(2.7rem, 6vw, 4.1rem);
+  font-weight:400;
+  line-height:1.04;
+  letter-spacing:-.01em;
+  max-width:12ch;
+  margin-bottom:1.2rem;
+}
+.hero h1 em{font-style:italic;color:var(--accent)}
+.hero p{
+  max-width:42rem;
+  color:var(--text2);
+  font-size:17px;
+  line-height:1.72;
+  margin-bottom:1.5rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 11px;
+  border-radius:999px;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  color:var(--text2);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.03em;
+}
+.pill b{color:var(--accent);font-weight:500}
+.toc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin:2.6rem 0 3.4rem;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.toc a{
+  display:flex;
+  gap:10px;
+  padding:11px 14px;
+  background:var(--surface);
+  color:var(--text2);
+  text-decoration:none;
+  font-size:14px;
+  transition:background .12s,color .12s;
+}
+.toc a:hover{background:var(--bg2);color:var(--text)}
+.toc-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text3);
+  min-width:16px;
+  padding-top:1px;
+}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  border-bottom:1px solid var(--border);
+  padding-bottom:.9rem;
+  margin-bottom:1.4rem;
+}
+.sec-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text3);
+}
+h2{
+  font-family:var(--serif);
+  font-size:1.9rem;
+  font-weight:400;
+  line-height:1.14;
+}
+h3{
+  font-size:15px;
+  font-weight:500;
+  margin:1.3rem 0 .45rem;
+}
+p{
+  font-size:15.5px;
+  line-height:1.78;
+  color:var(--text2);
+  margin-bottom:.95rem;
+}
+p strong{color:var(--text);font-weight:500}
+a{color:var(--accent)}
+code{
+  font-family:var(--mono);
+  font-size:12.5px;
+  color:var(--accent);
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:1px 5px;
+}
+.callout{
+  border-left:3px solid var(--accent);
+  background:var(--accent-bg);
+  color:var(--accent);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.85rem 1.05rem;
+  margin:1.15rem 0;
+  font-size:14px;
+  line-height:1.7;
+}
+.callout.warn{
+  border-color:var(--accent-2);
+  background:var(--accent-2-bg);
+  color:var(--accent-2);
+}
+.callout.info{
+  border-color:var(--accent-3);
+  background:var(--accent-3-bg);
+  color:var(--accent-3);
+}
+.demo,.cb{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow);
+  margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--text3);
+  margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.9rem}
+.btn{
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  background:transparent;
+  color:var(--text2);
+  padding:5px 11px;
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.btn:hover{background:var(--bg2);color:var(--text)}
+.btn.act{background:var(--accent-bg);color:var(--accent);border-color:rgba(12,106,99,.28)}
+.preview{
+  background:linear-gradient(180deg,var(--bg2),transparent);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:.9rem 1rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.75;
+  color:var(--text);
+  white-space:pre-wrap;
+  word-break:break-word;
+  max-height:210px;
+  overflow:auto;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.stat{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:.75rem .85rem;
+}
+.stat-k{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text3);
+  margin-bottom:.28rem;
+}
+.stat-v{
+  font-size:1.35rem;
+  line-height:1.1;
+  color:var(--text);
+}
+.stat-v small{font-size:.72rem;color:var(--text3)}
+.meter{
+  margin-top:.9rem;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:.8rem .9rem;
+}
+.meter-head{
+  display:flex;
+  justify-content:space-between;
+  gap:1rem;
+  margin-bottom:.55rem;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text3);
+}
+.meter-bar{
+  height:12px;
+  border-radius:999px;
+  background:var(--bg3);
+  overflow:hidden;
+  position:relative;
+}
+.meter-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--accent),var(--accent-3));
+}
+.meter-note{
+  margin-top:.55rem;
+  font-size:13px;
+  line-height:1.65;
+  color:var(--text2);
+}
+.entropy-table{margin-top:1rem}
+.entropy-row{
+  display:grid;
+  grid-template-columns:90px 70px 70px 1fr 80px;
+  gap:10px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid var(--border);
+  font-family:var(--mono);
+  font-size:12px;
+}
+.entropy-row:last-child{border-bottom:none}
+.entropy-row.head{
+  color:var(--text3);
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  font-size:10px;
+  padding-top:0;
+}
+.bar{
+  height:8px;
+  border-radius:999px;
+  background:var(--bg3);
+  overflow:hidden;
+}
+.bar span{display:block;height:100%;background:var(--accent)}
+.mono{font-family:var(--mono)}
+.huff-grid{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:1rem;
+  align-items:start;
+}
+.code-table{
+  width:100%;
+  border-collapse:collapse;
+  font-family:var(--mono);
+  font-size:12px;
+}
+.code-table th{
+  text-align:left;
+  color:var(--text3);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  padding:0 0 .45rem;
+  border-bottom:1px solid var(--border);
+}
+.code-table td{
+  padding:.45rem 0;
+  border-bottom:1px solid var(--border);
+  color:var(--text2);
+}
+.code-table td.code{color:var(--accent-3);background:none;border:none;padding:.45rem 0;font-size:12px}
+.mini-stats{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+}
+.mini{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:.8rem .9rem;
+}
+.mini .label{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--text3);
+  margin-bottom:.28rem;
+}
+.mini .value{
+  font-size:1.25rem;
+  color:var(--text);
+}
+.track{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin:.7rem 0;
+}
+.cell{
+  min-width:28px;
+  padding:6px 0;
+  text-align:center;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--text2);
+  position:relative;
+}
+.cell.window{background:var(--accent-3-bg);color:var(--accent-3);border-color:rgba(54,93,157,.28)}
+.cell.look{background:var(--accent-bg);color:var(--accent);border-color:rgba(12,106,99,.28)}
+.cell.active{outline:2px solid var(--accent-2);color:var(--accent-2)}
+.cell .idx{
+  display:block;
+  font-size:9px;
+  line-height:1;
+  color:var(--text3);
+  margin-bottom:4px;
+}
+.step-box{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:.9rem;
+}
+.token-stream{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:.8rem;
+}
+.tok{
+  padding:5px 9px;
+  border-radius:999px;
+  font-family:var(--mono);
+  font-size:11px;
+  border:1px solid var(--border2);
+  background:var(--bg2);
+  color:var(--text2);
+}
+.tok.ref{background:var(--accent-2-bg);color:var(--accent-2);border-color:rgba(168,95,22,.28)}
+.tok.lit{background:var(--accent-bg);color:var(--accent);border-color:rgba(12,106,99,.28)}
+.pipeline{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  align-items:stretch;
+}
+.stage{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:.9rem;
+  position:relative;
+}
+.stage:not(:last-child)::after{
+  content:"→";
+  position:absolute;
+  right:-10px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--text3);
+  font-family:var(--mono);
+  font-size:18px;
+}
+.stage-k{
+  font-family:var(--mono);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:var(--text3);
+  margin-bottom:.4rem;
+}
+.stage-v{
+  font-size:1.5rem;
+  color:var(--text);
+  margin-bottom:.3rem;
+}
+.stage p{
+  font-size:13px;
+  line-height:1.65;
+  color:var(--text2);
+  margin:0;
+}
+.cb{overflow:hidden}
+.cb-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:8px 14px;
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--text3);
+}
+.run-btn{
+  border:none;
+  background:var(--accent);
+  color:#f6fffd;
+  border-radius:5px;
+  padding:4px 10px;
+  font-family:var(--mono);
+  font-size:11px;
+  cursor:pointer;
+  letter-spacing:.04em;
+}
+.run-btn:hover{opacity:.84}
+pre.code{
+  margin:0;
+  padding:1.1rem 1.3rem;
+  background:var(--surface);
+  overflow:auto;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--text);
+}
+.out{
+  display:none;
+  background:var(--accent-bg);
+  border-top:1px solid var(--border);
+  padding:.8rem 1.3rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--accent);
+  white-space:pre-wrap;
+}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.footer{
+  border-top:1px solid var(--border);
+  padding-top:1.8rem;
+  margin-top:1rem;
+}
+.footer-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.3rem;
+}
+.footer-links a{
+  font-size:14px;
+  color:var(--text2);
+  text-decoration:none;
+}
+.footer-links a:hover{color:var(--accent)}
+@media (max-width: 760px){
+  .toc{grid-template-columns:1fr}
+  .stat-grid,.pipeline,.step-box,.huff-grid{grid-template-columns:1fr}
+  .stage:not(:last-child)::after{display:none}
+  .entropy-row{grid-template-columns:72px 56px 60px 1fr 64px}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Interactive explainer</div>
+    <h1>The <em>Compression Game</em> — Huffman and LZ</h1>
+    <p>How do you make a file smaller without losing anything? The answer is to exploit structure twice: first by spotting repeated substrings, then by assigning short codes to the symbols that show up most often. This page walks from Shannon's entropy bound to Huffman coding, LZ77, and the way gzip combines both ideas. All code runs in your browser.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Lossless</b> compression</span>
+      <span class="pill"><b>Shannon</b> entropy</span>
+      <span class="pill"><b>DEFLATE</b> = LZ77 + Huffman</span>
+      <span class="pill">Runnable JavaScript</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>The problem: same file, fewer bits</a>
+    <a href="#s2"><span class="toc-n">02</span>Entropy: Shannon's floor</a>
+    <a href="#s3"><span class="toc-n">03</span>Huffman coding</a>
+    <a href="#s4"><span class="toc-n">04</span>LZ77 and the sliding window</a>
+    <a href="#s5"><span class="toc-n">05</span>How gzip combines both</a>
+    <a href="#s6"><span class="toc-n">06</span>Implementation in JavaScript</a>
+    <a href="#s7"><span class="toc-n">07</span>Further reading</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: same file, fewer bits</h2></div>
+    <p>Lossless compression has a narrow brief: <strong>the output must decode to the exact original bytes</strong>. No approximations, no dropped detail, no “close enough.” The only move available is to describe the data more cleverly than the raw byte stream does.</p>
+    <p>That only works when the file has structure: repeated words, predictable symbols, recurring phrases, or common local patterns. If the bytes already look random, there is not much to save.</p>
+    <div class="callout">Compression is not magic. It cannot squeeze every file. It only wins when the data contains <strong>redundancy</strong> that the compressor can model.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Three files, three very different compression stories</div>
+      <div class="btn-row" id="sample-buttons">
+        <button class="btn act" data-sample="log" onclick="setSample('log')">Server log</button>
+        <button class="btn" data-sample="code" onclick="setSample('code')">Source code</button>
+        <button class="btn" data-sample="noise" onclick="setSample('noise')">Noisy data</button>
+      </div>
+      <div class="preview" id="sample-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Original size</div><div class="stat-v" id="stat-bytes">0 <small>bytes</small></div></div>
+        <div class="stat"><div class="stat-k">Unique symbols</div><div class="stat-v" id="stat-unique">0</div></div>
+        <div class="stat"><div class="stat-k">Entropy</div><div class="stat-v" id="stat-entropy">0 <small>bits/symbol</small></div></div>
+        <div class="stat"><div class="stat-k">Shannon floor</div><div class="stat-v" id="stat-floor">0 <small>bytes</small></div></div>
+      </div>
+      <div class="meter">
+        <div class="meter-head"><span>8-bit raw bytes</span><span id="redundancy-head">Entropy uses 0% of that budget</span></div>
+        <div class="meter-bar"><div class="meter-fill" id="redundancy-fill" style="width:0%"></div></div>
+        <div class="meter-note" id="sample-note"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>Entropy: Shannon's floor</h2></div>
+    <p>Claude Shannon's key insight was that a source emitting very predictable symbols should require fewer bits per symbol than a source emitting unpredictable ones. If one character appears half the time and the others are rare, you should not spend the same number of bits on all of them.</p>
+    <p>Entropy is the average surprise of the source. Low entropy means the next symbol is usually easy to guess. High entropy means you are closer to randomness. In a long enough stream, <strong>entropy is the theoretical lower bound for any lossless compressor that models the source correctly</strong>.</p>
+    <div class="callout info">No heavy math needed here: think of entropy as the average number of yes/no questions required to identify the next symbol.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Where the bits go</div>
+      <div class="entropy-table" id="entropy-table"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Huffman coding</h2></div>
+    <p>Huffman coding turns a frequency table into a <strong>prefix code</strong>: common symbols get short bit strings, rare symbols get longer ones, and no code is a prefix of another. That last property guarantees the bitstream can be decoded unambiguously from left to right.</p>
+    <p>The construction is greedy and elegant. Repeatedly take the two least frequent symbols, combine them into a parent, and continue until one tree remains. The path to each leaf becomes that symbol's code.</p>
+    <div class="callout">Huffman coding only exploits <strong>symbol frequency</strong>. If the file contains repeated phrases like <code>compression compression compression</code>, Huffman alone still sees one symbol at a time.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Codes derived from the current sample</div>
+      <div class="huff-grid">
+        <div>
+          <table class="code-table">
+            <thead>
+              <tr><th>Symbol</th><th>Count</th><th>Share</th><th>Code</th><th>Bits</th></tr>
+            </thead>
+            <tbody id="huffman-table"></tbody>
+          </table>
+        </div>
+        <div class="mini-stats">
+          <div class="mini"><div class="label">Fixed-width ASCII</div><div class="value" id="fixed-bits">0 bits</div></div>
+          <div class="mini"><div class="label">Entropy floor</div><div class="value" id="entropy-bits">0 bits</div></div>
+          <div class="mini"><div class="label">Huffman output</div><div class="value" id="huffman-bits">0 bits</div></div>
+          <div class="mini"><div class="label">Average code length</div><div class="value" id="avg-bits">0 bits/symbol</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>LZ77 and the sliding window</h2></div>
+    <p>LZ77 tackles a different kind of redundancy. Instead of asking which <em>symbols</em> are common, it asks whether the next few characters already appeared nearby. If they did, emit a back-reference such as “copy 6 bytes from 11 bytes ago” instead of repeating the literal text.</p>
+    <p>That is why LZ77 works so well on logs, markup, source code, and repeated words: local history is a strong predictor of what comes next. In practice, encoders use a <strong>sliding window</strong> of recent bytes and greedily choose a long enough match when one exists.</p>
+    <div class="callout info">Real LZ77-style formats also allow <strong>overlapping</strong> copies. That is why runs like <code>AAAAAAAAAA</code> can collapse into a short literal prefix plus a back-reference whose length exceeds its distance.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Step through an LZ77-style parse</div>
+      <div class="btn-row" id="lz-buttons">
+        <button class="btn act" data-lz="banana" onclick="setLZSample('banana')">BANANA stream</button>
+        <button class="btn" data-lz="phrase" onclick="setLZSample('phrase')">Repeated phrase</button>
+        <button class="btn" data-lz="runs" onclick="setLZSample('runs')">Runs</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="stepLZ(-1)">Prev</button>
+        <button class="btn" onclick="stepLZ(1)">Next</button>
+      </div>
+      <div class="preview" id="lz-source"></div>
+      <div class="track" id="lz-track"></div>
+      <div class="step-box">
+        <div class="stat"><div class="stat-k">Window</div><div class="mono" id="lz-window-text"></div></div>
+        <div class="stat"><div class="stat-k">Lookahead</div><div class="mono" id="lz-lookahead-text"></div></div>
+        <div class="stat"><div class="stat-k">Emit token</div><div class="mono" id="lz-token-text"></div></div>
+      </div>
+      <div class="token-stream" id="lz-token-stream"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>How gzip combines both</h2></div>
+    <p>What most programmers casually call “gzip compression” is usually a <strong>gzip file wrapper around a DEFLATE stream</strong>. DEFLATE combines the two ideas above: first it finds repeated substrings with an LZ77-style parser, then it Huffman-codes the resulting literals, lengths, and distances.</p>
+    <p>That division of labor matters. LZ77 removes repeated phrases and local structure. Huffman then removes the remaining symbol-frequency waste from the token stream. One spots patterns across bytes; the other assigns shorter codes to frequent tokens.</p>
+    <div class="callout warn">The pipeline below is illustrative, not a byte-exact gzip size calculator. Real DEFLATE adds block structure, separate literal/length and distance alphabets, and some extra bits for certain lengths and distances.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">A toy DEFLATE-style pipeline for the current sample</div>
+      <div class="pipeline">
+        <div class="stage">
+          <div class="stage-k">Original</div>
+          <div class="stage-v" id="pipe-original">0 B</div>
+          <p>Raw bytes in the input sample.</p>
+        </div>
+        <div class="stage">
+          <div class="stage-k">LZ77 tokens</div>
+          <div class="stage-v" id="pipe-tokens">0</div>
+          <p id="pipe-lz-note">0 matches, 0 literals.</p>
+        </div>
+        <div class="stage">
+          <div class="stage-k">Toy Huffman</div>
+          <div class="stage-v" id="pipe-huff">0 bits</div>
+          <p id="pipe-huff-note">Average 0 bits per emitted symbol.</p>
+        </div>
+        <div class="stage">
+          <div class="stage-k">Takeaway</div>
+          <div class="stage-v" id="pipe-takeaway">—</div>
+          <p id="pipe-takeaway-note"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation in JavaScript</h2></div>
+    <p>The snippets below are deliberately small, but they are not pseudocode. The Huffman example really encodes and decodes a string and emits the codebook needed to decode it later. The LZ77 sketch really emits tokens, allows overlapping back-references, and reconstructs the original text.</p>
+
+    <div class="cb">
+      <div class="cb-head"><span>entropy.js — estimate Shannon entropy and the theoretical floor</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>huffman.js — Huffman encoder / decoder with serialized codebook</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>lz77_sketch.js — greedy LZ77-style encoder / decoder with overlapping copies</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+      <pre class="code" id="c3"></pre>
+      <div class="out" id="o3"></div>
+    </div>
+  </section>
+
+  <section class="section footer" id="s7">
+    <div class="sec-head"><span class="sec-n">§07</span><h2>Further reading</h2></div>
+    <p>The big ideas here are old, durable, and still sitting underneath everyday tooling.</p>
+    <div class="footer-links">
+      <a href="https://www.rfc-editor.org/rfc/rfc1951">RFC 1951 — DEFLATE compressed data format</a>
+      <a href="https://www.rfc-editor.org/rfc/rfc1952">RFC 1952 — gzip file format</a>
+      <a href="https://people.csail.mit.edu/rivest/pubs/HuTa52.pdf">Huffman (1952) — minimum-redundancy codes</a>
+      <a href="https://ieeexplore.ieee.org/document/6773024">Lempel and Ziv (1977) — universal compression</a>
+    </div>
+  </section>
+</div>
+
+<script>
+const SAMPLE_TEXTS = {
+  log:
+`2026-04-13T10:42:01Z INFO cache miss for /api/user/42
+2026-04-13T10:42:02Z INFO cache miss for /api/user/43
+2026-04-13T10:42:03Z INFO cache miss for /api/user/44
+2026-04-13T10:42:04Z INFO cache miss for /api/user/45`,
+  code:
+`function sum(items) {
+  let total = 0;
+  for (const item of items) total += item;
+  return total;
+}
+
+function average(items) {
+  return items.length ? sum(items) / items.length : 0;
+}`,
+  noise: makeNoiseSample(220)
+};
+
+const LZ_SAMPLES = {
+  banana: "BANANA_BANDANA_BANANA",
+  phrase: "TOBEORNOTTOBEORTOBEORNOT",
+  runs: "AAAAABAAAAABAAAAAB"
+};
+
+const CODE_SNIPPETS = {
+  c1: String.raw`function entropy(text) {
+  const counts = new Map();
+  for (const ch of text) counts.set(ch, (counts.get(ch) || 0) + 1);
+
+  let h = 0;
+  for (const count of counts.values()) {
+    const p = count / text.length;
+    h -= p * Math.log2(p);
+  }
+  return h;
+}
+
+const samples = [
+  "AAAAABBBBBBBBBBBBB",
+  "BANANA_BANDANA",
+  "TOBEORNOTTOBEORTOBEORNOT"
+];
+
+for (const text of samples) {
+  const h = entropy(text);
+  const floorBits = h * text.length;
+  console.log("Text: " + text);
+  console.log("  entropy: " + h.toFixed(3) + " bits/symbol");
+  console.log("  theoretical floor: " + floorBits.toFixed(1) + " bits");
+  console.log("  raw 8-bit storage: " + (text.length * 8) + " bits");
+  console.log("");
+}`,
+  c2: String.raw`function buildTree(text) {
+  const counts = new Map();
+  for (const ch of text) counts.set(ch, (counts.get(ch) || 0) + 1);
+
+  let nextId = 0;
+  let nodes = [...counts.entries()].map(([symbol, count]) => ({
+    id: nextId++,
+    symbol,
+    count,
+    left: null,
+    right: null
+  }));
+
+  if (nodes.length === 0) return null;
+  if (nodes.length === 1) return nodes[0];
+
+  while (nodes.length > 1) {
+    nodes.sort((a, b) => a.count - b.count || a.id - b.id);
+    const left = nodes.shift();
+    const right = nodes.shift();
+    nodes.push({
+      id: nextId++,
+      symbol: null,
+      count: left.count + right.count,
+      left,
+      right
+    });
+  }
+
+  return nodes[0];
+}
+
+function buildCodes(node, prefix = "", table = {}) {
+  if (!node) return table;
+  if (!node.left && !node.right) {
+    table[node.symbol] = prefix || "0";
+    return table;
+  }
+  buildCodes(node.left, prefix + "0", table);
+  buildCodes(node.right, prefix + "1", table);
+  return table;
+}
+
+function serializeCodebook(codes) {
+  return Object.entries(codes).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function treeFromCodebook(codebook) {
+  if (!codebook.length) return null;
+  const root = { left: null, right: null, symbol: null };
+  for (const [symbol, code] of codebook) {
+    let node = root;
+    for (const bit of code) {
+      if (bit === "0") {
+        node.left = node.left || { left: null, right: null, symbol: null };
+        node = node.left;
+      } else {
+        node.right = node.right || { left: null, right: null, symbol: null };
+        node = node.right;
+      }
+    }
+    node.symbol = symbol;
+  }
+  return root;
+}
+
+function encode(text) {
+  if (!text.length) return { bits: "", codebook: [] };
+  const tree = buildTree(text);
+  const codes = buildCodes(tree);
+  const bits = [...text].map(ch => codes[ch]).join("");
+  return { bits, codebook: serializeCodebook(codes), codes };
+}
+
+function decode(bits, codebook) {
+  const tree = treeFromCodebook(codebook);
+  if (!tree) return "";
+  if (!tree.left && !tree.right) return tree.symbol.repeat(bits.length);
+
+  let out = "";
+  let node = tree;
+  for (const bit of bits) {
+    node = bit === "0" ? node.left : node.right;
+    if (!node.left && !node.right) {
+      out += node.symbol;
+      node = tree;
+    }
+  }
+  return out;
+}
+
+const text = "BANANA_BANDANA";
+const result = encode(text);
+
+console.log("Original:", text);
+console.log("Codebook:", result.codebook);
+console.log("Encoded bits:", result.bits);
+console.log("Compressed length:", result.bits.length + " bits");
+console.log("Round trip ok:", decode(result.bits, result.codebook) === text);
+console.log("Empty input ok:", JSON.stringify(encode("")));`,
+  c3: String.raw`function bestMatch(text, pos, windowSize, lookaheadSize) {
+  let best = null;
+  const start = Math.max(0, pos - windowSize);
+
+  for (let i = start; i < pos; i++) {
+    let len = 0;
+    while (
+      len < lookaheadSize &&
+      pos + len < text.length &&
+      text[i + len] === text[pos + len]
+    ) {
+      len++;
+    }
+    if (len >= 3 && (!best || len > best.length)) {
+      best = { distance: pos - i, length: len };
+    }
+  }
+  return best;
+}
+
+function encode(text, windowSize = 12, lookaheadSize = 8) {
+  const tokens = [];
+  let pos = 0;
+
+  while (pos < text.length) {
+    const match = bestMatch(text, pos, windowSize, lookaheadSize);
+    if (match) {
+      tokens.push({ type: "ref", distance: match.distance, length: match.length });
+      pos += match.length;
+    } else {
+      tokens.push({ type: "lit", value: text[pos] });
+      pos += 1;
+    }
+  }
+  return tokens;
+}
+
+function decode(tokens) {
+  let out = "";
+  for (const token of tokens) {
+    if (token.type === "lit") {
+      out += token.value;
+    } else {
+      for (let i = 0; i < token.length; i++) {
+        out += out[out.length - token.distance];
+      }
+    }
+  }
+  return out;
+}
+
+const text = "BANANA_BANDANA_BANANA";
+const tokens = encode(text);
+
+console.log("Original:", text);
+console.log("Tokens:", tokens);
+console.log("Token count:", tokens.length);
+console.log("Round trip ok:", decode(tokens) === text);`
+};
+
+const state = {
+  sampleKey: "log",
+  lzKey: "banana",
+  lzStep: 0
+};
+
+function makeNoiseSample(length) {
+  let seed = 123456789;
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}";
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    out += chars[seed % chars.length];
+  }
+  return out;
+}
+
+function countsFor(text) {
+  const counts = new Map();
+  for (const ch of text) counts.set(ch, (counts.get(ch) || 0) + 1);
+  return counts;
+}
+
+function entropyFor(text) {
+  const counts = countsFor(text);
+  let h = 0;
+  for (const count of counts.values()) {
+    const p = count / text.length;
+    h -= p * Math.log2(p);
+  }
+  return { h, counts };
+}
+
+function printable(ch) {
+  if (ch === " ") return "space";
+  if (ch === "\n") return "newline";
+  if (ch === "\t") return "tab";
+  return ch;
+}
+
+function buildHuffmanTreeFromCounts(counts) {
+  let nextId = 0;
+  let nodes = [...counts.entries()].map(([symbol, count]) => ({
+    id: nextId++,
+    symbol,
+    count,
+    left: null,
+    right: null
+  }));
+  if (!nodes.length) return null;
+  if (nodes.length === 1) return nodes[0];
+  while (nodes.length > 1) {
+    nodes.sort((a, b) => a.count - b.count || a.id - b.id);
+    const left = nodes.shift();
+    const right = nodes.shift();
+    nodes.push({
+      id: nextId++,
+      symbol: null,
+      count: left.count + right.count,
+      left,
+      right
+    });
+  }
+  return nodes[0];
+}
+
+function buildCodes(node, prefix = "", table = {}) {
+  if (!node) return table;
+  if (!node.left && !node.right) {
+    table[node.symbol] = prefix || "0";
+    return table;
+  }
+  buildCodes(node.left, prefix + "0", table);
+  buildCodes(node.right, prefix + "1", table);
+  return table;
+}
+
+function huffmanSummary(text) {
+  const { counts } = entropyFor(text);
+  const tree = buildHuffmanTreeFromCounts(counts);
+  const codes = buildCodes(tree);
+  let bits = 0;
+  for (const ch of text) bits += codes[ch].length;
+  return { tree, codes, counts, bits };
+}
+
+function bestMatch(text, pos, windowSize, lookaheadSize) {
+  let best = null;
+  const start = Math.max(0, pos - windowSize);
+  for (let i = start; i < pos; i++) {
+    let len = 0;
+    while (
+      len < lookaheadSize &&
+      pos + len < text.length &&
+      text[i + len] === text[pos + len]
+    ) {
+      len++;
+    }
+    if (len >= 3 && (!best || len > best.length)) {
+      best = { distance: pos - i, length: len, source: i };
+    }
+  }
+  return best;
+}
+
+function lz77Parse(text, windowSize = 16, lookaheadSize = 10) {
+  const tokens = [];
+  const steps = [];
+  let pos = 0;
+  while (pos < text.length) {
+    const match = bestMatch(text, pos, windowSize, lookaheadSize);
+    const token = match
+      ? { type: "ref", distance: match.distance, length: match.length, text: text.slice(pos, pos + match.length) }
+      : { type: "lit", value: text[pos] };
+    steps.push({
+      pos,
+      windowStart: Math.max(0, pos - windowSize),
+      windowText: text.slice(Math.max(0, pos - windowSize), pos),
+      lookaheadText: text.slice(pos, Math.min(text.length, pos + lookaheadSize)),
+      token,
+      tokens: tokens.concat(token)
+    });
+    tokens.push(token);
+    pos += token.type === "lit" ? 1 : token.length;
+  }
+  steps.push({
+    done: true,
+    pos: text.length,
+    windowStart: Math.max(0, text.length - windowSize),
+    windowText: text.slice(Math.max(0, text.length - windowSize)),
+    lookaheadText: "",
+    token: null,
+    tokens: tokens.slice()
+  });
+  return { tokens, steps };
+}
+
+function toyDeflateStats(text) {
+  const { tokens } = lz77Parse(text, 64, 16);
+  const matchCount = tokens.filter(t => t.type === "ref").length;
+  const literalCount = tokens.length - matchCount;
+  const symbols = [];
+  for (const token of tokens) {
+    if (token.type === "lit") {
+      symbols.push("L:" + token.value);
+    } else {
+      symbols.push("LEN:" + token.length);
+      symbols.push("DIST:" + token.distance);
+    }
+  }
+  const counts = new Map();
+  for (const symbol of symbols) counts.set(symbol, (counts.get(symbol) || 0) + 1);
+  const tree = buildHuffmanTreeFromCounts(counts);
+  const codes = buildCodes(tree);
+  let bits = 0;
+  for (const symbol of symbols) bits += codes[symbol].length;
+  return { tokens, matchCount, literalCount, bits, avgBits: symbols.length ? bits / symbols.length : 0 };
+}
+
+function setSample(key) {
+  state.sampleKey = key;
+  document.querySelectorAll("#sample-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.sample === key);
+  });
+  renderSample();
+}
+
+function renderSample() {
+  const text = SAMPLE_TEXTS[state.sampleKey];
+  const { h, counts } = entropyFor(text);
+  const floorBytes = h * text.length / 8;
+  const utilization = Math.min(100, (h / 8) * 100);
+  document.getElementById("sample-preview").textContent = text;
+  document.getElementById("stat-bytes").innerHTML = text.length + " <small>bytes</small>";
+  document.getElementById("stat-unique").textContent = counts.size;
+  document.getElementById("stat-entropy").innerHTML = h.toFixed(2) + " <small>bits/symbol</small>";
+  document.getElementById("stat-floor").innerHTML = floorBytes.toFixed(1) + " <small>bytes</small>";
+  document.getElementById("redundancy-fill").style.width = utilization.toFixed(1) + "%";
+  document.getElementById("redundancy-head").textContent = "Entropy uses " + utilization.toFixed(1) + "% of the 8-bit budget";
+
+  const notes = {
+    log: "The timestamps vary, but the surrounding phrases repeat constantly. A compressor can model both common symbols and recurring substrings.",
+    code: "Source code mixes repeated keywords, punctuation, indentation, and identifiers. It is not as repetitive as a log, but it is far from random.",
+    noise: "This sample was generated to look much less predictable. Entropy is higher, so there is less redundancy to exploit."
+  };
+  document.getElementById("sample-note").textContent = notes[state.sampleKey];
+  renderEntropy();
+  renderHuffman();
+  renderPipeline();
+}
+
+function renderEntropy() {
+  const text = SAMPLE_TEXTS[state.sampleKey];
+  const { counts } = entropyFor(text);
+  const rows = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+  const max = rows[0] ? rows[0][1] : 1;
+  const head = '<div class="entropy-row head"><div>symbol</div><div>count</div><div>share</div><div>relative frequency</div><div>bits</div></div>';
+  const body = rows.map(([ch, count]) => {
+    const p = count / text.length;
+    const bits = -Math.log2(p);
+    return '<div class="entropy-row">' +
+      '<div>' + escapeHtml(printable(ch)) + '</div>' +
+      '<div>' + count + '</div>' +
+      '<div>' + (p * 100).toFixed(1) + '%</div>' +
+      '<div class="bar"><span style="width:' + ((count / max) * 100).toFixed(1) + '%"></span></div>' +
+      '<div>' + bits.toFixed(2) + '</div>' +
+    '</div>';
+  }).join("");
+  document.getElementById("entropy-table").innerHTML = head + body;
+}
+
+function renderHuffman() {
+  const text = SAMPLE_TEXTS[state.sampleKey];
+  const { h, counts } = entropyFor(text);
+  const summary = huffmanSummary(text);
+  const rows = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([ch, count]) => {
+      const share = (count / text.length) * 100;
+      const code = summary.codes[ch];
+      return '<tr>' +
+        '<td>' + escapeHtml(printable(ch)) + '</td>' +
+        '<td>' + count + '</td>' +
+        '<td>' + share.toFixed(1) + '%</td>' +
+        '<td class="code">' + code + '</td>' +
+        '<td>' + code.length + '</td>' +
+      '</tr>';
+    }).join("");
+  document.getElementById("huffman-table").innerHTML = rows;
+  document.getElementById("fixed-bits").textContent = (text.length * 8) + " bits";
+  document.getElementById("entropy-bits").textContent = (h * text.length).toFixed(1) + " bits";
+  document.getElementById("huffman-bits").textContent = summary.bits + " bits";
+  document.getElementById("avg-bits").textContent = (summary.bits / text.length).toFixed(2) + " bits/symbol";
+}
+
+function setLZSample(key) {
+  state.lzKey = key;
+  state.lzStep = 0;
+  document.querySelectorAll("#lz-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.lz === key);
+  });
+  renderLZ();
+}
+
+function stepLZ(delta) {
+  const steps = lz77Parse(LZ_SAMPLES[state.lzKey], 12, 8).steps;
+  state.lzStep = Math.max(0, Math.min(steps.length - 1, state.lzStep + delta));
+  renderLZ();
+}
+
+function renderLZ() {
+  const text = LZ_SAMPLES[state.lzKey];
+  const parsed = lz77Parse(text, 12, 8);
+  const steps = parsed.steps;
+  const step = steps[state.lzStep];
+  document.getElementById("lz-source").textContent = text;
+
+  const track = text.split("").map((ch, i) => {
+    let cls = "cell";
+    if (i >= step.windowStart && i < step.pos) cls += " window";
+    if (i >= step.pos && i < Math.min(text.length, step.pos + 8)) cls += " look";
+    if (i === step.pos) cls += " active";
+    return '<div class="' + cls + '"><span class="idx">' + i + '</span>' + escapeHtml(ch) + '</div>';
+  }).join("");
+  document.getElementById("lz-track").innerHTML = track;
+
+  document.getElementById("lz-window-text").textContent = step.windowText || "(empty)";
+  document.getElementById("lz-lookahead-text").textContent = step.lookaheadText || "(done)";
+  document.getElementById("lz-token-text").textContent = step.done
+    ? "end of input"
+    : step.token.type === "lit"
+      ? 'literal "' + step.token.value + '"'
+      : "copy " + step.token.length + " from " + step.token.distance + " back";
+
+  const shown = step.tokens.slice(0, 14).map(token => {
+    if (token.type === "lit") {
+      return '<span class="tok lit">' + escapeHtml('"' + token.value + '"') + '</span>';
+    }
+    return '<span class="tok ref">&lt;' + token.distance + ',' + token.length + '&gt;</span>';
+  }).join("");
+  document.getElementById("lz-token-stream").innerHTML = shown || '<span class="tok">no output yet</span>';
+}
+
+function renderPipeline() {
+  const text = SAMPLE_TEXTS[state.sampleKey];
+  const stats = toyDeflateStats(text);
+  document.getElementById("pipe-original").textContent = text.length + " B";
+  document.getElementById("pipe-tokens").textContent = stats.tokens.length;
+  document.getElementById("pipe-lz-note").textContent = stats.matchCount + " matches, " + stats.literalCount + " literals.";
+  document.getElementById("pipe-huff").textContent = stats.bits + " bits";
+  document.getElementById("pipe-huff-note").textContent = "Average " + stats.avgBits.toFixed(2) + " bits per emitted symbol in this toy model.";
+
+  let takeaway = "";
+  let note = "";
+  if (stats.matchCount === 0) {
+    takeaway = "Mostly Huffman";
+    note = "There are few repeated substrings to point back to, so most of the work falls to symbol coding.";
+  } else if (stats.matchCount > stats.literalCount / 3) {
+    takeaway = "Great LZ77 case";
+    note = "Repeated substrings are common, so back-references remove a lot of bulk before Huffman even starts.";
+  } else {
+    takeaway = "Mixed win";
+    note = "There is enough local repetition for LZ77 to help, but Huffman still matters because many literals remain.";
+  }
+  document.getElementById("pipe-takeaway").textContent = takeaway;
+  document.getElementById("pipe-takeaway-note").textContent = note;
+}
+
+function escapeHtml(text) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(stringifyLog).join(" ")),
+    error: (...args) => lines.push(args.map(stringifyLog).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function stringifyLog(value) {
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    try { return JSON.stringify(value); } catch (_) { return String(value); }
+  }
+  return String(value);
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+}
+
+initCodeBlocks();
+setSample("log");
+setLZSample("banana");
+</script>
+</body>
+</html>

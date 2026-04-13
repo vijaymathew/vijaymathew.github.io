@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Editor's Data Structure — Ropes and Piece Tables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300;1,6..72,500&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:      #1a1814;
+  --ink2:     #4a4740;
+  --ink3:     #8a8680;
+  --paper:    #faf8f4;
+  --paper2:   #f2efe8;
+  --paper3:   #e8e4db;
+  --rule:     rgba(26,24,20,0.10);
+  --rule2:    rgba(26,24,20,0.18);
+  --red:      #c0392b;
+  --red-bg:   #fdf0ee;
+  --blue:     #1a4f7a;
+  --blue-bg:  #eaf1f8;
+  --green:    #1a5c35;
+  --green-bg: #eaf5ee;
+  --amber:    #7a5010;
+  --amber-bg: #fdf5e6;
+  --purple:   #4a2d7a;
+  --purple-bg:#f0ecfa;
+  --teal:     #0f6e6e;
+  --teal-bg:  #e6f5f5;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+  --serif: 'Newsreader', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:      #e8e4dc;
+    --ink2:     #a8a49c;
+    --ink3:     #68645c;
+    --paper:    #141210;
+    --paper2:   #1c1a16;
+    --paper3:   #242220;
+    --rule:     rgba(232,228,220,0.08);
+    --rule2:    rgba(232,228,220,0.15);
+    --red:      #e87060;
+    --red-bg:   #2a1410;
+    --blue:     #80b4d8;
+    --blue-bg:  #0e2030;
+    --green:    #70c090;
+    --green-bg: #0e2018;
+    --amber:    #d4a060;
+    --amber-bg: #201808;
+    --purple:   #b090e0;
+    --purple-bg:#1c1028;
+    --teal:     #60c8c8;
+    --teal-bg:  #082020;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.7;
+}
+
+/* PAGE */
+.page { max-width: 780px; margin: 0 auto; padding: 0 2rem 6rem; }
+
+/* RUNNING HEAD */
+.running-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.2rem 0;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.rh-title { color: var(--ink); font-weight: 500; }
+
+/* HERO */
+.hero {
+  padding: 4rem 0 3rem;
+  border-bottom: 1px solid var(--rule2);
+}
+.hero-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 1.4rem;
+}
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  font-weight: 300;
+  line-height: 1.12;
+  color: var(--ink);
+  margin-bottom: 1.4rem;
+  letter-spacing: -.01em;
+}
+.hero h1 em { font-style: italic; }
+.hero h1 strong { font-weight: 500; }
+.hero-deck {
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--ink2);
+  max-width: 560px;
+  font-family: var(--serif);
+}
+.hero-meta {
+  display: flex;
+  gap: 2rem;
+  margin-top: 2rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+  letter-spacing: .06em;
+}
+.hero-meta span b { color: var(--ink); font-weight: 500; }
+
+/* TOC */
+.toc {
+  margin: 2.5rem 0 3rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule2);
+  border-left: 3px solid var(--ink);
+  background: var(--paper2);
+}
+.toc-heading {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: .9rem;
+}
+.toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.toc a {
+  display: flex;
+  gap: 10px;
+  padding: 5px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  transition: color .12s;
+}
+.toc a:hover { color: var(--ink); }
+.toc-n { color: var(--ink3); min-width: 20px; }
+
+/* SECTIONS */
+.section { margin-bottom: 4.5rem; scroll-margin-top: 2rem; }
+.sec-rule {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: .7rem;
+  border-bottom: 1px solid var(--rule2);
+}
+.sec-n {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+h2 {
+  font-family: var(--serif);
+  font-size: 1.75rem;
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: -.01em;
+}
+h3 {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 1.6rem 0 .5rem;
+  font-style: italic;
+}
+p {
+  font-size: 15.5px;
+  line-height: 1.8;
+  color: var(--ink2);
+  margin-bottom: 1rem;
+  font-family: var(--serif);
+}
+p strong { color: var(--ink); font-weight: 500; }
+a { color: var(--blue); }
+code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--paper3);
+  border: 1px solid var(--rule2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--ink);
+}
+
+/* PULL QUOTE */
+.pull {
+  border-left: 3px solid var(--ink);
+  padding: .6rem 1.2rem;
+  margin: 1.2rem 0;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ink2);
+  line-height: 1.7;
+}
+.pull.warn { border-color: var(--red); color: var(--red); font-style: normal; font-family: var(--mono); font-size: 13px; background: var(--red-bg); border-radius: 0 3px 3px 0; padding: .7rem 1rem; }
+.pull.note { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); font-style: normal; font-family: var(--mono); font-size: 13px; border-radius: 0 3px 3px 0; padding: .7rem 1rem; }
+
+/* CODE BLOCKS */
+.cb { border: 1px solid var(--rule2); border-radius: 4px; overflow: hidden; margin: 1.3rem 0 1.8rem; }
+.cb-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--paper3);
+  border-bottom: 1px solid var(--rule2);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+  letter-spacing: .04em;
+}
+.run-btn {
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  cursor: pointer;
+  letter-spacing: .05em;
+  transition: opacity .12s;
+}
+.run-btn:hover { opacity: .75; }
+pre.code {
+  background: var(--paper2);
+  padding: 1.1rem 1.4rem;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  overflow-x: auto;
+  color: var(--ink);
+  margin: 0;
+}
+.out {
+  display: none;
+  background: var(--green-bg);
+  border-top: 1px solid var(--rule);
+  padding: .8rem 1.4rem;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--green);
+  white-space: pre-wrap;
+}
+.out.on { display: block; }
+.out.err { background: var(--red-bg); color: var(--red); }
+
+/* syntax */
+.kw  { color: var(--purple); }
+.fn  { color: var(--blue); }
+.str { color: var(--green); }
+.cmt { color: var(--ink3); font-style: italic; }
+.num { color: var(--amber); }
+.cls { color: var(--teal); }
+
+/* DEMO CARDS */
+.demo {
+  background: var(--paper2);
+  border: 1px solid var(--rule2);
+  border-radius: 4px;
+  padding: 1.3rem;
+  margin: 1.2rem 0 1.8rem;
+}
+.demo-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: .9rem;
+}
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: .9rem; }
+button.btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--rule2);
+  background: transparent;
+  color: var(--ink2);
+  cursor: pointer;
+  transition: background .1s, color .1s, border-color .1s;
+}
+button.btn:hover { background: var(--paper3); color: var(--ink); }
+button.btn.act { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+button.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+button.btn.primary:hover { opacity: .8; }
+
+/* COST TABLE */
+.cost-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 13px; margin: .8rem 0; }
+.cost-table th { text-align: left; padding: 6px 12px; border-bottom: 2px solid var(--rule2); color: var(--ink3); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 400; }
+.cost-table td { padding: 7px 12px; border-bottom: 1px solid var(--rule); color: var(--ink2); vertical-align: middle; }
+.cost-table tr:last-child td { border-bottom: none; }
+.cost-table td.name { color: var(--ink); font-weight: 500; }
+.cost-table td.good { color: var(--green); }
+.cost-table td.bad  { color: var(--red); }
+.cost-table td.ok   { color: var(--amber); }
+.cost-table tr.hi td { background: var(--green-bg); }
+
+/* STRING ANIMATION */
+.str-blocks { display: flex; flex-wrap: wrap; gap: 0; margin: .6rem 0; font-family: var(--mono); font-size: 13px; border: 1px solid var(--rule2); border-radius: 3px; overflow: hidden; }
+.str-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  border-right: 1px solid var(--rule);
+  background: var(--paper2);
+  color: var(--ink);
+  transition: background .25s, color .25s, transform .25s;
+  position: relative;
+}
+.str-char:last-child { border-right: none; }
+.str-char.shift { background: var(--amber-bg); color: var(--amber); transform: translateX(2px); }
+.str-char.new   { background: var(--green-bg); color: var(--green); }
+.str-char.idx   { position: absolute; top: 1px; left: 2px; font-size: 8px; color: var(--ink3); }
+.str-char.del   { background: var(--red-bg); color: var(--red); text-decoration: line-through; opacity: .5; }
+
+/* ROPE VIZ */
+.rope-svg { display: block; width: 100%; overflow: visible; }
+.rope-node { cursor: pointer; }
+.rope-node rect { rx: 4; stroke-width: 1; }
+.rope-node.internal rect { fill: var(--purple-bg); stroke: var(--purple); }
+.rope-node.leaf rect { fill: var(--blue-bg); stroke: var(--blue); }
+.rope-node.hl rect { fill: var(--green-bg) !important; stroke: var(--green) !important; stroke-width: 2 !important; }
+.rope-node text { font-family: var(--mono); fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+.rope-edge { stroke: var(--rule2); stroke-width: 1.2; fill: none; }
+
+/* PIECE TABLE VIZ */
+.pt-buffers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: .6rem 0; }
+.pt-buf { border: 1px solid var(--rule2); border-radius: 3px; overflow: hidden; }
+.pt-buf-head { padding: 4px 10px; font-family: var(--mono); font-size: 11px; color: var(--ink3); background: var(--paper3); border-bottom: 1px solid var(--rule); letter-spacing: .06em; text-transform: uppercase; }
+.pt-buf-content { padding: 6px 10px; font-family: var(--mono); font-size: 12px; color: var(--ink); line-height: 1.6; min-height: 36px; word-break: break-all; }
+.pt-piece-list { margin: .6rem 0; }
+.pt-piece {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--rule2);
+  border-radius: 3px;
+  margin: 3px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.pt-piece:hover { background: var(--paper3); }
+.pt-piece.hl { background: var(--green-bg); border-color: var(--green); }
+.pt-piece .badge {
+  padding: 1px 7px;
+  border-radius: 2px;
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.badge-orig { background: var(--blue-bg); color: var(--blue); }
+.badge-add  { background: var(--amber-bg); color: var(--amber); }
+.pt-piece .content { color: var(--ink); font-style: italic; flex: 1; }
+.pt-piece .range { color: var(--ink3); }
+.pt-result { font-family: var(--mono); font-size: 13px; padding: .6rem .8rem; background: var(--paper3); border-radius: 3px; border: 1px solid var(--rule2); margin-top: .6rem; color: var(--ink); min-height: 30px; letter-spacing: .02em; }
+
+/* INTERACTIVE EDITOR */
+.editor-wrap {
+  border: 1px solid var(--rule2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: .8rem 0;
+  font-family: var(--mono);
+}
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--paper3);
+  border-bottom: 1px solid var(--rule2);
+  font-size: 11px;
+  color: var(--ink3);
+}
+.editor-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.editor-pane {
+  padding: .8rem 1rem;
+  min-height: 120px;
+}
+.editor-pane:first-child { border-right: 1px solid var(--rule2); }
+.editor-pane-head { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); margin-bottom: .6rem; }
+textarea.editor-input {
+  width: 100%;
+  height: 90px;
+  resize: none;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--paper2);
+  border: 1px solid var(--rule2);
+  border-radius: 3px;
+  padding: .5rem .7rem;
+  color: var(--ink);
+  line-height: 1.6;
+  outline: none;
+}
+textarea.editor-input:focus { border-color: var(--rule2); }
+.editor-stats { font-size: 11px; color: var(--ink3); margin-top: .4rem; }
+
+/* STEP NAV */
+.step-nav { display: flex; gap: 0; border: 1px solid var(--rule2); border-radius: 3px; overflow: hidden; margin-bottom: .9rem; }
+.step-btn { flex: 1; padding: 6px 4px; font-family: var(--mono); font-size: 11px; border: none; border-right: 1px solid var(--rule2); background: var(--paper2); color: var(--ink3); cursor: pointer; transition: background .1s, color .1s; }
+.step-btn:last-child { border-right: none; }
+.step-btn.act { background: var(--ink); color: var(--paper); }
+.step-panel { display: none; }
+.step-panel.on { display: block; }
+
+/* PERF CHART */
+.perf-bars { margin: .6rem 0; }
+.perf-row { display: flex; align-items: center; gap: 10px; margin: 5px 0; font-family: var(--mono); font-size: 12px; }
+.perf-label { min-width: 120px; color: var(--ink2); }
+.perf-track { flex: 1; height: 20px; background: var(--paper3); border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.perf-fill { height: 100%; border-radius: 1px; transition: width .5s ease; }
+.perf-val { min-width: 60px; text-align: right; color: var(--ink3); }
+
+/* SLIDER */
+.slider-row { display: flex; align-items: center; gap: 12px; margin: .5rem 0; }
+.slider-row label { font-family: var(--mono); font-size: 12px; color: var(--ink2); min-width: 120px; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--ink); cursor: pointer; }
+.slider-val { font-family: var(--mono); font-size: 12px; color: var(--ink); min-width: 60px; text-align: right; }
+
+/* FOOTER */
+.footer { border-top: 2px solid var(--ink); padding-top: 1.8rem; margin-top: 1rem; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+.footer-links a { font-family: var(--mono); font-size: 12px; color: var(--ink2); text-decoration: none; }
+.footer-links a:hover { color: var(--ink); }
+.footer-note { font-family: var(--mono); font-size: 11px; color: var(--ink3); margin-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="running-head">
+  <span>Interactive explainer</span>
+  <span class="rh-title">The Editor&rsquo;s Data Structure</span>
+  <span>Ropes &middot; Piece Tables</span>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-label">Data structures in practice</div>
+  <h1><em>Ropes</em> and <strong>Piece Tables</strong><br>— the editor&rsquo;s data structure</h1>
+  <p class="hero-deck">How does a code editor handle a 10&thinsp;MB file where every keystroke mutates the text? The answer isn&rsquo;t a string. All code runs in your browser.</p>
+  <div class="hero-meta">
+    <span><b>Sections</b> &nbsp;7</span>
+    <span><b>Runnable demos</b> &nbsp;6</span>
+    <span><b>Libraries</b> &nbsp;none</span>
+    <span><b>Examples</b> &nbsp;VS Code, Xi, Emacs, AbiWord</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <div class="toc-heading">Contents</div>
+  <div class="toc-grid">
+    <a href="#s1"><span class="toc-n">01</span>The keystroke problem</a>
+    <a href="#s2"><span class="toc-n">02</span>Why strings fail</a>
+    <a href="#s3"><span class="toc-n">03</span>Ropes</a>
+    <a href="#s4"><span class="toc-n">04</span>Piece tables</a>
+    <a href="#s5"><span class="toc-n">05</span>Operations in detail</a>
+    <a href="#s6"><span class="toc-n">06</span>Full implementation</a>
+    <a href="#s7"><span class="toc-n">07</span>Further reading</a>
+  </div>
+</nav>
+
+<!-- ===== S1: THE KEYSTROKE PROBLEM ===== -->
+<section class="section" id="s1">
+  <div class="sec-rule"><span class="sec-n">§01</span><h2>The keystroke problem</h2></div>
+
+  <p>Open a 10&thinsp;MB source file in VS Code and start editing. Every character you type, every delete, every paste — the editor must handle each as a near-instant operation. No perceptible lag. No stuttering. And after ten thousand edits, undo must still work.</p>
+
+  <p>The challenge is that text editing is a sequence of <strong>small, frequent mutations</strong> to an arbitrarily large buffer. Insert one character at position 50,000. Delete three characters at position 120,000. Paste 400 characters at position 8. These operations must each complete in microseconds, not milliseconds.</p>
+
+  <div class="pull">The naive approach — storing text as a single contiguous string — turns every insert into an O(n) memory copy. For a 10&thinsp;MB file, inserting a single character near the start means shifting ~10 million bytes. At 120&thinsp;Hz, that&rsquo;s not going to work.</div>
+
+  <p>The solution is to <strong>stop thinking about the text as a single object</strong> and start thinking about it as a set of <em>references</em> to immutable fragments. Real editors use a small handful of specialized text-buffer structures; this explainer focuses on two influential ones: the <strong>rope</strong> and the <strong>piece table</strong>.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">The scale of the problem — adjust file size and see the cost of a naive insert</div>
+    <div class="slider-row">
+      <label>File size</label>
+      <input type="range" id="size-sl" min="1" max="100" value="10" step="1" oninput="updateCostDemo()">
+      <span class="slider-val" id="size-val">10 MB</span>
+    </div>
+    <div class="slider-row">
+      <label>Insert position</label>
+      <input type="range" id="pos-sl" min="0" max="100" value="5" step="1" oninput="updateCostDemo()">
+      <span class="slider-val" id="pos-val">5% from start</span>
+    </div>
+    <div class="perf-bars" id="cost-bars"></div>
+    <div style="font-size:12px;font-family:var(--mono);color:var(--ink3);margin-top:.4rem" id="cost-note"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>insert_cost.js — measuring string insert performance</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// Why naive string mutation is expensive</span>
+<span class="cmt">// In JS, strings are immutable — every "mutation" creates a new string</span>
+
+<span class="kw">function</span> <span class="fn">naiveInsert</span>(str, pos, ch) {
+  <span class="cmt">// String concatenation: O(n) — copies the whole string</span>
+  <span class="kw">return</span> str.slice(<span class="num">0</span>, pos) + ch + str.slice(pos);
+}
+
+<span class="kw">function</span> <span class="fn">benchmark</span>(sizeMB, insertPos) {
+  <span class="kw">const</span> n      = sizeMB * <span class="num">1024</span> * <span class="num">1024</span>;
+  <span class="kw">const</span> str    = <span class="str">"a"</span>.repeat(n);
+  <span class="kw">const</span> pos    = Math.floor(n * insertPos);
+  <span class="kw">const</span> bytes  = n - pos; <span class="cmt">// bytes that must shift right</span>
+
+  <span class="cmt">// Estimate time: modern JS engines copy ~4GB/s</span>
+  <span class="kw">const</span> copySpeedBytesPerMs = <span class="num">4</span> * <span class="num">1024</span> * <span class="num">1024</span>; <span class="cmt">// 4 MB/ms</span>
+  <span class="kw">const</span> estimatedMs = bytes / copySpeedBytesPerMs;
+
+  console.log(<span class="str">`File: ${sizeMB} MB, insert at ${(insertPos*100).toFixed(0)}%`</span>);
+  console.log(<span class="str">`  Bytes to copy: ${(bytes/1024/1024).toFixed(2)} MB`</span>);
+  console.log(<span class="str">`  Estimated time: ${estimatedMs.toFixed(2)} ms per keystroke`</span>);
+  console.log(<span class="str">`  At 60 fps, budget per frame: 16.7 ms`</span>);
+  console.log(<span class="str">`  Headroom: ${(16.7 - estimatedMs).toFixed(2)} ms (${estimatedMs > 16.7 ? "OVER BUDGET" : "ok"})`</span>);
+}
+
+<span class="fn">benchmark</span>(<span class="num">1</span>,  <span class="num">0.05</span>);  <span class="cmt">// 1 MB file, insert near start</span>
+console.log(<span class="str">""</span>);
+<span class="fn">benchmark</span>(<span class="num">10</span>, <span class="num">0.05</span>);  <span class="cmt">// 10 MB file, insert near start</span>
+console.log(<span class="str">""</span>);
+<span class="fn">benchmark</span>(<span class="num">100</span>, <span class="num">0.05</span>); <span class="cmt">// 100 MB file, insert near start</span>
+
+<span class="cmt">// The point: cost scales with (file_size - insert_position).</span>
+<span class="cmt">// Inserting near the start of a large file is catastrophically slow.</span></pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ===== S2: WHY STRINGS FAIL ===== -->
+<section class="section" id="s2">
+  <div class="sec-rule"><span class="sec-n">§02</span><h2>Why strings fail</h2></div>
+
+  <p>Before the solutions, it&rsquo;s worth understanding exactly <em>what</em> fails and why. Text editors need five core operations to be fast: <strong>insert</strong>, <strong>delete</strong>, <strong>get character at index</strong>, <strong>get substring</strong> (for rendering), and <strong>undo/redo</strong>.</p>
+
+  <div class="demo" style="padding: 0; overflow: hidden;">
+    <table class="cost-table">
+      <thead>
+        <tr>
+          <th>Structure</th>
+          <th>Insert/Delete</th>
+          <th>Index access</th>
+          <th>Substring</th>
+          <th>Undo</th>
+          <th>Memory</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="name">String / Array</td>
+          <td class="bad">O(n)</td>
+          <td class="good">O(1)</td>
+          <td class="good">O(k)</td>
+          <td class="bad">Copy whole string</td>
+          <td class="good">1×</td>
+        </tr>
+        <tr>
+          <td class="name">Gap buffer</td>
+          <td class="good">O(1) near gap</td>
+          <td class="good">O(1)</td>
+          <td class="ok">O(k)</td>
+          <td class="bad">Complex</td>
+          <td class="good">1×</td>
+        </tr>
+        <tr>
+          <td class="name">Rope</td>
+          <td class="good">O(log n)</td>
+          <td class="ok">O(log n)</td>
+          <td class="ok">O(log n + k)</td>
+          <td class="good">Share subtrees</td>
+          <td class="ok">~2×</td>
+        </tr>
+        <tr class="hi">
+          <td class="name">Piece table</td>
+          <td class="good">O(log n)</td>
+          <td class="ok">O(log n)</td>
+          <td class="ok">O(log n + k)</td>
+          <td class="good">Append-only log</td>
+          <td class="good">~1×</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Watch what happens when you insert a character into a plain array at position 3 — every element after it must shift right by one slot:</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Array insert — visualise the shift cost</div>
+    <div class="btn-row">
+      <button class="btn primary" onclick="animateInsert()">Insert &lsquo;X&rsquo; at position 3</button>
+      <button class="btn" onclick="resetInsert()">Reset</button>
+    </div>
+    <div id="str-viz" class="str-blocks"></div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink3);margin-top:.5rem" id="str-msg">Original array: 9 characters, each stored at a fixed memory offset.</div>
+  </div>
+
+  <p>The gap buffer — used by Emacs — is a clever patch: keep a &ldquo;gap&rdquo; of empty space at the cursor position so inserts there are O(1). But moving the cursor still requires moving the gap, which is O(n). Both ropes and piece tables take a more radical approach: <strong>never mutate the original text at all.</strong></p>
+
+  <div class="cb">
+    <div class="cb-head"><span>gap_buffer.js — the gap buffer: Emacs&rsquo;s approach</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// Gap buffer: keep a hole at the cursor for O(1) local inserts</span>
+<span class="cmt">// Used by Emacs, older versions of many editors</span>
+
+<span class="kw">class</span> <span class="cls">GapBuffer</span> {
+  <span class="fn">constructor</span>(initial, gapSize = <span class="num">8</span>) {
+    <span class="kw">this</span>.buf = [...initial, ...<span class="kw">new</span> <span class="cls">Array</span>(gapSize).fill(<span class="kw">null</span>)];
+    <span class="kw">this</span>.gapStart = initial.length;
+    <span class="kw">this</span>.gapEnd   = <span class="kw">this</span>.buf.length;
+  }
+
+  <span class="fn">_moveGapTo</span>(pos) {
+    <span class="cmt">// Shift gap to cursor — O(|pos - gapStart|)</span>
+    <span class="kw">if</span> (pos &lt; <span class="kw">this</span>.gapStart) {
+      <span class="kw">const</span> shift = <span class="kw">this</span>.gapStart - pos;
+      <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; shift; i++) {
+        <span class="kw">this</span>.buf[<span class="kw">this</span>.gapEnd - <span class="num">1</span> - i] = <span class="kw">this</span>.buf[<span class="kw">this</span>.gapStart - <span class="num">1</span> - i];
+        <span class="kw">this</span>.buf[<span class="kw">this</span>.gapStart - <span class="num">1</span> - i] = <span class="kw">null</span>;
+      }
+    } <span class="kw">else</span> {
+      <span class="kw">const</span> shift = pos - <span class="kw">this</span>.gapStart;
+      <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; shift; i++) {
+        <span class="kw">this</span>.buf[<span class="kw">this</span>.gapStart + i] = <span class="kw">this</span>.buf[<span class="kw">this</span>.gapEnd + i];
+        <span class="kw">this</span>.buf[<span class="kw">this</span>.gapEnd + i] = <span class="kw">null</span>;
+      }
+    }
+    <span class="kw">this</span>.gapEnd   += pos - <span class="kw">this</span>.gapStart;
+    <span class="kw">this</span>.gapStart  = pos;
+  }
+
+  <span class="fn">insert</span>(pos, ch) {
+    <span class="kw">this</span>.<span class="fn">_moveGapTo</span>(pos);
+    <span class="kw">this</span>.buf[<span class="kw">this</span>.gapStart++] = ch; <span class="cmt">// O(1) — just fill next gap slot</span>
+  }
+
+  <span class="fn">toString</span>() {
+    <span class="kw">return</span> [...<span class="kw">this</span>.buf.slice(<span class="num">0</span>, <span class="kw">this</span>.gapStart), ...<span class="kw">this</span>.buf.slice(<span class="kw">this</span>.gapEnd)]
+      .filter(c => c !== <span class="kw">null</span>).join(<span class="str">""</span>);
+  }
+
+  <span class="fn">debug</span>() {
+    <span class="kw">return</span> <span class="kw">this</span>.buf.map(c => c === <span class="kw">null</span> ? <span class="str">"_"</span> : c).join(<span class="str">"|"</span>);
+  }
+}
+
+<span class="kw">const</span> gb = <span class="kw">new</span> <span class="cls">GapBuffer</span>(<span class="str">"Hello world"</span>.split(<span class="str">""</span>));
+console.log(<span class="str">"Initial buffer:"</span>, gb.<span class="fn">debug</span>());
+console.log(<span class="str">"Text:"</span>, gb.<span class="fn">toString</span>());
+
+gb.<span class="fn">insert</span>(<span class="num">5</span>, <span class="str">","</span>);
+console.log(<span class="str">"\nAfter insert ',' at 5:"</span>);
+console.log(<span class="str">"Buffer:"</span>, gb.<span class="fn">debug</span>());
+console.log(<span class="str">"Text:"</span>, gb.<span class="fn">toString</span>());
+
+gb.<span class="fn">insert</span>(<span class="num">6</span>, <span class="str">" "</span>);
+gb.<span class="fn">insert</span>(<span class="num">7</span>, <span class="str">"b"</span>);
+gb.<span class="fn">insert</span>(<span class="num">8</span>, <span class="str">"i"</span>);
+gb.<span class="fn">insert</span>(<span class="num">9</span>, <span class="str">"g"</span>);
+console.log(<span class="str">"\nAfter typing ' big':"</span>);
+console.log(<span class="str">"Buffer:"</span>, gb.<span class="fn">debug</span>());
+console.log(<span class="str">"Text:"</span>, gb.<span class="fn">toString</span>());
+
+console.log(<span class="str">"\nLimitation: typing at position 0 (far from gap):"</span>);
+console.log(<span class="str">"Gap must travel from position 9 to 0 — O(n) shift"</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ===== S3: ROPES ===== -->
+<section class="section" id="s3">
+  <div class="sec-rule"><span class="sec-n">§03</span><h2>Ropes</h2></div>
+
+  <p>A rope is a <strong>binary tree whose leaves contain short string fragments</strong>. Each internal node stores the total length of all text in its left subtree (the &ldquo;weight&rdquo;). Together these weights let you navigate to any character in O(log n) by walking the tree — no shifting required.</p>
+
+  <p>To insert text at position <em>p</em>: split the rope at <em>p</em> into two halves, create a new leaf with the inserted text, then concatenate three ropes with two new internal nodes. To delete: split at both ends of the range, discard the middle, concatenate the outer pieces. In a <strong>balanced</strong> rope, both are O(log n); without rebalancing, repeated edits can make the tree taller and degrade performance.</p>
+
+  <div class="pull note">Ropes are <em>persistent</em> by nature. Because you&rsquo;re building new tree nodes rather than mutating old ones, old versions of the rope remain valid. Undo is just keeping a pointer to the old root — no copy needed.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Rope structure — click a node to inspect it</div>
+    <div id="rope-canvas"></div>
+    <div id="rope-info" style="font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:.6rem;min-height:20px"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>rope.js — a minimal rope implementation with split, concat, insert, delete</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// Rope: a binary tree of string fragments</span>
+<span class="cmt">// Internal nodes store weight (length of left subtree)</span>
+<span class="cmt">// Leaves store actual string chunks (≤ MAX_LEAF chars)</span>
+<span class="cmt">// This demo keeps the core rope operations but omits rebalancing.</span>
+
+<span class="kw">const</span> MAX_LEAF = <span class="num">8</span>; <span class="cmt">// in practice ~4096 bytes per leaf</span>
+
+<span class="kw">class</span> <span class="cls">RopeLeaf</span> {
+  <span class="fn">constructor</span>(text) { <span class="kw">this</span>.text = text; <span class="kw">this</span>.length = text.length; }
+  <span class="fn">charAt</span>(i) { <span class="kw">return this</span>.text[i]; }
+  <span class="fn">toString</span>() { <span class="kw">return this</span>.text; }
+}
+
+<span class="kw">class</span> <span class="cls">RopeNode</span> {
+  <span class="fn">constructor</span>(left, right) {
+    <span class="kw">this</span>.left   = left;
+    <span class="kw">this</span>.right  = right;
+    <span class="kw">this</span>.weight = left.length; <span class="cmt">// length of LEFT subtree only</span>
+    <span class="kw">this</span>.length = left.length + right.length;
+  }
+  <span class="fn">charAt</span>(i) {
+    <span class="cmt">// Navigate by weight: if i is in left subtree, go left; else adjust and go right</span>
+  <span class="kw">return</span> i &lt; <span class="kw">this</span>.weight
+      ? <span class="kw">this</span>.left.<span class="fn">charAt</span>(i)
+      : <span class="kw">this</span>.right.<span class="fn">charAt</span>(i - <span class="kw">this</span>.weight);
+  }
+  <span class="fn">toString</span>() { <span class="kw">return this</span>.left.<span class="fn">toString</span>() + <span class="kw">this</span>.right.<span class="fn">toString</span>(); }
+}
+
+<span class="kw">function</span> <span class="fn">ropeFrom</span>(text) {
+  <span class="cmt">// Build a balanced rope from a string by recursive halving</span>
+  <span class="kw">if</span> (text.length &lt;= MAX_LEAF) <span class="kw">return new</span> <span class="cls">RopeLeaf</span>(text);
+  <span class="kw">const</span> mid = Math.floor(text.length / <span class="num">2</span>);
+  <span class="kw">return new</span> <span class="cls">RopeNode</span>(<span class="fn">ropeFrom</span>(text.slice(<span class="num">0</span>, mid)), <span class="fn">ropeFrom</span>(text.slice(mid)));
+}
+
+<span class="kw">function</span> <span class="fn">split</span>(rope, i) {
+  <span class="cmt">// Returns [left, right] ropes where left has i characters</span>
+  <span class="kw">if</span> (rope <span class="kw">instanceof</span> <span class="cls">RopeLeaf</span>) {
+    <span class="kw">return</span> [<span class="kw">new</span> <span class="cls">RopeLeaf</span>(rope.text.slice(<span class="num">0</span>, i)),
+             <span class="kw">new</span> <span class="cls">RopeLeaf</span>(rope.text.slice(i))];
+  }
+  <span class="kw">if</span> (i === rope.weight) <span class="kw">return</span> [rope.left, rope.right];
+  <span class="kw">if</span> (i &lt; rope.weight) {
+    <span class="kw">const</span> [ll, lr] = <span class="fn">split</span>(rope.left, i);
+    <span class="kw">return</span> [ll, <span class="kw">new</span> <span class="cls">RopeNode</span>(lr, rope.right)];
+  } <span class="kw">else</span> {
+    <span class="kw">const</span> [rl, rr] = <span class="fn">split</span>(rope.right, i - rope.weight);
+    <span class="kw">return</span> [<span class="kw">new</span> <span class="cls">RopeNode</span>(rope.left, rl), rr];
+  }
+}
+
+<span class="kw">function</span> <span class="fn">concat</span>(a, b) {
+  <span class="kw">if</span> (a.length === <span class="num">0</span>) <span class="kw">return</span> b;
+  <span class="kw">if</span> (b.length === <span class="num">0</span>) <span class="kw">return</span> a;
+  <span class="cmt">// Educational simplification: just create a node; no rebalancing step here.</span>
+  <span class="kw">return new</span> <span class="cls">RopeNode</span>(a, b);
+}
+
+<span class="kw">function</span> <span class="fn">insert</span>(rope, pos, text) {
+  <span class="kw">const</span> [left, right] = <span class="fn">split</span>(rope, pos);
+  <span class="kw">return</span> <span class="fn">concat</span>(<span class="fn">concat</span>(left, <span class="fn">ropeFrom</span>(text)), right);
+  <span class="cmt">// 3 new nodes created. Original rope untouched → undo for free.</span>
+}
+
+<span class="kw">function</span> <span class="fn">deleteRange</span>(rope, start, end) {
+  <span class="kw">const</span> [left, rest] = <span class="fn">split</span>(rope, start);
+  <span class="kw">const</span> [, right]   = <span class="fn">split</span>(rest, end - start);
+  <span class="kw">return</span> <span class="fn">concat</span>(left, right);
+}
+
+<span class="kw">function</span> <span class="fn">height</span>(rope) {
+  <span class="kw">if</span> (rope <span class="kw">instanceof</span> <span class="cls">RopeLeaf</span>) <span class="kw">return</span> <span class="num">1</span>;
+  <span class="kw">return</span> <span class="num">1</span> + Math.max(<span class="fn">height</span>(rope.left), <span class="fn">height</span>(rope.right));
+}
+
+<span class="cmt">// --- Demo ---</span>
+<span class="kw">let</span> r = <span class="fn">ropeFrom</span>(<span class="str">"Hello, world!"</span>);
+console.log(<span class="str">"Initial rope:"</span>, r.<span class="fn">toString</span>(), <span class="str">`(height=${height(r)})`</span>);
+console.log(<span class="str">"charAt(7):"</span>, r.<span class="fn">charAt</span>(<span class="num">7</span>));
+
+<span class="cmt">// Insert "beautiful " before "world"</span>
+r = <span class="fn">insert</span>(r, <span class="num">7</span>, <span class="str">"beautiful "</span>);
+console.log(<span class="str">"\nAfter insert:"</span>, r.<span class="fn">toString</span>(), <span class="str">`(height=${height(r)})`</span>);
+
+<span class="cmt">// Delete "beautiful "</span>
+r = <span class="fn">deleteRange</span>(r, <span class="num">7</span>, <span class="num">17</span>);
+console.log(<span class="str">"After delete:"</span>, r.<span class="fn">toString</span>());
+
+<span class="cmt">// Persistent undo: original rope is still intact</span>
+<span class="kw">const</span> v1 = <span class="fn">ropeFrom</span>(<span class="str">"version 1"</span>);
+<span class="kw">const</span> v2 = <span class="fn">insert</span>(v1, <span class="num">0</span>, <span class="str">"[edited] "</span>);
+console.log(<span class="str">"\nPersistence demo:"</span>);
+console.log(<span class="str">"  v1:"</span>, v1.<span class="fn">toString</span>(), <span class="str">"← still valid"</span>);
+console.log(<span class="str">"  v2:"</span>, v2.<span class="fn">toString</span>(), <span class="str">"← new root, shares v1 leaves"</span>);
+console.log(<span class="str">"  Both refer to the same leaf objects — no copying."</span>);</pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ===== S4: PIECE TABLES ===== -->
+<section class="section" id="s4">
+  <div class="sec-rule"><span class="sec-n">§04</span><h2>Piece tables</h2></div>
+
+  <p>The piece table is VS Code&rsquo;s choice (described in their <a href="https://code.visualstudio.com/blogs/2018/03/23/text-buffer-reimplementation">2018 blog post</a>). It&rsquo;s simpler than a rope conceptually, and in practice just as fast.</p>
+
+  <p>The core insight: <strong>keep two buffers</strong> — the <em>original</em> buffer (the file as loaded, immutable) and the <em>add</em> buffer (an append-only log of all inserted text). Then represent the document as an ordered list of <em>pieces</em>, each specifying: which buffer, at what offset, for how many characters.</p>
+
+  <div class="pull">No text is ever deleted or modified in the buffers. To &ldquo;delete&rdquo; text, you split the piece that contains it and discard the middle piece. The buffer content itself never changes — making crash recovery trivial.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Piece table — step through building a document from edits</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showPTStep(0,this)">Load file</button>
+      <button class="step-btn" onclick="showPTStep(1,this)">Insert "big "</button>
+      <button class="step-btn" onclick="showPTStep(2,this)">Delete "quick"</button>
+      <button class="step-btn" onclick="showPTStep(3,this)">Insert "fast"</button>
+    </div>
+    <div id="pt-panels"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>piece_table_basics.js — the core data model</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// Piece table — core data model (no tree yet, just the concept)</span>
+
+<span class="kw">class</span> <span class="cls">SimplePieceTable</span> {
+  <span class="fn">constructor</span>(original) {
+    <span class="kw">this</span>.orig  = original;    <span class="cmt">// immutable original buffer</span>
+    <span class="kw">this</span>.added = <span class="str">""</span>;          <span class="cmt">// append-only add buffer</span>
+    <span class="cmt">// pieces: { buf: "orig"|"add", start, length }</span>
+    <span class="kw">this</span>.pieces = original.length > <span class="num">0</span>
+      ? [{ buf: <span class="str">"orig"</span>, start: <span class="num">0</span>, length: original.length }]
+      : [];
+  }
+
+  <span class="fn">_buf</span>(piece) {
+    <span class="kw">return</span> piece.buf === <span class="str">"orig"</span> ? <span class="kw">this</span>.orig : <span class="kw">this</span>.added;
+  }
+
+  <span class="fn">length</span>() { <span class="kw">return</span> <span class="kw">this</span>.pieces.reduce((s, p) => s + p.length, <span class="num">0</span>); }
+
+  <span class="fn">toString</span>() {
+    <span class="kw">return</span> <span class="kw">this</span>.pieces.map(p => <span class="kw">this</span>.<span class="fn">_buf</span>(p).slice(p.start, p.start + p.length)).join(<span class="str">""</span>);
+  }
+
+  <span class="fn">_findPiece</span>(pos) {
+    <span class="cmt">// Walk pieces to find which piece contains logical position `pos`</span>
+    <span class="cmt">// (in practice: binary search on a red-black tree of piece lengths)</span>
+    <span class="kw">let</span> offset = <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; <span class="kw">this</span>.pieces.length; i++) {
+      <span class="kw">const</span> p = <span class="kw">this</span>.pieces[i];
+      <span class="kw">if</span> (pos &lt;= offset + p.length) <span class="kw">return</span> { idx: i, offsetInPiece: pos - offset };
+      offset += p.length;
+    }
+    <span class="kw">return</span> { idx: <span class="kw">this</span>.pieces.length, offsetInPiece: <span class="num">0</span> };
+  }
+
+  <span class="fn">insert</span>(pos, text) {
+    <span class="cmt">// 1. Append text to the add buffer</span>
+    <span class="kw">const</span> addStart = <span class="kw">this</span>.added.length;
+    <span class="kw">this</span>.added += text;
+    <span class="kw">const</span> newPiece = { buf: <span class="str">"add"</span>, start: addStart, length: text.length };
+
+    <span class="cmt">// 2. Find which existing piece contains `pos`, split it</span>
+    <span class="kw">const</span> { idx, offsetInPiece } = <span class="kw">this</span>.<span class="fn">_findPiece</span>(pos);
+    <span class="kw">if</span> (offsetInPiece === <span class="num">0</span>) {
+      <span class="cmt">// Insert at piece boundary — no split needed</span>
+      <span class="kw">this</span>.pieces.splice(idx, <span class="num">0</span>, newPiece);
+    } <span class="kw">else</span> {
+      <span class="kw">const</span> p = <span class="kw">this</span>.pieces[idx];
+      <span class="kw">const</span> left  = { ...p, length: offsetInPiece };
+      <span class="kw">const</span> right = { ...p, start: p.start + offsetInPiece, length: p.length - offsetInPiece };
+      <span class="kw">this</span>.pieces.splice(idx, <span class="num">1</span>, left, newPiece, right);
+    }
+    console.log(<span class="str">`insert("${text}", ${pos}) → ${this.pieces.length} pieces → "${this.toString()}"`</span>);
+  }
+
+  <span class="fn">delete</span>(start, len) {
+    <span class="cmt">// Find pieces that overlap [start, start+len) and trim/remove them</span>
+    <span class="kw">const</span> end = start + len;
+    <span class="kw">const</span> { idx: si, offsetInPiece: so } = <span class="kw">this</span>.<span class="fn">_findPiece</span>(start);
+    <span class="kw">const</span> { idx: ei, offsetInPiece: eo } = <span class="kw">this</span>.<span class="fn">_findPiece</span>(end);
+
+    <span class="kw">const</span> newPieces = [];
+    <span class="kw">if</span> (so > <span class="num">0</span>) newPieces.push({ ...<span class="kw">this</span>.pieces[si], length: so });
+    <span class="kw">if</span> (eo > <span class="num">0</span> && ei &lt; <span class="kw">this</span>.pieces.length) {
+      <span class="kw">const</span> p = <span class="kw">this</span>.pieces[ei];
+      newPieces.push({ ...p, start: p.start + eo, length: p.length - eo });
+    }
+    <span class="kw">this</span>.pieces.splice(si, ei - si + (eo > <span class="num">0</span> ? <span class="num">1</span> : <span class="num">0</span>), ...newPieces);
+    console.log(<span class="str">`delete(${start}, ${len}) → ${this.pieces.length} pieces → "${this.toString()}"`</span>);
+  }
+}
+
+<span class="kw">const</span> pt = <span class="kw">new</span> <span class="cls">SimplePieceTable</span>(<span class="str">"The quick brown fox"</span>);
+console.log(<span class="str">"Initial:"</span>, pt.<span class="fn">toString</span>(), <span class="str">`[${pt.pieces.length} piece]`</span>);
+console.log(<span class="str">""</span>);
+
+pt.<span class="fn">insert</span>(<span class="num">4</span>, <span class="str">"very "</span>);       <span class="cmt">// "The very quick brown fox"</span>
+pt.<span class="fn">delete</span>(<span class="num">9</span>, <span class="num">6</span>);            <span class="cmt">// delete "quick " → "The very brown fox"</span>
+pt.<span class="fn">insert</span>(<span class="num">9</span>, <span class="str">"speedy "</span>);    <span class="cmt">// "The very speedy brown fox"</span>
+
+console.log(<span class="str">"\nAdd buffer contents:"</span>, <span class="str">'"'</span> + pt.added + <span class="str">'"'</span>);
+console.log(<span class="str">"(original buffer never modified)"</span>);</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ===== S5: OPERATIONS IN DETAIL ===== -->
+<section class="section" id="s5">
+  <div class="sec-rule"><span class="sec-n">§05</span><h2>Operations in detail</h2></div>
+
+  <p>The piece list above is a linked list — fine conceptually, but O(n) for finding which piece contains a given position. VS Code&rsquo;s production implementation stores pieces in a <strong>red-black tree</strong>, where each node caches the total length of its left subtree (just like a rope&rsquo;s weight). This makes all operations O(log n).</p>
+
+  <h3>Rendering a line</h3>
+  <p>To render line 5000, the editor needs the character range for that line. VS Code additionally caches <strong>line feed counts</strong> in the tree — each piece node stores how many <code>\n</code> characters are in its left subtree. A binary search on these counts locates the right piece in O(log n), then scans within the piece for the line boundary.</p>
+
+  <h3>Undo and redo</h3>
+  <p>Undo is the killer feature of the piece table. Because the add buffer is append-only and pieces are small structs, the undo history can store either edit records or <em>piece list snapshots</em>. This explainer uses snapshots of the piece list. That is still much cheaper than copying the whole document, because the original and add buffers remain immutable and shared.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Interactive piece table — type in the editor to watch pieces update live</div>
+    <div class="editor-wrap">
+      <div class="editor-toolbar">
+        <span>piece table editor</span>
+        <span id="pt-live-stats">0 pieces · 0 chars in add buffer</span>
+      </div>
+      <div class="editor-area">
+        <div class="editor-pane">
+          <div class="editor-pane-head">Edit here</div>
+          <textarea class="editor-input" id="pt-editor" placeholder="Type to edit...">The quick brown fox jumps over the lazy dog</textarea>
+        </div>
+        <div class="editor-pane">
+          <div class="editor-pane-head">Piece list</div>
+          <div id="pt-live-pieces" style="font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.7"></div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;font-family:var(--mono);color:var(--ink3);margin-top:.4rem">Note: this demo uses a simplified piece table without the red-black tree. Position lookup is O(n) — fine for small demos, not for 10MB files.</div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>piece_table_undo.js — undo/redo via piece list snapshots</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// Undo/redo via piece-list snapshots</span>
+<span class="cmt">// The text buffers stay immutable; undo swaps metadata, not document copies</span>
+
+<span class="kw">class</span> <span class="cls">UndoPieceTable</span> {
+  <span class="fn">constructor</span>(text) {
+    <span class="kw">this</span>.orig    = text;
+    <span class="kw">this</span>.added   = <span class="str">""</span>;
+    <span class="kw">this</span>.pieces  = text ? [{ buf:<span class="str">"orig"</span>, start:<span class="num">0</span>, length:text.length }] : [];
+    <span class="kw">this</span>.history = [];  <span class="cmt">// stack of {pieces, addedLen} snapshots</span>
+    <span class="kw">this</span>.future  = [];  <span class="cmt">// redo stack</span>
+  }
+
+  <span class="fn">_snapshot</span>() {
+    <span class="cmt">// Save the current piece list metadata.</span>
+    <span class="cmt">// This copies piece descriptors, not the full document text.</span>
+    <span class="kw">this</span>.history.push({ pieces: [...<span class="kw">this</span>.pieces], addedLen: <span class="kw">this</span>.added.length });
+    <span class="kw">this</span>.future = []; <span class="cmt">// clear redo stack on new edit</span>
+  }
+
+  <span class="fn">_buf</span>(p) { <span class="kw">return</span> p.buf === <span class="str">"orig"</span> ? <span class="kw">this</span>.orig : <span class="kw">this</span>.added; }
+  <span class="fn">toString</span>() { <span class="kw">return this</span>.pieces.map(p => <span class="kw">this</span>.<span class="fn">_buf</span>(p).slice(p.start, p.start+p.length)).join(<span class="str">""</span>); }
+
+  <span class="fn">_findPiece</span>(pos) {
+    <span class="kw">let</span> off = <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; <span class="kw">this</span>.pieces.length; i++) {
+      <span class="kw">if</span> (pos &lt;= off + <span class="kw">this</span>.pieces[i].length) <span class="kw">return</span> {i, o: pos-off};
+      off += <span class="kw">this</span>.pieces[i].length;
+    }
+    <span class="kw">return</span> {i: <span class="kw">this</span>.pieces.length, o: <span class="num">0</span>};
+  }
+
+  <span class="fn">insert</span>(pos, text) {
+    <span class="kw">this</span>.<span class="fn">_snapshot</span>();
+    <span class="kw">const</span> as = <span class="kw">this</span>.added.length; <span class="kw">this</span>.added += text;
+    <span class="kw">const</span> {i, o} = <span class="kw">this</span>.<span class="fn">_findPiece</span>(pos);
+    <span class="kw">const</span> np = {buf:<span class="str">"add"</span>, start:as, length:text.length};
+    <span class="kw">if</span> (o === <span class="num">0</span>) { <span class="kw">this</span>.pieces.splice(i,<span class="num">0</span>,np); <span class="kw">return</span>; }
+    <span class="kw">const</span> p = <span class="kw">this</span>.pieces[i];
+    <span class="kw">this</span>.pieces.splice(i, <span class="num">1</span>, {...p,length:o}, np, {...p,start:p.start+o,length:p.length-o});
+  }
+
+  <span class="fn">undo</span>() {
+    <span class="kw">if</span> (!<span class="kw">this</span>.history.length) { console.log(<span class="str">"Nothing to undo"</span>); <span class="kw">return</span>; }
+    <span class="kw">this</span>.future.push({ pieces:[...<span class="kw">this</span>.pieces], addedLen:<span class="kw">this</span>.added.length });
+    <span class="kw">const</span> snap = <span class="kw">this</span>.history.pop();
+    <span class="kw">this</span>.pieces = snap.pieces;
+    <span class="cmt">// We don't truncate the add buffer — just ignore the extra bytes</span>
+    <span class="cmt">// They'll be reused if redo is called, or orphaned if not</span>
+  }
+
+  <span class="fn">redo</span>() {
+    <span class="kw">if</span> (!<span class="kw">this</span>.future.length) { console.log(<span class="str">"Nothing to redo"</span>); <span class="kw">return</span>; }
+    <span class="kw">this</span>.history.push({ pieces:[...<span class="kw">this</span>.pieces], addedLen:<span class="kw">this</span>.added.length });
+    <span class="kw">const</span> snap = <span class="kw">this</span>.future.pop();
+    <span class="kw">this</span>.pieces = snap.pieces;
+  }
+}
+
+<span class="kw">const</span> pt = <span class="kw">new</span> <span class="cls">UndoPieceTable</span>(<span class="str">"Hello world"</span>);
+console.log(<span class="str">"Start:  "</span>, pt.<span class="fn">toString</span>());
+
+pt.<span class="fn">insert</span>(<span class="num">5</span>, <span class="str">", beautiful"</span>);
+console.log(<span class="str">"Edit 1: "</span>, pt.<span class="fn">toString</span>());
+
+pt.<span class="fn">insert</span>(<span class="num">0</span>, <span class="str">"[DRAFT] "</span>);
+console.log(<span class="str">"Edit 2: "</span>, pt.<span class="fn">toString</span>());
+
+pt.<span class="fn">undo</span>();
+console.log(<span class="str">"Undo 1: "</span>, pt.<span class="fn">toString</span>());
+
+pt.<span class="fn">undo</span>();
+console.log(<span class="str">"Undo 2: "</span>, pt.<span class="fn">toString</span>(), <span class="str">"← back to original"</span>);
+
+pt.<span class="fn">redo</span>();
+console.log(<span class="str">"Redo:   "</span>, pt.<span class="fn">toString</span>());
+
+console.log(<span class="str">"\nAdd buffer (never truncated):"</span>, <span class="str">'"'</span>+pt.added+<span class="str">'"'</span>);
+console.log(<span class="str">`Undo cost: copy ${pt.pieces.length} piece structs — O(pieces), not O(text)`</span>);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ===== S6: FULL IMPLEMENTATION ===== -->
+<section class="section" id="s6">
+  <div class="sec-rule"><span class="sec-n">§06</span><h2>Full implementation</h2></div>
+
+  <p>Below is a complete educational piece table with a sorted array and a cached cumulative-offset index. It supports insert, delete, undo, redo, <code>charAt</code>, <code>substring</code>, line counting, and line-by-line access. Reads use binary search over cached offsets, but edits still mutate arrays and rebuild cached metadata, so this is not asymptotically equivalent to VS Code&rsquo;s tree-backed implementation.</p>
+
+  <div class="cb">
+    <div class="cb-head"><span>piece_table_full.js — complete educational piece table (~150 lines)</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Complete educational piece table implementation</span>
+<span class="cmt">// VS Code uses a red-black tree for O(log n) lookups and updates.</span>
+<span class="cmt">// Here we binary-search cached offsets, but edits still cost O(pieces).</span>
+
+<span class="kw">class</span> <span class="cls">PieceTable</span> {
+  <span class="fn">constructor</span>(text = <span class="str">""</span>) {
+    <span class="kw">this</span>.orig    = text;
+    <span class="kw">this</span>.added   = <span class="str">""</span>;
+    <span class="kw">this</span>.pieces  = text.length ? [{ buf:<span class="num">0</span>, start:<span class="num">0</span>, len:text.length }] : [];
+    <span class="kw">this</span>._cache  = <span class="kw">null</span>;   <span class="cmt">// cumulative offset cache, invalidated on mutation</span>
+    <span class="kw">this</span>.history = [];
+    <span class="kw">this</span>.future  = [];
+  }
+
+  <span class="cmt">// --- Internal helpers ---</span>
+
+  <span class="fn">_raw</span>(p) { <span class="kw">return</span> p.buf === <span class="num">0</span> ? <span class="kw">this</span>.orig : <span class="kw">this</span>.added; }
+
+  <span class="fn">_offsets</span>() {
+    <span class="cmt">// Build cumulative offset array: offsets[i] = start of pieces[i] in logical doc</span>
+    <span class="kw">if</span> (<span class="kw">this</span>._cache) <span class="kw">return this</span>._cache;
+    <span class="kw">const</span> offsets = [<span class="num">0</span>];
+    <span class="kw">for</span> (<span class="kw">const</span> p <span class="kw">of</span> <span class="kw">this</span>.pieces) offsets.push(offsets.at(-<span class="num">1</span>) + p.len);
+    <span class="kw">return</span> (<span class="kw">this</span>._cache = offsets);
+  }
+
+  <span class="fn">_find</span>(pos) {
+    <span class="cmt">// Binary search: which piece contains logical offset `pos`?</span>
+    <span class="kw">const</span> offs = <span class="kw">this</span>.<span class="fn">_offsets</span>();
+    <span class="kw">let</span> lo = <span class="num">0</span>, hi = <span class="kw">this</span>.pieces.length - <span class="num">1</span>;
+    <span class="kw">while</span> (lo &lt;= hi) {
+      <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
+      <span class="kw">if</span>      (pos &lt; offs[mid])      hi = mid - <span class="num">1</span>;
+      <span class="kw">else if</span> (pos >= offs[mid+<span class="num">1</span>])  lo = mid + <span class="num">1</span>;
+      <span class="kw">else</span>    <span class="kw">return</span> { idx: mid, off: pos - offs[mid] };
+    }
+    <span class="kw">return</span> { idx: <span class="kw">this</span>.pieces.length, off: <span class="num">0</span> };
+  }
+
+  <span class="fn">_invalidate</span>() { <span class="kw">this</span>._cache = <span class="kw">null</span>; }
+
+  <span class="fn">_snap</span>() {
+    <span class="kw">this</span>.history.push(<span class="kw">this</span>.pieces.map(p => ({...p})));
+    <span class="kw">this</span>.future = [];
+    <span class="kw">this</span>.<span class="fn">_invalidate</span>();
+  }
+
+  <span class="cmt">// --- Public API ---</span>
+
+  <span class="fn">get length</span>() { <span class="kw">return this</span>.<span class="fn">_offsets</span>().at(-<span class="num">1</span>); }
+
+  <span class="fn">charAt</span>(pos) {
+    <span class="kw">const</span> {idx, off} = <span class="kw">this</span>.<span class="fn">_find</span>(pos);
+    <span class="kw">if</span> (idx >= <span class="kw">this</span>.pieces.length) <span class="kw">return</span> <span class="str">""</span>;
+    <span class="kw">const</span> p = <span class="kw">this</span>.pieces[idx];
+    <span class="kw">return this</span>.<span class="fn">_raw</span>(p)[p.start + off];
+  }
+
+  <span class="fn">substring</span>(start, end) {
+    <span class="cmt">// Collect all piece fragments that overlap [start, end)</span>
+    <span class="kw">let</span> result = <span class="str">""</span>;
+    <span class="kw">const</span> offs  = <span class="kw">this</span>.<span class="fn">_offsets</span>();
+    <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; <span class="kw">this</span>.pieces.length; i++) {
+      <span class="kw">const</span> pStart = offs[i], pEnd = offs[i+<span class="num">1</span>];
+      <span class="kw">if</span> (pEnd &lt;= start || pStart >= end) <span class="kw">continue</span>;
+      <span class="kw">const</span> p = <span class="kw">this</span>.pieces[i];
+      <span class="kw">const</span> s = Math.max(<span class="num">0</span>, start - pStart);
+      <span class="kw">const</span> e = Math.min(p.len, end - pStart);
+      result += <span class="kw">this</span>.<span class="fn">_raw</span>(p).slice(p.start+s, p.start+e);
+    }
+    <span class="kw">return</span> result;
+  }
+
+  <span class="fn">insert</span>(pos, text) {
+    <span class="kw">if</span> (!text.length) <span class="kw">return</span>;
+    <span class="kw">this</span>.<span class="fn">_snap</span>();
+    <span class="kw">const</span> addStart = <span class="kw">this</span>.added.length; <span class="kw">this</span>.added += text;
+    <span class="kw">const</span> np = { buf:<span class="num">1</span>, start:addStart, len:text.length };
+    <span class="kw">const</span> {idx, off} = <span class="kw">this</span>.<span class="fn">_find</span>(pos);
+    <span class="kw">if</span> (off === <span class="num">0</span>) { <span class="kw">this</span>.pieces.splice(idx, <span class="num">0</span>, np); <span class="kw">return</span>; }
+    <span class="kw">const</span> p = <span class="kw">this</span>.pieces[idx];
+    <span class="kw">this</span>.pieces.splice(idx, <span class="num">1</span>,
+      { buf:p.buf, start:p.start,      len:off },
+      np,
+      { buf:p.buf, start:p.start+off,  len:p.len-off }
+    );
+  }
+
+  <span class="fn">delete</span>(start, len) {
+    <span class="kw">if</span> (len &lt;= <span class="num">0</span>) <span class="kw">return</span>;
+    <span class="kw">this</span>.<span class="fn">_snap</span>();
+    <span class="kw">const</span> end = start + len;
+    <span class="kw">const</span> offs = <span class="kw">this</span>.<span class="fn">_offsets</span>();
+    <span class="kw">const</span> result = [];
+    <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; <span class="kw">this</span>.pieces.length; i++) {
+      <span class="kw">const</span> pS = offs[i], pE = offs[i+<span class="num">1</span>], p = <span class="kw">this</span>.pieces[i];
+      <span class="kw">if</span> (pE &lt;= start || pS >= end) { result.push(p); <span class="kw">continue</span>; }
+      <span class="kw">if</span> (pS &lt; start) result.push({ ...p, len: start-pS });
+      <span class="kw">if</span> (pE > end)   result.push({ ...p, start: p.start+(end-pS), len: pE-end });
+    }
+    <span class="kw">this</span>.pieces = result;
+    <span class="kw">this</span>.<span class="fn">_invalidate</span>();
+  }
+
+  <span class="fn">undo</span>() {
+    <span class="kw">if</span> (!<span class="kw">this</span>.history.length) <span class="kw">return false</span>;
+    <span class="kw">this</span>.future.push(<span class="kw">this</span>.pieces);
+    <span class="kw">this</span>.pieces = <span class="kw">this</span>.history.pop();
+    <span class="kw">this</span>.<span class="fn">_invalidate</span>(); <span class="kw">return true</span>;
+  }
+
+  <span class="fn">redo</span>() {
+    <span class="kw">if</span> (!<span class="kw">this</span>.future.length) <span class="kw">return false</span>;
+    <span class="kw">this</span>.history.push(<span class="kw">this</span>.pieces);
+    <span class="kw">this</span>.pieces = <span class="kw">this</span>.future.pop();
+    <span class="kw">this</span>.<span class="fn">_invalidate</span>(); <span class="kw">return true</span>;
+  }
+
+  <span class="fn">lineCount</span>() {
+    <span class="kw">let</span> count = <span class="num">1</span>;
+    <span class="kw">for</span> (<span class="kw">const</span> p <span class="kw">of</span> <span class="kw">this</span>.pieces)
+      <span class="kw">for</span> (<span class="kw">let</span> i = p.start; i &lt; p.start+p.len; i++)
+        <span class="kw">if</span> (<span class="kw">this</span>.<span class="fn">_raw</span>(p)[i] === <span class="str">"\n"</span>) count++;
+    <span class="kw">return</span> count;
+  }
+
+  <span class="fn">getLine</span>(n) {
+    <span class="cmt">// Return the text of the nth line (0-indexed)</span>
+    <span class="kw">let</span> line = <span class="num">0</span>, lineStart = <span class="num">0</span>;
+    <span class="kw">const</span> offs = <span class="kw">this</span>.<span class="fn">_offsets</span>();
+    <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; <span class="kw">this</span>.pieces.length; i++) {
+      <span class="kw">const</span> p = <span class="kw">this</span>.pieces[i], raw = <span class="kw">this</span>.<span class="fn">_raw</span>(p);
+      <span class="kw">for</span> (<span class="kw">let</span> j = <span class="num">0</span>; j &lt; p.len; j++) {
+        <span class="kw">if</span> (raw[p.start+j] === <span class="str">"\n"</span>) {
+          <span class="kw">if</span> (line === n) <span class="kw">return this</span>.<span class="fn">substring</span>(lineStart, offs[i]+j);
+          lineStart = offs[i]+j+<span class="num">1</span>; line++;
+        }
+      }
+    }
+    <span class="kw">return</span> line === n ? <span class="kw">this</span>.<span class="fn">substring</span>(lineStart, <span class="kw">this</span>.length) : <span class="kw">null</span>;
+  }
+
+  <span class="fn">toString</span>() { <span class="kw">return this</span>.<span class="fn">substring</span>(<span class="num">0</span>, <span class="kw">this</span>.length); }
+}
+
+<span class="cmt">// --- Demo: simulate editing a source file ---</span>
+<span class="kw">const</span> src = <span class="str">`function greet(name) {\n  return "Hello, " + name;\n}`</span>;
+<span class="kw">const</span> pt = <span class="kw">new</span> <span class="cls">PieceTable</span>(src);
+console.log(<span class="str">"=== Original file ==="</span>);
+console.log(pt.<span class="fn">toString</span>());
+console.log(<span class="str">`Lines: ${pt.lineCount()}, Length: ${pt.length}`</span>);
+
+<span class="cmt">// Edit 1: rename function</span>
+pt.<span class="fn">delete</span>(<span class="num">9</span>, <span class="num">5</span>);           <span class="cmt">// delete "greet"</span>
+pt.<span class="fn">insert</span>(<span class="num">9</span>, <span class="str">"welcome"</span>);   <span class="cmt">// insert "welcome"</span>
+
+<span class="cmt">// Edit 2: change return value</span>
+pt.<span class="fn">delete</span>(<span class="num">33</span>, <span class="num">8</span>);
+pt.<span class="fn">insert</span>(<span class="num">33</span>, <span class="str">"Welcome, "</span>);
+
+console.log(<span class="str">"\n=== After edits ==="</span>);
+console.log(pt.<span class="fn">toString</span>());
+console.log(<span class="str">`Pieces: ${pt.pieces.length}, Add buffer: "${pt.added}"`</span>);
+
+console.log(<span class="str">"\n=== Line access ==="</span>);
+<span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; pt.<span class="fn">lineCount</span>(); i++)
+  console.log(<span class="str">`  line ${i}: ${pt.getLine(i)}`</span>);
+
+<span class="cmt">// Undo back to original</span>
+<span class="kw">while</span> (pt.<span class="fn">undo</span>());
+console.log(<span class="str">"\n=== After full undo ==="</span>);
+console.log(pt.<span class="fn">toString</span>());
+console.log(<span class="str">"Add buffer still holds all text: "</span> + <span class="str">'"'</span>+pt.added+<span class="str">'"'</span>);</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ===== S7: FURTHER READING ===== -->
+<section class="section" id="s7">
+  <div class="sec-rule"><span class="sec-n">§07</span><h2>Further reading</h2></div>
+  <p style="margin-bottom:1.3rem">The piece table and rope are just two points in a large design space of text buffer data structures. These are the best primary sources:</p>
+  <div class="footer-links" style="flex-direction:column;gap:.6rem">
+    <a href="https://code.visualstudio.com/blogs/2018/03/23/text-buffer-reimplementation">VS Code — Text Buffer Reimplementation (2018) — the definitive piece table blog post</a>
+    <a href="https://www.cs.rit.edu/usr/local/pub/jeh/courses/QUARTERS/FP/Labs/CedarRope/rope-paper.pdf">Boehm, Atkinson, Plass (1995) — Ropes: An Alternative to Strings — the original paper</a>
+    <a href="https://xi-editor.io/docs/rope_science_00.html">Xi Editor Rope Science — Raph Levien&rsquo;s deep dive on rope design for xi-editor</a>
+    <a href="https://www.catch22.net/tuts/neatpad/piece-chains/">Piece Chains — a practical piece table guide with diagrams</a>
+    <a href="https://ecc-comp.blogspot.com/2015/05/a-brief-glance-at-how-5-text-editors.html">How 5 text editors store their data — survey of real-world choices</a>
+  </div>
+  <p class="footer-note" style="margin-top:1.4rem">The piece-table code in §06 is original JavaScript written for this explainer. The rope demo is a small educational implementation inspired by the 1995 Boehm et al. paper. Neither is a port of any existing codebase.</p>
+</section>
+
+</div>
+
+<script>
+/* ============ CODE RUNNER ============ */
+function runCode(cid, oid) {
+  const raw = document.getElementById(cid).innerText;
+  const el = document.getElementById(oid);
+  el.className = 'out on';
+  const logs = [];
+  const con = {
+    log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ')),
+    assert: (c, m) => { if (!c) logs.push('AssertionError: ' + m); }
+  };
+  try {
+    new Function('console', raw)(con);
+    el.textContent = logs.join('\n') || '(no output)';
+  } catch(e) {
+    el.className = 'out on err';
+    el.textContent = '⚠ ' + e.message;
+  }
+}
+
+/* ============ COST DEMO ============ */
+function updateCostDemo() {
+  const sizeMB = parseInt(document.getElementById('size-sl').value);
+  const pos    = parseInt(document.getElementById('pos-sl').value) / 100;
+  document.getElementById('size-val').textContent = sizeMB + ' MB';
+  document.getElementById('pos-val').textContent = (pos * 100).toFixed(0) + '% from start';
+  const n = sizeMB * 1024 * 1024;
+  const bytesToShift = Math.floor(n * (1 - pos));
+  const copySpeedBytesPerMs = 4 * 1024 * 1024;
+  const naiveMs = bytesToShift / copySpeedBytesPerMs;
+  const ropePieceMs = 0.01 * Math.log2(n) / Math.log2(1024);
+  const budget = 16.7;
+  const maxMs = Math.max(naiveMs, budget * 2, 1);
+  const rows = [
+    { label: 'Naive string', ms: naiveMs, color: naiveMs > budget ? 'var(--red)' : 'var(--green)' },
+    { label: 'Rope / Piece table', ms: ropePieceMs, color: 'var(--green)' },
+    { label: '16ms frame budget', ms: budget, color: 'var(--amber)', dashed: true },
+  ];
+  document.getElementById('cost-bars').innerHTML = rows.map(r => {
+    const pct = Math.min(100, (r.ms / maxMs) * 100);
+    const label = r.ms < 0.01 ? '<0.01ms' : r.ms.toFixed(2) + 'ms';
+    return `<div class="perf-row">
+      <span class="perf-label">${r.label}</span>
+      <div class="perf-track">
+        <div class="perf-fill" style="width:${pct}%;background:${r.color};${r.dashed?'background:repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 6px,transparent 6px,transparent 10px)':''}"></div>
+      </div>
+      <span class="perf-val" style="color:${r.color}">${label}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('cost-note').textContent =
+    naiveMs > budget
+      ? `At ${sizeMB}MB, a naive insert near the start takes ${naiveMs.toFixed(1)}ms — ${(naiveMs / budget).toFixed(0)}× over the 16ms frame budget.`
+      : `At ${sizeMB}MB with insert at ${(pos*100).toFixed(0)}%, naive is still within budget — but try a larger file or earlier position.`;
+}
+updateCostDemo();
+
+/* ============ ARRAY INSERT ANIMATION ============ */
+const ORIG_CHARS = ['H','e','l','l','o',' ','w','o','r','l','d'];
+let insertDone = false;
+function renderStrViz(chars, shiftStart, newIdx) {
+  const el = document.getElementById('str-viz');
+  el.innerHTML = chars.map((c, i) => {
+    let cls = 'str-char';
+    if (newIdx !== undefined && i === newIdx) cls += ' new';
+    else if (shiftStart !== undefined && i >= shiftStart && (newIdx === undefined || i !== newIdx)) cls += ' shift';
+    return `<div class="${cls}"><span style="position:absolute;top:1px;left:2px;font-size:8px;color:var(--ink3)">${i}</span>${c}</div>`;
+  }).join('');
+}
+renderStrViz(ORIG_CHARS);
+let animStep = 0;
+function animateInsert() {
+  if (insertDone) return;
+  const INSERT_POS = 3;
+  const steps = [];
+  // Mark shift: indices 3..end will shift
+  steps.push(() => {
+    renderStrViz(ORIG_CHARS, INSERT_POS, undefined);
+    document.getElementById('str-msg').textContent = `Shifting ${ORIG_CHARS.length - INSERT_POS} chars right to make room at position ${INSERT_POS}…`;
+  });
+  // Insert X
+  steps.push(() => {
+    const newArr = [...ORIG_CHARS.slice(0, INSERT_POS), 'X', ...ORIG_CHARS.slice(INSERT_POS)];
+    renderStrViz(newArr, INSERT_POS + 1, INSERT_POS);
+    document.getElementById('str-msg').textContent = `Done. Inserted 'X' at position ${INSERT_POS}. Cost: O(n) — every char after the insert point had to move.`;
+    insertDone = true;
+  });
+  if (animStep < steps.length) { steps[animStep](); animStep++; }
+}
+function resetInsert() {
+  insertDone = false; animStep = 0;
+  renderStrViz(ORIG_CHARS);
+  document.getElementById('str-msg').textContent = 'Original array: 11 characters, each stored at a fixed memory offset.';
+}
+
+/* ============ ROPE VIZ ============ */
+(function() {
+  const text = "Hello, world!";
+  const leaves = [];
+  const CHUNK = 5;
+  for (let i = 0; i < text.length; i += CHUNK)
+    leaves.push({ text: text.slice(i, i + CHUNK), isLeaf: true });
+  function buildRope(nodes) {
+    if (nodes.length === 1) return nodes[0];
+    const mid = Math.floor(nodes.length / 2);
+    const left = buildRope(nodes.slice(0, mid));
+    const right = buildRope(nodes.slice(mid));
+    return { left, right, isLeaf: false, weight: (left.text || sumLen(left)), text: null };
+  }
+  function sumLen(n) { return n.isLeaf ? n.text.length : sumLen(n.left) + sumLen(n.right); }
+  function getStr(n) { return n.isLeaf ? n.text : getStr(n.left) + getStr(n.right); }
+  const rope = buildRope(leaves);
+  const W = 680, NODE_W = 90, NODE_H = 30, PAD_Y = 54;
+  const positions = new Map();
+  function layout(node, depth, xMin, xMax) {
+    const cx = (xMin + xMax) / 2;
+    const y = depth * (NODE_H + PAD_Y) + 20;
+    positions.set(node, { cx, y });
+    if (!node.isLeaf) {
+      layout(node.left, depth + 1, xMin, cx);
+      layout(node.right, depth + 1, cx, xMax);
+    }
+  }
+  layout(rope, 0, 40, 640);
+  let maxY = 0;
+  positions.forEach(p => { if (p.y > maxY) maxY = p.y; });
+  const svgH = maxY + NODE_H + 30;
+  let edges = '', nodes = '';
+  function draw(node) {
+    const { cx, y } = positions.get(node);
+    if (!node.isLeaf) {
+      const lp = positions.get(node.left), rp = positions.get(node.right);
+      edges += `<line class="rope-edge" x1="${cx}" y1="${y+NODE_H}" x2="${lp.cx}" y2="${lp.y}"/>`;
+      edges += `<line class="rope-edge" x1="${cx}" y1="${y+NODE_H}" x2="${rp.cx}" y2="${rp.y}"/>`;
+      draw(node.left); draw(node.right);
+    }
+    const cls = `rope-node ${node.isLeaf ? 'leaf' : 'internal'}`;
+    const lbl = node.isLeaf ? `"${node.text}"` : `w=${sumLen(node.left)}`;
+    const id = node.isLeaf ? `leaf_${node.text}` : `int_${cx}`;
+    nodes += `<g class="${cls}" id="rn${id.replace(/[^a-z0-9]/gi,'')}" onclick="ropeClick(this,'${node.isLeaf?node.text.replace(/'/g,''):getStr(node).replace(/'/g,'')}','${node.isLeaf}','${sumLen(node)}')">
+      <rect x="${cx-NODE_W/2}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="4" stroke-width="1"/>
+      <text font-family="var(--mono)" font-size="11" fill="var(--ink)" text-anchor="middle" dominant-baseline="central" x="${cx}" y="${y+NODE_H/2}">${lbl}</text>
+    </g>`;
+  }
+  draw(rope);
+  document.getElementById('rope-canvas').innerHTML =
+    `<svg class="rope-svg" viewBox="0 0 680 ${svgH}" height="${svgH}">${edges}${nodes}</svg>`;
+})();
+function ropeClick(el, text, isLeaf, len) {
+  document.querySelectorAll('.rope-node').forEach(n => n.classList.remove('hl'));
+  el.classList.add('hl');
+  const info = isLeaf === 'true'
+    ? `Leaf node: text="${text}", length=${len}. This is an actual string fragment stored in memory.`
+    : `Internal node: weight=${document.querySelector('#'+el.id+' text').textContent.split('=')[1]}, total length=${len}. Stores only the weight — no text here.`;
+  document.getElementById('rope-info').textContent = info;
+}
+
+/* ============ PIECE TABLE STEPPER ============ */
+const PT_STEPS = [
+  {
+    orig: 'The quick brown fox',
+    added: '',
+    pieces: [{ buf: 'orig', s: 0, l: 19 }],
+    note: 'File loaded. One piece spans the entire original buffer. No data is copied — we just record "use bytes 0–18 from the original buffer".',
+  },
+  {
+    orig: 'The quick brown fox',
+    added: 'big ',
+    pieces: [
+      { buf: 'orig', s: 0, l: 4 },
+      { buf: 'add',  s: 0, l: 4 },
+      { buf: 'orig', s: 4, l: 15 },
+    ],
+    note: 'Insert "big " at position 4. The original piece splits in two; a new piece points to "big " in the add buffer. Three pieces total.',
+  },
+  {
+    orig: 'The quick brown fox',
+    added: 'big ',
+    pieces: [
+      { buf: 'orig', s: 0, l: 4 },
+      { buf: 'add',  s: 0, l: 4 },
+      { buf: 'orig', s: 10, l: 10 },
+    ],
+    note: 'Delete "quick " (6 chars at position 8). The third piece\'s start offset moves from 4 to 10 — skipping over "quick ". No bytes are erased from the original.',
+  },
+  {
+    orig: 'The quick brown fox',
+    added: 'big fast ',
+    pieces: [
+      { buf: 'orig', s: 0, l: 4 },
+      { buf: 'add',  s: 0, l: 4 },
+      { buf: 'add',  s: 4, l: 5 },
+      { buf: 'orig', s: 10, l: 10 },
+    ],
+    note: 'Insert "fast " at position 8. "fast " is appended to the add buffer; a new piece is inserted between "big " and "brown". Result: "The big fast brown fox".',
+  },
+];
+function renderPTStep(i) {
+  const step = PT_STEPS[i];
+  const origHl = [], addHl = [];
+  step.pieces.forEach(p => {
+    if (p.buf === 'orig') for (let j = p.s; j < p.s + p.l; j++) origHl.push(j);
+    else for (let j = p.s; j < p.s + p.l; j++) addHl.push(j);
+  });
+  const hlChar = (str, indices, color) =>
+    [...str].map((c, i) => indices.includes(i)
+      ? `<span style="background:${color};border-radius:1px">${c === ' ' ? '&middot;' : c}</span>`
+      : `<span style="opacity:.3">${c === ' ' ? '&middot;' : c}</span>`
+    ).join('');
+
+  const result = step.pieces.map(p => {
+    const buf = p.buf === 'orig' ? step.orig : step.added;
+    return buf.slice(p.s, p.s + p.l);
+  }).join('');
+
+  return `<div class="pt-buffers">
+    <div class="pt-buf">
+      <div class="pt-buf-head" style="color:var(--blue)">Original buffer (immutable)</div>
+      <div class="pt-buf-content" style="letter-spacing:.12em">${step.orig ? hlChar(step.orig, origHl, 'var(--blue-bg)') : '<span style="color:var(--ink3)">(empty)</span>'}</div>
+    </div>
+    <div class="pt-buf">
+      <div class="pt-buf-head" style="color:var(--amber)">Add buffer (append-only)</div>
+      <div class="pt-buf-content" style="letter-spacing:.12em">${step.added ? hlChar(step.added, addHl, 'var(--amber-bg)') : '<span style="color:var(--ink3)">(empty)</span>'}</div>
+    </div>
+  </div>
+  <div class="pt-piece-list">
+    ${step.pieces.map((p, j) => {
+      const buf = p.buf === 'orig' ? step.orig : step.added;
+      const txt = buf.slice(p.s, p.s + p.l);
+      return `<div class="pt-piece">
+        <span class="badge ${p.buf === 'orig' ? 'badge-orig' : 'badge-add'}">${p.buf}</span>
+        <span class="range">start=${p.s}, len=${p.l}</span>
+        <span class="content">"${txt.replace(/ /g,'·')}"</span>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="pt-result">Result: "${result}"</div>
+  <div style="font-size:12px;font-family:var(--mono);color:var(--ink3);margin-top:.5rem">${step.note}</div>`;
+}
+function buildPTPanels() {
+  document.getElementById('pt-panels').innerHTML =
+    PT_STEPS.map((_, i) => `<div class="step-panel${i===0?' on':''}" id="ptsp${i}">${renderPTStep(i)}</div>`).join('');
+}
+function showPTStep(i, btn) {
+  document.querySelectorAll('#pt-panels .step-panel').forEach((p, j) => p.className = 'step-panel' + (j===i?' on':''));
+  document.querySelectorAll('#s4 .step-btn').forEach((b, j) => b.className = 'step-btn' + (j===i?' act':''));
+}
+buildPTPanels();
+
+/* ============ LIVE EDITOR ============ */
+(function() {
+  const initText = document.getElementById('pt-editor').value;
+  let orig = initText, added = '', pieces = [{ buf: 0, start: 0, len: orig.length }];
+
+  function rawBuf(p) { return p.buf === 0 ? orig : added; }
+  function pieceText(p) { return rawBuf(p).slice(p.start, p.start + p.len); }
+  function docText() { return pieces.map(pieceText).join(''); }
+
+  function rebuild(newText) {
+    const old = docText();
+    if (newText === old) return;
+    // Find common prefix and suffix
+    let lo = 0;
+    while (lo < old.length && lo < newText.length && old[lo] === newText[lo]) lo++;
+    let hi_old = old.length, hi_new = newText.length;
+    while (hi_old > lo && hi_new > lo && old[hi_old-1] === newText[hi_new-1]) { hi_old--; hi_new--; }
+    // Delete [lo, hi_old) from document, insert newText[lo, hi_new)
+    if (hi_old > lo) {
+      // delete
+      const end = hi_old;
+      const result = [];
+      let off = 0;
+      for (const p of pieces) {
+        const pS = off, pE = off + p.len;
+        if (pE <= lo || pS >= end) { result.push(p); }
+        else {
+          if (pS < lo) result.push({ ...p, len: lo - pS });
+          if (pE > end) result.push({ ...p, start: p.start + (end - pS), len: pE - end });
+        }
+        off += p.len;
+      }
+      pieces = result;
+    }
+    if (hi_new > lo) {
+      const ins = newText.slice(lo, hi_new);
+      const addStart = added.length; added += ins;
+      const np = { buf: 1, start: addStart, len: ins.length };
+      // find insert position `lo` in current pieces
+      let off = 0, inserted = false;
+      for (let i = 0; i < pieces.length; i++) {
+        const p = pieces[i];
+        if (lo <= off + p.len) {
+          const inOff = lo - off;
+          if (inOff === 0) pieces.splice(i, 0, np);
+          else pieces.splice(i, 1, { ...p, len: inOff }, np, { ...p, start: p.start + inOff, len: p.len - inOff });
+          inserted = true; break;
+        }
+        off += p.len;
+      }
+      if (!inserted) pieces.push(np);
+    }
+  }
+
+  function renderPieces() {
+    const html = pieces.slice(0, 12).map(p => {
+      const txt = pieceText(p).replace(/\n/g, '↵').replace(/ /g, '·');
+      const badge = p.buf === 0 ? '<span style="color:var(--blue);font-size:10px">ORIG</span>' : '<span style="color:var(--amber);font-size:10px">ADD</span>';
+      return `<div style="margin:2px 0">${badge} <span style="color:var(--ink3)">@${p.start}+${p.len}</span> <span style="color:var(--ink)">"${txt.slice(0,20)}${txt.length>20?'…':''}"</span></div>`;
+    }).join('') + (pieces.length > 12 ? `<div style="color:var(--ink3)">… +${pieces.length-12} more</div>` : '');
+    document.getElementById('pt-live-pieces').innerHTML = html;
+    document.getElementById('pt-live-stats').textContent =
+      `${pieces.length} piece${pieces.length!==1?'s':''} · ${added.length} chars in add buffer`;
+  }
+
+  document.getElementById('pt-editor').addEventListener('input', function() {
+    rebuild(this.value);
+    renderPieces();
+  });
+  renderPieces();
+})();
+</script>
+</body>
+</html>
