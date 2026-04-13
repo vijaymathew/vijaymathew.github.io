@@ -1,4 +1,4 @@
-# Chapter 3: Digital Typesetting Concepts
+# Digital Typesetting Concepts
 
 The transition from metal type to digital type was not simply a change of material. It was a change of *model*. A piece of metal type is a physical object with fixed dimensions. A digital typeface is a set of mathematical descriptions — outlines, metrics, instructions — that a rendering engine interprets to produce marks on a surface. The surface might be a screen, a laser printer, an inkjet printer, or an imagesetter producing film for a printing press. The same description serves all of them.
 
