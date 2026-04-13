@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Balanced Bookshelf — Self-Balancing Trees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f8f4ec;
+  --paper2:#efe7db;
+  --paper3:#e3d8c8;
+  --ink:#1f1a14;
+  --ink2:#5c5348;
+  --ink3:#978d80;
+  --rule:rgba(31,26,20,.10);
+  --rule2:rgba(31,26,20,.18);
+  --wood:#7a5430;
+  --wood-bg:#f5e7d7;
+  --green:#1d5e49;
+  --green-bg:#e5f4ee;
+  --blue:#2c5b8f;
+  --blue-bg:#e7eff8;
+  --red:#a33939;
+  --red-bg:#f8e8e8;
+  --purple:#5a3d84;
+  --purple-bg:#eee9f7;
+  --mono:'JetBrains Mono', monospace;
+  --sans:'Inter', sans-serif;
+  --serif:'Newsreader', serif;
+  --r:8px;
+  --r-lg:14px;
+  --shadow:0 18px 42px rgba(31,26,20,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#14110f;
+    --paper2:#1b1713;
+    --paper3:#262018;
+    --ink:#e8e1d6;
+    --ink2:#aea393;
+    --ink3:#6f665a;
+    --rule:rgba(232,225,214,.08);
+    --rule2:rgba(232,225,214,.15);
+    --wood:#ddb17b;
+    --wood-bg:#2a1d10;
+    --green:#7cc6ab;
+    --green-bg:#10251e;
+    --blue:#8db6ea;
+    --blue-bg:#102030;
+    --red:#e18484;
+    --red-bg:#2a1313;
+    --purple:#b7a0e5;
+    --purple-bg:#1e152b;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top left, rgba(122,84,48,.08), transparent 24rem),
+    linear-gradient(180deg, rgba(90,61,132,.03), transparent 18rem),
+    var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:860px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:1.2rem 0;
+  border-bottom:1px solid var(--rule);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--wood)}
+.hero{
+  padding:4.2rem 0 3.1rem;
+  border-bottom:1px solid var(--rule);
+}
+.hero-kicker{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--wood);
+  margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);
+  font-size:clamp(2.6rem,5.8vw,4rem);
+  font-weight:300;
+  line-height:1.06;
+  letter-spacing:-.01em;
+  max-width:12ch;
+  margin-bottom:1.2rem;
+}
+.hero h1 em{font-style:italic;color:var(--purple)}
+.hero p{
+  max-width:42rem;
+  font-size:17px;
+  line-height:1.75;
+  color:var(--ink2);
+  margin-bottom:1.5rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 11px;
+  border-radius:999px;
+  background:var(--paper2);
+  border:1px solid var(--rule2);
+  color:var(--ink2);
+  font-family:var(--mono);
+  font-size:11px;
+}
+.pill b{color:var(--wood);font-weight:500}
+.toc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin:2.6rem 0 3.4rem;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.toc a{
+  display:flex;
+  gap:10px;
+  padding:11px 14px;
+  background:var(--paper2);
+  color:var(--ink2);
+  text-decoration:none;
+  font-size:14px;
+  transition:background .12s,color .12s;
+}
+.toc a:hover{background:var(--paper3);color:var(--ink)}
+.toc-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  min-width:16px;
+  padding-top:1px;
+}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  border-bottom:1px solid var(--rule);
+  padding-bottom:.9rem;
+  margin-bottom:1.35rem;
+}
+.sec-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
+h2{
+  font-family:var(--serif);
+  font-size:1.9rem;
+  font-weight:300;
+  line-height:1.14;
+}
+h3{
+  font-family:var(--serif);
+  font-size:1.06rem;
+  font-weight:500;
+  margin:1.4rem 0 .5rem;
+}
+p{
+  font-size:15.5px;
+  line-height:1.8;
+  color:var(--ink2);
+  margin-bottom:.95rem;
+}
+p strong{color:var(--ink);font-weight:500}
+a{color:var(--blue)}
+code{
+  font-family:var(--mono);
+  font-size:12.5px;
+  background:var(--paper3);
+  border:1px solid var(--rule2);
+  border-radius:4px;
+  padding:1px 5px;
+  color:var(--ink);
+}
+.callout{
+  border-left:3px solid var(--wood);
+  background:var(--wood-bg);
+  color:var(--wood);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.8rem 1.05rem;
+  margin:1.15rem 0;
+  font-size:14px;
+  line-height:1.7;
+}
+.callout.info{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.demo,.cb{
+  background:var(--paper2);
+  border:1px solid var(--rule2);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow);
+  margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.9rem}
+.btn{
+  border:1px solid var(--rule2);
+  border-radius:var(--r);
+  background:transparent;
+  color:var(--ink2);
+  padding:5px 11px;
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.btn:hover{background:var(--paper3);color:var(--ink)}
+.btn.act{background:var(--wood-bg);color:var(--wood);border-color:rgba(122,84,48,.28)}
+.preview{
+  background:var(--paper);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.85rem .95rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.75;
+  color:var(--ink);
+  white-space:pre-wrap;
+  overflow:auto;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.stat{
+  background:var(--paper);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.75rem .85rem;
+}
+.stat-k{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  margin-bottom:.28rem;
+}
+.stat-v{
+  font-size:1.3rem;
+  line-height:1.1;
+  color:var(--ink);
+}
+.stat-v small{font-size:.72rem;color:var(--ink3)}
+.shelves{display:grid;gap:8px;margin-top:1rem}
+.shelf-row{
+  display:flex;
+  gap:8px;
+  align-items:flex-end;
+  min-height:36px;
+  padding-bottom:6px;
+  border-bottom:2px solid rgba(122,84,48,.24);
+}
+.book{
+  min-width:32px;
+  height:32px;
+  border-radius:5px 5px 3px 3px;
+  background:linear-gradient(180deg,var(--wood-bg),rgba(122,84,48,.22));
+  border:1px solid rgba(122,84,48,.26);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--wood);
+}
+.book.root{background:var(--purple-bg);border-color:rgba(90,61,132,.28);color:var(--purple)}
+.book.leaf{background:var(--green-bg);border-color:rgba(29,94,73,.24);color:var(--green)}
+.tree-grid{
+  display:grid;
+  gap:12px;
+}
+.tree-level{
+  display:grid;
+  gap:10px;
+}
+.tree-level.l1{grid-template-columns:1fr}
+.tree-level.l2{grid-template-columns:1fr 1fr}
+.tree-level.l3{grid-template-columns:repeat(4,1fr)}
+.node{
+  min-height:48px;
+  border-radius:8px;
+  border:1px solid var(--rule2);
+  background:var(--paper);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink);
+}
+.node.empty{opacity:.18}
+.node .bf{font-size:10px;color:var(--ink3)}
+.step-note{
+  margin-top:.9rem;
+  padding:.8rem .9rem;
+  border-radius:var(--r);
+  background:var(--paper);
+  border:1px solid var(--rule);
+  font-size:13px;
+  line-height:1.7;
+  color:var(--ink2);
+}
+.compare-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:.9rem;
+}
+.card{
+  background:var(--paper);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.9rem;
+}
+.card h4{
+  font-family:var(--mono);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:var(--ink3);
+  margin-bottom:.45rem;
+}
+.card .big{
+  font-size:1.15rem;
+  color:var(--ink);
+  margin-bottom:.35rem;
+}
+.card p{
+  font-size:13px;
+  line-height:1.7;
+  margin:0;
+}
+.table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  margin-top:.9rem;
+}
+.table th{
+  text-align:left;
+  padding:0 0 .45rem;
+  border-bottom:1px solid var(--rule2);
+  color:var(--ink3);
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.table td{
+  padding:.55rem 0;
+  border-bottom:1px solid var(--rule);
+  color:var(--ink2);
+  vertical-align:top;
+}
+.table td.key{color:var(--ink)}
+.decision{
+  margin-top:1rem;
+  background:var(--paper);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.95rem;
+}
+.decision h4{
+  font-family:var(--mono);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:var(--ink3);
+  margin-bottom:.4rem;
+}
+.decision .title{
+  font-size:1.15rem;
+  color:var(--ink);
+  margin-bottom:.3rem;
+}
+.decision p{margin:0;font-size:13px;line-height:1.7}
+.cb{overflow:hidden}
+.cb-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:8px 14px;
+  background:var(--paper3);
+  border-bottom:1px solid var(--rule2);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink3);
+}
+.run-btn{
+  border:none;
+  background:var(--ink);
+  color:var(--paper);
+  border-radius:5px;
+  padding:4px 10px;
+  font-family:var(--mono);
+  font-size:11px;
+  cursor:pointer;
+}
+.run-btn:hover{opacity:.82}
+pre.code{
+  margin:0;
+  padding:1.1rem 1.3rem;
+  background:var(--paper2);
+  overflow:auto;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--ink);
+}
+.out{
+  display:none;
+  background:var(--green-bg);
+  border-top:1px solid var(--rule2);
+  padding:.8rem 1.3rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--green);
+  white-space:pre-wrap;
+}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.footer{
+  border-top:1px solid var(--rule);
+  padding-top:1.8rem;
+  margin-top:1rem;
+}
+.footer-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.3rem;
+}
+.footer-links a{
+  font-size:14px;
+  color:var(--ink2);
+  text-decoration:none;
+}
+.footer-links a:hover{color:var(--wood)}
+@media (max-width:760px){
+  .toc,.stat-grid,.compare-grid{grid-template-columns:1fr}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Interactive explainer</div>
+    <h1>The <em>Balanced Bookshelf</em> — Self-Balancing Trees</h1>
+    <p>How do you keep a dictionary fast when keys arrive in arbitrary order? A plain binary search tree can collapse into a linked list. Self-balancing trees repair that drift with tiny local rewrites, so lookup, insertion, and ordered traversal stay fast even under hostile insertion orders.</p>
+    <div class="pill-row">
+      <span class="pill"><b>AVL</b> strict balance</span>
+      <span class="pill"><b>Red-black</b> practical balance</span>
+      <span class="pill"><b>Ordered map</b> in JavaScript</span>
+      <span class="pill">Runnable code</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>The problem: keeping inserts fast</a>
+    <a href="#s2"><span class="toc-n">02</span>AVL rotations from first principles</a>
+    <a href="#s3"><span class="toc-n">03</span>Why red-black trees win in practice</a>
+    <a href="#s4"><span class="toc-n">04</span>Balanced tree vs hash table</a>
+    <a href="#s5"><span class="toc-n">05</span>A generic ordered map in JavaScript</a>
+    <a href="#s6"><span class="toc-n">06</span>Further reading</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: keeping inserts fast</h2></div>
+    <p>A binary search tree looks ideal on paper: go left for smaller keys, right for larger ones, and every step discards half the remaining search space. But that only holds when the tree stays roughly balanced.</p>
+    <p>If keys arrive in sorted order, a plain BST keeps inserting to the same side. The tree stops looking like a branching structure and starts looking like a spine. Search time drifts from <code>O(log n)</code> toward <code>O(n)</code>.</p>
+    <div class="callout">The core problem is not lookup logic. It is <strong>shape maintenance</strong>. A self-balancing tree is a dictionary that refuses to let its bookshelf tip over.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Same keys, different insertion orders, very different shapes</div>
+      <div class="btn-row" id="shape-buttons">
+        <button class="btn act" data-shape="sorted" onclick="setShapeMode('sorted')">Sorted inserts</button>
+        <button class="btn" data-shape="random" onclick="setShapeMode('random')">Random-ish inserts</button>
+        <button class="btn" data-shape="median" onclick="setShapeMode('median')">Median-first inserts</button>
+      </div>
+      <div class="preview" id="shape-seq"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Keys</div><div class="stat-v" id="shape-count">0</div></div>
+        <div class="stat"><div class="stat-k">BST height</div><div class="stat-v" id="shape-height">0</div></div>
+        <div class="stat"><div class="stat-k">Ideal height</div><div class="stat-v" id="shape-ideal">0</div></div>
+        <div class="stat"><div class="stat-k">Lookup mood</div><div class="stat-v" id="shape-mood">—</div></div>
+      </div>
+      <div class="shelves" id="shape-shelves"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>AVL rotations from first principles</h2></div>
+    <p>An AVL tree stores one extra piece of local information: each node knows the height of its left and right subtrees. Their difference is the <strong>balance factor</strong>. If that factor ever leaves the range <code>-1..1</code>, the tree repairs itself with a rotation.</p>
+    <p>The important idea is that rotations are not magic. They preserve the in-order ordering of keys while changing the shape of the tree. The logic falls directly out of “which side got too tall?” and “did the child lean the same way or the opposite way?”</p>
+    <div class="callout good">Single rotation if parent and child lean the same way. Double rotation if they lean in opposite directions.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Walk through the four AVL imbalance cases</div>
+      <div class="btn-row" id="avl-case-buttons">
+        <button class="btn act" data-case="LL" onclick="setAVLCase('LL')">LL</button>
+        <button class="btn" data-case="LR" onclick="setAVLCase('LR')">LR</button>
+        <button class="btn" data-case="RL" onclick="setAVLCase('RL')">RL</button>
+        <button class="btn" data-case="RR" onclick="setAVLCase('RR')">RR</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="stepAVL(-1)">Prev</button>
+        <button class="btn" onclick="stepAVL(1)">Next</button>
+      </div>
+      <div class="preview" id="avl-seq"></div>
+      <div class="tree-grid" id="avl-tree"></div>
+      <div class="step-note" id="avl-note"></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>avl_insert.js — insertion and rotations in a minimal AVL tree</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Why red-black trees win in practice</h2></div>
+    <p>Red-black trees encode a looser balance rule. Instead of exact height differences, they color each node red or black and enforce a handful of invariants: no red node may have a red child, and every root-to-leaf path must contain the same number of black nodes.</p>
+    <p>That is harder to explain than AVL, but easier to live with in many production systems. The tree is not as tightly balanced, yet updates usually perform fewer structural repairs. Searches remain logarithmic, and the looser discipline often wins on implementation cost and mutation throughput.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Tradeoffs by workload</div>
+      <div class="btn-row" id="trade-buttons">
+        <button class="btn act" data-trade="reads" onclick="setTradeMode('reads')">Read-heavy</button>
+        <button class="btn" data-trade="mixed" onclick="setTradeMode('mixed')">Mixed</button>
+        <button class="btn" data-trade="writes" onclick="setTradeMode('writes')">Write-heavy</button>
+        <button class="btn" data-trade="stdlib" onclick="setTradeMode('stdlib')">Standard library</button>
+      </div>
+      <div class="compare-grid">
+        <div class="card">
+          <h4>AVL</h4>
+          <div class="big" id="trade-avl">—</div>
+          <p id="trade-avl-note"></p>
+        </div>
+        <div class="card">
+          <h4>Red-Black</h4>
+          <div class="big" id="trade-rb">—</div>
+          <p id="trade-rb-note"></p>
+        </div>
+        <div class="card">
+          <h4>Why</h4>
+          <div class="big" id="trade-why">—</div>
+          <p id="trade-why-note"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">Many standard ordered maps and sets choose red-black trees not because AVL is bad, but because red-black trees are a strong compromise: simpler metadata, bounded height, and fewer rotations during updates.</div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>Balanced tree vs hash table</h2></div>
+    <p>Hash tables are the right default when all you need is exact key lookup. But the moment you care about order, a balanced tree starts doing things a hash table fundamentally does not want to do: range scans, predecessor/successor queries, sorted iteration, and stable worst-case behavior.</p>
+    <table class="table">
+      <thead>
+        <tr><th>Need</th><th>Hash Table</th><th>Balanced Tree</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="key">Exact lookup</td><td>Usually faster average case</td><td>Still <code>O(log n)</code></td></tr>
+        <tr><td class="key">Ordered iteration</td><td>No natural order</td><td>Built in</td></tr>
+        <tr><td class="key">Range query</td><td>Scan everything</td><td>Start at lower bound, walk in order</td></tr>
+        <tr><td class="key">Floor / ceiling</td><td>Not meaningful</td><td>Natural operation</td></tr>
+        <tr><td class="key">Worst-case lookup</td><td>Depends on hashing and collision strategy</td><td>Guaranteed logarithmic height</td></tr>
+      </tbody>
+    </table>
+
+    <div class="demo">
+      <div class="demo-lbl">Choose the job, then choose the structure</div>
+      <div class="btn-row" id="decision-buttons">
+        <button class="btn act" data-decision="cache" onclick="setDecision('cache')">Request cache</button>
+        <button class="btn" data-decision="leaderboard" onclick="setDecision('leaderboard')">Leaderboard</button>
+        <button class="btn" data-decision="autocomplete" onclick="setDecision('autocomplete')">Autocomplete range</button>
+        <button class="btn" data-decision="scheduler" onclick="setDecision('scheduler')">Next scheduled job</button>
+      </div>
+      <div class="decision">
+        <h4>Recommendation</h4>
+        <div class="title" id="decision-title">—</div>
+        <p id="decision-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>A generic ordered map in JavaScript</h2></div>
+    <p>The implementation below uses AVL balancing to keep the code compact while still supporting the operations that make trees worth reaching for: exact lookup, insertion, deletion, ordered iteration, floor/ceiling, and range queries. The map is generic because you can supply a comparator.</p>
+
+    <div class="cb">
+      <div class="cb-head"><span>ordered_map.js — generic ordered map backed by an AVL tree</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section footer" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Further reading</h2></div>
+    <p>The exact balancing scheme varies, but the central idea is the same: preserve search order while preventing height from drifting upward.</p>
+    <div class="footer-links">
+      <a href="https://dl.acm.org/doi/10.1145/321105.321107">Adelson-Velskii and Landis (1962) — the AVL paper</a>
+      <a href="https://dl.acm.org/doi/10.1145/359460.359478">Guibas and Sedgewick (1978) — a dichromatic framework for balanced trees</a>
+      <a href="https://www.kernel.org/doc/html/latest/core-api/rbtree.html">Linux kernel red-black tree docs</a>
+    </div>
+  </section>
+</div>
+
+<script>
+const SHAPE_SEQUENCES = {
+  sorted: [1,2,3,4,5,6,7,8,9],
+  random: [5,2,8,1,3,7,9,4,6],
+  median: [5,3,7,2,4,6,8,1,9]
+};
+
+const AVL_CASES = {
+  LL: {
+    insertions: [30,20,10],
+    steps: [
+      { note: "Insert 30, then 20, then 10. Node 30 becomes left-heavy, and its left child 20 leans left too. Parent and child lean the same way.", tree: {v:30,bf:+2,l:{v:20,bf:+1,l:{v:10,bf:0}},r:null} },
+      { note: "Perform one right rotation at 30. The middle key 20 rises, and the in-order order 10 < 20 < 30 is preserved.", tree: {v:20,bf:0,l:{v:10,bf:0},r:{v:30,bf:0}} }
+    ]
+  },
+  LR: {
+    insertions: [30,10,20],
+    steps: [
+      { note: "Insert 30, then 10, then 20. Node 30 is left-heavy, but child 10 leans right. Parent and child disagree, so one rotation is not enough.", tree: {v:30,bf:+2,l:{v:10,bf:-1,r:{v:20,bf:0}},r:null} },
+      { note: "First rotate left at child 10. This converts the zig-zag into a straight LL shape.", tree: {v:30,bf:+2,l:{v:20,bf:+1,l:{v:10,bf:0}},r:null} },
+      { note: "Then rotate right at 30. The median key 20 becomes the new root of the repaired subtree.", tree: {v:20,bf:0,l:{v:10,bf:0},r:{v:30,bf:0}} }
+    ]
+  },
+  RL: {
+    insertions: [10,30,20],
+    steps: [
+      { note: "This is the mirror image: 10 becomes right-heavy, and child 30 leans left.", tree: {v:10,bf:-2,l:null,r:{v:30,bf:+1,l:{v:20,bf:0}}} },
+      { note: "Rotate right at child 30 to straighten the zig-zag.", tree: {v:10,bf:-2,l:null,r:{v:20,bf:-1,r:{v:30,bf:0}}} },
+      { note: "Then rotate left at 10. Again, the median key 20 rises into the middle.", tree: {v:20,bf:0,l:{v:10,bf:0},r:{v:30,bf:0}} }
+    ]
+  },
+  RR: {
+    insertions: [10,20,30],
+    steps: [
+      { note: "Insert 10, then 20, then 30. Node 10 becomes right-heavy, and child 20 leans right too.", tree: {v:10,bf:-2,l:null,r:{v:20,bf:-1,r:{v:30,bf:0}}} },
+      { note: "One left rotation at 10 restores balance while preserving sorted order.", tree: {v:20,bf:0,l:{v:10,bf:0},r:{v:30,bf:0}} }
+    ]
+  }
+};
+
+const TRADE_MODES = {
+  reads: {
+    avl: "Slight edge",
+    avlNote: "AVL keeps the tree more tightly balanced, so worst-case lookups tend to be a bit shallower.",
+    rb: "Still strong",
+    rbNote: "Lookup remains logarithmic, just with a looser height bound.",
+    why: "Choose AVL",
+    whyNote: "If read latency dominates and updates are modest, AVL's stricter balance can pay off."
+  },
+  mixed: {
+    avl: "Good",
+    avlNote: "Still an excellent general-purpose ordered map.",
+    rb: "Often preferred",
+    rbNote: "Fewer rotations on updates and a small metadata footprint make it a standard practical choice.",
+    why: "Choose red-black",
+    whyNote: "For mixed workloads, the looser balancing rule is often the better engineering tradeoff."
+  },
+  writes: {
+    avl: "More repair work",
+    avlNote: "Insertions and deletions may trigger more rotations because AVL insists on tighter shape control.",
+    rb: "Better fit",
+    rbNote: "Red-black trees usually mutate with less restructuring while keeping logarithmic height.",
+    why: "Choose red-black",
+    whyNote: "If mutation volume is high, red-black trees are commonly preferred."
+  },
+  stdlib: {
+    avl: "Clearer to teach",
+    avlNote: "The invariant is local and intuitive: keep every node's balance factor in range.",
+    rb: "Clearer to ship",
+    rbNote: "Many standard libraries use red-black trees because they offer a durable balance of cost, complexity, and performance.",
+    why: "Teach AVL, ship RB",
+    whyNote: "AVL is often easier to derive; red-black is often easier to justify in production containers."
+  }
+};
+
+const DECISIONS = {
+  cache: {
+    title: "Reach for a hash table",
+    note: "Request caches usually care about exact key lookup and mutation speed, not sorted traversal. A balanced tree adds ordering machinery you probably will not use."
+  },
+  leaderboard: {
+    title: "Reach for a balanced tree",
+    note: "Leaderboards want ordered iteration, top-N slices, and predecessor/successor queries. That is exactly the terrain where trees earn their keep."
+  },
+  autocomplete: {
+    title: "Reach for a balanced tree",
+    note: "Autocomplete often needs a lower bound like 'first key with this prefix' and then an ordered walk through nearby keys. Hashing does not help with that."
+  },
+  scheduler: {
+    title: "Reach for a balanced tree",
+    note: "If you repeatedly ask for the next smallest timestamp, a tree gives you ordered minima and nearby navigation naturally."
+  }
+};
+
+const CODE_SNIPPETS = {
+  c1: String.raw`class Node {
+  constructor(key) {
+    this.key = key;
+    this.left = null;
+    this.right = null;
+    this.height = 1;
+  }
+}
+
+const height = node => node ? node.height : 0;
+const update = node => {
+  node.height = 1 + Math.max(height(node.left), height(node.right));
+  return node;
+};
+const balanceFactor = node => height(node.left) - height(node.right);
+
+function rotateRight(y) {
+  const x = y.left;
+  const t2 = x.right;
+  x.right = y;
+  y.left = t2;
+  update(y);
+  return update(x);
+}
+
+function rotateLeft(x) {
+  const y = x.right;
+  const t2 = y.left;
+  y.left = x;
+  x.right = t2;
+  update(x);
+  return update(y);
+}
+
+function rebalance(node) {
+  update(node);
+  const bf = balanceFactor(node);
+
+  if (bf > 1) {
+    if (balanceFactor(node.left) < 0) node.left = rotateLeft(node.left);
+    return rotateRight(node);
+  }
+  if (bf < -1) {
+    if (balanceFactor(node.right) > 0) node.right = rotateRight(node.right);
+    return rotateLeft(node);
+  }
+  return node;
+}
+
+function insert(node, key) {
+  if (!node) return new Node(key);
+  if (key < node.key) node.left = insert(node.left, key);
+  else if (key > node.key) node.right = insert(node.right, key);
+  else return node;
+  return rebalance(node);
+}
+
+function levelOrder(root) {
+  if (!root) return [];
+  const out = [];
+  const q = [[root, 0]];
+  while (q.length) {
+    const [node, depth] = q.shift();
+    if (!out[depth]) out[depth] = [];
+    out[depth].push(node.key);
+    if (node.left) q.push([node.left, depth + 1]);
+    if (node.right) q.push([node.right, depth + 1]);
+  }
+  return out;
+}
+
+let root = null;
+for (const key of [30, 10, 20, 40, 50, 25]) root = insert(root, key);
+console.log("root:", root.key);
+console.log("height:", root.height);
+console.log("levels:", JSON.stringify(levelOrder(root)));
+console.log("balance(root):", balanceFactor(root));`,
+  c2: String.raw`class OrderedMapNode {
+  constructor(key, value) {
+    this.key = key;
+    this.value = value;
+    this.left = null;
+    this.right = null;
+    this.height = 1;
+  }
+}
+
+const defaultCompare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+
+class OrderedMap {
+  constructor(compare = defaultCompare) {
+    this.compare = compare;
+    this.root = null;
+    this.size = 0;
+  }
+
+  _height(node) { return node ? node.height : 0; }
+  _update(node) {
+    node.height = 1 + Math.max(this._height(node.left), this._height(node.right));
+    return node;
+  }
+  _bf(node) { return this._height(node.left) - this._height(node.right); }
+
+  _rotateRight(y) {
+    const x = y.left;
+    const t2 = x.right;
+    x.right = y;
+    y.left = t2;
+    this._update(y);
+    return this._update(x);
+  }
+
+  _rotateLeft(x) {
+    const y = x.right;
+    const t2 = y.left;
+    y.left = x;
+    x.right = t2;
+    this._update(x);
+    return this._update(y);
+  }
+
+  _rebalance(node) {
+    if (!node) return null;
+    this._update(node);
+    const bf = this._bf(node);
+    if (bf > 1) {
+      if (this._bf(node.left) < 0) node.left = this._rotateLeft(node.left);
+      return this._rotateRight(node);
+    }
+    if (bf < -1) {
+      if (this._bf(node.right) > 0) node.right = this._rotateRight(node.right);
+      return this._rotateLeft(node);
+    }
+    return node;
+  }
+
+  _set(node, key, value) {
+    if (!node) {
+      this.size++;
+      return new OrderedMapNode(key, value);
+    }
+    const cmp = this.compare(key, node.key);
+    if (cmp < 0) node.left = this._set(node.left, key, value);
+    else if (cmp > 0) node.right = this._set(node.right, key, value);
+    else node.value = value;
+    return this._rebalance(node);
+  }
+
+  set(key, value) {
+    this.root = this._set(this.root, key, value);
+    return this;
+  }
+
+  _findNode(key) {
+    let node = this.root;
+    while (node) {
+      const cmp = this.compare(key, node.key);
+      if (cmp === 0) return node;
+      node = cmp < 0 ? node.left : node.right;
+    }
+    return null;
+  }
+
+  get(key) {
+    const node = this._findNode(key);
+    return node ? node.value : undefined;
+  }
+
+  has(key) {
+    return this._findNode(key) !== null;
+  }
+
+  _minNode(node) {
+    while (node && node.left) node = node.left;
+    return node;
+  }
+
+  _deleteMin(node) {
+    if (!node.left) return node.right;
+    node.left = this._deleteMin(node.left);
+    return this._rebalance(node);
+  }
+
+  _delete(node, key) {
+    if (!node) return null;
+    const cmp = this.compare(key, node.key);
+    if (cmp < 0) node.left = this._delete(node.left, key);
+    else if (cmp > 0) node.right = this._delete(node.right, key);
+    else {
+      this.size--;
+      if (!node.left || !node.right) return node.left || node.right;
+      const succ = this._minNode(node.right);
+      node.key = succ.key;
+      node.value = succ.value;
+      node.right = this._deleteMin(node.right);
+    }
+    return this._rebalance(node);
+  }
+
+  delete(key) {
+    if (!this.has(key)) return false;
+    this.root = this._delete(this.root, key);
+    return true;
+  }
+
+  minEntry() {
+    const node = this._minNode(this.root);
+    return node ? [node.key, node.value] : null;
+  }
+
+  maxEntry() {
+    let node = this.root;
+    while (node && node.right) node = node.right;
+    return node ? [node.key, node.value] : null;
+  }
+
+  floorEntry(key) {
+    let node = this.root;
+    let best = null;
+    while (node) {
+      const cmp = this.compare(key, node.key);
+      if (cmp === 0) return [node.key, node.value];
+      if (cmp < 0) node = node.left;
+      else { best = [node.key, node.value]; node = node.right; }
+    }
+    return best;
+  }
+
+  ceilingEntry(key) {
+    let node = this.root;
+    let best = null;
+    while (node) {
+      const cmp = this.compare(key, node.key);
+      if (cmp === 0) return [node.key, node.value];
+      if (cmp > 0) node = node.right;
+      else { best = [node.key, node.value]; node = node.left; }
+    }
+    return best;
+  }
+
+  *entries() {
+    function* walk(node) {
+      if (!node) return;
+      yield* walk(node.left);
+      yield [node.key, node.value];
+      yield* walk(node.right);
+    }
+    yield* walk(this.root);
+  }
+
+  range(from, to) {
+    const out = [];
+    for (const [key, value] of this.entries()) {
+      if (this.compare(key, from) < 0) continue;
+      if (this.compare(key, to) > 0) break;
+      out.push([key, value]);
+    }
+    return out;
+  }
+}
+
+const scores = new OrderedMap();
+scores.set(42, "violet");
+scores.set(17, "amber");
+scores.set(88, "teal");
+scores.set(64, "blue");
+scores.set(17, "gold");
+
+console.log("size:", scores.size);
+console.log("entries:", JSON.stringify(Array.from(scores.entries())));
+console.log("get(64):", scores.get(64));
+console.log("floor(50):", JSON.stringify(scores.floorEntry(50)));
+console.log("ceiling(50):", JSON.stringify(scores.ceilingEntry(50)));
+console.log("range 20..80:", JSON.stringify(scores.range(20, 80)));
+scores.delete(42);
+console.log("after delete:", JSON.stringify(Array.from(scores.entries())));`
+};
+
+const state = {
+  shapeMode: "sorted",
+  avlCase: "LL",
+  avlStep: 0,
+  tradeMode: "reads",
+  decision: "cache"
+};
+
+function bstInsert(node, key) {
+  if (!node) return { key, left: null, right: null };
+  if (key < node.key) node.left = bstInsert(node.left, key);
+  else if (key > node.key) node.right = bstInsert(node.right, key);
+  return node;
+}
+
+function buildBST(seq) {
+  let root = null;
+  for (const key of seq) root = bstInsert(root, key);
+  return root;
+}
+
+function treeHeight(node) {
+  if (!node) return 0;
+  return 1 + Math.max(treeHeight(node.left), treeHeight(node.right));
+}
+
+function levels(node) {
+  if (!node) return [];
+  const out = [];
+  const q = [[node, 0]];
+  while (q.length) {
+    const [cur, depth] = q.shift();
+    if (!out[depth]) out[depth] = [];
+    out[depth].push(cur.key);
+    if (cur.left) q.push([cur.left, depth + 1]);
+    if (cur.right) q.push([cur.right, depth + 1]);
+  }
+  return out;
+}
+
+function setShapeMode(mode) {
+  state.shapeMode = mode;
+  document.querySelectorAll("#shape-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.shape === mode);
+  });
+  renderShapeDemo();
+}
+
+function renderShapeDemo() {
+  const seq = SHAPE_SEQUENCES[state.shapeMode];
+  const root = buildBST(seq);
+  const h = treeHeight(root);
+  const ideal = Math.ceil(Math.log2(seq.length + 1));
+  document.getElementById("shape-seq").textContent = "Insertion order: " + seq.join(", ");
+  document.getElementById("shape-count").textContent = seq.length;
+  document.getElementById("shape-height").textContent = h;
+  document.getElementById("shape-ideal").textContent = ideal;
+  document.getElementById("shape-mood").textContent =
+    h >= seq.length - 1 ? "Spine" :
+    h > ideal + 1 ? "Leaning" :
+    "Healthy";
+
+  const rows = levels(root).map((row, depth) => {
+    return '<div class="shelf-row">' + row.map((key, i) => {
+      let cls = "book";
+      if (depth === 0) cls += " root";
+      else if (depth === levels(root).length - 1) cls += " leaf";
+      return '<div class="' + cls + '">' + key + '</div>';
+    }).join("") + '</div>';
+  }).join("");
+  document.getElementById("shape-shelves").innerHTML = rows;
+}
+
+function getNodeAt(tree, path) {
+  let node = tree;
+  for (const dir of path) node = node ? node[dir] : null;
+  return node;
+}
+
+function renderMiniTree(tree) {
+  const paths = [
+    ["", []],
+    ["l", ["l"]],
+    ["r", ["r"]],
+    ["ll", ["l","l"]],
+    ["lr", ["l","r"]],
+    ["rl", ["r","l"]],
+    ["rr", ["r","r"]]
+  ];
+  const items = paths.map(([name, path]) => getNodeAt(tree, path));
+  const renderNode = node => node
+    ? '<div class="node"><div>' + node.v + '</div><div class="bf">bf ' + (node.bf > 0 ? "+" + node.bf : node.bf) + '</div></div>'
+    : '<div class="node empty"></div>';
+  return '' +
+    '<div class="tree-level l1">' + renderNode(items[0]) + '</div>' +
+    '<div class="tree-level l2">' + renderNode(items[1]) + renderNode(items[2]) + '</div>' +
+    '<div class="tree-level l3">' + renderNode(items[3]) + renderNode(items[4]) + renderNode(items[5]) + renderNode(items[6]) + '</div>';
+}
+
+function setAVLCase(name) {
+  state.avlCase = name;
+  state.avlStep = 0;
+  document.querySelectorAll("#avl-case-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.case === name);
+  });
+  renderAVLDemo();
+}
+
+function stepAVL(delta) {
+  const steps = AVL_CASES[state.avlCase].steps;
+  state.avlStep = Math.max(0, Math.min(steps.length - 1, state.avlStep + delta));
+  renderAVLDemo();
+}
+
+function renderAVLDemo() {
+  const current = AVL_CASES[state.avlCase];
+  const step = current.steps[state.avlStep];
+  document.getElementById("avl-seq").textContent =
+    state.avlCase + " case from inserts: " + current.insertions.join(", ") +
+    "  |  step " + (state.avlStep + 1) + " of " + current.steps.length;
+  document.getElementById("avl-tree").innerHTML = renderMiniTree(step.tree);
+  document.getElementById("avl-note").textContent = step.note;
+}
+
+function setTradeMode(mode) {
+  state.tradeMode = mode;
+  document.querySelectorAll("#trade-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.trade === mode);
+  });
+  renderTrade();
+}
+
+function renderTrade() {
+  const t = TRADE_MODES[state.tradeMode];
+  document.getElementById("trade-avl").textContent = t.avl;
+  document.getElementById("trade-avl-note").textContent = t.avlNote;
+  document.getElementById("trade-rb").textContent = t.rb;
+  document.getElementById("trade-rb-note").textContent = t.rbNote;
+  document.getElementById("trade-why").textContent = t.why;
+  document.getElementById("trade-why-note").textContent = t.whyNote;
+}
+
+function setDecision(name) {
+  state.decision = name;
+  document.querySelectorAll("#decision-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.decision === name);
+  });
+  renderDecision();
+}
+
+function renderDecision() {
+  const d = DECISIONS[state.decision];
+  document.getElementById("decision-title").textContent = d.title;
+  document.getElementById("decision-note").textContent = d.note;
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(formatValue).join(" ")),
+    error: (...args) => lines.push(args.map(formatValue).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function formatValue(v) {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+}
+
+initCodeBlocks();
+setShapeMode("sorted");
+setAVLCase("LL");
+setTradeMode("reads");
+setDecision("cache");
+</script>
+</body>
+</html>
