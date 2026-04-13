@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Filesystems Use B-Trees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f5f0;
+  --bg2: #edeae2;
+  --bg3: #e3dfd6;
+  --bg4: #d6d1c6;
+  --surface: #ffffff;
+  --border: rgba(0,0,0,0.09);
+  --border2: rgba(0,0,0,0.16);
+  --text: #1c1a16;
+  --text2: #5a5650;
+  --text3: #9a968e;
+  --accent: #2d6a4f;
+  --accent-bg: #d8ede4;
+  --accent-border: #74c69d;
+  --blue: #1a4f7a;
+  --blue-bg: #dceaf5;
+  --amber: #7a4a10;
+  --amber-bg: #faecd0;
+  --red: #8b2020;
+  --red-bg: #fbe8e8;
+  --purple: #4a2d7a;
+  --purple-bg: #eae4f5;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --serif: 'Instrument Serif', serif;
+  --r: 8px;
+  --r-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111210;
+    --bg2: #191917;
+    --bg3: #202020;
+    --bg4: #2a2a28;
+    --surface: #1a1a18;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8e4dc;
+    --text2: #9a968e;
+    --text3: #5a5650;
+    --accent: #52b788;
+    --accent-bg: #0d2a1e;
+    --accent-border: #2d6a4f;
+    --blue: #74afd4;
+    --blue-bg: #0d2236;
+    --amber: #d4a85a;
+    --amber-bg: #241a06;
+    --red: #d47474;
+    --red-bg: #240e0e;
+    --purple: #a48ad4;
+    --purple-bg: #1a1226;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1}
+
+.page{max-width:840px;margin:0 auto;padding:0 1.75rem 6rem}
+
+/* HERO */
+.hero{padding:5rem 0 3.5rem;border-bottom:1px solid var(--border)}
+.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:1.2rem}
+.hero h1{font-family:var(--serif);font-size:clamp(2.4rem,5.5vw,3.6rem);font-weight:400;line-height:1.1;color:var(--text);margin-bottom:1.1rem}
+.hero h1 em{font-style:italic;color:var(--accent)}
+.hero-sub{font-size:16px;line-height:1.7;color:var(--text2);max-width:520px;margin-bottom:1.8rem}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:20px;background:var(--bg2);border:1px solid var(--border2);color:var(--text3)}
+.pill b{color:var(--accent);font-weight:500}
+
+/* TOC */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin:2.5rem 0 3.5rem}
+.toc a{display:flex;gap:10px;padding:10px 14px;background:var(--surface);text-decoration:none;font-size:14px;color:var(--text2);transition:background .12s,color .12s}
+.toc a:hover{background:var(--bg2);color:var(--text)}
+.toc-n{font-family:var(--mono);font-size:11px;color:var(--text3);padding-top:1px;min-width:16px}
+
+/* SECTION */
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.9rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+.sec-n{font-family:var(--mono);font-size:11px;color:var(--text3)}
+h2{font-family:var(--serif);font-size:1.9rem;font-weight:400;color:var(--text);line-height:1.15}
+h3{font-size:15px;font-weight:500;color:var(--text);margin:1.4rem 0 .5rem}
+p{font-size:15px;line-height:1.78;color:var(--text2);margin-bottom:.95rem}
+p strong{color:var(--text);font-weight:500}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--accent)}
+
+/* CALLOUT */
+.callout{border-left:3px solid var(--accent-border);background:var(--accent-bg);border-radius:0 var(--r) var(--r) 0;padding:.8rem 1.1rem;margin:1.1rem 0;font-size:14.5px;line-height:1.7;color:var(--accent)}
+.callout.warn{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.callout.info{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+
+/* CODE BLOCKS */
+.cb{border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin:1.2rem 0 1.8rem}
+.cb-head{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--text3)}
+.run-btn{background:var(--accent);color:var(--surface);border:none;border-radius:5px;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 10px;cursor:pointer;letter-spacing:.03em;transition:opacity .12s}
+.run-btn:hover{opacity:.82}
+pre.code{background:var(--surface);padding:1.1rem 1.3rem;font-family:var(--mono);font-size:13px;line-height:1.75;overflow-x:auto;color:var(--text);margin:0;border:none;border-radius:0}
+.out{display:none;background:var(--accent-bg);border-top:1px solid var(--border);padding:.8rem 1.3rem;font-family:var(--mono);font-size:13px;line-height:1.75;color:var(--accent);white-space:pre-wrap}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.kw{color:var(--purple)}.fn{color:var(--blue)}.str{color:var(--accent)}.cmt{color:var(--text3);font-style:italic}.num{color:var(--amber)}.cls{color:var(--blue)}
+
+/* DEMO CARD */
+.demo{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.3rem;margin:1.2rem 0 1.8rem}
+.demo-lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.9rem}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem}
+button.btn{font-family:var(--mono);font-size:13px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:background .12s,color .12s}
+button.btn:hover{background:var(--bg2);color:var(--text)}
+button.btn.act{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+button.btn.primary{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+button.btn.primary:hover{opacity:.85}
+button.btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+
+/* DISK VIZ */
+.disk-row{display:flex;gap:3px;flex-wrap:wrap;margin:.6rem 0}
+.disk-block{width:38px;height:38px;border-radius:5px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:500;cursor:pointer;transition:all .18s;background:var(--bg2);color:var(--text3)}
+.disk-block.used{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.disk-block.btree{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+.disk-block.data{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
+.disk-block.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);transform:scale(1.12)}
+.disk-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.8rem}
+.stat-card{background:var(--bg2);border-radius:var(--r);padding:.6rem .8rem}
+.stat-lbl{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:3px}
+.stat-val{font-size:20px;font-weight:500;color:var(--text)}
+
+/* B-TREE CANVAS */
+.tree-canvas{overflow-x:auto;margin:.6rem 0}
+.tree-canvas svg{display:block}
+.tree-node rect{rx:6;fill:var(--surface);stroke:var(--border2);stroke-width:1}
+.tree-node.internal rect{fill:var(--purple-bg);stroke:var(--purple)}
+.tree-node.leaf rect{fill:var(--blue-bg);stroke:var(--blue)}
+.tree-node.highlight rect{fill:var(--accent-bg) !important;stroke:var(--accent) !important;stroke-width:2}
+.tree-node.split rect{fill:var(--amber-bg) !important;stroke:var(--amber) !important;stroke-width:2}
+.tree-node text{font-family:var(--mono);font-size:12px;fill:var(--text);text-anchor:middle;dominant-baseline:central}
+.tree-edge{stroke:var(--border2);stroke-width:1.2;fill:none}
+.tree-edge.active{stroke:var(--accent);stroke-width:2;stroke-dasharray:4 3;animation:dash .5s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-14}}
+
+/* SEARCH VIZ */
+.search-path{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:.5rem 0;font-family:var(--mono);font-size:13px;min-height:28px}
+.path-node{padding:3px 10px;border-radius:4px;background:var(--bg2);color:var(--text2);border:1px solid var(--border)}
+.path-node.current{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+.path-node.found{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+.path-arrow{color:var(--text3);font-size:11px}
+
+/* SPLIT STEP */
+.split-step{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:.5rem 0;font-family:var(--mono);font-size:13px;color:var(--text2)}
+.split-box{padding:4px 12px;border-radius:5px;background:var(--bg2);border:1px solid var(--border2)}
+.split-box.full{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.split-box.left{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.split-box.right{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+.split-box.promoted{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
+
+/* FS TERMINAL */
+.terminal{background:#0e1117;border-radius:var(--r-lg);padding:1rem 1.2rem;font-family:var(--mono);font-size:13px;line-height:1.8;margin:.8rem 0}
+.term-line{color:#c8d3dc}
+.term-prompt{color:#52b788}
+.term-cmd{color:#e8e4dc}
+.term-out{color:#7a8a96}
+.term-err{color:#d47474}
+.term-hl{color:#d4a85a}
+.term-input-row{display:flex;align-items:center;gap:6px;margin-top:.4rem}
+.term-input{background:transparent;border:none;color:#e8e4dc;font-family:var(--mono);font-size:13px;flex:1;outline:none;caret-color:#52b788}
+
+/* FS INODE TABLE */
+.inode-table{width:100%;border-collapse:collapse;font-size:13px;font-family:var(--mono);margin:.6rem 0}
+.inode-table th{text-align:left;padding:5px 10px;border-bottom:1px solid var(--border2);color:var(--text3);font-weight:400;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.inode-table td{padding:5px 10px;border-bottom:1px solid var(--border);color:var(--text2)}
+.inode-table tr:last-child td{border:none}
+.inode-table td.key{color:var(--text);font-weight:500}
+.inode-table tr.hi td{background:var(--accent-bg);color:var(--accent)}
+
+/* STEP NAV */
+.step-nav{display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;margin-bottom:.9rem}
+.step-btn{flex:1;padding:6px 4px;font-family:var(--mono);font-size:12px;border:none;border-right:1px solid var(--border2);background:var(--bg2);color:var(--text3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.act{background:var(--surface);color:var(--accent)}
+.step-panel{display:none}
+.step-panel.on{display:block}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--border);padding-top:2rem;margin-top:1rem}
+.footer-links{display:flex;flex-wrap:wrap;gap:1.5rem}
+.footer-links a{font-size:14px;color:var(--text2);text-decoration:none}
+.footer-links a:hover{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">Interactive explainer</div>
+  <h1>Filesystems and<br><em>B-Trees</em></h1>
+  <p class="hero-sub">How your OS finds a file among millions in microseconds — and why a 50-year-old data structure is still the right tool for the job. All code runs in your browser.</p>
+  <div class="pill-row">
+    <span class="pill"><b>ext4</b> · Linux</span>
+    <span class="pill"><b>HFS+</b> · macOS</span>
+    <span class="pill"><b>NTFS</b> · Windows</span>
+    <span class="pill">No libraries needed</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>The disk access problem</a>
+  <a href="#s2"><span class="toc-n">02</span>What is a B-Tree?</a>
+  <a href="#s3"><span class="toc-n">03</span>Search</a>
+  <a href="#s4"><span class="toc-n">04</span>Insertion and splitting</a>
+  <a href="#s5"><span class="toc-n">05</span>Deletion and rebalancing</a>
+  <a href="#s6"><span class="toc-n">06</span>The filesystem layer</a>
+  <a href="#s7"><span class="toc-n">07</span>A mini-filesystem in JS</a>
+  <a href="#s8"><span class="toc-n">08</span>Further reading</a>
+</nav>
+
+<!-- ===== S1: DISK ACCESS PROBLEM ===== -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">01</span><h2>The disk access problem</h2></div>
+
+  <p>Imagine you have a directory with 10 million files. When you run <code>open("report.pdf")</code>, the OS needs to find the inode number for that filename. How?</p>
+
+  <p>The naive approach — a flat list you scan linearly — is <strong>O(n)</strong>. With 10 million files and a disk seek costing ~10ms, that's potentially minutes. Even a sorted array with binary search does O(log n) comparisons, but each comparison might require a separate disk read if the array doesn't fit in RAM. That's still thousands of seeks.</p>
+
+  <div class="callout info">The key insight: disk I/O dominates everything else. A disk seek costs ~10,000× more than a RAM lookup. The goal isn't to minimize <em>comparisons</em> — it's to minimize <em>disk reads</em>.</div>
+
+  <p>A B-Tree solves this by packing many keys into a single node (one disk page), so each disk read eliminates a huge number of candidates at once. A B-Tree of order 100 over 10 million files needs at most <strong>log₁₀₀(10,000,000) ≈ 3.5 → 4 disk reads</strong> to find any file.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Cost comparison — finding 1 file among N files</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showCostCompare(1000,this)">1K files</button>
+      <button class="btn" onclick="showCostCompare(100000,this)">100K files</button>
+      <button class="btn" onclick="showCostCompare(10000000,this)">10M files</button>
+    </div>
+    <div id="cost-compare"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>disk_cost.js — why disk seeks dominate</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// Why B-Trees exist: the cost model for disk-based lookups</span>
+
+<span class="kw">const</span> DISK_SEEK_MS  = <span class="num">10</span>;     <span class="cmt">// ~10ms per random disk seek (HDD)</span>
+<span class="kw">const</span> RAM_LOOKUP_NS = <span class="num">100</span>;    <span class="cmt">// ~100ns per random RAM access</span>
+<span class="kw">const</span> DISK_RATIO    = (DISK_SEEK_MS * <span class="num">1e6</span>) / RAM_LOOKUP_NS; <span class="cmt">// 100,000×</span>
+
+<span class="kw">function</span> <span class="fn">costModel</span>(nFiles, btreeOrder = <span class="num">100</span>) {
+  <span class="kw">const</span> linearSeeks    = nFiles;                         <span class="cmt">// scan every entry</span>
+  <span class="kw">const</span> binarySeeks    = Math.ceil(Math.log2(nFiles));    <span class="cmt">// binary search, 1 seek/compare if not in RAM</span>
+  <span class="kw">const</span> btreeSeeks     = Math.ceil(Math.log(nFiles) / Math.log(btreeOrder)); <span class="cmt">// one seek per level</span>
+
+  <span class="kw">return</span> { linearSeeks, binarySeeks, btreeSeeks };
+}
+
+<span class="kw">const</span> sizes = [<span class="num">1_000</span>, <span class="num">100_000</span>, <span class="num">10_000_000</span>];
+<span class="kw">for</span> (<span class="kw">const</span> n <span class="kw">of</span> sizes) {
+  <span class="kw">const</span> { linearSeeks, binarySeeks, btreeSeeks } = <span class="fn">costModel</span>(n);
+  console.log(<span class="str">`\n--- ${n.toLocaleString()} files ---`</span>);
+  console.log(<span class="str">`  Linear scan:    ${linearSeeks.toLocaleString()} seeks  = ${(linearSeeks * DISK_SEEK_MS / 1000).toFixed(1)}s`</span>);
+  console.log(<span class="str">`  Binary search:  ${binarySeeks} seeks  = ${(binarySeeks * DISK_SEEK_MS).toFixed(0)}ms`</span>);
+  console.log(<span class="str">`  B-Tree (t=100): ${btreeSeeks} seeks  = ${(btreeSeeks * DISK_SEEK_MS).toFixed(0)}ms`</span>);
+}
+
+console.log(<span class="str">`\nDisk is ${DISK_RATIO.toLocaleString()}× slower than RAM per access.`</span>);
+console.log(<span class="str">"B-Tree packs ~100+ keys per node → each seek eliminates 100× more candidates."</span>);</pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ===== S2: WHAT IS A B-TREE ===== -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">02</span><h2>What is a B-Tree?</h2></div>
+
+  <p>A B-Tree of order <strong>t</strong> (minimum degree) is a self-balancing tree where every node holds between <strong>t−1</strong> and <strong>2t−1</strong> keys, and every leaf is at the same depth. Each key in an internal node acts as a separator: everything in the left subtree is smaller, everything in the right is larger.</p>
+
+  <p>Each node maps directly onto one <strong>disk page</strong> (typically 4KB or 16KB). When the OS reads a node, it gets all its keys in one I/O operation. A filesystem with 4KB pages and 8-byte keys can fit ~500 keys per node — meaning each disk read eliminates 500 candidates from the search space.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Live B-Tree — insert keys to build the tree (order t=2, max 3 keys/node)</div>
+    <div class="btn-row" id="btree-preset-btns">
+      <button class="btn primary" onclick="btreePreset()">Build example tree</button>
+      <button class="btn" onclick="btreeClear()">Clear</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
+      <input type="number" id="btree-insert-val" placeholder="key (number)" min="1" max="999" style="width:160px;font-family:var(--mono);font-size:13px;padding:5px 9px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)">
+      <button class="btn primary" onclick="btreeInsertUI()">Insert</button>
+    </div>
+    <div class="tree-canvas" id="btree-canvas"></div>
+    <div style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-top:.5rem" id="btree-msg">Purple = internal nodes (separators). Blue = leaf nodes (data lives here).</div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>btree_node.js — node structure and invariants</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// A B-Tree node — the unit that maps to one disk page</span>
+
+<span class="kw">class</span> <span class="cls">BTreeNode</span> {
+  <span class="fn">constructor</span>(isLeaf = <span class="kw">true</span>) {
+    <span class="kw">this</span>.keys     = [];    <span class="cmt">// sorted array of keys</span>
+    <span class="kw">this</span>.children = [];    <span class="cmt">// child node references (empty if leaf)</span>
+    <span class="kw">this</span>.isLeaf   = isLeaf;
+    <span class="cmt">// In a real filesystem, each child is a disk block number,</span>
+    <span class="cmt">// and values map keys → inode numbers.</span>
+    <span class="kw">this</span>.values   = [];    <span class="cmt">// leaf: key→value (e.g. filename→inode)</span>
+  }
+
+  <span class="fn">isFull</span>(t) { <span class="kw">return</span> <span class="kw">this</span>.keys.length === <span class="num">2</span> * t - <span class="num">1</span>; }
+
+  <span class="fn">diskSize</span>(keyBytes = <span class="num">8</span>, ptrBytes = <span class="num">8</span>) {
+    <span class="cmt">// How many bytes does this node occupy on disk?</span>
+    <span class="kw">const</span> keySpace  = <span class="kw">this</span>.keys.length * keyBytes;
+    <span class="kw">const</span> ptrSpace  = <span class="kw">this</span>.children.length * ptrBytes;
+    <span class="kw">const</span> overhead  = <span class="num">32</span>; <span class="cmt">// node header: isLeaf, keyCount, etc.</span>
+    <span class="kw">return</span> keySpace + ptrSpace + overhead;
+  }
+}
+
+<span class="cmt">// Verify the B-Tree invariants for a given tree</span>
+<span class="kw">function</span> <span class="fn">checkInvariants</span>(node, t, depth = <span class="num">0</span>, isRoot = <span class="kw">true</span>) {
+  <span class="kw">const</span> min = isRoot ? <span class="num">1</span> : t - <span class="num">1</span>;
+  <span class="kw">const</span> max = <span class="num">2</span> * t - <span class="num">1</span>;
+
+  console.log(<span class="str">`Depth ${depth}: ${node.keys.length} keys [${node.keys.join(",")}] leaf=${node.isLeaf}`</span>);
+  console.assert(node.keys.length >= min, <span class="str">`Too few keys at depth ${depth}`</span>);
+  console.assert(node.keys.length <= max, <span class="str">`Too many keys at depth ${depth}`</span>);
+
+  <span class="cmt">// Keys must be sorted</span>
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">1</span>; i < node.keys.length; i++)
+    console.assert(node.keys[i] > node.keys[i-<span class="num">1</span>], <span class="str">"Keys not sorted"</span>);
+
+  <span class="kw">if</span> (!node.isLeaf) {
+    console.assert(node.children.length === node.keys.length + <span class="num">1</span>,
+      <span class="str">"Children count must be keys+1"</span>);
+    <span class="kw">for</span> (<span class="kw">const</span> child <span class="kw">of</span> node.children)
+      <span class="fn">checkInvariants</span>(child, t, depth + <span class="num">1</span>, <span class="kw">false</span>);
+  }
+}
+
+<span class="cmt">// Build a small valid B-Tree manually (t=2, so 1-3 keys per non-root node)</span>
+<span class="kw">const</span> root = <span class="kw">new</span> <span class="cls">BTreeNode</span>(<span class="kw">false</span>);
+root.keys = [<span class="num">20</span>, <span class="num">40</span>];
+
+<span class="kw">const</span> l1 = <span class="kw">new</span> <span class="cls">BTreeNode</span>(); l1.keys = [<span class="num">10</span>, <span class="num">15</span>];
+<span class="kw">const</span> l2 = <span class="kw">new</span> <span class="cls">BTreeNode</span>(); l2.keys = [<span class="num">25</span>, <span class="num">30</span>];
+<span class="kw">const</span> l3 = <span class="kw">new</span> <span class="cls">BTreeNode</span>(); l3.keys = [<span class="num">45</span>, <span class="num">50</span>];
+root.children = [l1, l2, l3];
+
+console.log(<span class="str">"=== Checking invariants ==="</span>);
+<span class="fn">checkInvariants</span>(root, <span class="num">2</span>);
+console.log(<span class="str">"All invariants satisfied."</span>);
+console.log(<span class="str">`\nRoot disk size: ${root.diskSize()} bytes`</span>);
+console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ===== S3: SEARCH ===== -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">03</span><h2>Search</h2></div>
+
+  <p>To find a key, start at the root and at each node binary-search the key array. If found, return the value. Otherwise, follow the appropriate child pointer — the subtree between the two nearest separator keys — and repeat. Stop at a leaf: if the key isn't there, it doesn't exist.</p>
+
+  <p>Each level requires exactly one disk read. The height of a B-Tree with n keys and minimum degree t is at most <strong>log_t((n+1)/2)</strong>. For t=100 and n=10 million, that's ≤4 levels.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Interactive search — enter a key and watch the traversal path</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
+      <input type="number" id="search-key" placeholder="search for key..." style="width:180px;font-family:var(--mono);font-size:13px;padding:5px 9px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)">
+      <button class="btn primary" onclick="btreeSearchUI()">Search</button>
+    </div>
+    <div class="tree-canvas" id="search-canvas"></div>
+    <div style="margin-top:.7rem">
+      <div style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-bottom:.4rem">Traversal path:</div>
+      <div class="search-path" id="search-path"></div>
+    </div>
+    <div style="font-size:13px;font-family:var(--mono);color:var(--text2);margin-top:.5rem" id="search-result"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>btree_search.js — search returning disk read count</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// B-Tree search — returns value AND number of disk reads</span>
+
+<span class="kw">function</span> <span class="fn">search</span>(node, key, reads = <span class="num">0</span>) {
+  reads++; <span class="cmt">// each node access = one disk page read</span>
+
+  <span class="cmt">// Binary search within this node's keys</span>
+  <span class="kw">let</span> lo = <span class="num">0</span>, hi = node.keys.length - <span class="num">1</span>;
+  <span class="kw">while</span> (lo <= hi) {
+    <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
+    <span class="kw">if</span>      (key < node.keys[mid]) hi = mid - <span class="num">1</span>;
+    <span class="kw">else if</span> (key > node.keys[mid]) lo = mid + <span class="num">1</span>;
+    <span class="kw">else</span>    <span class="kw">return</span> { found: <span class="kw">true</span>, value: node.values?.[mid], reads };
+  }
+
+  <span class="cmt">// `lo` is now the index of the child subtree to follow</span>
+  <span class="kw">if</span> (node.isLeaf) <span class="kw">return</span> { found: <span class="kw">false</span>, reads }; <span class="cmt">// not in tree</span>
+  <span class="kw">return</span> <span class="fn">search</span>(node.children[lo], key, reads);
+}
+
+<span class="cmt">// Build a 3-level B-Tree and time some searches</span>
+<span class="kw">function</span> <span class="fn">buildTree</span>() {
+  <span class="kw">const</span> root = { keys:[<span class="num">30</span>,<span class="num">60</span>], isLeaf:<span class="kw">false</span>, children:[
+    { keys:[<span class="num">10</span>,<span class="num">20</span>], isLeaf:<span class="kw">false</span>, children:[
+      { keys:[<span class="num">5</span>],       isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_5"</span>]   },
+      { keys:[<span class="num">15</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_15"</span>]  },
+      { keys:[<span class="num">25</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_25"</span>]  },
+    ]},
+    { keys:[<span class="num">40</span>,<span class="num">50</span>], isLeaf:<span class="kw">false</span>, children:[
+      { keys:[<span class="num">35</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_35"</span>]  },
+      { keys:[<span class="num">45</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_45"</span>]  },
+      { keys:[<span class="num">55</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_55"</span>]  },
+    ]},
+    { keys:[<span class="num">70</span>,<span class="num">80</span>], isLeaf:<span class="kw">false</span>, children:[
+      { keys:[<span class="num">65</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_65"</span>]  },
+      { keys:[<span class="num">75</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_75"</span>]  },
+      { keys:[<span class="num">85</span>],      isLeaf:<span class="kw">true</span>, values:[<span class="str">"inode_85"</span>]  },
+    ]},
+  ]};
+  <span class="kw">return</span> root;
+}
+
+<span class="kw">const</span> tree = <span class="fn">buildTree</span>();
+<span class="kw">const</span> queries = [<span class="num">45</span>, <span class="num">85</span>, <span class="num">15</span>, <span class="num">99</span>, <span class="num">30</span>];
+
+<span class="kw">for</span> (<span class="kw">const</span> q <span class="kw">of</span> queries) {
+  <span class="kw">const</span> r = <span class="fn">search</span>(tree, q);
+  <span class="kw">const</span> status = r.found
+    ? <span class="str">`found → ${r.value}`</span>
+    : <span class="str">"not found"</span>;
+  console.log(<span class="str">`search(${String(q).padStart(3)}): ${status}  [${r.reads} disk reads]`</span>);
+}</pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ===== S4: INSERTION AND SPLITTING ===== -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">04</span><h2>Insertion and splitting</h2></div>
+
+  <p>Inserting always starts at the correct leaf. If the leaf has room (<code>keys.length &lt; 2t−1</code>), insert there and done. If the leaf is full, it must be <strong>split</strong>: divide its keys in half, promote the median key up to the parent, and create two new nodes from the halves.</p>
+
+  <p>This split can cascade upward — if the parent is also full, it splits too, and so on. If the root splits, a new root is created and the tree grows taller. This is the <em>only</em> way a B-Tree grows in height — always at the top, keeping all leaves at the same depth.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Splitting a full node (t=2, max 3 keys) — step through the operation</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showSplit(0,this)">Before insert</button>
+      <button class="step-btn" onclick="showSplit(1,this)">Node full</button>
+      <button class="step-btn" onclick="showSplit(2,this)">Split node</button>
+      <button class="step-btn" onclick="showSplit(3,this)">Promote median</button>
+      <button class="step-btn" onclick="showSplit(4,this)">After insert</button>
+    </div>
+    <div id="split-panels"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>btree_insert.js — insertion with node splitting</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// B-Tree insertion — the real algorithm with splitting</span>
+
+<span class="kw">const</span> t = <span class="num">2</span>; <span class="cmt">// minimum degree: nodes hold 1-3 keys, root holds 1-3 keys</span>
+
+<span class="kw">function</span> <span class="fn">makeNode</span>(isLeaf, keys = [], children = [], values = []) {
+  <span class="kw">return</span> { isLeaf, keys: [...keys], children: [...children], values: [...values] };
+}
+
+<span class="kw">function</span> <span class="fn">splitChild</span>(parent, childIndex) {
+  <span class="cmt">// Split parent.children[childIndex] — it must be full (2t-1 keys)</span>
+  <span class="kw">const</span> full  = parent.children[childIndex];
+  <span class="kw">const</span> mid   = t - <span class="num">1</span>; <span class="cmt">// median index</span>
+
+  <span class="cmt">// Right half becomes new node</span>
+  <span class="kw">const</span> right = <span class="fn">makeNode</span>(full.isLeaf,
+    full.keys.slice(mid + <span class="num">1</span>),
+    full.isLeaf ? [] : full.children.slice(mid + <span class="num">1</span>),
+    full.values.slice(mid + <span class="num">1</span>)
+  );
+
+  <span class="cmt">// Median key gets promoted to parent</span>
+  <span class="kw">const</span> medianKey = full.keys[mid];
+  parent.keys.splice(childIndex, <span class="num">0</span>, medianKey);
+  parent.children.splice(childIndex + <span class="num">1</span>, <span class="num">0</span>, right);
+
+  <span class="cmt">// Left half stays in original node (truncate)</span>
+  full.keys   = full.keys.slice(<span class="num">0</span>, mid);
+  full.values = full.values.slice(<span class="num">0</span>, mid);
+  <span class="kw">if</span> (!full.isLeaf) full.children = full.children.slice(<span class="num">0</span>, mid + <span class="num">1</span>);
+
+  console.log(<span class="str">`  Split: promoted key=${medianKey}, left=[${full.keys}], right=[${right.keys}]`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">insertNonFull</span>(node, key, value) {
+  <span class="kw">let</span> i = node.keys.length - <span class="num">1</span>;
+
+  <span class="kw">if</span> (node.isLeaf) {
+    <span class="cmt">// Shift keys right and insert in sorted position</span>
+    node.keys.push(<span class="num">0</span>); node.values.push(<span class="kw">null</span>);
+    <span class="kw">while</span> (i >= <span class="num">0</span> && key < node.keys[i]) {
+      node.keys[i+<span class="num">1</span>]   = node.keys[i];
+      node.values[i+<span class="num">1</span>] = node.values[i];
+      i--;
+    }
+    node.keys[i+<span class="num">1</span>]   = key;
+    node.values[i+<span class="num">1</span>] = value;
+  } <span class="kw">else</span> {
+    <span class="cmt">// Find correct child, split it if full, recurse</span>
+    <span class="kw">while</span> (i >= <span class="num">0</span> && key < node.keys[i]) i--;
+    i++;
+    <span class="kw">if</span> (node.children[i].keys.length === <span class="num">2</span> * t - <span class="num">1</span>) {
+      <span class="fn">splitChild</span>(node, i);
+      <span class="kw">if</span> (key > node.keys[i]) i++;
+    }
+    <span class="fn">insertNonFull</span>(node.children[i], key, value);
+  }
+}
+
+<span class="kw">function</span> <span class="fn">insert</span>(tree, key, value) {
+  console.log(<span class="str">`Inserting key=${key}`</span>);
+  <span class="kw">if</span> (tree.root.keys.length === <span class="num">2</span> * t - <span class="num">1</span>) {
+    <span class="cmt">// Root is full — tree grows taller</span>
+    <span class="kw">const</span> newRoot = <span class="fn">makeNode</span>(<span class="kw">false</span>, [], [tree.root]);
+    <span class="fn">splitChild</span>(newRoot, <span class="num">0</span>);
+    tree.root = newRoot;
+    console.log(<span class="str">"  Root split → tree height increased"</span>);
+  }
+  <span class="fn">insertNonFull</span>(tree.root, key, value);
+}
+
+<span class="kw">function</span> <span class="fn">printTree</span>(node, depth = <span class="num">0</span>) {
+  console.log(<span class="str">"  "</span>.repeat(depth) + <span class="str">`[${node.keys.join(",")}]`</span> + (node.isLeaf ? <span class="str">" ←leaf"</span> : <span class="str">""</span>));
+  <span class="kw">if</span> (!node.isLeaf) node.children.forEach(c => <span class="fn">printTree</span>(c, depth+<span class="num">1</span>));
+}
+
+<span class="kw">const</span> tree = { root: <span class="fn">makeNode</span>(<span class="kw">true</span>) };
+<span class="kw">const</span> keys = [<span class="num">10</span>, <span class="num">20</span>, <span class="num">5</span>, <span class="num">6</span>, <span class="num">12</span>, <span class="num">30</span>, <span class="num">7</span>, <span class="num">17</span>];
+
+<span class="kw">for</span> (<span class="kw">const</span> k <span class="kw">of</span> keys) {
+  <span class="fn">insert</span>(tree, k, <span class="str">`inode_${k}`</span>);
+}
+
+console.log(<span class="str">"\nFinal tree:"</span>);
+<span class="fn">printTree</span>(tree.root);</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ===== S5: DELETION ===== -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">05</span><h2>Deletion and rebalancing</h2></div>
+
+  <p>Deletion is the most complex operation. After removing a key from a leaf, the leaf might underflow — have fewer than t−1 keys. To fix this, the node tries to <strong>borrow</strong> a key from an adjacent sibling (rotating through the parent). If the sibling has no spare keys, the node and its sibling <strong>merge</strong> into one node, pulling down the separator key from the parent. This can cascade up to the root.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Deletion strategies — step through underflow handling</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showDelete(0,this)">Initial state</button>
+      <button class="step-btn" onclick="showDelete(1,this)">Delete → underflow</button>
+      <button class="step-btn" onclick="showDelete(2,this)">Borrow from sibling</button>
+      <button class="step-btn" onclick="showDelete(3,this)">Or: merge nodes</button>
+    </div>
+    <div id="delete-panels"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>btree_delete.js — deletion with merge and borrow</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// B-Tree deletion — handles underflow via borrow or merge</span>
+
+<span class="kw">const</span> t = <span class="num">2</span>; <span class="cmt">// minimum degree</span>
+
+<span class="kw">function</span> <span class="fn">borrowFromLeft</span>(parent, idx) {
+  <span class="cmt">// parent.children[idx] is short — steal from left sibling</span>
+  <span class="kw">const</span> child  = parent.children[idx];
+  <span class="kw">const</span> left   = parent.children[idx - <span class="num">1</span>];
+  <span class="cmt">// Rotate: left's last key → parent → child's front</span>
+  child.keys.unshift(parent.keys[idx - <span class="num">1</span>]);
+  parent.keys[idx - <span class="num">1</span>] = left.keys.pop();
+  <span class="kw">if</span> (!child.isLeaf) child.children.unshift(left.children.pop());
+  console.log(<span class="str">`  Borrowed from left sibling. Parent sep: ${parent.keys[idx-1]}`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">borrowFromRight</span>(parent, idx) {
+  <span class="cmt">// parent.children[idx] is short — steal from right sibling</span>
+  <span class="kw">const</span> child  = parent.children[idx];
+  <span class="kw">const</span> right  = parent.children[idx + <span class="num">1</span>];
+  child.keys.push(parent.keys[idx]);
+  parent.keys[idx] = right.keys.shift();
+  <span class="kw">if</span> (!child.isLeaf) child.children.push(right.children.shift());
+  console.log(<span class="str">`  Borrowed from right sibling. Parent sep: ${parent.keys[idx]}`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">merge</span>(parent, idx) {
+  <span class="cmt">// Merge children[idx] and children[idx+1], pulling down parent.keys[idx]</span>
+  <span class="kw">const</span> left  = parent.children[idx];
+  <span class="kw">const</span> right = parent.children[idx + <span class="num">1</span>];
+  <span class="kw">const</span> sep   = parent.keys.splice(idx, <span class="num">1</span>)[<span class="num">0</span>];
+  parent.children.splice(idx + <span class="num">1</span>, <span class="num">1</span>);
+  left.keys.push(sep, ...right.keys);
+  <span class="kw">if</span> (!left.isLeaf) left.children.push(...right.children);
+  console.log(<span class="str">`  Merged: pulled down sep=${sep}, merged node=[${left.keys}]`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">deleteKey</span>(node, key, isRoot = <span class="kw">true</span>) {
+  <span class="kw">const</span> idx = node.keys.findIndex(k => k >= key);
+
+  <span class="kw">if</span> (node.isLeaf) {
+    <span class="kw">if</span> (node.keys[idx] === key) {
+      node.keys.splice(idx, <span class="num">1</span>);
+      console.log(<span class="str">`  Deleted ${key} from leaf`</span>);
+    } <span class="kw">else</span> {
+      console.log(<span class="str">`  Key ${key} not found`</span>);
+    }
+    <span class="kw">return</span>;
+  }
+
+  <span class="kw">if</span> (idx < node.keys.length && node.keys[idx] === key) {
+    <span class="cmt">// Key is in this internal node — replace with in-order predecessor</span>
+    <span class="kw">let</span> pred = node.children[idx];
+    <span class="kw">while</span> (!pred.isLeaf) pred = pred.children[pred.children.length - <span class="num">1</span>];
+    <span class="kw">const</span> predKey = pred.keys[pred.keys.length - <span class="num">1</span>];
+    node.keys[idx] = predKey;
+    console.log(<span class="str">`  Replacing internal key ${key} with predecessor ${predKey}`</span>);
+    <span class="fn">deleteKey</span>(node.children[idx], predKey, <span class="kw">false</span>);
+    <span class="kw">return</span>;
+  }
+
+  <span class="cmt">// Key is in subtree — ensure child has enough keys before descending</span>
+  <span class="kw">const</span> childIdx = idx === -<span class="num">1</span> ? node.children.length - <span class="num">1</span> : idx;
+  <span class="kw">const</span> child = node.children[childIdx];
+
+  <span class="kw">if</span> (child.keys.length < t) {
+    <span class="cmt">// Child has minimum keys — fix it before descending</span>
+    <span class="kw">if</span> (childIdx > <span class="num">0</span> && node.children[childIdx-<span class="num">1</span>].keys.length >= t)
+      <span class="fn">borrowFromLeft</span>(node, childIdx);
+    <span class="kw">else if</span> (childIdx < node.children.length-<span class="num">1</span> && node.children[childIdx+<span class="num">1</span>].keys.length >= t)
+      <span class="fn">borrowFromRight</span>(node, childIdx);
+    <span class="kw">else</span>
+      <span class="fn">merge</span>(node, childIdx > <span class="num">0</span> ? childIdx - <span class="num">1</span> : <span class="num">0</span>);
+  }
+
+  <span class="fn">deleteKey</span>(node.children[childIdx > <span class="num">0</span> && child.keys.length < t ? childIdx-<span class="num">1</span> : childIdx], key, <span class="kw">false</span>);
+}
+
+<span class="kw">function</span> <span class="fn">printTree</span>(node, d=<span class="num">0</span>) {
+  console.log(<span class="str">"  "</span>.repeat(d)+<span class="str">`[${node.keys}]`</span>+(node.isLeaf?<span class="str">" ←leaf"</span>:<span class="str">""</span>));
+  <span class="kw">if</span>(!node.isLeaf) node.children.forEach(c=><span class="fn">printTree</span>(c,d+<span class="num">1</span>));
+}
+
+<span class="cmt">// Build a tree, then delete from it</span>
+<span class="kw">const</span> root = {
+  isLeaf:<span class="kw">false</span>, keys:[<span class="num">20</span>,<span class="num">40</span>], children:[
+    {isLeaf:<span class="kw">true</span>,keys:[<span class="num">10</span>,<span class="num">15</span>]},
+    {isLeaf:<span class="kw">true</span>,keys:[<span class="num">25</span>,<span class="num">30</span>]},
+    {isLeaf:<span class="kw">true</span>,keys:[<span class="num">45</span>,<span class="num">50</span>]},
+  ]
+};
+console.log(<span class="str">"Before:"</span>); <span class="fn">printTree</span>(root);
+console.log(<span class="str">"\nDeleting 10:"</span>); <span class="fn">deleteKey</span>(root, <span class="num">10</span>);
+console.log(<span class="str">"\nDeleting 25:"</span>); <span class="fn">deleteKey</span>(root, <span class="num">25</span>);
+console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</span>(root);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ===== S6: FILESYSTEM LAYER ===== -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">06</span><h2>The filesystem layer</h2></div>
+
+  <p>Real filesystems use B-Trees (or their variant, B+ Trees) at multiple levels. Here's how three major filesystems map the concepts:</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr style="background:var(--bg2)">
+          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Filesystem</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Structure</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">B-Tree usage</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Key type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">ext4</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Linux</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">HTree (B-Tree variant) for dir entries; extents B-Tree per inode for block mapping</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">filename hash</td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">HFS+</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">macOS</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">B-Tree for catalog (all files/dirs), B-Tree for extents overflow</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">CNID (catalog node ID)</td></tr>
+        <tr><td style="padding:9px 14px;font-weight:500">NTFS</td><td style="padding:9px 14px;color:var(--text2)">Windows</td><td style="padding:9px 14px;color:var(--text2)">B-Tree per directory ($INDEX_ROOT and $INDEX_ALLOCATION), MFT for file metadata</td><td style="padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--accent)">filename (unicode)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>In all cases, the <strong>key</strong> is something you'd look up a file by, and the <strong>value</strong> is either an inode number or a direct pointer to file metadata. The tree structure guarantees O(log n) lookup regardless of directory size.</p>
+
+  <h3>The inode and the two-tree problem</h3>
+  <p>Finding a file actually requires two separate lookups. First, the <strong>directory B-Tree</strong> maps <code>filename → inode number</code>. Then, the <strong>extent tree</strong> inside that inode maps <code>logical block offset → physical disk block</code>. This two-level indirection lets files be sparse, have holes, and grow without moving their data on disk.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Simulated disk — visualising inode and B-Tree blocks</div>
+    <div class="disk-row" id="disk-blocks"></div>
+    <div style="display:flex;gap:8px;margin-top:.7rem;flex-wrap:wrap">
+      <span style="font-size:12px;font-family:var(--mono);color:var(--blue);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:2px;display:inline-block"></span> superblock/metadata</span>
+      <span style="font-size:12px;font-family:var(--mono);color:var(--purple);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:2px;display:inline-block"></span> B-Tree nodes</span>
+      <span style="font-size:12px;font-family:var(--mono);color:var(--amber);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:2px;display:inline-block"></span> file data</span>
+      <span style="font-size:12px;font-family:var(--mono);color:var(--text3);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:2px;display:inline-block"></span> free</span>
+    </div>
+    <div style="margin-top:.7rem;font-size:13px;font-family:var(--mono);color:var(--text3)" id="disk-msg">Click a block to inspect it.</div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>inode.js — the two-level lookup: filename → inode → disk blocks</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Two-level filesystem lookup: directory B-Tree + extent tree</span>
+<span class="cmt">// This mirrors how ext4 / HFS+ / NTFS actually work</span>
+
+<span class="kw">class</span> <span class="cls">Inode</span> {
+  <span class="fn">constructor</span>(id, size, mode = <span class="str">"rw-r--r--"</span>) {
+    <span class="kw">this</span>.id       = id;
+    <span class="kw">this</span>.size     = size;     <span class="cmt">// file size in bytes</span>
+    <span class="kw">this</span>.mode     = mode;
+    <span class="kw">this</span>.nlinks   = <span class="num">1</span>;
+    <span class="kw">this</span>.modified = <span class="kw">new</span> <span class="cls">Date</span>().toISOString().slice(<span class="num">0</span>,<span class="num">19</span>);
+    <span class="cmt">// Extent tree: maps logical block [start,end) → physical block start</span>
+    <span class="cmt">// In a real B-Tree the key is the logical offset</span>
+    <span class="kw">this</span>.extents  = []; <span class="cmt">// [{logStart, logEnd, physStart}]</span>
+  }
+
+  <span class="fn">addExtent</span>(logStart, length, physStart) {
+    <span class="kw">this</span>.extents.push({ logStart, logEnd: logStart + length, physStart });
+    <span class="kw">this</span>.extents.sort((a,b) => a.logStart - b.logStart);
+  }
+
+  <span class="fn">logicalToPhysical</span>(logBlock) {
+    <span class="cmt">// Binary search the extent tree — O(log e) where e = number of extents</span>
+    <span class="kw">let</span> lo = <span class="num">0</span>, hi = <span class="kw">this</span>.extents.length - <span class="num">1</span>;
+    <span class="kw">while</span> (lo <= hi) {
+      <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
+      <span class="kw">const</span> e = <span class="kw">this</span>.extents[mid];
+      <span class="kw">if</span>      (logBlock < e.logStart) hi = mid - <span class="num">1</span>;
+      <span class="kw">else if</span> (logBlock >= e.logEnd)  lo = mid + <span class="num">1</span>;
+      <span class="kw">else    return</span> e.physStart + (logBlock - e.logStart);
+    }
+    <span class="kw">return null</span>; <span class="cmt">// sparse file: block not allocated (reads as zeros)</span>
+  }
+}
+
+<span class="kw">class</span> <span class="cls">SimpleFS</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.dirTree  = <span class="kw">new</span> <span class="cls">Map</span>(); <span class="cmt">// filename → inode (our B-Tree, simplified)</span>
+    <span class="kw">this</span>.inodes   = <span class="kw">new</span> <span class="cls">Map</span>(); <span class="cmt">// inode id → Inode</span>
+    <span class="kw">this</span>.nextIno  = <span class="num">2</span>;          <span class="cmt">// inode 1 is reserved for root dir</span>
+  }
+
+  <span class="fn">create</span>(filename, size) {
+    <span class="kw">const</span> ino  = <span class="kw">this</span>.nextIno++;
+    <span class="kw">const</span> node = <span class="kw">new</span> <span class="cls">Inode</span>(ino, size);
+    <span class="cmt">// Allocate extents (simplified: one contiguous run per file)</span>
+    <span class="kw">const</span> blocks = Math.ceil(size / <span class="num">4096</span>); <span class="cmt">// 4KB blocks</span>
+    node.<span class="fn">addExtent</span>(<span class="num">0</span>, blocks, ino * <span class="num">10</span>);   <span class="cmt">// fake physical address</span>
+    <span class="kw">this</span>.dirTree.set(filename, ino);
+    <span class="kw">this</span>.inodes.set(ino, node);
+    <span class="kw">return</span> ino;
+  }
+
+  <span class="fn">open</span>(filename) {
+    <span class="cmt">// Step 1: directory B-Tree lookup → inode number</span>
+    <span class="kw">const</span> ino = <span class="kw">this</span>.dirTree.get(filename);
+    <span class="kw">if</span> (!ino) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`ENOENT: ${filename}`</span>);
+    <span class="cmt">// Step 2: inode lookup → file metadata</span>
+    <span class="kw">const</span> inode = <span class="kw">this</span>.inodes.get(ino);
+    console.log(<span class="str">`open("${filename}")`</span>);
+    console.log(<span class="str">`  dir B-Tree lookup → inode=${ino}`</span>);
+    console.log(<span class="str">`  inode: size=${inode.size}B, mode=${inode.mode}, extents=${inode.extents.length}`</span>);
+    <span class="kw">return</span> inode;
+  }
+
+  <span class="fn">read</span>(inode, logBlock) {
+    <span class="cmt">// Step 3: extent B-Tree lookup → physical block</span>
+    <span class="kw">const</span> phys = inode.<span class="fn">logicalToPhysical</span>(logBlock);
+    <span class="kw">if</span> (phys === <span class="kw">null</span>) {
+      console.log(<span class="str">`  read block ${logBlock}: sparse (unallocated) → returns zeros`</span>);
+    } <span class="kw">else</span> {
+      console.log(<span class="str">`  extent lookup: logical block ${logBlock} → physical block ${phys}`</span>);
+    }
+    <span class="kw">return</span> phys;
+  }
+}
+
+<span class="kw">const</span> fs = <span class="kw">new</span> <span class="cls">SimpleFS</span>();
+fs.<span class="fn">create</span>(<span class="str">"report.pdf"</span>,   <span class="num">524288</span>);  <span class="cmt">// 512KB</span>
+fs.<span class="fn">create</span>(<span class="str">"notes.txt"</span>,    <span class="num">4096</span>);    <span class="cmt">// exactly 1 block</span>
+fs.<span class="fn">create</span>(<span class="str">"database.db"</span>, <span class="num">10485760</span>); <span class="cmt">// 10MB</span>
+
+console.log(<span class="str">"=== Full lookup chain ==="</span>);
+<span class="kw">const</span> f = fs.<span class="fn">open</span>(<span class="str">"report.pdf"</span>);
+fs.<span class="fn">read</span>(f, <span class="num">0</span>);   <span class="cmt">// first block</span>
+fs.<span class="fn">read</span>(f, <span class="num">63</span>);  <span class="cmt">// last block of 512KB file</span>
+fs.<span class="fn">read</span>(f, <span class="num">200</span>); <span class="cmt">// beyond EOF (sparse)</span>
+
+console.log(<span class="str">\`\ntry { fs.open("missing.txt") } → \`</span>);
+<span class="kw">try</span> { fs.<span class="fn">open</span>(<span class="str">"missing.txt"</span>) } <span class="kw">catch</span>(e) { console.log(<span class="str">`  ${e.message}`</span>) };</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ===== S7: MINI-FILESYSTEM ===== -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">07</span><h2>A mini-filesystem in JS</h2></div>
+
+  <p>Putting it all together: a structurally complete in-memory filesystem backed by a real B-Tree. It supports <code>mkdir</code>, <code>create</code>, <code>write</code>, <code>read</code>, <code>ls</code>, <code>stat</code>, and <code>find</code>. Each directory is a B-Tree keyed by filename. Files store their data as byte arrays.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Interactive filesystem terminal</div>
+    <div class="terminal" id="terminal">
+      <div class="term-line"><span class="term-prompt">$</span> <span class="term-cmd">help</span></div>
+      <div id="term-output"></div>
+      <div class="term-input-row">
+        <span class="term-prompt">$</span>
+        <input class="term-input" id="term-input" type="text" placeholder="type a command..." autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>mini_fs.js — complete B-Tree backed filesystem</span><button class="run-btn" onclick="runCode('c7','o7')">&#9654; Run</button></div>
+    <pre class="code" id="c7"><span class="cmt">// A complete in-memory filesystem backed by a B-Tree</span>
+<span class="cmt">// Every directory is a BTree; files store Buffer (Uint8Array) data</span>
+
+<span class="kw">const</span> T = <span class="num">2</span>; <span class="cmt">// B-Tree minimum degree</span>
+
+<span class="kw">class</span> <span class="cls">BTree</span> {
+  <span class="fn">constructor</span>() { <span class="kw">this</span>.root = { isLeaf:<span class="kw">true</span>, keys:[], vals:[], children:[] }; }
+
+  <span class="fn">_search</span>(node, key) {
+    <span class="kw">let</span> i = node.keys.findIndex(k => k >= key);
+    <span class="kw">if</span> (i === -<span class="num">1</span>) i = node.keys.length;
+    <span class="kw">if</span> (node.keys[i] === key) <span class="kw">return</span> { node, i };
+    <span class="kw">if</span> (node.isLeaf) <span class="kw">return null</span>;
+    <span class="kw">return this</span>.<span class="fn">_search</span>(node.children[i], key);
+  }
+
+  <span class="fn">get</span>(key) { <span class="kw">const</span> r = <span class="kw">this</span>.<span class="fn">_search</span>(<span class="kw">this</span>.root, key); <span class="kw">return</span> r ? r.node.vals[r.i] : <span class="kw">undefined</span>; }
+  <span class="fn">has</span>(key) { <span class="kw">return</span> !!<span class="kw">this</span>.<span class="fn">_search</span>(<span class="kw">this</span>.root, key); }
+
+  <span class="fn">_splitChild</span>(parent, ci) {
+    <span class="kw">const</span> s = parent.children[ci], mid = T-<span class="num">1</span>;
+    <span class="kw">const</span> r = { isLeaf:s.isLeaf, keys:s.keys.splice(mid+<span class="num">1</span>), vals:s.vals.splice(mid+<span class="num">1</span>), children: s.isLeaf?[]:<span class="kw">s</span>.children.splice(mid+<span class="num">1</span>) };
+    parent.keys.splice(ci,<span class="num">0</span>,s.keys.pop()); parent.vals.splice(ci,<span class="num">0</span>,s.vals.pop());
+    parent.children.splice(ci+<span class="num">1</span>,<span class="num">0</span>,r);
+  }
+
+  <span class="fn">_insertNF</span>(node, key, val) {
+    <span class="kw">let</span> i = node.keys.length-<span class="num">1</span>;
+    <span class="kw">if</span> (node.isLeaf) {
+      node.keys.push(<span class="kw">null</span>); node.vals.push(<span class="kw">null</span>);
+      <span class="kw">while</span> (i>=<span class="num">0</span> && key<node.keys[i]) { node.keys[i+<span class="num">1</span>]=node.keys[i]; node.vals[i+<span class="num">1</span>]=node.vals[i]; i--; }
+      node.keys[i+<span class="num">1</span>]=key; node.vals[i+<span class="num">1</span>]=val;
+    } <span class="kw">else</span> {
+      <span class="kw">while</span> (i>=<span class="num">0</span> && key<node.keys[i]) i--; i++;
+      <span class="kw">if</span> (node.children[i].keys.length===<span class="num">2</span>*T-<span class="num">1</span>) { <span class="kw">this</span>.<span class="fn">_splitChild</span>(node,i); <span class="kw">if</span> (key>node.keys[i]) i++; }
+      <span class="kw">this</span>.<span class="fn">_insertNF</span>(node.children[i],key,val);
+    }
+  }
+
+  <span class="fn">set</span>(key, val) {
+    <span class="kw">const</span> ex = <span class="kw">this</span>.<span class="fn">_search</span>(<span class="kw">this</span>.root, key);
+    <span class="kw">if</span> (ex) { ex.node.vals[ex.i] = val; <span class="kw">return</span>; }
+    <span class="kw">if</span> (<span class="kw">this</span>.root.keys.length === <span class="num">2</span>*T-<span class="num">1</span>) {
+      <span class="kw">const</span> nr = {isLeaf:<span class="kw">false</span>,keys:[],vals:[],children:[<span class="kw">this</span>.root]};
+      <span class="kw">this</span>.<span class="fn">_splitChild</span>(nr,<span class="num">0</span>); <span class="kw">this</span>.root = nr;
+    }
+    <span class="kw">this</span>.<span class="fn">_insertNF</span>(<span class="kw">this</span>.root,key,val);
+  }
+
+  <span class="fn">keys</span>() {
+    <span class="kw">const</span> res = [], <span class="fn">walk</span> = n => { <span class="kw">if</span> (n.isLeaf) { res.push(...n.keys); <span class="kw">return</span>; } n.children.forEach((c,i)=>{ <span class="fn">walk</span>(c); <span class="kw">if</span>(i<n.keys.length) res.push(n.keys[i]); }); };
+    <span class="fn">walk</span>(<span class="kw">this</span>.root); <span class="kw">return</span> res;
+  }
+}
+
+<span class="kw">class</span> <span class="cls">MiniFS</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.inodes = <span class="kw">new</span> <span class="cls">Map</span>();
+    <span class="kw">this</span>.nextIno = <span class="num">1</span>;
+    <span class="cmt">// Root directory: inode 1</span>
+    <span class="kw">this</span>.<span class="fn">_makeDir</span>(<span class="kw">null</span>, <span class="str">"/"</span>);
+  }
+
+  <span class="fn">_makeDir</span>(parentIno, name) {
+    <span class="kw">const</span> ino = <span class="kw">this</span>.nextIno++;
+    <span class="kw">this</span>.inodes.set(ino, { type:<span class="str">"dir"</span>, name, ino, parentIno, tree: <span class="kw">new</span> <span class="cls">BTree</span>(), ctime:<span class="kw">new</span> <span class="cls">Date</span>() });
+    <span class="kw">if</span> (parentIno !== <span class="kw">null</span>) <span class="kw">this</span>.inodes.get(parentIno).tree.<span class="fn">set</span>(name, ino);
+    <span class="kw">return</span> ino;
+  }
+
+  <span class="fn">_resolve</span>(path) {
+    <span class="kw">const</span> parts = path.split(<span class="str">"/"</span>).filter(<span class="cls">Boolean</span>);
+    <span class="kw">let</span> cur = <span class="num">1</span>; <span class="cmt">// start at root</span>
+    <span class="kw">for</span> (<span class="kw">const</span> p <span class="kw">of</span> parts) {
+      <span class="kw">const</span> dir = <span class="kw">this</span>.inodes.get(cur);
+      <span class="kw">if</span> (!dir || dir.type !== <span class="str">"dir"</span>) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Not a directory: ${p}`</span>);
+      <span class="kw">const</span> child = dir.tree.<span class="fn">get</span>(p);
+      <span class="kw">if</span> (!child) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`ENOENT: ${path}`</span>);
+      cur = child;
+    }
+    <span class="kw">return</span> cur;
+  }
+
+  <span class="fn">mkdir</span>(path) {
+    <span class="kw">const</span> parts = path.split(<span class="str">"/"</span>).filter(<span class="cls">Boolean</span>);
+    <span class="kw">const</span> name  = parts.pop();
+    <span class="kw">const</span> parentIno = <span class="kw">this</span>.<span class="fn">_resolve</span>(<span class="str">"/"</span> + parts.join(<span class="str">"/"</span>));
+    <span class="kw">const</span> ino = <span class="kw">this</span>.<span class="fn">_makeDir</span>(parentIno, name);
+    <span class="kw">return</span> <span class="str">`created dir ${path} (inode ${ino})`</span>;
+  }
+
+  <span class="fn">create</span>(path, content = <span class="str">""</span>) {
+    <span class="kw">const</span> parts = path.split(<span class="str">"/"</span>).filter(<span class="cls">Boolean</span>);
+    <span class="kw">const</span> name  = parts.pop();
+    <span class="kw">const</span> parentIno = <span class="kw">this</span>.<span class="fn">_resolve</span>(<span class="str">"/"</span> + parts.join(<span class="str">"/"</span>));
+    <span class="kw">const</span> ino = <span class="kw">this</span>.nextIno++;
+    <span class="kw">const</span> data = <span class="kw">new</span> TextEncoder().<span class="fn">encode</span>(content);
+    <span class="kw">this</span>.inodes.set(ino, { type:<span class="str">"file"</span>, name, ino, parentIno, data, ctime:<span class="kw">new</span> <span class="cls">Date</span>() });
+    <span class="kw">this</span>.inodes.get(parentIno).tree.<span class="fn">set</span>(name, ino);
+    <span class="kw">return</span> <span class="str">`created ${path} (inode ${ino}, ${data.length} bytes)`</span>;
+  }
+
+  <span class="fn">read</span>(path) {
+    <span class="kw">const</span> node = <span class="kw">this</span>.inodes.get(<span class="kw">this</span>.<span class="fn">_resolve</span>(path));
+    <span class="kw">if</span> (node.type !== <span class="str">"file"</span>) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Is a directory: ${path}`</span>);
+    <span class="kw">return</span> <span class="kw">new</span> TextDecoder().<span class="fn">decode</span>(node.data);
+  }
+
+  <span class="fn">ls</span>(path = <span class="str">"/"</span>) {
+    <span class="kw">const</span> dir = <span class="kw">this</span>.inodes.get(<span class="kw">this</span>.<span class="fn">_resolve</span>(path));
+    <span class="kw">if</span> (dir.type !== <span class="str">"dir"</span>) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Not a directory`</span>);
+    <span class="kw">return</span> dir.tree.<span class="fn">keys</span>().map(name => {
+      <span class="kw">const</span> child = <span class="kw">this</span>.inodes.get(dir.tree.<span class="fn">get</span>(name));
+      <span class="kw">return</span> child.type === <span class="str">"dir"</span> ? <span class="str">`  ${name}/`</span> : <span class="str">`  ${name}  (${child.data.length}B)`</span>;
+    });
+  }
+
+  <span class="fn">stat</span>(path) {
+    <span class="kw">const</span> node = <span class="kw">this</span>.inodes.get(<span class="kw">this</span>.<span class="fn">_resolve</span>(path));
+    <span class="kw">return</span> [
+      <span class="str">`  inode:  ${node.ino}`</span>,
+      <span class="str">`  type:   ${node.type}`</span>,
+      <span class="str">`  size:   ${node.data ? node.data.length : 0} bytes`</span>,
+      <span class="str">`  parent: ${node.parentIno}`</span>,
+    ].join(<span class="str">"\n"</span>);
+  }
+
+  <span class="fn">find</span>(dir = <span class="str">"/"</span>, needle, results = []) {
+    <span class="kw">const</span> node = <span class="kw">this</span>.inodes.get(<span class="kw">this</span>.<span class="fn">_resolve</span>(dir));
+    <span class="kw">if</span> (node.type !== <span class="str">"dir"</span>) <span class="kw">return</span> results;
+    <span class="kw">for</span> (<span class="kw">const</span> name <span class="kw">of</span> node.tree.<span class="fn">keys</span>()) {
+      <span class="kw">const</span> childPath = dir.replace(<span class="str">/\/$/</span>,<span class="str">""</span>) + <span class="str">"/"</span> + name;
+      <span class="kw">if</span> (name.includes(needle)) results.push(childPath);
+      <span class="kw">const</span> child = <span class="kw">this</span>.inodes.get(node.tree.<span class="fn">get</span>(name));
+      <span class="kw">if</span> (child.type === <span class="str">"dir"</span>) <span class="kw">this</span>.<span class="fn">find</span>(childPath, needle, results);
+    }
+    <span class="kw">return</span> results;
+  }
+}
+
+<span class="cmt">// Demo: build a directory structure</span>
+<span class="kw">const</span> fs = <span class="kw">new</span> <span class="cls">MiniFS</span>();
+console.log(fs.<span class="fn">mkdir</span>(<span class="str">"/home"</span>));
+console.log(fs.<span class="fn">mkdir</span>(<span class="str">"/home/alice"</span>));
+console.log(fs.<span class="fn">mkdir</span>(<span class="str">"/home/alice/docs"</span>));
+console.log(fs.<span class="fn">create</span>(<span class="str">"/home/alice/readme.txt"</span>, <span class="str">"Hello, filesystem!"</span>));
+console.log(fs.<span class="fn">create</span>(<span class="str">"/home/alice/docs/report.pdf"</span>, <span class="str">"%PDF-1.4 ..."</span>));
+
+console.log(<span class="str">"\nls /home/alice:"</span>);
+console.log(fs.<span class="fn">ls</span>(<span class="str">"/home/alice"</span>).join(<span class="str">"\n"</span>));
+
+console.log(<span class="str">"\nread /home/alice/readme.txt:"</span>);
+console.log(<span class="str">"  "</span> + fs.<span class="fn">read</span>(<span class="str">"/home/alice/readme.txt"</span>));
+
+console.log(<span class="str">"\nstat /home/alice/docs/report.pdf:"</span>);
+console.log(fs.<span class="fn">stat</span>(<span class="str">"/home/alice/docs/report.pdf"</span>));
+
+console.log(<span class="str">"\nfind / -name 'report':"</span>);
+console.log(fs.<span class="fn">find</span>(<span class="str">"/"</span>, <span class="str">"report"</span>).map(p=><span class="str">`  ${p}`</span>).join(<span class="str">"\n"</span>));</pre>
+    <div class="out" id="o7"></div>
+  </div>
+</section>
+
+<!-- ===== S8: FURTHER READING ===== -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">08</span><h2>Further reading</h2></div>
+  <p>The B-Tree is one of the most consequential data structures in systems programming. These are excellent next steps:</p>
+  <div class="footer-links" style="flex-direction:column;gap:.7rem">
+    <a href="https://www.kernel.org/doc/html/latest/filesystems/ext4/index.html">Linux ext4 filesystem documentation — the authoritative technical reference</a>
+    <a href="https://en.wikipedia.org/wiki/HFS_Plus">HFS+ internals (Wikipedia) — Apple's B-Tree catalog structure in detail</a>
+    <a href="https://www.cs.cornell.edu/courses/cs3110/2012sp/recitations/rec25-btree/rec25.html">Cornell CS3110 — B-Tree lecture notes (very clear diagrams)</a>
+    <a href="https://github.com/torvalds/linux/blob/master/fs/ext4/extents.c">ext4/extents.c — actual Linux B-Tree extent code (C)</a>
+    <a href="https://en.wikipedia.org/wiki/B%2B_tree">B+ Tree — the variant most filesystems actually use (all values at leaves)</a>
+    <a href="https://people.csail.mit.edu/rivest/Bayer-UnterlagenEinige.pdf">Bayer & McCreight (1972) — the original B-Tree paper</a>
+  </div>
+</section>
+
+</div>
+
+<script>
+/* ============ CODE RUNNER ============ */
+function runCode(cid, oid) {
+  const raw = document.getElementById(cid).innerText;
+  const el = document.getElementById(oid);
+  el.className = 'out on';
+  const logs = [];
+  const con = { log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ')), assert: (c, m) => { if (!c) logs.push('AssertionError: ' + m); } };
+  try { new Function('console', raw)(con); el.textContent = logs.join('\n') || '(no output)'; }
+  catch(e) { el.className = 'out on err'; el.textContent = '⚠ ' + e.message; }
+}
+
+/* ============ COST COMPARE ============ */
+function showCostCompare(n, btn) {
+  document.querySelectorAll('#cost-compare ~ .btn-row button, #btree-preset-btns ~ * button').forEach(b => b.classList.remove('act'));
+  btn.classList.add('act');
+  const linear = n, binary = Math.ceil(Math.log2(n)), btree = Math.ceil(Math.log(n) / Math.log(100));
+  const maxMs = linear * 10;
+  const rows = [
+    { label: 'Linear scan', seeks: linear, ms: linear * 10, color: 'var(--red)' },
+    { label: 'Binary search', seeks: binary, ms: binary * 10, color: 'var(--amber)' },
+    { label: 'B-Tree (t=100)', seeks: btree, ms: btree * 10, color: 'var(--accent)' },
+  ];
+  document.getElementById('cost-compare').innerHTML = rows.map(r => {
+    const pct = Math.max(2, (r.ms / maxMs) * 100);
+    const msStr = r.ms >= 1000 ? (r.ms/1000).toFixed(1)+'s' : r.ms+'ms';
+    return `<div style="display:flex;align-items:center;gap:10px;margin:5px 0;font-size:13px;font-family:var(--mono)">
+      <span style="min-width:130px;color:var(--text2)">${r.label}</span>
+      <div style="flex:1;height:18px;background:var(--bg2);border-radius:4px;overflow:hidden;border:1px solid var(--border)">
+        <div style="height:100%;width:${Math.min(100,pct)}%;background:${r.color};border-radius:3px;transition:width .4s ease"></div>
+      </div>
+      <span style="min-width:70px;text-align:right;color:var(--text)">${r.seeks.toLocaleString()} seeks = ${msStr}</span>
+    </div>`;
+  }).join('');
+}
+showCostCompare(1000, document.querySelector('#cost-compare ~ * .btn') || document.querySelector('.demo .btn'));
+
+/* ============ B-TREE ENGINE ============ */
+const BT = 2;
+class BTreeViz {
+  constructor() { this.root = { isLeaf:true, keys:[], vals:[], children:[], id: Math.random() }; this.nodeCount = 1; }
+  _splitChild(p, ci) {
+    const s = p.children[ci], mid = BT-1;
+    const rKeys = s.keys.splice(mid+1), rVals = s.vals.splice(mid+1);
+    const rCh = s.isLeaf ? [] : s.children.splice(mid+1);
+    const r = { isLeaf:s.isLeaf, keys:rKeys, vals:rVals, children:rCh, id: Math.random() };
+    const mk = s.keys.pop(), mv = s.vals.pop();
+    p.keys.splice(ci,0,mk); p.vals.splice(ci,0,mv); p.children.splice(ci+1,0,r);
+    this.nodeCount++;
+  }
+  _insertNF(node, key, val) {
+    let i = node.keys.length-1;
+    if (node.isLeaf) {
+      node.keys.push(null); node.vals.push(null);
+      while (i>=0 && key<node.keys[i]) { node.keys[i+1]=node.keys[i]; node.vals[i+1]=node.vals[i]; i--; }
+      node.keys[i+1]=key; node.vals[i+1]=val;
+    } else {
+      while (i>=0 && key<node.keys[i]) i--; i++;
+      if (node.children[i].keys.length===2*BT-1) { this._splitChild(node,i); if(key>node.keys[i]) i++; }
+      this._insertNF(node.children[i],key,val);
+    }
+  }
+  insert(key, val='') {
+    const ex = this._search(this.root, key);
+    if (ex) return;
+    if (this.root.keys.length===2*BT-1) {
+      const nr={isLeaf:false,keys:[],vals:[],children:[this.root],id:Math.random()};
+      this._splitChild(nr,0); this.root=nr; this.nodeCount++;
+    }
+    this._insertNF(this.root,key,val);
+  }
+  _search(node,key) {
+    let i=node.keys.findIndex(k=>k>=key);
+    if (i===-1) i=node.keys.length;
+    if (node.keys[i]===key) return {node,i};
+    if (node.isLeaf) return null;
+    return this._search(node.children[i],key);
+  }
+  search(key) {
+    const path=[];
+    const walk=(node)=>{
+      path.push(node.keys.slice());
+      let i=node.keys.findIndex(k=>k>=key);
+      if(i===-1) i=node.keys.length;
+      if(node.keys[i]===key) return true;
+      if(node.isLeaf) return false;
+      return walk(node.children[i]);
+    };
+    return {found:walk(this.root), path};
+  }
+  clear() { this.root={isLeaf:true,keys:[],vals:[],children:[],id:Math.random()}; this.nodeCount=1; }
+}
+
+const mainTree = new BTreeViz();
+const searchTree = new BTreeViz();
+[10,20,5,6,12,30,7,17,25,35,3,40].forEach(k=>searchTree.insert(k,'v'+k));
+
+/* ============ TREE RENDERER ============ */
+function renderTree(tree, containerId, highlightKeys=[], splitKeys=[]) {
+  const container = document.getElementById(containerId);
+  const W = container.clientWidth || 640;
+  const levels = [];
+  const walk = (node, depth) => {
+    while (levels.length <= depth) levels.push([]);
+    levels[depth].push(node);
+    if (!node.isLeaf) node.children.forEach(c => walk(c, depth+1));
+  };
+  walk(tree.root, 0);
+  const NODE_H = 34, PAD_X = 14, PAD_Y = 55;
+  const getW = node => Math.max(60, node.keys.length * 30 + PAD_X * 2);
+  const positions = new Map();
+  const totalH = levels.length * (NODE_H + PAD_Y) + 20;
+  // Assign x positions bottom-up
+  const assignPos = (node, depth) => {
+    if (node.isLeaf) {
+      const w = getW(node);
+      positions.set(node, { w, cx: 0 });
+    } else {
+      node.children.forEach(c => assignPos(c, depth+1));
+      const childPositions = node.children.map(c => positions.get(c));
+      const w = getW(node);
+      positions.set(node, { w, cx: 0 });
+    }
+  };
+  assignPos(tree.root, 0);
+  // Layout: BFS, distribute evenly
+  const layoutLevel = (nodes, depth) => {
+    const totalW = nodes.reduce((s,n) => s + getW(n), 0) + (nodes.length-1)*12;
+    let x = (W - totalW) / 2;
+    nodes.forEach(n => {
+      const w = getW(n);
+      positions.set(n, { ...positions.get(n), x, y: depth * (NODE_H + PAD_Y) + 20, w });
+      x += w + 12;
+    });
+  };
+  levels.forEach((lvl, d) => layoutLevel(lvl, d));
+  // Build SVG
+  let edges = '', nodes = '';
+  const walkDraw = (node) => {
+    const pos = positions.get(node);
+    if (!pos) return;
+    if (!node.isLeaf) {
+      node.children.forEach(c => {
+        const cp = positions.get(c);
+        if (!cp) return;
+        edges += `<line class="tree-edge" x1="${pos.x+pos.w/2}" y1="${pos.y+NODE_H}" x2="${cp.x+cp.w/2}" y2="${cp.y}"/>`;
+        walkDraw(c);
+      });
+    }
+    const isHl = node.keys.some(k => highlightKeys.includes(k));
+    const isSplit = node.keys.some(k => splitKeys.includes(k));
+    const cls = `tree-node ${node.isLeaf?'leaf':'internal'}${isHl?' highlight':''}${isSplit?' split':''}`;
+    nodes += `<g class="${cls}"><rect x="${pos.x}" y="${pos.y}" width="${pos.w}" height="${NODE_H}" rx="6"/>`;
+    node.keys.forEach((k, i) => {
+      const kx = pos.x + PAD_X + i * 30 + 10;
+      nodes += `<text x="${kx}" y="${pos.y + NODE_H/2 + 1}">${k}</text>`;
+      if (i < node.keys.length-1) nodes += `<line x1="${kx+14}" y1="${pos.y+6}" x2="${kx+14}" y2="${pos.y+NODE_H-6}" stroke="var(--border2)" stroke-width="0.8"/>`;
+    });
+    nodes += `</g>`;
+  };
+  walkDraw(tree.root);
+  container.innerHTML = `<svg width="${W}" height="${totalH}" style="min-height:${totalH}px">${edges}${nodes}</svg>`;
+}
+
+/* ============ BTREE DEMO ============ */
+function btreePreset() {
+  mainTree.clear();
+  [10,20,5,6,12,30,7,17].forEach(k => mainTree.insert(k));
+  renderTree(mainTree, 'btree-canvas');
+  document.getElementById('btree-msg').textContent = 'Purple = internal nodes (separators). Blue = leaf nodes (data lives here). Insert more keys to see splits.';
+}
+function btreeClear() { mainTree.clear(); renderTree(mainTree,'btree-canvas'); }
+function btreeInsertUI() {
+  const v = parseInt(document.getElementById('btree-insert-val').value);
+  if (isNaN(v) || v < 1 || v > 999) return;
+  mainTree.insert(v);
+  renderTree(mainTree, 'btree-canvas');
+  document.getElementById('btree-msg').textContent = `Inserted ${v}. Tree has ${mainTree.root.keys.length ? 'height ≥1' : '1 node'}.`;
+  document.getElementById('btree-insert-val').value = '';
+}
+document.getElementById('btree-insert-val').addEventListener('keydown', e => { if (e.key==='Enter') btreeInsertUI(); });
+btreePreset();
+renderTree(searchTree, 'search-canvas');
+
+/* ============ SEARCH DEMO ============ */
+function btreeSearchUI() {
+  const key = parseInt(document.getElementById('search-key').value);
+  if (isNaN(key)) return;
+  const {found, path} = searchTree.search(key);
+  renderTree(searchTree, 'search-canvas', found ? [key] : []);
+  const pathEl = document.getElementById('search-path');
+  pathEl.innerHTML = path.map((keys, i) => {
+    const isLast = i === path.length-1;
+    const highlight = isLast && found ? ' current' : '';
+    return `<span class="path-node${highlight}">[${keys.join(',')}]</span>${i<path.length-1?'<span class="path-arrow">→</span>':''}`;
+  }).join('');
+  document.getElementById('search-result').textContent = found
+    ? `Found key ${key} after ${path.length} disk read${path.length===1?'':'s'}.`
+    : `Key ${key} not found after ${path.length} disk read${path.length===1?'':'s'}.`;
+}
+document.getElementById('search-key').addEventListener('keydown', e => { if(e.key==='Enter') btreeSearchUI(); });
+
+/* ============ SPLIT STEPPER ============ */
+const SPLIT_PANELS = [
+  { label: 'Before insert', html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.7rem">We have a leaf node with 3 keys (full for t=2). We want to insert key <code>18</code>.</div><div class="split-step"><div class="split-box full">[ 10 | 15 | 20 ]  ← full (2t-1=3 keys)</div></div>` },
+  { label: 'Node full!', html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.7rem">The node is full. We cannot simply insert — we must split it before descending.</div><div class="split-step"><div class="split-box full">[ 10 | 15 | 20 ]  ← cannot insert 18</div></div><div style="font-size:13px;font-family:var(--mono);color:var(--red);margin-top:.5rem">keys.length === 2*t-1 → split required</div>` },
+  { label: 'Split node', html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.7rem">Divide at the median index <code>t-1 = 1</code>. Left half keeps the lower keys, right half gets the upper keys.</div><div class="split-step"><div class="split-box left">[ 10 ]  left</div><span style="color:var(--text3)">+</span><div class="split-box promoted">15  ← median (to promote)</div><span style="color:var(--text3)">+</span><div class="split-box right">[ 20 ]  right</div></div>` },
+  { label: 'Promote median', html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.7rem">The median key <code>15</code> is pushed up to the parent node. The parent now separates the two new child nodes.</div><div class="split-step" style="flex-direction:column;gap:10px"><div class="split-box promoted" style="align-self:center">parent: [ 15 ]</div><div style="display:flex;gap:30px;justify-content:center"><div class="split-box left">[ 10 ]</div><div class="split-box right">[ 20 ]</div></div></div>` },
+  { label: 'After insert', html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.7rem">Now insert <code>18</code>: since 18 > 15, follow the right child <code>[20]</code>, which has room. Insert in sorted order.</div><div class="split-step" style="flex-direction:column;gap:10px"><div class="split-box promoted" style="align-self:center">parent: [ 15 ]</div><div style="display:flex;gap:30px;justify-content:center"><div class="split-box left">[ 10 ]</div><div class="split-box right">[ 18 | 20 ]  ← inserted</div></div></div>` },
+];
+function buildSplitPanels() {
+  document.getElementById('split-panels').innerHTML = SPLIT_PANELS.map((p,i) =>
+    `<div class="step-panel${i===0?' on':''}" id="sp${i}">${p.html}</div>`
+  ).join('');
+}
+function showSplit(i, btn) {
+  document.querySelectorAll('#split-panels .step-panel').forEach((p,j) => p.className='step-panel'+(j===i?' on':''));
+  document.querySelectorAll('.step-nav .step-btn').forEach((b,j) => b.className='step-btn'+(j===i?' act':''));
+}
+buildSplitPanels();
+
+/* ============ DELETE STEPPER ============ */
+const DEL_PANELS = [
+  { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Starting state: a B-Tree where every node has 2 keys (at the minimum for t=2).</div><div style="font-family:var(--mono);font-size:13px;color:var(--text2);line-height:2"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 20 | 40 ]</span></div><div style="display:flex;justify-content:space-around;margin-top:10px"><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 10 | 15 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 25 | 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
+  { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Delete <code>10</code> from the left leaf. After deletion it has only 1 key — but t-1=1, so... it's actually fine! Underflow only occurs when keys drop <em>below</em> t-1.</div><div style="font-family:var(--mono);font-size:13px;line-height:2;display:flex;flex-direction:column;gap:10px"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 20 | 40 ]</span></div><div style="display:flex;justify-content:space-around"><span style="background:var(--accent-bg);color:var(--accent);padding:3px 12px;border-radius:4px;border:1px solid var(--accent-border)">[ 15 ]  ← still valid</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 25 | 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
+  { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">Now delete <code>15</code>. The left leaf becomes empty — real underflow. The right sibling <code>[25|30]</code> has 2 keys (> t-1), so we can <strong>borrow</strong>: rotate 20 down from the parent into the left, push 25 up to parent.</div><div style="font-family:var(--mono);font-size:13px;line-height:2;display:flex;flex-direction:column;gap:10px"><div style="text-align:center"><span style="background:var(--purple-bg);color:var(--purple);padding:3px 12px;border-radius:4px;border:1px solid var(--purple)">[ 25 | 40 ]  ← 20→left, 25→parent</span></div><div style="display:flex;justify-content:space-around"><span style="background:var(--accent-bg);color:var(--accent);padding:3px 12px;border-radius:4px;border:1px solid var(--accent-border)">[ 20 ]  ← borrowed</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 30 ]</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ 45 | 50 ]</span></div></div>` },
+  { html: `<div style="font-size:14px;color:var(--text2);margin-bottom:.8rem">If <em>neither</em> sibling can spare a key, we <strong>merge</strong>: pull the separator key down from the parent and combine the two children into one node. The parent loses a key; this can cascade up to the root.</div><div style="font-family:var(--mono);font-size:13px;line-height:1.9;display:flex;flex-direction:column;gap:8px"><div style="text-align:center"><span style="background:var(--amber-bg);color:var(--amber);padding:3px 12px;border-radius:4px;border:1px solid var(--amber)">parent loses separator ↓</span></div><div style="display:flex;justify-content:space-around"><span style="background:var(--red-bg);color:var(--red);padding:3px 12px;border-radius:4px;border:1px solid var(--red)">[ underflowed ]</span><span style="color:var(--text3)">+sep+</span><span style="background:var(--blue-bg);color:var(--blue);padding:3px 12px;border-radius:4px;border:1px solid var(--blue)">[ sibling ]</span></div><div style="text-align:center;color:var(--text3)">↓ merge</div><div style="text-align:center"><span style="background:var(--accent-bg);color:var(--accent);padding:3px 12px;border-radius:4px;border:1px solid var(--accent-border)">[ underflowed | sep | sibling keys ]</span></div></div>` },
+];
+function buildDeletePanels() {
+  document.getElementById('delete-panels').innerHTML = DEL_PANELS.map((p,i) =>
+    `<div class="step-panel${i===0?' on':''}" id="dp${i}">${p.html}</div>`
+  ).join('');
+}
+function showDelete(i, btn) {
+  document.querySelectorAll('#delete-panels .step-panel').forEach((p,j)=>p.className='step-panel'+(j===i?' on':''));
+  document.querySelectorAll('#delete-panels ~ .step-nav .step-btn, #delete-panels .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  // Re-target the nav buttons in the delete section
+  const nav = document.querySelector('#s5 .step-nav');
+  if (nav) nav.querySelectorAll('.step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+}
+buildDeletePanels();
+
+/* ============ DISK BLOCKS VIZ ============ */
+const DISK_LAYOUT = [
+  {t:'sb',l:'SB'},   {t:'sb',l:'SB'},   {t:'sb',l:'GDT'},  {t:'sb',l:'GDT'},
+  {t:'btree',l:'BT'},{t:'btree',l:'BT'},{t:'btree',l:'BT'},{t:'btree',l:'BT'},
+  {t:'btree',l:'BT'},{t:'free',l:''},   {t:'data',l:'D'},  {t:'data',l:'D'},
+  {t:'data',l:'D'},  {t:'data',l:'D'},  {t:'free',l:''},   {t:'free',l:''},
+  {t:'data',l:'D'},  {t:'btree',l:'BT'},{t:'data',l:'D'},  {t:'free',l:''},
+  {t:'free',l:''},   {t:'data',l:'D'},  {t:'data',l:'D'},  {t:'data',l:'D'},
+];
+const BLOCK_INFO = {
+  sb:   'Superblock — stores filesystem metadata: block size, inode count, free block count, B-Tree root pointer.',
+  btree:'B-Tree node — one disk page of the directory or extent B-Tree. Contains sorted keys and child/value pointers.',
+  data: 'File data block — raw file content (4KB). Located via the inode extent tree.',
+  free: 'Free block — unallocated. Tracked in the block bitmap (another B-Tree structure in some filesystems).',
+};
+const DB_EL = document.getElementById('disk-blocks');
+DB_EL.innerHTML = DISK_LAYOUT.map((b,i) =>
+  `<div class="disk-block ${b.t==='sb'?'used':b.t}" onclick="showBlockInfo(${i})">${b.l||i}</div>`
+).join('');
+function showBlockInfo(i) {
+  const b = DISK_LAYOUT[i];
+  document.querySelectorAll('.disk-block').forEach((el,j)=>el.classList.toggle('active',j===i));
+  document.getElementById('disk-msg').textContent = `Block ${i}: ${BLOCK_INFO[b.t]||''}`;
+}
+
+/* ============ FS TERMINAL ============ */
+(function() {
+  const T2 = 2;
+  class BT2 {
+    constructor(){this.root={isLeaf:true,keys:[],vals:[],children:[]}}
+    _sf(p,ci){const s=p.children[ci],m=T2-1;const rk=s.keys.splice(m+1),rv=s.vals.splice(m+1),rc=s.isLeaf?[]:s.children.splice(m+1);const r={isLeaf:s.isLeaf,keys:rk,vals:rv,children:rc};const mk=s.keys.pop(),mv=s.vals.pop();p.keys.splice(ci,0,mk);p.vals.splice(ci,0,mv);p.children.splice(ci+1,0,r)}
+    _inf(node,k,v){let i=node.keys.length-1;if(node.isLeaf){node.keys.push(null);node.vals.push(null);while(i>=0&&k<node.keys[i]){node.keys[i+1]=node.keys[i];node.vals[i+1]=node.vals[i];i--}node.keys[i+1]=k;node.vals[i+1]=v}else{while(i>=0&&k<node.keys[i])i--;i++;if(node.children[i].keys.length===2*T2-1){this._sf(node,i);if(k>node.keys[i])i++}this._inf(node.children[i],k,v)}}
+    set(k,v){const ex=this._get(this.root,k);if(ex){ex.vals[ex.i]=v;return}if(this.root.keys.length===2*T2-1){const nr={isLeaf:false,keys:[],vals:[],children:[this.root]};this._sf(nr,0);this.root=nr}this._inf(this.root,k,v)}
+    _get(node,k){let i=node.keys.findIndex(x=>x>=k);if(i===-1)i=node.keys.length;if(node.keys[i]===k)return{vals:node.vals,i};if(node.isLeaf)return null;return this._get(node.children[i],k)}
+    get(k){const r=this._get(this.root,k);return r?r.vals[r.i]:undefined}
+    has(k){return!!this._get(this.root,k)}
+    delete(k){this._del(this.root,k,true)}
+    _del(node,k,isRoot){const idx=node.keys.findIndex(x=>x>=k);const i=idx===-1?node.keys.length:idx;if(node.isLeaf){if(node.keys[i]===k){node.keys.splice(i,1);node.vals.splice(i,1)}return}if(i<node.keys.length&&node.keys[i]===k){let pred=node.children[i];while(!pred.isLeaf)pred=pred.children[pred.children.length-1];const pk=pred.keys[pred.keys.length-1],pv=pred.vals[pred.vals.length-1];node.keys[i]=pk;node.vals[i]=pv;this._del(node.children[i],pk,false);return}const ci=i;if(node.children[ci].keys.length<T2){if(ci>0&&node.children[ci-1].keys.length>=T2){const c=node.children[ci],l=node.children[ci-1];c.keys.unshift(node.keys[ci-1]);c.vals.unshift(node.vals[ci-1]);node.keys[ci-1]=l.keys.pop();node.vals[ci-1]=l.vals.pop();if(!c.isLeaf)c.children.unshift(l.children.pop())}else if(ci<node.children.length-1&&node.children[ci+1].keys.length>=T2){const c=node.children[ci],r=node.children[ci+1];c.keys.push(node.keys[ci]);c.vals.push(node.vals[ci]);node.keys[ci]=r.keys.shift();node.vals[ci]=r.vals.shift();if(!c.isLeaf)c.children.push(r.children.shift())}else{const mi=ci<node.children.length-1?ci:ci-1;const l=node.children[mi],r=node.children[mi+1];const sep=node.keys.splice(mi,1)[0],sepv=node.vals.splice(mi,1)[0];node.children.splice(mi+1,1);l.keys.push(sep,...r.keys);l.vals.push(sepv,...r.vals);if(!l.isLeaf)l.children.push(...r.children)}}this._del(node.children[Math.min(ci,node.children.length-1)],k,false)}
+    keys(){const r=[],w=n=>{if(n.isLeaf){r.push(...n.keys);return}n.children.forEach((c,i)=>{w(c);if(i<n.keys.length)r.push(n.keys[i])})};w(this.root);return r}
+  }
+
+  let ninodes=1, inodes=new Map();
+  inodes.set(1,{type:'dir',name:'/',ino:1,parent:null,tree:new BT2(),mode:'drwxr-xr-x',ctime:new Date()});
+  let cwd='/';
+
+  function resolve(path){
+    if(!path.startsWith('/'))path=(cwd==='/'?'/':cwd+'/')+path;
+    const parts=path.split('/').filter(Boolean);
+    let cur=1;
+    for(const p of parts){
+      const dir=inodes.get(cur);
+      if(!dir||dir.type!=='dir')return null;
+      const child=dir.tree.get(p);
+      if(!child)return null;
+      cur=child;
+    }
+    return cur;
+  }
+  function normPath(path){
+    if(!path.startsWith('/'))path=(cwd==='/'?'/':cwd+'/')+path;
+    const parts=path.split('/').filter(Boolean);
+    const stack=[];
+    for(const p of parts){if(p==='..')stack.pop();else if(p!=='.')stack.push(p);}
+    return '/'+stack.join('/');
+  }
+
+  const COMMANDS = {
+    help:()=>`Commands: mkdir, ls [path], cat <file>, create <file> [content], rm <file>, mv <src> <dst>, stat <path>, find [path] <name>, pwd, cd <dir>, tree`,
+    pwd:()=>cwd,
+    ls:(args)=>{
+      const p=args[0]?normPath(args[0]):cwd;
+      const ino=resolve(p);
+      if(!ino)return`ls: ${p}: no such file`;
+      const node=inodes.get(ino);
+      if(node.type!=='dir')return`ls: ${p}: not a directory`;
+      const ks=node.tree.keys();
+      if(!ks.length)return'(empty)';
+      return ks.map(name=>{const c=inodes.get(node.tree.get(name));return c.type==='dir'?`  ${name}/`:`  ${name}  (${c.data.length}B, inode ${c.ino})`}).join('\n');
+    },
+    mkdir:(args)=>{
+      if(!args[0])return'mkdir: missing operand';
+      const p=normPath(args[0]),parts=p.split('/').filter(Boolean),name=parts.pop();
+      const parentP='/'+parts.join('/');
+      const pino=resolve(parentP||'/');
+      if(!pino)return`mkdir: ${parentP}: no such directory`;
+      const pnode=inodes.get(pino);
+      if(pnode.type!=='dir')return`mkdir: ${parentP}: not a directory`;
+      if(pnode.tree.has(name))return`mkdir: ${name}: already exists`;
+      const ino=++ninodes;
+      inodes.set(ino,{type:'dir',name,ino,parent:pino,tree:new BT2(),mode:'drwxr-xr-x',ctime:new Date()});
+      pnode.tree.set(name,ino);
+      return`created directory ${p}`;
+    },
+    create:(args)=>{
+      if(!args[0])return'create: missing filename';
+      const p=normPath(args[0]),parts=p.split('/').filter(Boolean),name=parts.pop();
+      const pino=resolve('/'+parts.join('/'));
+      if(!pino)return'create: parent directory not found';
+      const pnode=inodes.get(pino);
+      if(pnode.tree.has(name))return`${name}: already exists`;
+      const content=args.slice(1).join(' ')||'';
+      const data=new TextEncoder().encode(content);
+      const ino=++ninodes;
+      inodes.set(ino,{type:'file',name,ino,parent:pino,data,mode:'-rw-r--r--',ctime:new Date()});
+      pnode.tree.set(name,ino);
+      return`created ${p} (${data.length} bytes, inode ${ino})`;
+    },
+    cat:(args)=>{
+      if(!args[0])return'cat: missing file';
+      const ino=resolve(normPath(args[0]));
+      if(!ino)return`cat: ${args[0]}: no such file`;
+      const node=inodes.get(ino);
+      if(node.type==='dir')return`cat: ${args[0]}: is a directory`;
+      return new TextDecoder().decode(node.data)||'(empty file)';
+    },
+    rm:(args)=>{
+      if(!args[0])return'rm: missing operand';
+      const p=normPath(args[0]),parts=p.split('/').filter(Boolean),name=parts.pop();
+      const pino=resolve('/'+parts.join('/'));
+      if(!pino)return`rm: ${args[0]}: not found`;
+      const pnode=inodes.get(pino);
+      const ino=pnode.tree.get(name);
+      if(!ino)return`rm: ${name}: no such file`;
+      const node=inodes.get(ino);
+      if(node.type==='dir')return`rm: ${name}: is a directory (use rm -r, not supported here)`;
+      pnode.tree.delete(name);
+      inodes.delete(ino);
+      return`removed ${p}`;
+    },
+    mv:(args)=>{
+      if(args.length<2)return'mv: missing operands';
+      const sp=normPath(args[0]),dp=normPath(args[1]);
+      const sparts=sp.split('/').filter(Boolean),sname=sparts.pop();
+      const spino=resolve('/'+sparts.join('/'));
+      if(!spino)return`mv: ${args[0]}: not found`;
+      const spnode=inodes.get(spino);
+      const sino=spnode.tree.get(sname);
+      if(!sino)return`mv: ${args[0]}: not found`;
+      const dparts=dp.split('/').filter(Boolean),dname=dparts.pop();
+      const dpino=resolve('/'+dparts.join('/'));
+      if(!dpino)return`mv: ${args[1]}: destination not found`;
+      spnode.tree.delete(sname);
+      const dnode=inodes.get(dpino);
+      const movedNode=inodes.get(sino);
+      movedNode.name=dname;
+      dnode.tree.set(dname,sino);
+      return`moved ${sp} → ${dp}`;
+    },
+    stat:(args)=>{
+      if(!args[0])return'stat: missing operand';
+      const ino=resolve(normPath(args[0]));
+      if(!ino)return`stat: ${args[0]}: no such file`;
+      const n=inodes.get(ino);
+      return[`  File: ${normPath(args[0])}`,`  Size: ${n.data?n.data.length:0}`,`  Inode: ${n.ino}`,`  Type: ${n.type}`,`  Mode: ${n.mode}`,`  Modified: ${n.ctime.toISOString().slice(0,19)}`].join('\n');
+    },
+    find:(args)=>{
+      const needle=args[args.length-1]||'';
+      const startP=args.length>1?normPath(args[0]):cwd;
+      const results=[];
+      const walk=(p)=>{
+        const ino=resolve(p);if(!ino)return;
+        const node=inodes.get(ino);if(!node||node.type!=='dir')return;
+        for(const name of node.tree.keys()){
+          const cp=(p==='/'?'/':p+'/')+name;
+          if(name.includes(needle))results.push(cp);
+          const c=inodes.get(node.tree.get(name));
+          if(c&&c.type==='dir')walk(cp);
+        }
+      };
+      walk(startP);
+      return results.length?results.map(r=>'  '+r).join('\n'):'(no matches)';
+    },
+    cd:(args)=>{
+      const p=args[0]?normPath(args[0]):'/';
+      const ino=resolve(p);
+      if(!ino)return`cd: ${p}: no such directory`;
+      const node=inodes.get(ino);
+      if(node.type!=='dir')return`cd: ${p}: not a directory`;
+      cwd=p||'/'; return'';
+    },
+    tree:(args)=>{
+      const startP=args[0]?normPath(args[0]):cwd;
+      const lines=[];
+      const walk=(p,prefix)=>{
+        const ino=resolve(p);if(!ino)return;
+        const node=inodes.get(ino);if(!node||node.type!=='dir')return;
+        const ks=node.tree.keys();
+        ks.forEach((name,i)=>{
+          const last=i===ks.length-1;
+          const cino=node.tree.get(name);const cn=inodes.get(cino);
+          lines.push(prefix+(last?'└── ':'├── ')+name+(cn.type==='dir'?'/':''));
+          if(cn.type==='dir')walk((p==='/'?'/':p+'/')+name,prefix+(last?'    ':'│   '));
+        });
+      };
+      lines.push(startP);walk(startP,'');return lines.join('\n');
+    },
+  };
+
+  // Bootstrap with some files
+  COMMANDS.mkdir(['/home']);COMMANDS.mkdir(['/home/user']);COMMANDS.mkdir(['/tmp']);
+  COMMANDS.create(['/home/user/hello.txt','Hello from the B-Tree filesystem!']);
+  COMMANDS.create(['/home/user/notes.md','# Notes\n- B-Trees are fast\n- Disk seeks are slow']);
+  COMMANDS.mkdir(['/home/user/projects']);
+  COMMANDS.create(['/home/user/projects/readme.txt','My project files']);
+  COMMANDS.cd(['/home/user']);
+
+  function addLine(cls, text) {
+    const out = document.getElementById('term-output');
+    if (text) text.split('\n').forEach(l => {
+      const d = document.createElement('div');
+      d.className = 'term-line'; d.innerHTML = `<span class="${cls}">${l.replace(/</g,'&lt;')}</span>`;
+      out.appendChild(d);
+    });
+  }
+
+  addLine('term-out', 'B-Tree filesystem ready. Type "help" for commands.\nCurrent dir: /home/user');
+
+  const inp = document.getElementById('term-input');
+  inp.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const raw = inp.value.trim(); if (!raw) return;
+    inp.value = '';
+    const d = document.createElement('div');
+    d.className = 'term-line';
+    d.innerHTML = `<span class="term-prompt">$</span> <span class="term-cmd">${raw.replace(/</g,'&lt;')}</span>`;
+    document.getElementById('term-output').appendChild(d);
+    const parts = raw.split(/\s+/), cmd = parts[0], args = parts.slice(1);
+    if (cmd === 'clear') { document.getElementById('term-output').innerHTML = ''; return; }
+    const fn = COMMANDS[cmd];
+    if (!fn) { addLine('term-err', `${cmd}: command not found`); return; }
+    try { const out = fn(args); if (out) addLine('term-out', out); }
+    catch(err) { addLine('term-err', err.message); }
+    // Scroll terminal into view
+    document.getElementById('term-input').scrollIntoView({block:'nearest'});
+  });
+})();
+
+/* ============ INIT ============ */
+window.addEventListener('load', () => {
+  renderTree(mainTree, 'btree-canvas');
+  renderTree(searchTree, 'search-canvas');
+  showCostCompare(1000, document.querySelector('#s1 .btn'));
+});
+</script>
+</body>
+</html>
