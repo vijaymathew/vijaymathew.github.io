@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Good Enough Answers - Probabilistic Data Structures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f4ef;
+  --bg2:#ece8df;
+  --bg3:#e1dbcf;
+  --surface:#fffdf8;
+  --ink:#1f1b16;
+  --ink2:#615a50;
+  --ink3:#968d80;
+  --rule:rgba(31,27,22,.10);
+  --rule2:rgba(31,27,22,.18);
+  --gold:#8a631a;
+  --gold-bg:#f5ecd8;
+  --blue:#315f87;
+  --blue-bg:#e4edf6;
+  --green:#1b6a52;
+  --green-bg:#e1f1eb;
+  --red:#a33f3f;
+  --red-bg:#f7e6e6;
+  --purple:#65479b;
+  --purple-bg:#ece6f7;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"Manrope", sans-serif;
+  --serif:"Literata", serif;
+  --r:9px;
+  --r-lg:14px;
+  --shadow:0 18px 44px rgba(31,27,22,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12100d;
+    --bg2:#1a1713;
+    --bg3:#252018;
+    --surface:#1a1713;
+    --ink:#ece5d9;
+    --ink2:#b0a697;
+    --ink3:#72695d;
+    --rule:rgba(255,255,255,.08);
+    --rule2:rgba(255,255,255,.15);
+    --gold:#e2be73;
+    --gold-bg:#2a2110;
+    --blue:#8eb8e4;
+    --blue-bg:#13212f;
+    --green:#87d0b7;
+    --green-bg:#10231d;
+    --red:#e18c8c;
+    --red-bg:#2a1313;
+    --purple:#c0ace8;
+    --purple-bg:#1f172c;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(138,99,26,.09), transparent 24rem),
+    linear-gradient(180deg, rgba(49,95,135,.04), transparent 18rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:900px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:1.2rem 0;
+  border-bottom:1px solid var(--rule);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--gold)}
+.hero{
+  padding:4.2rem 0 3.2rem;
+  border-bottom:1px solid var(--rule);
+}
+.hero-kicker{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);
+  font-size:clamp(2.8rem, 6vw, 4.25rem);
+  font-weight:400;
+  line-height:1.04;
+  max-width:12ch;
+  margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:var(--purple)}
+.hero p{
+  max-width:46rem;
+  color:var(--ink2);
+  font-size:17px;
+  line-height:1.76;
+  margin-bottom:1.45rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 11px;
+  border-radius:999px;
+  background:var(--bg2);
+  border:1px solid var(--rule2);
+  color:var(--ink2);
+  font-family:var(--mono);
+  font-size:11px;
+}
+.pill b{color:var(--gold);font-weight:500}
+.toc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin:2.6rem 0 3.4rem;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.toc a{
+  display:flex;
+  gap:10px;
+  padding:11px 14px;
+  background:var(--surface);
+  color:var(--ink2);
+  text-decoration:none;
+  font-size:14px;
+}
+.toc a:hover{background:var(--bg2);color:var(--ink)}
+.toc-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  min-width:16px;
+  padding-top:1px;
+}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  border-bottom:1px solid var(--rule);
+  padding-bottom:.9rem;
+  margin-bottom:1.35rem;
+}
+.sec-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
+h2{
+  font-family:var(--serif);
+  font-size:1.95rem;
+  font-weight:400;
+  line-height:1.14;
+}
+p{
+  font-size:15.5px;
+  line-height:1.8;
+  color:var(--ink2);
+  margin-bottom:.95rem;
+}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--blue)}
+code{
+  font-family:var(--mono);
+  font-size:12.5px;
+  padding:1px 5px;
+  border-radius:4px;
+  border:1px solid var(--rule2);
+  background:var(--bg2);
+  color:var(--ink);
+}
+.callout{
+  border-left:3px solid var(--gold);
+  background:var(--gold-bg);
+  color:var(--gold);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.84rem 1.05rem;
+  margin:1.15rem 0;
+  font-size:14px;
+  line-height:1.7;
+}
+.callout.info{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.demo,.cb{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow);
+  margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.95rem}
+.btn{
+  border:1px solid var(--rule2);
+  border-radius:var(--r);
+  background:transparent;
+  color:var(--ink2);
+  padding:5px 11px;
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+}
+.btn:hover{background:var(--bg2);color:var(--ink)}
+.btn.act{background:var(--gold-bg);color:var(--gold);border-color:rgba(138,99,26,.28)}
+.preview{
+  background:linear-gradient(180deg,var(--bg2),transparent);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.9rem 1rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--ink);
+  white-space:pre-wrap;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.stat{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.8rem .9rem;
+}
+.stat-k{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.42rem;
+}
+.stat-v{
+  font-size:1.18rem;
+  font-weight:600;
+  color:var(--ink);
+}
+.grid-two{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.card{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:1rem;
+}
+.card h4{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.6rem;
+}
+.big{
+  font-family:var(--serif);
+  font-size:1.45rem;
+  color:var(--ink);
+  line-height:1.08;
+  margin-bottom:.55rem;
+}
+.card p{font-size:14px;line-height:1.68;margin:0}
+.bar{
+  height:12px;
+  border-radius:999px;
+  background:var(--bg3);
+  overflow:hidden;
+  margin-top:.75rem;
+}
+.fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--gold),var(--purple));
+  width:0%;
+}
+.mini-grid{
+  display:grid;
+  gap:10px;
+  margin-top:.95rem;
+}
+.row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.75rem .9rem;
+  font-family:var(--mono);
+  font-size:12px;
+}
+.row .tag{color:var(--ink3)}
+.table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+.table th,.table td{
+  text-align:left;
+  border-bottom:1px solid var(--rule);
+  padding:.55rem .5rem;
+}
+.table th{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.table tr:last-child td{border-bottom:none}
+.yes{color:var(--green);font-weight:600}
+.no{color:var(--red);font-weight:600}
+.cb-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:.75rem .95rem;
+  border-bottom:1px solid var(--rule);
+  background:var(--bg2);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink2);
+}
+.run-btn{
+  border:1px solid var(--rule2);
+  border-radius:999px;
+  padding:4px 10px;
+  background:transparent;
+  color:var(--ink2);
+  cursor:pointer;
+  font-family:var(--mono);
+  font-size:11px;
+}
+.run-btn:hover{background:var(--surface);color:var(--ink)}
+.code{
+  margin:0;
+  padding:1rem 1.05rem;
+  overflow:auto;
+  font-family:var(--mono);
+  font-size:12.5px;
+  line-height:1.7;
+  color:var(--ink);
+  white-space:pre;
+}
+.out{
+  display:none;
+  margin:0;
+  padding:.95rem 1.05rem 1.1rem;
+  border-top:1px solid var(--rule);
+  background:linear-gradient(180deg, transparent, rgba(49,95,135,.04));
+  font-family:var(--mono);
+  font-size:12.5px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  color:var(--ink);
+}
+.out.on{display:block}
+.out.err{color:var(--red)}
+.footer-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:1rem;
+}
+.footer-links a{
+  font-size:14px;
+  color:var(--ink2);
+  text-decoration:none;
+}
+.footer-links a:hover{color:var(--gold)}
+@media (max-width:760px){
+  .toc,.grid-two,.stat-grid{grid-template-columns:1fr}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Approximate Answers</div>
+    <h1><em>Good Enough Answers</em> - Probabilistic Data Structures</h1>
+    <p>Sometimes exactness is the wrong objective. If you need to ask whether a URL is in a set of ten billion URLs, or estimate the number of distinct users in a stream, the winning move is often to spend a tiny amount of memory on an answer that is almost always right and explicitly bounded when it is wrong.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Bloom filters</b> for membership</span>
+      <span class="pill"><b>Count-min sketch</b> for frequencies</span>
+      <span class="pill"><b>HyperLogLog</b> for distinct counts</span>
+      <span class="pill">Error as a design parameter</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>The memory wall</a>
+    <a href="#s2"><span class="toc-n">02</span>Bloom filters</a>
+    <a href="#s3"><span class="toc-n">03</span>Count-min sketch</a>
+    <a href="#s4"><span class="toc-n">04</span>HyperLogLog</a>
+    <a href="#s5"><span class="toc-n">05</span>The philosophy</a>
+    <a href="#s6"><span class="toc-n">06</span>Case studies</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>The memory wall</h2></div>
+    <p>Suppose you want to ask a simple question: <strong>does this URL exist in a set of ten billion URLs?</strong> A fully exact hash set may be fine on paper, but not when you only have about <code>1GB</code> of RAM and still need room for everything else the program does.</p>
+    <p>This is where probabilistic data structures enter. They answer narrower questions with radically less memory, and they do so by being honest about the shape of their errors. Bloom filters allow false positives but not false negatives. Count-min sketch overestimates counts but never underestimates them. HyperLogLog estimates cardinality with a known relative error. They do not make every scale point magically fit, but they often make staged designs practical where exact storage is hopeless.</p>
+    <div class="callout">The key engineering move is not "be sloppy." It is "choose a cheap kind of wrongness that the system can tolerate." At 10B URLs and 1GB RAM, that likely means an approximate local stage plus a second check, not one giant exact in-memory set.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Exact set versus compact summary</div>
+      <div class="grid-two">
+        <div class="card">
+          <h4>Exact</h4>
+          <div class="big">Store every key</div>
+          <p>Memory scales with the number of elements plus allocator overhead, pointers, and metadata.</p>
+        </div>
+        <div class="card">
+          <h4>Probabilistic</h4>
+          <div class="big">Store evidence, not the elements</div>
+          <p>Memory scales with a target error budget: bits, counters, or registers instead of the raw key set.</p>
+        </div>
+      </div>
+      <div class="preview" id="overview-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">URLs</div><div class="stat-v">10B</div></div>
+        <div class="stat"><div class="stat-k">RAM budget</div><div class="stat-v">1GB</div></div>
+        <div class="stat"><div class="stat-k">Question</div><div class="stat-v">membership?</div></div>
+        <div class="stat"><div class="stat-k">Likely move</div><div class="stat-v">approx + staged</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>Bloom filters</h2></div>
+    <p>A Bloom filter is a bit array plus <code>k</code> hash functions. To insert a key, hash it <code>k</code> ways and set those bit positions to <code>1</code>. To query a key, hash it the same ways and check those positions. If any bit is <code>0</code>, the key is definitely absent. If all are <code>1</code>, the key is probably present.</p>
+    <p>The false-positive rate is not hand-waving. For <code>m</code> bits, <code>n</code> inserted items, and <code>k</code> hashes, the standard approximation is <code>(1 - e^(-kn/m))^k</code>. That lets you size the filter from the workload instead of guessing.</p>
+    <div class="callout info">Bloom filters buy tiny memory and fast negative lookups. In exchange, they cannot list contents, cannot count frequency, and cannot delete cleanly without upgrading to a counting variant.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Target a false-positive rate</div>
+      <div class="btn-row" id="bloom-rate-buttons">
+        <button class="btn" data-bloom-rate="0.1" onclick="setBloomRate(0.1)">10%</button>
+        <button class="btn act" data-bloom-rate="0.01" onclick="setBloomRate(0.01)">1%</button>
+        <button class="btn" data-bloom-rate="0.001" onclick="setBloomRate(0.001)">0.1%</button>
+      </div>
+      <div class="preview" id="bloom-preview"></div>
+      <div class="bar"><div class="fill" id="bloom-fill"></div></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Expected items</div><div class="stat-v" id="bloom-n">0</div></div>
+        <div class="stat"><div class="stat-k">Bits needed</div><div class="stat-v" id="bloom-bits">0</div></div>
+        <div class="stat"><div class="stat-k">Hash functions</div><div class="stat-v" id="bloom-k">0</div></div>
+        <div class="stat"><div class="stat-k">Observed false +</div><div class="stat-v" id="bloom-observed">0%</div></div>
+      </div>
+      <div class="mini-grid">
+        <div class="row"><span class="tag">Sample workload</span><span id="bloom-summary"></span></div>
+        <div class="row"><span class="tag">Memory per item</span><span id="bloom-bpi"></span></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>bloom_filter.js - membership with explicit false-positive control</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Count-min sketch</h2></div>
+    <p>Count-min sketch is for a different question: <strong>how often did this item appear in a stream?</strong> It keeps a small table of counters arranged in rows and columns. Each row has its own hash function. Updating an item increments one counter per row. Querying an item returns the minimum of those counters.</p>
+    <p>Why the minimum? Collisions only push counts upward, never downward. Taking the minimum across rows gives the least inflated answer available. The knobs are usually framed as <code>epsilon</code> for additive error and <code>delta</code> for failure probability, which translate to width and depth.</p>
+    <div class="callout">Count-min sketch is not trying to know everything. It is trying to know enough to spot heavy hitters and approximate frequencies in streams that are too large to store exactly.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Frequency estimation from a stream</div>
+      <div class="btn-row" id="cms-epsilon-buttons">
+        <button class="btn" data-cms-eps="0.2" onclick="setCmsEpsilon(0.2)">eps 0.20</button>
+        <button class="btn act" data-cms-eps="0.1" onclick="setCmsEpsilon(0.1)">eps 0.10</button>
+        <button class="btn" data-cms-eps="0.05" onclick="setCmsEpsilon(0.05)">eps 0.05</button>
+      </div>
+      <div class="preview" id="cms-preview"></div>
+      <table class="table" id="cms-table"></table>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Width</div><div class="stat-v" id="cms-width">0</div></div>
+        <div class="stat"><div class="stat-k">Depth</div><div class="stat-v" id="cms-depth">0</div></div>
+        <div class="stat"><div class="stat-k">Max additive error</div><div class="stat-v" id="cms-error">0</div></div>
+        <div class="stat"><div class="stat-k">Failure prob.</div><div class="stat-v" id="cms-delta">0</div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>count_min_sketch.js - streaming counts with error controls</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>HyperLogLog</h2></div>
+    <p>HyperLogLog answers a third question: <strong>how many distinct elements have I seen?</strong> Instead of storing the elements, it hashes them, partitions the hash space into registers, and records how many leading zeros appear in the remaining bits. Rare long runs of leading zeros are evidence that many distinct items must have passed through.</p>
+    <p>The main control is precision: more registers mean lower relative error, roughly <code>1.04 / sqrt(m)</code> where <code>m</code> is the number of registers. That is why systems like Redis can offer approximate cardinality with a tiny, nearly fixed memory footprint.</p>
+    <div class="callout good">HyperLogLog is one of the cleanest examples of "scale by changing the question." You stop asking for the set itself and ask only for the size of the set.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Precision versus error</div>
+      <div class="btn-row" id="hll-precision-buttons">
+        <button class="btn" data-hll-p="4" onclick="setHllPrecision(4)">16 regs</button>
+        <button class="btn act" data-hll-p="6" onclick="setHllPrecision(6)">64 regs</button>
+        <button class="btn" data-hll-p="8" onclick="setHllPrecision(8)">256 regs</button>
+      </div>
+      <div class="preview" id="hll-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Registers</div><div class="stat-v" id="hll-registers">0</div></div>
+        <div class="stat"><div class="stat-k">Exact distinct</div><div class="stat-v" id="hll-exact">0</div></div>
+        <div class="stat"><div class="stat-k">Estimated distinct</div><div class="stat-v" id="hll-est">0</div></div>
+        <div class="stat"><div class="stat-k">Expected rel. error</div><div class="stat-v" id="hll-error">0%</div></div>
+      </div>
+      <div class="mini-grid">
+        <div class="row"><span class="tag">Memory shape</span><span id="hll-memory"></span></div>
+        <div class="row"><span class="tag">Actual relative error</span><span id="hll-actual"></span></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>hyperloglog.js - approximate distinct counting with precision control</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+      <pre class="code" id="c3"></pre>
+      <div class="out" id="o3"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>The philosophy</h2></div>
+    <p>There is a recurring engineering mistake: treating approximation as a moral failure rather than a workload decision. In real systems, exactness competes with memory, latency, bandwidth, and operational simplicity. If the tolerated error is explicit and the business consequence is acceptable, an approximate answer can be the higher-quality design.</p>
+    <p>That is the deeper lesson of these structures. They do not merely compress data. They compress <strong>decision-relevant information</strong>. A Bloom filter only needs to know enough to skip work most of the time. A count-min sketch only needs to know enough to rank frequent items. A HyperLogLog only needs to know enough to estimate cardinality.</p>
+    <div class="callout">Trading exactness for scale is not surrender. It is choosing the cheapest answer that still supports the product decision you actually need to make.</div>
+  </section>
+
+  <section class="section footer" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Case studies</h2></div>
+    <p><strong>Chrome Safe Browsing</strong> is a good reminder to stay concrete. Current public docs emphasize downloaded local lists and hash-prefix lookups rather than advertising a Bloom filter by name. But the engineering instinct is the same: keep a compact local structure on-device, rule out the vast majority of URLs cheaply, and only escalate when needed.</p>
+    <p><strong>Cassandra</strong> uses Bloom filters directly in the read path to avoid touching SSTable data files that definitely do not contain the requested partition key. It even exposes <code>bloom_filter_fp_chance</code> as a tuning parameter because the RAM-versus-I/O trade is operationally important.</p>
+    <p><strong>Redis</strong> ships HyperLogLog as a first-class command family: <code>PFADD</code>, <code>PFCOUNT</code>, and <code>PFMERGE</code>. The attraction is exactly what this explainer shows: a tiny, nearly fixed memory footprint for distinct counting, with a known standard error instead of exact set storage.</p>
+    <div class="footer-links">
+      <a href="https://developers.google.com/safe-browsing/v4/urls-hashing">Safe Browsing URL hashing</a>
+      <a href="https://support.google.com/chrome/answer/13844634?hl=en">Chrome Safe Browsing privacy</a>
+      <a href="https://cassandra.apache.org/doc/3.11/cassandra/operating/bloom_filters.html">Cassandra Bloom filters</a>
+      <a href="https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/">Redis HyperLogLog docs</a>
+      <a href="https://redis.io/docs/latest/commands/pfcount/">Redis PFCOUNT</a>
+    </div>
+  </section>
+</div>
+
+<script>
+const CODE_SNIPPETS = {
+  c1: String.raw`class BloomFilter {
+  constructor(expectedItems, falsePositiveRate) {
+    this.expectedItems = expectedItems;
+    this.falsePositiveRate = falsePositiveRate;
+    this.bits = Math.ceil(-(expectedItems * Math.log(falsePositiveRate)) / (Math.log(2) ** 2));
+    this.hashes = Math.max(1, Math.round((this.bits / expectedItems) * Math.log(2)));
+    this.data = new Uint8Array(Math.ceil(this.bits / 8));
+  }
+
+  hash(key, seed) {
+    let h = 2166136261 ^ seed;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) % this.bits;
+  }
+
+  add(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      const bit = this.hash(key, i + 1);
+      this.data[bit >> 3] |= 1 << (bit & 7);
+    }
+  }
+
+  has(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      const bit = this.hash(key, i + 1);
+      if ((this.data[bit >> 3] & (1 << (bit & 7))) === 0) return false;
+    }
+    return true;
+  }
+}
+
+const bf = new BloomFilter(1000, 0.01);
+const exact = new Set();
+for (let i = 0; i < 1000; i++) {
+  const key = "url-" + i;
+  exact.add(key);
+  bf.add(key);
+}
+
+let falsePositives = 0;
+for (let i = 1000; i < 5000; i++) {
+  const key = "url-" + i;
+  if (!exact.has(key) && bf.has(key)) falsePositives++;
+}
+
+console.log("bits:", bf.bits);
+console.log("hashes:", bf.hashes);
+console.log("observed false positive rate:", (falsePositives / 4000).toFixed(4));`,
+  c2: String.raw`class CountMinSketch {
+  constructor(epsilon = 0.1, delta = 0.01) {
+    this.epsilon = epsilon;
+    this.delta = delta;
+    this.width = Math.ceil(Math.E / epsilon);
+    this.depth = Math.ceil(Math.log(1 / delta));
+    this.table = Array.from({ length: this.depth }, () => new Uint32Array(this.width));
+  }
+
+  hash(key, seed) {
+    let h = 2166136261 ^ seed;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) % this.width;
+  }
+
+  add(key, count = 1) {
+    for (let row = 0; row < this.depth; row++) {
+      this.table[row][this.hash(key, row + 1)] += count;
+    }
+  }
+
+  estimate(key) {
+    let best = Infinity;
+    for (let row = 0; row < this.depth; row++) {
+      best = Math.min(best, this.table[row][this.hash(key, row + 1)]);
+    }
+    return best;
+  }
+}
+
+const cms = new CountMinSketch(0.1, 0.01);
+const stream = ["apple","apple","apple","banana","banana","mango","kiwi","apple","kiwi","banana","banana"];
+for (const item of stream) cms.add(item);
+
+for (const key of ["apple", "banana", "mango", "pear"]) {
+  console.log(key + " ->", cms.estimate(key));
+}`,
+  c3: String.raw`class HyperLogLog {
+  constructor(precision = 6) {
+    this.precision = precision;
+    this.registerCount = 1 << precision;
+    this.registers = new Uint8Array(this.registerCount);
+  }
+
+  hash(key) {
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x85ebca6b);
+    h ^= h >>> 13;
+    h = Math.imul(h, 0xc2b2ae35);
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+
+  add(key) {
+    const hash = this.hash(key);
+    const index = hash >>> (32 - this.precision);
+    const remainingBits = 32 - this.precision;
+    const remainder = hash & ((1 << remainingBits) - 1);
+    const rank = remainder === 0
+      ? remainingBits + 1
+      : Math.clz32(remainder) - this.precision + 1;
+    this.registers[index] = Math.max(this.registers[index], rank);
+  }
+
+  estimate() {
+    const m = this.registerCount;
+    const alpha = m === 16 ? 0.673 : m === 32 ? 0.697 : m === 64 ? 0.709 : 0.7213 / (1 + 1.079 / m);
+    let sum = 0;
+    let zeros = 0;
+    for (const reg of this.registers) {
+      sum += Math.pow(2, -reg);
+      if (reg === 0) zeros++;
+    }
+    let estimate = alpha * m * m / sum;
+    if (estimate <= 2.5 * m && zeros > 0) estimate = m * Math.log(m / zeros);
+    return estimate;
+  }
+}
+
+const hll = new HyperLogLog(6);
+const exact = new Set();
+for (let i = 0; i < 10000; i++) {
+  const key = "user-" + (i % 4300);
+  exact.add(key);
+  hll.add(key);
+}
+
+console.log("registers:", hll.registerCount);
+console.log("exact distinct:", exact.size);
+console.log("estimated distinct:", Math.round(hll.estimate()));
+console.log("expected relative error:", (1.04 / Math.sqrt(hll.registerCount)).toFixed(3));`
+};
+
+const BLOOM_EXPECTED_ITEMS = 2400;
+const BLOOM_SAMPLE_INSERTS = 2400;
+const BLOOM_SAMPLE_TESTS = 12000;
+const CMS_STREAM = [
+  "apple","apple","apple","apple","apple",
+  "banana","banana","banana","banana",
+  "mango","mango","mango",
+  "kiwi","kiwi","pear","lime","lime","lime",
+  "apple","banana","apple","plum","pear","apple","banana","banana","banana"
+];
+const HLL_STREAM = Array.from({ length: 12000 }, (_, i) => "user-" + (i % 4300));
+
+const state = {
+  bloomRate: 0.01,
+  cmsEpsilon: 0.1,
+  hllPrecision: 6
+};
+
+function hashFNV(key, seed) {
+  let h = 2166136261 ^ seed;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+class DemoBloomFilter {
+  constructor(expectedItems, falsePositiveRate) {
+    this.expectedItems = expectedItems;
+    this.falsePositiveRate = falsePositiveRate;
+    this.bits = Math.ceil(-(expectedItems * Math.log(falsePositiveRate)) / (Math.log(2) ** 2));
+    this.hashes = Math.max(1, Math.round((this.bits / expectedItems) * Math.log(2)));
+    this.data = new Uint8Array(Math.ceil(this.bits / 8));
+  }
+
+  add(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      const bit = hashFNV(key, i + 1) % this.bits;
+      this.data[bit >> 3] |= 1 << (bit & 7);
+    }
+  }
+
+  has(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      const bit = hashFNV(key, i + 1) % this.bits;
+      if ((this.data[bit >> 3] & (1 << (bit & 7))) === 0) return false;
+    }
+    return true;
+  }
+}
+
+class DemoCountMinSketch {
+  constructor(epsilon = 0.1, delta = 0.01) {
+    this.epsilon = epsilon;
+    this.delta = delta;
+    this.width = Math.ceil(Math.E / epsilon);
+    this.depth = Math.ceil(Math.log(1 / delta));
+    this.table = Array.from({ length: this.depth }, () => new Uint32Array(this.width));
+  }
+
+  add(key, count = 1) {
+    for (let row = 0; row < this.depth; row++) {
+      this.table[row][hashFNV(key, row + 1) % this.width] += count;
+    }
+  }
+
+  estimate(key) {
+    let best = Infinity;
+    for (let row = 0; row < this.depth; row++) {
+      best = Math.min(best, this.table[row][hashFNV(key, row + 1) % this.width]);
+    }
+    return best;
+  }
+}
+
+class DemoHyperLogLog {
+  constructor(precision = 6) {
+    this.precision = precision;
+    this.registerCount = 1 << precision;
+    this.registers = new Uint8Array(this.registerCount);
+  }
+
+  add(key) {
+    const hash = hashFNV(key, 0);
+    const index = hash >>> (32 - this.precision);
+    const remainingBits = 32 - this.precision;
+    const remainder = hash & ((1 << remainingBits) - 1);
+    const rank = remainder === 0
+      ? remainingBits + 1
+      : Math.clz32(remainder) - this.precision + 1;
+    this.registers[index] = Math.max(this.registers[index], rank);
+  }
+
+  estimate() {
+    const m = this.registerCount;
+    const alpha = m === 16 ? 0.673 : m === 32 ? 0.697 : m === 64 ? 0.709 : 0.7213 / (1 + 1.079 / m);
+    let sum = 0;
+    let zeros = 0;
+    for (const reg of this.registers) {
+      sum += Math.pow(2, -reg);
+      if (reg === 0) zeros++;
+    }
+    let estimate = alpha * m * m / sum;
+    if (estimate <= 2.5 * m && zeros > 0) estimate = m * Math.log(m / zeros);
+    return estimate;
+  }
+}
+
+function renderOverview() {
+  document.getElementById("overview-preview").textContent =
+    "Ten billion exact keys are usually too expensive to keep around just to answer a narrow question.\n" +
+    "Probabilistic structures keep compressed evidence instead, with an explicit error budget.";
+}
+
+function setBloomRate(rate) {
+  state.bloomRate = rate;
+  document.querySelectorAll("[data-bloom-rate]").forEach(btn => {
+    btn.classList.toggle("act", Number(btn.dataset.bloomRate) === rate);
+  });
+  renderBloom();
+}
+
+function renderBloom() {
+  const bf = new DemoBloomFilter(BLOOM_EXPECTED_ITEMS, state.bloomRate);
+  const exact = new Set();
+  for (let i = 0; i < BLOOM_SAMPLE_INSERTS; i++) {
+    const key = "url-" + i;
+    exact.add(key);
+    bf.add(key);
+  }
+  let falsePositives = 0;
+  for (let i = BLOOM_SAMPLE_INSERTS; i < BLOOM_SAMPLE_INSERTS + BLOOM_SAMPLE_TESTS; i++) {
+    const key = "url-" + i;
+    if (!exact.has(key) && bf.has(key)) falsePositives++;
+  }
+  const observed = falsePositives / BLOOM_SAMPLE_TESTS;
+  document.getElementById("bloom-preview").textContent =
+    "This demo fills a Bloom filter to its planned load: " + BLOOM_EXPECTED_ITEMS.toLocaleString() +
+    " inserted URLs in a packed bit array, sized for a target false-positive rate of " +
+    formatPercent(state.bloomRate) + ".";
+  document.getElementById("bloom-n").textContent = shortNum(BLOOM_EXPECTED_ITEMS);
+  document.getElementById("bloom-bits").textContent = shortNum(bf.bits);
+  document.getElementById("bloom-k").textContent = bf.hashes;
+  document.getElementById("bloom-observed").textContent = formatPercent(observed);
+  document.getElementById("bloom-summary").textContent =
+    BLOOM_SAMPLE_INSERTS + " inserted, " + BLOOM_SAMPLE_TESTS + " absent lookups tested";
+  document.getElementById("bloom-bpi").textContent = (bf.bits / BLOOM_EXPECTED_ITEMS).toFixed(1) + " bits/item";
+  document.getElementById("bloom-fill").style.width = Math.min(100, (bf.bits / 16000000) * 100) + "%";
+}
+
+function setCmsEpsilon(epsilon) {
+  state.cmsEpsilon = epsilon;
+  document.querySelectorAll("[data-cms-eps]").forEach(btn => {
+    btn.classList.toggle("act", Number(btn.dataset.cmsEps) === epsilon);
+  });
+  renderCms();
+}
+
+function renderCms() {
+  const delta = 0.01;
+  const cms = new DemoCountMinSketch(state.cmsEpsilon, delta);
+  const exact = new Map();
+  for (const item of CMS_STREAM) {
+    exact.set(item, (exact.get(item) || 0) + 1);
+    cms.add(item);
+  }
+  const keys = ["apple", "banana", "mango", "pear", "papaya"];
+  const rows = keys.map(key => {
+    const actual = exact.get(key) || 0;
+    const estimate = cms.estimate(key);
+    return "<tr><td>" + key + "</td><td>" + actual + "</td><td>" + estimate + "</td><td>" +
+      (estimate === actual ? "<span class='yes'>exact</span>" : "<span class='no'>+" + (estimate - actual) + "</span>") +
+      "</td></tr>";
+  }).join("");
+  document.getElementById("cms-preview").textContent =
+    "Count-min sketch never underestimates. Collisions only push counts upward, so the minimum across rows is your least inflated answer.";
+  document.getElementById("cms-table").innerHTML =
+    "<thead><tr><th>Key</th><th>Exact count</th><th>Sketch estimate</th><th>Overestimate</th></tr></thead><tbody>" + rows + "</tbody>";
+  document.getElementById("cms-width").textContent = cms.width;
+  document.getElementById("cms-depth").textContent = cms.depth;
+  document.getElementById("cms-error").textContent = "\u00b1" + Math.ceil(state.cmsEpsilon * CMS_STREAM.length);
+  document.getElementById("cms-delta").textContent = formatPercent(delta);
+}
+
+function setHllPrecision(precision) {
+  state.hllPrecision = precision;
+  document.querySelectorAll("[data-hll-p]").forEach(btn => {
+    btn.classList.toggle("act", Number(btn.dataset.hllP) === precision);
+  });
+  renderHll();
+}
+
+function renderHll() {
+  const hll = new DemoHyperLogLog(state.hllPrecision);
+  const exact = new Set();
+  for (const key of HLL_STREAM) {
+    exact.add(key);
+    hll.add(key);
+  }
+  const estimate = hll.estimate();
+  const relError = Math.abs(estimate - exact.size) / exact.size;
+  document.getElementById("hll-preview").textContent =
+    "HyperLogLog trades exact set storage for a fixed bank of registers. Precision changes the expected relative error, not the number of items processed.";
+  document.getElementById("hll-registers").textContent = shortNum(hll.registerCount);
+  document.getElementById("hll-exact").textContent = shortNum(exact.size);
+  document.getElementById("hll-est").textContent = shortNum(Math.round(estimate));
+  document.getElementById("hll-error").textContent = formatPercent(1.04 / Math.sqrt(hll.registerCount));
+  document.getElementById("hll-memory").textContent = hll.registerCount + " one-byte registers in this toy implementation";
+  document.getElementById("hll-actual").textContent = formatPercent(relError);
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(formatValue).join(" ")),
+    error: (...args) => lines.push(args.map(formatValue).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function formatValue(v) {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function shortNum(n) {
+  if (n >= 1000000000) return (n / 1000000000).toFixed(1) + "B";
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  return String(n);
+}
+
+function formatPercent(x) {
+  return (x * 100).toFixed(x < 0.02 ? 2 : 1) + "%";
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+}
+
+initCodeBlocks();
+renderOverview();
+setBloomRate(0.01);
+setCmsEpsilon(0.1);
+setHllPrecision(6);
+</script>
+</body>
+</html>
