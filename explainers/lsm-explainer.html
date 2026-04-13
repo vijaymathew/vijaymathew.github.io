@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Write-Heavy Problem - LSM Trees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f5f7;
+  --bg2:#e7edf0;
+  --bg3:#dce5ea;
+  --surface:#ffffff;
+  --ink:#152029;
+  --ink2:#55626b;
+  --ink3:#89939a;
+  --rule:rgba(21,32,41,.10);
+  --rule2:rgba(21,32,41,.18);
+  --steel:#315d77;
+  --steel-bg:#e3eef5;
+  --rust:#aa642d;
+  --rust-bg:#f7eadf;
+  --green:#19725b;
+  --green-bg:#e2f3ec;
+  --red:#a43d3d;
+  --red-bg:#f8e6e6;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"Public Sans", sans-serif;
+  --serif:"Source Serif 4", serif;
+  --r:9px;
+  --r-lg:14px;
+  --shadow:0 18px 42px rgba(17,27,33,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#10161a;
+    --bg2:#171f24;
+    --bg3:#202a31;
+    --surface:#171f24;
+    --ink:#e9eef1;
+    --ink2:#aab4bb;
+    --ink3:#6c7880;
+    --rule:rgba(255,255,255,.08);
+    --rule2:rgba(255,255,255,.15);
+    --steel:#8fc3e0;
+    --steel-bg:#132431;
+    --rust:#e0aa73;
+    --rust-bg:#2a1d12;
+    --green:#85d2b8;
+    --green-bg:#10251f;
+    --red:#e18888;
+    --red-bg:#2a1313;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    linear-gradient(180deg, rgba(49,93,119,.05), transparent 16rem),
+    radial-gradient(circle at top right, rgba(170,100,45,.10), transparent 22rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:880px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:1.2rem 0;
+  border-bottom:1px solid var(--rule);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--steel)}
+.hero{
+  padding:4.2rem 0 3.2rem;
+  border-bottom:1px solid var(--rule);
+}
+.hero-kicker{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--steel);
+  margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);
+  font-size:clamp(2.7rem, 6vw, 4.2rem);
+  font-weight:400;
+  line-height:1.04;
+  letter-spacing:-.01em;
+  max-width:12ch;
+  margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:var(--rust)}
+.hero p{
+  max-width:45rem;
+  color:var(--ink2);
+  font-size:17px;
+  line-height:1.75;
+  margin-bottom:1.45rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 11px;
+  border-radius:999px;
+  border:1px solid var(--rule2);
+  background:var(--bg2);
+  color:var(--ink2);
+  font-family:var(--mono);
+  font-size:11px;
+}
+.pill b{color:var(--steel);font-weight:500}
+.toc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin:2.6rem 0 3.4rem;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.toc a{
+  display:flex;
+  gap:10px;
+  padding:11px 14px;
+  background:var(--surface);
+  color:var(--ink2);
+  text-decoration:none;
+  font-size:14px;
+  transition:background .12s,color .12s;
+}
+.toc a:hover{background:var(--bg2);color:var(--ink)}
+.toc-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  min-width:16px;
+  padding-top:1px;
+}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  border-bottom:1px solid var(--rule);
+  padding-bottom:.9rem;
+  margin-bottom:1.35rem;
+}
+.sec-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
+h2{
+  font-family:var(--serif);
+  font-size:1.95rem;
+  font-weight:400;
+  line-height:1.14;
+}
+h3{
+  font-size:15px;
+  font-weight:600;
+  color:var(--ink);
+  margin:1.35rem 0 .48rem;
+}
+p{
+  font-size:15.5px;
+  line-height:1.8;
+  color:var(--ink2);
+  margin-bottom:.95rem;
+}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--steel)}
+code{
+  font-family:var(--mono);
+  font-size:12.5px;
+  border-radius:4px;
+  border:1px solid var(--rule2);
+  background:var(--bg2);
+  color:var(--ink);
+  padding:1px 5px;
+}
+.callout{
+  border-left:3px solid var(--steel);
+  background:var(--steel-bg);
+  color:var(--steel);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.82rem 1.05rem;
+  margin:1.15rem 0;
+  font-size:14px;
+  line-height:1.7;
+}
+.callout.warn{border-color:var(--rust);background:var(--rust-bg);color:var(--rust)}
+.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.demo,.cb{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow);
+  margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.95rem}
+.btn{
+  border:1px solid var(--rule2);
+  border-radius:var(--r);
+  background:transparent;
+  color:var(--ink2);
+  padding:5px 11px;
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.btn:hover{background:var(--bg2);color:var(--ink)}
+.btn.act{background:var(--steel-bg);color:var(--steel);border-color:rgba(49,93,119,.28)}
+.preview{
+  background:linear-gradient(180deg, var(--bg2), transparent);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.9rem 1rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--ink);
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.stat{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.8rem .9rem;
+}
+.stat-k{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.42rem;
+}
+.stat-v{
+  font-size:1.2rem;
+  font-weight:600;
+  color:var(--ink);
+}
+.compare-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+.card{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:1rem;
+}
+.card h4{
+  font-size:13px;
+  font-family:var(--mono);
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.6rem;
+}
+.big{
+  font-family:var(--serif);
+  font-size:1.5rem;
+  line-height:1.08;
+  color:var(--ink);
+  margin-bottom:.55rem;
+}
+.card p{
+  font-size:14px;
+  margin:0;
+  line-height:1.68;
+}
+.log-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:.95rem;
+}
+.event-log{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.9rem;
+  min-height:168px;
+}
+.event-log h4{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.7rem;
+}
+.event-log ul{
+  list-style:none;
+  display:grid;
+  gap:7px;
+}
+.event-log li{
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.6;
+  color:var(--ink);
+  padding:.45rem .55rem;
+  border-radius:8px;
+  background:var(--surface);
+  border:1px solid var(--rule);
+}
+.lsm-shell{
+  display:grid;
+  gap:12px;
+}
+.kv-strip{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.9rem;
+}
+.kv-strip h4{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.65rem;
+}
+.tokens{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.token{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px;
+  border-radius:999px;
+  background:var(--surface);
+  border:1px solid var(--rule);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink);
+}
+.token.new{border-color:rgba(49,93,119,.28);background:var(--steel-bg);color:var(--steel)}
+.token.old{border-color:rgba(170,100,45,.26);background:var(--rust-bg);color:var(--rust)}
+.level-stack{
+  display:grid;
+  gap:10px;
+  margin-top:.95rem;
+}
+.level-row{
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  background:var(--bg2);
+  padding:.9rem;
+}
+.level-head{
+  display:flex;
+  justify-content:space-between;
+  gap:1rem;
+  align-items:center;
+  margin-bottom:.75rem;
+  font-family:var(--mono);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--ink3);
+}
+.file-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.file{
+  min-width:130px;
+  padding:.7rem .8rem;
+  border-radius:10px;
+  border:1px solid var(--rule);
+  background:var(--surface);
+}
+.file .name{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  margin-bottom:.35rem;
+}
+.file .range{
+  font-size:14px;
+  font-weight:600;
+  color:var(--ink);
+  margin-bottom:.25rem;
+}
+.file .meta{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink2);
+}
+.file.overlap{border-color:rgba(170,100,45,.28);background:var(--rust-bg)}
+.file.hit{border-color:rgba(25,114,91,.30);background:var(--green-bg)}
+.table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+.table th,.table td{
+  text-align:left;
+  border-bottom:1px solid var(--rule);
+  padding:.55rem .5rem;
+  vertical-align:top;
+}
+.table th{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+.table tr:last-child td{border-bottom:none}
+.yes{color:var(--green);font-weight:600}
+.no{color:var(--red);font-weight:600}
+.maybe{color:var(--rust);font-weight:600}
+.cb-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:.75rem .95rem;
+  border-bottom:1px solid var(--rule);
+  background:var(--bg2);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink2);
+}
+.run-btn{
+  border:1px solid var(--rule2);
+  border-radius:999px;
+  padding:4px 10px;
+  background:transparent;
+  color:var(--ink2);
+  cursor:pointer;
+  font-family:var(--mono);
+  font-size:11px;
+}
+.run-btn:hover{background:var(--surface);color:var(--ink)}
+.code{
+  margin:0;
+  padding:1rem 1.05rem;
+  overflow:auto;
+  font-family:var(--mono);
+  font-size:12.5px;
+  line-height:1.7;
+  color:var(--ink);
+  white-space:pre;
+}
+.out{
+  display:none;
+  margin:0;
+  padding:.95rem 1.05rem 1.1rem;
+  border-top:1px solid var(--rule);
+  background:linear-gradient(180deg, transparent, rgba(49,93,119,.04));
+  font-family:var(--mono);
+  font-size:12.5px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  color:var(--ink);
+}
+.out.on{display:block}
+.out.err{color:var(--red)}
+.footer-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:1rem;
+}
+.footer-links a{
+  font-size:14px;
+  color:var(--ink2);
+  text-decoration:none;
+}
+.footer-links a:hover{color:var(--steel)}
+@media (max-width:760px){
+  .toc,.compare-grid,.log-grid,.stat-grid{grid-template-columns:1fr}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Storage Engines</div>
+    <h1>The <em>Write-Heavy Problem</em> - LSM Trees</h1>
+    <p>Once a key-value store gets serious write traffic, the bottleneck is often no longer hashing or indexing. It is the physical act of rewriting scattered pages on disk. LSM trees change the game by making the write path almost entirely sequential, then paying the cleanup bill later through compaction.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Sequential</b> write path</span>
+      <span class="pill"><b>MemTable</b> and SSTables</span>
+      <span class="pill"><b>Bloom filters</b> as a common file feature</span>
+      <span class="pill">LevelDB, RocksDB, Cassandra</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>Why in-place updates hurt</a>
+    <a href="#s2"><span class="toc-n">02</span>The LSM insight</a>
+    <a href="#s3"><span class="toc-n">03</span>Compaction as a cascade</a>
+    <a href="#s4"><span class="toc-n">04</span>Bloom filters as a common SSTable feature</a>
+    <a href="#s5"><span class="toc-n">05</span>A simplified LSM store in JavaScript</a>
+    <a href="#s6"><span class="toc-n">06</span>LevelDB, RocksDB, and Cassandra</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>Why in-place updates hurt</h2></div>
+    <p>A B-tree is excellent when the storage medium tolerates random page updates cheaply. But a busy write workload turns every tiny logical change into a small storm of physical work: append to the write-ahead log, rewrite the leaf page, maybe rewrite an internal page, maybe split, and eventually flush all of that through the filesystem and device.</p>
+    <p>The pain is not that B-trees are bad. The pain is that <strong>updating in place creates write amplification</strong>. A 40-byte value update can force kilobytes of page traffic, plus random I/O that is much harder for storage hardware to batch efficiently than a single append stream.</p>
+    <div class="callout warn">The core LSM argument is physical, not abstract: if random page rewrites are your bottleneck, stop rewriting pages on every write.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Same logical writes, different physical behavior</div>
+      <div class="btn-row">
+        <button class="btn" onclick="stepWriteModel(1)">One write</button>
+        <button class="btn" onclick="stepWriteModel(4)">Four writes</button>
+        <button class="btn" onclick="resetWriteModel()">Reset</button>
+      </div>
+      <div class="compare-grid">
+        <div class="card">
+          <h4>B-tree style update</h4>
+          <div class="big">Rewrite pages now</div>
+          <p>Each overwrite reaches into existing structure. The fast path is still several writes, and unlucky writes trigger page splits.</p>
+        </div>
+        <div class="card">
+          <h4>LSM style update</h4>
+          <div class="big">Append now, sort later</div>
+          <p>Durability comes from an append-only log, while the in-memory table absorbs updates until it is flushed as a new sorted run.</p>
+        </div>
+      </div>
+      <div class="preview" id="write-preview"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Logical writes</div><div class="stat-v" id="write-count">0</div></div>
+        <div class="stat"><div class="stat-k">B-tree page rewrites</div><div class="stat-v" id="write-btree">0</div></div>
+        <div class="stat"><div class="stat-k">B-tree splits</div><div class="stat-v" id="write-splits">0</div></div>
+        <div class="stat"><div class="stat-k">LSM sequential appends</div><div class="stat-v" id="write-lsm">0</div></div>
+      </div>
+      <div class="log-grid">
+        <div class="event-log">
+          <h4>Recent B-tree touches</h4>
+          <ul id="write-btree-log"></ul>
+        </div>
+        <div class="event-log">
+          <h4>Recent LSM touches</h4>
+          <ul id="write-lsm-log"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>random_vs_sequential.js - immediate write-path work</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>The LSM insight</h2></div>
+    <p>The log-structured merge tree flips the write path on purpose. New writes go to two places: an append-only log for durability, and an in-memory sorted structure usually called the <strong>MemTable</strong>. When the MemTable fills, it is frozen and flushed out as a new immutable sorted file: an <strong>SSTable</strong>.</p>
+    <p>That means writes are cheap right now, but reads now have to consult multiple places: the MemTable, maybe a recently frozen MemTable, and several SSTables on disk. The system accepts that temporary disorder because compaction will later merge those files into larger, cleaner levels.</p>
+    <div class="callout">An LSM tree is really a promise: "I will not overwrite old data in place. I will accumulate sorted runs, then reconcile them in the background."</div>
+
+    <div class="demo">
+      <div class="demo-lbl">MemTable flush pipeline</div>
+      <div class="btn-row">
+        <button class="btn" onclick="appendPipelineWrites(1)">Add one write</button>
+        <button class="btn" onclick="appendPipelineWrites(3)">Add three writes</button>
+        <button class="btn" onclick="flushPipeline()">Flush to SSTable</button>
+        <button class="btn" onclick="resetPipeline()">Reset</button>
+      </div>
+      <div class="preview" id="pipeline-preview"></div>
+      <div class="lsm-shell">
+        <div class="kv-strip">
+          <h4>Active MemTable</h4>
+          <div class="tokens" id="pipeline-memtable"></div>
+        </div>
+        <div class="kv-strip">
+          <h4>SSTables on disk (newest first)</h4>
+          <div class="tokens" id="pipeline-sstables"></div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">WAL appends</div><div class="stat-v" id="pipeline-wal">0</div></div>
+        <div class="stat"><div class="stat-k">MemTable entries</div><div class="stat-v" id="pipeline-size">0</div></div>
+        <div class="stat"><div class="stat-k">Flushes</div><div class="stat-v" id="pipeline-flushes">0</div></div>
+        <div class="stat"><div class="stat-k">SSTables</div><div class="stat-v" id="pipeline-files">0</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Compaction as a cascade</h2></div>
+    <p>Immutable SSTables make the write path fast, but they create a new problem: multiple versions of the same key accumulate across files. Deletes become tombstones. Reads may have to search several runs. So the system keeps merging files down the tree.</p>
+    <p>This is why compaction is not an incidental optimization. It is the <strong>second half of the data structure</strong>. The write path borrows time from the future, and compaction is how that debt gets paid.</p>
+    <div class="callout good">The LSM trade is explicit: lower write latency and higher write throughput now, background rewrite work later.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Compaction cascade</div>
+      <div class="btn-row">
+        <button class="btn" onclick="addCompactionBatch()">Write batch</button>
+        <button class="btn" onclick="compactCascade()">Compact</button>
+        <button class="btn" onclick="resetCascade()">Reset</button>
+      </div>
+      <div class="btn-row" id="cascade-query-buttons">
+        <button class="btn act" data-cascade-key="banana" onclick="setCascadeKey('banana')">banana</button>
+        <button class="btn" data-cascade-key="mango" onclick="setCascadeKey('mango')">mango</button>
+        <button class="btn" data-cascade-key="pear" onclick="setCascadeKey('pear')">pear</button>
+      </div>
+      <div class="preview" id="cascade-preview"></div>
+      <div class="level-stack" id="cascade-levels"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">L0 files</div><div class="stat-v" id="cascade-l0">0</div></div>
+        <div class="stat"><div class="stat-k">L1 files</div><div class="stat-v" id="cascade-l1">0</div></div>
+        <div class="stat"><div class="stat-k">L2 files</div><div class="stat-v" id="cascade-l2">0</div></div>
+        <div class="stat"><div class="stat-k">Files checked for key</div><div class="stat-v" id="cascade-reads">0</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>Bloom filters as a common SSTable feature</h2></div>
+    <p>Point lookups are where a naive LSM can feel painful. If the key is absent, the system may have to ask file after file, "Do you have this key?" and pay disk work for repeated "no" answers. A Bloom filter changes the economics of that question.</p>
+    <p>Many LSM systems attach a compact probabilistic summary to each SSTable or data block. On lookup, the filter can say either <strong>definitely not here</strong> or <strong>maybe here</strong>. That means many negative lookups can skip opening the data file entirely. The only tolerated mistake is a false positive, never a false negative.</p>
+    <div class="callout">Bloom filters are a very common SSTable feature, but not a universal law of the data structure. LevelDB, for example, exposes them through an optional filter policy. This explainer treats them as first-class because they matter so much for point reads.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">One query across several SSTables</div>
+      <div class="btn-row" id="bloom-query-buttons">
+        <button class="btn act" data-bloom-key="mango" onclick="setBloomKey('mango')">mango</button>
+        <button class="btn" data-bloom-key="papaya" onclick="setBloomKey('papaya')">papaya</button>
+        <button class="btn" data-bloom-key="yak" onclick="setBloomKey('yak')">yak</button>
+      </div>
+      <div class="preview" id="bloom-preview"></div>
+      <table class="table" id="bloom-table"></table>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Bloom rejections</div><div class="stat-v" id="bloom-rejects">0</div></div>
+        <div class="stat"><div class="stat-k">Disk probes</div><div class="stat-v" id="bloom-probes">0</div></div>
+        <div class="stat"><div class="stat-k">Actual hits</div><div class="stat-v" id="bloom-hits">0</div></div>
+        <div class="stat"><div class="stat-k">False positives</div><div class="stat-v" id="bloom-false">0</div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>bloom_guard.js - Bloom filters ruling SSTables out</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>A simplified LSM store in JavaScript</h2></div>
+    <p>The implementation below is deliberately small, but it includes the essential pieces: a MemTable, immutable SSTables, tombstones for deletes, per-SSTable Bloom filters, point lookups from newest to oldest, and a compacting merge that rewrites several files into one cleaner run.</p>
+    <div class="callout">This is not a production storage engine. It is the minimum shape that still feels like an LSM tree instead of just a sorted map with extra steps.</div>
+
+    <div class="cb">
+      <div class="cb-head"><span>lsm_store.js - simplified MemTable + SSTables + compaction</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+      <pre class="code" id="c3"></pre>
+      <div class="out" id="o3"></div>
+    </div>
+  </section>
+
+  <section class="section footer" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>LevelDB, RocksDB, and Cassandra</h2></div>
+    <p><strong>LevelDB</strong> is the compact embedded expression of the idea: log, MemTable, SSTables, compaction, optional Bloom filters. It established the basic shape many programmers now picture when they hear "LSM tree."</p>
+    <p><strong>RocksDB</strong> keeps the same overall structure but turns the compaction policy into a large design space. Its default leveled style focuses on controlling space amplification, while other modes such as universal compaction trade toward lower write amplification at the cost of more read and space amplification. It also treats Bloom filters as a standard SST-file feature for point lookups.</p>
+    <p><strong>Cassandra</strong> stretches the idea into a distributed database. Data still lands in memtables and immutable SSTables, but the compaction strategy becomes a workload-level decision because it directly shapes read amplification, write amplification, tombstone handling, and operational behavior across the cluster.</p>
+    <div class="callout good">Same family, different priorities: LevelDB is small and crisp, RocksDB is highly tunable, Cassandra is LSM at distributed-system scale.</div>
+    <div class="footer-links">
+      <a href="https://chromium.googlesource.com/external/leveldb/%2B/HEAD/doc/index.md">LevelDB docs</a>
+      <a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Overview">RocksDB overview</a>
+      <a href="https://github.com/facebook/rocksdb/wiki/Leveled-Compaction">RocksDB leveled compaction</a>
+      <a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Bloom-Filter/343f24d064bcb48deb8140305e7329d380dd8741">RocksDB Bloom filters</a>
+      <a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/overview.html">Cassandra compaction overview</a>
+      <a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/lcs.html">Cassandra leveled compaction</a>
+    </div>
+  </section>
+</div>
+
+<script>
+const CODE_SNIPPETS = {
+  c1: String.raw`const writes = [
+  { key: "ape", value: "1" },
+  { key: "bat", value: "2" },
+  { key: "cat", value: "3" },
+  { key: "dog", value: "4" }
+];
+
+let btreePhysicalWrites = 0;
+let lsmSequentialAppends = 0;
+
+for (let i = 0; i < writes.length; i++) {
+  const split = (i + 1) % 3 === 0;
+  btreePhysicalWrites += split ? 5 : 3; // WAL + leaf + parent, plus split pages sometimes
+  lsmSequentialAppends += 1; // one log append; MemTable update stays in memory
+}
+
+console.log("logical writes:", writes.length);
+console.log("b-tree page rewrites:", btreePhysicalWrites);
+console.log("lsm log appends:", lsmSequentialAppends);
+console.log("immediate physical-work ratio:", (btreePhysicalWrites / lsmSequentialAppends).toFixed(1));`,
+  c2: String.raw`class BloomFilter {
+  constructor(bits = 16, hashes = 2) {
+    this.bits = bits;
+    this.hashes = hashes;
+    this.data = new Uint8Array(bits);
+  }
+
+  hash(key, seed) {
+    let h = 2166136261 ^ seed;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) % this.bits;
+  }
+
+  add(key) {
+    for (let i = 0; i < this.hashes; i++) this.data[this.hash(key, i + 1)] = 1;
+  }
+
+  mightContain(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      if (this.data[this.hash(key, i + 1)] === 0) return false;
+    }
+    return true;
+  }
+}
+
+const files = [
+  ["ant", "cat", "mango", "pear"],
+  ["ape", "dog", "melon", "plum"],
+  ["bee", "fig", "olive", "quince"]
+].map(keys => {
+  const bloom = new BloomFilter();
+  keys.forEach(k => bloom.add(k));
+  return { keys, bloom };
+});
+
+for (const query of ["mango", "papaya", "yak"]) {
+  let probes = 0;
+  for (const file of files) {
+    if (!file.bloom.mightContain(query)) continue;
+    probes++;
+  }
+  console.log(query + " -> data files probed:", probes);
+}`,
+  c3: String.raw`class BloomFilter {
+  constructor(bits = 64, hashes = 3) {
+    this.bits = bits;
+    this.hashes = hashes;
+    this.data = new Uint8Array(bits);
+  }
+
+  hash(key, seed) {
+    let h = 2166136261 ^ seed;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) % this.bits;
+  }
+
+  add(key) {
+    for (let i = 0; i < this.hashes; i++) this.data[this.hash(key, i + 1)] = 1;
+  }
+
+  mightContain(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      if (this.data[this.hash(key, i + 1)] === 0) return false;
+    }
+    return true;
+  }
+}
+
+class SSTable {
+  constructor(entries) {
+    this.entries = entries;
+    this.minKey = entries.length ? entries[0].key : null;
+    this.maxKey = entries.length ? entries[entries.length - 1].key : null;
+    this.bloom = new BloomFilter(Math.max(32, entries.length * 12), 3);
+    for (const entry of entries) this.bloom.add(entry.key);
+  }
+
+  get(key) {
+    if (!this.entries.length) return null;
+    if (key < this.minKey || key > this.maxKey) return null;
+    if (!this.bloom.mightContain(key)) return null;
+    let lo = 0;
+    let hi = this.entries.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const cur = this.entries[mid].key;
+      if (cur === key) return this.entries[mid];
+      if (cur < key) lo = mid + 1;
+      else hi = mid - 1;
+    }
+    return null;
+  }
+}
+
+class LSMStore {
+  constructor(flushLimit = 4) {
+    this.flushLimit = flushLimit;
+    this.memtable = new Map();
+    this.levels = [[], []]; // L0 newest-first, then one compacted level
+  }
+
+  set(key, value) {
+    this.memtable.set(key, { key, value, tombstone: false });
+    if (this.memtable.size >= this.flushLimit) this.flush();
+  }
+
+  delete(key) {
+    this.memtable.set(key, { key, value: null, tombstone: true });
+    if (this.memtable.size >= this.flushLimit) this.flush();
+  }
+
+  flush() {
+    if (!this.memtable.size) return;
+    const entries = [...this.memtable.values()].sort((a, b) => a.key.localeCompare(b.key));
+    this.levels[0].unshift(new SSTable(entries));
+    this.memtable.clear();
+  }
+
+  get(key) {
+    if (this.memtable.has(key)) {
+      const hit = this.memtable.get(key);
+      return hit.tombstone ? undefined : hit.value;
+    }
+
+    for (const level of this.levels) {
+      for (const table of level) {
+        const hit = table.get(key);
+        if (!hit) continue;
+        return hit.tombstone ? undefined : hit.value;
+      }
+    }
+    return undefined;
+  }
+
+  compactLevel0() {
+    if (!this.levels[0].length) return;
+    const merged = new Map();
+    for (const table of [...this.levels[1]].reverse()) {
+      for (const entry of table.entries) merged.set(entry.key, entry);
+    }
+    for (const table of [...this.levels[0]].reverse()) {
+      for (const entry of table.entries) merged.set(entry.key, entry);
+    }
+    const entries = [...merged.values()]
+      .filter(entry => !entry.tombstone)
+      .sort((a, b) => a.key.localeCompare(b.key));
+    this.levels[0] = [];
+    this.levels[1] = entries.length ? [new SSTable(entries)] : [];
+  }
+}
+
+const db = new LSMStore(3);
+db.set("ape", 1);
+db.set("bat", 2);
+db.set("cat", 3); // flush 1
+db.set("bat", 20);
+db.delete("ape");
+db.set("dog", 4); // flush 2
+
+console.log("L0 files before compaction:", db.levels[0].length);
+console.log("get(cat):", db.get("cat"));
+console.log("get(ape) before compaction:", db.get("ape"));
+db.compactLevel0();
+console.log("L1 files after compaction:", db.levels[1].length);
+console.log("get(ape) after compaction:", db.get("ape"));
+console.log("final entries:", JSON.stringify(db.levels[1][0].entries.map(e => [e.key, e.value])));`
+};
+
+const WRITE_TEMPLATE = [
+  ["ape", "11"],
+  ["bat", "12"],
+  ["cat", "13"],
+  ["dog", "14"],
+  ["eel", "15"],
+  ["fox", "16"],
+  ["gnu", "17"],
+  ["hog", "18"]
+];
+
+const PIPELINE_TEMPLATE = [
+  ["ant", 1],
+  ["bee", 2],
+  ["cat", 3],
+  ["bee", 20],
+  ["eel", 5],
+  ["fox", 6],
+  ["gnu", 7],
+  ["hog", 8]
+];
+
+const CASCADE_BATCHES = [
+  [["apple", 1], ["banana", 2], ["mango", 3]],
+  [["banana", 20], ["kiwi", 9], ["pear", 4]],
+  [["lime", 5], ["mango", 30], ["plum", 6]],
+  [["apple", 11], ["olive", 7], ["pear", 40]]
+];
+
+const BLOOM_FILES = [
+  { name: "SST-41", keys: ["ant", "cat", "mango", "pear"] },
+  { name: "SST-42", keys: ["ape", "dog", "melon", "plum"] },
+  { name: "SST-43", keys: ["bee", "fig", "olive", "quince"] }
+];
+
+const state = {
+  write: {
+    count: 0,
+    btreeWrites: 0,
+    lsmWrites: 0,
+    splits: 0,
+    btreeLog: [],
+    lsmLog: []
+  },
+  pipeline: {
+    index: 0,
+    walAppends: 0,
+    flushes: 0,
+    memtable: new Map(),
+    sstables: []
+  },
+  cascade: {
+    batchIndex: 0,
+    nextId: 1,
+    key: "banana",
+    levels: [[], [], []]
+  },
+  bloomKey: "mango"
+};
+
+class DemoBloomFilter {
+  constructor(bits = 16, hashes = 2) {
+    this.bits = bits;
+    this.hashes = hashes;
+    this.data = new Uint8Array(bits);
+  }
+
+  hash(key, seed) {
+    let h = 2166136261 ^ seed;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) % this.bits;
+  }
+
+  add(key) {
+    for (let i = 0; i < this.hashes; i++) this.data[this.hash(key, i + 1)] = 1;
+  }
+
+  mightContain(key) {
+    for (let i = 0; i < this.hashes; i++) {
+      if (this.data[this.hash(key, i + 1)] === 0) return false;
+    }
+    return true;
+  }
+}
+
+function stepWriteModel(count = 1) {
+  for (let i = 0; i < count; i++) {
+    const item = WRITE_TEMPLATE[state.write.count % WRITE_TEMPLATE.length];
+    state.write.count += 1;
+    const split = state.write.count % 4 === 0;
+    const btreeTouches = split
+      ? ["WAL append", "leaf rewrite", "parent rewrite", "leaf split", "parent split"]
+      : ["WAL append", "leaf rewrite", "parent rewrite"];
+    const lsmTouches = ["WAL append", "MemTable update"];
+    state.write.btreeWrites += btreeTouches.length;
+    state.write.lsmWrites += 1;
+    if (split) state.write.splits += 1;
+    state.write.btreeLog.unshift(item[0] + " -> " + btreeTouches.join(" -> "));
+    state.write.lsmLog.unshift(item[0] + " -> " + lsmTouches.join(" -> "));
+    state.write.btreeLog = state.write.btreeLog.slice(0, 6);
+    state.write.lsmLog = state.write.lsmLog.slice(0, 6);
+  }
+  renderWriteModel();
+}
+
+function resetWriteModel() {
+  state.write = { count: 0, btreeWrites: 0, lsmWrites: 0, splits: 0, btreeLog: [], lsmLog: [] };
+  renderWriteModel();
+}
+
+function renderWriteModel() {
+  const preview =
+    "B-tree path: each overwrite reaches back into old pages, so physical work scales with page maintenance.\n" +
+    "LSM path: each overwrite appends to the log and updates the in-memory table; sorting and merging are deferred.";
+  document.getElementById("write-preview").textContent = preview;
+  document.getElementById("write-count").textContent = state.write.count;
+  document.getElementById("write-btree").textContent = state.write.btreeWrites;
+  document.getElementById("write-splits").textContent = state.write.splits;
+  document.getElementById("write-lsm").textContent = state.write.lsmWrites;
+  document.getElementById("write-btree-log").innerHTML =
+    state.write.btreeLog.map(line => "<li>" + escapeHtml(line) + "</li>").join("") || "<li>No writes yet.</li>";
+  document.getElementById("write-lsm-log").innerHTML =
+    state.write.lsmLog.map(line => "<li>" + escapeHtml(line) + "</li>").join("") || "<li>No writes yet.</li>";
+}
+
+function appendPipelineWrites(count) {
+  for (let i = 0; i < count; i++) {
+    const item = PIPELINE_TEMPLATE[state.pipeline.index % PIPELINE_TEMPLATE.length];
+    state.pipeline.index += 1;
+    state.pipeline.walAppends += 1;
+    state.pipeline.memtable.set(item[0], item[1]);
+  }
+  renderPipeline();
+}
+
+function flushPipeline() {
+  if (!state.pipeline.memtable.size) return;
+  const entries = [...state.pipeline.memtable.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  state.pipeline.sstables.unshift({
+    id: state.pipeline.flushes + 1,
+    count: entries.length,
+    min: entries[0][0],
+    max: entries[entries.length - 1][0]
+  });
+  state.pipeline.flushes += 1;
+  state.pipeline.memtable.clear();
+  renderPipeline();
+}
+
+function resetPipeline() {
+  state.pipeline = { index: 0, walAppends: 0, flushes: 0, memtable: new Map(), sstables: [] };
+  renderPipeline();
+}
+
+function renderPipeline() {
+  document.getElementById("pipeline-preview").textContent =
+    "New writes land in the WAL and MemTable immediately. Flushing turns the current in-memory map into a sorted, immutable SSTable.";
+  const mem = [...state.pipeline.memtable.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([k, v]) => "<span class='token new'>" + escapeHtml(k) + "=" + escapeHtml(String(v)) + "</span>")
+    .join("");
+  const files = state.pipeline.sstables
+    .map(file => "<span class='token old'>SST-" + file.id + " [" + file.min + ".." + file.max + "] " + file.count + " keys</span>")
+    .join("");
+  document.getElementById("pipeline-memtable").innerHTML = mem || "<span class='token'>empty</span>";
+  document.getElementById("pipeline-sstables").innerHTML = files || "<span class='token'>none yet</span>";
+  document.getElementById("pipeline-wal").textContent = state.pipeline.walAppends;
+  document.getElementById("pipeline-size").textContent = state.pipeline.memtable.size;
+  document.getElementById("pipeline-flushes").textContent = state.pipeline.flushes;
+  document.getElementById("pipeline-files").textContent = state.pipeline.sstables.length;
+}
+
+function addCompactionBatch() {
+  const batch = CASCADE_BATCHES[state.cascade.batchIndex % CASCADE_BATCHES.length];
+  state.cascade.batchIndex += 1;
+  state.cascade.levels[0].unshift(makeCascadeFile(batch));
+  renderCascade();
+}
+
+function compactCascade() {
+  if (state.cascade.levels[0].length >= 2) {
+    state.cascade.levels[1].unshift(mergeCascadeFiles(state.cascade.levels[0], "L1"));
+    state.cascade.levels[0] = [];
+  } else if (state.cascade.levels[1].length >= 2) {
+    state.cascade.levels[2].unshift(mergeCascadeFiles(state.cascade.levels[1], "L2"));
+    state.cascade.levels[1] = [];
+  }
+  renderCascade();
+}
+
+function resetCascade() {
+  state.cascade = { batchIndex: 0, nextId: 1, key: "banana", levels: [[], [], []] };
+  renderCascade();
+}
+
+function setCascadeKey(key) {
+  state.cascade.key = key;
+  document.querySelectorAll("[data-cascade-key]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.cascadeKey === key);
+  });
+  renderCascade();
+}
+
+function makeCascadeFile(entries) {
+  const sorted = [...entries].sort((a, b) => a[0].localeCompare(b[0]));
+  return {
+    id: state.cascade.nextId++,
+    entries: sorted,
+    min: sorted[0][0],
+    max: sorted[sorted.length - 1][0]
+  };
+}
+
+function mergeCascadeFiles(files) {
+  const merged = new Map();
+  for (const file of [...files].reverse()) {
+    for (const [key, value] of file.entries) merged.set(key, value);
+  }
+  const entries = [...merged.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  return {
+    id: state.cascade.nextId++,
+    entries,
+    min: entries[0][0],
+    max: entries[entries.length - 1][0]
+  };
+}
+
+function fileMayContain(file, key) {
+  return key >= file.min && key <= file.max;
+}
+
+function renderCascade() {
+  const labels = ["L0", "L1", "L2"];
+  const levelsHtml = state.cascade.levels.map((files, idx) => {
+    const row = files.map(file => {
+      const hit = fileMayContain(file, state.cascade.key);
+      return "<div class='file " + (hit ? "hit" : "") + "'>" +
+        "<div class='name'>SST-" + file.id + "</div>" +
+        "<div class='range'>" + escapeHtml(file.min) + " .. " + escapeHtml(file.max) + "</div>" +
+        "<div class='meta'>" + file.entries.length + " keys</div>" +
+      "</div>";
+    }).join("");
+    return "<div class='level-row'>" +
+      "<div class='level-head'><span>" + labels[idx] + "</span><span>" + files.length + " file(s)</span></div>" +
+      "<div class='file-row'>" + (row || "<div class='file'><div class='name'>empty</div><div class='range'>-</div><div class='meta'>no files</div></div>") + "</div>" +
+    "</div>";
+  }).join("");
+  document.getElementById("cascade-levels").innerHTML = levelsHtml;
+  const checks = state.cascade.levels.reduce((sum, files) => {
+    return sum + files.filter(file => fileMayContain(file, state.cascade.key)).length;
+  }, 0);
+  document.getElementById("cascade-preview").textContent =
+    "L0 tolerates overlap because flushes are cheap. Compaction rewrites those overlapping runs into fewer, larger files. In this toy cascade, overlap can still persist until the next merge, so the read count tracks every file whose range still covers " +
+    state.cascade.key + ".";
+  document.getElementById("cascade-l0").textContent = state.cascade.levels[0].length;
+  document.getElementById("cascade-l1").textContent = state.cascade.levels[1].length;
+  document.getElementById("cascade-l2").textContent = state.cascade.levels[2].length;
+  document.getElementById("cascade-reads").textContent = checks;
+}
+
+function setBloomKey(key) {
+  state.bloomKey = key;
+  document.querySelectorAll("[data-bloom-key]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.bloomKey === key);
+  });
+  renderBloom();
+}
+
+function renderBloom() {
+  const query = state.bloomKey;
+  const rows = [];
+  let rejects = 0;
+  let probes = 0;
+  let hits = 0;
+  let falsePositives = 0;
+
+  for (const file of BLOOM_FILES) {
+    const bloom = new DemoBloomFilter(16, 2);
+    file.keys.forEach(key => bloom.add(key));
+    const maybe = bloom.mightContain(query);
+    const found = file.keys.includes(query);
+    if (!maybe) {
+      rejects += 1;
+    } else {
+      probes += 1;
+      if (found) hits += 1;
+      else falsePositives += 1;
+    }
+    rows.push(
+      "<tr>" +
+        "<td>" + file.name + "</td>" +
+        "<td>" + escapeHtml(file.keys[0]) + " .. " + escapeHtml(file.keys[file.keys.length - 1]) + "</td>" +
+        "<td class='" + (maybe ? "maybe" : "no") + "'>" + (maybe ? "maybe" : "definitely not") + "</td>" +
+        "<td class='" + (maybe ? "yes" : "no") + "'>" + (maybe ? "yes" : "no") + "</td>" +
+        "<td class='" + (found ? "yes" : "no") + "'>" + (found ? "hit" : (maybe ? "miss" : "skipped")) + "</td>" +
+      "</tr>"
+    );
+  }
+
+  document.getElementById("bloom-preview").textContent =
+    "For query '" + query + "', each Bloom filter gets to answer before the data file is touched. A 'definitely not' means no disk probe for that SSTable.";
+  document.getElementById("bloom-table").innerHTML =
+    "<thead><tr><th>SSTable</th><th>Range</th><th>Bloom says</th><th>Probe file?</th><th>Actual result</th></tr></thead>" +
+    "<tbody>" + rows.join("") + "</tbody>";
+  document.getElementById("bloom-rejects").textContent = rejects;
+  document.getElementById("bloom-probes").textContent = probes;
+  document.getElementById("bloom-hits").textContent = hits;
+  document.getElementById("bloom-false").textContent = falsePositives;
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(formatValue).join(" ")),
+    error: (...args) => lines.push(args.map(formatValue).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function formatValue(v) {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+}
+
+initCodeBlocks();
+resetWriteModel();
+resetPipeline();
+resetCascade();
+setBloomKey("mango");
+</script>
+</body>
+</html>
