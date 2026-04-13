@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Casino Data Structure — Skip Lists</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt:#0f4c3a;
+  --felt2:#0c3e30;
+  --felt3:#082c23;
+  --surface:#f8f4ea;
+  --surface2:#eee5d4;
+  --ink:#182019;
+  --ink2:#556159;
+  --ink3:#89958d;
+  --rule:rgba(24,32,25,.10);
+  --rule2:rgba(24,32,25,.18);
+  --gold:#c28b32;
+  --gold-bg:#f7ead2;
+  --red:#a63f43;
+  --red-bg:#f7e7e8;
+  --blue:#2f5d93;
+  --blue-bg:#e5edf8;
+  --green:#1c6a52;
+  --green-bg:#dff2ea;
+  --purple:#664a95;
+  --purple-bg:#ece6f7;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"IBM Plex Sans", sans-serif;
+  --serif:"Instrument Serif", serif;
+  --r:9px;
+  --r-lg:14px;
+  --shadow:0 20px 48px rgba(6,20,15,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --surface:#141714;
+    --surface2:#1d221f;
+    --ink:#e8efe9;
+    --ink2:#a5b0a8;
+    --ink3:#6c766f;
+    --rule:rgba(232,239,233,.08);
+    --rule2:rgba(232,239,233,.15);
+    --gold:#e3b25b;
+    --gold-bg:#2a2112;
+    --red:#e08386;
+    --red-bg:#291517;
+    --blue:#8eb6e8;
+    --blue-bg:#0f1d31;
+    --green:#84d4b5;
+    --green-bg:#10241d;
+    --purple:#b39be4;
+    --purple-bg:#1d1629;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(194,139,50,.18), transparent 22rem),
+    linear-gradient(180deg, var(--felt), var(--felt2) 16rem, var(--surface) 16rem);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+.page{max-width:880px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:1.2rem 0;
+  color:rgba(255,255,255,.72);
+  border-bottom:1px solid rgba(255,255,255,.10);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.topbar a{color:rgba(255,255,255,.78);text-decoration:none}
+.topbar a:hover{color:#fff}
+.hero{
+  padding:4.2rem 0 3.1rem;
+  color:#f3f5f2;
+}
+.hero-kicker{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:#f2cf8b;
+  margin-bottom:1.15rem;
+}
+.hero h1{
+  font-family:var(--serif);
+  font-size:clamp(2.8rem,6vw,4.2rem);
+  font-weight:400;
+  line-height:1.04;
+  letter-spacing:-.01em;
+  max-width:12ch;
+  margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:#f2cf8b}
+.hero p{
+  max-width:42rem;
+  font-size:17px;
+  line-height:1.72;
+  color:rgba(255,255,255,.78);
+  margin-bottom:1.45rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 11px;
+  border-radius:999px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.82);
+  font-family:var(--mono);
+  font-size:11px;
+}
+.pill b{color:#f2cf8b;font-weight:500}
+.toc{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin:0 0 3.2rem;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.toc a{
+  display:flex;
+  gap:10px;
+  padding:11px 14px;
+  background:var(--surface);
+  color:var(--ink2);
+  text-decoration:none;
+  font-size:14px;
+  transition:background .12s,color .12s;
+}
+.toc a:hover{background:var(--surface2);color:var(--ink)}
+.toc-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  min-width:16px;
+  padding-top:1px;
+}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  border-bottom:1px solid var(--rule);
+  padding-bottom:.9rem;
+  margin-bottom:1.35rem;
+}
+.sec-n{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
+h2{
+  font-family:var(--serif);
+  font-size:1.9rem;
+  font-weight:400;
+  line-height:1.14;
+}
+h3{
+  font-size:15px;
+  font-weight:500;
+  margin:1.35rem 0 .45rem;
+}
+p{
+  font-size:15.5px;
+  line-height:1.78;
+  color:var(--ink2);
+  margin-bottom:.95rem;
+}
+p strong{color:var(--ink);font-weight:500}
+a{color:var(--blue)}
+code{
+  font-family:var(--mono);
+  font-size:12.5px;
+  background:var(--surface2);
+  border:1px solid var(--rule2);
+  border-radius:4px;
+  padding:1px 5px;
+  color:var(--ink);
+}
+.callout{
+  border-left:3px solid var(--gold);
+  background:var(--gold-bg);
+  color:#8a6121;
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.82rem 1.06rem;
+  margin:1.15rem 0;
+  font-size:14px;
+  line-height:1.7;
+}
+.callout.info{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.demo,.cb{
+  background:var(--surface);
+  border:1px solid var(--rule2);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow);
+  margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.9rem}
+.btn{
+  border:1px solid var(--rule2);
+  border-radius:var(--r);
+  background:transparent;
+  color:var(--ink2);
+  padding:5px 11px;
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.btn:hover{background:var(--surface2);color:var(--ink)}
+.btn.act{background:var(--gold-bg);color:#8a6121;border-color:rgba(194,139,50,.25)}
+.preview{
+  background:var(--surface2);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.9rem 1rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.75;
+  color:var(--ink);
+  white-space:pre-wrap;
+  overflow:auto;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.stat{
+  background:var(--surface2);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.75rem .85rem;
+}
+.stat-k{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+  margin-bottom:.28rem;
+}
+.stat-v{
+  font-size:1.25rem;
+  line-height:1.1;
+  color:var(--ink);
+}
+.stat-v small{font-size:.72rem;color:var(--ink3)}
+.tower-board{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(42px,1fr));
+  gap:10px;
+  align-items:end;
+  margin-top:1rem;
+  min-height:210px;
+}
+.tower{
+  display:flex;
+  flex-direction:column-reverse;
+  gap:4px;
+  align-items:stretch;
+}
+.chip{
+  height:24px;
+  border-radius:6px;
+  border:1px solid rgba(194,139,50,.35);
+  background:linear-gradient(180deg,#f8e4bf,var(--gold-bg));
+  color:#855c1d;
+  font-family:var(--mono);
+  font-size:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.chip.base{
+  background:linear-gradient(180deg,var(--green-bg),#cfe8de);
+  border-color:rgba(28,106,82,.25);
+  color:var(--green);
+}
+.meter{
+  margin-top:.9rem;
+  background:var(--surface2);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.8rem .9rem;
+}
+.meter-head{
+  display:flex;
+  justify-content:space-between;
+  gap:1rem;
+  margin-bottom:.55rem;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
+.meter-bar{
+  height:12px;
+  border-radius:999px;
+  background:#d9d1c3;
+  overflow:hidden;
+}
+.meter-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--gold),var(--green));
+}
+.compare-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:.95rem;
+}
+.card{
+  background:var(--surface2);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:.9rem;
+}
+.card h4{
+  font-family:var(--mono);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:var(--ink3);
+  margin-bottom:.45rem;
+}
+.card .big{
+  font-size:1.15rem;
+  color:var(--ink);
+  margin-bottom:.35rem;
+}
+.card p{
+  font-size:13px;
+  line-height:1.68;
+  margin:0;
+}
+.grid-two{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+  font-family:var(--mono);
+}
+.table th{
+  text-align:left;
+  padding:0 0 .45rem;
+  border-bottom:1px solid var(--rule2);
+  color:var(--ink3);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.table td{
+  padding:.5rem 0;
+  border-bottom:1px solid var(--rule);
+  color:var(--ink2);
+}
+.table td.key{color:var(--ink)}
+.lane{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:.7rem;
+}
+.pill-node{
+  padding:6px 10px;
+  border-radius:999px;
+  background:var(--surface2);
+  border:1px solid var(--rule2);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink2);
+}
+.pill-node.rank{
+  background:var(--purple-bg);
+  border-color:rgba(102,74,149,.22);
+  color:var(--purple);
+}
+.cb{overflow:hidden}
+.cb-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:8px 14px;
+  background:var(--surface2);
+  border-bottom:1px solid var(--rule2);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink3);
+}
+.run-btn{
+  border:none;
+  background:var(--felt);
+  color:#fff;
+  border-radius:5px;
+  padding:4px 10px;
+  font-family:var(--mono);
+  font-size:11px;
+  cursor:pointer;
+}
+.run-btn:hover{opacity:.84}
+pre.code{
+  margin:0;
+  padding:1.1rem 1.3rem;
+  background:var(--surface);
+  overflow:auto;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--ink);
+}
+.out{
+  display:none;
+  background:var(--green-bg);
+  border-top:1px solid var(--rule2);
+  padding:.8rem 1.3rem;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.72;
+  color:var(--green);
+  white-space:pre-wrap;
+}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.footer{
+  border-top:1px solid var(--rule);
+  padding-top:1.8rem;
+  margin-top:1rem;
+}
+.footer-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.3rem;
+}
+.footer-links a{
+  font-size:14px;
+  color:var(--ink2);
+  text-decoration:none;
+}
+.footer-links a:hover{color:var(--green)}
+@media (max-width:760px){
+  .toc,.stat-grid,.compare-grid,.grid-two{grid-template-columns:1fr}
+  .hero h1{max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Explainers</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Interactive explainer</div>
+    <h1>The <em>Casino Data Structure</em> — Skip Lists</h1>
+    <p>Skip lists gamble on structure in a very controlled way: every node climbs to higher levels according to coin flips, and the resulting towers behave like a balanced search structure with high probability. That sounds suspicious until you see why it works, why it is easy to augment with ranks, and why Redis uses it in the skiplist-backed form of its sorted sets.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Probabilistic</b> balancing</span>
+      <span class="pill"><b>Redis</b> sorted sets</span>
+      <span class="pill"><b>Rank queries</b> via spans</span>
+      <span class="pill">Nex implementation</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>Why Redis needs more than a tree story</a>
+    <a href="#s2"><span class="toc-n">02</span>Probabilistic balancing</a>
+    <a href="#s3"><span class="toc-n">03</span>Why skip lists play well with concurrency</a>
+    <a href="#s4"><span class="toc-n">04</span>Redis sorted sets in practice</a>
+    <a href="#s5"><span class="toc-n">05</span>Skip list in Nex</a>
+    <a href="#s6"><span class="toc-n">06</span>Further reading</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>Why Redis needs more than a tree story</h2></div>
+    <p>Redis sorted sets are not just “store items in order.” They need several operations at once: look up a member directly, update its score, fetch ranges by score, fetch ranges by rank, and return the rank of a member quickly. That is a harder job than plain dictionary lookup.</p>
+    <p>A hash table is great for <code>member -&gt; score</code>, but it does not know anything about order. A balanced tree can represent order, but Redis does not just need ordering. It also needs <strong>ranks</strong>, range scans, and a structure that is straightforward to augment and maintain.</p>
+    <div class="callout">In Redis's <strong>skiplist-backed sorted-set encoding</strong>, the system keeps two views of the same data: a hash table for direct member lookup and a skip list for score order. Small sorted sets can stay in a more compact representation until they outgrow it.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">One sorted set, two access paths</div>
+      <div class="compare-grid">
+        <div class="card">
+          <h4>Hash Table</h4>
+          <div class="big">Member → score</div>
+          <p>Perfect for exact lookup and updates when you already know the member name.</p>
+        </div>
+        <div class="card">
+          <h4>Skip List</h4>
+          <div class="big">Score → ordered walk</div>
+          <p>Perfect for rank, range, predecessor/successor, and walking the set in sorted order.</p>
+        </div>
+        <div class="card">
+          <h4>Together</h4>
+          <div class="big">The Redis move</div>
+          <p>When Redis switches to its skiplist-backed encoding, it uses the hash table for identity and the skip list for order, so neither structure has to be contorted into doing both jobs alone.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>Probabilistic balancing</h2></div>
+    <p>A skip list is a stack of ordered linked lists. The bottom level contains every element. Higher levels contain progressively fewer elements, acting as express lanes. To decide how tall a node becomes, you repeatedly flip a coin: promote once for heads, stop on tails.</p>
+    <p>No explicit rotations. No recoloring. No global rebalancing pass. The structure stays well-shaped <strong>with high probability</strong> because the number of tall towers falls off geometrically. That is what “probabilistic balancing” means here: the balancing policy is encoded in the level distribution rather than by deterministic repair rules.</p>
+    <div class="callout info">If the promotion probability is <code>p = 1/2</code>, roughly half the nodes appear on level 2, a quarter on level 3, an eighth on level 4, and so on.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Reroll the towers</div>
+      <div class="btn-row">
+        <button class="btn" onclick="setProbability(0.5)">p = 1/2</button>
+        <button class="btn act" onclick="setProbability(0.25)">p = 1/4</button>
+        <button class="btn" onclick="setProbability(0.125)">p = 1/8</button>
+        <button class="btn" onclick="rerollTowers()">Reroll</button>
+      </div>
+      <div class="preview" id="prob-preview"></div>
+      <div class="tower-board" id="tower-board"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Promotion p</div><div class="stat-v" id="prob-p">0.25</div></div>
+        <div class="stat"><div class="stat-k">Average height</div><div class="stat-v" id="prob-avg">0</div></div>
+        <div class="stat"><div class="stat-k">Tallest tower</div><div class="stat-v" id="prob-max">0</div></div>
+        <div class="stat"><div class="stat-k">Express lanes</div><div class="stat-v" id="prob-lanes">0</div></div>
+      </div>
+      <div class="meter">
+        <div class="meter-head"><span>Higher p = more tall towers</span><span id="prob-note-head">Expected height is low</span></div>
+        <div class="meter-bar"><div class="meter-fill" id="prob-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>random_levels.js — tower heights from repeated coin flips</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+      <pre class="code" id="c1"></pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Why skip lists play well with concurrency</h2></div>
+    <p>Balanced trees can absolutely be made concurrent. The issue is not possibility; it is engineering friction. Tree updates often involve rotations and multi-node structural cases. Getting all of those corner cases correct under interleaving updates is delicate.</p>
+    <p>Skip lists mutate more locally. Insertion and deletion are mostly pointer splices across a small number of levels. There is no rotation logic, and the invariants are easier to state: each level is ordered, and each node's tower is vertically aligned. That simplicity is why skip lists show up so often in lock-free and concurrent data-structure literature.</p>
+    <div class="callout good">William Pugh's concurrent skip-list paper makes the key point directly: skip lists preserve much of the simplicity of unbalanced trees while still giving good expected performance.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Mutation complexity at a glance</div>
+      <div class="btn-row" id="concurrency-buttons">
+        <button class="btn act" data-concurrency="insert" onclick="setConcurrencyMode('insert')">Insertion</button>
+        <button class="btn" data-concurrency="delete" onclick="setConcurrencyMode('delete')">Deletion</button>
+        <button class="btn" data-concurrency="augment" onclick="setConcurrencyMode('augment')">Add rank metadata</button>
+      </div>
+      <div class="compare-grid">
+        <div class="card">
+          <h4>Red-Black Tree</h4>
+          <div class="big" id="conc-tree-title">—</div>
+          <p id="conc-tree-note"></p>
+        </div>
+        <div class="card">
+          <h4>Skip List</h4>
+          <div class="big" id="conc-skip-title">—</div>
+          <p id="conc-skip-note"></p>
+        </div>
+        <div class="card">
+          <h4>Why it matters</h4>
+          <div class="big" id="conc-why-title">—</div>
+          <p id="conc-why-note"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>Redis sorted sets in practice</h2></div>
+    <p>In Redis's skiplist-backed sorted-set encoding, the implementation comment says the structure uses <strong>two data structures to hold the same elements</strong>: a hash table mapping elements to scores, and a skip list mapping scores to elements. That gives <code>O(log N)</code> ordered updates while preserving direct member lookup. Small sorted sets may instead use a compact listpack encoding.</p>
+    <p>The interesting extra is <strong>span metadata</strong>. Each forward pointer stores how many bottom-level nodes it skips. That lets Redis answer rank queries in logarithmic time by accumulating spans while descending the structure. Redis also keeps a backward pointer at level 1, which makes reverse range traversal efficient.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">A tiny Redis-like sorted set</div>
+      <div class="btn-row">
+        <button class="btn act" data-redis="alice" onclick="setRedisMember('alice')">alice</button>
+        <button class="btn" data-redis="carol" onclick="setRedisMember('carol')">carol</button>
+        <button class="btn" data-redis="erin" onclick="setRedisMember('erin')">erin</button>
+      </div>
+      <div class="grid-two">
+        <div class="card">
+          <h4>Hash table view</h4>
+          <table class="table" id="redis-dict"></table>
+        </div>
+        <div class="card">
+          <h4>Skip list order</h4>
+          <table class="table" id="redis-order"></table>
+        </div>
+      </div>
+      <div class="lane" id="redis-ranks"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-k">Query member</div><div class="stat-v" id="redis-member">alice</div></div>
+        <div class="stat"><div class="stat-k">Score</div><div class="stat-v" id="redis-score">0</div></div>
+        <div class="stat"><div class="stat-k">Rank</div><div class="stat-v" id="redis-rank">0</div></div>
+        <div class="stat"><div class="stat-k">Range 2..4</div><div class="stat-v"><small id="redis-range"></small></div></div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>redis_like_skiplist.js — spans and rank queries in a simplified skip list</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+      <pre class="code" id="c2"></pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>Skip list in Nex</h2></div>
+    <p>The implementation below is a generic ordered skip list in Nex. It stores a value at each key, maintains span metadata so ranks can be answered in logarithmic expected time, and implements the core operations needed for an ordered map: insertion, lookup, rank, and selection by rank.</p>
+    <div class="callout">This is the same structural idea Redis uses in its skiplist-backed sorted sets, generalized into a reusable skip list map. Deletion is omitted here to keep the implementation focused on the rank machinery.</div>
+
+    <div class="cb">
+      <div class="cb-head"><span>skip_list.nex — generic skip list with spans and rank queries</span></div>
+      <pre class="code" id="n1"></pre>
+    </div>
+  </section>
+
+  <section class="section footer" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Further reading</h2></div>
+    <p>Skip lists sit at the intersection of elegant probability arguments and very practical systems engineering.</p>
+    <div class="footer-links">
+      <a href="https://drum.lib.umd.edu/items/3c796454-0f7b-4fef-806e-c387fdfc88a4">Pugh — Concurrent Maintenance of Skip Lists</a>
+      <a href="https://redis.io/docs/latest/develop/data-types/sorted-sets/">Redis sorted sets docs</a>
+      <a href="https://raw.githubusercontent.com/redis/redis/unstable/src/t_zset.c">Redis source: <code>t_zset.c</code></a>
+    </div>
+  </section>
+</div>
+
+<script>
+const CODE_SNIPPETS = {
+  c1: String.raw`function randomLevel(p = 0.25, maxLevel = 12) {
+  let level = 1;
+  while (Math.random() < p && level < maxLevel) level++;
+  return level;
+}
+
+const towers = [];
+for (let i = 0; i < 20; i++) towers.push(randomLevel(0.25));
+
+const avg = towers.reduce((a, b) => a + b, 0) / towers.length;
+console.log("heights:", towers.join(", "));
+console.log("average height:", avg.toFixed(2));
+console.log("tallest tower:", Math.max(...towers));`,
+  c2: String.raw`class Node {
+  constructor(score, member, level) {
+    this.score = score;
+    this.member = member;
+    this.forward = new Array(level).fill(null);
+    this.span = new Array(level).fill(0);
+  }
+}
+
+class SkipList {
+  constructor(maxLevel = 8, p = 0.25) {
+    this.maxLevel = maxLevel;
+    this.p = p;
+    this.level = 1;
+    this.length = 0;
+    this.header = new Node(-Infinity, "", maxLevel);
+  }
+
+  compare(score, member, node) {
+    if (!node) return -1;
+    if (score < node.score) return -1;
+    if (score > node.score) return 1;
+    if (member < node.member) return -1;
+    if (member > node.member) return 1;
+    return 0;
+  }
+
+  randomLevel() {
+    let level = 1;
+    while (Math.random() < this.p && level < this.maxLevel) level++;
+    return level;
+  }
+
+  insert(score, member) {
+    const update = new Array(this.maxLevel);
+    const rank = new Array(this.maxLevel).fill(0);
+    let x = this.header;
+
+    for (let i = this.level - 1; i >= 0; i--) {
+      rank[i] = i === this.level - 1 ? 0 : rank[i + 1];
+      while (x.forward[i] && this.compare(score, member, x.forward[i]) > 0) {
+        rank[i] += x.span[i];
+        x = x.forward[i];
+      }
+      update[i] = x;
+    }
+
+    const lvl = this.randomLevel();
+    if (lvl > this.level) {
+      for (let i = this.level; i < lvl; i++) {
+        rank[i] = 0;
+        update[i] = this.header;
+        this.header.span[i] = this.length;
+      }
+      this.level = lvl;
+    }
+
+    x = new Node(score, member, lvl);
+    for (let i = 0; i < lvl; i++) {
+      x.forward[i] = update[i].forward[i];
+      update[i].forward[i] = x;
+      x.span[i] = update[i].span[i] - (rank[0] - rank[i]);
+      update[i].span[i] = (rank[0] - rank[i]) + 1;
+    }
+    for (let i = lvl; i < this.level; i++) update[i].span[i] += 1;
+    this.length++;
+  }
+
+  rankOf(score, member) {
+    let x = this.header;
+    let rank = 0;
+    for (let i = this.level - 1; i >= 0; i--) {
+      while (x.forward[i] && this.compare(score, member, x.forward[i]) >= 0) {
+        rank += x.span[i];
+        x = x.forward[i];
+      }
+      if (x.member === member && x.score === score) return rank;
+    }
+    return null;
+  }
+
+  getByRank(rank) {
+    let x = this.header;
+    let traversed = 0;
+    for (let i = this.level - 1; i >= 0; i--) {
+      while (x.forward[i] && traversed + x.span[i] <= rank) {
+        traversed += x.span[i];
+        x = x.forward[i];
+      }
+      if (traversed === rank) return [x.member, x.score];
+    }
+    return null;
+  }
+
+  entries() {
+    const out = [];
+    let x = this.header.forward[0];
+    while (x) {
+      out.push([x.member, x.score]);
+      x = x.forward[0];
+    }
+    return out;
+  }
+}
+
+const sl = new SkipList();
+for (const [member, score] of [["alice", 12], ["bob", 8], ["carol", 15], ["dave", 13], ["erin", 19]]) {
+  sl.insert(score, member);
+}
+
+console.log("ordered:", JSON.stringify(sl.entries()));
+console.log("rank(carol):", sl.rankOf(15, "carol"));
+console.log("rank 2:", JSON.stringify(sl.getByRank(2)));`
+};
+
+const NEX_SNIPPET = String.raw`class Skip_Node[K -> Comparable, V] do
+  public key: ?K
+  public value: ?V
+  public forward: Array[?Skip_Node[K, V]]
+  public span: Array[Integer]
+
+  init(key: ?K, value: ?V, level: Integer) do
+    this.key := key
+    this.value := value
+    this.forward := create Array.filled(level, nil)
+    this.span := create Array.filled(level, 0)
+  end
+
+  function levels(): Integer do
+    result := this.forward.length
+  end
+end
+
+class Skip_List[K -> Comparable, V] do
+  public max_level: Integer
+  public promotion_probability: Real
+  public level: Integer
+  public length: Integer
+  public header: Skip_Node[K, V]
+  private seed: Integer64
+
+  init(max_level: Integer, promotion_probability: Real) do
+    require
+      max_level > 0
+      promotion_probability > 0.0
+      promotion_probability < 1.0
+    end
+
+    this.max_level := max_level
+    this.promotion_probability := promotion_probability
+    this.level := 1
+    this.length := 0
+    this.header := create Skip_Node[K, V].init(nil, nil, max_level)
+    this.seed := 88172645463325252
+  end
+
+  function compare(a: K, b: K): Integer do
+    if a < b then
+      result := -1
+    else if a > b then
+      result := 1
+    else
+      result := 0
+    end
+  end
+
+  function random_real(): Real do
+    this.seed := (this.seed * 6364136223846793005 + 1) mod 9223372036854775807
+    result := convert this.seed to Real / 9223372036854775807.0
+  end
+
+  function random_level(): Integer do
+    let lvl: Integer := 1
+    while lvl < this.max_level and this.random_real() < this.promotion_probability do
+      lvl := lvl + 1
+    end
+    result := lvl
+  end
+
+  function get_node(key: K): ?Skip_Node[K, V] do
+    let x: Skip_Node[K, V] := this.header
+
+    from let i: Integer := this.level - 1
+    until i < 0 do
+      while x.forward.get(i) /= nil and then
+            this.compare(x.forward.get(i).key, key) < 0 do
+        x := x.forward.get(i)
+      end
+      i := i - 1
+    end
+
+    x := x.forward.get(0)
+    if x /= nil and then this.compare(x.key, key) = 0 then
+      result := x
+    else
+      result := nil
+    end
+  end
+
+  function get(key: K): ?V do
+    let node: ?Skip_Node[K, V] := this.get_node(key)
+    if node /= nil then
+      result := node.value
+    else
+      result := nil
+    end
+  end
+
+  procedure put(key: K, value: V) do
+    let update: Array[Skip_Node[K, V]] := create Array.filled(this.max_level, this.header)
+    let rank: Array[Integer] := create Array.filled(this.max_level, 0)
+    let x: Skip_Node[K, V] := this.header
+
+    from let i: Integer := this.level - 1
+    until i < 0 do
+      if i = this.level - 1 then
+        rank.set(i, 0)
+      else
+        rank.set(i, rank.get(i + 1))
+      end
+
+      while x.forward.get(i) /= nil and then
+            this.compare(x.forward.get(i).key, key) < 0 do
+        rank.set(i, rank.get(i) + x.span.get(i))
+        x := x.forward.get(i)
+      end
+
+      update.set(i, x)
+      i := i - 1
+    end
+
+    x := update.get(0).forward.get(0)
+    if x /= nil and then this.compare(x.key, key) = 0 then
+      x.value := value
+      return
+    end
+
+    let lvl: Integer := this.random_level()
+    if lvl > this.level then
+      from let i: Integer := this.level
+      until i >= lvl do
+        rank.set(i, 0)
+        update.set(i, this.header)
+        this.header.span.set(i, this.length)
+        i := i + 1
+      end
+      this.level := lvl
+    end
+
+    let node: Skip_Node[K, V] := create Skip_Node[K, V].init(key, value, lvl)
+    from let i: Integer := 0
+    until i >= lvl do
+      node.forward.set(i, update.get(i).forward.get(i))
+      update.get(i).forward.set(i, node)
+
+      node.span.set(i, update.get(i).span.get(i) - (rank.get(0) - rank.get(i)))
+      update.get(i).span.set(i, (rank.get(0) - rank.get(i)) + 1)
+      i := i + 1
+    end
+
+    from let i: Integer := lvl
+    until i >= this.level do
+      update.get(i).span.set(i, update.get(i).span.get(i) + 1)
+      i := i + 1
+    end
+
+    this.length := this.length + 1
+  end
+
+  function rank_of(key: K): ?Integer do
+    let x: Skip_Node[K, V] := this.header
+    let traversed: Integer := 0
+
+    from let i: Integer := this.level - 1
+    until i < 0 do
+      while x.forward.get(i) /= nil and then
+            this.compare(x.forward.get(i).key, key) <= 0 do
+        traversed := traversed + x.span.get(i)
+        x := x.forward.get(i)
+      end
+
+      if x.key /= nil and then this.compare(x.key, key) = 0 then
+        result := traversed
+        return
+      end
+
+      i := i - 1
+    end
+
+    result := nil
+  end
+
+  function entry_at_rank(rank: Integer): ?Array[Any] do
+    require rank >= 1 and rank <= this.length end
+
+    let x: Skip_Node[K, V] := this.header
+    let traversed: Integer := 0
+
+    from let i: Integer := this.level - 1
+    until i < 0 do
+      while x.forward.get(i) /= nil and then
+            traversed + x.span.get(i) <= rank do
+        traversed := traversed + x.span.get(i)
+        x := x.forward.get(i)
+      end
+
+      if traversed = rank and then x.key /= nil then
+        result := [x.key, x.value]
+        return
+      end
+
+      i := i - 1
+    end
+
+    result := nil
+  end
+
+  function entries(): Array[Array[Any]] do
+    let out: Array[Array[Any]] := []
+    let x: ?Skip_Node[K, V] := this.header.forward.get(0)
+    while x /= nil do
+      out.add([x.key, x.value])
+      x := x.forward.get(0)
+    end
+    result := out
+  end
+end
+
+let board: Skip_List[String, Integer] := create Skip_List[String, Integer].init(12, 0.25)
+board.put("alice", 1200)
+board.put("bob", 980)
+board.put("carol", 1510)
+board.put("dave", 1300)
+
+print(board.entries())
+print(board.rank_of("carol"))
+print(board.entry_at_rank(2))`;
+
+const REDIS_SAMPLE = [
+  ["bob", 8],
+  ["alice", 12],
+  ["dave", 13],
+  ["carol", 15],
+  ["erin", 19]
+];
+
+const CONCURRENCY_MODES = {
+  insert: {
+    treeTitle: "Cases and rotations",
+    treeNote: "A red-black insertion may need recoloring and possibly rotations while preserving several global invariants.",
+    skipTitle: "Pointer splices",
+    skipNote: "A skip-list insertion mainly finds predecessors at each level and rewires forward pointers through the new tower.",
+    whyTitle: "Smaller critical logic",
+    whyNote: "Both are subtle under concurrency, but the skip-list update surface is typically easier to reason about and augment."
+  },
+  delete: {
+    treeTitle: "Deletion is the hard part",
+    treeNote: "Balanced-tree deletion often has the nastiest case analysis, because removing a node can propagate balancing work upward.",
+    skipTitle: "Unlink per level",
+    skipNote: "Skip-list deletion is still delicate, but structurally it is closer to unlinking a node from several sorted linked lists.",
+    whyTitle: "Fewer structural modes",
+    whyNote: "That simpler mutation shape is a major reason skip lists are attractive in concurrent designs."
+  },
+  augment: {
+    treeTitle: "Augment carefully",
+    treeNote: "Adding subtree sizes or ranks to a tree means keeping metadata correct through rotations and all update cases.",
+    skipTitle: "Add spans",
+    skipNote: "Skip lists can attach span counts directly to forward pointers, which makes rank accumulation conceptually direct.",
+    whyTitle: "Rank is natural",
+    whyNote: "Redis uses exactly this move: spans turn the skip list into a structure that can answer rank queries quickly."
+  }
+};
+
+const state = {
+  probability: 0.25,
+  towers: [],
+  concurrencyMode: "insert",
+  redisMember: "alice"
+};
+
+function randomLevel(p = state.probability, maxLevel = 8) {
+  let level = 1;
+  while (Math.random() < p && level < maxLevel) level++;
+  return level;
+}
+
+function rerollTowers() {
+  const labels = [5,10,15,20,25,30,35,40,45,50];
+  state.towers = labels.map(label => ({ label, level: randomLevel() }));
+  renderTowers();
+}
+
+function setProbability(p) {
+  state.probability = p;
+  document.querySelectorAll(".btn").forEach(() => {});
+  document.querySelectorAll(".btn-row .btn").forEach(btn => {
+    if (btn.textContent && btn.textContent.startsWith("p =")) {
+      btn.classList.toggle("act", btn.textContent === (p === 0.5 ? "p = 1/2" : p === 0.25 ? "p = 1/4" : "p = 1/8"));
+    }
+  });
+  rerollTowers();
+}
+
+function renderTowers() {
+  document.getElementById("prob-preview").textContent =
+    "Each chip above the green base was earned by another heads. Same keys, new coin flips, new tower profile.";
+  const board = state.towers.map(tower => {
+    let html = '<div class="tower"><div class="chip base">' + tower.label + '</div>';
+    for (let i = 1; i < tower.level; i++) html += '<div class="chip">L' + (i + 1) + '</div>';
+    html += '</div>';
+    return html;
+  }).join("");
+  document.getElementById("tower-board").innerHTML = board;
+
+  const avg = state.towers.reduce((a, b) => a + b.level, 0) / state.towers.length;
+  const max = Math.max(...state.towers.map(t => t.level));
+  const aboveBase = state.towers.filter(t => t.level > 1).length;
+  document.getElementById("prob-p").textContent = state.probability.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  document.getElementById("prob-avg").textContent = avg.toFixed(2);
+  document.getElementById("prob-max").textContent = max;
+  document.getElementById("prob-lanes").textContent = aboveBase;
+  document.getElementById("prob-note-head").textContent = "Expected height ≈ " + (1 / (1 - state.probability)).toFixed(2);
+  document.getElementById("prob-fill").style.width = Math.min(100, state.probability * 140).toFixed(1) + "%";
+}
+
+function setConcurrencyMode(mode) {
+  state.concurrencyMode = mode;
+  document.querySelectorAll("#concurrency-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.concurrency === mode);
+  });
+  renderConcurrency();
+}
+
+function renderConcurrency() {
+  const info = CONCURRENCY_MODES[state.concurrencyMode];
+  document.getElementById("conc-tree-title").textContent = info.treeTitle;
+  document.getElementById("conc-tree-note").textContent = info.treeNote;
+  document.getElementById("conc-skip-title").textContent = info.skipTitle;
+  document.getElementById("conc-skip-note").textContent = info.skipNote;
+  document.getElementById("conc-why-title").textContent = info.whyTitle;
+  document.getElementById("conc-why-note").textContent = info.whyNote;
+}
+
+class DemoNode {
+  constructor(score, member, level) {
+    this.score = score;
+    this.member = member;
+    this.forward = new Array(level).fill(null);
+    this.span = new Array(level).fill(0);
+  }
+}
+
+class DemoSkipList {
+  constructor(maxLevel = 8, p = 0.25) {
+    this.maxLevel = maxLevel;
+    this.p = p;
+    this.level = 1;
+    this.length = 0;
+    this.header = new DemoNode(-Infinity, "", maxLevel);
+  }
+
+  compare(score, member, node) {
+    if (!node) return -1;
+    if (score < node.score) return -1;
+    if (score > node.score) return 1;
+    if (member < node.member) return -1;
+    if (member > node.member) return 1;
+    return 0;
+  }
+
+  randomLevel() {
+    let level = 1;
+    while (Math.random() < this.p && level < this.maxLevel) level++;
+    return level;
+  }
+
+  insert(score, member) {
+    const update = new Array(this.maxLevel);
+    const rank = new Array(this.maxLevel).fill(0);
+    let x = this.header;
+    for (let i = this.level - 1; i >= 0; i--) {
+      rank[i] = i === this.level - 1 ? 0 : rank[i + 1];
+      while (x.forward[i] && this.compare(score, member, x.forward[i]) > 0) {
+        rank[i] += x.span[i];
+        x = x.forward[i];
+      }
+      update[i] = x;
+    }
+
+    const lvl = this.randomLevel();
+    if (lvl > this.level) {
+      for (let i = this.level; i < lvl; i++) {
+        rank[i] = 0;
+        update[i] = this.header;
+        this.header.span[i] = this.length;
+      }
+      this.level = lvl;
+    }
+
+    x = new DemoNode(score, member, lvl);
+    for (let i = 0; i < lvl; i++) {
+      x.forward[i] = update[i].forward[i];
+      update[i].forward[i] = x;
+      x.span[i] = update[i].span[i] - (rank[0] - rank[i]);
+      update[i].span[i] = (rank[0] - rank[i]) + 1;
+    }
+    for (let i = lvl; i < this.level; i++) update[i].span[i] += 1;
+    this.length++;
+  }
+
+  entries() {
+    const out = [];
+    let x = this.header.forward[0];
+    while (x) {
+      out.push([x.member, x.score]);
+      x = x.forward[0];
+    }
+    return out;
+  }
+
+  rankOf(score, member) {
+    let x = this.header;
+    let rank = 0;
+    for (let i = this.level - 1; i >= 0; i--) {
+      while (x.forward[i] && this.compare(score, member, x.forward[i]) >= 0) {
+        rank += x.span[i];
+        x = x.forward[i];
+      }
+      if (x.member === member && x.score === score) return rank;
+    }
+    return null;
+  }
+
+  getByRank(rank) {
+    let x = this.header;
+    let traversed = 0;
+    for (let i = this.level - 1; i >= 0; i--) {
+      while (x.forward[i] && traversed + x.span[i] <= rank) {
+        traversed += x.span[i];
+        x = x.forward[i];
+      }
+      if (traversed === rank) return [x.member, x.score];
+    }
+    return null;
+  }
+}
+
+function buildRedisDemo() {
+  const sl = new DemoSkipList();
+  const dict = new Map();
+  for (const [member, score] of REDIS_SAMPLE) {
+    dict.set(member, score);
+    sl.insert(score, member);
+  }
+  return { sl, dict };
+}
+
+function setRedisMember(member) {
+  state.redisMember = member;
+  document.querySelectorAll("[data-redis]").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.redis === member);
+  });
+  renderRedis();
+}
+
+function renderRedis() {
+  const { sl, dict } = buildRedisDemo();
+  const entries = [...dict.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const ordered = sl.entries();
+  document.getElementById("redis-dict").innerHTML =
+    "<thead><tr><th>member</th><th>score</th></tr></thead><tbody>" +
+    entries.map(([m, s]) => "<tr><td class='key'>" + m + "</td><td>" + s + "</td></tr>").join("") +
+    "</tbody>";
+  document.getElementById("redis-order").innerHTML =
+    "<thead><tr><th>rank</th><th>member</th><th>score</th></tr></thead><tbody>" +
+    ordered.map(([m, s], i) => "<tr><td>" + (i + 1) + "</td><td class='key'>" + m + "</td><td>" + s + "</td></tr>").join("") +
+    "</tbody>";
+
+  const member = state.redisMember;
+  const score = dict.get(member);
+  const rank = sl.rankOf(score, member);
+  document.getElementById("redis-member").textContent = member;
+  document.getElementById("redis-score").textContent = score;
+  document.getElementById("redis-rank").textContent = rank;
+  document.getElementById("redis-range").textContent = JSON.stringify([sl.getByRank(2), sl.getByRank(3), sl.getByRank(4)]);
+  document.getElementById("redis-ranks").innerHTML = ordered.map(([m, s], i) =>
+    "<span class='pill-node " + (m === member ? "rank" : "") + "'>#"+(i+1)+" "+m+" ("+s+")</span>"
+  ).join("");
+}
+
+function runCode(codeId, outId) {
+  const out = document.getElementById(outId);
+  const code = document.getElementById(codeId).textContent;
+  const lines = [];
+  const fakeConsole = {
+    log: (...args) => lines.push(args.map(formatValue).join(" ")),
+    error: (...args) => lines.push(args.map(formatValue).join(" ")),
+    assert: (cond, ...args) => {
+      if (!cond) throw new Error(args.length ? args.join(" ") : "Assertion failed");
+    }
+  };
+  try {
+    new Function("console", code)(fakeConsole);
+    out.textContent = lines.join("\n");
+    out.className = "out on";
+  } catch (err) {
+    out.textContent = err.name + ": " + err.message;
+    out.className = "out on err";
+  }
+}
+
+function formatValue(v) {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function initCodeBlocks() {
+  for (const [id, code] of Object.entries(CODE_SNIPPETS)) {
+    document.getElementById(id).textContent = code;
+  }
+  document.getElementById("n1").textContent = NEX_SNIPPET;
+}
+
+initCodeBlocks();
+rerollTowers();
+setConcurrencyMode("insert");
+setRedisMember("alice");
+</script>
+</body>
+</html>
