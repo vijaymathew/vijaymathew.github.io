@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Array Programming — APL Concepts in JavaScript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,500;1,8..60,300&family=Berkeley+Mono&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #ffffff;
+  --bg2:       #f6f6f4;
+  --bg3:       #eeede9;
+  --bg4:       #e4e2dc;
+  --ink:       #111110;
+  --ink2:      #52504a;
+  --ink3:      #9a9790;
+  --rule:      #dddbd4;
+  --rule2:     #c8c5bc;
+  --apl:       #1a3a6b;   /* APL glyph colour */
+  --apl-bg:    #edf2fb;
+  --apl-bdr:   #b8cded;
+  --js:        #1a5c35;   /* JS equivalent */
+  --js-bg:     #edf7f1;
+  --js-bdr:    #9fd3b5;
+  --out:       #3d2a00;
+  --out-bg:    #fdf6e3;
+  --out-bdr:   #e6c97a;
+  --red:       #8b1a1a;
+  --red-bg:    #fdf0f0;
+  --purple:    #4a1d7a;
+  --purple-bg: #f5f0fd;
+  --teal:      #0d5c5c;
+  --teal-bg:   #edf8f8;
+  --mono:      'Berkeley Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --sans:      'Space Grotesk', system-ui, sans-serif;
+  --serif:     'Source Serif 4', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #111110;
+    --bg2:       #191917;
+    --bg3:       #222220;
+    --bg4:       #2c2c28;
+    --ink:       #e8e6e0;
+    --ink2:      #a8a59e;
+    --ink3:      #68655e;
+    --rule:      #2e2c28;
+    --rule2:     #3e3c36;
+    --apl:       #7aaae8;
+    --apl-bg:    #0e1a2c;
+    --apl-bdr:   #1e3a5c;
+    --js:        #7acca0;
+    --js-bg:     #0a1e14;
+    --js-bdr:    #1e4a30;
+    --out:       #d4b870;
+    --out-bg:    #1a1400;
+    --out-bdr:   #4a3800;
+    --red:       #e87878;
+    --red-bg:    #200a0a;
+    --purple:    #b088e8;
+    --purple-bg: #160e24;
+    --teal:      #60c8c8;
+    --teal-bg:   #061818;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1; }
+
+/* ─── LAYOUT ──────────────────────────────── */
+.page { max-width: 860px; margin: 0 auto; padding: 0 1.75rem 6rem; }
+
+/* ─── TOP BAR ─────────────────────────────── */
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 0;
+}
+.topbar-brand { font-family: var(--mono); font-size: 18px; font-weight: 500; letter-spacing: -.02em; }
+.topbar-brand .apl-glyph { color: var(--apl); }
+.topbar-rule { height: 1px; background: var(--rule2); }
+.topbar-tag { font-family: var(--mono); font-size: 11px; color: var(--ink3); text-align: right; line-height: 1.5; }
+
+/* ─── HERO ────────────────────────────────── */
+.hero { padding: 3.5rem 0 3rem; }
+.hero-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); margin-bottom: 1.2rem; }
+.hero h1 { font-family: var(--serif); font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 300; line-height: 1.1; letter-spacing: -.02em; margin-bottom: 1.1rem; }
+.hero h1 .hl { color: var(--apl); font-style: italic; }
+.hero-sub { font-size: 16px; line-height: 1.75; color: var(--ink2); max-width: 580px; margin-bottom: 2rem; }
+.hero-apl-strip {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--rule2);
+  border-radius: 6px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 14px;
+  width: fit-content;
+  margin-bottom: 1.8rem;
+}
+.apl-cell { padding: 7px 14px; border-right: 1px solid var(--rule2); }
+.apl-cell:last-child { border-right: none; }
+.apl-cell.glyph { background: var(--apl-bg); color: var(--apl); font-size: 18px; }
+.apl-cell.meaning { background: var(--bg2); color: var(--ink2); font-size: 12px; display: flex; align-items: center; }
+.hero-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--rule2); color: var(--ink3); }
+
+/* ─── TOC ─────────────────────────────────── */
+.toc {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--rule2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 2rem 0 3rem;
+}
+.toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink2);
+  text-decoration: none;
+  transition: background .1s, color .1s;
+}
+.toc a:nth-child(2n) { border-right: none; }
+.toc a:nth-last-child(-n+2) { border-bottom: none; }
+.toc a:hover { background: var(--bg3); color: var(--ink); }
+.toc-n { color: var(--ink3); font-size: 10px; min-width: 18px; }
+
+/* ─── SECTION ─────────────────────────────── */
+.section { margin-bottom: 5rem; scroll-margin-top: 2rem; }
+.sec-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: .8rem; border-bottom: 1px solid var(--rule2); margin-bottom: 1.5rem; }
+.sec-n { font-family: var(--mono); font-size: 10px; color: var(--ink3); letter-spacing: .1em; flex-shrink: 0; }
+h2 { font-family: var(--serif); font-size: 1.8rem; font-weight: 300; letter-spacing: -.01em; }
+h3 { font-family: var(--sans); font-size: 14px; font-weight: 500; color: var(--ink); margin: 1.5rem 0 .5rem; letter-spacing: .02em; text-transform: uppercase; }
+p { font-size: 15.5px; line-height: 1.8; color: var(--ink2); margin-bottom: .9rem; }
+p strong { color: var(--ink); font-weight: 500; }
+a { color: var(--apl); }
+code { font-family: var(--mono); font-size: 13px; background: var(--bg3); border: 1px solid var(--rule); border-radius: 3px; padding: 1px 5px; color: var(--ink); }
+
+/* ─── APL ↔ JS COMPARISON BLOCKS ────────── */
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--rule2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1rem 0 1.6rem;
+  font-family: var(--mono);
+}
+.compare-pane { overflow: hidden; }
+.compare-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 12px;
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 500;
+  border-bottom: 1px solid var(--rule2);
+}
+.compare-head.apl-head { background: var(--apl-bg); color: var(--apl); border-right: 1px solid var(--apl-bdr); }
+.compare-head.js-head  { background: var(--js-bg);  color: var(--js); }
+.compare-body {
+  padding: .8rem 1rem;
+  font-size: 13px;
+  line-height: 1.85;
+  white-space: pre;
+  overflow-x: auto;
+}
+.compare-body.apl-body { background: var(--apl-bg); color: var(--apl); border-right: 1px solid var(--apl-bdr); }
+.compare-body.js-body  { background: var(--js-bg);  color: var(--js); }
+.compare-body .dim { opacity: .5; }
+.compare-body .hl  { opacity: 1; font-weight: 500; }
+
+/* ─── CODE BLOCKS ─────────────────────────── */
+.cb { border: 1px solid var(--rule2); border-radius: 6px; overflow: hidden; margin: 1rem 0 1.8rem; }
+.cb-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--rule2);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+}
+.run-btn {
+  background: var(--ink);
+  color: var(--bg);
+  border: none;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 11px;
+  cursor: pointer;
+  letter-spacing: .05em;
+  transition: opacity .12s;
+}
+.run-btn:hover { opacity: .7; }
+pre.code {
+  background: var(--bg2);
+  padding: 1rem 1.3rem;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.78;
+  overflow-x: auto;
+  color: var(--ink);
+  margin: 0;
+}
+.out {
+  display: none;
+  background: var(--out-bg);
+  border-top: 1px solid var(--out-bdr);
+  padding: .75rem 1.3rem;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.78;
+  color: var(--out);
+  white-space: pre-wrap;
+}
+.out.on { display: block; }
+.out.err { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+/* syntax colours */
+.kw  { color: var(--purple); }
+.fn  { color: var(--apl); }
+.str { color: var(--js); }
+.cmt { color: var(--ink3); font-style: italic; }
+.num { color: #a0520d; }
+.cls { color: var(--teal); }
+
+/* ─── DEMO CARDS ──────────────────────────── */
+.demo { background: var(--bg2); border: 1px solid var(--rule2); border-radius: 6px; padding: 1.2rem; margin: 1rem 0 1.8rem; }
+.demo-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); margin-bottom: .8rem; }
+
+/* ─── ARRAY VISUALISER ────────────────────── */
+.arr-row { display: flex; gap: 3px; flex-wrap: wrap; margin: .4rem 0; align-items: center; }
+.arr-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: 1px solid var(--rule2);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--ink);
+  transition: background .2s, color .2s, border-color .2s;
+}
+.arr-cell.hi { background: var(--apl-bg); color: var(--apl); border-color: var(--apl-bdr); }
+.arr-cell.res { background: var(--js-bg); color: var(--js); border-color: var(--js-bdr); }
+.arr-cell.acc { background: var(--out-bg); color: var(--out); border-color: var(--out-bdr); }
+.arr-cell.neg { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+.arr-label { font-family: var(--mono); font-size: 11px; color: var(--ink3); margin-right: 6px; min-width: 60px; text-align: right; }
+.arr-op { font-family: var(--mono); font-size: 18px; color: var(--ink3); margin: 0 6px; }
+.arr-eq { font-family: var(--mono); font-size: 14px; color: var(--ink3); margin: 0 6px; }
+
+/* ─── RANK DIAGRAM ────────────────────────── */
+.rank-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: .8rem 0;
+}
+.rank-card {
+  border: 1px solid var(--rule2);
+  border-radius: 6px;
+  overflow: hidden;
+  text-align: center;
+}
+.rank-card-head { padding: 6px; background: var(--bg3); font-family: var(--mono); font-size: 11px; color: var(--ink3); border-bottom: 1px solid var(--rule); }
+.rank-card-body { padding: 10px 6px; display: flex; align-items: center; justify-content: center; min-height: 70px; }
+.rank-scalar { width: 34px; height: 34px; border-radius: 4px; background: var(--apl-bg); border: 2px solid var(--apl-bdr); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 16px; color: var(--apl); }
+.rank-vector { display: flex; gap: 3px; }
+.rank-vector .c { width: 22px; height: 22px; border-radius: 3px; background: var(--js-bg); border: 1px solid var(--js-bdr); }
+.rank-matrix { display: grid; grid-template-columns: repeat(3, 18px); gap: 2px; }
+.rank-matrix .c { width: 18px; height: 18px; border-radius: 2px; background: var(--out-bg); border: 1px solid var(--out-bdr); }
+.rank-tensor { display: grid; grid-template-columns: repeat(3, 14px); gap: 2px; position: relative; }
+.rank-tensor .c { width: 14px; height: 14px; border-radius: 2px; background: var(--purple-bg); border: 1px solid var(--rule2); }
+.rank-tensor .shadow { position: absolute; top: -5px; left: 5px; width: 100%; height: 100%; background: var(--purple-bg); border: 1px solid var(--rule2); border-radius: 2px; z-index: -1; }
+
+/* ─── PIPELINE VIZ ────────────────────────── */
+.pipeline { display: flex; align-items: stretch; gap: 0; margin: .8rem 0; overflow-x: auto; }
+.pipe-stage {
+  flex: 1;
+  min-width: 90px;
+  border: 1px solid var(--rule2);
+  border-right: none;
+  padding: .6rem .7rem;
+}
+.pipe-stage:first-child { border-radius: 6px 0 0 6px; }
+.pipe-stage:last-child  { border-radius: 0 6px 6px 0; border-right: 1px solid var(--rule2); }
+.pipe-stage-name { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin-bottom: .3rem; }
+.pipe-stage-op   { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.pipe-stage-apl  { font-family: var(--mono); font-size: 12px; color: var(--apl); margin-top: 2px; }
+.pipe-arrow { display: flex; align-items: center; padding: 0 2px; color: var(--ink3); font-size: 14px; }
+
+/* ─── BUTTONS ─────────────────────────────── */
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: .8rem; }
+button.btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--rule2);
+  background: transparent;
+  color: var(--ink2);
+  cursor: pointer;
+  transition: background .1s, color .1s;
+}
+button.btn:hover { background: var(--bg3); color: var(--ink); }
+button.btn.act { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+button.btn.apl { background: var(--apl-bg); color: var(--apl); border-color: var(--apl-bdr); }
+
+/* ─── OUTER PRODUCT TABLE ─────────────────── */
+.op-table { border-collapse: collapse; font-family: var(--mono); font-size: 13px; margin: .6rem 0; }
+.op-table th, .op-table td { border: 1px solid var(--rule); padding: 5px 10px; text-align: center; }
+.op-table th { background: var(--bg3); color: var(--ink2); font-weight: 400; font-size: 11px; }
+.op-table td { background: var(--bg); color: var(--ink); transition: background .2s; }
+.op-table td.hi { background: var(--apl-bg); color: var(--apl); }
+.op-table td.diag { background: var(--out-bg); color: var(--out); }
+
+/* ─── SCAN VIZ ────────────────────────────── */
+.scan-row { display: flex; gap: 3px; align-items: center; margin: .3rem 0; }
+.scan-cell {
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 38px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 0 4px;
+  transition: background .3s, color .3s;
+}
+.scan-cell.computing { background: var(--apl-bg); color: var(--apl); border-color: var(--apl-bdr); }
+.scan-cell.done      { background: var(--js-bg);  color: var(--js);  border-color: var(--js-bdr); }
+.scan-cell.pending   { background: var(--bg2);     color: var(--ink3); }
+
+/* ─── CALLOUT ─────────────────────────────── */
+.callout { border-left: 3px solid var(--apl-bdr); background: var(--apl-bg); border-radius: 0 4px 4px 0; padding: .7rem 1rem; margin: 1rem 0; font-size: 14.5px; line-height: 1.7; color: var(--apl); font-family: var(--sans); }
+.callout.note { border-color: var(--js-bdr); background: var(--js-bg); color: var(--js); }
+.callout.warn { border-color: var(--out-bdr); background: var(--out-bg); color: var(--out); font-family: var(--mono); font-size: 13px; }
+
+/* ─── FOOTER ──────────────────────────────── */
+.footer { border-top: 2px solid var(--ink); padding-top: 1.8rem; }
+.footer a { font-family: var(--mono); font-size: 12px; color: var(--ink2); text-decoration: none; display: block; padding: 3px 0; }
+.footer a:hover { color: var(--apl); }
+.footer-note { font-family: var(--mono); font-size: 11px; color: var(--ink3); margin-top: 1rem; line-height: 1.7; }
+
+/* slider */
+.slider-row { display: flex; align-items: center; gap: 10px; margin: .5rem 0; }
+.slider-row label { font-family: var(--mono); font-size: 12px; color: var(--ink2); min-width: 100px; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--apl); }
+.slider-val { font-family: var(--mono); font-size: 12px; color: var(--apl); min-width: 50px; }
+
+/* step nav */
+.step-nav { display: flex; border: 1px solid var(--rule2); border-radius: 4px; overflow: hidden; margin-bottom: .8rem; }
+.step-btn { flex: 1; padding: 6px 4px; font-family: var(--mono); font-size: 11px; border: none; border-right: 1px solid var(--rule2); background: var(--bg2); color: var(--ink3); cursor: pointer; transition: background .1s, color .1s; }
+.step-btn:last-child { border-right: none; }
+.step-btn.act { background: var(--ink); color: var(--bg); }
+.step-panel { display: none; }
+.step-panel.on { display: block; }
+
+/* stream table */
+.stream-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; margin: .6rem 0; }
+.stream-table th { padding: 6px 10px; background: var(--bg3); border: 1px solid var(--rule2); color: var(--ink2); font-weight: 400; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.stream-table td { padding: 6px 10px; border: 1px solid var(--rule); color: var(--ink2); }
+.stream-table td.k { color: var(--ink); font-weight: 500; }
+.stream-table td.v { color: var(--apl); }
+.stream-table tr.hi td { background: var(--apl-bg); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand"><span class="apl-glyph">+/×∘.</span> Array Programming</div>
+  <div class="topbar-rule"></div>
+  <div class="topbar-tag">APL concepts in JavaScript<br>No libraries · Runs in browser</div>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-eyebrow">Interactive explainer · Data structures in practice</div>
+  <h1>Think in <span class="hl">arrays</span>,<br>not in loops</h1>
+  <p class="hero-sub">APL (1966) introduced a radical idea: operations apply to entire arrays at once, with no explicit loops. Today that idea powers NumPy, SQL window functions, Apache Arrow, GPU shaders, and every major data processing system.</p>
+  <div class="hero-apl-strip">
+    <div class="apl-cell glyph">+/</div><div class="apl-cell meaning">reduce (sum)</div>
+    <div class="apl-cell glyph">×/</div><div class="apl-cell meaning">reduce (product)</div>
+    <div class="apl-cell glyph">+\</div><div class="apl-cell meaning">scan (prefix sum)</div>
+    <div class="apl-cell glyph">∘.</div><div class="apl-cell meaning">outer product</div>
+    <div class="apl-cell glyph">⍉</div><div class="apl-cell meaning">transpose</div>
+    <div class="apl-cell glyph">⌸</div><div class="apl-cell meaning">group-by key</div>
+  </div>
+  <div class="hero-pills">
+    <span class="pill">Rank &amp; shape</span>
+    <span class="pill">Broadcasting</span>
+    <span class="pill">Reduce / Scan</span>
+    <span class="pill">Outer product</span>
+    <span class="pill">Tacit style</span>
+    <span class="pill">NumPy · SQL · Arrow · SIMD</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>The core idea</a>
+  <a href="#s2"><span class="toc-n">02</span>Rank and shape</a>
+  <a href="#s3"><span class="toc-n">03</span>Scalar extension &amp; broadcasting</a>
+  <a href="#s4"><span class="toc-n">04</span>Reduce (+/ ×/ ⌈/)</a>
+  <a href="#s5"><span class="toc-n">05</span>Scan (+\ prefix sums)</a>
+  <a href="#s6"><span class="toc-n">06</span>Outer product (∘.f)</a>
+  <a href="#s7"><span class="toc-n">07</span>Rank operator (f⍤k)</a>
+  <a href="#s8"><span class="toc-n">08</span>Tacit / point-free style</a>
+  <a href="#s9"><span class="toc-n">09</span>Modern relevance</a>
+  <a href="#s10"><span class="toc-n">10</span>Stream processing</a>
+</nav>
+
+<!-- ═══ S1: THE CORE IDEA ═══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>The core idea</h2></div>
+
+  <p>In a conventional language you write a loop to add two arrays element-by-element. In an array language, the operator itself iterates — you write <code>A + B</code> and the language handles the traversal. This is not syntactic sugar: the runtime can execute the operation as a single vectorised SIMD instruction on hardware, or distribute it across cores.</p>
+
+  <div class="compare">
+    <div class="compare-pane">
+      <div class="compare-head apl-head"><span>APL</span><span>c ← a + b</span></div>
+      <div class="compare-body apl-body">a ← 1 2 3 4 5
+b ← 10 20 30 40 50
+c ← a + b
+<span class="hl">⍝ → 11 22 33 44 55</span>
+<span class="dim">⍝ No loop. One operation.</span></div>
+    </div>
+    <div class="compare-pane">
+      <div class="compare-head js-head"><span>JavaScript</span><span>// element-wise add</span></div>
+      <div class="compare-body js-body"><span class="kw">const</span> a = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>];
+<span class="kw">const</span> b = [<span class="num">10</span>,<span class="num">20</span>,<span class="num">30</span>,<span class="num">40</span>,<span class="num">50</span>];
+<span class="kw">const</span> c = <span class="fn">zip</span>(a, b, (x,y) =&gt; x+y);
+<span class="hl">// → [11, 22, 33, 44, 55]</span>
+<span class="dim">// Loop hidden inside zip()</span></div>
+    </div>
+  </div>
+
+  <p>The key shift is <strong>thinking in transformations on whole arrays</strong> rather than iterating over elements. This makes code shorter, easier to reason about in parallel, and directly maps to how hardware actually works (SIMD, GPU warps, vector registers).</p>
+
+  <div class="cb">
+    <div class="cb-head"><span>array_primitives.js — the building blocks</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// Array programming primitives — the foundation</span>
+<span class="cmt">// These replace explicit for-loops throughout the rest of this explainer</span>
+
+<span class="cmt">// Element-wise binary operation (APL: A f B)</span>
+<span class="kw">const</span> <span class="fn">zip</span> = (a, b, f) =&gt; a.map((v, i) =&gt; f(v, b[i]));
+
+<span class="cmt">// Apply scalar f to every element (APL: f A)</span>
+<span class="kw">const</span> <span class="fn">each</span> = (a, f) =&gt; a.map(f);
+
+<span class="cmt">// Reduce: collapse array to scalar (APL: f/A)</span>
+<span class="kw">const</span> <span class="fn">reduce</span> = (a, f, init) =&gt; a.reduce(f, init);
+
+<span class="cmt">// Iota: integer sequence (APL: ⍳n)</span>
+<span class="kw">const</span> <span class="fn">iota</span> = n =&gt; Array.from({length: n}, (_, i) =&gt; i + <span class="num">1</span>);
+
+<span class="cmt">// Reshape: reinterpret flat array as matrix (APL: m n ⍴ A)</span>
+<span class="kw">const</span> <span class="fn">reshape</span> = (a, rows, cols) =&gt;
+  Array.from({length: rows}, (_, r) =&gt; a.slice(r*cols, r*cols+cols));
+
+<span class="cmt">// Grade up: indices that would sort the array (APL: ⍋A)</span>
+<span class="kw">const</span> <span class="fn">gradeUp</span> = a =&gt; [...a.keys()].sort((i, j) =&gt; a[i] - a[j]);
+
+<span class="cmt">// Index-of: first occurrence (APL: A⍳B)</span>
+<span class="kw">const</span> <span class="fn">indexOf</span> = (haystack, needle) =&gt; haystack.indexOf(needle);
+
+console.log(<span class="str">"iota(8)  ="</span>, <span class="fn">iota</span>(<span class="num">8</span>).join(<span class="str">" "</span>));
+console.log(<span class="str">"each ×2  ="</span>, <span class="fn">each</span>(<span class="fn">iota</span>(<span class="num">8</span>), x =&gt; x*<span class="num">2</span>).join(<span class="str">" "</span>));
+console.log(<span class="str">"zip + ×2 ="</span>, <span class="fn">zip</span>(<span class="fn">iota</span>(<span class="num">8</span>), <span class="fn">each</span>(<span class="fn">iota</span>(<span class="num">8</span>), x =&gt; x*<span class="num">2</span>), (a,b) =&gt; a+b).join(<span class="str">" "</span>));
+
+<span class="kw">const</span> mat = <span class="fn">reshape</span>(<span class="fn">iota</span>(<span class="num">12</span>), <span class="num">3</span>, <span class="num">4</span>);
+console.log(<span class="str">"reshape(⍳12, 3, 4):"</span>);
+mat.forEach(row =&gt; console.log(<span class="str">" "</span>, row.join(<span class="str">"  "</span>)));
+
+<span class="kw">const</span> scrambled = [<span class="num">3</span>, <span class="num">1</span>, <span class="num">4</span>, <span class="num">1</span>, <span class="num">5</span>, <span class="num">9</span>, <span class="num">2</span>, <span class="num">6</span>];
+<span class="kw">const</span> order = <span class="fn">gradeUp</span>(scrambled);
+console.log(<span class="str">"gradeUp grades ="</span>, order.join(<span class="str">" "</span>));
+console.log(<span class="str">"sorted via grade ="</span>, order.map(i =&gt; scrambled[i]).join(<span class="str">" "</span>));</pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ═══ S2: RANK AND SHAPE ═══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>Rank and shape</h2></div>
+
+  <p>Every value in APL has a <strong>rank</strong> (number of dimensions) and a <strong>shape</strong> (size along each dimension). A single number is rank-0 (scalar). A list is rank-1 (vector). A table is rank-2 (matrix). Higher ranks are tensors.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Rank taxonomy</div>
+    <div class="rank-grid">
+      <div class="rank-card">
+        <div class="rank-card-head">Rank 0 · scalar</div>
+        <div class="rank-card-body"><div class="rank-scalar">42</div></div>
+      </div>
+      <div class="rank-card">
+        <div class="rank-card-head">Rank 1 · vector (5)</div>
+        <div class="rank-card-body"><div class="rank-vector"><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div></div></div>
+      </div>
+      <div class="rank-card">
+        <div class="rank-card-head">Rank 2 · matrix (3×3)</div>
+        <div class="rank-card-body"><div class="rank-matrix"><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div></div></div>
+      </div>
+      <div class="rank-card">
+        <div class="rank-card-head">Rank 3 · tensor (2×3×3)</div>
+        <div class="rank-card-body" style="position:relative;padding:14px">
+          <div style="position:relative;z-index:1"><div class="rank-tensor">
+            <div class="c"></div><div class="c"></div><div class="c"></div>
+            <div class="c"></div><div class="c"></div><div class="c"></div>
+            <div class="c"></div><div class="c"></div><div class="c"></div>
+            <div class="shadow"></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p>The shape determines which operations are valid and how they generalise. A function that works on a vector should work on each row of a matrix — this is the <strong>rank polymorphism</strong> that makes array languages composable.</p>
+
+  <div class="cb">
+    <div class="cb-head"><span>rank_shape.js — shape, rank, and reshaping</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// Rank and shape arithmetic — the type system of array programming</span>
+
+<span class="kw">function</span> <span class="fn">shape</span>(a) {
+  <span class="kw">const</span> s = [];
+  <span class="kw">let</span> cur = a;
+  <span class="kw">while</span> (Array.isArray(cur)) { s.push(cur.length); cur = cur[<span class="num">0</span>]; }
+  <span class="kw">return</span> s;
+}
+<span class="kw">const</span> <span class="fn">rank</span>  = a =&gt; <span class="fn">shape</span>(a).length;
+<span class="kw">const</span> <span class="fn">numel</span> = a =&gt; <span class="fn">shape</span>(a).reduce((p,d) =&gt; p*d, <span class="num">1</span>);
+
+<span class="cmt">// Flatten any nested array (APL: ,A  "ravel")</span>
+<span class="kw">const</span> <span class="fn">ravel</span> = a =&gt; Array.isArray(a) ? a.flatMap(<span class="fn">ravel</span>) : [a];
+
+<span class="cmt">// Reshape flat data into arbitrary shape (APL: s ⍴ A)</span>
+<span class="kw">function</span> <span class="fn">reshapeND</span>(flat, dims) {
+  <span class="kw">if</span> (dims.length === <span class="num">1</span>) <span class="kw">return</span> flat.slice(<span class="num">0</span>, dims[<span class="num">0</span>]);
+  <span class="kw">const</span> stride = dims.slice(<span class="num">1</span>).reduce((p,d) =&gt; p*d, <span class="num">1</span>);
+  <span class="kw">return</span> Array.from({length: dims[<span class="num">0</span>]}, (_, i) =&gt;
+    <span class="fn">reshapeND</span>(flat.slice(i*stride), dims.slice(<span class="num">1</span>)));
+}
+
+<span class="cmt">// Transpose (APL: ⍉A) — swap last two axes</span>
+<span class="kw">function</span> <span class="fn">transpose</span>(mat) {
+  <span class="kw">const</span> rows = mat.length, cols = mat[<span class="num">0</span>].length;
+  <span class="kw">return</span> Array.from({length: cols}, (_, c) =&gt;
+    Array.from({length: rows}, (_, r) =&gt; mat[r][c]));
+}
+
+<span class="kw">const</span> flat = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>,<span class="num">6</span>,<span class="num">7</span>,<span class="num">8</span>,<span class="num">9</span>,<span class="num">10</span>,<span class="num">11</span>,<span class="num">12</span>];
+<span class="kw">const</span> m34  = <span class="fn">reshapeND</span>(flat, [<span class="num">3</span>,<span class="num">4</span>]);
+<span class="kw">const</span> t234 = <span class="fn">reshapeND</span>(flat, [<span class="num">2</span>,<span class="num">3</span>,<span class="num">2</span>]);
+
+console.log(<span class="str">"flat shape:"</span>,  <span class="fn">shape</span>(flat),  <span class="str">"rank:"</span>, <span class="fn">rank</span>(flat));
+console.log(<span class="str">"3×4  shape:"</span>,  <span class="fn">shape</span>(m34),   <span class="str">"rank:"</span>, <span class="fn">rank</span>(m34));
+console.log(<span class="str">"2×3×2 shape:"</span>, <span class="fn">shape</span>(t234),  <span class="str">"rank:"</span>, <span class="fn">rank</span>(t234));
+
+console.log(<span class="str">"\n3×4 matrix:"</span>);
+m34.forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">"  "</span>)));
+
+console.log(<span class="str">"\nTransposed (4×3):"</span>);
+<span class="fn">transpose</span>(m34).forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">"  "</span>)));
+
+<span class="cmt">// Shape rules: reshape is just a different view — same data</span>
+console.log(<span class="str">"\nravel(3×4):"</span>, <span class="fn">ravel</span>(m34).join(<span class="str">" "</span>));
+console.log(<span class="str">"numel(3×4):"</span>, <span class="fn">numel</span>(m34), <span class="str">"(same as 12)"</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ═══ S3: BROADCASTING ═══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>Scalar extension &amp; broadcasting</h2></div>
+
+  <p>When shapes don't match, array languages don't error — they <strong>broadcast</strong>: automatically extend the smaller array to match the larger one. A scalar extends to any shape. A vector of length n extends along any axis of size n.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Broadcasting — click to animate</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showBroadcast(0,this)">Scalar + Vector</button>
+      <button class="btn" onclick="showBroadcast(1,this)">Vector + Matrix (row)</button>
+      <button class="btn" onclick="showBroadcast(2,this)">Column + Row → Matrix</button>
+    </div>
+    <div id="broadcast-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>broadcasting.js — scalar extension and shape coercion</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// Broadcasting: automatic shape extension</span>
+<span class="cmt">// NumPy and APL both follow these rules</span>
+
+<span class="cmt">// Broadcast a scalar to any shape (APL: scalar f array → applies scalar to each)</span>
+<span class="kw">const</span> <span class="fn">scalarBroadcast</span> = (scalar, arr, f) =&gt; arr.map(v =&gt; f(scalar, v));
+
+<span class="cmt">// Broadcast a vector along rows of a matrix (APL: mat + vec → add vec to each row)</span>
+<span class="kw">const</span> <span class="fn">rowBroadcast</span> = (mat, vec, f) =&gt;
+  mat.map(row =&gt; row.map((v, i) =&gt; f(v, vec[i])));
+
+<span class="cmt">// Outer product IS broadcasting in disguise:</span>
+<span class="cmt">// col (n×1) + row (1×m) → matrix (n×m)</span>
+<span class="kw">const</span> <span class="fn">outerAdd</span> = (col, row) =&gt;
+  col.map(c =&gt; row.map(r =&gt; c + r));
+
+<span class="kw">const</span> vec = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>];
+<span class="kw">const</span> mat = [[<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>],[<span class="num">4</span>,<span class="num">5</span>,<span class="num">6</span>],[<span class="num">7</span>,<span class="num">8</span>,<span class="num">9</span>]];
+
+console.log(<span class="str">"Scalar 10 × vec:"</span>, <span class="fn">scalarBroadcast</span>(<span class="num">10</span>, vec, (a,b) =&gt; a*b).join(<span class="str">" "</span>));
+console.log(<span class="str">"Scalar 2 + mat:"</span>);
+<span class="fn">scalarBroadcast</span>(<span class="num">2</span>, mat, (s, row) =&gt; row.map(v =&gt; v + s))
+  .forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">"  "</span>)));
+
+console.log(<span class="str">"\nRow broadcast: mat + [10,20,30]:"</span>);
+<span class="fn">rowBroadcast</span>(mat, [<span class="num">10</span>,<span class="num">20</span>,<span class="num">30</span>], (a,b) =&gt; a+b)
+  .forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">"  "</span>)));
+
+console.log(<span class="str">"\nOuter add [1,2,3] ∘.+ [10,20,30,40]:"</span>);
+<span class="fn">outerAdd</span>([<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>], [<span class="num">10</span>,<span class="num">20</span>,<span class="num">30</span>,<span class="num">40</span>])
+  .forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">"  "</span>)));
+
+<span class="cmt">// Broadcasting rule: shapes are compatible if, for each dimension,</span>
+<span class="cmt">// they are equal OR one of them is 1 (extends to match the other)</span>
+<span class="kw">function</span> <span class="fn">broadcastShape</span>(s1, s2) {
+  <span class="kw">const</span> len = Math.max(s1.length, s2.length);
+  <span class="kw">const</span> p1  = [...<span class="kw">new</span> Array(len - s1.length).fill(<span class="num">1</span>), ...s1];
+  <span class="kw">const</span> p2  = [...<span class="kw">new</span> Array(len - s2.length).fill(<span class="num">1</span>), ...s2];
+  <span class="kw">return</span> p1.map((d, i) =&gt; {
+    <span class="kw">if</span> (d === p2[i]) <span class="kw">return</span> d;
+    <span class="kw">if</span> (d === <span class="num">1</span>) <span class="kw">return</span> p2[i];
+    <span class="kw">if</span> (p2[i] === <span class="num">1</span>) <span class="kw">return</span> d;
+    <span class="kw">throw new</span> Error(<span class="str">`Incompatible: ${d} vs ${p2[i]}`</span>);
+  });
+}
+console.log(<span class="str">"\nbroadcastShape([3,4],[4])    ="</span>, <span class="fn">broadcastShape</span>([<span class="num">3</span>,<span class="num">4</span>],[<span class="num">4</span>]));
+console.log(<span class="str">"broadcastShape([3,1],[1,4])  ="</span>, <span class="fn">broadcastShape</span>([<span class="num">3</span>,<span class="num">1</span>],[<span class="num">1</span>,<span class="num">4</span>]));
+console.log(<span class="str">"broadcastShape([2,3,4],[3,4]) ="</span>, <span class="fn">broadcastShape</span>([<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>],[<span class="num">3</span>,<span class="num">4</span>]));</pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ═══ S4: REDUCE ═══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>Reduce — collapsing dimensions</h2></div>
+
+  <p>The reduce operator <code>f/</code> inserts a binary function between every element of a vector, collapsing it to a scalar. <code>+/</code> sums, <code>×/</code> multiplies, <code>⌈/</code> finds the maximum. Applied to a matrix, it reduces along a specified axis — giving a vector.</p>
+
+  <div class="compare">
+    <div class="compare-pane">
+      <div class="compare-head apl-head"><span>APL</span><span>f/ — reduce</span></div>
+      <div class="compare-body apl-body">A ← 1 2 3 4 5
++/A    ⍝ → 15  (sum)
+×/A    ⍝ → 120 (product)
+⌈/A    ⍝ → 5   (max)
+⌊/A    ⍝ → 1   (min)
+
+M ← 3 4 ⍴ ⍳12
++/M    ⍝ → sum each row
++⌿M   ⍝ → sum each column</div>
+    </div>
+    <div class="compare-pane">
+      <div class="compare-head js-head"><span>JavaScript</span><span>// Array.reduce</span></div>
+      <div class="compare-body js-body"><span class="kw">const</span> A = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>];
+A.<span class="fn">reduce</span>((a,b)=&gt;a+b)  <span class="cmt">// 15</span>
+A.<span class="fn">reduce</span>((a,b)=&gt;a*b)  <span class="cmt">// 120</span>
+Math.<span class="fn">max</span>(...A)         <span class="cmt">// 5</span>
+Math.<span class="fn">min</span>(...A)         <span class="cmt">// 1</span>
+
+M.<span class="fn">map</span>(r=&gt;r.<span class="fn">reduce</span>((a,b)=&gt;a+b)) <span class="cmt">// row sums</span>
+colReduce(M, (a,b)=&gt;a+b) <span class="cmt">// col sums</span></div>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">Reduce visualiser — choose a function</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showReduce('+',this)">+/ sum</button>
+      <button class="btn" onclick="showReduce('×',this)">×/ product</button>
+      <button class="btn" onclick="showReduce('⌈',this)">⌈/ max</button>
+      <button class="btn" onclick="showReduce('⌊',this)">⌊/ min</button>
+      <button class="btn" onclick="showReduce('∨',this)">∨/ any</button>
+    </div>
+    <div id="reduce-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>reduce.js — reduce along any axis of a matrix</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// Reduce (fold) — the universal aggregation primitive</span>
+<span class="cmt">// APL's f/A inserts f between every element: +/1 2 3 = 1+2+3 = 6</span>
+
+<span class="kw">const</span> <span class="fn">reduceVec</span> = (a, f) =&gt; a.slice(<span class="num">1</span>).reduce(f, a[<span class="num">0</span>]);
+
+<span class="cmt">// Reduce along axis 0 (columns) or axis 1 (rows) of a matrix</span>
+<span class="kw">function</span> <span class="fn">reduceMat</span>(mat, f, axis = <span class="num">1</span>) {
+  <span class="kw">if</span> (axis === <span class="num">1</span>) <span class="kw">return</span> mat.map(row =&gt; <span class="fn">reduceVec</span>(row, f));   <span class="cmt">// row reduction</span>
+  <span class="kw">const</span> cols = mat[<span class="num">0</span>].length;
+  <span class="kw">return</span> Array.from({length: cols}, (_, c) =&gt;
+    <span class="fn">reduceVec</span>(mat.map(row =&gt; row[c]), f));  <span class="cmt">// column reduction</span>
+}
+
+<span class="kw">const</span> v = [<span class="num">3</span>, <span class="num">1</span>, <span class="num">4</span>, <span class="num">1</span>, <span class="num">5</span>, <span class="num">9</span>, <span class="num">2</span>, <span class="num">6</span>];
+console.log(<span class="str">"Vector:"</span>, v.join(<span class="str">" "</span>));
+console.log(<span class="str">"+/ sum    ="</span>, <span class="fn">reduceVec</span>(v, (a,b) =&gt; a+b));
+console.log(<span class="str">"×/ product ="</span>, <span class="fn">reduceVec</span>(v, (a,b) =&gt; a*b));
+console.log(<span class="str">"⌈/ max    ="</span>, <span class="fn">reduceVec</span>(v, Math.max));
+console.log(<span class="str">"⌊/ min    ="</span>, <span class="fn">reduceVec</span>(v, Math.min));
+console.log(<span class="str">"∨/ any>5  ="</span>, <span class="fn">reduceVec</span>(v, (a,b) =&gt; a || b&gt;<span class="num">5</span>) ? <span class="str">"true"</span> : <span class="str">"false"</span>);
+
+<span class="kw">const</span> mat = [[<span class="num">3</span>,<span class="num">1</span>,<span class="num">4</span>],[<span class="num">1</span>,<span class="num">5</span>,<span class="num">9</span>],[<span class="num">2</span>,<span class="num">6</span>,<span class="num">5</span>],[<span class="num">3</span>,<span class="num">5</span>,<span class="num">8</span>]];
+console.log(<span class="str">"\n4×3 matrix:"</span>);
+mat.forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">"  "</span>)));
+
+console.log(<span class="str">"+/ rows (axis=1):"</span>, <span class="fn">reduceMat</span>(mat, (a,b) =&gt; a+b, <span class="num">1</span>).join(<span class="str">" "</span>));
+console.log(<span class="str">"+⌿ cols (axis=0):"</span>, <span class="fn">reduceMat</span>(mat, (a,b) =&gt; a+b, <span class="num">0</span>).join(<span class="str">" "</span>));
+console.log(<span class="str">"⌈⌿ col max (axis=0):"</span>, <span class="fn">reduceMat</span>(mat, Math.max, <span class="num">0</span>).join(<span class="str">" "</span>));
+
+<span class="cmt">// Reduce a 3D tensor along each axis — mirrors NumPy's np.sum(T, axis=k)</span>
+<span class="kw">function</span> <span class="fn">tensorReduceAxis0</span>(tensor, f) {
+  <span class="cmt">// tensor: [depth, rows, cols] → result: [rows, cols]</span>
+  <span class="kw">const</span> [D, R, C] = [tensor.length, tensor[<span class="num">0</span>].length, tensor[<span class="num">0</span>][<span class="num">0</span>].length];
+  <span class="kw">return</span> Array.from({length: R}, (_, r) =&gt;
+    Array.from({length: C}, (_, c) =&gt;
+      tensor.slice(<span class="num">1</span>).reduce((acc, d) =&gt; f(acc, d[r][c]), tensor[<span class="num">0</span>][r][c])));
+}
+<span class="kw">const</span> T = [[[<span class="num">1</span>,<span class="num">2</span>],[<span class="num">3</span>,<span class="num">4</span>]],[[<span class="num">5</span>,<span class="num">6</span>],[<span class="num">7</span>,<span class="num">8</span>]]];
+console.log(<span class="str">"\nTensor shape 2×2×2, sum along axis 0:"</span>);
+<span class="fn">tensorReduceAxis0</span>(T, (a,b) =&gt; a+b).forEach(r =&gt; console.log(<span class="str">" "</span>, r.join(<span class="str">" "</span>)));</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ═══ S5: SCAN ═══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>Scan — the prefix operation</h2></div>
+
+  <p>Where reduce collapses an array to a scalar, <strong>scan</strong> (<code>f\</code>) keeps all the intermediate results. <code>+\</code> produces the running (prefix) sum. <code>×\</code> produces the running product. The output has the same length as the input.</p>
+
+  <div class="callout">Prefix sums are foundational in data processing: cumulative sales figures, running totals in SQL (<code>SUM() OVER</code>), histogram computation, and GPU parallel prefix algorithms all reduce to scan.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Scan visualiser — watch the accumulator move through the array</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showScan('+',this)">+\ prefix sum</button>
+      <button class="btn" onclick="showScan('×',this)">×\ prefix product</button>
+      <button class="btn" onclick="showScan('⌈',this)">⌈\ running max</button>
+    </div>
+    <div id="scan-viz"></div>
+    <button class="btn apl" id="scan-play-btn" onclick="playScan()" style="margin-top:.6rem">&#9654; Animate</button>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>scan.js — prefix scans and their applications</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// Scan (prefix reduction) — APL: f\A</span>
+<span class="cmt">// scan(f, [a,b,c,d]) = [a, f(a,b), f(f(a,b),c), f(f(f(a,b),c),d)]</span>
+
+<span class="kw">const</span> <span class="fn">scan</span> = (a, f) =&gt; {
+  <span class="kw">const</span> result = [a[<span class="num">0</span>]];
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">1</span>; i &lt; a.length; i++)
+    result.push(f(result[i-<span class="num">1</span>], a[i]));
+  <span class="kw">return</span> result;
+};
+
+<span class="cmt">// Application 1: prefix sums for histogram range queries</span>
+<span class="cmt">// Given freq[i] = count of items in bucket i,</span>
+<span class="cmt">// cumFreq[i] = total items in buckets 0..i</span>
+<span class="kw">const</span> freq    = [<span class="num">3</span>, <span class="num">7</span>, <span class="num">2</span>, <span class="num">9</span>, <span class="num">4</span>, <span class="num">1</span>, <span class="num">6</span>];
+<span class="kw">const</span> cumFreq = <span class="fn">scan</span>(freq, (a,b) =&gt; a+b);
+console.log(<span class="str">"freq:    "</span>, freq.join(<span class="str">"  "</span>));
+console.log(<span class="str">"prefix+: "</span>, cumFreq.join(<span class="str">"  "</span>));
+<span class="cmt">// Range query: how many items in buckets 2..5?</span>
+console.log(<span class="str">"items in buckets [2,5]:"</span>, cumFreq[<span class="num">5</span>] - (cumFreq[<span class="num">1</span>] ?? <span class="num">0</span>), <span class="str">"← O(1) after O(n) scan"</span>);
+
+<span class="cmt">// Application 2: exclusive prefix sum (like SQL ROW_NUMBER with OVER)</span>
+<span class="kw">const</span> <span class="fn">exclusiveScan</span> = (a, f, identity) =&gt; [identity, ...<span class="fn">scan</span>(a.slice(<span class="num">0</span>,-<span class="num">1</span>), f)];
+<span class="kw">const</span> offsets = <span class="fn">exclusiveScan</span>([<span class="num">5</span>,<span class="num">3</span>,<span class="num">8</span>,<span class="num">2</span>], (a,b) =&gt; a+b, <span class="num">0</span>);
+console.log(<span class="str">"\nlengths:  [5 3 8 2] (e.g. sizes of 4 string chunks)"</span>);
+console.log(<span class="str">"offsets:  "</span>, offsets.join(<span class="str">"  "</span>), <span class="str">"← start byte of each chunk"</span>);
+
+<span class="cmt">// Application 3: parallel prefix (how GPUs compute scans in O(log n) steps)</span>
+<span class="cmt">// Hillis-Steele algorithm — stride doubling</span>
+<span class="kw">function</span> <span class="fn">parallelPrefixScan</span>(a, f) {
+  <span class="kw">let</span> cur = [...a];
+  <span class="kw">const</span> n = a.length;
+  <span class="kw">let</span> steps = <span class="num">0</span>;
+  <span class="kw">for</span> (<span class="kw">let</span> stride = <span class="num">1</span>; stride &lt; n; stride *= <span class="num">2</span>) {
+    <span class="kw">const</span> next = [...cur];
+    <span class="kw">for</span> (<span class="kw">let</span> i = stride; i &lt; n; i++) next[i] = f(cur[i-stride], cur[i]);
+    cur = next;
+    steps++;
+  }
+  console.log(<span class="str">`  → ${steps} parallel steps (vs ${n-1} sequential)`</span>);
+  <span class="kw">return</span> cur;
+}
+console.log(<span class="str">"\nParallel prefix scan of [1,1,1,1,1,1,1,1]:"</span>);
+<span class="kw">const</span> ps = <span class="fn">parallelPrefixScan</span>([<span class="num">1</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">1</span>], (a,b) =&gt; a+b);
+console.log(<span class="str">"  Result:"</span>, ps.join(<span class="str">" "</span>));</pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ═══ S6: OUTER PRODUCT ═══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>Outer product — ∘.f</h2></div>
+
+  <p>The outer product <code>A ∘.f B</code> applies function <code>f</code> to every combination of elements from A and B, producing a matrix of shape <code>⍴A, ⍴B</code>. With addition it produces an addition table; with equality it produces a membership matrix; with multiplication it's the multiplication table.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Outer product tables — select a function</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showOuter('×',this)">∘.× multiply</button>
+      <button class="btn" onclick="showOuter('+',this)">∘.+ add</button>
+      <button class="btn" onclick="showOuter('=',this)">∘.= equal (membership)</button>
+      <button class="btn" onclick="showOuter('<',this)">∘.&lt; less-than (mask)</button>
+    </div>
+    <div id="outer-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>outer_product.js — outer product and its uses</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Outer product (APL: A ∘.f B)</span>
+<span class="cmt">// Every pair (a,b) from A×B — produces a len(A) × len(B) matrix</span>
+
+<span class="kw">const</span> <span class="fn">outer</span> = (a, b, f) =&gt; a.map(x =&gt; b.map(y =&gt; f(x, y)));
+
+<span class="cmt">// Multiplication table (∘.× on ⍳9)</span>
+<span class="kw">const</span> iota9 = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>,<span class="num">6</span>,<span class="num">7</span>,<span class="num">8</span>,<span class="num">9</span>];
+console.log(<span class="str">"Multiplication table (∘.× ⍳9):"</span>);
+<span class="fn">outer</span>(iota9.slice(<span class="num">0</span>,<span class="num">5</span>), iota9.slice(<span class="num">0</span>,<span class="num">5</span>), (a,b) =&gt; a*b)
+  .forEach(r =&gt; console.log(<span class="str">" "</span>, r.map(v =&gt; String(v).padStart(<span class="num">3</span>)).join(<span class="str">""</span>)));
+
+<span class="cmt">// Membership matrix: which elements of A appear in B?</span>
+<span class="cmt">// APL: A ∘.= B  (equivalent to np.equal.outer)</span>
+<span class="kw">const</span> A = [<span class="num">1</span>,<span class="num">3</span>,<span class="num">5</span>], B = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>];
+<span class="kw">const</span> membership = <span class="fn">outer</span>(A, B, (a,b) =&gt; a===b ? <span class="num">1</span> : <span class="num">0</span>);
+console.log(<span class="str">"\nMembership: A=[1,3,5] ∘.= B=[1,2,3,4,5]"</span>);
+membership.forEach((r, i) =&gt; console.log(<span class="str">`  A[${A[i]}] matches: `</span> + r.join(<span class="str">" "</span>)));
+
+<span class="cmt">// Pairwise distance matrix — used in k-nearest neighbours, clustering</span>
+<span class="kw">const</span> pts = [<span class="num">1</span>,<span class="num">3</span>,<span class="num">6</span>,<span class="num">10</span>];
+<span class="kw">const</span> dists = <span class="fn">outer</span>(pts, pts, (a,b) =&gt; Math.abs(a-b));
+console.log(<span class="str">"\nPairwise |distance| matrix:"</span>);
+dists.forEach(r =&gt; console.log(<span class="str">"  "</span>, r.map(v =&gt; String(v).padStart(<span class="num">3</span>)).join(<span class="str">""</span>)));
+
+<span class="cmt">// Boolean "less than" mask — gives a lower-triangular matrix</span>
+<span class="cmt">// Useful for masking in transformers (attention), graph adjacency</span>
+<span class="kw">const</span> n = <span class="num">5</span>, idx = [<span class="num">0</span>,<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>];
+<span class="kw">const</span> causal = <span class="fn">outer</span>(idx, idx, (r,c) =&gt; c &lt;= r ? <span class="num">1</span> : <span class="num">0</span>);
+console.log(<span class="str">"\nCausal mask (lower triangular) — used in GPT attention:"</span>);
+causal.forEach(r =&gt; console.log(<span class="str">"  "</span>, r.join(<span class="str">" "</span>)));</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ═══ S7: RANK OPERATOR ═══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>The rank operator — f⍤k</h2></div>
+
+  <p>The rank operator <code>f⍤k</code> applies function <code>f</code> to rank-<code>k</code> sub-arrays (cells) of its argument, then collects the results. <code>sum⍤1</code> sums each rank-1 cell (each row) of a matrix. <code>sort⍤1</code> sorts each row independently. In Python terms, this is closer to <code>numpy.apply_along_axis</code> or an axis-aware higher-order operation than to every use of NumPy's generic <code>axis</code> parameter.</p>
+
+  <div class="compare">
+    <div class="compare-pane">
+      <div class="compare-head apl-head"><span>APL</span><span>rank operator</span></div>
+      <div class="compare-body apl-body">M ← 3 4 ⍴ ⍳12
+(+/)⍤1 M   ⍝ sum each row
+(⌈/)⍤1 M   ⍝ max of each row
+(⍋)⍤1  M   ⍝ grade-up each row
+(⊂∘⍋⌷⊢)⍤1 M <span class="dim">⍝ sort each row</span></div>
+    </div>
+    <div class="compare-pane">
+      <div class="compare-head js-head"><span>JavaScript</span><span>// row-wise special case</span></div>
+      <div class="compare-body js-body"><span class="cmt">// A full rank operator is more general.</span>
+<span class="cmt">// Here we show the common "apply to each row" case.</span>
+<span class="kw">const</span> <span class="fn">applyToRows</span> = f =&gt; mat =&gt; mat.<span class="fn">map</span>(row =&gt; <span class="fn">f</span>(row));
+
+<span class="fn">applyToRows</span>(sum)(M)     <span class="cmt">// row sums</span>
+<span class="fn">applyToRows</span>(max)(M)     <span class="cmt">// row maxes</span>
+<span class="fn">applyToRows</span>(gradeUp)(M) <span class="cmt">// row grades</span>
+<span class="fn">applyToRows</span>(sort)(M)    <span class="cmt">// sort rows</span></div>
+    </div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>rank_operator.js — applying functions along axes</span><button class="run-btn" onclick="runCode('c7','o7')">&#9654; Run</button></div>
+    <pre class="code" id="c7"><span class="cmt">// Rank-oriented array programming in JavaScript</span>
+<span class="cmt">// This is not a full general implementation of APL's f⍤k.</span>
+<span class="cmt">// It shows three important special cases: rows, columns, and pages.</span>
+
+<span class="kw">const</span> <span class="fn">applyToRows</span> = (f, mat) =&gt; mat.map(f);
+<span class="kw">const</span> <span class="fn">applyToCols</span> = (f, mat) =&gt; {
+  <span class="kw">const</span> T = mat[<span class="num">0</span>].map((_, c) =&gt; mat.map(r =&gt; r[c])); <span class="cmt">// transpose</span>
+  <span class="kw">return</span> T.map(f);
+};
+
+<span class="cmt">// Rank-2 cells of a rank-3 tensor (each "page")</span>
+<span class="kw">const</span> <span class="fn">applyToPages</span> = (f, tensor) =&gt; tensor.map(f);
+
+<span class="kw">const</span> sum     = a =&gt; a.reduce((x,y) =&gt; x+y, <span class="num">0</span>);
+<span class="kw">const</span> norm    = a =&gt; Math.sqrt(a.reduce((x,y) =&gt; x + y*y, <span class="num">0</span>));
+<span class="kw">const</span> sortAsc = a =&gt; [...a].sort((x,y) =&gt; x-y);
+<span class="kw">const</span> gradeUp = a =&gt; [...a.keys()].sort((i,j) =&gt; a[i]-a[j]);
+<span class="kw">const</span> softmax = a =&gt; {
+  <span class="kw">const</span> m = Math.max(...a), exps = a.map(x =&gt; Math.exp(x-m));
+  <span class="kw">const</span> s = sum(exps); <span class="kw">return</span> exps.map(x =&gt; +(x/s).toFixed(<span class="num">3</span>));
+};
+
+<span class="kw">const</span> M = [[<span class="num">3</span>,<span class="num">1</span>,<span class="num">4</span>,<span class="num">1</span>],[<span class="num">5</span>,<span class="num">9</span>,<span class="num">2</span>,<span class="num">6</span>],[<span class="num">5</span>,<span class="num">3</span>,<span class="num">5</span>,<span class="num">8</span>]];
+console.log(<span class="str">"Matrix M:"</span>);
+M.forEach(r =&gt; console.log(<span class="str">"  "</span>, r.join(<span class="str">"  "</span>)));
+
+console.log(<span class="str">"\nsum⍤1 (row sums):  "</span>, <span class="fn">applyToRows</span>(sum, M).join(<span class="str">"  "</span>));
+console.log(<span class="str">"sum⍤0 (col sums):  "</span>, <span class="fn">applyToCols</span>(sum, M).join(<span class="str">"  "</span>));
+console.log(<span class="str">"norm⍤1 (row norms): "</span>, <span class="fn">applyToRows</span>(norm, M).map(v =&gt; v.toFixed(<span class="num">2</span>)).join(<span class="str">"  "</span>));
+console.log(<span class="str">"sort⍤1 (sort rows):"</span>);
+<span class="fn">applyToRows</span>(sortAsc, M).forEach(r =&gt; console.log(<span class="str">"  "</span>, r.join(<span class="str">"  "</span>)));
+
+<span class="cmt">// Softmax of each row — key in transformer attention</span>
+<span class="kw">const</span> logits = [[<span class="num">2.0</span>,<span class="num">1.0</span>,<span class="num">0.1</span>],[<span class="num">0.5</span>,<span class="num">3.0</span>,<span class="num">0.2</span>]];
+console.log(<span class="str">"\nsoftmax⍤1 (each row of logit matrix):"</span>);
+<span class="fn">applyToRows</span>(softmax, logits).forEach(r =&gt; console.log(<span class="str">"  "</span>, r.join(<span class="str">" "</span>)));
+
+<span class="cmt">// Rank-3: apply matrix operation to each page of a 3D tensor</span>
+<span class="kw">const</span> T = [[[<span class="num">1</span>,<span class="num">2</span>],[<span class="num">3</span>,<span class="num">4</span>]], [[<span class="num">5</span>,<span class="num">6</span>],[<span class="num">7</span>,<span class="num">8</span>]]];
+<span class="kw">const</span> rowSumsPerPage = <span class="fn">applyToPages</span>(page =&gt; <span class="fn">applyToRows</span>(sum, page), T);
+console.log(<span class="str">"\nRow sums per page of 2×2×2 tensor:"</span>, JSON.stringify(rowSumsPerPage));</pre>
+    <div class="out" id="o7"></div>
+  </div>
+</section>
+
+<!-- ═══ S8: TACIT STYLE ═══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>Tacit / point-free style</h2></div>
+
+  <p>APL encourages composing functions without naming intermediate values (tacit or point-free style). A <strong>fork</strong> or 3-train, <code>(f g h) x</code>, means <code>g(f(x), h(x))</code> — useful for computing "mean = sum÷count" without an explicit variable. A 2-train in APL is an <strong>atop</strong>: <code>(f g) x</code> means <code>f(g(x))</code>. This section focuses on the fork pattern because it is the most visually distinctive and maps cleanly to the JavaScript combinators below.</p>
+
+  <div class="compare">
+    <div class="compare-pane">
+      <div class="compare-head apl-head"><span>APL</span><span>tacit definitions</span></div>
+      <div class="compare-body apl-body"><span class="dim">⍝ Fork: mean = (+/ ÷ ≢)</span>
+mean ← +/ ÷ ≢
+
+<span class="dim">⍝ Fork: normalise = subtract mean, divide std</span>
+std  ← (2÷⍨+/∘(×⍨)-mean)∘.*0.5
+norm ← (⊢-mean) ÷ std
+
+<span class="dim">⍝ Composition with ∘</span>
+sumSq ← +/∘(×⍨)    <span class="dim">⍝ sum of squares</span></div>
+    </div>
+    <div class="compare-pane">
+      <div class="compare-head js-head"><span>JavaScript</span><span>// point-free equivalents</span></div>
+      <div class="compare-body js-body"><span class="cmt">// fork(f, g, h)(x) = g(f(x), h(x))</span>
+<span class="kw">const</span> <span class="fn">fork</span> = (f,g,h) =&gt; x =&gt; g(f(x),h(x));
+<span class="kw">const</span> <span class="fn">mean</span> = <span class="fn">fork</span>(sum, (a,b)=&gt;a/b, len);
+
+<span class="cmt">// compose: (f∘g)(x) = f(g(x))</span>
+<span class="kw">const</span> <span class="fn">compose</span> = (...fs) =&gt; x =&gt; fs.reduceRight((v,f)=&gt;f(v),x);
+<span class="kw">const</span> <span class="fn">sumSq</span> = <span class="fn">compose</span>(sum, a=&gt;a.map(x=&gt;x*x));</div>
+    </div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>tacit.js — point-free composition and combinators</span><button class="run-btn" onclick="runCode('c8','o8')">&#9654; Run</button></div>
+    <pre class="code" id="c8"><span class="cmt">// Tacit/point-free style — functions defined by composition, not application</span>
+<span class="cmt">// This is how APL programmers write entire programs without naming variables</span>
+
+<span class="cmt">// Combinators</span>
+<span class="kw">const</span> <span class="fn">compose</span> = (...fs) =&gt; x =&gt; fs.reduceRight((v, f) =&gt; f(v), x);
+<span class="kw">const</span> <span class="fn">fork</span>    = (f, g, h) =&gt; x =&gt; g(f(x), h(x));  <span class="cmt">// (f g h) x = g(f x, h x)</span>
+<span class="kw">const</span> <span class="fn">atop</span>    = (f, g) =&gt; x =&gt; f(g(x));            <span class="cmt">// f∘g</span>
+<span class="kw">const</span> <span class="fn">over</span>    = (f, g) =&gt; (x, y) =&gt; f(g(x), g(y)); <span class="cmt">// (f⍥g) x y = f(g x, g y)</span>
+
+<span class="cmt">// Primitives</span>
+<span class="kw">const</span> sum  = a =&gt; a.reduce((x,y) =&gt; x+y, <span class="num">0</span>);
+<span class="kw">const</span> len  = a =&gt; a.length;
+<span class="kw">const</span> sqr  = a =&gt; a.map(x =&gt; x*x);
+<span class="kw">const</span> sqrt = Math.sqrt;
+
+<span class="cmt">// Point-free definitions (no explicit data variable)</span>
+<span class="kw">const</span> mean  = <span class="fn">fork</span>(sum, (a,n) =&gt; a/n, len);
+<span class="kw">const</span> sumSq = <span class="fn">compose</span>(sum, sqr);
+<span class="kw">const</span> std   = a =&gt; sqrt(mean(sqr(a.map(x =&gt; x - mean(a)))));
+<span class="kw">const</span> norm  = a =&gt; a.map(x =&gt; (x - mean(a)) / std(a));   <span class="cmt">// z-score normalise</span>
+<span class="kw">const</span> rms   = <span class="fn">compose</span>(sqrt, <span class="fn">atop</span>(mean, sqr));            <span class="cmt">// root mean square</span>
+
+<span class="cmt">// A more correct dot product (element-wise multiply then sum)</span>
+<span class="kw">const</span> dotProduct = (a, b) =&gt; sum(a.map((v, i) =&gt; v * b[i]));
+
+<span class="kw">const</span> data = [<span class="num">2</span>, <span class="num">4</span>, <span class="num">4</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">5</span>, <span class="num">7</span>, <span class="num">9</span>];
+console.log(<span class="str">"data:  "</span>, data.join(<span class="str">" "</span>));
+console.log(<span class="str">"mean:  "</span>, mean(data).toFixed(<span class="num">4</span>));
+console.log(<span class="str">"std:   "</span>, std(data).toFixed(<span class="num">4</span>));
+console.log(<span class="str">"rms:   "</span>, rms(data).toFixed(<span class="num">4</span>));
+console.log(<span class="str">"sumSq: "</span>, sumSq(data));
+console.log(<span class="str">"norm:  "</span>, norm(data).map(v =&gt; v.toFixed(<span class="num">2</span>)).join(<span class="str">" "</span>));
+
+<span class="cmt">// Pipeline-style (tacit chain) — APL reads right to left</span>
+<span class="cmt">// APL: mean∘(×⍨)∘(-mean) — equivalent to rms of deviations from mean</span>
+<span class="kw">const</span> variance = <span class="fn">compose</span>(mean, sqr, a =&gt; a.map(x =&gt; x - mean(a)));
+console.log(<span class="str">"\nvariance (composed):"</span>, variance(data).toFixed(<span class="num">4</span>));
+console.log(<span class="str">"std² matches:      "</span>, (std(data)**<span class="num">2</span>).toFixed(<span class="num">4</span>));
+
+<span class="cmt">// Dot product — inner product with + and ×</span>
+<span class="kw">const</span> a = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>], b = [<span class="num">4</span>,<span class="num">5</span>,<span class="num">6</span>];
+console.log(<span class="str">"\n[1,2,3] +.× [4,5,6] ="</span>, dotProduct(a, b));</pre>
+    <div class="out" id="o8"></div>
+  </div>
+</section>
+
+<!-- ═══ S9: MODERN RELEVANCE ═══ -->
+<section class="section" id="s9">
+  <div class="sec-head"><span class="sec-n">§09</span><h2>Modern relevance</h2></div>
+
+  <p>APL was designed in 1962. Its ideas now underpin every major data processing system. The mapping is direct and intentional — many of these systems were built by people who knew APL.</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+      <thead><tr>
+        <th style="padding:9px 14px;background:var(--bg3);border:1px solid var(--rule2);text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:400">APL concept</th>
+        <th style="padding:9px 14px;background:var(--bg3);border:1px solid var(--rule2);text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:400">NumPy / PyTorch</th>
+        <th style="padding:9px 14px;background:var(--bg3);border:1px solid var(--rule2);text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:400">SQL</th>
+        <th style="padding:9px 14px;background:var(--bg3);border:1px solid var(--rule2);text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:400">Streaming / GPU</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">f/  reduce</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">np.sum, .reduce()</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">SUM, COUNT, MAX</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">kafka aggregations</td></tr>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">f\  scan</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">np.cumsum, cummax</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">SUM() OVER (...)</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">GPU prefix sum</td></tr>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">∘.f outer</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">np.outer, einsum</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">CROSS JOIN</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">tensor matmul</td></tr>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">f⍤k rank</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">np.apply_along_axis</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">GROUP BY + window</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">warp-level ops</td></tr>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">broadcasting</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">NumPy broadcasting</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">scalar subqueries</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">SIMD splat</td></tr>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">⍋ grade-up</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">np.argsort</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">ROW_NUMBER() OVER(ORDER BY)</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">radix sort</td></tr>
+        <tr><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--apl)">⌸ key</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">pd.groupby</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">GROUP BY</td><td style="padding:8px 14px;border:1px solid var(--rule);font-family:var(--mono);color:var(--ink2)">hash partitioning</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>modern_array.js — SQL window functions as array operations</span><button class="run-btn" onclick="runCode('c9','o9')">&#9654; Run</button></div>
+    <pre class="code" id="c9"><span class="cmt">// SQL window functions are array operations in disguise</span>
+<span class="cmt">// Every window function = a scan, rank, or reduce over a partition</span>
+
+<span class="cmt">// Data: sales records</span>
+<span class="kw">const</span> sales = [
+  { dept: <span class="str">"eng"</span>, emp: <span class="str">"alice"</span>, amount: <span class="num">120</span> },
+  { dept: <span class="str">"eng"</span>, emp: <span class="str">"bob"</span>,   amount: <span class="num">95</span>  },
+  { dept: <span class="str">"mkt"</span>, emp: <span class="str">"carol"</span>, amount: <span class="num">200</span> },
+  { dept: <span class="str">"mkt"</span>, emp: <span class="str">"dave"</span>,  amount: <span class="num">150</span> },
+  { dept: <span class="str">"eng"</span>, emp: <span class="str">"eve"</span>,   amount: <span class="num">180</span> },
+  { dept: <span class="str">"mkt"</span>, emp: <span class="str">"frank"</span>, amount: <span class="num">90</span>  },
+];
+
+<span class="cmt">// APL ⌸ (key operator) = GROUP BY</span>
+<span class="kw">function</span> <span class="fn">groupBy</span>(arr, keyFn) {
+  <span class="kw">const</span> map = <span class="kw">new</span> Map();
+  <span class="kw">for</span> (<span class="kw">const</span> item <span class="kw">of</span> arr) {
+    <span class="kw">const</span> k = keyFn(item);
+    <span class="kw">if</span> (!map.has(k)) map.set(k, []);
+    map.get(k).push(item);
+  }
+  <span class="kw">return</span> map;
+}
+
+<span class="cmt">// SQL: SELECT dept, SUM(amount) FROM sales GROUP BY dept</span>
+<span class="cmt">// APL: +/∘(⊢[;amount])⌸sales[dept]</span>
+<span class="kw">const</span> byDept = <span class="fn">groupBy</span>(sales, s =&gt; s.dept);
+console.log(<span class="str">"GROUP BY dept, SUM(amount):"</span>);
+<span class="kw">for</span> (<span class="kw">const</span> [dept, rows] <span class="kw">of</span> byDept)
+  console.log(<span class="str">`  ${dept}: ${rows.reduce((s,r) =&gt; s+r.amount, 0)}`</span>);
+
+<span class="cmt">// SQL: SUM(amount) OVER (PARTITION BY dept ORDER BY amount)</span>
+<span class="cmt">// This is a SCAN (prefix sum) within each partition</span>
+<span class="kw">const</span> withRunning = [...sales].sort((a,b) =&gt; a.dept.localeCompare(b.dept) || a.amount-b.amount);
+<span class="kw">const</span> partitioned = <span class="fn">groupBy</span>(withRunning, s =&gt; s.dept);
+
+console.log(<span class="str">"\nSUM(amount) OVER (PARTITION BY dept ORDER BY amount) — running total:"</span>);
+<span class="kw">for</span> (<span class="kw">const</span> [dept, rows] <span class="kw">of</span> partitioned) {
+  <span class="kw">let</span> acc = <span class="num">0</span>;
+  rows.forEach(r =&gt; {
+    acc += r.amount;
+    console.log(<span class="str">`  ${dept} | ${r.emp.padEnd(6)} | ${r.amount} | running: ${acc}`</span>);
+  });
+}
+
+<span class="cmt">// SQL: RANK() OVER (PARTITION BY dept ORDER BY amount DESC)</span>
+<span class="cmt">// APL: ⍋⍋ applied per partition (double grade = rank)</span>
+console.log(<span class="str">"\nRANK() OVER (PARTITION BY dept ORDER BY amount DESC):"</span>);
+<span class="kw">for</span> (<span class="kw">const</span> [dept, rows] <span class="kw">of</span> partitioned) {
+  <span class="kw">const</span> sorted = [...rows].sort((a,b) =&gt; b.amount-a.amount);
+  sorted.forEach((r, rank) =&gt; console.log(<span class="str">`  ${dept} | rank ${rank+1} | ${r.emp}: ${r.amount}`</span>));
+}</pre>
+    <div class="out" id="o9"></div>
+  </div>
+</section>
+
+<!-- ═══ S10: STREAM PROCESSING ═══ -->
+<section class="section" id="s10">
+  <div class="sec-head"><span class="sec-n">§10</span><h2>Stream processing</h2></div>
+
+  <p>Real-time stream processing systems like Kafka Streams, Apache Flink, and RxJS can be usefully understood through array programming primitives — they apply related ideas to <strong>time-ordered sequences</strong> rather than in-memory arrays. Map, filter, scan, windowed aggregation, and group-by are the family resemblance to look for here, even though production streaming systems add time semantics, distribution, state management, and recovery.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Stream operators — map to APL primitives</div>
+    <div class="pipeline">
+      <div class="pipe-stage"><div class="pipe-stage-name">Source</div><div class="pipe-stage-op">events[]</div><div class="pipe-stage-apl">⍳∞</div></div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-stage" style="background:var(--apl-bg)"><div class="pipe-stage-name" style="color:var(--apl)">Map</div><div class="pipe-stage-op">transform each</div><div class="pipe-stage-apl" style="color:var(--apl)">f¨  each</div></div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-stage" style="background:var(--js-bg)"><div class="pipe-stage-name" style="color:var(--js)">Filter</div><div class="pipe-stage-op">select elements</div><div class="pipe-stage-apl" style="color:var(--js)">(f⍨)/ compress</div></div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-stage" style="background:var(--out-bg)"><div class="pipe-stage-name" style="color:var(--out)">Window</div><div class="pipe-stage-op">sliding groups</div><div class="pipe-stage-apl" style="color:var(--out)">f⍤1 on matrix</div></div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-stage" style="background:var(--purple-bg)"><div class="pipe-stage-name" style="color:var(--purple)">Aggregate</div><div class="pipe-stage-op">reduce window</div><div class="pipe-stage-apl" style="color:var(--purple)">+/ reduce</div></div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-stage"><div class="pipe-stage-name">Sink</div><div class="pipe-stage-op">output[]</div><div class="pipe-stage-apl">⍝ result</div></div>
+    </div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>stream_processing.js — a streaming pipeline using array primitives</span><button class="run-btn" onclick="runCode('c10','o10')">&#9654; Run</button></div>
+    <pre class="code" id="c10"><span class="cmt">// A toy stream pipeline expressed with array-programming primitives</span>
+<span class="cmt">// The goal is conceptual correspondence, not a production streaming runtime.</span>
+
+<span class="kw">class</span> <span class="cls">Stream</span> {
+  <span class="fn">constructor</span>(data) { <span class="kw">this</span>.data = data; }
+
+  <span class="cmt">// APL: f¨  — apply f to each element</span>
+  <span class="fn">map</span>(f)    { <span class="kw">return new</span> <span class="cls">Stream</span>(<span class="kw">this</span>.data.map(f)); }
+
+  <span class="cmt">// APL: (f⍨)/ — compress by boolean mask</span>
+  <span class="fn">filter</span>(f) { <span class="kw">return new</span> <span class="cls">Stream</span>(<span class="kw">this</span>.data.filter(f)); }
+
+  <span class="cmt">// APL: f/ — reduce to scalar</span>
+  <span class="fn">reduce</span>(f, init) { <span class="kw">return this</span>.data.reduce(f, init); }
+
+  <span class="cmt">// APL: f\ — scan (running aggregate)</span>
+  <span class="fn">scan</span>(f, init) {
+    <span class="kw">const</span> result = [];
+    <span class="kw">let</span> acc = init;
+    <span class="kw">for</span> (<span class="kw">const</span> x <span class="kw">of</span> <span class="kw">this</span>.data) { acc = f(acc, x); result.push(acc); }
+    <span class="kw">return new</span> <span class="cls">Stream</span>(result);
+  }
+
+  <span class="cmt">// APL: f⍤1 on sliding matrix — tumbling window then reduce</span>
+  <span class="fn">window</span>(size, f) {
+    <span class="kw">const</span> result = [];
+    <span class="kw">for</span> (<span class="kw">let</span> i = size - <span class="num">1</span>; i &lt; <span class="kw">this</span>.data.length; i++)
+      result.push(f(<span class="kw">this</span>.data.slice(i - size + <span class="num">1</span>, i + <span class="num">1</span>)));
+    <span class="kw">return new</span> <span class="cls">Stream</span>(result);
+  }
+
+  <span class="cmt">// APL: {⌸⊢} — group by key, then apply f to each group</span>
+  <span class="fn">groupReduce</span>(keyFn, valFn, reduceFn) {
+    <span class="kw">const</span> map = <span class="kw">new</span> Map();
+    <span class="kw">for</span> (<span class="kw">const</span> x <span class="kw">of</span> <span class="kw">this</span>.data) {
+      <span class="kw">const</span> k = keyFn(x), v = valFn(x);
+      map.set(k, reduceFn(map.get(k) ?? <span class="num">0</span>, v));
+    }
+    <span class="kw">return new</span> Stream([...map.entries()].map(([k,v]) =&gt; ({key:k, val:v})));
+  }
+
+  <span class="fn">collect</span>() { <span class="kw">return this</span>.data; }
+}
+
+<span class="cmt">// Simulate a stream of sensor readings over 20 time steps</span>
+<span class="kw">const</span> readings = Stream.from = data =&gt; <span class="kw">new</span> <span class="cls">Stream</span>(data);
+<span class="kw">const</span> sensor = readings([
+  {t:<span class="num">0</span>, sensor:<span class="str">"A"</span>, val:<span class="num">12</span>}, {t:<span class="num">1</span>, sensor:<span class="str">"B"</span>, val:<span class="num">30</span>}, {t:<span class="num">2</span>, sensor:<span class="str">"A"</span>, val:<span class="num">15</span>},
+  {t:<span class="num">3</span>, sensor:<span class="str">"B"</span>, val:<span class="num">22</span>}, {t:<span class="num">4</span>, sensor:<span class="str">"A"</span>, val:<span class="num">18</span>}, {t:<span class="num">5</span>, sensor:<span class="str">"B"</span>, val:<span class="num">35</span>},
+  {t:<span class="num">6</span>, sensor:<span class="str">"A"</span>, val:<span class="num">9</span>},  {t:<span class="num">7</span>, sensor:<span class="str">"B"</span>, val:<span class="num">28</span>}, {t:<span class="num">8</span>, sensor:<span class="str">"A"</span>, val:<span class="num">21</span>},
+  {t:<span class="num">9</span>, sensor:<span class="str">"B"</span>, val:<span class="num">40</span>},
+]);
+
+<span class="cmt">// Pipeline 1: values per sensor</span>
+<span class="kw">const</span> vals = sensor.<span class="fn">map</span>(x =&gt; x.val);
+console.log(<span class="str">"Values:"</span>, vals.<span class="fn">collect</span>().join(<span class="str">" "</span>));
+
+<span class="cmt">// Pipeline 2: 3-event sliding window mean (APL: mean⍤1 applied to overlapping rows)</span>
+<span class="kw">const</span> sma3 = vals.<span class="fn">window</span>(<span class="num">3</span>, w =&gt; +(w.reduce((a,b)=&gt;a+b,<span class="num">0</span>)/w.length).toFixed(<span class="num">1</span>));
+console.log(<span class="str">"3-event SMA:"</span>, sma3.<span class="fn">collect</span>().join(<span class="str">" "</span>));
+
+<span class="cmt">// Pipeline 3: running max (APL: ⌈\ scan)</span>
+<span class="kw">const</span> runMax = vals.<span class="fn">scan</span>(Math.max, -Infinity);
+console.log(<span class="str">"Running max:"</span>, runMax.<span class="fn">collect</span>().join(<span class="str">" "</span>));
+
+<span class="cmt">// Pipeline 4: anomaly detection — flag readings > 1.5× running mean</span>
+<span class="kw">const</span> runMean = sensor
+  .<span class="fn">scan</span>((acc, x) =&gt; ({sum: acc.sum+x.val, n: acc.n+<span class="num">1</span>}), {sum:<span class="num">0</span>,n:<span class="num">0</span>})
+  .<span class="fn">map</span>(acc =&gt; acc.sum/acc.n);
+
+console.log(<span class="str">"\nAnomaly detection (val > 1.5× running mean):"</span>);
+sensor.<span class="fn">collect</span>().forEach((x, i) =&gt; {
+  <span class="kw">const</span> rm = runMean.<span class="fn">collect</span>()[i];
+  <span class="kw">const</span> flag = x.val &gt; <span class="num">1.5</span> * rm ? <span class="str">" ← ANOMALY"</span> : <span class="str">""</span>;
+  console.log(<span class="str">`  t=${x.t} sensor=${x.sensor} val=${x.val} runMean=${rm.toFixed(1)}${flag}`</span>);
+});
+
+<span class="cmt">// Pipeline 5: group-reduce (APL ⌸ key): total per sensor</span>
+<span class="kw">const</span> totals = sensor.<span class="fn">groupReduce</span>(x =&gt; x.sensor, x =&gt; x.val, (a,b) =&gt; a+b);
+console.log(<span class="str">"\nTotal per sensor (⌸ group-reduce):"</span>);
+totals.<span class="fn">collect</span>().forEach(({key, val}) =&gt; console.log(<span class="str">`  ${key}: ${val}`</span>));</pre>
+    <div class="out" id="o10"></div>
+  </div>
+
+  <div class="callout note">The <code>Stream</code> class above is a toy, eager, in-memory model, not a replacement for RxJS, Kafka Streams, or Flink. The point is that those systems expose many of the same conceptual building blocks: <code>map</code> (each), <code>filter</code> (compress), <code>scan</code> (prefix), <code>window + aggregate</code>, and <code>groupBy + reduce</code> (⌸). Array programming is one useful lens for understanding why those APIs feel so composable.</div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem">Further reading</div>
+  <a href="https://aplwiki.com">APL Wiki — comprehensive reference for APL glyphs and idioms</a>
+  <a href="https://tryapl.org">TryAPL.org — run APL in your browser</a>
+  <a href="https://mlochbaum.github.io/BQN/">BQN — a modern array language with APL heritage</a>
+  <a href="https://numpy.org/doc/stable/user/basics.broadcasting.html">NumPy broadcasting docs — directly derived from APL rules</a>
+  <a href="https://arrow.apache.org/docs/format/Columnar.html">Apache Arrow columnar format — array programming for data interchange</a>
+  <a href="https://www.jsoftware.com/papers/50/">Iverson (1962) — A Programming Language — the original APL paper (Turing Award 1979)</a>
+  <div class="footer-note">All code in this explainer is original JavaScript written to demonstrate APL concepts. No libraries are used. The APL glyphs are for illustration — runnable code uses the JS equivalents.</div>
+</footer>
+
+</div>
+
+<script>
+/* ─── CODE RUNNER ─── */
+function runCode(cid, oid) {
+  const raw = document.getElementById(cid).innerText;
+  const el  = document.getElementById(oid);
+  el.className = 'out on';
+  const logs = [];
+  const con = { log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ')), assert: (c,m) => { if (!c) logs.push('AssertionError: '+m); } };
+  try { new Function('console', raw)(con); el.textContent = logs.join('\n') || '(no output)'; }
+  catch(e) { el.className = 'out on err'; el.textContent = '⚠ ' + e.message; }
+}
+
+/* ─── BROADCAST VIZ ─── */
+const BROADCAST_SCENES = [
+  {
+    title: 'Scalar 10 + Vector [1,2,3,4,5]',
+    apl: '10 + 1 2 3 4 5',
+    render() {
+      const a = [10], b = [1,2,3,4,5], res = b.map(x=>x+10);
+      return mkRows([
+        {label:'scalar', cells:a, cls:'hi', expand: b.length},
+        {label:'vector', cells:b, cls:''},
+        {label:'result', cells:res, cls:'res'},
+      ]);
+    }
+  },
+  {
+    title: 'Vector [10,20,30] broadcast over each row of matrix',
+    apl: 'mat + 10 20 30',
+    render() {
+      const mat=[[1,2,3],[4,5,6],[7,8,9]], vec=[10,20,30];
+      const res = mat.map(r=>r.map((v,i)=>v+vec[i]));
+      return mat.map((r,ri)=>mkRows([
+        {label:ri===0?'row '+ri:'row '+ri, cells:r, cls:''},
+        {label:'vec', cells:vec, cls:'hi'},
+        {label:'= ', cells:res[ri], cls:'res'},
+      ])).join('');
+    }
+  },
+  {
+    title: 'Column [1,2,3] ∘.+ Row [10,20,30,40] → 3×4 matrix',
+    apl: '[1,2,3] ∘.+ [10,20,30,40]',
+    render() {
+      const col=[1,2,3], row=[10,20,30,40];
+      const mat = col.map(c=>row.map(r=>c+r));
+      let html = `<div style="font-family:var(--mono);font-size:12px;color:var(--ink3);margin-bottom:.4rem">col ∘.+ row:</div>`;
+      html += mat.map(r => `<div class="arr-row">${r.map(v=>`<div class="arr-cell res">${v}</div>`).join('')}</div>`).join('');
+      return html;
+    }
+  }
+];
+function mkRows(rows) {
+  return rows.map(r => {
+    const cells = r.expand
+      ? Array(r.expand).fill(r.cells[0]).map(v=>`<div class="arr-cell ${r.cls}" style="opacity:.6">${v}</div>`).join('')
+      : r.cells.map(v=>`<div class="arr-cell ${r.cls}">${v}</div>`).join('');
+    return `<div class="arr-row"><span class="arr-label">${r.label}</span>${cells}</div>`;
+  }).join('');
+}
+function showBroadcast(i, btn) {
+  document.querySelectorAll('.btn-row .btn').forEach((b,j)=>{ if(btn.parentNode===b.parentNode) b.className='btn'+(j===i?' act':''); });
+  const s = BROADCAST_SCENES[i];
+  document.getElementById('broadcast-viz').innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--apl);margin-bottom:.5rem">${s.title}</div>${s.render()}`;
+}
+showBroadcast(0, document.querySelector('#s3 .btn'));
+
+/* ─── REDUCE VIZ ─── */
+const REDUCE_DATA = [3,1,4,1,5,9,2,6];
+const REDUCE_OPS = {
+  '+': { fn:(a,b)=>a+b, sym:'+' },
+  '×': { fn:(a,b)=>a*b, sym:'×' },
+  '⌈': { fn:(a,b)=>Math.max(a,b), sym:'⌈' },
+  '⌊': { fn:(a,b)=>Math.min(a,b), sym:'⌊' },
+  '∨': { fn:(a,b)=>a||b>5, sym:'∨(>5)' },
+};
+function showReduce(op, btn) {
+  document.querySelectorAll('#s4 .btn-row .btn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  const {fn,sym} = REDUCE_OPS[op];
+  const d = REDUCE_DATA;
+  let acc = d[0];
+  const steps = [{val:d[0], acc:d[0]}];
+  for(let i=1;i<d.length;i++){acc=fn(acc,d[i]);steps.push({val:d[i],acc});}
+  let html = `<div class="arr-row"><span class="arr-label">input</span>${d.map(v=>`<div class="arr-cell">${v}</div>`).join('')}</div>`;
+  html += `<div class="arr-row" style="margin-top:2px"><span class="arr-label">${sym}/ acc</span>${steps.map(s=>`<div class="arr-cell acc">${s.acc}</div>`).join('')}</div>`;
+  html += `<div style="font-family:var(--mono);font-size:12px;color:var(--out);margin-top:.5rem">${sym}/ [${d.join(' ')}] = ${steps[steps.length-1].acc}</div>`;
+  document.getElementById('reduce-viz').innerHTML = html;
+}
+showReduce('+', document.querySelector('#s4 .btn.act'));
+
+/* ─── SCAN VIZ ─── */
+const SCAN_DATA = [3,1,4,1,5,9,2,6];
+const SCAN_OPS = {
+  '+': {fn:(a,b)=>a+b, sym:'+\\'},
+  '×': {fn:(a,b)=>a*b, sym:'×\\'},
+  '⌈': {fn:(a,b)=>Math.max(a,b), sym:'⌈\\'},
+};
+let scanCurrentOp = '+', scanAnim = null, scanStep = 0;
+function renderScanStatic(op, step) {
+  const {fn,sym} = SCAN_OPS[op];
+  const d = SCAN_DATA;
+  const prefix = [d[0]];
+  for(let i=1;i<d.length;i++) prefix.push(fn(prefix[i-1],d[i]));
+  let html = `<div class="arr-row"><span class="arr-label">input</span>${d.map(v=>`<div class="arr-cell">${v}</div>`).join('')}</div>`;
+  html += `<div class="arr-row" style="margin-top:2px"><span class="arr-label">${sym}</span>`;
+  for(let i=0;i<d.length;i++){
+    let cls = 'pending';
+    if(step===undefined) cls='done';
+    else if(i<step) cls='done';
+    else if(i===step) cls='computing';
+    html += `<div class="scan-cell ${cls}">${i<=(step??d.length-1)?prefix[i]:'?'}</div>`;
+  }
+  html += `</div>`;
+  document.getElementById('scan-viz').innerHTML = html;
+}
+function showScan(op, btn) {
+  document.querySelectorAll('#s5 .btn-row .btn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  scanCurrentOp = op;
+  scanStep = 0;
+  if(scanAnim) clearInterval(scanAnim);
+  renderScanStatic(op);
+}
+function playScan() {
+  if(scanAnim) { clearInterval(scanAnim); scanAnim=null; scanStep=0; }
+  scanStep=0;
+  const total = SCAN_DATA.length;
+  scanAnim = setInterval(()=>{
+    renderScanStatic(scanCurrentOp, scanStep);
+    scanStep++;
+    if(scanStep>=total){ clearInterval(scanAnim); scanAnim=null; }
+  }, 350);
+}
+renderScanStatic('+');
+
+/* ─── OUTER PRODUCT VIZ ─── */
+const OUTER_A = [1,2,3,4,5];
+const OUTER_B = [1,2,3,4,5];
+const OUTER_OPS = {
+  '×': (a,b)=>a*b,
+  '+': (a,b)=>a+b,
+  '=': (a,b)=>a===b?1:0,
+  '<': (a,b)=>a<b?1:0,
+};
+function showOuter(op, btn) {
+  document.querySelectorAll('#s6 .btn-row .btn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  const fn = OUTER_OPS[op];
+  const mat = OUTER_A.map(a=>OUTER_B.map(b=>fn(a,b)));
+  let html = `<table class="op-table"><tr><th>${op}</th>${OUTER_B.map(v=>`<th>${v}</th>`).join('')}</tr>`;
+  mat.forEach((row,ri)=>{
+    html += `<tr><th>${OUTER_A[ri]}</th>${row.map((v,ci)=>{
+      const cls = ri===ci?'diag':(v&&op==='=')?'hi':'';
+      return `<td class="${cls}">${v}</td>`;
+    }).join('')}</tr>`;
+  });
+  html += '</table>';
+  document.getElementById('outer-viz').innerHTML = html;
+}
+showOuter('×', document.querySelector('#s6 .btn.act'));
+</script>
+</body>
+</html>
