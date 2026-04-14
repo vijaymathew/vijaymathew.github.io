@@ -320,7 +320,7 @@ code{
 .entropy-table{margin-top:1rem}
 .entropy-row{
   display:grid;
-  grid-template-columns:90px 70px 70px 1fr 80px;
+  grid-template-columns:90px 70px 70px 1fr 80px 110px;
   gap:10px;
   align-items:center;
   padding:8px 0;
@@ -554,7 +554,7 @@ pre.code{
   .toc{grid-template-columns:1fr}
   .stat-grid,.pipeline,.step-box,.huff-grid{grid-template-columns:1fr}
   .stage:not(:last-child)::after{display:none}
-  .entropy-row{grid-template-columns:72px 56px 60px 1fr 64px}
+  .entropy-row{grid-template-columns:72px 56px 60px 1fr 64px 96px}
   .hero h1{max-width:none}
 }
 </style>
@@ -569,7 +569,7 @@ pre.code{
   <header class="hero">
     <div class="hero-kicker">Interactive explainer</div>
     <h1>The <em>Compression Game</em> — Huffman and LZ</h1>
-    <p>How do you make a file smaller without losing anything? The answer is to exploit structure twice: first by spotting repeated substrings, then by assigning short codes to the symbols that show up most often. This page walks from Shannon's entropy bound to Huffman coding, LZ77, and the way gzip combines both ideas. All code runs in your browser.</p>
+    <p>How do you make a file smaller without losing anything? The answer is to exploit structure twice: first by spotting repeated substrings, then by assigning short codes to the symbols that show up most often. This page walks from Shannon's entropy bound to Huffman coding, LZ77, and the way gzip combines both ideas.</p>
     <div class="pill-row">
       <span class="pill"><b>Lossless</b> compression</span>
       <span class="pill"><b>Shannon</b> entropy</span>
@@ -1163,16 +1163,18 @@ function renderEntropy() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8);
   const max = rows[0] ? rows[0][1] : 1;
-  const head = '<div class="entropy-row head"><div>symbol</div><div>count</div><div>share</div><div>relative frequency</div><div>bits</div></div>';
+  const head = '<div class="entropy-row head"><div>symbol</div><div>count</div><div>share</div><div>relative frequency</div><div>bits</div><div>contribution</div></div>';
   const body = rows.map(([ch, count]) => {
     const p = count / text.length;
     const bits = -Math.log2(p);
+    const contribution = p * bits;
     return '<div class="entropy-row">' +
       '<div>' + escapeHtml(printable(ch)) + '</div>' +
       '<div>' + count + '</div>' +
       '<div>' + (p * 100).toFixed(1) + '%</div>' +
       '<div class="bar"><span style="width:' + ((count / max) * 100).toFixed(1) + '%"></span></div>' +
       '<div>' + bits.toFixed(2) + '</div>' +
+      '<div>' + contribution.toFixed(3) + '</div>' +
     '</div>';
   }).join("");
   document.getElementById("entropy-table").innerHTML = head + body;
