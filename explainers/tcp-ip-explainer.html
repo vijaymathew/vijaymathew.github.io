@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Reliable Network - How TCP/IP Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f7fb;
+  --bg2:#e6eef5;
+  --bg3:#d5e3ef;
+  --surface:#ffffff;
+  --ink:#14202a;
+  --ink2:#51606b;
+  --ink3:#7e8b95;
+  --rule:rgba(20,32,42,.10);
+  --rule2:rgba(20,32,42,.18);
+  --navy:#28506b;
+  --navy-bg:#e3eef5;
+  --teal:#1f7266;
+  --teal-bg:#e3f4ef;
+  --amber:#9b6524;
+  --amber-bg:#f8ecdf;
+  --red:#a44848;
+  --red-bg:#f8e8e8;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"Public Sans", sans-serif;
+  --serif:"Source Serif 4", serif;
+  --r:10px;
+  --r-lg:16px;
+  --shadow:0 18px 42px rgba(17,27,33,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f151a;
+    --bg2:#171f26;
+    --bg3:#22303c;
+    --surface:#171f26;
+    --ink:#e8edf0;
+    --ink2:#a7b1b8;
+    --ink3:#6e7a83;
+    --rule:rgba(255,255,255,.08);
+    --rule2:rgba(255,255,255,.16);
+    --navy:#8bbdd8;
+    --navy-bg:#10202b;
+    --teal:#88d3c5;
+    --teal-bg:#102520;
+    --amber:#dfb57a;
+    --amber-bg:#2b1d10;
+    --red:#e08c8c;
+    --red-bg:#2a1414;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(40,80,107,.12), transparent 24rem),
+    linear-gradient(180deg, rgba(31,114,102,.08), transparent 18rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  line-height:1;
+}
+.page{max-width:900px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:1.2rem 0;border-bottom:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--navy)}
+.hero{padding:4.2rem 0 3rem;border-bottom:1px solid var(--rule)}
+.hero-kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);font-size:clamp(2.8rem,6vw,4.4rem);font-weight:400;line-height:1.03;
+  letter-spacing:-.01em;max-width:11ch;margin-bottom:1.1rem;
+}
+.hero h1 em{font-style:italic;color:var(--navy)}
+.hero p{
+  max-width:47rem;color:var(--ink2);font-size:17px;line-height:1.75;margin-bottom:1.35rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
+  border:1px solid var(--rule2);background:var(--bg2);color:var(--ink2);font-family:var(--mono);font-size:11px;
+}
+.pill b{font-weight:500;color:var(--navy)}
+.toc{
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:2.6rem 0 3.4rem;
+  background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-lg);overflow:hidden;
+}
+.toc a{
+  display:flex;gap:10px;padding:11px 14px;background:var(--surface);color:var(--ink2);text-decoration:none;font-size:14px;
+}
+.toc a:hover{background:var(--bg2);color:var(--ink)}
+.toc-n{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:16px;padding-top:1px}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:.9rem;margin-bottom:1.35rem}
+.sec-n{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+h2{font-family:var(--serif);font-size:1.95rem;font-weight:400;line-height:1.14}
+h3{font-size:15px;font-weight:600;color:var(--ink);margin:1.35rem 0 .45rem}
+p{font-size:15.5px;line-height:1.8;color:var(--ink2);margin-bottom:.95rem}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--navy)}
+code{
+  font-family:var(--mono);font-size:12.5px;border-radius:4px;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink);padding:1px 5px;
+}
+.callout{
+  border-left:3px solid var(--navy);background:var(--navy-bg);color:var(--navy);
+  border-radius:0 var(--r) var(--r) 0;padding:.86rem 1.05rem;margin:1.15rem 0;font-size:14px;line-height:1.7;
+}
+.callout.good{border-color:var(--teal);background:var(--teal-bg);color:var(--teal)}
+.callout.warn{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.demo,.cb{
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.95rem;
+}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
+.btn,.run-btn{
+  appearance:none;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink);
+  font-family:var(--mono);font-size:12px;border-radius:999px;padding:7px 11px;cursor:pointer;
+}
+.btn:hover,.run-btn:hover{border-color:var(--navy);color:var(--navy)}
+.btn.act{background:var(--navy);border-color:var(--navy);color:#fff}
+.demo-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+.network-stage{
+  border:1px solid var(--rule2);border-radius:12px;background:
+    radial-gradient(circle at 50% 50%, rgba(40,80,107,.05), transparent 60%),
+    var(--bg);
+  padding:10px;
+}
+.network-side,.stat-box{
+  border:1px solid var(--rule2);border-radius:12px;background:var(--bg);padding:12px;
+}
+.network-side h3,.stat-box h3{margin-top:0}
+.stat-list{display:grid;gap:8px}
+.stat-item{
+  display:flex;justify-content:space-between;gap:10px;
+  font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--rule);
+}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:10px;height:10px;border-radius:999px;display:inline-block}
+.lane-wrap{display:grid;gap:10px}
+.lane{
+  display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:start;
+}
+.lane-label{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding-top:9px;
+}
+.lane-body{
+  min-height:54px;border:1px solid var(--rule2);border-radius:12px;background:var(--bg);padding:10px;display:flex;flex-wrap:wrap;gap:8px;
+}
+.seg,.ack{
+  padding:7px 10px;border-radius:999px;font-family:var(--mono);font-size:12px;border:1px solid transparent;
+}
+.seg{background:var(--navy-bg);color:var(--navy);border-color:rgba(40,80,107,.24)}
+.ack{background:var(--teal-bg);color:var(--teal);border-color:rgba(31,114,102,.24)}
+.seg.lost{background:var(--red-bg);color:var(--red);border-color:rgba(164,72,72,.24);text-decoration:line-through}
+.event-log{
+  margin-top:12px;border:1px solid var(--rule2);border-radius:12px;background:var(--bg);padding:12px;font-size:14px;line-height:1.7;color:var(--ink2);min-height:68px;
+}
+.window-box{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;
+}
+.slider-row{display:grid;grid-template-columns:110px 1fr 44px;gap:12px;align-items:center;margin:.7rem 0}
+.slider-row label{font-family:var(--mono);font-size:12px;color:var(--ink3)}
+input[type="range"]{width:100%}
+.slider-val{font-family:var(--mono);font-size:12px;color:var(--ink2);text-align:right}
+.bar-track{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:10px;
+}
+.bar-cell{
+  height:30px;border-radius:6px;border:1px solid var(--rule2);background:var(--bg);
+}
+.bar-cell.send{background:var(--navy-bg);border-color:rgba(40,80,107,.24)}
+.bar-cell.limit{background:var(--teal-bg);border-color:rgba(31,114,102,.24)}
+.bar-cell.blocked{background:var(--red-bg);border-color:rgba(164,72,72,.18)}
+.explain-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:1rem;
+}
+.card-mini{
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);padding:12px;
+}
+.card-mini h3{font-size:14px}
+.cb-head{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:12px 14px;border-bottom:1px solid var(--rule);
+  font-family:var(--mono);font-size:12px;color:var(--ink2);
+}
+pre.code{
+  margin:0;padding:14px 16px;overflow:auto;background:var(--bg);
+  color:var(--ink);font:13px/1.65 var(--mono);white-space:pre;
+}
+.out{
+  display:none;padding:14px 16px;border-top:1px solid var(--rule);background:var(--surface);
+  font:12.5px/1.7 var(--mono);color:var(--ink2);white-space:pre-wrap;
+}
+.out.on{display:block}
+.out.err{color:var(--red);background:var(--red-bg)}
+footer{
+  margin-top:3rem;border-top:1px solid var(--rule);padding-top:1.6rem
+}
+footer .label{
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem
+}
+footer .links{display:flex;flex-direction:column;gap:4px}
+footer a{font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none}
+footer a:hover{color:var(--navy)}
+@media (max-width:780px){
+  .toc,.demo-grid,.window-box,.explain-grid{grid-template-columns:1fr}
+  .page{padding:0 1rem 4rem}
+  .hero{padding:3.3rem 0 2.5rem}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Hub</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Distributed Systems · Networking · Reliability</div>
+    <h1>The Reliable <em>Network</em></h1>
+    <p>The Internet is reliable for a strange reason: its core is not. IP does not promise delivery, order, or even survival for a packet. Reliability comes from a layered design that keeps the network simple, lets routers route around damage, and pushes retransmission and ordering to the endpoints. That split is why the system scales and why it keeps working through loss, congestion, and broken links.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Problem</b> broken links, loss, reordering</span>
+      <span class="pill"><b>Idea</b> best-effort core, reliable edges</span>
+      <span class="pill"><b>Implementation</b> simplified TCP/IP in JavaScript</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>The problem</a>
+    <a href="#s2"><span class="toc-n">02</span>IP and packet switching</a>
+    <a href="#s3"><span class="toc-n">03</span>TCP reliability</a>
+    <a href="#s4"><span class="toc-n">04</span>Windows and congestion</a>
+    <a href="#s5"><span class="toc-n">05</span>Why the architecture survives</a>
+    <a href="#s6"><span class="toc-n">06</span>Runnable code</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: communication across failure</h2></div>
+    <p>If two machines need to exchange bytes across cities, providers, routers, and cables, lots of things can go wrong. Links fail. Packets are dropped. Routers reboot. Bursts of traffic overflow queues. Paths change mid-transfer. If the network required every router to maintain perfect state for every flow, the system would be brittle and hard to scale.</p>
+    <p>The TCP/IP design chooses a different split. <strong>IP</strong> offers a simple packet delivery service: try to move this datagram toward its destination. <strong>TCP</strong> sits above that and turns many imperfect datagrams into a reliable byte stream using sequence numbers, acknowledgments, timers, and windows.</p>
+    <div class="callout good">The Internet’s resilience comes less from any single clever algorithm than from where the responsibilities live: routing and forwarding in the middle, correctness and repair at the ends.</div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>IP: packet switching and routing around damage</h2></div>
+    <p>IP is deliberately modest. A router looks at a destination address, picks a next hop, decrements the packet’s TTL, and forwards it. It does not promise delivery. It does not keep the whole conversation in memory. Each packet is handled independently.</p>
+    <p>That simplicity is what makes failure resistance possible. If one fiber cut knocks out a path, routing can converge on another path without requiring every existing connection to be rebuilt from scratch. The packet might arrive late, out of order, or not at all, but the network can keep moving.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Packet routing with failed links</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="setRouteScenario('healthy', this)">Healthy network</button>
+        <button class="btn" onclick="setRouteScenario('cut', this)">One core link down</button>
+        <button class="btn" onclick="setRouteScenario('partition', this)">Partitioned</button>
+      </div>
+      <div class="demo-grid">
+        <div class="network-stage">
+          <svg id="route-svg" viewBox="0 0 560 280" style="width:100%;height:auto;display:block"></svg>
+          <div class="legend">
+            <span><i class="swatch" style="background:var(--navy)"></i> chosen path</span>
+            <span><i class="swatch" style="background:var(--red)"></i> failed link</span>
+            <span><i class="swatch" style="background:var(--ink3)"></i> available link</span>
+          </div>
+        </div>
+        <div class="network-side">
+          <h3>Current route</h3>
+          <div class="stat-list" id="route-stats"></div>
+          <div class="callout" style="margin-bottom:0">TTL exists so packets do not loop forever if routing temporarily disagrees. Each hop burns one count.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>routing.js — shortest path over a damaged graph</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+      <pre class="code" id="c1">const graph = {
+  A: [{to: "B", cost: 1}, {to: "C", cost: 2}],
+  B: [{to: "A", cost: 1}, {to: "D", cost: 1}, {to: "E", cost: 3}],
+  C: [{to: "A", cost: 2}, {to: "D", cost: 1}],
+  D: [{to: "B", cost: 1}, {to: "C", cost: 1}, {to: "F", cost: 1}],
+  E: [{to: "B", cost: 3}, {to: "F", cost: 1}],
+  F: [{to: "D", cost: 1}, {to: "E", cost: 1}, {to: "G", cost: 1}],
+  G: [{to: "F", cost: 1}],
+};
+
+function edgeKey(a, b) {
+  return [a, b].sort().join("-");
+}
+
+function shortestPath(graph, start, goal, down = new Set()) {
+  const dist = new Map([[start, 0]]);
+  const prev = new Map();
+  const seen = new Set();
+
+  while (true) {
+    let node = null;
+    let best = Infinity;
+    for (const [name, d] of dist) {
+      if (!seen.has(name) && d &lt; best) {
+        best = d;
+        node = name;
+      }
+    }
+    if (!node) break;
+    if (node === goal) break;
+    seen.add(node);
+    for (const {to, cost} of graph[node]) {
+      if (down.has(edgeKey(node, to))) continue;
+      const next = best + cost;
+      if (next &lt; (dist.get(to) ?? Infinity)) {
+        dist.set(to, next);
+        prev.set(to, node);
+      }
+    }
+  }
+
+  if (!dist.has(goal)) return null;
+  const path = [];
+  for (let at = goal; at; at = prev.get(at)) path.push(at);
+  path.reverse();
+  return {path, cost: dist.get(goal)};
+}
+
+function sendPacket(ttl, path) {
+  for (let i = 1; i < path.length; i++) {
+    if (ttl === 0) return {ok: false, stoppedAt: path[i]};
+    ttl--;
+  }
+  return {ok: true, ttlLeft: ttl};
+}
+
+const healthy = shortestPath(graph, "A", "G");
+console.log("Healthy:", healthy.path.join(" → "), "cost", healthy.cost);
+
+const damaged = shortestPath(graph, "A", "G", new Set([edgeKey("D", "F")]));
+console.log("Link D-F down:", damaged.path.join(" → "), "cost", damaged.cost);
+
+const packet = sendPacket(8, damaged.path);
+console.log("TTL result:", packet);</pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>TCP: sequence numbers, ACKs, and retransmission</h2></div>
+    <p>TCP assumes the network may drop, duplicate, damage, or reorder packets. It detects corruption, discards bad segments, and recovers at the endpoints with acknowledgments and retransmission. Every byte belongs to a sequence number range. The receiver acknowledges the next byte it still needs. If an ACK never arrives, the sender retransmits. If packets arrive out of order, the receiver can buffer them but still keep asking for the missing gap.</p>
+    <p>This is why the Internet can survive random failures without the core becoming complicated. Routers forward packets. TCP endpoints notice missing data and repair it themselves.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">One lost segment, then recovery</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="resetTcpDemo(this)">Restart</button>
+        <button class="btn" onclick="stepTcpDemo()">Step</button>
+      </div>
+      <div class="lane-wrap">
+        <div class="lane">
+          <div class="lane-label">Sender</div>
+          <div class="lane-body" id="tcp-sender"></div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Network</div>
+          <div class="lane-body" id="tcp-network"></div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Receiver</div>
+          <div class="lane-body" id="tcp-receiver"></div>
+        </div>
+      </div>
+      <div class="event-log" id="tcp-log"></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>tcp_retransmit.js — cumulative ACKs over a lossy link</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+      <pre class="code" id="c2">class Receiver {
+  constructor() {
+    this.expected = 1;
+    this.buffer = new Map();
+    this.delivered = [];
+  }
+
+  receive(segment) {
+    if (segment.seq &lt; this.expected) return this.expected;
+    this.buffer.set(segment.seq, segment.data);
+    while (this.buffer.has(this.expected)) {
+      this.delivered.push(this.buffer.get(this.expected));
+      this.buffer.delete(this.expected);
+      this.expected++;
+    }
+    return this.expected;
+  }
+}
+
+class Sender {
+  constructor(chunks) {
+    this.chunks = chunks;
+    this.unacked = new Map();
+    this.nextSeq = 1;
+  }
+
+  sendNext() {
+    if (this.nextSeq &gt; this.chunks.length) return null;
+    const seg = {seq: this.nextSeq, data: this.chunks[this.nextSeq - 1]};
+    this.unacked.set(seg.seq, seg);
+    this.nextSeq++;
+    return seg;
+  }
+
+  ack(n) {
+    for (const seq of [...this.unacked.keys()]) {
+      if (seq &lt; n) this.unacked.delete(seq);
+    }
+  }
+
+  oldestUnacked() {
+    return this.unacked.get(Math.min(...this.unacked.keys()));
+  }
+}
+
+const sender = new Sender(["A", "B", "C"]);
+const receiver = new Receiver();
+
+const s1 = sender.sendNext();
+const s2 = sender.sendNext();
+const s3 = sender.sendNext();
+console.log("send", s1, s2, s3);
+
+let ack = receiver.receive(s1);
+console.log("recv seq1 -> ACK", ack);
+sender.ack(ack);
+
+console.log("seq2 lost in network");
+ack = receiver.receive(s3);
+console.log("recv seq3 out of order -> duplicate ACK", ack);
+
+const retry = sender.oldestUnacked();
+console.log("timeout -> retransmit", retry);
+ack = receiver.receive(retry);
+console.log("recv retry -> ACK", ack);
+sender.ack(ack);
+
+console.log("delivered:", receiver.delivered.join("")); </pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>Windows: the receiver and the network both get a vote</h2></div>
+    <p>Reliability is not enough. A fast sender can still overwhelm a slow receiver or flood the network. TCP therefore has two separate limits. The <strong>receive window</strong> says how much the receiver can buffer. The <strong>congestion window</strong> says how much data the sender believes the network can currently handle. The sender may only have <code>min(rwnd, cwnd)</code> bytes in flight.</p>
+    <p>This is another reason the architecture survives at scale: endpoints adapt to both machine capacity and path capacity without requiring routers to understand every application.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Effective send window = min(receiver window, congestion window)</div>
+      <div class="window-box">
+        <div class="stat-box">
+          <div class="slider-row">
+            <label>Receiver window</label>
+            <input type="range" min="1" max="12" value="9" id="rwnd-sl" oninput="updateWindowDemo()">
+            <span class="slider-val" id="rwnd-val">9</span>
+          </div>
+          <div class="slider-row">
+            <label>Congestion window</label>
+            <input type="range" min="1" max="12" value="6" id="cwnd-sl" oninput="updateWindowDemo()">
+            <span class="slider-val" id="cwnd-val">6</span>
+          </div>
+          <div class="slider-row">
+            <label>In flight now</label>
+            <input type="range" min="0" max="12" value="3" id="flight-sl" oninput="updateWindowDemo()">
+            <span class="slider-val" id="flight-val">3</span>
+          </div>
+          <div class="callout good" style="margin-bottom:0">If loss appears, TCP reduces <code>cwnd</code>. If the receiver is slow, <code>rwnd</code> shrinks. Either way, the sender backs off.</div>
+        </div>
+        <div class="stat-box">
+          <h3>Available send budget</h3>
+          <div class="stat-list" id="window-stats"></div>
+          <div class="bar-track" id="window-track"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>Why this architecture keeps surviving</h2></div>
+    <p>TCP/IP is not reliable because every component is perfect. It is reliable because imperfections are expected and isolated. IP gives the network a narrow job: move packets hop by hop. TCP gives the endpoints the richer job: detect missing data, reorder it, pace transmission, and retry when necessary.</p>
+    <p>That split creates three important engineering advantages.</p>
+    <div class="explain-grid">
+      <div class="card-mini">
+        <h3>Routers stay simple</h3>
+        <p>Forwarding per packet is cheaper and more failure-tolerant than forcing every router to hold precise per-flow conversation state.</p>
+      </div>
+      <div class="card-mini">
+        <h3>Paths can change midstream</h3>
+        <p>Because packets are independent, routing can adapt around damaged links while TCP continues repairing any loss at the ends.</p>
+      </div>
+      <div class="card-mini">
+        <h3>Correctness is end-to-end</h3>
+        <p>The sender and receiver are the only places that can truly know whether the application’s bytes arrived in the right order.</p>
+      </div>
+    </div>
+    <div class="callout warn">This is also why “the Internet is reliable” is slightly misleading. The network is best effort. Reliability is a protocol stack property built on top of that.</div>
+  </section>
+
+  <section class="section" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a simplified reliable stream</h2></div>
+    <p>The code below is not a full TCP implementation, but it captures the core contract. The sender chops a message into segments, tracks which ones are unacknowledged, retransmits after loss, and advances only when cumulative ACKs arrive. The receiver buffers out-of-order data and acknowledges the next gap.</p>
+
+    <div class="cb">
+      <div class="cb-head"><span>reliable_stream.js — deliver bytes despite loss</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+      <pre class="code" id="c3">class LossyLink {
+  constructor(dropFirst = []) {
+    this.dropFirst = new Set(dropFirst);
+    this.dropped = new Set();
+  }
+
+  transmit(segment) {
+    const key = segment.seq;
+    if (this.dropFirst.has(key) &amp;&amp; !this.dropped.has(key)) {
+      this.dropped.add(key);
+      return null;
+    }
+    return {...segment};
+  }
+}
+
+class Receiver {
+  constructor() {
+    this.expected = 1;
+    this.buffer = new Map();
+    this.parts = [];
+  }
+
+  receive(segment) {
+    if (!segment) return this.expected;
+    if (segment.seq &lt; this.expected) return this.expected;
+    this.buffer.set(segment.seq, segment.data);
+    while (this.buffer.has(this.expected)) {
+      this.parts.push(this.buffer.get(this.expected));
+      this.buffer.delete(this.expected);
+      this.expected++;
+    }
+    return this.expected;
+  }
+
+  text() {
+    return this.parts.join("");
+  }
+}
+
+class Sender {
+  constructor(message, chunkSize = 3, windowSize = 3) {
+    this.chunks = [];
+    for (let i = 0; i &lt; message.length; i += chunkSize) {
+      this.chunks.push(message.slice(i, i + chunkSize));
+    }
+    this.windowSize = windowSize;
+    this.base = 1;
+    this.nextSeq = 1;
+    this.unacked = new Map();
+  }
+
+  hasData() {
+    return this.base &lt;= this.chunks.length || this.unacked.size &gt; 0;
+  }
+
+  sendable() {
+    return this.nextSeq &lt; this.base + this.windowSize &amp;&amp; this.nextSeq &lt;= this.chunks.length;
+  }
+
+  makeSegment() {
+    const seg = {seq: this.nextSeq, data: this.chunks[this.nextSeq - 1]};
+    this.unacked.set(seg.seq, seg);
+    this.nextSeq++;
+    return seg;
+  }
+
+  acknowledge(ack) {
+    for (const seq of [...this.unacked.keys()]) {
+      if (seq &lt; ack) this.unacked.delete(seq);
+    }
+    this.base = ack;
+  }
+
+  timeoutSegments() {
+    return [...this.unacked.values()].sort((a, b) =&gt; a.seq - b.seq);
+  }
+}
+
+function transfer(message) {
+  const sender = new Sender(message, 3, 3);
+  const receiver = new Receiver();
+  const link = new LossyLink([2, 4]);
+  const log = [];
+
+  while (sender.hasData()) {
+    let sentSomething = false;
+    while (sender.sendable()) {
+      const seg = sender.makeSegment();
+      sentSomething = true;
+      const arrived = link.transmit(seg);
+      log.push(arrived ? `send seq=${seg.seq} "${seg.data}"` : `drop seq=${seg.seq} "${seg.data}"`);
+      if (arrived) {
+        const ack = receiver.receive(arrived);
+        log.push(`  receiver ACK ${ack}`);
+        sender.acknowledge(ack);
+      }
+    }
+
+    if (!sentSomething &amp;&amp; sender.unacked.size) {
+      for (const seg of sender.timeoutSegments()) {
+        if (!sender.unacked.has(seg.seq)) continue;
+        const arrived = link.transmit(seg);
+        log.push(`timeout -> retransmit seq=${seg.seq}`);
+        if (arrived) {
+          const ack = receiver.receive(arrived);
+          log.push(`  receiver ACK ${ack}`);
+          sender.acknowledge(ack);
+        }
+      }
+    }
+  }
+
+  log.push(`result="${receiver.text()}"`);
+  return log;
+}
+
+for (const line of transfer("PACKETS MAKE ORDER FROM CHAOS")) {
+  console.log(line);
+}</pre>
+      <div class="out" id="o3"></div>
+    </div>
+
+    <footer>
+      <div class="label">Further reading</div>
+      <div class="links">
+        <a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791 — Internet Protocol</a>
+        <a href="https://www.rfc-editor.org/rfc/rfc793">RFC 793 — Transmission Control Protocol</a>
+        <a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122 — Host Requirements</a>
+        <a href="https://www.rfc-editor.org/rfc/rfc5681">RFC 5681 — TCP Congestion Control</a>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem">The demos intentionally simplify routing and TCP state, but the core split is faithful: best-effort packet forwarding in the middle, reliability and pacing at the ends.</div>
+    </footer>
+  </section>
+</div>
+
+<script>
+function runCode(cid, oid){
+  const raw = document.getElementById(cid).innerText;
+  const el = document.getElementById(oid);
+  el.className = 'out on';
+  const logs = [];
+  const con = {
+    log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ')),
+    assert: (c, m) => { if (!c) logs.push('AssertionError: ' + m); }
+  };
+  try {
+    new Function('console', raw)(con);
+    el.textContent = logs.join('\n') || '(no output)';
+  } catch (e) {
+    el.className = 'out on err';
+    el.textContent = '⚠ ' + e.message;
+  }
+}
+
+const ROUTE_POS = {
+  A:[60,140], B:[160,70], C:[160,210], D:[290,140], E:[400,70], F:[400,210], G:[500,140]
+};
+const ROUTE_EDGES = [
+  ['A','B',1],['A','C',2],['B','D',1],['C','D',1],['B','E',3],['D','E',1],['D','F',1],['E','G',2],['F','G',1],['E','F',1]
+];
+const ROUTE_SCENARIOS = {
+  healthy: new Set(),
+  cut: new Set(['D-F']),
+  partition: new Set(['D-F','E-G','F-G'])
+};
+
+function routeKey(a,b){ return [a,b].sort().join('-'); }
+function routeGraph(){
+  const g = {};
+  for (const [a,b,c] of ROUTE_EDGES) {
+    (g[a] ||= []).push({to:b,cost:c});
+    (g[b] ||= []).push({to:a,cost:c});
+  }
+  return g;
+}
+function shortestRoute(start, goal, down){
+  const graph = routeGraph();
+  const dist = new Map([[start, 0]]);
+  const prev = new Map();
+  const seen = new Set();
+  while (true) {
+    let node = null;
+    let best = Infinity;
+    for (const [name, d] of dist) {
+      if (!seen.has(name) && d < best) { best = d; node = name; }
+    }
+    if (!node) break;
+    if (node === goal) break;
+    seen.add(node);
+    for (const {to, cost} of graph[node]) {
+      if (down.has(routeKey(node, to))) continue;
+      const next = best + cost;
+      if (next < (dist.get(to) ?? Infinity)) {
+        dist.set(to, next);
+        prev.set(to, node);
+      }
+    }
+  }
+  if (!dist.has(goal)) return null;
+  const path = [];
+  for (let at = goal; at; at = prev.get(at)) path.push(at);
+  path.reverse();
+  return {path, cost: dist.get(goal)};
+}
+
+function setRouteScenario(name, btn){
+  document.querySelectorAll('#s2 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  const down = ROUTE_SCENARIOS[name];
+  const route = shortestRoute('A', 'G', down);
+  const svg = document.getElementById('route-svg');
+  const pathEdges = new Set();
+  if (route) {
+    for (let i = 0; i < route.path.length - 1; i++) pathEdges.add(routeKey(route.path[i], route.path[i + 1]));
+  }
+  let out = '';
+  for (const [a,b] of ROUTE_EDGES) {
+    const [x1,y1] = ROUTE_POS[a];
+    const [x2,y2] = ROUTE_POS[b];
+    const k = routeKey(a,b);
+    const failed = down.has(k);
+    const chosen = pathEdges.has(k);
+    out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${failed ? 'var(--red)' : chosen ? 'var(--navy)' : 'var(--ink3)'}" stroke-width="${chosen ? 6 : 3}" stroke-linecap="round" opacity="${failed ? 0.8 : 0.65}" />`;
+    if (failed) {
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      out += `<line x1="${mx-8}" y1="${my-8}" x2="${mx+8}" y2="${my+8}" stroke="var(--red)" stroke-width="3" />`;
+      out += `<line x1="${mx+8}" y1="${my-8}" x2="${mx-8}" y2="${my+8}" stroke="var(--red)" stroke-width="3" />`;
+    }
+  }
+  if (route) {
+    const pts = route.path.map(n => ROUTE_POS[n].join(',')).join(' ');
+    out += `<polyline points="${pts}" fill="none" stroke="var(--navy)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.35" />`;
+  }
+  for (const [name2,[x,y]] of Object.entries(ROUTE_POS)) {
+    out += `<circle cx="${x}" cy="${y}" r="18" fill="var(--surface)" stroke="${name2 === 'A' || name2 === 'G' ? 'var(--teal)' : 'var(--rule2)'}" stroke-width="3" />`;
+    out += `<text x="${x}" y="${y+4}" text-anchor="middle" font-family="var(--mono)" font-size="13" fill="var(--ink)">${name2}</text>`;
+  }
+  svg.innerHTML = out;
+  const stats = document.getElementById('route-stats');
+  const ttl = route ? Math.max(0, 8 - (route.path.length - 1)) : 0;
+  stats.innerHTML = route ? `
+    <div class="stat-item"><span>Path</span><span>${route.path.join(' → ')}</span></div>
+    <div class="stat-item"><span>Hop count</span><span>${route.path.length - 1}</span></div>
+    <div class="stat-item"><span>Cost</span><span>${route.cost}</span></div>
+    <div class="stat-item"><span>TTL left from 8</span><span>${ttl}</span></div>
+  ` : `
+    <div class="stat-item"><span>Status</span><span>no route</span></div>
+    <div class="stat-item"><span>Meaning</span><span>partition</span></div>
+    <div class="stat-item"><span>What IP can do</span><span>drop the packet</span></div>
+  `;
+}
+
+const TCP_STEPS = [
+  {
+    sender:['send seq=1','send seq=2','send seq=3'],
+    network:['seq=1 in flight','seq=2 in flight','seq=3 in flight'],
+    receiver:[],
+    log:'The sender pipelines three segments. TCP is a byte stream in reality, but segment numbers make the mechanism easier to see.'
+  },
+  {
+    sender:['send seq=2','send seq=3'],
+    network:['seq=2 in flight','seq=3 in flight','ACK 2 back'],
+    receiver:['got seq=1','deliver up to 1'],
+    log:'The receiver gets segment 1 and sends cumulative ACK 2: “I have everything before 2; next I need 2.”'
+  },
+  {
+    sender:['send seq=2','send seq=3'],
+    network:['seq=2 lost','seq=3 in flight','ACK 2 back'],
+    receiver:['got seq=1'],
+    log:'Segment 2 is lost in the network. IP does not repair it.'
+  },
+  {
+    sender:['awaiting ACK 2','seq=3 already sent'],
+    network:['dup ACK 2 back'],
+    receiver:['got seq=3 out of order','buffer seq=3'],
+    log:'The receiver sees segment 3 but cannot advance delivery. It still asks for 2, producing another ACK 2.'
+  },
+  {
+    sender:['timeout on seq=2','retransmit seq=2'],
+    network:['seq=2 retry in flight'],
+    receiver:['buffered seq=3'],
+    log:'The sender notices the gap through timeout and retransmits the missing segment.'
+  },
+  {
+    sender:['waiting for ACK 4'],
+    network:['ACK 4 back'],
+    receiver:['got seq=2 retry','deliver seq=2 and buffered seq=3'],
+    log:'Once 2 arrives, the receiver can release 2 and the buffered 3 together. The cumulative ACK jumps to 4.'
+  },
+  {
+    sender:['all sent data acknowledged'],
+    network:[],
+    receiver:['stream correct and in order'],
+    log:'This is the TCP bargain: the network may fail per packet, but the byte stream still arrives in order.'
+  }
+];
+let tcpStep = 0;
+
+function renderTcpDemo(){
+  const state = TCP_STEPS[tcpStep];
+  const setLane = (id, items) => {
+    const el = document.getElementById(id);
+    el.innerHTML = items.map(item => {
+      const cls = item.startsWith('ACK') || item.startsWith('dup ACK') ? 'ack' : 'seg';
+      const lost = item.includes('lost') ? ' lost' : '';
+      return `<span class="${cls}${lost}">${item}</span>`;
+    }).join('');
+  };
+  setLane('tcp-sender', state.sender);
+  setLane('tcp-network', state.network);
+  setLane('tcp-receiver', state.receiver);
+  document.getElementById('tcp-log').textContent = `Step ${tcpStep + 1}/${TCP_STEPS.length}: ${state.log}`;
+}
+function stepTcpDemo(){
+  if (tcpStep < TCP_STEPS.length - 1) tcpStep++;
+  renderTcpDemo();
+}
+function resetTcpDemo(btn){
+  tcpStep = 0;
+  renderTcpDemo();
+  document.querySelectorAll('#s3 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+}
+
+function updateWindowDemo(){
+  const rwnd = +document.getElementById('rwnd-sl').value;
+  const cwnd = +document.getElementById('cwnd-sl').value;
+  const flight = +document.getElementById('flight-sl').value;
+  document.getElementById('rwnd-val').textContent = rwnd;
+  document.getElementById('cwnd-val').textContent = cwnd;
+  document.getElementById('flight-val').textContent = flight;
+  const limit = Math.min(rwnd, cwnd);
+  const budget = Math.max(0, limit - flight);
+  document.getElementById('window-stats').innerHTML = `
+    <div class="stat-item"><span>Receiver window</span><span>${rwnd}</span></div>
+    <div class="stat-item"><span>Congestion window</span><span>${cwnd}</span></div>
+    <div class="stat-item"><span>Effective limit</span><span>${limit}</span></div>
+    <div class="stat-item"><span>Bytes/segments in flight</span><span>${flight}</span></div>
+    <div class="stat-item"><span>Can send immediately</span><span>${budget}</span></div>
+  `;
+  const track = document.getElementById('window-track');
+  let html = '';
+  for (let i = 0; i < 12; i++) {
+    let cls = 'bar-cell';
+    if (i < flight) cls += ' send';
+    else if (i < limit) cls += ' limit';
+    else cls += ' blocked';
+    html += `<div class="${cls}"></div>`;
+  }
+  track.innerHTML = html;
+}
+
+setRouteScenario('healthy', document.querySelector('#s2 .btn'));
+renderTcpDemo();
+updateWindowDemo();
+</script>
+</body>
+</html>

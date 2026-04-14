@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Two-Key Trick - Public-Key Cryptography</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f3ee;
+  --bg2:#eee6dc;
+  --bg3:#e2d6c7;
+  --surface:#ffffff;
+  --text:#1f1913;
+  --text2:#64584d;
+  --text3:#8d7d6f;
+  --border:rgba(31,25,19,.10);
+  --border2:rgba(31,25,19,.18);
+  --gold:#8f5b16;
+  --gold-bg:#f8ead6;
+  --ink:#36506c;
+  --ink-bg:#e4edf8;
+  --green:#246c53;
+  --green-bg:#e2f2ec;
+  --red:#9f4146;
+  --red-bg:#f8e7e8;
+  --mono:'IBM Plex Mono', monospace;
+  --sans:'IBM Plex Sans', sans-serif;
+  --serif:'Instrument Serif', serif;
+  --r:10px;
+  --r-lg:16px;
+  --shadow:0 18px 44px rgba(22,18,14,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12100d;
+    --bg2:#1a1713;
+    --bg3:#24201b;
+    --surface:#1a1713;
+    --text:#ece7e1;
+    --text2:#b3a79c;
+    --text3:#74695e;
+    --border:rgba(255,255,255,.08);
+    --border2:rgba(255,255,255,.15);
+    --gold:#e0b06f;
+    --gold-bg:#2a1e10;
+    --ink:#9db7d9;
+    --ink-bg:#141d2a;
+    --green:#86ceb6;
+    --green-bg:#11231d;
+    --red:#df8d91;
+    --red-bg:#2a1517;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(143,91,22,.10), transparent 24rem),
+    linear-gradient(180deg, rgba(54,80,108,.05), transparent 18rem),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  line-height:1;
+}
+.page{max-width:880px;margin:0 auto;padding:0 1.75rem 6rem}
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:1.2rem 0;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);
+}
+.topbar a{color:var(--text2);text-decoration:none}
+.topbar a:hover{color:var(--gold)}
+.hero{padding:4.2rem 0 3rem;border-bottom:1px solid var(--border)}
+.hero-kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);font-size:clamp(2.9rem,6vw,4.25rem);font-weight:400;line-height:1.03;
+  letter-spacing:-.01em;max-width:11ch;margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:var(--ink)}
+.hero p{
+  max-width:46rem;color:var(--text2);font-size:17px;line-height:1.75;margin-bottom:1.35rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
+  background:var(--bg2);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:11px;
+}
+.pill b{font-weight:500;color:var(--gold)}
+.toc{
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:2.6rem 0 3.4rem;
+  background:var(--border);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;
+}
+.toc a{display:flex;gap:10px;padding:11px 14px;background:var(--surface);color:var(--text2);text-decoration:none;font-size:14px}
+.toc a:hover{background:var(--bg2);color:var(--text)}
+.toc-n{font-family:var(--mono);font-size:11px;color:var(--text3);min-width:16px;padding-top:1px}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:.9rem;margin-bottom:1.4rem}
+.sec-n{font-family:var(--mono);font-size:11px;color:var(--text3)}
+h2{font-family:var(--serif);font-size:1.95rem;font-weight:400;line-height:1.14}
+h3{font-size:15px;font-weight:500;margin:1.3rem 0 .45rem}
+p{font-size:15.5px;line-height:1.8;color:var(--text2);margin-bottom:.95rem}
+p strong{color:var(--text);font-weight:500}
+a{color:var(--gold)}
+code{
+  font-family:var(--mono);font-size:12.5px;color:var(--gold);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;
+}
+.callout{
+  border-left:3px solid var(--gold);background:var(--gold-bg);color:var(--gold);
+  border-radius:0 var(--r) var(--r) 0;padding:.86rem 1.05rem;margin:1.15rem 0;font-size:14px;line-height:1.7;
+}
+.callout.info{border-color:var(--ink);background:var(--ink-bg);color:var(--ink)}
+.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.demo,.cb{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);margin-bottom:.95rem;
+}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.9rem}
+.btn,.run-btn{
+  border:1px solid var(--border2);border-radius:999px;background:transparent;color:var(--text2);
+  font-family:var(--mono);font-size:12px;padding:7px 11px;cursor:pointer;
+}
+.btn:hover,.run-btn:hover{border-color:var(--gold);color:var(--gold)}
+.btn.act{background:var(--gold);border-color:var(--gold);color:#fff}
+.flow-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.flow-box,.stat-box,.mini-card{
+  border:1px solid var(--border2);border-radius:12px;background:var(--bg);padding:12px;
+}
+.flow-box h3,.stat-box h3,.mini-card h3{margin-top:0}
+.flow-box strong{display:block;font-size:13px;color:var(--text);margin-bottom:6px}
+.arrow-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--text3)}
+.arrow{
+  display:inline-flex;align-items:center;justify-content:center;min-width:48px;padding:5px 7px;border-radius:999px;background:var(--ink-bg);color:var(--ink);border:1px solid rgba(54,80,108,.22)
+}
+.arrow.bad{background:var(--red-bg);color:var(--red);border-color:rgba(159,65,70,.22)}
+.slider-row{display:grid;grid-template-columns:92px 1fr 46px;gap:12px;align-items:center;margin:.7rem 0}
+.slider-row label{font-family:var(--mono);font-size:12px;color:var(--text3)}
+input[type="range"]{width:100%}
+.slider-val{font-family:var(--mono);font-size:12px;color:var(--text2);text-align:right}
+.rsa-grid,.sig-grid,.tls-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.number-box{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;
+}
+.number-box .mini-card{background:var(--surface)}
+.big-val{font-family:var(--mono);font-size:15px;color:var(--text);margin-top:6px;word-break:break-word}
+.sig-result{margin-top:10px;padding:10px 12px;border-radius:10px;font-family:var(--mono);font-size:12px;border:1px solid var(--border2)}
+.sig-ok{background:var(--green-bg);color:var(--green)}
+.sig-bad{background:var(--red-bg);color:var(--red)}
+.step-list{display:grid;gap:8px}
+.step{
+  padding:10px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);font-size:14px;line-height:1.65;color:var(--text2)
+}
+.step strong{color:var(--text)}
+.step.ok{border-color:rgba(36,108,83,.22);background:var(--green-bg)}
+.step.fail{border-color:rgba(159,65,70,.22);background:var(--red-bg)}
+.explain-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:1rem}
+.cb-head{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:12px;color:var(--text2);
+}
+pre.code{
+  margin:0;padding:14px 16px;overflow:auto;background:var(--bg);color:var(--text);font:13px/1.65 var(--mono);white-space:pre;
+}
+.out{
+  display:none;padding:14px 16px;border-top:1px solid var(--border);background:var(--surface);
+  font:12.5px/1.7 var(--mono);color:var(--text2);white-space:pre-wrap;
+}
+.out.on{display:block}
+.out.err{color:var(--red);background:var(--red-bg)}
+footer{margin-top:3rem;border-top:1px solid var(--border);padding-top:1.6rem}
+footer .label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.8rem}
+footer .links{display:flex;flex-direction:column;gap:4px}
+footer a{font-family:var(--mono);font-size:12px;color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--gold)}
+@media (max-width:780px){
+  .toc,.flow-grid,.rsa-grid,.sig-grid,.tls-grid,.explain-grid,.number-box{grid-template-columns:1fr}
+  .page{padding:0 1rem 4rem}
+  .hero{padding:3.3rem 0 2.5rem}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Hub</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Security · Cryptography · Trust</div>
+    <h1>The Two-Key <em>Trick</em></h1>
+    <p>Public-key cryptography solved one of online security’s hardest bootstrap problems: how do two strangers on an open network establish trust and secrecy without already sharing a secret key? The answer is not “encrypt everything with giant math all the time.” The answer is to use public-key crypto sparingly for identity, signatures, and key establishment, then hand the session off to fast symmetric encryption.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Problem</b> strangers on an untrusted network</span>
+      <span class="pill"><b>Idea</b> publish one key, protect the other</span>
+      <span class="pill"><b>Role</b> authentication and session setup for the web</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>Why two keys matter</a>
+    <a href="#s2"><span class="toc-n">02</span>RSA intuition</a>
+    <a href="#s3"><span class="toc-n">03</span>Digital signatures</a>
+    <a href="#s4"><span class="toc-n">04</span>TLS and the web</a>
+    <a href="#s5"><span class="toc-n">05</span>What public-key crypto is for</a>
+    <a href="#s6"><span class="toc-n">06</span>Runnable code</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>Why two keys matter</h2></div>
+    <p>Symmetric cryptography is fast and powerful, but it has a setup problem: both sides must already know the same secret key. That works inside a system you control. It does not solve the broader Internet problem of a browser talking to an unfamiliar server over a hostile network.</p>
+    <p>Public-key cryptography changes the shape of the problem. You generate a <strong>keypair</strong>: one <strong>public key</strong> that anyone can know, and one <strong>private key</strong> that only you keep. Now strangers can encrypt something only you can open, or verify that a message really came from you if it carries your signature. On the web, that public key is usually trusted only after the browser validates a certificate chain and hostname binding.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Symmetric-only vs public-key setup</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="setBootstrap('symmetric', this)">Symmetric only</button>
+        <button class="btn" onclick="setBootstrap('public', this)">Public-key bootstrap</button>
+      </div>
+      <div class="flow-grid" id="bootstrap-viz"></div>
+    </div>
+
+    <div class="callout good">Public-key cryptography does not replace symmetric encryption. It makes symmetric encryption deployable between parties who did not already share a secret.</div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>RSA: a toy trapdoor built from multiplication</h2></div>
+    <p>RSA is the classic teaching example. Choose two primes <code>p</code> and <code>q</code>, multiply them to get <code>n = p · q</code>, then choose exponents <code>e</code> and <code>d</code> so that raising to <code>e</code> and then to <code>d</code> reverses the operation modulo <code>n</code>. The public key is <code>(n, e)</code>. The private key is <code>d</code>.</p>
+    <p>The core asymmetry is this: multiplying primes is easy, but recovering the original factors from a large composite number is believed to be hard. Real systems use much larger keys than the toy numbers below, plus secure encodings and padding. This demo shows the shape of RSA, not a deployable scheme.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Toy RSA in one number</div>
+      <div class="rsa-grid">
+        <div class="stat-box">
+          <div class="slider-row">
+            <label>Message</label>
+            <input type="range" min="2" max="120" value="42" id="rsa-msg" oninput="updateRSADemo()">
+            <span class="slider-val" id="rsa-msg-val">42</span>
+          </div>
+          <div class="callout info" style="margin-bottom:0">Fixed toy keypair: <code>p=61</code>, <code>q=53</code>, <code>n=3233</code>, <code>e=17</code>, <code>d=2753</code>.</div>
+          <div class="number-box">
+            <div class="mini-card">
+              <h3>Plaintext</h3>
+              <div class="big-val" id="rsa-plain">42</div>
+            </div>
+            <div class="mini-card">
+              <h3>Encrypted</h3>
+              <div class="big-val" id="rsa-cipher">2557</div>
+            </div>
+            <div class="mini-card">
+              <h3>Decrypted</h3>
+              <div class="big-val" id="rsa-restored">42</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-box">
+          <h3>Operations</h3>
+          <div class="step-list" id="rsa-steps"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>rsa_toy.js — textbook RSA for intuition only</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+      <pre class="code" id="c1">function gcd(a, b) {
+  while (b !== 0n) [a, b] = [b, a % b];
+  return a;
+}
+
+function egcd(a, b) {
+  if (b === 0n) return [a, 1n, 0n];
+  const [g, x1, y1] = egcd(b, a % b);
+  return [g, y1, x1 - (a / b) * y1];
+}
+
+function modInv(a, m) {
+  const [g, x] = egcd(a, m);
+  if (g !== 1n) throw new Error("no inverse");
+  return (x % m + m) % m;
+}
+
+function modPow(base, exp, mod) {
+  let out = 1n;
+  base %= mod;
+  while (exp > 0n) {
+    if (exp &amp; 1n) out = (out * base) % mod;
+    base = (base * base) % mod;
+    exp >>= 1n;
+  }
+  return out;
+}
+
+function rsaKeypair(p, q, e) {
+  const n = p * q;
+  const phi = (p - 1n) * (q - 1n);
+  if (gcd(e, phi) !== 1n) throw new Error("bad exponent");
+  const d = modInv(e, phi);
+  return { publicKey: { n, e }, privateKey: { n, d } };
+}
+
+const { publicKey, privateKey } = rsaKeypair(61n, 53n, 17n);
+const message = 42n;
+const cipher = modPow(message, publicKey.e, publicKey.n);
+const plain = modPow(cipher, privateKey.d, privateKey.n);
+
+console.log(`public: n=${publicKey.n} e=${publicKey.e}`);
+console.log(`private: d=${privateKey.d}`);
+console.log("cipher:", cipher.toString());
+console.log("round-trip:", plain.toString());</pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Digital signatures: authenticity, not secrecy</h2></div>
+    <p>Encryption answers “who can read this?” Signatures answer “who wrote this, and was it changed?” The signer computes a digest of the message, uses the private key to sign that digest, and everyone else can verify the signature with the public key. In practice, real RSA signatures use secure signature encodings such as RSA-PSS rather than bare modular exponentiation.</p>
+    <p>This distinction matters on the web. When your browser connects to a bank, the first job is not bulk secrecy. The first job is proving that the server is really the bank and not a machine in the middle impersonating it.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Signature verification under tampering</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="setSignatureCase('clean', this)">Valid message</button>
+        <button class="btn" onclick="setSignatureCase('tampered', this)">Message changed</button>
+        <button class="btn" onclick="setSignatureCase('forged', this)">Forged signature</button>
+      </div>
+      <div class="sig-grid">
+        <div class="stat-box">
+          <div class="number-box">
+            <div class="mini-card">
+              <h3>Message</h3>
+              <div class="big-val" id="sig-message">TRANSFER=100</div>
+            </div>
+            <div class="mini-card">
+              <h3>Digest</h3>
+              <div class="big-val" id="sig-digest">0</div>
+            </div>
+            <div class="mini-card">
+              <h3>Signature</h3>
+              <div class="big-val" id="sig-signature">0</div>
+            </div>
+          </div>
+          <div id="sig-result" class="sig-result sig-ok"></div>
+        </div>
+        <div class="stat-box">
+          <h3>Interpretation</h3>
+          <div class="step-list" id="sig-steps"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>signatures.js — sign and verify a toy message digest</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+      <pre class="code" id="c2">function modPow(base, exp, mod) {
+  let out = 1n;
+  base %= mod;
+  while (exp > 0n) {
+    if (exp &amp; 1n) out = (out * base) % mod;
+    base = (base * base) % mod;
+    exp >>= 1n;
+  }
+  return out;
+}
+
+function tinyHash(str) {
+  let h = 0n;
+  for (const ch of str) h = (h * 131n + BigInt(ch.charCodeAt(0))) % 3233n;
+  return h;
+}
+
+const publicKey = { n: 3233n, e: 17n };
+const privateKey = { n: 3233n, d: 2753n };
+
+function sign(message) {
+  return modPow(tinyHash(message), privateKey.d, privateKey.n);
+}
+
+function verify(message, signature) {
+  return modPow(signature, publicKey.e, publicKey.n) === tinyHash(message);
+}
+
+const msg = "TRANSFER=100";
+const sig = sign(msg);
+console.log("signature:", sig.toString());
+console.log("verify original:", verify(msg, sig));
+console.log("verify tampered:", verify("TRANSFER=900", sig));</pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>TLS and the web: authenticate first, then switch to symmetric crypto</h2></div>
+    <p>The browser does not use public-key cryptography because it wants to encrypt every page byte with slow heavyweight math. It uses public-key cryptography to authenticate the server and agree on a shared session secret. After that, the connection switches to fast symmetric encryption for the real traffic.</p>
+    <p>Modern TLS usually uses certificate-based signatures plus ephemeral Diffie-Hellman style key exchange rather than textbook RSA encryption of the session key. The server authenticates the handshake transcript with <code>CertificateVerify</code>, and both sides confirm the derived keys with <code>Finished</code>. The important architectural point is the same: public-key crypto bootstraps trust and key establishment; symmetric crypto carries the bulk data.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Browser handshake with and without a trusted signature</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="setTLSCase('honest', this)">Honest server</button>
+        <button class="btn" onclick="setTLSCase('mitm', this)">Attacker in the middle</button>
+      </div>
+      <div class="tls-grid">
+        <div class="stat-box">
+          <div class="flow-grid">
+            <div class="flow-box">
+              <h3>Browser</h3>
+              <strong>Trusted issuer keys</strong>
+              Checks signatures on the server's identity and ephemeral key material.
+            </div>
+            <div class="flow-box">
+              <h3>Network</h3>
+              <strong>Open and hostile</strong>
+              Anyone may observe, relay, or modify traffic.
+            </div>
+            <div class="flow-box">
+              <h3>Server</h3>
+              <strong>Private signing key</strong>
+              Proves it owns the identity bound to the certificate.
+            </div>
+          </div>
+          <div class="arrow-row" id="tls-arrow-row"></div>
+        </div>
+        <div class="stat-box">
+          <h3>Handshake steps</h3>
+          <div class="step-list" id="tls-steps"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>What public-key cryptography is actually for</h2></div>
+    <p>Public-key cryptography is foundational to online security, but it is easy to misunderstand its role. It is not a magical replacement for every other security primitive. In practice, it is most valuable for a narrow set of bootstrapping tasks.</p>
+    <div class="explain-grid">
+      <div class="mini-card">
+        <h3>Identity</h3>
+        <p>Signatures let a server prove possession of a private key linked to its certificate and domain identity.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Key establishment</h3>
+        <p>Two parties can create or protect a shared session key even if they never met before.</p>
+      </div>
+      <div class="mini-card">
+        <h3>Delegation and audit</h3>
+        <p>Signed artifacts, tokens, commits, and updates can be verified later by anyone with the public key.</p>
+      </div>
+    </div>
+    <div class="callout info">For bulk encryption of web traffic, disks, and VPN tunnels, symmetric cryptography still does most of the heavy lifting because it is far faster.</div>
+  </section>
+
+  <section class="section" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a toy authenticated key exchange</h2></div>
+    <p>The final snippet combines the ideas above. It uses a toy Diffie-Hellman exchange to derive a shared secret and a toy RSA signature to authenticate a simplified handshake transcript that includes the ephemeral values. It also computes a toy <code>Finished</code>-style tag over that transcript and shared secret. This is still vastly simpler than real TLS, but it captures the real division of labor much better than “encrypt the whole website with RSA.”</p>
+
+    <div class="cb">
+      <div class="cb-head"><span>authenticated_key_exchange.js — signed transcript and shared session secret</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+      <pre class="code" id="c3">function modPow(base, exp, mod) {
+  let out = 1n;
+  base %= mod;
+  while (exp > 0n) {
+    if (exp &amp; 1n) out = (out * base) % mod;
+    base = (base * base) % mod;
+    exp >>= 1n;
+  }
+  return out;
+}
+
+const rsaPub = { n: 3233n, e: 17n };
+const rsaPriv = { n: 3233n, d: 2753n };
+
+function tinyHash(str, mod) {
+  let h = 0n;
+  for (const ch of str) h = (h * 131n + BigInt(ch.charCodeAt(0))) % mod;
+  return h;
+}
+
+function signDigest(x) {
+  return modPow(x % rsaPriv.n, rsaPriv.d, rsaPriv.n);
+}
+
+function verifyDigest(x, sig) {
+  return modPow(sig, rsaPub.e, rsaPub.n) === (x % rsaPub.n);
+}
+
+const p = 23n;
+const g = 5n;
+const serverSecret = 6n;
+const clientSecret = 15n;
+
+const serverPublic = modPow(g, serverSecret, p);
+const clientPublic = modPow(g, clientSecret, p);
+const transcript = `ClientHello:${clientPublic}|ServerHello:${serverPublic}`;
+const transcriptHash = tinyHash(transcript, rsaPub.n);
+const serverSignature = signDigest(transcriptHash);
+
+console.log("server public:", serverPublic.toString());
+console.log("transcript signature valid:", verifyDigest(transcriptHash, serverSignature));
+
+const clientShared = modPow(serverPublic, clientSecret, p);
+const serverShared = modPow(clientPublic, serverSecret, p);
+const finishedClient = (clientShared + tinyHash(transcript, p)) % p;
+const finishedServer = (serverShared + tinyHash(transcript, p)) % p;
+
+console.log("shared secret at client:", clientShared.toString());
+console.log("shared secret at server:", serverShared.toString());
+console.log("match:", clientShared === serverShared);
+console.log("finished tags match:", finishedClient === finishedServer);</pre>
+      <div class="out" id="o3"></div>
+    </div>
+
+    <footer>
+      <div class="label">Further reading</div>
+      <div class="links">
+        <a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446 — TLS 1.3</a>
+        <a href="https://cryptobook.nakov.com/asymmetric-key-ciphers/rsa-cryptosystem-concepts">RSA Cryptosystem Concepts — Practical Cryptography for Developers</a>
+        <a href="https://cryptobook.nakov.com/digital-signatures">Digital Signatures — Practical Cryptography for Developers</a>
+        <a href="https://cryptobook.nakov.com/key-exchange/dhke-examples">Diffie-Hellman Key Exchange Examples — Practical Cryptography for Developers</a>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:1rem">The RSA and signing demos use toy numbers so the arithmetic stays visible. Real deployments use large keys, padding, secure hashes, certificates, and constant-time implementations.</div>
+    </footer>
+  </section>
+</div>
+
+<script>
+function runCode(cid, oid) {
+  const raw = document.getElementById(cid).innerText;
+  const el = document.getElementById(oid);
+  el.className = 'out on';
+  const logs = [];
+  const con = {
+    log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ')),
+    assert: (c, m) => { if (!c) logs.push('AssertionError: ' + m); }
+  };
+  try {
+    new Function('console', raw)(con);
+    el.textContent = logs.join('\n') || '(no output)';
+  } catch (e) {
+    el.className = 'out on err';
+    el.textContent = '⚠ ' + e.message;
+  }
+}
+
+function modPow(base, exp, mod) {
+  let out = 1n;
+  base %= mod;
+  while (exp > 0n) {
+    if (exp & 1n) out = (out * base) % mod;
+    base = (base * base) % mod;
+    exp >>= 1n;
+  }
+  return out;
+}
+
+const RSA = { n: 3233n, e: 17n, d: 2753n };
+
+function tinyHash(str) {
+  let h = 0n;
+  for (const ch of str) h = (h * 131n + BigInt(ch.charCodeAt(0))) % RSA.n;
+  return h;
+}
+
+function setBootstrap(mode, btn) {
+  document.querySelectorAll('#s1 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  const root = document.getElementById('bootstrap-viz');
+  if (mode === 'symmetric') {
+    root.innerHTML = `
+      <div class="flow-box">
+        <h3>Browser</h3>
+        <strong>Needs a secret key</strong>
+        Wants to encrypt traffic, but has no pre-shared secret with this server.
+      </div>
+      <div class="flow-box">
+        <h3>Network</h3>
+        <strong>Attacker listening</strong>
+        If the browser sends the secret key over the wire, the attacker learns it too.
+      </div>
+      <div class="flow-box">
+        <h3>Server</h3>
+        <strong>Also needs the key</strong>
+        Symmetric crypto alone cannot solve the first-contact bootstrap problem.
+      </div>
+    `;
+  } else {
+    root.innerHTML = `
+      <div class="flow-box">
+        <h3>Browser</h3>
+        <strong>Has trusted CA keys</strong>
+        Uses them to validate a certificate chain and learn which server public key to trust.
+      </div>
+      <div class="flow-box">
+        <h3>Network</h3>
+        <strong>Can observe traffic</strong>
+        But cannot forge a valid certificate chain or signature for the real server.
+      </div>
+      <div class="flow-box">
+        <h3>Server</h3>
+        <strong>Has the private key</strong>
+        Proves possession of the certified key and helps establish a session secret.
+      </div>
+    `;
+  }
+}
+
+function updateRSADemo() {
+  const m = BigInt(document.getElementById('rsa-msg').value);
+  document.getElementById('rsa-msg-val').textContent = m.toString();
+  const c = modPow(m, RSA.e, RSA.n);
+  const plain = modPow(c, RSA.d, RSA.n);
+  document.getElementById('rsa-plain').textContent = m.toString();
+  document.getElementById('rsa-cipher').textContent = c.toString();
+  document.getElementById('rsa-restored').textContent = plain.toString();
+  document.getElementById('rsa-steps').innerHTML = `
+    <div class="step"><strong>Encrypt</strong><br><code>cipher = message^e mod n</code><br>${m}^17 mod 3233 = ${c}</div>
+    <div class="step"><strong>Decrypt</strong><br><code>plain = cipher^d mod n</code><br>${c}^2753 mod 3233 = ${plain}</div>
+    <div class="step"><strong>Important</strong><br>This is textbook RSA for intuition only. Real deployments use randomized padding and encoding rather than raw <code>m^e mod n</code>.</div>
+  `;
+}
+
+function setSignatureCase(mode, btn) {
+  document.querySelectorAll('#s3 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  const original = 'TRANSFER=100';
+  const message = mode === 'tampered' ? 'TRANSFER=900' : original;
+  const digest = tinyHash(message);
+  const validSig = modPow(tinyHash(original), RSA.d, RSA.n);
+  const signature = mode === 'forged' ? 1234n : validSig;
+  const verified = modPow(signature, RSA.e, RSA.n) === digest;
+  document.getElementById('sig-message').textContent = message;
+  document.getElementById('sig-digest').textContent = digest.toString();
+  document.getElementById('sig-signature').textContent = signature.toString();
+  const result = document.getElementById('sig-result');
+  result.className = 'sig-result ' + (verified ? 'sig-ok' : 'sig-bad');
+  result.textContent = verified
+    ? 'Signature matches the message digest under the public key.'
+    : 'Verification failed: either the message changed or the signer did not have the private key.';
+  document.getElementById('sig-steps').innerHTML = `
+    <div class="step"><strong>1. Hash</strong><br>The verifier hashes the received message to get ${digest}.</div>
+    <div class="step"><strong>2. Open the signature</strong><br>Using the public key, the verifier computes the claimed digest value from the signature.</div>
+    <div class="step ${verified ? 'ok' : 'fail'}"><strong>3. Compare</strong><br>${verified ? 'The values match, so the signature is accepted.' : 'The values differ, so the signature is rejected.'} Real systems use secure schemes such as RSA-PSS.</div>
+  `;
+}
+
+function setTLSCase(mode, btn) {
+  document.querySelectorAll('#s4 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  const arrow = document.getElementById('tls-arrow-row');
+  const steps = document.getElementById('tls-steps');
+  if (mode === 'honest') {
+    arrow.innerHTML = `
+      <span class="arrow">certificate chain</span>
+      <span class="arrow">CertificateVerify</span>
+      <span class="arrow">Finished</span>
+    `;
+    steps.innerHTML = `
+      <div class="step ok"><strong>1.</strong> The server presents a certificate chain the browser can validate.</div>
+      <div class="step ok"><strong>2.</strong> The handshake carries ephemeral key shares used to derive a shared secret.</div>
+      <div class="step ok"><strong>3.</strong> The server signs the handshake transcript with the private key corresponding to the certified public key.</div>
+      <div class="step ok"><strong>4.</strong> Both sides verify <code>Finished</code>, confirming the transcript and derived keys before switching to symmetric encryption.</div>
+    `;
+  } else {
+    arrow.innerHTML = `
+      <span class="arrow bad">fake cert</span>
+      <span class="arrow bad">bad transcript signature</span>
+      <span class="arrow bad">handshake rejected</span>
+    `;
+    steps.innerHTML = `
+      <div class="step fail"><strong>1.</strong> An attacker presents a different certificate, different key share, or both.</div>
+      <div class="step fail"><strong>2.</strong> The attacker cannot produce a valid transcript signature under the real server's certified private key.</div>
+      <div class="step fail"><strong>3.</strong> Certificate or signature verification fails, so the browser rejects the handshake.</div>
+      <div class="step"><strong>4.</strong> This is why certificates, transcript signatures, and <code>Finished</code> are central to online security: they block silent impersonation.</div>
+    `;
+  }
+}
+
+setBootstrap('symmetric', null);
+updateRSADemo();
+setSignatureCase('clean', null);
+setTLSCase('honest', null);
+</script>
+</body>
+</html>
