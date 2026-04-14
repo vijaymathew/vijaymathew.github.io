@@ -359,6 +359,77 @@ button.btn.primary:hover { opacity: .8; }
 .rope-node.hl rect { fill: var(--green-bg) !important; stroke: var(--green) !important; stroke-width: 2 !important; }
 .rope-node text { font-family: var(--mono); fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
 .rope-edge { stroke: var(--rule2); stroke-width: 1.2; fill: none; }
+.rope-edit-steps { display: grid; gap: 10px; margin-top: .2rem; }
+.rope-edit-step {
+  border: 1px solid var(--rule2);
+  border-radius: 4px;
+  padding: .8rem .9rem;
+  background: var(--paper2);
+}
+.rope-edit-step-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+  margin-bottom: .45rem;
+}
+.rope-edit-step-note {
+  font-size: 13px;
+  color: var(--ink2);
+  line-height: 1.6;
+  margin-bottom: .7rem;
+}
+.rope-edit-tree-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: .55rem;
+}
+.rope-edit-tree {
+  border: 1px solid var(--rule2);
+  border-radius: 4px;
+  background: var(--paper);
+  padding: .5rem .55rem .35rem;
+}
+.rope-edit-tree.inserted { background: var(--green-bg); border-color: var(--green); }
+.rope-edit-tree.discard { background: var(--red-bg); border-color: var(--red); }
+.rope-edit-tree.middle { background: var(--amber-bg); border-color: var(--amber); }
+.rope-edit-tree-cap {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: .35rem;
+}
+.rope-edit-svg { display: block; width: 100%; overflow: visible; }
+.rope-mini-edge { stroke: var(--rule2); stroke-width: 1.1; }
+.rope-mini-node rect { rx: 4; stroke-width: 1; }
+.rope-mini-node.internal rect { fill: var(--purple-bg); stroke: var(--purple); }
+.rope-mini-node.leaf rect { fill: var(--blue-bg); stroke: var(--blue); }
+.rope-edit-tree.inserted .rope-mini-node.leaf rect { fill: var(--green-bg); stroke: var(--green); }
+.rope-edit-tree.discard .rope-mini-node.leaf rect { fill: var(--red-bg); stroke: var(--red); }
+.rope-edit-tree.middle .rope-mini-node rect { fill: var(--amber-bg); stroke: var(--amber); }
+.rope-mini-node text {
+  font-family: var(--mono);
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.rope-edit-meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink2);
+  line-height: 1.7;
+}
+.rope-weight-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--rule2);
+  margin-right: 6px;
+  margin-top: 4px;
+  background: var(--paper);
+}
 
 /* PIECE TABLE VIZ */
 .pt-buffers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: .6rem 0; }
@@ -483,7 +554,7 @@ textarea.editor-input:focus { border-color: var(--rule2); }
 <header class="hero">
   <div class="hero-label">Data structures in practice</div>
   <h1><em>Ropes</em> and <strong>Piece Tables</strong><br>— the editor&rsquo;s data structure</h1>
-  <p class="hero-deck">How does a code editor handle a 10&thinsp;MB file where every keystroke mutates the text? The answer isn&rsquo;t a string. All code runs in your browser.</p>
+  <p class="hero-deck">How does a code editor handle a 10&thinsp;MB file where every keystroke mutates the text? The answer isn&rsquo;t a string.</p>
   <div class="hero-meta">
     <span><b>Sections</b> &nbsp;7</span>
     <span><b>Runnable demos</b> &nbsp;6</span>
@@ -717,7 +788,9 @@ console.log(<span class="str">"Gap must travel from position 9 to 0 — O(n) shi
 
   <p>A rope is a <strong>binary tree whose leaves contain short string fragments</strong>. Each internal node stores the total length of all text in its left subtree (the &ldquo;weight&rdquo;). Together these weights let you navigate to any character in O(log n) by walking the tree — no shifting required.</p>
 
-  <p>To insert text at position <em>p</em>: split the rope at <em>p</em> into two halves, create a new leaf with the inserted text, then concatenate three ropes with two new internal nodes. To delete: split at both ends of the range, discard the middle, concatenate the outer pieces. In a <strong>balanced</strong> rope, both are O(log n); without rebalancing, repeated edits can make the tree taller and degrade performance.</p>
+  <p>The weight is not arbitrary metadata; it is literally <strong>how many characters live to the left of this node&rsquo;s split point</strong>. If an internal node joins a left subtree representing <code>"Hello, "</code> (7 chars) and a right subtree representing <code>"world!"</code> (6 chars), the node&rsquo;s weight is <code>7</code>. To look up character <code>i</code>, compare <code>i</code> to the weight: if <code>i &lt; weight</code>, go left; otherwise go right with index <code>i - weight</code>. Every internal node repeats the same rule, so the weights act like signposts through the tree.</p>
+
+  <p>Edits work by <strong>cutting and rejoining tree boundaries</strong>, not by moving characters around in memory. To insert at position <em>p</em>, split the rope into <code>[0,p)</code> and <code>[p,n)</code>, build a small rope for the inserted text, then concatenate <code>left + inserted + right</code>. To delete <code>[start,end)</code>, split once at <code>start</code>, split the remainder again at <code>end - start</code>, discard the middle piece, and concatenate the two outer pieces. In a <strong>balanced</strong> rope, both are O(log n); without rebalancing, repeated edits can make the tree taller and degrade performance.</p>
 
   <div class="pull note">Ropes are <em>persistent</em> by nature. Because you&rsquo;re building new tree nodes rather than mutating old ones, old versions of the rope remain valid. Undo is just keeping a pointer to the old root — no copy needed.</div>
 
@@ -725,6 +798,15 @@ console.log(<span class="str">"Gap must travel from position 9 to 0 — O(n) shi
     <div class="demo-lbl">Rope structure — click a node to inspect it</div>
     <div id="rope-canvas"></div>
     <div id="rope-info" style="font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:.6rem;min-height:20px"></div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">Rope edits — insert and delete as split + concat</div>
+    <div class="btn-row">
+      <button class="btn act" data-rope-edit="insert" onclick="showRopeEdit('insert', this)">Insert</button>
+      <button class="btn" data-rope-edit="delete" onclick="showRopeEdit('delete', this)">Delete</button>
+    </div>
+    <div id="rope-edit-steps"></div>
   </div>
 
   <div class="cb">
@@ -1410,6 +1492,164 @@ function ropeClick(el, text, isLeaf, len) {
     : `Internal node: weight=${document.querySelector('#'+el.id+' text').textContent.split('=')[1]}, total length=${len}. Stores only the weight — no text here.`;
   document.getElementById('rope-info').textContent = info;
 }
+
+function ropeLeaf(text) {
+  return { isLeaf: true, text, length: text.length };
+}
+
+function ropeJoin(left, right) {
+  return { isLeaf: false, left, right, weight: left.length, length: left.length + right.length };
+}
+
+function ropeLabel(text) {
+  return text.length > 12 ? `"${text.slice(0, 9)}…"` : `"${text}"`;
+}
+
+function ropeLeaves(node) {
+  return node.isLeaf ? 1 : ropeLeaves(node.left) + ropeLeaves(node.right);
+}
+
+function ropeDepth(node) {
+  return node.isLeaf ? 1 : 1 + Math.max(ropeDepth(node.left), ropeDepth(node.right));
+}
+
+function renderMiniRope(tree) {
+  const width = Math.max(180, ropeLeaves(tree) * 120);
+  const margin = 18;
+  const nodeW = 98;
+  const nodeH = 28;
+  const levelGap = 48;
+  const positions = new Map();
+
+  function layout(node, depth, x0, x1) {
+    const cx = (x0 + x1) / 2;
+    const y = 18 + depth * (nodeH + levelGap);
+    positions.set(node, { cx, y });
+    if (!node.isLeaf) {
+      layout(node.left, depth + 1, x0, cx);
+      layout(node.right, depth + 1, cx, x1+50);
+    }
+  }
+
+  layout(tree, 0, margin, width - margin);
+  const height = 18 + ropeDepth(tree) * (nodeH + levelGap) - levelGap + 18;
+  let edges = '';
+  let nodes = '';
+
+  function draw(node) {
+    const { cx, y } = positions.get(node);
+    if (!node.isLeaf) {
+      const lp = positions.get(node.left);
+      const rp = positions.get(node.right);
+      edges += `<line class="rope-mini-edge" x1="${cx}" y1="${y + nodeH}" x2="${lp.cx}" y2="${lp.y}" />`;
+      edges += `<line class="rope-mini-edge" x1="${cx}" y1="${y + nodeH}" x2="${rp.cx}" y2="${rp.y}" />`;
+      draw(node.left);
+      draw(node.right);
+    }
+    const cls = `rope-mini-node ${node.isLeaf ? 'leaf' : 'internal'}`;
+    const label = node.isLeaf ? ropeLabel(node.text) : `w=${node.weight}`;
+    nodes += `<g class="${cls}">
+      <rect x="${cx - nodeW / 2}" y="${y}" width="${nodeW}" height="${nodeH}" />
+      <text x="${cx}" y="${y + nodeH / 2}" font-size="11">${label}</text>
+    </g>`;
+  }
+
+  draw(tree);
+  return `<svg class="rope-edit-svg" viewBox="0 0 ${width} ${height}" height="${height}">${edges}${nodes}</svg>`;
+}
+
+const ROPE_LEFT = ropeLeaf('Hello, ');
+const ROPE_RIGHT = ropeLeaf('world!');
+const ROPE_INSERTED = ropeLeaf('beautiful ');
+const ROPE_ORIGINAL = ropeJoin(ROPE_LEFT, ROPE_RIGHT);
+const ROPE_REST = ropeJoin(ROPE_INSERTED, ROPE_RIGHT);
+const ROPE_INSERT_RESULT = ropeJoin(ropeJoin(ROPE_LEFT, ROPE_INSERTED), ROPE_RIGHT);
+
+const ROPE_EDIT_STATES = {
+  insert: {
+    steps: [
+      {
+        title: '1. Split at p = 7',
+        note: 'The original rope is cut at position 7, producing a left rope for "Hello, " and a right rope for "world!".',
+        figures: [
+          { caption: 'original rope', tree: ROPE_ORIGINAL },
+          { caption: 'left half', tree: ROPE_LEFT },
+          { caption: 'right half', tree: ROPE_RIGHT },
+        ],
+      },
+      {
+        title: '2. Build a rope for the inserted text',
+        note: 'The new bytes become their own leaf or small subtree. Existing leaves are not shifted or rewritten.',
+        figures: [
+          { caption: 'inserted rope', tree: ROPE_INSERTED, cls: 'inserted' },
+        ],
+      },
+      {
+        title: '3. Concatenate left + inserted + right',
+        note: 'This implementation forms concat(concat(left, inserted), right). The inner node stores weight 7; the new root stores weight 17 because its entire left subtree is now "Hello, beautiful ".',
+        figures: [
+          { caption: 'resulting rope', tree: ROPE_INSERT_RESULT },
+        ],
+        meta: {
+          formula: 'Result: "Hello, beautiful world!"',
+          weights: ['inner weight = 7', 'root weight = 17'],
+        },
+      },
+    ],
+  },
+  delete: {
+    steps: [
+      {
+        title: '1. Split at start = 7',
+        note: 'Start from the rope after insertion. Splitting at 7 leaves the unchanged prefix on the left and the remainder on the right.',
+        figures: [
+          { caption: 'source rope', tree: ROPE_INSERT_RESULT },
+          { caption: 'left half', tree: ROPE_LEFT },
+          { caption: 'rest', tree: ROPE_REST, cls: 'middle' },
+        ],
+      },
+      {
+        title: '2. Split the remainder at end - start = 10',
+        note: 'A second split isolates the exact span to delete as its own middle rope.',
+        figures: [
+          { caption: 'discarded middle', tree: ROPE_INSERTED, cls: 'discard' },
+          { caption: 'right half', tree: ROPE_RIGHT },
+        ],
+      },
+      {
+        title: '3. Discard the middle rope and concatenate the outer pieces',
+        note: 'Delete is just concat(left, right). The new root weight is 7 because the entire left subtree is still "Hello, ".',
+        figures: [
+          { caption: 'resulting rope', tree: ROPE_ORIGINAL },
+        ],
+        meta: {
+          formula: 'Result: "Hello, world!"',
+          weights: ['root weight = 7'],
+        },
+      },
+    ],
+  },
+};
+
+function showRopeEdit(mode, btn) {
+  document.querySelectorAll('[data-rope-edit]').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  const state = ROPE_EDIT_STATES[mode];
+  document.getElementById('rope-edit-steps').innerHTML = state.steps.map(step => `
+    <div class="rope-edit-step">
+      <div class="rope-edit-step-title">${step.title}</div>
+      <div class="rope-edit-step-note">${step.note}</div>
+      <div class="rope-edit-tree-grid">
+        ${step.figures.map(fig => `
+          <div class="rope-edit-tree ${fig.cls || ''}">
+            <div class="rope-edit-tree-cap">${fig.caption}</div>
+            ${renderMiniRope(fig.tree)}
+          </div>`).join('')}
+      </div>
+      ${step.meta ? `<div class="rope-edit-meta">${step.meta.formula}<br>${step.meta.weights.map(w => `<span class="rope-weight-chip">${w}</span>`).join('')}</div>` : ''}
+    </div>`).join('');
+}
+showRopeEdit('insert', document.querySelector('[data-rope-edit="insert"]'));
 
 /* ============ PIECE TABLE STEPPER ============ */
 const PT_STEPS = [

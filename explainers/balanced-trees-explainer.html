@@ -327,6 +327,17 @@ code{
 }
 .node.empty{opacity:.18}
 .node .bf{font-size:10px;color:var(--ink3)}
+.node.rb-red{
+  background:var(--red-bg);
+  border-color:rgba(163,57,57,.26);
+  color:var(--red);
+}
+.node.rb-black{
+  background:var(--ink);
+  border-color:var(--ink);
+  color:var(--paper);
+}
+.node.rb-black .bf{color:rgba(248,244,236,.72)}
 .step-note{
   margin-top:.9rem;
   padding:.8rem .9rem;
@@ -556,6 +567,10 @@ pre.code{
       <div class="step-note" id="avl-note"></div>
     </div>
 
+    <p>The rotation algorithm is a two-level diagnosis. First find the <strong>first ancestor</strong> whose balance factor left the safe range; that is the node you will repair. Then inspect its heavy child. If the child leans in the <em>same</em> direction as the parent imbalance, one rotation is enough: LL becomes a right rotation, RR becomes a left rotation. If the child leans the <em>opposite</em> way, you must straighten the child first and then rotate the parent: LR means left-rotate the left child, then right-rotate the parent; RL is the mirror image.</p>
+
+    <p>What makes this work is that the median of the three involved keys always rises into the middle. The in-order ordering of keys is preserved, but the subtree becomes shorter and more balanced. That is the whole trick: AVL rotations are local rewrites that fix shape without changing search order.</p>
+
     <div class="cb">
       <div class="cb-head"><span>avl_insert.js — insertion and rotations in a minimal AVL tree</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
       <pre class="code" id="c1"></pre>
@@ -567,6 +582,29 @@ pre.code{
     <div class="sec-head"><span class="sec-n">§03</span><h2>Why red-black trees win in practice</h2></div>
     <p>Red-black trees encode a looser balance rule. Instead of exact height differences, they color each node red or black and enforce a handful of invariants: no red node may have a red child, and every root-to-leaf path must contain the same number of black nodes.</p>
     <p>That is harder to explain than AVL, but easier to live with in many production systems. The tree is not as tightly balanced, yet updates usually perform fewer structural repairs. Searches remain logarithmic, and the looser discipline often wins on implementation cost and mutation throughput.</p>
+    <div class="callout info">The insertion fixup rules look more ceremonial than AVL rotations, but they are still local rewrites: recolor if the uncle is red, rotate if the new node forms a zig-zag, then rotate and recolor around the grandparent.</div>
+
+    <div class="demo">
+      <div class="demo-lbl">Walk through the core red-black insertion fixup patterns</div>
+      <div class="btn-row" id="rb-case-buttons">
+        <button class="btn act" data-rb-case="recolor" onclick="setRBCase('recolor')">Red uncle</button>
+        <button class="btn" data-rb-case="inside" onclick="setRBCase('inside')">Inner child</button>
+        <button class="btn" data-rb-case="outside" onclick="setRBCase('outside')">Outer child</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="stepRB(-1)">Prev</button>
+        <button class="btn" onclick="stepRB(1)">Next</button>
+      </div>
+      <div class="preview" id="rb-seq"></div>
+      <div class="tree-grid" id="rb-tree"></div>
+      <div class="step-note" id="rb-note"></div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>red_black_insert.js — insertion and fixups in a minimal red-black tree</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+      <pre class="code" id="c3"></pre>
+      <div class="out" id="o3"></div>
+    </div>
 
     <div class="demo">
       <div class="demo-lbl">Tradeoffs by workload</div>
@@ -724,6 +762,52 @@ const TRADE_MODES = {
     rbNote: "Many standard libraries use red-black trees because they offer a durable balance of cost, complexity, and performance.",
     why: "Teach AVL, ship RB",
     whyNote: "AVL is often easier to derive; red-black is often easier to justify in production containers."
+  }
+};
+
+const RB_CASES = {
+  recolor: {
+    insertions: [10, 5, 15, 1],
+    steps: [
+      {
+        note: "Insert 10, 5, 15, then 1. The new node 1 is red, its parent 5 is red, and the uncle 15 is red too. The violation is solved first by recoloring, not rotating.",
+        tree: { v:10, c:"B", l:{ v:5, c:"R", l:{ v:1, c:"R" } }, r:{ v:15, c:"R" } }
+      },
+      {
+        note: "Recolor parent and uncle black, recolor grandparent red. Because the grandparent is the root here, we repaint it black at the end. The tree is valid again without changing shape.",
+        tree: { v:10, c:"B", l:{ v:5, c:"B", l:{ v:1, c:"R" } }, r:{ v:15, c:"B" } }
+      }
+    ]
+  },
+  inside: {
+    insertions: [10, 5, 7],
+    steps: [
+      {
+        note: "Insert 10, 5, then 7. Parent 5 is red, uncle is black, and the new node is an inside child. This zig-zag cannot be fixed with one final rotation yet.",
+        tree: { v:10, c:"B", l:{ v:5, c:"R", r:{ v:7, c:"R" } }, r:null }
+      },
+      {
+        note: "Rotate left at parent 5. That converts the zig-zag into the outside shape the standard final step knows how to repair.",
+        tree: { v:10, c:"B", l:{ v:7, c:"R", l:{ v:5, c:"R" } }, r:null }
+      },
+      {
+        note: "Now rotate right at grandparent 10 and recolor. The middle key 7 rises and becomes black; 5 and 10 become red children.",
+        tree: { v:7, c:"B", l:{ v:5, c:"R" }, r:{ v:10, c:"R" } }
+      }
+    ]
+  },
+  outside: {
+    insertions: [10, 5, 1],
+    steps: [
+      {
+        note: "Insert 10, 5, then 1. Parent 5 is red, uncle is black, and the new node is an outside child. This is the straightforward rotation case.",
+        tree: { v:10, c:"B", l:{ v:5, c:"R", l:{ v:1, c:"R" } }, r:null }
+      },
+      {
+        note: "Rotate right at grandparent 10 and recolor around the pivot. The median key 5 rises, becomes black, and the old grandparent 10 turns red.",
+        tree: { v:5, c:"B", l:{ v:1, c:"R" }, r:{ v:10, c:"R" } }
+      }
+    ]
   }
 };
 
@@ -1022,13 +1106,166 @@ console.log("floor(50):", JSON.stringify(scores.floorEntry(50)));
 console.log("ceiling(50):", JSON.stringify(scores.ceilingEntry(50)));
 console.log("range 20..80:", JSON.stringify(scores.range(20, 80)));
 scores.delete(42);
-console.log("after delete:", JSON.stringify(Array.from(scores.entries())));`
+console.log("after delete:", JSON.stringify(Array.from(scores.entries())));`,
+  c3: String.raw`const RED = "R";
+const BLACK = "B";
+
+class RBNode {
+  constructor(key, color = RED) {
+    this.key = key;
+    this.color = color;
+    this.left = null;
+    this.right = null;
+    this.parent = null;
+  }
+}
+
+class RedBlackTree {
+  constructor(compare = (a, b) => a < b ? -1 : a > b ? 1 : 0) {
+    this.compare = compare;
+    this.root = null;
+  }
+
+  rotateLeft(x) {
+    const y = x.right;
+    x.right = y.left;
+    if (y.left) y.left.parent = x;
+    y.parent = x.parent;
+    if (!x.parent) this.root = y;
+    else if (x === x.parent.left) x.parent.left = y;
+    else x.parent.right = y;
+    y.left = x;
+    x.parent = y;
+  }
+
+  rotateRight(y) {
+    const x = y.left;
+    y.left = x.right;
+    if (x.right) x.right.parent = y;
+    x.parent = y.parent;
+    if (!y.parent) this.root = x;
+    else if (y === y.parent.left) y.parent.left = x;
+    else y.parent.right = x;
+    x.right = y;
+    y.parent = x;
+  }
+
+  insert(key) {
+    let parent = null;
+    let node = this.root;
+    while (node) {
+      parent = node;
+      const cmp = this.compare(key, node.key);
+      if (cmp === 0) return node;
+      node = cmp < 0 ? node.left : node.right;
+    }
+
+    const z = new RBNode(key, RED);
+    z.parent = parent;
+    if (!parent) this.root = z;
+    else if (this.compare(key, parent.key) < 0) parent.left = z;
+    else parent.right = z;
+
+    this.fixInsert(z);
+    return z;
+  }
+
+  fixInsert(z) {
+    while (z.parent && z.parent.color === RED) {
+      const gp = z.parent.parent;
+      if (z.parent === gp.left) {
+        const uncle = gp.right;
+        if (uncle && uncle.color === RED) {
+          z.parent.color = BLACK;
+          uncle.color = BLACK;
+          gp.color = RED;
+          z = gp;
+        } else {
+          if (z === z.parent.right) {
+            z = z.parent;
+            this.rotateLeft(z);
+          }
+          z.parent.color = BLACK;
+          gp.color = RED;
+          this.rotateRight(gp);
+        }
+      } else {
+        const uncle = gp.left;
+        if (uncle && uncle.color === RED) {
+          z.parent.color = BLACK;
+          uncle.color = BLACK;
+          gp.color = RED;
+          z = gp;
+        } else {
+          if (z === z.parent.left) {
+            z = z.parent;
+            this.rotateRight(z);
+          }
+          z.parent.color = BLACK;
+          gp.color = RED;
+          this.rotateLeft(gp);
+        }
+      }
+    }
+    this.root.color = BLACK;
+  }
+
+  has(key) {
+    let node = this.root;
+    while (node) {
+      const cmp = this.compare(key, node.key);
+      if (cmp === 0) return true;
+      node = cmp < 0 ? node.left : node.right;
+    }
+    return false;
+  }
+
+  inorder() {
+    const out = [];
+    (function walk(node) {
+      if (!node) return;
+      walk(node.left);
+      out.push(node.key + node.color);
+      walk(node.right);
+    })(this.root);
+    return out;
+  }
+
+  verify() {
+    if (!this.root) return { ok: true, blackHeight: 0 };
+    if (this.root.color !== BLACK) throw new Error("root must be black");
+    const dfs = node => {
+      if (!node) return 1;
+      if (node.color === RED) {
+        if ((node.left && node.left.color === RED) || (node.right && node.right.color === RED)) {
+          throw new Error("red node has red child at " + node.key);
+        }
+      }
+      const leftBH = dfs(node.left);
+      const rightBH = dfs(node.right);
+      if (leftBH !== rightBH) throw new Error("black-height mismatch at " + node.key);
+      return leftBH + (node.color === BLACK ? 1 : 0);
+    };
+    return { ok: true, blackHeight: dfs(this.root) };
+  }
+}
+
+const tree = new RedBlackTree();
+for (const key of [10, 5, 15, 1, 7, 12, 18, 6]) tree.insert(key);
+
+console.log("root:", tree.root.key + tree.root.color);
+console.log("inorder:", tree.inorder().join(" "));
+console.log("has(7):", tree.has(7));
+console.log("has(11):", tree.has(11));
+console.log("verify:", JSON.stringify(tree.verify()));`
 };
 
 const state = {
   shapeMode: "sorted",
   avlCase: "LL",
   avlStep: 0,
+  rbCase: "recolor",
+  rbStep: 0,
   tradeMode: "reads",
   decision: "cache"
 };
@@ -1116,7 +1353,7 @@ function renderMiniTree(tree) {
   ];
   const items = paths.map(([name, path]) => getNodeAt(tree, path));
   const renderNode = node => node
-    ? '<div class="node"><div>' + node.v + '</div><div class="bf">bf ' + (node.bf > 0 ? "+" + node.bf : node.bf) + '</div></div>'
+    ? '<div class="node' + (node.c ? ' rb-' + (node.c === "R" ? 'red' : 'black') : '') + '"><div>' + node.v + '</div><div class="bf">' + (node.bf !== undefined ? 'bf ' + (node.bf > 0 ? "+" + node.bf : node.bf) : (node.c === "R" ? 'red' : 'black')) + '</div></div>'
     : '<div class="node empty"></div>';
   return '' +
     '<div class="tree-level l1">' + renderNode(items[0]) + '</div>' +
@@ -1147,6 +1384,32 @@ function renderAVLDemo() {
     "  |  step " + (state.avlStep + 1) + " of " + current.steps.length;
   document.getElementById("avl-tree").innerHTML = renderMiniTree(step.tree);
   document.getElementById("avl-note").textContent = step.note;
+}
+
+function setRBCase(name) {
+  state.rbCase = name;
+  state.rbStep = 0;
+  document.querySelectorAll("#rb-case-buttons .btn").forEach(btn => {
+    btn.classList.toggle("act", btn.dataset.rbCase === name);
+  });
+  renderRBDemo();
+}
+
+function stepRB(delta) {
+  const steps = RB_CASES[state.rbCase].steps;
+  state.rbStep = Math.max(0, Math.min(steps.length - 1, state.rbStep + delta));
+  renderRBDemo();
+}
+
+function renderRBDemo() {
+  const current = RB_CASES[state.rbCase];
+  const step = current.steps[state.rbStep];
+  document.getElementById("rb-seq").textContent =
+    current.insertions.length
+      ? current.insertions.join(", ") + "  |  step " + (state.rbStep + 1) + " of " + current.steps.length + "  |  mirror-image right-side cases omitted"
+      : "step " + (state.rbStep + 1) + " of " + current.steps.length;
+  document.getElementById("rb-tree").innerHTML = renderMiniTree(step.tree);
+  document.getElementById("rb-note").textContent = step.note;
 }
 
 function setTradeMode(mode) {
@@ -1216,6 +1479,7 @@ function initCodeBlocks() {
 initCodeBlocks();
 setShapeMode("sorted");
 setAVLCase("LL");
+setRBCase("recolor");
 setTradeMode("reads");
 setDecision("cache");
 </script>
