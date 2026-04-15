@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Git Stores History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6f7;
+  --bg2:#e8edef;
+  --bg3:#d8e0e5;
+  --surface:#ffffff;
+  --ink:#162126;
+  --ink2:#59656d;
+  --ink3:#889198;
+  --rule:rgba(22,33,38,.10);
+  --rule2:rgba(22,33,38,.18);
+  --steel:#315d77;
+  --steel-bg:#e3eef5;
+  --rust:#a7602b;
+  --rust-bg:#f7eadf;
+  --green:#1d6c59;
+  --green-bg:#e2f2ec;
+  --purple:#644798;
+  --purple-bg:#eee8fb;
+  --mono:"IBM Plex Mono", monospace;
+  --sans:"Public Sans", sans-serif;
+  --serif:"Source Serif 4", serif;
+  --r:10px;
+  --r-lg:16px;
+  --shadow:0 18px 42px rgba(17,27,33,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101519;
+    --bg2:#171f24;
+    --bg3:#202a31;
+    --surface:#171f24;
+    --ink:#e8edf0;
+    --ink2:#aab4bb;
+    --ink3:#6d7880;
+    --rule:rgba(255,255,255,.08);
+    --rule2:rgba(255,255,255,.15);
+    --steel:#8fc3e0;
+    --steel-bg:#12222e;
+    --rust:#e0aa73;
+    --rust-bg:#2a1d12;
+    --green:#88ceb8;
+    --green-bg:#10241e;
+    --purple:#b59de6;
+    --purple-bg:#1e1730;
+    --shadow:none;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(49,93,119,.10), transparent 22rem),
+    linear-gradient(180deg, rgba(166,96,43,.06), transparent 18rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  line-height:1;
+}
+.page{max-width:900px;margin:0 auto;padding:0 1.8rem 6rem}
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding:1.2rem 0;border-bottom:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);
+}
+.topbar a{color:var(--ink2);text-decoration:none}
+.topbar a:hover{color:var(--steel)}
+.hero{padding:4.2rem 0 3rem;border-bottom:1px solid var(--rule)}
+.hero-kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--rust);margin-bottom:1.2rem;
+}
+.hero h1{
+  font-family:var(--serif);font-size:clamp(2.8rem,6vw,4.3rem);font-weight:400;line-height:1.03;
+  letter-spacing:-.01em;max-width:11ch;margin-bottom:1.15rem;
+}
+.hero h1 em{font-style:italic;color:var(--steel)}
+.hero p{
+  max-width:46rem;color:var(--ink2);font-size:17px;line-height:1.75;margin-bottom:1.35rem;
+}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
+  border:1px solid var(--rule2);background:var(--bg2);color:var(--ink2);font-family:var(--mono);font-size:11px;
+}
+.pill b{font-weight:500;color:var(--steel)}
+.toc{
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:2.6rem 0 3.4rem;
+  background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-lg);overflow:hidden;
+}
+.toc a{display:flex;gap:10px;padding:11px 14px;background:var(--surface);color:var(--ink2);text-decoration:none;font-size:14px}
+.toc a:hover{background:var(--bg2);color:var(--ink)}
+.toc-n{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:16px;padding-top:1px}
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:.9rem;margin-bottom:1.35rem}
+.sec-n{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+h2{font-family:var(--serif);font-size:1.95rem;font-weight:400;line-height:1.14}
+h3{font-size:15px;font-weight:600;color:var(--ink);margin:1.3rem 0 .45rem}
+p{font-size:15.5px;line-height:1.8;color:var(--ink2);margin-bottom:.95rem}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--steel)}
+code{
+  font-family:var(--mono);font-size:12.5px;border-radius:4px;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink);padding:1px 5px;
+}
+.callout{
+  border-left:3px solid var(--steel);background:var(--steel-bg);color:var(--steel);
+  border-radius:0 var(--r) var(--r) 0;padding:.86rem 1.05rem;margin:1.15rem 0;font-size:14px;line-height:1.7;
+}
+.callout.warn{border-color:var(--rust);background:var(--rust-bg);color:var(--rust)}
+.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.demo,.cb{
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:1.25rem 0 1.8rem;
+}
+.demo{padding:1.25rem}
+.demo-lbl{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.95rem;
+}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
+.btn,.run-btn{
+  appearance:none;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink);
+  font-family:var(--mono);font-size:12px;border-radius:999px;padding:7px 11px;cursor:pointer;
+}
+.btn:hover,.run-btn:hover{border-color:var(--steel);color:var(--steel)}
+.btn.act{background:var(--steel);border-color:var(--steel);color:#fff}
+.viz-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+.stage,.side{
+  border:1px solid var(--rule2);border-radius:12px;background:var(--bg);padding:12px;
+}
+.object-list{display:grid;gap:8px}
+.obj{
+  border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:10px;
+  font-family:var(--mono);font-size:12px;line-height:1.65;color:var(--ink2);
+}
+.obj strong{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:10px;height:10px;border-radius:999px;display:inline-block}
+.ref-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--rule2);
+  background:var(--surface);font-family:var(--mono);font-size:11px;color:var(--ink2);margin-right:6px;margin-bottom:6px;
+}
+.commit-track{display:grid;gap:10px}
+.commit-box{
+  border:1px solid var(--rule2);border-radius:12px;background:var(--surface);padding:10px;
+}
+.commit-head{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink);margin-bottom:6px}
+.tree-list{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--ink2)}
+.index-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.index-box{
+  border:1px solid var(--rule2);border-radius:12px;background:var(--surface);padding:12px;
+}
+.index-box h3{margin-top:0}
+.file-chip{
+  display:inline-flex;align-items:center;padding:4px 7px;border-radius:8px;background:var(--bg2);border:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--ink2);margin:3px 4px 0 0;
+}
+.mini-note{font-family:var(--mono);font-size:11px;color:var(--ink3);line-height:1.7}
+.cb-head{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:12px 14px;border-bottom:1px solid var(--rule);
+  font-family:var(--mono);font-size:12px;color:var(--ink2);
+}
+pre.code{
+  margin:0;padding:14px 16px;overflow:auto;background:var(--bg);color:var(--ink);font:13px/1.65 var(--mono);white-space:pre;
+}
+.out{
+  display:none;padding:14px 16px;border-top:1px solid var(--rule);background:var(--surface);
+  font:12.5px/1.7 var(--mono);color:var(--ink2);white-space:pre-wrap;
+}
+.out.on{display:block}
+.out.err{color:#9f4146;background:#f8e7e8}
+footer{margin-top:3rem;border-top:1px solid var(--rule);padding-top:1.6rem}
+footer .label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem}
+footer .links{display:flex;flex-direction:column;gap:4px}
+footer a{font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none}
+footer a:hover{color:var(--steel)}
+@media (max-width:780px){
+  .toc,.viz-grid,.index-grid{grid-template-columns:1fr}
+  .page{padding:0 1rem 4rem}
+  .hero{padding:3.3rem 0 2.5rem}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span>Modern Software Tools, Explained</span>
+    <a href="./index.html">Back to Hub</a>
+  </div>
+
+  <header class="hero">
+    <div class="hero-kicker">Developer Tools · Storage · History</div>
+    <h1>How Git Stores <em>History</em></h1>
+    <p>Git feels like a source-control tool, but its core implementation is closer to a content-addressed object store with a few carefully chosen pointer types. Files become blobs, directories become trees, commits point to snapshots and parents, and branches are just movable references. That design is why commits are cheap, branching is cheap, and history becomes a graph instead of a mutable folder full of versions.</p>
+    <div class="pill-row">
+      <span class="pill"><b>Problem</b> track versions without copying whole repos</span>
+      <span class="pill"><b>Idea</b> immutable objects plus movable refs</span>
+      <span class="pill"><b>Implementation</b> tiny Git-like repo in JavaScript</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1"><span class="toc-n">01</span>The model</a>
+    <a href="#s2"><span class="toc-n">02</span>Blobs, trees, commits</a>
+    <a href="#s3"><span class="toc-n">03</span>Why branches are cheap</a>
+    <a href="#s4"><span class="toc-n">04</span>The index</a>
+    <a href="#s5"><span class="toc-n">05</span>Packfiles and real Git</a>
+    <a href="#s6"><span class="toc-n">06</span>Runnable code</a>
+  </nav>
+
+  <section class="section" id="s1">
+    <div class="sec-head"><span class="sec-n">§01</span><h2>The model: snapshots, not mutable folder copies</h2></div>
+    <p>A naive version-control system could copy every file into a new directory for every revision. That works for a while, but it wastes space and makes branching expensive. Git takes a different approach: each version is represented by a graph of immutable objects, and those objects are reused whenever content has not changed.</p>
+    <p>The key mental shift is this: a commit is not “a diff file.” It is a pointer to a tree object that describes the project snapshot, plus metadata and parent commit IDs. Diffs are computed later by comparing snapshots; they are not the primary storage format for ordinary history.</p>
+    <div class="callout good">Git version control is built on three ideas working together: immutable content-addressed objects, a staging area that prepares the next tree, and lightweight references that name commits.</div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="sec-head"><span class="sec-n">§02</span><h2>Blobs, trees, and commits</h2></div>
+    <p>A file’s contents become a <strong>blob</strong>. A directory becomes a <strong>tree</strong> listing filenames and the object IDs they point to. A <strong>commit</strong> points to a root tree and to one or more parent commits. Because objects are immutable and keyed by their content hash, unchanged files and unchanged subtrees can be reused across commits.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Object graph for three snapshots</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="showGitState('c1', this)">Commit 1</button>
+        <button class="btn" onclick="showGitState('c2', this)">Commit 2</button>
+        <button class="btn" onclick="showGitState('c3', this)">Commit 3</button>
+      </div>
+      <div class="viz-grid">
+        <div class="stage">
+          <svg id="git-objects-svg" viewBox="0 0 620 310" style="width:100%;height:auto;display:block"></svg>
+          <div class="legend">
+            <span><i class="swatch" style="background:var(--steel)"></i> commit</span>
+            <span><i class="swatch" style="background:var(--green)"></i> tree</span>
+            <span><i class="swatch" style="background:var(--rust)"></i> blob</span>
+            <span><i class="swatch" style="background:var(--purple)"></i> reused object</span>
+          </div>
+        </div>
+        <div class="side">
+          <h3>Selected objects</h3>
+          <div class="object-list" id="git-objects-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>objects.js — blobs, trees, commits, and deduplication</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+      <pre class="code" id="c1">function fakeHash(type, payload) {
+  const text = type + "\0" + payload;
+  let h = 2166136261;
+  for (let i = 0; i &lt; text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+class ObjectStore {
+  constructor() { this.objects = new Map(); }
+
+  put(type, payload) {
+    const id = fakeHash(type, JSON.stringify(payload));
+    if (!this.objects.has(id)) this.objects.set(id, { type, payload });
+    return id;
+  }
+}
+
+const store = new ObjectStore();
+
+function blob(text) { return store.put("blob", text); }
+function tree(entries) { return store.put("tree", entries); }
+function commit(treeId, parents, message) {
+  return store.put("commit", { treeId, parents, message });
+}
+
+const readme1 = blob("hello\n");
+const app1 = blob("console.log('v1');\n");
+const src1 = tree([{ name: "app.js", type: "blob", id: app1 }]);
+const root1 = tree([
+  { name: "README.md", type: "blob", id: readme1 },
+  { name: "src", type: "tree", id: src1 }
+]);
+const c1 = commit(root1, [], "initial");
+
+const readme2 = blob("hello\n"); // same contents, same object
+const app2 = blob("console.log('v2');\n");
+const src2 = tree([{ name: "app.js", type: "blob", id: app2 }]);
+const root2 = tree([
+  { name: "README.md", type: "blob", id: readme2 },
+  { name: "src", type: "tree", id: src2 }
+]);
+const c2 = commit(root2, [c1], "update app");
+
+console.log("commit 1:", c1);
+console.log("commit 2:", c2);
+console.log("README reused:", readme1 === readme2);
+console.log("total objects:", store.objects.size);</pre>
+      <div class="out" id="o1"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="sec-head"><span class="sec-n">§03</span><h2>Why branches are cheap</h2></div>
+    <p>Git branches feel substantial in the UI, but internally a branch is just a name pointing at one commit. Creating a branch does not copy history. It only adds another reference. As new commits are made on that branch, the reference moves to the new tip commit, while the old commits remain in place.</p>
+    <p>This is why branching is so cheap compared with centralized systems that historically treated branches as heavyweight server-side structures.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Refs moving across the same commit graph</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="showBranchStep(0, this)">Start on main</button>
+        <button class="btn" onclick="showBranchStep(1, this)">Create feature</button>
+        <button class="btn" onclick="showBranchStep(2, this)">Commit on feature</button>
+        <button class="btn" onclick="showBranchStep(3, this)">Commit on main</button>
+      </div>
+      <div class="viz-grid">
+        <div class="stage">
+          <svg id="git-refs-svg" viewBox="0 0 620 230" style="width:100%;height:auto;display:block"></svg>
+        </div>
+        <div class="side">
+          <h3>Refs</h3>
+          <div id="git-ref-list"></div>
+          <div class="callout" style="margin-bottom:0">A branch is just a ref. <code>HEAD</code> is another ref-like pointer telling Git which branch or commit is currently checked out.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb">
+      <div class="cb-head"><span>refs.js — branch creation and ref movement</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+      <pre class="code" id="c2">const commits = {
+  a1: { parents: [], msg: "initial" },
+  b2: { parents: ["a1"], msg: "main work" },
+  c3: { parents: ["b2"], msg: "feature work" },
+  d4: { parents: ["b2"], msg: "hotfix on main" },
+};
+
+const refs = {
+  "refs/heads/main": "b2",
+  HEAD: "refs/heads/main",
+};
+
+function createBranch(name, target) {
+  refs[`refs/heads/${name}`] = target;
+}
+
+function commitOnBranch(name, newCommitId) {
+  refs[`refs/heads/${name}`] = newCommitId;
+}
+
+console.log("start:", JSON.stringify(refs));
+createBranch("feature", refs["refs/heads/main"]);
+console.log("after branch:", JSON.stringify(refs));
+commitOnBranch("feature", "c3");
+console.log("feature moved:", JSON.stringify(refs));
+commitOnBranch("main", "d4");
+console.log("main moved independently:", JSON.stringify(refs));</pre>
+      <div class="out" id="o2"></div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="sec-head"><span class="sec-n">§04</span><h2>The index: why <code>git add</code> exists</h2></div>
+    <p>The index, or staging area, is the missing piece for many people learning Git. It is not the same as the working tree, and it is not yet the next commit. It is a separate table describing what tree Git should write when you commit.</p>
+    <p>That design lets Git stage part of your changes, leave other edits unstaged, and build the next snapshot deliberately instead of automatically committing the entire working directory.</p>
+
+    <div class="demo">
+      <div class="demo-lbl">Working tree vs index vs commit</div>
+      <div class="btn-row">
+        <button class="btn act" onclick="showIndexState('edit', this)">Edit files</button>
+        <button class="btn" onclick="showIndexState('stage', this)">Run git add</button>
+        <button class="btn" onclick="showIndexState('commit', this)">Commit</button>
+      </div>
+      <div class="index-grid" id="git-index-grid"></div>
+    </div>
+
+    <div class="callout.warn">The index is why Git can say “changes not staged for commit” and “changes to be committed” at the same time. That is not UI fluff. It reflects a real internal structure.</div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="sec-head"><span class="sec-n">§05</span><h2>Real Git goes further: packfiles, delta compression, reachability</h2></div>
+    <p>The simplified model above is enough to explain normal version control behavior, but real Git does more. Loose objects are often repacked into <strong>packfiles</strong> for space and transfer efficiency. Within a pack, Git may delta-compress similar objects to save disk and network bandwidth.</p>
+    <p>Git also relies on reachability. Objects remain in the repository as long as some ref, reflog entry, or other reachable object graph can still get to them. Garbage collection later prunes unreachable objects that are no longer needed.</p>
+    <div class="callout good">The everyday Git experience comes from a small, elegant model. The performance comes from layers built around that model, not from changing the model itself.</div>
+  </section>
+
+  <section class="section" id="s6">
+    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a tiny Git-like repository</h2></div>
+    <p>This final snippet combines the pieces: a content-addressed object store, an index, branches as refs, and commits as immutable snapshots. It is not Git, but it is close enough to show why commands like <code>add</code>, <code>commit</code>, <code>branch</code>, and <code>checkout</code> fit together the way they do. The simplified <code>checkout</code> below also reloads the working tree and index from the checked-out commit so branch state does not leak across checkouts.</p>
+
+    <div class="cb">
+      <div class="cb-head"><span>mini_git.js — add, commit, branch, checkout, log</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+      <pre class="code" id="c3">function fakeHash(type, payload) {
+  const text = type + "\0" + payload;
+  let h = 2166136261;
+  for (let i = 0; i &lt; text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+class MiniGit {
+  constructor() {
+    this.objects = new Map();
+    this.working = {};
+    this.index = {};
+    this.refs = { "refs/heads/main": null };
+    this.HEAD = "refs/heads/main";
+  }
+
+  put(type, payload) {
+    const id = fakeHash(type, JSON.stringify(payload));
+    if (!this.objects.has(id)) this.objects.set(id, { type, payload });
+    return id;
+  }
+
+  writeFile(path, text) {
+    this.working[path] = text;
+  }
+
+  add(path) {
+    const blobId = this.put("blob", this.working[path]);
+    this.index[path] = blobId;
+  }
+
+  readCommitTree(commitId) {
+    if (!commitId) return {};
+    const commit = this.objects.get(commitId).payload;
+    const tree = this.objects.get(commit.treeId).payload;
+    const files = {};
+    for (const entry of tree) {
+      files[entry.path] = entry.id;
+    }
+    return files;
+  }
+
+  commit(message) {
+    const entries = Object.keys(this.index).sort().map(path => ({
+      path, type: "blob", id: this.index[path]
+    }));
+    const treeId = this.put("tree", entries);
+    const parent = this.refs[this.HEAD];
+    const commitId = this.put("commit", { treeId, parent, message });
+    this.refs[this.HEAD] = commitId;
+    return commitId;
+  }
+
+  branch(name) {
+    this.refs[`refs/heads/${name}`] = this.refs[this.HEAD];
+  }
+
+  checkout(name) {
+    this.HEAD = `refs/heads/${name}`;
+    const files = this.readCommitTree(this.refs[this.HEAD]);
+    this.index = { ...files };
+    this.working = {};
+    for (const [path, blobId] of Object.entries(files)) {
+      this.working[path] = this.objects.get(blobId).payload;
+    }
+  }
+
+  log() {
+    const lines = [];
+    let at = this.refs[this.HEAD];
+    while (at) {
+      const commit = this.objects.get(at).payload;
+      lines.push(`${at} ${commit.message}`);
+      at = commit.parent;
+    }
+    return lines;
+  }
+}
+
+const repo = new MiniGit();
+repo.writeFile("README.md", "hello\n");
+repo.add("README.md");
+const c1 = repo.commit("initial");
+repo.branch("feature");
+
+repo.checkout("feature");
+repo.writeFile("README.md", "hello feature\n");
+repo.add("README.md");
+const c2 = repo.commit("feature edit");
+
+repo.checkout("main");
+repo.writeFile("notes.txt", "todo\n");
+repo.add("notes.txt");
+const c3 = repo.commit("main adds notes");
+
+console.log("main tip:", repo.refs["refs/heads/main"]);
+console.log("feature tip:", repo.refs["refs/heads/feature"]);
+console.log("feature log:");
+repo.checkout("feature");
+repo.log().forEach(line => console.log(" ", line));</pre>
+      <div class="out" id="o3"></div>
+    </div>
+
+    <footer>
+      <div class="label">Further reading</div>
+      <div class="links">
+        <a href="https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain">Pro Git — Plumbing and Porcelain</a>
+        <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Pro Git — Git Objects</a>
+        <a href="https://git-scm.com/book/en/v2/Git-Internals-Packfiles">Pro Git — Packfiles</a>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem">The demos use a small fake hash and a flattened tree format so the object model stays visible. Real Git uses stronger object IDs, nested trees, an index file format, packfiles, and more metadata.</div>
+    </footer>
+  </section>
+</div>
+
+<script>
+function runCode(cid, oid){
+  const raw = document.getElementById(cid).innerText;
+  const el = document.getElementById(oid);
+  el.className = 'out on';
+  const logs = [];
+  const con = {
+    log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' ')),
+    assert: (c, m) => { if (!c) logs.push('AssertionError: ' + m); }
+  };
+  try{
+    new Function('console', raw)(con);
+    el.textContent = logs.join('\n') || '(no output)';
+  }catch(e){
+    el.className = 'out on err';
+    el.textContent = '⚠ ' + e.message;
+  }
+}
+
+const GIT_STATES = {
+  c1: {
+    commit: { id: 'c1ab12ef', msg: 'initial', parents: [] },
+    objects: [
+      { id: 'c1ab12ef', type: 'commit', label: 'commit initial', x: 70, y: 60, reused: false },
+      { id: 't901e0aa', type: 'tree', label: 'root tree', x: 260, y: 60, reused: false },
+      { id: 'b7710ccd', type: 'blob', label: 'README.md', x: 470, y: 40, reused: false },
+      { id: 'tb1200aa', type: 'tree', label: 'src tree', x: 470, y: 115, reused: false },
+      { id: 'b9921acd', type: 'blob', label: 'src/app.js', x: 470, y: 190, reused: false }
+    ],
+    edges: [
+      ['c1ab12ef', 't901e0aa'],
+      ['t901e0aa', 'b7710ccd'],
+      ['t901e0aa', 'tb1200aa'],
+      ['tb1200aa', 'b9921acd']
+    ]
+  },
+  c2: {
+    commit: { id: 'c2ff31aa', msg: 'update app', parents: ['c1ab12ef'] },
+    objects: [
+      { id: 'c2ff31aa', type: 'commit', label: 'commit update app', x: 70, y: 60, reused: false },
+      { id: 'c1ab12ef', type: 'commit', label: 'parent c1', x: 70, y: 150, reused: true },
+      { id: 't2aa9980', type: 'tree', label: 'root tree', x: 260, y: 60, reused: false },
+      { id: 'b7710ccd', type: 'blob', label: 'README.md', x: 470, y: 40, reused: true },
+      { id: 'tb2200aa', type: 'tree', label: 'src tree', x: 470, y: 115, reused: false },
+      { id: 'b1234acd', type: 'blob', label: 'src/app.js', x: 470, y: 190, reused: false }
+    ],
+    edges: [
+      ['c2ff31aa', 't2aa9980'],
+      ['c2ff31aa', 'c1ab12ef'],
+      ['t2aa9980', 'b7710ccd'],
+      ['t2aa9980', 'tb2200aa'],
+      ['tb2200aa', 'b1234acd']
+    ]
+  },
+  c3: {
+    commit: { id: 'c3dd10aa', msg: 'add notes', parents: ['c2ff31aa'] },
+    objects: [
+      { id: 'c3dd10aa', type: 'commit', label: 'commit add notes', x: 70, y: 60, reused: false },
+      { id: 'c2ff31aa', type: 'commit', label: 'parent c2', x: 70, y: 150, reused: true },
+      { id: 't3bb0080', type: 'tree', label: 'root tree', x: 260, y: 60, reused: false },
+      { id: 'b7710ccd', type: 'blob', label: 'README.md', x: 470, y: 30, reused: true },
+      { id: 'tb2200aa', type: 'tree', label: 'src tree', x: 470, y: 100, reused: true },
+      { id: 'b1234acd', type: 'blob', label: 'src/app.js', x: 470, y: 170, reused: true },
+      { id: 'b5555001', type: 'blob', label: 'notes.txt', x: 470, y: 240, reused: false }
+    ],
+    edges: [
+      ['c3dd10aa', 't3bb0080'],
+      ['c3dd10aa', 'c2ff31aa'],
+      ['t3bb0080', 'b7710ccd'],
+      ['t3bb0080', 'tb2200aa'],
+      ['t3bb0080', 'b5555001'],
+      ['tb2200aa', 'b1234acd']
+    ]
+  }
+};
+
+function showGitState(name, btn){
+  document.querySelectorAll('#s2 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if(btn) btn.classList.add('act');
+  const state = GIT_STATES[name];
+  const svg = document.getElementById('git-objects-svg');
+  const byId = Object.fromEntries(state.objects.map(o => [o.id, o]));
+  let out = '';
+  for(const [from, to] of state.edges){
+    const a = byId[from], b = byId[to];
+    out += `<line x1="${a.x+58}" y1="${a.y+18}" x2="${b.x-18}" y2="${b.y+18}" stroke="var(--ink3)" stroke-width="2" />`;
+  }
+  for(const obj of state.objects){
+    const color = obj.type === 'commit' ? 'var(--steel)' : obj.type === 'tree' ? 'var(--green)' : 'var(--rust)';
+    const fill = obj.reused ? 'var(--purple-bg)' : 'var(--surface)';
+    const stroke = obj.reused ? 'var(--purple)' : color;
+    out += `<rect x="${obj.x}" y="${obj.y}" width="116" height="36" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+    out += `<text x="${obj.x+8}" y="${obj.y+14}" font-family="var(--mono)" font-size="10" fill="${stroke}">${obj.type}</text>`;
+    out += `<text x="${obj.x+8}" y="${obj.y+27}" font-family="var(--mono)" font-size="11" fill="var(--ink)">${obj.id.slice(0,7)}</text>`;
+  }
+  svg.innerHTML = out;
+  document.getElementById('git-objects-list').innerHTML = state.objects.map(obj => `
+    <div class="obj">
+      <strong>${obj.type}</strong> ${obj.id.slice(0,7)}<br>
+      ${obj.label}${obj.reused ? '<br><span style="color:var(--purple)">reused from an earlier commit</span>' : ''}
+    </div>
+  `).join('');
+}
+
+const BRANCH_STEPS = [
+  {
+    commits: [{id:'a1',x:110,msg:'initial'},{id:'b2',x:270,msg:'main work'}],
+    refs: { main:'b2', HEAD:'main' }
+  },
+  {
+    commits: [{id:'a1',x:110,msg:'initial'},{id:'b2',x:270,msg:'main work'}],
+    refs: { main:'b2', feature:'b2', HEAD:'main' }
+  },
+  {
+    commits: [{id:'a1',x:110,msg:'initial'},{id:'b2',x:270,msg:'main work'},{id:'c3',x:430,msg:'feature work'}],
+    edges: [['b2','c3']],
+    refs: { main:'b2', feature:'c3', HEAD:'feature' }
+  },
+  {
+    commits: [{id:'a1',x:110,msg:'initial'},{id:'b2',x:270,msg:'main work'},{id:'c3',x:430,msg:'feature work'},{id:'d4',x:430,y:150,msg:'main hotfix'}],
+    edges: [['b2','c3'],['b2','d4']],
+    refs: { main:'d4', feature:'c3', HEAD:'main' }
+  }
+];
+
+function showBranchStep(step, btn){
+  document.querySelectorAll('#s3 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if(btn) btn.classList.add('act');
+  const state = BRANCH_STEPS[step];
+  const svg = document.getElementById('git-refs-svg');
+  const commits = state.commits.map(c => ({ y: c.y || 85, ...c }));
+  const byId = Object.fromEntries(commits.map(c => [c.id, c]));
+  const explicitEdges = new Set((state.edges || []).map(([from, to]) => `${from}->${to}`));
+  let out = '';
+  for(let i = 1; i < commits.length; i++){
+    const prev = commits[i].id === 'd4' ? byId['b2'] : commits[i-1];
+    if(commits[i].id === 'd4') continue;
+    if(explicitEdges.has(`${prev.id}->${commits[i].id}`)) continue;
+    out += `<line x1="${prev.x}" y1="${prev.y}" x2="${commits[i].x}" y2="${commits[i].y}" stroke="var(--ink3)" stroke-width="3" />`;
+  }
+  for(const [from,to] of state.edges || []){
+    const a = byId[from], b = byId[to];
+    out += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--ink3)" stroke-width="3" />`;
+  }
+  for(const c of commits){
+    out += `<circle cx="${c.x}" cy="${c.y}" r="20" fill="var(--surface)" stroke="var(--steel)" stroke-width="3" />`;
+    out += `<text x="${c.x}" y="${c.y+4}" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--ink)">${c.id}</text>`;
+  }
+  let refY = 26;
+  for(const [name,target] of Object.entries(state.refs)){
+    if(name === 'HEAD') continue;
+    const c = byId[target];
+    out += `<rect x="${c.x-32}" y="${refY}" width="64" height="20" rx="10" fill="var(--green-bg)" stroke="var(--green)" />`;
+    out += `<text x="${c.x}" y="${refY+14}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--green)">${name}</text>`;
+    out += `<line x1="${c.x}" y1="${refY+20}" x2="${c.x}" y2="${c.y-20}" stroke="var(--green)" stroke-dasharray="3 3" />`;
+    refY += 28;
+  }
+  const headTarget = state.refs[state.refs.HEAD];
+  if(headTarget){
+    const c = byId[headTarget];
+    out += `<text x="${c.x+48}" y="${c.y-28}" font-family="var(--mono)" font-size="11" fill="var(--rust)">HEAD → ${state.refs.HEAD}</text>`;
+  }
+  svg.innerHTML = out;
+  document.getElementById('git-ref-list').innerHTML = Object.entries(state.refs).map(([name,target]) => `
+    <span class="ref-chip">${name}${target ? ` → ${target}` : ''}</span>
+  `).join('');
+}
+
+const INDEX_STATES = {
+  edit: [
+    { title:'Working tree', chips:['README.md modified','src/app.js modified'], note:'Your files on disk have changed.' },
+    { title:'Index', chips:['README.md old','src/app.js old'], note:'The next commit still points at the old blobs.' },
+    { title:'HEAD commit', chips:['README.md old','src/app.js old'], note:'History is unchanged.' }
+  ],
+  stage: [
+    { title:'Working tree', chips:['README.md modified','src/app.js modified'], note:'Edits still exist in the working copy.' },
+    { title:'Index', chips:['README.md new','src/app.js new'], note:'git add writes blobs and updates index entries describing the next tree Git will write.' },
+    { title:'HEAD commit', chips:['README.md old','src/app.js old'], note:'History still points at the previous snapshot.' }
+  ],
+  commit: [
+    { title:'Working tree', chips:['README.md modified','src/app.js modified'], note:'Often identical to the newly committed snapshot right after commit.' },
+    { title:'Index', chips:['README.md new','src/app.js new'], note:'The index now matches the new commit.' },
+    { title:'HEAD commit', chips:['README.md new','src/app.js new'], note:'HEAD moved to a commit pointing at the staged tree.' }
+  ]
+};
+
+function showIndexState(name, btn){
+  document.querySelectorAll('#s4 .btn-row .btn').forEach(b => b.classList.remove('act'));
+  if(btn) btn.classList.add('act');
+  document.getElementById('git-index-grid').innerHTML = INDEX_STATES[name].map(box => `
+    <div class="index-box">
+      <h3>${box.title}</h3>
+      <div>${box.chips.map(chip => `<span class="file-chip">${chip}</span>`).join('')}</div>
+      <div class="mini-note" style="margin-top:10px">${box.note}</div>
+    </div>
+  `).join('');
+}
+
+showGitState('c1', document.querySelector('#s2 .btn'));
+showBranchStep(0, document.querySelector('#s3 .btn'));
+showIndexState('edit', document.querySelector('#s4 .btn'));
+</script>
+</body>
+</html>

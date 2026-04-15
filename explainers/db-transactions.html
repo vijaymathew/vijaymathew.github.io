@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Transaction Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f9f7f3; --bg2:#f1ede4; --bg3:#e7e2d8; --bg4:#dad4c8;
+  --ink:#16140e; --ink2:#4e4a42; --ink3:#908a7e;
+  --rule:rgba(22,20,14,.09); --rule2:rgba(22,20,14,.17);
+  --red:#a81c1c;     --red-bg:#fdf1f1;   --red-bdr:#e8a0a0;
+  --blue:#0f3d7a;    --blue-bg:#eef4fd;  --blue-bdr:#9bbde8;
+  --green:#1a5c2e;   --green-bg:#eef8f1; --green-bdr:#8ecfa6;
+  --amber:#7a4800;   --amber-bg:#fdf5e6; --amber-bdr:#e0b86a;
+  --purple:#3e1a7a;  --purple-bg:#f3eefd;--purple-bdr:#b09ae0;
+  --teal:#0a5858;    --teal-bg:#edf8f8;  --teal-bdr:#7ec8c8;
+  --mono:'Fira Code',monospace; --sans:'Inter',system-ui,sans-serif; --serif:'Lora',Georgia,serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0f0e0b; --bg2:#171510; --bg3:#1f1d18; --bg4:#282521;
+  --ink:#e8e4da; --ink2:#a8a49a; --ink3:#68645a;
+  --rule:rgba(232,228,218,.07); --rule2:rgba(232,228,218,.14);
+  --red:#e07878;     --red-bg:#200808;   --red-bdr:#7a2020;
+  --blue:#78aae0;    --blue-bg:#081828;  --blue-bdr:#1e4080;
+  --green:#78c898;   --green-bg:#081808; --green-bdr:#1e5830;
+  --amber:#d4a050;   --amber-bg:#180e00; --amber-bdr:#583800;
+  --purple:#b090e0;  --purple-bg:#120828;--purple-bdr:#3e1880;
+  --teal:#50c0c0;    --teal-bg:#081818;  --teal-bdr:#0a5050;
+}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1}
+
+.page{max-width:860px;margin:0 auto;padding:0 1.75rem 6rem}
+
+/* ── HEADER ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:2px solid var(--ink)}
+.tb-brand{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink)}
+.tb-meta{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.6}
+
+/* ── HERO ── */
+.hero{padding:3.5rem 0 2.5rem}
+.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink3);margin-bottom:1rem}
+.hero h1{font-family:var(--serif);font-size:clamp(2rem,5vw,3.2rem);font-weight:600;line-height:1.1;letter-spacing:-.015em;margin-bottom:1rem}
+.hero h1 em{color:var(--blue);font-style:italic;font-weight:400}
+.hero-sub{font-size:16px;line-height:1.8;color:var(--ink2);max-width:580px;margin-bottom:2rem}
+.arc-row{display:flex;gap:0;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin-bottom:1.6rem}
+.arc-cell{flex:1;padding:.6rem .8rem;border-right:1px solid var(--rule2);font-family:var(--mono);font-size:11px}
+.arc-cell:last-child{border-right:none}
+.arc-label{color:var(--ink3);font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+.arc-name{color:var(--ink);font-weight:500;font-size:12px}
+.arc-techs{color:var(--ink3);font-size:10px;margin-top:2px}
+
+/* ── TOC ── */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:2rem 0 3rem}
+.toc a{display:flex;gap:9px;padding:8px 13px;background:var(--bg2);border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .1s,color .1s}
+.toc a:nth-child(2n){border-right:none}
+.toc a:nth-last-child(-n+2){border-bottom:none}
+.toc a:hover{background:var(--bg3);color:var(--ink)}
+.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
+
+/* ── SECTION ── */
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.8rem;border-bottom:1px solid var(--rule2);margin-bottom:1.4rem}
+.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
+h2{font-family:var(--serif);font-size:1.8rem;font-weight:600;letter-spacing:-.01em}
+h3{font-family:var(--sans);font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin:1.4rem 0 .5rem}
+p{font-size:15.5px;line-height:1.8;color:var(--ink2);margin-bottom:.9rem}
+p strong{color:var(--ink);font-weight:500}
+a{color:var(--blue)}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg3);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;color:var(--ink)}
+
+/* ── CALLOUT ── */
+.callout{border-left:3px solid var(--rule2);padding:.7rem 1rem;margin:1rem 0;font-size:14.5px;line-height:1.7;color:var(--ink2);background:var(--bg2);border-radius:0 4px 4px 0}
+.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.callout.blue{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.callout.green{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.callout.amber{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.callout.purple{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
+
+/* ── CODE BLOCKS ── */
+.cb{border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin:1rem 0 1.8rem}
+.cb-head{display:flex;justify-content:space-between;align-items:center;padding:6px 13px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.run-btn{background:var(--ink);color:var(--bg);border:none;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 10px;cursor:pointer;letter-spacing:.05em;transition:opacity .12s}
+.run-btn:hover{opacity:.7}
+pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.78;overflow-x:auto;color:var(--ink);margin:0}
+.out{display:none;background:var(--green-bg);border-top:1px solid var(--rule);padding:.75rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.78;color:var(--green);white-space:pre-wrap}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.kw{color:var(--purple)}.fn{color:var(--blue)}.str{color:var(--green)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--amber)}.cls{color:var(--teal)}
+
+/* ── DEMO ── */
+.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:5px;padding:1.2rem;margin:1rem 0 1.8rem}
+.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem}
+button.btn{font-family:var(--mono);font-size:12px;padding:4px 11px;border-radius:4px;border:1px solid var(--rule2);background:transparent;color:var(--ink2);cursor:pointer;transition:background .1s,color .1s}
+button.btn:hover{background:var(--bg3);color:var(--ink)}
+button.btn.act{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.btn.red{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
+button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+button.btn.blue{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bdr)}
+
+/* ── TIMELINE VIZ ── */
+.timeline{position:relative;margin:.6rem 0}
+.tl-lane{display:flex;align-items:center;gap:0;margin:3px 0;position:relative}
+.tl-name{font-family:var(--mono);font-size:11px;color:var(--ink2);min-width:30px;max-width:30px;text-align:right;padding-right:8px;flex-shrink:0}
+.tl-track{flex:1;height:28px;position:relative;background:var(--bg3);border-radius:3px;overflow:hidden}
+.tl-tick{position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:500;border-radius:2px;transition:all .25s;cursor:default}
+.tl-axis{display:flex;margin:4px 0 0 38px;font-family:var(--mono);font-size:9px;color:var(--ink3)}
+.tl-axis span{flex:1;text-align:center}
+
+/* ── TX STATUS ── */
+.tx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:.6rem 0}
+.tx-card{border:1px solid var(--rule2);border-radius:4px;padding:.6rem .8rem;font-family:var(--mono);font-size:12px}
+.tx-card .tx-id{font-weight:500;margin-bottom:.3rem}
+.tx-card .tx-row{display:flex;justify-content:space-between;color:var(--ink2);font-size:11px;margin:1px 0}
+.tx-card.running{border-color:var(--blue-bdr);background:var(--blue-bg)}
+.tx-card.committed{border-color:var(--green-bdr);background:var(--green-bg)}
+.tx-card.aborted{border-color:var(--red-bdr);background:var(--red-bg)}
+.tx-card.waiting{border-color:var(--amber-bdr);background:var(--amber-bg)}
+
+/* ── LOCK TABLE ── */
+.lock-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin:.6rem 0}
+.lock-table th{padding:5px 10px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.lock-table td{padding:5px 10px;border:1px solid var(--rule);color:var(--ink2)}
+.lock-table td.res{color:var(--ink);font-weight:500}
+.badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:3px;font-family:var(--mono);font-weight:500}
+.badge.S{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bdr)}
+.badge.X{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bdr)}
+.badge.wait{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bdr)}
+.badge.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bdr)}
+
+/* ── VERSION CHAIN ── */
+.ver-chain{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:.4rem 0;font-family:var(--mono);font-size:12px}
+.ver-node{padding:4px 10px;border-radius:4px;border:1px solid var(--rule2);background:var(--bg);color:var(--ink2);white-space:nowrap}
+.ver-node.current{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+.ver-node.visible{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bdr)}
+.ver-node.old{opacity:.5}
+.ver-arrow{color:var(--ink3)}
+
+/* ── WAL LOG ── */
+.wal-log{border:1px solid var(--rule2);border-radius:4px;overflow:hidden;font-family:var(--mono);font-size:12px;margin:.6rem 0}
+.wal-head{padding:5px 12px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);display:flex;justify-content:space-between}
+.wal-entry{display:grid;grid-template-columns:60px 80px 1fr;gap:0;border-bottom:1px solid var(--rule)}
+.wal-entry:last-child{border-bottom:none}
+.wal-entry>div{padding:4px 10px;border-right:1px solid var(--rule)}
+.wal-entry>div:last-child{border-right:none}
+.wal-entry.commit{background:var(--green-bg)}
+.wal-entry.abort{background:var(--red-bg)}
+.wal-entry.checkpoint{background:var(--amber-bg)}
+.wal-entry.active{background:var(--blue-bg)}
+.wal-lsn{color:var(--ink3)}
+.wal-type{font-weight:500}
+
+/* ── 2PC DIAGRAM ── */
+.phase-diagram{display:grid;grid-template-columns:140px 1fr;gap:10px;margin:.5rem 0;font-family:var(--mono);font-size:12px}
+.phase-label{padding:.4rem .6rem;border-radius:4px;font-size:11px;font-weight:500;display:flex;align-items:center}
+.phase-nodes{display:flex;gap:6px;flex-wrap:wrap}
+.node-box{padding:4px 10px;border-radius:4px;border:1px solid var(--rule2);font-size:11px;text-align:center;min-width:80px}
+.node-box.coordinator{border-color:var(--blue-bdr);background:var(--blue-bg);color:var(--blue)}
+.node-box.ready{border-color:var(--green-bdr);background:var(--green-bg);color:var(--green)}
+.node-box.abort{border-color:var(--red-bdr);background:var(--red-bg);color:var(--red)}
+.node-box.waiting{border-color:var(--amber-bdr);background:var(--amber-bg);color:var(--amber)}
+.node-box.committed{border-color:var(--teal-bdr);background:var(--teal-bg);color:var(--teal)}
+.msg-arrow{color:var(--ink3);font-size:16px;display:flex;align-items:center}
+
+/* slider */
+.slider-row{display:flex;align-items:center;gap:10px;margin:.5rem 0}
+.slider-row label{font-family:var(--mono);font-size:12px;color:var(--ink2);min-width:100px}
+.slider-row input[type=range]{flex:1;accent-color:var(--blue)}
+.slider-val{font-family:var(--mono);font-size:12px;color:var(--blue);min-width:40px;text-align:right}
+
+/* step nav */
+.step-nav{display:flex;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;margin-bottom:.8rem}
+.step-btn{flex:1;padding:6px 4px;font-family:var(--mono);font-size:11px;border:none;border-right:1px solid var(--rule2);background:var(--bg2);color:var(--ink3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.act{background:var(--ink);color:var(--bg)}
+.step-panel{display:none}.step-panel.on{display:block}
+
+/* comparison table */
+.cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:.8rem 0}
+.cmp-table th{padding:7px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.cmp-table td{padding:7px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
+.cmp-table td.name{color:var(--ink);font-weight:500}
+.cmp-table td.good{color:var(--green)}
+.cmp-table td.bad{color:var(--red)}
+.cmp-table td.ok{color:var(--amber)}
+.cmp-table tr.hi td{background:var(--blue-bg)}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="topbar">
+  <span class="tb-brand">db.transactions</span>
+  <span class="tb-meta">All code runs in your browser · No libraries</span>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">Interactive explainer · Database internals</div>
+  <h1>Transaction Control<br><em>from first principles</em></h1>
+  <p class="hero-sub">How does a database stay correct when a thousand transactions run at once — and a server crashes mid-write? Five mechanisms, one coherent story: isolation, durability, and distributed atomicity.</p>
+  <div class="arc-row">
+    <div class="arc-cell"><div class="arc-label">Isolation</div><div class="arc-name">2PL</div><div class="arc-techs">pessimistic locking</div></div>
+    <div class="arc-cell"><div class="arc-label">Isolation</div><div class="arc-name">OCC</div><div class="arc-techs">optimistic, validate on commit</div></div>
+    <div class="arc-cell"><div class="arc-label">Isolation</div><div class="arc-name">MVCC</div><div class="arc-techs">snapshot reads, no read locks</div></div>
+    <div class="arc-cell"><div class="arc-label">Durability</div><div class="arc-name">WAL</div><div class="arc-techs">write-ahead logging</div></div>
+    <div class="arc-cell"><div class="arc-label">Distributed</div><div class="arc-name">2PC / 3PC</div><div class="arc-techs">atomic commit across nodes</div></div>
+  </div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--ink3)">ACID = Atomicity · Consistency · Isolation · Durability</div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>The problem: anomalies</a>
+  <a href="#s2"><span class="toc-n">02</span>Two-Phase Locking (2PL)</a>
+  <a href="#s3"><span class="toc-n">03</span>Optimistic Concurrency Control</a>
+  <a href="#s4"><span class="toc-n">04</span>Multi-Version Concurrency Control</a>
+  <a href="#s5"><span class="toc-n">05</span>Write-Ahead Logging (WAL)</a>
+  <a href="#s6"><span class="toc-n">06</span>Two-Phase Commit (2PC)</a>
+  <a href="#s7"><span class="toc-n">07</span>Three-Phase Commit (3PC)</a>
+  <a href="#s8"><span class="toc-n">08</span>Comparison and real systems</a>
+</nav>
+
+<!-- ══ S1: ANOMALIES ══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: concurrency anomalies</h2></div>
+  <p>Without any concurrency control, concurrent transactions produce incorrect results. The four anomalies below are the classic starting point, but they are not the whole story. Real isolation levels are ultimately judged by whether they permit <strong>serialization anomalies</strong> such as write skew, not just by this short list.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Anomaly explorer — click each to see what goes wrong</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showAnomaly('dirty',this)">Dirty read</button>
+      <button class="btn" onclick="showAnomaly('nonrep',this)">Non-repeatable read</button>
+      <button class="btn" onclick="showAnomaly('phantom',this)">Phantom read</button>
+      <button class="btn" onclick="showAnomaly('lost',this)">Lost update</button>
+    </div>
+    <div id="anomaly-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>anomalies.js — simulating all four concurrency anomalies</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// Simulate concurrency anomalies without any concurrency control</span>
+<span class="cmt">// Each function shows what goes wrong when two transactions interleave</span>
+
+<span class="kw">function</span> <span class="fn">dirtyRead</span>() {
+  <span class="cmt">// T2 reads a value written by T1 before T1 commits</span>
+  <span class="cmt">// If T1 aborts, T2 has seen data that never existed</span>
+  <span class="kw">let</span> balance = <span class="num">1000</span>;
+  <span class="kw">const</span> T1_write = () =&gt; { balance = <span class="num">1500</span>; }; <span class="cmt">// T1: transfer in (not yet committed)</span>
+  <span class="kw">const</span> T2_read  = () =&gt; balance;              <span class="cmt">// T2: reads T1's uncommitted write</span>
+  <span class="kw">const</span> T1_abort = () =&gt; { balance = <span class="num">1000</span>; }; <span class="cmt">// T1: rolls back</span>
+  T1_write();
+  <span class="kw">const</span> seen = T2_read();  <span class="cmt">// T2 sees 1500</span>
+  T1_abort();
+  console.log(<span class="str">`Dirty read: T2 saw ${seen}, actual=${balance} ← T2 used phantom money!`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">nonRepeatableRead</span>() {
+  <span class="cmt">// T1 reads the same row twice; T2 modifies it between the reads</span>
+  <span class="kw">let</span> price = <span class="num">100</span>;
+  <span class="kw">const</span> read1 = price;          <span class="cmt">// T1 first read</span>
+  price = <span class="num">120</span>;                  <span class="cmt">// T2 updates and commits</span>
+  <span class="kw">const</span> read2 = price;          <span class="cmt">// T1 second read — different result!</span>
+  console.log(<span class="str">`Non-repeatable read: T1 read price as ${read1} then ${read2} in one transaction`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">phantomRead</span>() {
+  <span class="cmt">// T1 runs a query twice; T2 inserts rows matching the predicate between them</span>
+  <span class="kw">let</span> orders = [{ id:<span class="num">1</span>, amount:<span class="num">50</span> }, { id:<span class="num">2</span>, amount:<span class="num">80</span> }];
+  <span class="kw">const</span> query = () =&gt; orders.filter(o =&gt; o.amount &gt; <span class="num">40</span>);
+  <span class="kw">const</span> scan1 = query();         <span class="cmt">// T1 first scan: 2 rows</span>
+  orders.push({ id:<span class="num">3</span>, amount:<span class="num">200</span> }); <span class="cmt">// T2 inserts a new large order</span>
+  <span class="kw">const</span> scan2 = query();         <span class="cmt">// T1 second scan: 3 rows — phantom appeared!</span>
+  console.log(<span class="str">`Phantom read: first scan=${scan1.length} rows, second scan=${scan2.length} rows`</span>);
+}
+
+<span class="kw">function</span> <span class="fn">lostUpdate</span>() {
+  <span class="cmt">// Both T1 and T2 read-then-write; one write overwrites the other</span>
+  <span class="kw">let</span> views = <span class="num">1000</span>;
+  <span class="kw">const</span> v1 = views;  <span class="cmt">// T1 reads 1000</span>
+  <span class="kw">const</span> v2 = views;  <span class="cmt">// T2 reads 1000</span>
+  views = v1 + <span class="num">1</span>;   <span class="cmt">// T1 writes 1001</span>
+  views = v2 + <span class="num">1</span>;   <span class="cmt">// T2 writes 1001 — T1's increment is LOST</span>
+  console.log(<span class="str">`Lost update: after 2 increments, views=${views} (should be 1002)`</span>);
+}
+
+<span class="fn">dirtyRead</span>();
+<span class="fn">nonRepeatableRead</span>();
+<span class="fn">phantomRead</span>();
+<span class="fn">lostUpdate</span>();
+
+<span class="cmt">// SQL isolation levels and what they prevent:</span>
+<span class="kw">const</span> levels = [
+  { level: <span class="str">"READ UNCOMMITTED"</span>, dirty: <span class="str">"✗"</span>, nonrep: <span class="str">"✗"</span>, phantom: <span class="str">"✗"</span>, lost: <span class="str">"✗"</span> },
+  { level: <span class="str">"READ COMMITTED"</span>,   dirty: <span class="str">"✓"</span>, nonrep: <span class="str">"✗"</span>, phantom: <span class="str">"✗"</span>, lost: <span class="str">"✗"</span> },
+  { level: <span class="str">"REPEATABLE READ"</span>,   dirty: <span class="str">"✓"</span>, nonrep: <span class="str">"✓"</span>, phantom: <span class="str">"✗"</span>, lost: <span class="str">"✓"</span> },
+  { level: <span class="str">"SERIALIZABLE"</span>,      dirty: <span class="str">"✓"</span>, nonrep: <span class="str">"✓"</span>, phantom: <span class="str">"✓"</span>, lost: <span class="str">"✓"</span> },
+];
+console.log(<span class="str">"\nIsolation levels (✓=prevented, ✗=possible):"</span>);
+levels.forEach(l =&gt;
+  console.log(<span class="str">`  ${l.level.padEnd(20)} dirty=${l.dirty} nonrep=${l.nonrep} phantom=${l.phantom} lost=${l.lost}`</span>));</pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ══ S2: 2PL ══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>Two-Phase Locking (2PL)</h2></div>
+  <p>2PL is the classic pessimistic approach. Every transaction must acquire a <strong>shared lock (S)</strong> before reading a resource and an <strong>exclusive lock (X)</strong> before writing. The "two phases" are: a <em>growing phase</em> where locks are only acquired, and a <em>shrinking phase</em> where locks are only released. Once you release any lock, you can't acquire new ones.</p>
+  <p>This strict ordering guarantees serializability — the execution is equivalent to some serial order. The cost: <strong>deadlocks</strong>. If T1 holds X on A and waits for B, while T2 holds X on B and waits for A, neither can proceed. The database must detect and break the cycle by aborting one transaction.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">2PL lock manager — step through a scenario</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="show2PL(0,this)">T1 reads A</button>
+      <button class="step-btn" onclick="show2PL(1,this)">T2 reads A</button>
+      <button class="step-btn" onclick="show2PL(2,this)">T1 writes A</button>
+      <button class="step-btn" onclick="show2PL(3,this)">T2 writes A</button>
+      <button class="step-btn" onclick="show2PL(4,this)">T1 commits</button>
+      <button class="step-btn" onclick="show2PL(5,this)">T2 proceeds</button>
+    </div>
+    <div id="tpl-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>two_phase_locking.js — lock manager with deadlock detection</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// Two-Phase Locking: acquire locks (growing), then release (shrinking)</span>
+<span class="cmt">// Strict 2PL: hold ALL locks until commit/abort (used by most real DBs)</span>
+
+<span class="kw">class</span> <span class="cls">LockManager</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.locks   = <span class="kw">new</span> Map(); <span class="cmt">// resource → { holders: Set, waiters: [] }</span>
+    <span class="kw">this</span>.txLocks = <span class="kw">new</span> Map(); <span class="cmt">// txId → Set of resources held</span>
+    <span class="kw">this</span>.waitsFor= <span class="kw">new</span> Map(); <span class="cmt">// txId → txId (waiting for)</span>
+  }
+
+  <span class="fn">_getLock</span>(resource) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.locks.has(resource))
+      <span class="kw">this</span>.locks.set(resource, { mode: <span class="kw">null</span>, holders: <span class="kw">new</span> Set(), waiters: [] });
+    <span class="kw">return this</span>.locks.get(resource);
+  }
+
+  <span class="fn">acquire</span>(txId, resource, mode) {
+    <span class="kw">const</span> lock = <span class="kw">this</span>.<span class="fn">_getLock</span>(resource);
+    <span class="kw">const</span> compatible = (existing, requested) =&gt;
+      existing === <span class="kw">null</span> || (existing === <span class="str">'S'</span> && requested === <span class="str">'S'</span>);
+
+    <span class="kw">if</span> (<span class="fn">compatible</span>(lock.mode, mode) || lock.holders.has(txId)) {
+      lock.holders.add(txId);
+      lock.mode = lock.holders.size &gt; <span class="num">1</span> ? <span class="str">'S'</span> : mode;
+      <span class="kw">if</span> (!<span class="kw">this</span>.txLocks.has(txId)) <span class="kw">this</span>.txLocks.set(txId, <span class="kw">new</span> Set());
+      <span class="kw">this</span>.txLocks.get(txId).add(resource);
+      console.log(<span class="str">`  T${txId} acquired ${mode}-lock on ${resource}`</span>);
+      <span class="kw">return true</span>;
+    }
+    <span class="cmt">// Must wait — record waits-for for deadlock detection</span>
+    lock.waiters.push({ txId, mode });
+    <span class="kw">this</span>.waitsFor.set(txId, [...lock.holders][<span class="num">0</span>]);
+    console.log(<span class="str">`  T${txId} WAITING for ${mode}-lock on ${resource} (held by T${[...lock.holders][0]})`</span>);
+    <span class="kw">return false</span>;
+  }
+
+  <span class="fn">release</span>(txId) {
+    <span class="kw">const</span> held = <span class="kw">this</span>.txLocks.get(txId) || <span class="kw">new</span> Set();
+    <span class="kw">for</span> (<span class="kw">const</span> res <span class="kw">of</span> held) {
+      <span class="kw">const</span> lock = <span class="kw">this</span>.locks.get(res);
+      lock.holders.delete(txId);
+      <span class="kw">if</span> (lock.holders.size === <span class="num">0</span>) {
+        lock.mode = <span class="kw">null</span>;
+        <span class="kw">const</span> next = lock.waiters.shift();
+        <span class="kw">if</span> (next) {
+          lock.holders.add(next.txId); lock.mode = next.mode;
+          <span class="kw">this</span>.waitsFor.delete(next.txId);
+          console.log(<span class="str">`  T${next.txId} unblocked — acquired ${next.mode}-lock on ${res}`</span>);
+        }
+      }
+    }
+    <span class="kw">this</span>.txLocks.delete(txId);
+    console.log(<span class="str">`  T${txId} released all locks`</span>);
+  }
+
+  <span class="fn">detectDeadlock</span>() {
+    <span class="cmt">// DFS on waits-for graph looking for a cycle</span>
+    <span class="kw">const</span> visited = <span class="kw">new</span> Set(), stack = <span class="kw">new</span> Set();
+    <span class="kw">const</span> hasCycle = (node) =&gt; {
+      <span class="kw">if</span> (stack.has(node)) <span class="kw">return true</span>;
+      <span class="kw">if</span> (visited.has(node)) <span class="kw">return false</span>;
+      visited.add(node); stack.add(node);
+      <span class="kw">const</span> next = <span class="kw">this</span>.waitsFor.get(node);
+      <span class="kw">if</span> (next && <span class="fn">hasCycle</span>(next)) <span class="kw">return true</span>;
+      stack.delete(node); <span class="kw">return false</span>;
+    };
+    <span class="kw">for</span> (<span class="kw">const</span> tx <span class="kw">of</span> <span class="kw">this</span>.waitsFor.keys())
+      <span class="kw">if</span> (<span class="fn">hasCycle</span>(tx)) <span class="kw">return true</span>;
+    <span class="kw">return false</span>;
+  }
+}
+
+<span class="kw">const</span> lm = <span class="kw">new</span> <span class="cls">LockManager</span>();
+console.log(<span class="str">"=== Normal 2PL scenario ==="</span>);
+lm.<span class="fn">acquire</span>(<span class="num">1</span>, <span class="str">"account_A"</span>, <span class="str">"S"</span>); <span class="cmt">// T1 reads A</span>
+lm.<span class="fn">acquire</span>(<span class="num">2</span>, <span class="str">"account_A"</span>, <span class="str">"S"</span>); <span class="cmt">// T2 reads A — compatible, both get S-lock</span>
+lm.<span class="fn">acquire</span>(<span class="num">1</span>, <span class="str">"account_B"</span>, <span class="str">"X"</span>); <span class="cmt">// T1 writes B — no one holds B, granted</span>
+lm.<span class="fn">acquire</span>(<span class="num">2</span>, <span class="str">"account_B"</span>, <span class="str">"X"</span>); <span class="cmt">// T2 wants X on B — must wait for T1</span>
+console.log(<span class="str">`Deadlock detected: ${lm.detectDeadlock()}`</span>);
+lm.<span class="fn">release</span>(<span class="num">1</span>);                      <span class="cmt">// T1 commits, releases all locks</span>
+
+console.log(<span class="str">"\n=== Deadlock scenario ==="</span>);
+<span class="kw">const</span> lm2 = <span class="kw">new</span> <span class="cls">LockManager</span>();
+lm2.<span class="fn">acquire</span>(<span class="num">1</span>, <span class="str">"A"</span>, <span class="str">"X"</span>); <span class="cmt">// T1 holds A</span>
+lm2.<span class="fn">acquire</span>(<span class="num">2</span>, <span class="str">"B"</span>, <span class="str">"X"</span>); <span class="cmt">// T2 holds B</span>
+lm2.<span class="fn">acquire</span>(<span class="num">1</span>, <span class="str">"B"</span>, <span class="str">"X"</span>); <span class="cmt">// T1 waits for B (held by T2)</span>
+lm2.<span class="fn">acquire</span>(<span class="num">2</span>, <span class="str">"A"</span>, <span class="str">"X"</span>); <span class="cmt">// T2 waits for A (held by T1) → CYCLE</span>
+console.log(<span class="str">`Deadlock detected: ${lm2.detectDeadlock()} → abort one transaction`</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ══ S3: OCC ══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>Optimistic Concurrency Control (OCC)</h2></div>
+  <p>OCC assumes conflicts are <em>rare</em>. Instead of blocking on locks, every transaction executes freely — reads and writes go to a private workspace. At commit time, a <strong>validation phase</strong> checks whether any conflicts actually occurred. If not, the writes are installed. If yes, the transaction is aborted and retried.</p>
+  <p>OCC has three phases: <strong>Read</strong> (execute freely, track read-set and write-set), <strong>Validate</strong> (check for conflicts with recently committed transactions), <strong>Write</strong> (install changes atomically if validation passes). A correct validator must reject both read/write conflicts and write/write conflicts that would otherwise collapse into last-writer-wins.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">OCC validation — run transactions and see which pass</div>
+    <div class="btn-row">
+      <button class="btn blue" onclick="runOCC()">&#9654; Run new transactions</button>
+      <button class="btn" onclick="resetOCC()">Reset</button>
+    </div>
+    <div id="occ-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>occ.js — optimistic concurrency control with validation</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// Optimistic Concurrency Control — three phases: Read, Validate, Write</span>
+<span class="cmt">// No locks during execution. Conflicts detected only at commit time.</span>
+
+<span class="kw">class</span> <span class="cls">OCCManager</span> {
+  <span class="fn">constructor</span>(db) {
+    <span class="kw">this</span>.db        = { ...db };    <span class="cmt">// shared database state</span>
+    <span class="kw">this</span>.committed = [];           <span class="cmt">// list of recently committed txns {writeSet, endTime}</span>
+    <span class="kw">this</span>.clock     = <span class="num">0</span>;
+  }
+
+  <span class="fn">begin</span>() {
+    <span class="kw">return</span> { id: ++<span class="kw">this</span>.clock, startTime: <span class="kw">this</span>.clock, readSet: <span class="kw">new</span> Set(), writeSet: <span class="kw">new</span> Map(), workspace: { ...<span class="kw">this</span>.db } };
+  }
+
+  <span class="fn">read</span>(tx, key) {
+    tx.readSet.add(key);
+    <span class="kw">return</span> tx.workspace[key]; <span class="cmt">// reads from private workspace snapshot</span>
+  }
+
+  <span class="fn">write</span>(tx, key, value) {
+    tx.writeSet.set(key, value);
+    tx.workspace[key] = value; <span class="cmt">// buffered in private workspace, not committed yet</span>
+  }
+
+  <span class="fn">validate</span>(tx) {
+    tx.validationTime = ++<span class="kw">this</span>.clock;
+    <span class="cmt">// For every committed txn whose interval overlaps ours:</span>
+    <span class="cmt">// its write-set must not intersect our read-set or write-set</span>
+    <span class="kw">for</span> (<span class="kw">const</span> committed <span class="kw">of</span> <span class="kw">this</span>.committed) {
+      <span class="kw">if</span> (committed.endTime &lt;= tx.startTime) <span class="kw">continue</span>; <span class="cmt">// committed before we started</span>
+      <span class="kw">for</span> (<span class="kw">const</span> key <span class="kw">of</span> committed.writeSet.keys()) {
+        <span class="kw">if</span> (tx.readSet.has(key)) {
+          console.log(<span class="str">`  T${tx.id} CONFLICT: committed T${committed.id} wrote '${key}' which T${tx.id} read → ABORT`</span>);
+          <span class="kw">return false</span>;
+        }
+        <span class="kw">if</span> (tx.writeSet.has(key)) {
+          console.log(<span class="str">`  T${tx.id} CONFLICT: committed T${committed.id} also wrote '${key}' → ABORT`</span>);
+          <span class="kw">return false</span>;
+        }
+      }
+    }
+    <span class="kw">return true</span>;
+  }
+
+  <span class="fn">commit</span>(tx) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.<span class="fn">validate</span>(tx)) <span class="kw">return false</span>;
+    <span class="cmt">// Write phase: install all buffered writes atomically</span>
+    <span class="kw">for</span> (<span class="kw">const</span> [key, val] <span class="kw">of</span> tx.writeSet)
+      <span class="kw">this</span>.db[key] = val;
+    tx.endTime = ++<span class="kw">this</span>.clock;
+    <span class="kw">this</span>.committed.push(tx);
+    console.log(<span class="str">`  T${tx.id} COMMITTED. DB: ${JSON.stringify(this.db)}`</span>);
+    <span class="kw">return true</span>;
+  }
+}
+
+<span class="kw">const</span> occ = <span class="kw">new</span> <span class="cls">OCCManager</span>({ balance_A: <span class="num">1000</span>, balance_B: <span class="num">500</span> });
+
+console.log(<span class="str">"=== Scenario 1: No conflict (different keys) ==="</span>);
+<span class="kw">const</span> t1 = occ.<span class="fn">begin</span>();
+<span class="kw">const</span> t2 = occ.<span class="fn">begin</span>();
+occ.<span class="fn">read</span>(t1, <span class="str">"balance_A"</span>);  occ.<span class="fn">write</span>(t1, <span class="str">"balance_A"</span>, <span class="num">900</span>);
+occ.<span class="fn">read</span>(t2, <span class="str">"balance_B"</span>);  occ.<span class="fn">write</span>(t2, <span class="str">"balance_B"</span>, <span class="num">600</span>);
+occ.<span class="fn">commit</span>(t1); <span class="cmt">// T1 commits first</span>
+occ.<span class="fn">commit</span>(t2); <span class="cmt">// T2 commits — no overlap in read/write sets</span>
+
+console.log(<span class="str">"\n=== Scenario 2: Write-Read conflict ==="</span>);
+<span class="kw">const</span> occ2 = <span class="kw">new</span> <span class="cls">OCCManager</span>({ stock: <span class="num">10</span> });
+<span class="kw">const</span> ta = occ2.<span class="fn">begin</span>();
+<span class="kw">const</span> tb = occ2.<span class="fn">begin</span>();
+occ2.<span class="fn">read</span>(ta, <span class="str">"stock"</span>);   occ2.<span class="fn">write</span>(ta, <span class="str">"stock"</span>, <span class="num">9</span>);   <span class="cmt">// buy 1 unit</span>
+occ2.<span class="fn">read</span>(tb, <span class="str">"stock"</span>);   occ2.<span class="fn">write</span>(tb, <span class="str">"stock"</span>, <span class="num">9</span>);   <span class="cmt">// also buy 1 unit</span>
+occ2.<span class="fn">commit</span>(ta); <span class="cmt">// ta commits: stock = 9</span>
+occ2.<span class="fn">commit</span>(tb); <span class="cmt">// tb: ta wrote 'stock' which tb read → ABORT, retry!</span></pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ══ S4: MVCC ══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>Multi-Version Concurrency Control (MVCC)</h2></div>
+  <p>MVCC is the approach used by PostgreSQL, MySQL InnoDB, Oracle, and most modern databases. Instead of locking rows during reads, each transaction gets a <strong>consistent snapshot</strong> of the database as it existed at the transaction's start time. Writes create new versions; readers see the version that was current when their transaction began, plus their <em>own</em> writes.</p>
+  <p>The result: <strong>readers never block writers, and writers never block readers</strong>. A long-running read-only query never holds up a write transaction. The cost is version storage — old versions must eventually be garbage-collected (PostgreSQL calls this <code>VACUUM</code>). Snapshot-based MVCC is great for read concurrency, but it is <strong>not automatically serializable</strong>; write skew is the classic counterexample.</p>
+  <div class="callout green">Snapshot isolation prevents many familiar anomalies, but two transactions can still each read an old consistent snapshot, make different writes, and jointly violate a business rule. That is why systems like PostgreSQL still distinguish <code>REPEATABLE READ</code> from true <code>SERIALIZABLE</code>.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">MVCC version chain — click a transaction to see what it reads</div>
+    <div id="mvcc-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>mvcc.js — snapshot isolation with a version chain</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// MVCC: every write creates a new version; reads see the snapshot at tx start</span>
+<span class="cmt">// plus the transaction's own writes. This is snapshot isolation, not full serializability.</span>
+<span class="cmt">// Used by: PostgreSQL, MySQL InnoDB, Oracle, CockroachDB (with engine-specific details)</span>
+
+<span class="kw">class</span> <span class="cls">MVCCDatabase</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.versions = <span class="kw">new</span> Map(); <span class="cmt">// key → [{value, xmin, xmax}] (version chain)</span>
+    <span class="kw">this</span>.txCounter = <span class="num">0</span>;
+    <span class="kw">this</span>.activeIds  = <span class="kw">new</span> Set();
+  }
+
+  <span class="fn">begin</span>() {
+    <span class="kw">const</span> txId = ++<span class="kw">this</span>.txCounter;
+    <span class="kw">this</span>.activeIds.add(txId);
+    <span class="cmt">// Snapshot = current committed txId + set of in-progress txns at begin time</span>
+    <span class="kw">return</span> { txId, snapshotMin: txId, activeTxns: <span class="kw">new</span> Set(<span class="kw">this</span>.activeIds) };
+  }
+
+  <span class="fn">write</span>(key, value, txId) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.versions.has(key)) <span class="kw">this</span>.versions.set(key, []);
+    <span class="kw">const</span> chain = <span class="kw">this</span>.versions.get(key);
+    <span class="cmt">// Mark previous head as deleted (set xmax) when this tx commits</span>
+    <span class="kw">if</span> (chain.length) chain[chain.length-<span class="num">1</span>].xmax = txId;
+    chain.push({ value, xmin: txId, xmax: Infinity });
+    console.log(<span class="str">`  T${txId} wrote '${key}' = ${JSON.stringify(value)} (version xmin=${txId})`</span>);
+  }
+
+  <span class="fn">read</span>(key, snapshot) {
+    <span class="kw">const</span> chain = <span class="kw">this</span>.versions.get(key) || [];
+    <span class="cmt">// Find newest version visible to this snapshot</span>
+    <span class="kw">for</span> (<span class="kw">let</span> i = chain.length - <span class="num">1</span>; i &gt;= <span class="num">0</span>; i--) {
+      <span class="kw">const</span> v = chain[i];
+      <span class="kw">const</span> selfVisible = v.xmin === snapshot.txId;
+      <span class="kw">const</span> creatorCommitted = v.xmin &lt; snapshot.snapshotMin &&
+                               !snapshot.activeTxns.has(v.xmin);
+      <span class="kw">const</span> notYetDeleted = v.xmax &gt; snapshot.snapshotMin ||
+                             snapshot.activeTxns.has(v.xmax);
+      <span class="kw">if</span> ((selfVisible || creatorCommitted) && notYetDeleted) <span class="kw">return</span> v.value;
+    }
+    <span class="kw">return undefined</span>; <span class="cmt">// no visible version</span>
+  }
+
+  <span class="fn">commit</span>(tx) {
+    <span class="kw">this</span>.activeIds.delete(tx.txId);
+    console.log(<span class="str">`  T${tx.txId} committed`</span>);
+  }
+
+  <span class="fn">vacuum</span>(oldestActiveTx) {
+    <span class="cmt">// Remove versions invisible to all active transactions (PostgreSQL VACUUM)</span>
+    <span class="kw">let</span> removed = <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="kw">const</span> [key, chain] <span class="kw">of</span> <span class="kw">this</span>.versions)
+      <span class="kw">this</span>.versions.set(key, chain.filter(v =&gt; {
+        <span class="kw">const</span> dead = v.xmax &lt;= oldestActiveTx; <span class="kw">if</span> (dead) removed++;
+        <span class="kw">return</span> !dead;
+      }));
+    console.log(<span class="str">`  VACUUM removed ${removed} dead version(s)`</span>);
+  }
+}
+
+<span class="kw">const</span> db = <span class="kw">new</span> <span class="cls">MVCCDatabase</span>();
+<span class="cmt">// Seed initial data (committed before any tx)</span>
+db.versions.set(<span class="str">"price"</span>, [{ value: <span class="num">100</span>, xmin: <span class="num">0</span>, xmax: Infinity }]);
+
+console.log(<span class="str">"=== MVCC snapshot isolation ==="</span>);
+<span class="kw">const</span> longReader = db.<span class="fn">begin</span>();          <span class="cmt">// T1: starts a long read-only report</span>
+<span class="kw">const</span> writer     = db.<span class="fn">begin</span>();          <span class="cmt">// T2: will update the price</span>
+
+db.<span class="fn">write</span>(<span class="str">"price"</span>, <span class="num">120</span>, writer.txId);    <span class="cmt">// T2 writes new version</span>
+db.<span class="fn">commit</span>(writer);                      <span class="cmt">// T2 commits</span>
+
+<span class="cmt">// T1 (longReader) still sees the OLD version because it started before T2</span>
+<span class="kw">const</span> seen = db.<span class="fn">read</span>(<span class="str">"price"</span>, longReader);
+console.log(<span class="str">`  T1 (longReader) sees price = ${seen} (started before write, sees old version)`</span>);
+
+<span class="kw">const</span> freshReader = db.<span class="fn">begin</span>();
+<span class="kw">const</span> seen2 = db.<span class="fn">read</span>(<span class="str">"price"</span>, freshReader);
+console.log(<span class="str">`  T3 (freshReader) sees price = ${seen2} (started after write, sees new version)`</span>);
+
+db.<span class="fn">commit</span>(longReader);
+db.<span class="fn">vacuum</span>(<span class="num">3</span>); <span class="cmt">// clean up versions invisible to all active txns</span></pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ══ S5: WAL ══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>Write-Ahead Logging (WAL)</h2></div>
+  <p>WAL (also called the "redo log" in Oracle/MySQL) solves a different problem: <em>durability</em>. If a server crashes after a transaction commits but before the actual data pages have been flushed to disk, that data is lost. WAL prevents this with one rule:</p>
+  <div class="callout blue"><strong>Before any data page is written to disk, its log record must be written to disk first.</strong> On crash, replaying the log recovers any committed transaction that hadn't yet reached the data pages.</div>
+  <p>Every change is first appended to a sequential log file (fast sequential I/O), with each record assigned a monotonically increasing <strong>Log Sequence Number (LSN)</strong>. At commit, only the log needs to be flushed — the data pages can be written lazily in the background. Recovery logic varies by engine: ARIES is one important design (<em>Analysis</em> → <em>Redo</em> → <em>Undo</em>), while other systems describe crash recovery more simply as replaying WAL from the last checkpoint and consulting transaction status.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">WAL log — simulate writes, crash, and recovery</div>
+    <div class="btn-row">
+      <button class="btn blue" onclick="walAction('begin',1)">Begin T1</button>
+      <button class="btn blue" onclick="walAction('begin',2)">Begin T2</button>
+      <button class="btn green" onclick="walAction('write',1)">T1 writes</button>
+      <button class="btn green" onclick="walAction('write',2)">T2 writes</button>
+      <button class="btn act" onclick="walAction('commit',1)">Commit T1</button>
+      <button class="btn" onclick="walAction('checkpoint')">Checkpoint</button>
+      <button class="btn red" onclick="walAction('crash')">&#9888; Crash!</button>
+      <button class="btn" onclick="walAction('recover')">Recover</button>
+      <button class="btn" onclick="walResetAction()">Reset</button>
+    </div>
+    <div id="wal-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>wal.js — write-ahead log with crash recovery (ARIES-style)</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// Write-Ahead Logging — durability through sequential log writes</span>
+<span class="cmt">// ARIES recovery: Analysis → Redo → Undo</span>
+
+<span class="kw">class</span> <span class="cls">WALEngine</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.log          = [];     <span class="cmt">// the WAL — sequential, append-only</span>
+    <span class="kw">this</span>.dataPages     = {};    <span class="cmt">// in-memory "disk" (may lag behind log)</span>
+    <span class="kw">this</span>.activeTxns    = {};    <span class="cmt">// txId → { writes: [] }</span>
+    <span class="kw">this</span>.lsn           = <span class="num">0</span>;    <span class="cmt">// Log Sequence Number — ever-increasing</span>
+    <span class="kw">this</span>.flushedLSN    = <span class="num">0</span>;    <span class="cmt">// last LSN synced to durable storage</span>
+    <span class="kw">this</span>.lastCheckpoint= <span class="num">0</span>;
+  }
+
+  <span class="fn">_appendLog</span>(type, txId, data = {}) {
+    <span class="kw">const</span> entry = { lsn: ++<span class="kw">this</span>.lsn, type, txId, timestamp: Date.now(), ...data };
+    <span class="kw">this</span>.log.push(entry);
+    <span class="kw">return</span> entry.lsn;
+  }
+
+  <span class="fn">begin</span>(txId) {
+    <span class="kw">this</span>.activeTxns[txId] = { writes: [], prevLSN: <span class="num">0</span> };
+    <span class="kw">this</span>.<span class="fn">_appendLog</span>(<span class="str">"BEGIN"</span>, txId);
+    console.log(<span class="str">`[LSN ${this.lsn}] BEGIN T${txId}`</span>);
+  }
+
+  <span class="fn">write</span>(txId, key, oldVal, newVal) {
+    <span class="cmt">// Write to log FIRST (before touching data pages)</span>
+    <span class="kw">const</span> lsn = <span class="kw">this</span>.<span class="fn">_appendLog</span>(<span class="str">"UPDATE"</span>, txId, { key, oldVal, newVal });
+    <span class="kw">this</span>.activeTxns[txId].writes.push({ key, oldVal, lsn });
+    <span class="cmt">// Data page write can be delayed (lazy/background)</span>
+    <span class="kw">this</span>.dataPages[key] = newVal;  <span class="cmt">// in practice: buffered, flushed later</span>
+    console.log(<span class="str">`[LSN ${lsn}] UPDATE T${txId}: ${key} ${oldVal}→${newVal}`</span>);
+  }
+
+  <span class="fn">commit</span>(txId) {
+    <span class="kw">const</span> lsn = <span class="kw">this</span>.<span class="fn">_appendLog</span>(<span class="str">"COMMIT"</span>, txId);
+    <span class="cmt">// Force-flush log up to this LSN before returning to client</span>
+    <span class="kw">this</span>.flushedLSN = lsn;
+    <span class="kw">delete this</span>.activeTxns[txId];
+    console.log(<span class="str">`[LSN ${lsn}] COMMIT T${txId} — log flushed to LSN ${lsn}`</span>);
+  }
+
+  <span class="fn">checkpoint</span>() {
+    <span class="cmt">// Fuzzy checkpoint: log active txns, current LSN — don't stop the world</span>
+    <span class="kw">const</span> active = Object.keys(<span class="kw">this</span>.activeTxns);
+    <span class="kw">this</span>.lastCheckpoint = <span class="kw">this</span>.lsn;
+    <span class="kw">this</span>.<span class="fn">_appendLog</span>(<span class="str">"CHECKPOINT"</span>, <span class="kw">null</span>, { activeTxns: active });
+    console.log(<span class="str">`[LSN ${this.lsn}] CHECKPOINT — active txns: [${active.map(t=>'T'+t).join(',')||'none'}]`</span>);
+  }
+
+  <span class="fn">recover</span>() {
+    console.log(<span class="str">"\n=== ARIES RECOVERY ==="</span>);
+    <span class="cmt">// Phase 1: Analysis — find checkpoint, determine active txns at crash</span>
+    <span class="kw">const</span> cpEntry = [...<span class="kw">this</span>.log].reverse().find(e =&gt; e.type === <span class="str">"CHECKPOINT"</span>);
+    <span class="kw">const</span> winner = <span class="kw">new</span> Set();  <span class="cmt">// committed txns to redo</span>
+    <span class="kw">const</span> loser  = <span class="kw">new</span> Set();  <span class="cmt">// active-at-crash txns to undo</span>
+    <span class="kw">const</span> startLSN = cpEntry ? cpEntry.lsn : <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="kw">const</span> e <span class="kw">of</span> <span class="kw">this</span>.log.filter(e =&gt; e.lsn &gt; startLSN)) {
+      <span class="kw">if</span> (e.type === <span class="str">"BEGIN"</span>)    loser.add(e.txId);
+      <span class="kw">if</span> (e.type === <span class="str">"COMMIT"</span>)  { loser.delete(e.txId); winner.add(e.txId); }
+      <span class="kw">if</span> (e.type === <span class="str">"ABORT"</span>)   loser.delete(e.txId);
+    }
+    console.log(<span class="str">`Analysis: REDO txns=[${[...winner].map(t=>'T'+t)}], UNDO txns=[${[...loser].map(t=>'T'+t)}]`</span>);
+
+    <span class="cmt">// Phase 2: Redo — replay all updates for winners (ensures durability)</span>
+    <span class="kw">const</span> db = {};
+    <span class="kw">for</span> (<span class="kw">const</span> e <span class="kw">of</span> <span class="kw">this</span>.log) {
+      <span class="kw">if</span> (e.type === <span class="str">"UPDATE"</span> && winner.has(e.txId)) db[e.key] = e.newVal;
+    }
+    console.log(<span class="str">"After Redo, DB:"</span>, JSON.stringify(db));
+
+    <span class="cmt">// Phase 3: Undo — roll back all writes of loser txns (ensures atomicity)</span>
+    <span class="kw">for</span> (<span class="kw">const</span> e <span class="kw">of</span> [...<span class="kw">this</span>.log].reverse()) {
+      <span class="kw">if</span> (e.type === <span class="str">"UPDATE"</span> && loser.has(e.txId)) db[e.key] = e.oldVal;
+    }
+    console.log(<span class="str">"After Undo, DB:"</span>, JSON.stringify(db));
+    <span class="kw">return</span> db;
+  }
+}
+
+<span class="kw">const</span> wal = <span class="kw">new</span> <span class="cls">WALEngine</span>();
+wal.<span class="fn">begin</span>(<span class="num">1</span>);
+wal.<span class="fn">begin</span>(<span class="num">2</span>);
+wal.<span class="fn">write</span>(<span class="num">1</span>, <span class="str">"balance_A"</span>, <span class="num">1000</span>, <span class="num">900</span>);
+wal.<span class="fn">write</span>(<span class="num">2</span>, <span class="str">"balance_B"</span>, <span class="num">500</span>,  <span class="num">600</span>);
+wal.<span class="fn">commit</span>(<span class="num">1</span>);   <span class="cmt">// T1 commits — log flushed, durable</span>
+wal.<span class="fn">checkpoint</span>(); <span class="cmt">// T2 still active</span>
+wal.<span class="fn">write</span>(<span class="num">2</span>, <span class="str">"balance_C"</span>, <span class="num">200</span>, <span class="num">300</span>);
+<span class="cmt">// --- CRASH HERE --- T2 was still active ---</span>
+console.log(<span class="str">"\n*** SERVER CRASHES (T2 never committed) ***"</span>);
+<span class="kw">const</span> recovered = wal.<span class="fn">recover</span>();
+<span class="cmt">// T1 is redone (committed), T2 is undone (was in-flight)</span></pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ══ S6: 2PC ══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>Two-Phase Commit (2PC)</h2></div>
+  <p>So far, everything has been single-node. In a distributed system (sharded databases, microservices writing to multiple stores), you need a way to commit a transaction across multiple nodes <em>atomically</em> — either all commit or all abort. 2PC achieves this with a <strong>coordinator</strong> and one or more <strong>participants</strong>.</p>
+  <p>Phase 1 (<em>Prepare</em>): coordinator sends "prepare to commit" to all participants. Each participant durably writes its work to its WAL and replies "vote YES" (I'm ready) or "vote NO" (I can't). Phase 2 (<em>Commit/Abort</em>): if all voted YES, coordinator sends "COMMIT" to all. If any voted NO, it sends "ABORT" to all.</p>
+  <div class="callout red">The fatal flaw of 2PC: if the coordinator crashes <em>after</em> participants vote YES but <em>before</em> the coordinator's COMMIT reaches them, participants are stuck in the "prepared" state — holding locks, unable to proceed, waiting forever for a decision that may never come. This is called the <strong>blocking problem</strong>.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">2PC step-by-step — choose a scenario</div>
+    <div class="step-nav" id="tpc-nav"></div>
+    <div id="tpc-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>two_phase_commit.js — 2PC with coordinator failure simulation</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Two-Phase Commit — atomic commit across multiple nodes</span>
+<span class="cmt">// Shows both the happy path and the coordinator-failure blocking scenario</span>
+
+<span class="kw">class</span> <span class="cls">Participant</span> {
+  <span class="fn">constructor</span>(name, willVoteYes = <span class="kw">true</span>) {
+    <span class="kw">this</span>.name     = name;
+    <span class="kw">this</span>.state    = <span class="str">"idle"</span>;
+    <span class="kw">this</span>.prepared = <span class="kw">null</span>; <span class="cmt">// written to WAL when prepared</span>
+    <span class="kw">this</span>.willVote = willVoteYes;
+  }
+
+  <span class="fn">prepare</span>(txId, writes) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.willVote) {
+      console.log(<span class="str">`  ${this.name}: VOTE NO (constraint violation)`</span>);
+      <span class="kw">this</span>.state = <span class="str">"aborted"</span>;
+      <span class="kw">return false</span>;
+    }
+    <span class="cmt">// Force-write prepare record to WAL — cannot undo this vote</span>
+    <span class="kw">this</span>.prepared = { txId, writes };
+    <span class="kw">this</span>.state    = <span class="str">"prepared"</span>;
+    console.log(<span class="str">`  ${this.name}: VOTE YES (wrote prepare record to WAL)`</span>);
+    <span class="kw">return true</span>;
+  }
+
+  <span class="fn">commit</span>() {
+    <span class="kw">if</span> (<span class="kw">this</span>.state !== <span class="str">"prepared"</span>) <span class="kw">throw new</span> Error(<span class="str">"Not prepared!"</span>);
+    <span class="kw">this</span>.state = <span class="str">"committed"</span>;
+    console.log(<span class="str">`  ${this.name}: COMMITTED`</span>);
+  }
+
+  <span class="fn">abort</span>() {
+    <span class="kw">this</span>.state = <span class="str">"aborted"</span>;
+    console.log(<span class="str">`  ${this.name}: ABORTED`</span>);
+  }
+}
+
+<span class="kw">class</span> <span class="cls">Coordinator</span> {
+  <span class="fn">constructor</span>(participants) { <span class="kw">this</span>.participants = participants; }
+
+  <span class="fn">commit</span>(txId, writesPerParticipant) {
+    console.log(<span class="str">`[Phase 1 — PREPARE] TxId=${txId}`</span>);
+    <span class="kw">const</span> votes = <span class="kw">this</span>.participants.map((p, i) =&gt;
+      p.<span class="fn">prepare</span>(txId, writesPerParticipant[i] || []));
+    <span class="kw">const</span> decision = votes.every(v =&gt; v) ? <span class="str">"COMMIT"</span> : <span class="str">"ABORT"</span>;
+    console.log(<span class="str">`[Coordinator decision: ${decision}]`</span>);
+    console.log(<span class="str">`[Phase 2 — ${decision}]`</span>);
+    <span class="cmt">// Coordinator writes decision to its OWN WAL before sending</span>
+    <span class="kw">this</span>.participants.forEach(p =&gt; decision === <span class="str">"COMMIT"</span> ? p.<span class="fn">commit</span>() : p.<span class="fn">abort</span>());
+    <span class="kw">return</span> decision;
+  }
+}
+
+console.log(<span class="str">"=== Happy path: all vote YES ==="</span>);
+<span class="kw">const</span> p1 = [<span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-A"</span>), <span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-B"</span>), <span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-C"</span>)];
+<span class="kw">const</span> coord1 = <span class="kw">new</span> <span class="cls">Coordinator</span>(p1);
+coord1.<span class="fn">commit</span>(<span class="str">"tx-001"</span>, [[<span class="str">"w(A,1)"</span>],[<span class="str">"w(B,2)"</span>],[<span class="str">"w(C,3)"</span>]]);
+
+console.log(<span class="str">"\n=== One participant votes NO ==="</span>);
+<span class="kw">const</span> p2 = [<span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-A"</span>), <span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-B"</span>, <span class="kw">false</span>), <span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-C"</span>)];
+<span class="kw">const</span> coord2 = <span class="kw">new</span> <span class="cls">Coordinator</span>(p2);
+coord2.<span class="fn">commit</span>(<span class="str">"tx-002"</span>, [[],[],[]]);
+
+console.log(<span class="str">"\n=== Blocking scenario: coordinator crashes after phase 1 ==="</span>);
+<span class="kw">const</span> p3 = [<span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-A"</span>), <span class="kw">new</span> <span class="cls">Participant</span>(<span class="str">"node-B"</span>)];
+console.log(<span class="str">"Phase 1: all vote YES..."</span>);
+p3.forEach(p =&gt; p.<span class="fn">prepare</span>(<span class="str">"tx-003"</span>, []));
+console.log(<span class="str">"*** COORDINATOR CRASHES before sending Phase 2 ***"</span>);
+console.log(<span class="str">"node-A state:"</span>, p3[<span class="num">0</span>].state, <span class="str">"← BLOCKED: holds locks, cannot commit or abort"</span>);
+console.log(<span class="str">"node-B state:"</span>, p3[<span class="num">1</span>].state, <span class="str">"← BLOCKED: holds locks, cannot commit or abort"</span>);
+console.log(<span class="str">"Resolution: wait for coordinator recovery, or contact other participants"</span>);</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ══ S7: 3PC ══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>Three-Phase Commit (3PC)</h2></div>
+  <p>3PC adds a middle phase between "prepared" and "committed" to eliminate the blocking problem. The insight: 2PC blocks because participants can't tell whether the coordinator crashed <em>before or after</em> deciding. 3PC makes the decision observable by adding a <strong>pre-commit</strong> phase.</p>
+  <p>Phase 1 (<em>CanCommit</em>): coordinator asks "can you commit?". Phase 2 (<em>PreCommit</em>): if all say yes, coordinator sends "prepare to commit" — this is new. Now every participant knows all others have voted YES. Phase 3 (<em>DoCommit</em>): coordinator sends actual commit. If the coordinator crashes during Phase 3, any participant can take over — they know every participant is in pre-committed state, so committing is safe.</p>
+  <div class="callout amber">3PC solves the blocking problem but assumes a <em>synchronous network with bounded delays</em>. In practice, network partitions make this assumption invalid — a partitioned participant can't distinguish "coordinator crashed" from "message delayed". This is why 3PC is rarely used in real systems. Modern systems use Paxos or Raft instead.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">2PC vs 3PC — which states can a participant be in on coordinator failure?</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showProtocol('2pc',this)">2PC</button>
+      <button class="btn" onclick="showProtocol('3pc',this)">3PC</button>
+    </div>
+    <div id="protocol-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>three_phase_commit.js — 3PC with coordinator failure recovery</span><button class="run-btn" onclick="runCode('c7','o7')">&#9654; Run</button></div>
+    <pre class="code" id="c7"><span class="cmt">// Three-Phase Commit — non-blocking (under synchronous networks)</span>
+<span class="cmt">// Adds a PRE-COMMIT phase so all participants know everyone voted YES</span>
+
+<span class="kw">class</span> <span class="cls">ThreePCParticipant</span> {
+  <span class="fn">constructor</span>(name, willVote = <span class="kw">true</span>) {
+    <span class="kw">this</span>.name     = name;
+    <span class="kw">this</span>.state    = <span class="str">"idle"</span>;  <span class="cmt">// idle → prepared → pre-committed → committed/aborted</span>
+    <span class="kw">this</span>.willVote = willVote;
+  }
+
+  <span class="fn">canCommit</span>() {
+    <span class="kw">if</span> (!<span class="kw">this</span>.willVote) { console.log(<span class="str">`  ${this.name}: NO`</span>); <span class="kw">return false</span>; }
+    console.log(<span class="str">`  ${this.name}: YES to canCommit`</span>);
+    <span class="kw">this</span>.state = <span class="str">"prepared"</span>;
+    <span class="kw">return true</span>;
+  }
+
+  <span class="fn">preCommit</span>() {
+    <span class="cmt">// Receiving preCommit means ALL others have voted YES</span>
+    <span class="cmt">// Now I can commit unilaterally if coordinator disappears</span>
+    <span class="kw">this</span>.state = <span class="str">"pre-committed"</span>;
+    console.log(<span class="str">`  ${this.name}: ack preCommit (now knows all voted YES)`</span>);
+  }
+
+  <span class="fn">doCommit</span>() {
+    <span class="kw">this</span>.state = <span class="str">"committed"</span>;
+    console.log(<span class="str">`  ${this.name}: COMMITTED`</span>);
+  }
+
+  <span class="fn">doAbort</span>() {
+    <span class="kw">this</span>.state = <span class="str">"aborted"</span>;
+    console.log(<span class="str">`  ${this.name}: ABORTED`</span>);
+  }
+
+  <span class="fn">recoverWithPeers</span>(peers) {
+    <span class="cmt">// If coordinator is gone, check peer states to decide</span>
+    <span class="kw">if</span> (<span class="kw">this</span>.state === <span class="str">"pre-committed"</span>) {
+      <span class="cmt">// If I'm pre-committed, everyone voted YES — safe to commit</span>
+      <span class="kw">const</span> anyAborted = peers.some(p =&gt; p.state === <span class="str">"aborted"</span>);
+      <span class="kw">if</span> (anyAborted) { <span class="kw">this</span>.<span class="fn">doAbort</span>(); }
+      <span class="kw">else</span>            { <span class="kw">this</span>.<span class="fn">doCommit</span>(); }
+    } <span class="kw">else if</span> (<span class="kw">this</span>.state === <span class="str">"prepared"</span>) {
+      <span class="cmt">// If I'm only prepared (not pre-committed), someone may have aborted</span>
+      <span class="kw">const</span> anyPreCommit = peers.some(p =&gt; p.state === <span class="str">"pre-committed"</span> || p.state === <span class="str">"committed"</span>);
+      <span class="kw">if</span> (anyPreCommit) { <span class="kw">this</span>.<span class="fn">doCommit</span>(); }
+      <span class="kw">else</span>              { <span class="kw">this</span>.<span class="fn">doAbort</span>(); } <span class="cmt">// safe to abort — no one pre-committed yet</span>
+    }
+  }
+}
+
+<span class="kw">class</span> <span class="cls">ThreePCCoordinator</span> {
+  <span class="fn">constructor</span>(participants) { <span class="kw">this</span>.participants = participants; }
+
+  <span class="fn">run</span>(txId, crashAfterPhase = <span class="kw">null</span>) {
+    <span class="cmt">// Phase 1: CanCommit?</span>
+    console.log(<span class="str">`[Phase 1 — CAN COMMIT? TxId=${txId}]`</span>);
+    <span class="kw">const</span> votes = <span class="kw">this</span>.participants.map(p =&gt; p.<span class="fn">canCommit</span>());
+    <span class="kw">if</span> (!votes.every(v =&gt; v)) {
+      <span class="kw">this</span>.participants.forEach(p =&gt; p.<span class="fn">doAbort</span>());
+      <span class="kw">return</span>;
+    }
+    <span class="kw">if</span> (crashAfterPhase === <span class="num">1</span>) { console.log(<span class="str">"*** COORDINATOR CRASHES after Phase 1 ***"</span>); <span class="kw">return</span>; }
+
+    <span class="cmt">// Phase 2: PreCommit — tell everyone all voted YES</span>
+    console.log(<span class="str">`[Phase 2 — PRE-COMMIT]`</span>);
+    <span class="kw">this</span>.participants.forEach(p =&gt; p.<span class="fn">preCommit</span>());
+    <span class="kw">if</span> (crashAfterPhase === <span class="num">2</span>) { console.log(<span class="str">"*** COORDINATOR CRASHES after Phase 2 ***"</span>); <span class="kw">return</span>; }
+
+    <span class="cmt">// Phase 3: DoCommit</span>
+    console.log(<span class="str">`[Phase 3 — DO COMMIT]`</span>);
+    <span class="kw">this</span>.participants.forEach(p =&gt; p.<span class="fn">doCommit</span>());
+  }
+}
+
+<span class="cmt">// 3PC crash after Phase 1 — participants self-resolve (safe to abort)</span>
+console.log(<span class="str">"=== 3PC: coordinator crashes after Phase 1 ==="</span>);
+<span class="kw">const</span> ps1 = [<span class="kw">new</span> <span class="cls">ThreePCParticipant</span>(<span class="str">"A"</span>), <span class="kw">new</span> <span class="cls">ThreePCParticipant</span>(<span class="str">"B"</span>)];
+<span class="kw">new</span> <span class="cls">ThreePCCoordinator</span>(ps1).<span class="fn">run</span>(<span class="str">"tx-1"</span>, <span class="num">1</span>);
+console.log(<span class="str">"Peer recovery:"</span>);
+ps1[<span class="num">0</span>].<span class="fn">recoverWithPeers</span>([ps1[<span class="num">1</span>]]);
+ps1[<span class="num">1</span>].<span class="fn">recoverWithPeers</span>([ps1[<span class="num">0</span>]]);
+
+<span class="cmt">// 3PC crash after Phase 2 — all pre-committed, safe to commit</span>
+console.log(<span class="str">"\n=== 3PC: coordinator crashes after Phase 2 ==="</span>);
+<span class="kw">const</span> ps2 = [<span class="kw">new</span> <span class="cls">ThreePCParticipant</span>(<span class="str">"A"</span>), <span class="kw">new</span> <span class="cls">ThreePCParticipant</span>(<span class="str">"B"</span>)];
+<span class="kw">new</span> <span class="cls">ThreePCCoordinator</span>(ps2).<span class="fn">run</span>(<span class="str">"tx-2"</span>, <span class="num">2</span>);
+console.log(<span class="str">"Peer recovery:"</span>);
+ps2[<span class="num">0</span>].<span class="fn">recoverWithPeers</span>([ps2[<span class="num">1</span>]]);
+ps2[<span class="num">1</span>].<span class="fn">recoverWithPeers</span>([ps2[<span class="num">0</span>]]);
+console.log(<span class="str">"Both committed without coordinator — non-blocking!"</span>);</pre>
+    <div class="out" id="o7"></div>
+  </div>
+</section>
+
+<!-- ══ S8: COMPARISON ══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>Comparison and real systems</h2></div>
+  <p>All five mechanisms solve different parts of the same problem. Production systems combine several, but not in one universal recipe. PostgreSQL is MVCC + WAL, with optional serializable conflict tracking and optional 2PC for prepared transactions. InnoDB mixes MVCC snapshots with locking. Oracle has its own multiversion design. SQL Server is lock-based by default, with row-versioned modes available. Spanner and CockroachDB layer MVCC on top of consensus.</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cmp-table">
+      <thead><tr>
+        <th>Mechanism</th><th>Solves</th><th>Read blocks write?</th><th>Write blocks read?</th><th>Overhead</th><th>Used in</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="name">2PL</td><td>Isolation</td><td class="bad">Yes (S-lock)</td><td class="bad">Yes (X-lock)</td><td>Lock mgmt + deadlock detect</td><td>SQL Server default, classic lock managers, InnoDB locking</td></tr>
+        <tr><td class="name">OCC</td><td>Isolation</td><td class="good">No</td><td class="good">No</td><td>Abort + retry under contention</td><td>Datomic, some key-value stores</td></tr>
+        <tr><td class="name">MVCC</td><td>Isolation</td><td class="good">No</td><td class="good">No</td><td>Version storage + GC (VACUUM)</td><td>PostgreSQL, Oracle, CockroachDB, InnoDB snapshots</td></tr>
+        <tr><td class="name">WAL</td><td>Durability</td><td colspan="2">N/A — not about concurrency</td><td>Sequential log I/O</td><td>All serious databases</td></tr>
+        <tr><td class="name">2PC</td><td>Distributed atomicity</td><td colspan="2">N/A — cross-node coordination</td><td class="bad">Blocking on coord failure</td><td>XA / prepared transactions / distributed coordinators</td></tr>
+        <tr><td class="name">3PC</td><td>Non-blocking dist. atomicity</td><td colspan="2">N/A</td><td class="ok">Network partition unsafe</td><td>Rarely; superseded by Paxos/Raft</td></tr>
+        <tr class="hi"><td class="name">Paxos/Raft</td><td>Distributed consensus</td><td colspan="2">N/A</td><td class="good">Partition-tolerant, live</td><td>Spanner, CockroachDB, etcd, MongoDB</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>How isolation protocols compare under contention</h3>
+  <div class="demo">
+    <div class="demo-lbl">Throughput under varying contention — adjust conflict rate</div>
+    <div class="slider-row">
+      <label>Conflict rate</label>
+      <input type="range" min="0" max="100" value="20" id="conflict-sl" step="5" oninput="updateThroughput()">
+      <span class="slider-val" id="conflict-val">20%</span>
+    </div>
+    <div id="throughput-bars"></div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.5rem" id="throughput-note"></div>
+  </div>
+
+  <div class="callout purple">A safer summary: most serious OLTP databases combine <strong>some isolation scheme + WAL durability</strong>, but the exact isolation mix differs a lot by engine. PostgreSQL, InnoDB, Oracle, and SQL Server do not all implement the same concurrency recipe. For distributed transactions, 2PC remains common when you already have a trusted coordinator, while Paxos/Raft-based systems (Spanner, CockroachDB) fold atomicity into replicated consensus.</div>
+</section>
+
+</div>
+<script>
+/* ── RUNNER ── */
+function runCode(cid,oid){
+  const raw=document.getElementById(cid).innerText;
+  const el=document.getElementById(oid);el.className='out on';
+  const logs=[];
+  const con={log:(...a)=>logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')),assert:(c,m)=>{if(!c)logs.push('AssertionError: '+m);}};
+  try{new Function('console',raw)(con);el.textContent=logs.join('\n')||'(no output)';}
+  catch(e){el.className='out on err';el.textContent='⚠ '+e.message;}
+}
+
+/* ── ANOMALY VIZ ── */
+const ANOMALIES={
+  dirty:{title:'Dirty Read',color:'var(--red)',desc:'T2 reads uncommitted data written by T1. If T1 aborts, T2 has used data that never existed.',steps:[
+    {t1:'BEGIN',t2:'',note:''},
+    {t1:'READ balance=1000',t2:'BEGIN',note:''},
+    {t1:'WRITE balance=1500 (uncommitted)',t2:'',note:''},
+    {t1:'',t2:'READ balance=1500 ←',note:'T2 reads T1\'s uncommitted write!'},
+    {t1:'ABORT ← rollback to 1000',t2:'',note:''},
+    {t1:'',t2:'uses 1500 ← WRONG',note:'T2 operated on data that never existed'},
+  ]},
+  nonrep:{title:'Non-Repeatable Read',color:'var(--amber)',desc:'T1 reads the same row twice and gets different values because T2 modified it between reads.',steps:[
+    {t1:'BEGIN',t2:'BEGIN',note:''},
+    {t1:'READ price=100',t2:'',note:'T1 first read'},
+    {t1:'',t2:'WRITE price=120',note:''},
+    {t1:'',t2:'COMMIT',note:'T2 commits'},
+    {t1:'READ price=120 ←',t2:'',note:'T1 second read — different value!'},
+    {t1:'COMMIT',t2:'',note:'T1 saw two different values in one txn'},
+  ]},
+  phantom:{title:'Phantom Read',color:'var(--purple)',desc:'T1 runs the same query twice and gets a different set of rows because T2 inserted matching rows.',steps:[
+    {t1:'BEGIN',t2:'BEGIN',note:''},
+    {t1:'SELECT WHERE amt>40 → 2 rows',t2:'',note:'T1 first scan'},
+    {t1:'',t2:'INSERT row (amt=200)',note:''},
+    {t1:'',t2:'COMMIT',note:'T2 commits'},
+    {t1:'SELECT WHERE amt>40 → 3 rows ←',t2:'',note:'Phantom row appeared!'},
+    {t1:'COMMIT',t2:'',note:'T1 saw a different result set in one txn'},
+  ]},
+  lost:{title:'Lost Update',color:'var(--blue)',desc:'Both transactions read-then-write the same value. The second write overwrites the first, losing T1\'s update.',steps:[
+    {t1:'BEGIN',t2:'BEGIN',note:''},
+    {t1:'READ views=1000',t2:'READ views=1000',note:'both read same value'},
+    {t1:'(compute 1000+1=1001)',t2:'(compute 1000+1=1001)',note:''},
+    {t1:'WRITE views=1001',t2:'',note:'T1 writes'},
+    {t1:'COMMIT',t2:'WRITE views=1001 ←',note:'T2 overwrites — T1\'s increment lost!'},
+    {t1:'',t2:'COMMIT',note:'views=1001 but should be 1002'},
+  ]},
+};
+let anomalyStep=0,anomalyTimer=null,currentAnomaly='dirty';
+function showAnomaly(name,btn){
+  document.querySelectorAll('#s1 .btn-row .btn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  currentAnomaly=name;anomalyStep=0;
+  if(anomalyTimer)clearInterval(anomalyTimer);
+  renderAnomaly();
+  anomalyTimer=setInterval(()=>{
+    anomalyStep++;const a=ANOMALIES[name];
+    if(anomalyStep>=a.steps.length){clearInterval(anomalyTimer);anomalyTimer=null;return;}
+    renderAnomaly();
+  },900);
+}
+function renderAnomaly(){
+  const a=ANOMALIES[currentAnomaly];const steps=a.steps.slice(0,anomalyStep+1);
+  let html=`<div style="font-family:var(--mono);font-size:12px;color:${a.color};font-weight:500;margin-bottom:.6rem">${a.title}</div>`;
+  html+=`<div style="display:grid;grid-template-columns:30px 1fr 1fr;gap:2px;font-family:var(--mono);font-size:11px;margin-bottom:.6rem">`;
+  html+=`<div></div><div style="color:var(--ink3);padding:3px 8px;background:var(--bg3);border-radius:3px 3px 0 0;text-align:center">T1</div><div style="color:var(--ink3);padding:3px 8px;background:var(--bg3);border-radius:3px 3px 0 0;text-align:center">T2</div>`;
+  steps.forEach((s,i)=>{
+    const isLast=i===steps.length-1;
+    const rowBg=isLast&&s.note?`background:var(--amber-bg)`:'';
+    html+=`<div style="color:var(--ink3);font-size:10px;display:flex;align-items:center;justify-content:center">${i+1}</div>`;
+    html+=`<div style="${rowBg};padding:3px 8px;border-bottom:1px solid var(--rule);color:${s.t1.includes('←')?a.color:'var(--ink2)'}">${s.t1||'—'}</div>`;
+    html+=`<div style="${rowBg};padding:3px 8px;border-bottom:1px solid var(--rule);color:${s.t2.includes('←')?a.color:'var(--ink2)'}">${s.t2||'—'}</div>`;
+  });
+  html+='</div>';
+  if(steps[steps.length-1].note)html+=`<div style="font-family:var(--mono);font-size:11px;color:${a.color};padding:.4rem .6rem;background:${a.color}22;border-radius:3px;border-left:3px solid ${a.color}">${steps[steps.length-1].note}</div>`;
+  html+=`<div style="font-family:var(--sans);font-size:13px;color:var(--ink2);margin-top:.6rem">${a.desc}</div>`;
+  document.getElementById('anomaly-viz').innerHTML=html;
+}
+showAnomaly('dirty',document.querySelector('#s1 .btn'));
+
+/* ── 2PL VIZ ── */
+const TPC_STATES=[
+  {title:'T1 acquires S-lock on A',lockA:{holders:['T1'],mode:'S'},lockB:{holders:[],mode:null},msg:'T1 requests S-lock on A. No conflicting locks — granted immediately.',T1:'Reading A…',T2:''},
+  {title:'T2 also acquires S-lock on A',lockA:{holders:['T1','T2'],mode:'S'},lockB:{holders:[],mode:null},msg:'T2 requests S-lock on A. S+S is compatible — both can read simultaneously.',T1:'Reading A',T2:'Reading A'},
+  {title:'T1 wants to write A → upgrades to X-lock',lockA:{holders:['T1'],mode:'X',waiters:[]},lockB:{holders:[],mode:null},msg:'T1 wants X-lock (write). Must wait for T2 to release its S-lock first. T2 still holds S.',T1:'Waiting for X-lock on A…',T2:'Holding S-lock on A'},
+  {title:'T2 requests X-lock on A → BLOCKED',lockA:{holders:['T1'],mode:'X',waiters:['T2']},lockB:{holders:[],mode:null},msg:'T1 now holds X-lock. T2 also wants X — goes into wait queue behind T1.',T1:'Writing A',T2:'WAITING for X-lock on A'},
+  {title:'T1 commits → releases all locks',lockA:{holders:[],mode:null,waiters:['T2']},lockB:{holders:[],mode:null},msg:'T1 commits (shrinking phase). Releases X-lock on A. T2 is next in queue.',T1:'COMMITTED ✓',T2:'WAITING…'},
+  {title:'T2 unblocked → acquires X-lock on A',lockA:{holders:['T2'],mode:'X'},lockB:{holders:[],mode:null},msg:'T2 gets the X-lock it was waiting for. Lock manager grants it now that T1 is done.',T1:'',T2:'Writing A (finally!)'},
+];
+function show2PL(i,btn){
+  document.querySelectorAll('#s2 .step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  const s=TPC_STATES[i];
+  const modeColor={'S':' class="badge S"','X':' class="badge X"',null:''};
+  function lockRow(name,lock){
+    const holders=lock.holders.map(h=>`<span class="badge ok">${h}</span>`).join(' ');
+    const mode=lock.mode?`<span${modeColor[lock.mode]}>${lock.mode}</span>`:'<span style="color:var(--ink3);font-size:11px">free</span>';
+    const waiters=lock.waiters?.map(w=>`<span class="badge wait">${w} waiting</span>`).join(' ')||'';
+    return `<tr><td class="res">${name}</td><td>${mode}</td><td>${holders||'—'}</td><td>${waiters||'—'}</td></tr>`;
+  }
+  const txRow=(name,msg)=>msg?`<div class="tx-card ${msg.includes('COMMITTED')?'committed':msg.includes('WAITING')?'waiting':'running'}" style="font-size:11px"><div class="tx-id">${name}</div><div>${msg}</div></div>`:'';
+  document.getElementById('tpl-viz').innerHTML=`
+    <div style="font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink);margin-bottom:.5rem">${s.title}</div>
+    <table class="lock-table"><thead><tr><th>Resource</th><th>Mode</th><th>Holders</th><th>Waiters</th></tr></thead>
+    <tbody>${lockRow('Account A',s.lockA)}${lockRow('Account B',s.lockB)}</tbody></table>
+    <div class="tx-grid">${txRow('T1',s.T1)}${txRow('T2',s.T2)}</div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:.5rem;padding:.5rem .7rem;background:var(--blue-bg);border-radius:3px;border-left:3px solid var(--blue-bdr)">${s.msg}</div>`;
+}
+show2PL(0,null);
+
+/* ── OCC VIZ ── */
+let occTxns=[];let occDb={balance:1000,inventory:50};let occClock=0;
+const occCommitted=[];
+function runOCC(){
+  occTxns=[];
+  const scenarios=[
+    {id:++occClock,readKeys:['balance'],writeKeys:['balance'],writeVals:{balance:900},label:'Transfer -100'},
+    {id:++occClock,readKeys:['inventory'],writeKeys:['inventory'],writeVals:{inventory:49},label:'Buy item'},
+    {id:++occClock,readKeys:['balance','inventory'],writeKeys:['balance'],writeVals:{balance:800},label:'Purchase item'},
+  ];
+  scenarios.forEach(tx=>{tx.startTime=tx.id;tx.status='validating';});
+  let html='';
+  scenarios.forEach((tx,idx)=>{
+    let conflict=null;
+    for(const c of occCommitted){
+      if(c.endTime<=tx.startTime)continue;
+      for(const k of tx.readKeys)if(c.writeKeys&&c.writeKeys.includes(k)){conflict=`read '${k}' was written by T${c.id}`;break;}
+      if(conflict)break;
+    }
+    if(!conflict&&idx>0){
+      const prev=scenarios[idx-1];
+      const overlap=tx.readKeys.some(k=>prev.writeKeys&&prev.writeKeys.includes(k));
+      if(overlap&&idx<2)conflict=`read '${tx.readKeys.find(k=>prev.writeKeys.includes(k))}' was written by T${prev.id}`;
+    }
+    const status=conflict?'ABORT':'COMMIT';
+    if(status==='COMMIT'){tx.endTime=++occClock;tx.status='committed';occCommitted.push(tx);}
+    else tx.status='aborted';
+    html+=`<div class="tx-card ${status==='COMMIT'?'committed':'aborted'}" style="margin-bottom:6px">
+      <div class="tx-id">T${tx.id}: ${tx.label}</div>
+      <div class="tx-row"><span>Read set:</span><span>[${tx.readKeys.join(', ')}]</span></div>
+      <div class="tx-row"><span>Write set:</span><span>[${tx.writeKeys.join(', ')}]</span></div>
+      <div class="tx-row"><span>Validation:</span><span style="color:${status==='COMMIT'?'var(--green)':'var(--red)'}">
+        ${status==='COMMIT'?'PASSED → COMMITTED':'FAILED: '+conflict+' → ABORT'}</span></div>
+    </div>`;
+  });
+  document.getElementById('occ-viz').innerHTML=html||'<div style="color:var(--ink3);font-family:var(--mono);font-size:12px">No transactions yet</div>';
+}
+function resetOCC(){occTxns=[];occDb={balance:1000,inventory:50};occClock=0;occCommitted.length=0;document.getElementById('occ-viz').innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--ink3)">Click Run to simulate transactions</div>';}
+resetOCC();
+
+/* ── MVCC VIZ ── */
+(function(){
+  const versions=[
+    {value:100,xmin:0,xmax:3,label:'v1: price=100'},
+    {value:120,xmin:3,xmax:5,label:'v2: price=120'},
+    {value:135,xmin:5,xmax:Infinity,label:'v3: price=135 (current)'},
+  ];
+  const txns=[
+    {id:'T1 (xid=2)',start:2,label:'Started before any update'},
+    {id:'T2 (xid=4)',start:4,label:'Started after first update'},
+    {id:'T3 (xid=6)',start:6,label:'Started after both updates'},
+  ];
+  function visibleVersion(txStart){
+    for(let i=versions.length-1;i>=0;i--){
+      const v=versions[i];
+      if(v.xmin<txStart&&v.xmax>=txStart)return v;
+    }
+    return null;
+  }
+  const txColors=['var(--blue)','var(--teal)','var(--green)'];
+  let selTx=0;
+  function render(){
+    const tx=txns[selTx];const vis=visibleVersion(tx.start);
+    let html=`<div style="margin-bottom:.7rem">`;
+    txns.forEach((t,i)=>{
+      html+=`<button class="btn${i===selTx?' act':''}" style="margin:2px" onclick="mvccSelect(${i})">${t.id}</button>`;
+    });
+    html+=`</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">Version chain for "price"</div>`;
+    html+=`<div class="ver-chain">`;
+    versions.forEach((v,i)=>{
+      const isVis=v===vis;
+      html+=`<div class="ver-node ${isVis?'current':v.xmax<tx.start?'old':''}">${v.label}<div style="font-size:10px;opacity:.7">xmin=${v.xmin} xmax=${v.xmax===Infinity?'∞':v.xmax}</div></div>`;
+      if(i<versions.length-1)html+=`<span class="ver-arrow">→</span>`;
+    });
+    html+=`</div>`;
+    html+=`<div style="font-family:var(--mono);font-size:12px;padding:.5rem .8rem;margin-top:.5rem;border-radius:4px;background:${txColors[selTx]}22;border-left:3px solid ${txColors[selTx]}">`;
+    html+=`${tx.id} (snapshot at xid=${tx.start}) sees: <strong style="color:${txColors[selTx]}">${vis?vis.label:'nothing'}</strong><br><span style="color:var(--ink3);font-size:11px">${tx.label}</span></div>`;
+    document.getElementById('mvcc-viz').innerHTML=html;
+  }
+  window.mvccSelect=i=>{selTx=i;render();};
+  render();
+})();
+
+/* ── WAL VIZ ── */
+let walLog=[],walActive=new Set(),walCrashed=false,walLsn=0;
+const walOps=[
+  {lsn:null,type:'WRITE',key:'balance',old:null,new:null},
+];
+function walAction(type,txId){
+  if(walCrashed&&type!=='recover'&&type!=='reset'){
+    document.getElementById('wal-viz').innerHTML+='<div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:.4rem">System crashed — run recovery first</div>';return;
+  }
+  if(type==='begin'){
+    walActive.add(txId);walLog.push({lsn:++walLsn,type:'BEGIN',txId});
+  }else if(type==='write'){
+    const vals={1:{key:'balance_A',old:1000,new:900},2:{key:'balance_B',old:500,new:600}};
+    const v=vals[txId]||{key:'balance_X',old:100,new:200};
+    walLog.push({lsn:++walLsn,type:'UPDATE',txId,key:v.key,old:v.old,new:v.new});
+  }else if(type==='commit'){
+    walActive.delete(txId);walLog.push({lsn:++walLsn,type:'COMMIT',txId});
+  }else if(type==='checkpoint'){
+    walLog.push({lsn:++walLsn,type:'CHECKPOINT',txId:null,active:[...walActive].map(t=>'T'+t).join(',')});
+  }else if(type==='crash'){
+    walCrashed=true;walLog.push({lsn:++walLsn,type:'CRASH',txId:null});
+  }else if(type==='recover'){
+    const winners=new Set(),losers=new Set();
+    let afterCp=false;
+    for(const e of walLog){
+      if(e.type==='CHECKPOINT')afterCp=true;
+      if(!afterCp)continue;
+      if(e.type==='BEGIN')losers.add(e.txId);
+      if(e.type==='COMMIT'){losers.delete(e.txId);winners.add(e.txId);}
+    }
+    walLog.push({lsn:++walLsn,type:'RECOVERY',txId:null,winners:[...winners].map(t=>'T'+t).join(','),losers:[...losers].map(t=>'T'+t).join(',')});
+    walCrashed=false;
+  }
+  renderWAL();
+}
+function walResetAction(){walLog=[];walActive=new Set();walCrashed=false;walLsn=0;renderWAL();}
+function renderWAL(){
+  const typeColor={BEGIN:'',UPDATE:'active',COMMIT:'commit',CHECKPOINT:'checkpoint',CRASH:'abort',RECOVERY:'commit'};
+  const typeLabel={BEGIN:'BEGIN',UPDATE:'UPDATE',COMMIT:'COMMIT',CHECKPOINT:'CHECKPOINT',CRASH:'★ CRASH',RECOVERY:'★ RECOVERED'};
+  let html=`<div class="wal-log"><div class="wal-head"><span>Write-Ahead Log</span><span>LSN / entries</span></div>`;
+  if(!walLog.length)html+=`<div style="padding:.6rem 1rem;font-family:var(--mono);font-size:11px;color:var(--ink3)">Log is empty — begin a transaction</div>`;
+  walLog.forEach(e=>{
+    const cls=typeColor[e.type]||'';
+    let detail='';
+    if(e.type==='UPDATE')detail=`${e.key}: ${e.old}→${e.new}`;
+    else if(e.type==='CHECKPOINT')detail=`active=[${e.active||'none'}]`;
+    else if(e.type==='RECOVERY')detail=`redo=[${e.winners}] undo=[${e.losers}]`;
+    html+=`<div class="wal-entry ${cls}"><div class="wal-lsn">${e.lsn}</div><div class="wal-type">${typeLabel[e.type]}${e.txId?' T'+e.txId:''}</div><div style="color:var(--ink2)">${detail}</div></div>`;
+  });
+  html+='</div>';
+  if(walCrashed)html+=`<div style="font-family:var(--mono);font-size:12px;color:var(--red);margin-top:.4rem;padding:.4rem .7rem;background:var(--red-bg);border-radius:3px">System crashed. Active transactions: [${[...walActive].map(t=>'T'+t).join(',')||'none'}] — click Recover to restore</div>`;
+  document.getElementById('wal-viz').innerHTML=html;
+}
+renderWAL();
+
+/* ── 2PC VIZ ── */
+const TPC_SCENARIOS=[
+  {label:'Happy path',phases:[
+    {title:'Phase 1 — Prepare',coord:'Sending PREPARE to all…',participants:[{name:'node-A',state:'prepared'},{name:'node-B',state:'prepared'},{name:'node-C',state:'prepared'}],msg:'All participants write prepare to WAL and vote YES'},
+    {title:'Phase 2 — Commit',coord:'All voted YES → COMMIT',participants:[{name:'node-A',state:'committed'},{name:'node-B',state:'committed'},{name:'node-C',state:'committed'}],msg:'Coordinator sends COMMIT. All participants commit.'},
+  ]},
+  {label:'Participant fails',phases:[
+    {title:'Phase 1 — Prepare',coord:'Sending PREPARE to all…',participants:[{name:'node-A',state:'prepared'},{name:'node-B',state:'abort'},{name:'node-C',state:'prepared'}],msg:'node-B votes NO (e.g. constraint violation or timeout)'},
+    {title:'Phase 2 — Abort',coord:'node-B voted NO → ABORT',participants:[{name:'node-A',state:'abort'},{name:'node-B',state:'abort'},{name:'node-C',state:'abort'}],msg:'Any NO vote → coordinator sends ABORT to everyone'},
+  ]},
+  {label:'Coordinator crash',phases:[
+    {title:'Phase 1 — Prepare',coord:'Sending PREPARE…',participants:[{name:'node-A',state:'prepared'},{name:'node-B',state:'prepared'},{name:'node-C',state:'prepared'}],msg:'All vote YES. Coordinator records decision but CRASHES before sending Phase 2'},
+    {title:'BLOCKED',coord:'★ COORDINATOR CRASHED',participants:[{name:'node-A',state:'waiting'},{name:'node-B',state:'waiting'},{name:'node-C',state:'waiting'}],msg:'All participants are stuck in PREPARED state. They cannot commit or abort without the coordinator\'s decision. Locks are held indefinitely.'},
+  ]},
+];
+let tpcScenario=0,tpcStep=0;
+function buildTPCNav(){
+  const nav=document.getElementById('tpc-nav');
+  nav.innerHTML=TPC_SCENARIOS.map((s,i)=>`<button class="step-btn${i===tpcScenario?' act':''}" onclick="tpcSelect(${i})">${s.label}</button>`).join('');
+}
+function renderTPC(){
+  const sc=TPC_SCENARIOS[tpcScenario];const ph=sc.phases[tpcStep];
+  const stateColor={prepared:'waiting',committed:'coordinator',abort:'abort',waiting:'waiting'};
+  let html=`<div style="display:flex;gap:6px;margin-bottom:.6rem">`;
+  sc.phases.forEach((_,i)=>`<button class="btn${i===tpcStep?' act':''}" onclick="tpcPhase(${i})">`);
+  html+=sc.phases.map((_,i)=>`<button class="btn${i===tpcStep?' act':''}" onclick="tpcPhase(${i})">Phase ${i+1}</button>`).join('');
+  html+=`</div>`;
+  html+=`<div style="font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink);margin-bottom:.6rem">${ph.title}</div>`;
+  html+=`<div class="phase-diagram"><div class="phase-label" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bdr)">Coordinator</div><div class="phase-nodes"><div class="node-box coordinator">${ph.coord}</div></div></div>`;
+  html+=`<div class="phase-diagram"><div class="phase-label" style="background:var(--bg3);color:var(--ink2);border:1px solid var(--rule2)">Participants</div><div class="phase-nodes">${ph.participants.map(p=>`<div class="node-box ${stateColor[p.state]||''}">${p.name}<br><span style="font-size:10px">${p.state}</span></div>`).join('')}</div></div>`;
+  html+=`<div style="font-family:var(--mono);font-size:11px;color:var(--ink2);padding:.5rem .7rem;margin-top:.4rem;background:var(--bg3);border-radius:3px">${ph.msg}</div>`;
+  document.getElementById('tpc-viz').innerHTML=html;
+}
+window.tpcSelect=i=>{tpcScenario=i;tpcStep=0;buildTPCNav();renderTPC();};
+window.tpcPhase=i=>{tpcStep=i;renderTPC();};
+buildTPCNav();renderTPC();
+
+/* ── PROTOCOL STATES VIZ ── */
+function showProtocol(proto,btn){
+  document.querySelectorAll('#s7 .btn-row .btn').forEach(b=>b.classList.remove('act'));btn.classList.add('act');
+  if(proto==='2pc'){
+    document.getElementById('protocol-viz').innerHTML=`
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);margin-bottom:.5rem">2PC participant states:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:12px">
+        <div class="node-box" style="border-color:var(--blue-bdr);background:var(--blue-bg);color:var(--blue)">idle</div>
+        <span>→</span>
+        <div class="node-box waiting">prepared ← <strong>BLOCKED HERE if coordinator crashes</strong></div>
+        <span>→</span>
+        <div class="node-box committed">committed</div>
+        <div style="font-size:11px;color:var(--red);margin-left:6px">or</div>
+        <div class="node-box abort">aborted</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--red);margin-top:.6rem;padding:.5rem .7rem;background:var(--red-bg);border-radius:3px;border-left:3px solid var(--red-bdr)">In PREPARED state, a participant cannot decide unilaterally — it doesn't know if others voted YES or NO. It must wait for the coordinator to recover.</div>`;
+  }else{
+    document.getElementById('protocol-viz').innerHTML=`
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);margin-bottom:.5rem">3PC participant states:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:12px">
+        <div class="node-box" style="border-color:var(--blue-bdr);background:var(--blue-bg);color:var(--blue)">idle</div>
+        <span>→</span>
+        <div class="node-box waiting">prepared</div>
+        <span>→</span>
+        <div class="node-box coordinator">pre-committed ← <strong>safe to commit if crashed here</strong></div>
+        <span>→</span>
+        <div class="node-box committed">committed</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--green);margin-top:.6rem;padding:.5rem .7rem;background:var(--green-bg);border-radius:3px;border-left:3px solid var(--green-bdr)">If a participant reaches PRE-COMMITTED, all others must have voted YES. It can commit unilaterally (or contact peers). If coordinator crashes while a participant is in PREPARED (not yet pre-committed), peers can abort safely — no one has committed yet.</div>`;
+  }
+}
+showProtocol('2pc',document.querySelector('#s7 .btn'));
+
+/* ── THROUGHPUT BARS ── */
+function updateThroughput(){
+  const conflict=parseInt(document.getElementById('conflict-sl').value)/100;
+  document.getElementById('conflict-val').textContent=Math.round(conflict*100)+'%';
+  const twopl=Math.max(5,100*(1-conflict*0.8)-conflict*30);
+  const occ=Math.max(5,100*(1-conflict)*(1-conflict*0.5));
+  const mvcc=Math.max(20,100*(1-conflict*0.15));
+  const protocols=[
+    {name:'2PL (pessimistic)',val:twopl,col:'var(--blue)'},
+    {name:'OCC (optimistic)',val:occ,col:'var(--teal)'},
+    {name:'MVCC (snapshot)',val:mvcc,col:'var(--green)'},
+  ];
+  document.getElementById('throughput-bars').innerHTML=protocols.map(p=>`
+    <div style="display:flex;align-items:center;gap:10px;margin:5px 0;font-family:var(--mono);font-size:12px">
+      <span style="min-width:160px;color:var(--ink2)">${p.name}</span>
+      <div style="flex:1;height:20px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${p.val.toFixed(0)}%;background:${p.col};border-radius:2px;transition:width .4s ease"></div>
+      </div>
+      <span style="min-width:40px;color:${p.col};text-align:right">${p.val.toFixed(0)}%</span>
+    </div>`).join('');
+  const note=conflict<0.1?'Low contention: all protocols perform well; MVCC and OCC win on read-heavy workloads.':conflict<0.4?'Medium contention: OCC starts aborting and retrying frequently; 2PL blocks but retries less; MVCC stays stable.':'High contention: OCC thrashes with retries; 2PL risks deadlocks and long queues; MVCC degrades gracefully but GC pressure increases.';
+  document.getElementById('throughput-note').textContent=note;
+}
+updateThroughput();
+</script>
+</body>
+</html>
