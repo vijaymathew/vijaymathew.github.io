@@ -131,6 +131,18 @@ code{font-family:var(--mono);font-size:12.5px;padding:1px 5px;border-radius:4px;
 .stat-k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.42rem}
 .stat-v{font-size:1.18rem;font-weight:600;color:var(--ink)}
 .disk-stack{display:grid;gap:10px;margin-top:.95rem}
+.run-pipeline{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:.95rem}
+.stage-card{border:1px solid var(--rule);border-radius:var(--r);background:var(--bg2);padding:.95rem}
+.stage-head{display:flex;justify-content:space-between;gap:1rem;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.7rem}
+.stage-arrow{font-size:14px;color:var(--ink3)}
+.stage-note{margin-top:.7rem;font-size:13px;line-height:1.6;color:var(--ink2)}
+.merge-structure{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;margin-top:.95rem}
+.merge-run-list{display:grid;gap:10px}
+.merge-run{border:1px solid var(--rule);border-radius:var(--r);background:var(--surface);padding:.8rem}
+.chip.ptr{box-shadow:inset 0 0 0 2px rgba(47,107,87,.26);background:var(--green-bg);border-color:rgba(47,107,87,.28);color:var(--green)}
+.chip.heap{background:var(--amber-bg);border-color:rgba(156,103,26,.28);color:var(--amber)}
+.chip.dim{opacity:.46}
+.stage-empty{font-family:var(--mono);font-size:12px;color:var(--ink3)}
 .disk-row{border:1px solid var(--rule);border-radius:var(--r);background:var(--bg2);padding:.85rem}
 .disk-head{display:flex;justify-content:space-between;gap:1rem;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.65rem}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -157,7 +169,7 @@ code{font-family:var(--mono);font-size:12.5px;padding:1px 5px;border-radius:4px;
 .footer-links a{font-size:14px;color:var(--ink2);text-decoration:none}
 .footer-links a:hover{color:var(--green)}
 @media (max-width:760px){
-  .toc,.grid-two,.stat-grid{grid-template-columns:1fr}
+  .toc,.grid-two,.stat-grid,.run-pipeline,.merge-structure{grid-template-columns:1fr}
   .hero h1{max-width:none}
 }
 </style>
@@ -233,6 +245,23 @@ code{font-family:var(--mono);font-size:12.5px;padding:1px 5px;border-radius:4px;
         <button class="btn" onclick="resetRuns()">Reset</button>
       </div>
       <div class="preview" id="run-preview"></div>
+      <div class="run-pipeline">
+        <div class="stage-card">
+          <div class="stage-head"><span>1. Read input chunk</span><span class="stage-arrow">→</span></div>
+          <div class="chips" id="run-read"></div>
+          <div class="stage-note" id="run-read-note"></div>
+        </div>
+        <div class="stage-card">
+          <div class="stage-head"><span>2. Sort in RAM</span><span class="stage-arrow">→</span></div>
+          <div class="chips" id="run-sort"></div>
+          <div class="stage-note" id="run-sort-note"></div>
+        </div>
+        <div class="stage-card">
+          <div class="stage-head"><span>3. Write sorted run</span></div>
+          <div class="chips" id="run-write"></div>
+          <div class="stage-note" id="run-write-note"></div>
+        </div>
+      </div>
       <div class="disk-stack" id="run-stack"></div>
       <div class="stat-grid">
         <div class="stat"><div class="stat-k">Records processed</div><div class="stat-v" id="run-records">0</div></div>
@@ -262,16 +291,21 @@ code{font-family:var(--mono);font-size:12.5px;padding:1px 5px;border-radius:4px;
         <button class="btn" onclick="resetMerge()">Reset</button>
       </div>
       <div class="preview" id="merge-preview"></div>
-      <div class="grid-two">
-        <div class="card">
-          <h4>Heap front</h4>
-          <div class="big" id="merge-heap"></div>
-          <p>The heap stores the smallest current record from each live run.</p>
+      <div class="merge-structure">
+        <div class="stage-card">
+          <div class="stage-head"><span>Run readers</span><span class="stage-arrow">→</span></div>
+          <div class="merge-run-list" id="merge-readers"></div>
+          <div class="stage-note">Each run is still a full sorted file. The highlighted chip marks the record from that run currently represented in the heap.</div>
         </div>
-        <div class="card">
-          <h4>Output</h4>
-          <div class="big" id="merge-out"></div>
-          <p>Every pop emits the next global minimum across all runs.</p>
+        <div class="stage-card">
+          <div class="stage-head"><span>Heap backing array</span><span class="stage-arrow">→</span></div>
+          <div class="chips" id="merge-heap"></div>
+          <div class="stage-note">The heap holds only one live candidate per run, stored in its usual array representation.</div>
+        </div>
+        <div class="stage-card">
+          <div class="stage-head"><span>Output file</span></div>
+          <div id="merge-output-file"></div>
+          <div class="stage-note">Each step appends one new global minimum to the merged output stream.</div>
         </div>
       </div>
       <div class="stat-grid">
@@ -490,6 +524,7 @@ const MERGE_RUNS = [[1, 8, 13, 20], [2, 7, 15, 19], [0, 5, 9, 22]];
 
 const state = {
   runIndex: 0,
+  lastRun: null,
   runs: [],
   merge: null
 };
@@ -542,8 +577,17 @@ function renderCost() {
 function stepRuns(count) {
   for (let c = 0; c < count; c++) {
     if (state.runIndex >= RUN_DATA.length) break;
-    const chunk = RUN_DATA.slice(state.runIndex, state.runIndex + 4).sort((a, b) => a - b);
-    state.runs.push(writeDemoRun(chunk));
+    const rawChunk = RUN_DATA.slice(state.runIndex, state.runIndex + 4);
+    const sortedChunk = rawChunk.slice().sort((a, b) => a - b);
+    const runFile = writeDemoRun(sortedChunk);
+    state.runs.push(runFile);
+    state.lastRun = {
+      index: state.runs.length,
+      start: state.runIndex,
+      raw: rawChunk,
+      sorted: sortedChunk,
+      bytes: runFile.length()
+    };
     state.runIndex += 4;
   }
   renderRuns();
@@ -551,13 +595,28 @@ function stepRuns(count) {
 
 function resetRuns() {
   state.runIndex = 0;
+  state.lastRun = null;
   state.runs = [];
   renderRuns();
 }
 
 function renderRuns() {
-  document.getElementById("run-preview").textContent =
-    "Read a chunk that fits in memory, sort it in RAM, then write those records into a simulated run file. The page is still in-memory, but the run files now use the same BinaryFile-style cursor model as the implementation below.";
+  const last = state.lastRun;
+  document.getElementById("run-preview").textContent = last
+    ? `Chunk ${last.index}: read records ${last.start + 1}-${last.start + last.raw.length} from the input file, sort only that memory-sized slice in RAM, then write it out as sorted Run ${last.index}. The full file is still not sorted yet; only each run is.`
+    : "Press Generate to watch one memory-sized slice move through the pipeline: read a chunk from the big input file, sort that chunk in RAM, then write it out as one temporary sorted run.";
+  document.getElementById("run-read").innerHTML = (last ? last.raw : []).map(v => "<span class='chip'>" + v + "</span>").join("") || "<span class='chip'>waiting for chunk</span>";
+  document.getElementById("run-sort").innerHTML = (last ? last.sorted : []).map(v => "<span class='chip out'>" + v + "</span>").join("") || "<span class='chip'>sorted in memory</span>";
+  document.getElementById("run-write").innerHTML = (last ? last.sorted : []).map(v => "<span class='chip run'>" + v + "</span>").join("") || "<span class='chip'>temporary run file</span>";
+  document.getElementById("run-read-note").textContent = last
+    ? `This is the next sequential slice from the unsorted input file.`
+    : `The input file is consumed left to right in fixed-size chunks.`;
+  document.getElementById("run-sort-note").textContent = last
+    ? `The same records, now ordered by the in-memory sorter.`
+    : `Only one chunk at a time has to fit in RAM.`;
+  document.getElementById("run-write-note").textContent = last
+    ? `Run ${last.index} is written sequentially as ${last.bytes} bytes of sorted records.`
+    : `These temporary runs become the inputs to the merge phase.`;
   document.getElementById("run-stack").innerHTML = state.runs.map((run, i) => {
     const values = readDemoFile(run);
     return "<div class='disk-row'><div class='disk-head'><span>Run " + (i + 1) + "</span><span>" + values.length + " records / " + run.length() + " bytes</span></div><div class='chips'>" +
@@ -610,7 +669,7 @@ function resetMerge() {
     heap.push({ value: run[0], runId, index: 0 });
     positions[runId] = 1;
   });
-  state.merge = { heap, positions, output: [] };
+  state.merge = { heap, positions, output: [], lastEvent: null };
   renderMerge();
 }
 
@@ -621,21 +680,46 @@ function stepMerge(count) {
     if (!cur) break;
     state.merge.output.push(cur.value);
     const nextIndex = state.merge.positions[cur.runId];
+    let pushed = null;
     if (nextIndex < MERGE_RUNS[cur.runId].length) {
-      state.merge.heap.push({ value: MERGE_RUNS[cur.runId][nextIndex], runId: cur.runId, index: nextIndex });
+      pushed = { value: MERGE_RUNS[cur.runId][nextIndex], runId: cur.runId, index: nextIndex };
+      state.merge.heap.push(pushed);
       state.merge.positions[cur.runId] = nextIndex + 1;
     }
+    state.merge.lastEvent = { emitted: cur, pushed };
   }
   renderMerge();
 }
 
 function renderMerge() {
-  const heapFront = state.merge ? state.merge.heap.data.map(x => x.value).join(", ") : "";
-  const output = state.merge ? state.merge.output.join(", ") : "";
+  const merge = state.merge;
   document.getElementById("merge-preview").textContent =
-    "Each run contributes at most one live candidate to the heap. That is why the merge cost is about log(k), not log(total records).";
-  document.getElementById("merge-heap").textContent = heapFront ? "[" + heapFront + "]" : "[]";
-  document.getElementById("merge-out").textContent = output ? "[" + output + "]" : "[]";
+    merge && merge.lastEvent
+      ? `Emitted ${merge.lastEvent.emitted.value} from Run ${merge.lastEvent.emitted.runId + 1}. ` +
+        (merge.lastEvent.pushed
+          ? `That reader advances and pushes ${merge.lastEvent.pushed.value} from the same run back into the heap, so the heap still has one candidate for each live run.`
+          : `That run is exhausted, so it disappears from the heap.`)
+      : "Press Next output to watch the backing structures move together: one unread record from each run sits in the heap, the smallest is emitted, and only that run reader advances.";
+  document.getElementById("merge-readers").innerHTML = MERGE_RUNS.map((run, runId) => {
+    const nextIndex = merge ? Math.min(merge.positions[runId], run.length) : 0;
+    const liveCandidateIndex = merge && merge.heap.data.some(x => x.runId === runId) ? nextIndex - 1 : -1;
+    return "<div class='merge-run'><div class='disk-head'><span>Run " + (runId + 1) + "</span><span>reader at " + nextIndex + "</span></div><div class='chips'>" +
+      run.map((value, idx) => {
+        let cls = "chip run";
+        if (merge && idx < nextIndex - 1) cls += " dim";
+        if (idx === liveCandidateIndex) cls += " ptr";
+        return "<span class='" + cls + "'>" + value + "</span>";
+      }).join("") +
+      "</div></div>";
+  }).join("");
+  document.getElementById("merge-heap").innerHTML = merge && merge.heap.data.length
+    ? merge.heap.data.map((x, idx) => "<span class='chip heap'>[" + idx + "] " + x.value + " · R" + (x.runId + 1) + "</span>").join("")
+    : "<span class='stage-empty'>heap empty</span>";
+  document.getElementById("merge-output-file").innerHTML = merge && merge.output.length
+    ? "<div class='disk-row'><div class='disk-head'><span>Merged output</span><span>" + merge.output.length + " records</span></div><div class='chips'>" +
+      merge.output.map(v => "<span class='chip out'>" + v + "</span>").join("") +
+      "</div></div>"
+    : "<div class='disk-row'><div class='disk-head'><span>Merged output</span><span>0 records</span></div><div class='chips'><span class='stage-empty'>no output yet</span></div></div>";
   document.getElementById("merge-heap-size").textContent = state.merge ? state.merge.heap.data.length : 0;
   document.getElementById("merge-out-count").textContent = state.merge ? state.merge.output.length : 0;
   document.getElementById("merge-runs").textContent = MERGE_RUNS.length;

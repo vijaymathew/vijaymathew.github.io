@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How TLS Works — Interactive Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #f5f2ea;
+  --bg2:     #ece7dc;
+  --bg3:     #e1d9ca;
+  --bg4:     #d5cab5;
+  --ink:     #1c211f;
+  --ink2:    #55615d;
+  --ink3:    #8b948f;
+  --rule:    rgba(28,33,31,0.10);
+  --rule2:   rgba(28,33,31,0.18);
+  --cyan:    #0d6b78;
+  --cyan-bg: rgba(13,107,120,0.08);
+  --cyan-bdr:rgba(13,107,120,0.28);
+  --red:     #a14b4b;
+  --red-bg:  rgba(161,75,75,0.08);
+  --red-bdr: rgba(161,75,75,0.24);
+  --amber:   #9a6a1d;
+  --amber-bg:rgba(154,106,29,0.09);
+  --amber-bdr:rgba(154,106,29,0.24);
+  --green:   #2b6c4f;
+  --green-bg:rgba(43,108,79,0.08);
+  --green-bdr:rgba(43,108,79,0.24);
+  --purple:  #6d5aa2;
+  --purple-bg:rgba(109,90,162,0.08);
+  --purple-bdr:rgba(109,90,162,0.22);
+  --blue:    #355f92;
+  --blue-bg: rgba(53,95,146,0.08);
+  --blue-bdr:rgba(53,95,146,0.24);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Public Sans', system-ui, sans-serif;
+  --display: 'Source Serif 4', serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(13,107,120,.08), transparent 22rem),
+    linear-gradient(180deg, rgba(53,95,146,.05), transparent 18rem),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1;
+}
+
+.page{max-width:880px;margin:0 auto;padding:0 1.75rem 6rem}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--rule2);margin-bottom:0}
+.tb-brand{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--cyan);letter-spacing:.06em}
+.tb-lock{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--green);border:1px solid var(--green-bdr);background:var(--green-bg);border-radius:20px;padding:3px 12px}
+.tb-lock::before{content:'';display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%}
+
+/* ── HERO ── */
+.hero{padding:4rem 0 3rem;border-bottom:1px solid var(--rule)}
+.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);margin-bottom:1.2rem}
+.hero h1{font-family:var(--display);font-size:clamp(2.5rem,5.5vw,4rem);font-weight:500;line-height:1.06;letter-spacing:-.02em;color:var(--ink);margin-bottom:1.1rem}
+.hero h1 .hl{color:var(--cyan)}
+.hero-sub{font-size:16px;line-height:1.9;color:var(--ink2);max-width:620px;font-weight:400;margin-bottom:2rem}
+.handshake-strip{display:flex;align-items:center;gap:0;border:1px solid var(--rule2);border-radius:8px;overflow:hidden;margin-bottom:1.8rem;font-family:var(--mono);font-size:11px}
+.hs-cell{flex:1;padding:.65rem .8rem;border-right:1px solid var(--rule2);min-width:0}
+.hs-cell:last-child{border-right:none}
+.hs-num{color:var(--ink3);font-size:9px;letter-spacing:.1em;margin-bottom:2px}
+.hs-name{color:var(--cyan);font-weight:600;font-size:11px}
+.hs-desc{color:var(--ink3);font-size:10px;margin-top:1px}
+.hero-pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--rule2);color:var(--ink3)}
+
+/* ── TOC ── */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:8px;overflow:hidden;margin:2.2rem 0 3rem;background:var(--bg2)}
+.toc a{display:flex;gap:10px;padding:9px 14px;background:transparent;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .12s,color .12s}
+.toc a:nth-child(2n){border-right:none}
+.toc a:nth-last-child(-n+2){border-bottom:none}
+.toc a:hover{background:var(--bg3);color:var(--cyan)}
+.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
+
+/* ── SECTIONS ── */
+.section{margin-bottom:5.5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.9rem;border-bottom:1px solid var(--rule2);margin-bottom:1.5rem}
+.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
+h2{font-family:var(--display);font-size:1.9rem;font-weight:500;color:var(--ink);letter-spacing:-.015em}
+h3{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin:1.4rem 0 .5rem}
+p{font-size:15.5px;line-height:1.86;color:var(--ink2);margin-bottom:.9rem;font-weight:400}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--cyan)}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg3);border:1px solid var(--rule2);border-radius:3px;padding:1px 5px;color:var(--cyan)}
+
+/* ── CALLOUTS ── */
+.callout{border-left:3px solid var(--rule2);padding:.75rem 1.1rem;margin:1rem 0;font-size:14px;line-height:1.78;color:var(--ink2);background:var(--bg2);border-radius:0 5px 5px 0;font-weight:400}
+.callout.cyan{border-color:var(--cyan);background:var(--cyan-bg);color:var(--cyan)}
+.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.callout.green{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.callout.amber{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+
+/* ── CODE BLOCKS ── */
+.cb{border:1px solid var(--rule2);border-radius:7px;overflow:hidden;margin:1.1rem 0 1.8rem;background:var(--bg2)}
+.cb-head{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.cb-head .lang{color:var(--cyan);font-size:10px;letter-spacing:.08em}
+.run-btn{background:var(--cyan);color:#fff;border:none;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 12px;cursor:pointer;letter-spacing:.04em;transition:opacity .12s}
+.run-btn:hover{opacity:.8}
+pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;color:var(--ink);margin:0}
+.out{display:none;background:rgba(43,108,79,.08);border-top:1px solid var(--rule);padding:.8rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;color:var(--green);white-space:pre-wrap}
+.out.on{display:block}
+.out.err{background:rgba(161,75,75,.08);color:var(--red)}
+.kw{color:var(--purple)}.fn{color:var(--blue)}.str{color:var(--green)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--amber)}.cls{color:var(--cyan)}
+
+/* ── DEMO ── */
+.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:7px;padding:1.3rem;margin:1.1rem 0 1.8rem}
+.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.9rem}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem}
+button.btn{font-family:var(--mono);font-size:12px;padding:5px 13px;border-radius:5px;border:1px solid var(--rule2);background:transparent;color:var(--ink2);cursor:pointer;transition:all .12s}
+button.btn:hover{border-color:var(--cyan);color:var(--cyan)}
+button.btn.act{background:var(--cyan);color:#fff;border-color:var(--cyan);font-weight:600}
+button.btn.red{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
+button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+
+/* ── NETWORK PACKET VIZ ── */
+.packet-row{display:flex;align-items:center;gap:8px;margin:.5rem 0;font-family:var(--mono);font-size:12px}
+.packet-node{padding:5px 14px;border-radius:5px;border:1px solid var(--rule2);background:var(--bg3);color:var(--ink2);min-width:70px;text-align:center}
+.packet-node.client{border-color:var(--blue-bdr);background:var(--blue-bg);color:var(--blue)}
+.packet-node.server{border-color:var(--green-bdr);background:var(--green-bg);color:var(--green)}
+.packet-node.attacker{border-color:var(--red-bdr);background:var(--red-bg);color:var(--red)}
+.packet-wire{flex:1;height:2px;position:relative;display:flex;align-items:center;justify-content:center}
+.packet-wire.danger{background:var(--red);opacity:.4}
+.packet-wire.secure{background:var(--cyan);opacity:.3}
+.packet-wire.encrypted{background:rgba(0,217,217,.6)}
+.packet-payload{position:relative;z-index:1;font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:4px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.packet-payload.plain{background:var(--red-bg);border:1px solid var(--red-bdr);color:var(--red)}
+.packet-payload.enc{background:var(--cyan-bg);border:1px solid var(--cyan-bdr);color:var(--cyan)}
+
+/* ── DH VIZ ── */
+.dh-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:.8rem 0}
+.dh-party{border:1px solid var(--rule2);border-radius:6px;padding:.9rem;background:var(--bg3)}
+.dh-party.alice{border-color:var(--blue-bdr)}
+.dh-party.bob{border-color:var(--green-bdr)}
+.dh-name{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.6rem}
+.dh-name.alice{color:var(--blue)}
+.dh-name.bob{color:var(--green)}
+.dh-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;margin:3px 0}
+.dh-label{color:var(--ink3)}
+.dh-val{color:var(--cyan);font-weight:600}
+.dh-step{font-family:var(--mono);font-size:12px;padding:.5rem .8rem;border-radius:4px;border:1px solid var(--rule);background:var(--bg2);margin:.3rem 0;color:var(--ink2)}
+.dh-step .step-lbl{color:var(--amber);font-size:10px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.dh-exchange{display:flex;align-items:center;gap:8px;margin:.5rem 0;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.dh-arrow{flex:1;height:1px;background:var(--rule2);position:relative}
+.dh-arrow::after{content:'→';position:absolute;right:-4px;top:-9px;font-size:14px}
+.dh-secret{text-align:center;padding:.7rem;border:1px solid var(--green-bdr);background:var(--green-bg);border-radius:5px;font-family:var(--mono);font-size:12px;color:var(--green);margin:.6rem 0}
+.dh-public-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;background:var(--amber-bg);border:1px solid var(--amber-bdr);color:var(--amber);margin-left:4px}
+.dh-private-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;background:var(--red-bg);border:1px solid var(--red-bdr);color:var(--red);margin-left:4px}
+
+/* ── HANDSHAKE TIMELINE ── */
+.hs-timeline{font-family:var(--mono);font-size:12px;margin:.8rem 0}
+.hs-col-heads{display:grid;grid-template-columns:1fr 60px 1fr;margin-bottom:.4rem;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.hs-col-heads span:last-child{text-align:right}
+.hs-row{display:grid;grid-template-columns:1fr 60px 1fr;align-items:center;margin:3px 0;min-height:28px}
+.hs-msg{padding:4px 10px;border-radius:4px;font-size:11px;display:flex;align-items:center;gap:6px}
+.hs-msg.from-client{background:var(--blue-bg);border:1px solid var(--blue-bdr);color:var(--blue);justify-content:flex-end}
+.hs-msg.from-server{background:var(--green-bg);border:1px solid var(--green-bdr);color:var(--green);justify-content:flex-start}
+.hs-msg.both{background:var(--cyan-bg);border:1px solid var(--cyan-bdr);color:var(--cyan)}
+.hs-center{text-align:center;color:var(--ink3);font-size:18px}
+.hs-empty{background:transparent}
+.hs-arrow-right{font-size:16px;color:var(--blue);text-align:center}
+.hs-arrow-left{font-size:16px;color:var(--green);text-align:center}
+.hs-arrow-both{font-size:16px;color:var(--cyan);text-align:center}
+.hs-phase{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:.4rem .8rem;border-left:2px solid var(--rule2);margin:.6rem 0 .3rem;display:block}
+.hs-phase.p1{border-color:var(--blue)}
+.hs-phase.p2{border-color:var(--amber)}
+.hs-phase.p3{border-color:var(--green)}
+
+/* ── CERT VIZ ── */
+.cert-box{border:1px solid var(--rule2);border-radius:6px;overflow:hidden;font-family:var(--mono);font-size:12px;margin:.6rem 0}
+.cert-head{padding:6px 12px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);display:flex;justify-content:space-between;align-items:center}
+.cert-field{display:grid;grid-template-columns:160px 1fr;border-bottom:1px solid var(--rule);padding:4px 12px}
+.cert-field:last-child{border-bottom:none}
+.cert-key{color:var(--ink3)}
+.cert-val{color:var(--ink);word-break:break-all}
+.cert-val.cyan{color:var(--cyan)}
+.cert-val.green{color:var(--green)}
+.cert-val.amber{color:var(--amber)}
+.cert-chain{display:flex;flex-direction:column;gap:6px;margin:.6rem 0}
+.cert-chain-item{padding:.6rem .9rem;border-radius:5px;border:1px solid var(--rule2);background:var(--bg3);display:flex;justify-content:space-between;align-items:center}
+.cert-chain-item.root{border-color:var(--amber-bdr);background:var(--amber-bg)}
+.cert-chain-item.inter{border-color:var(--purple-bdr);background:var(--purple-bg)}
+.cert-chain-item.leaf{border-color:var(--cyan-bdr);background:var(--cyan-bg)}
+.chain-arrow{color:var(--ink3);font-size:16px;text-align:center;margin:.2rem 0}
+
+/* ── MATH VIZ ── */
+.math-block{background:var(--bg3);border:1px solid var(--rule2);border-radius:5px;padding:.8rem 1.1rem;font-family:var(--mono);font-size:13px;line-height:2;margin:.6rem 0 1rem;color:var(--ink)}
+.math-block .eq{color:var(--cyan)}
+.math-block .note{color:var(--ink3);font-size:11px;font-style:italic}
+.math-block .pub{color:var(--amber)}
+.math-block .priv{color:var(--red)}
+.math-block .secret{color:var(--green)}
+
+/* ── CIPHER SUITE TABLE ── */
+.cs-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin:.6rem 0}
+.cs-table th{padding:6px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink3);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.cs-table td{padding:6px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
+.cs-table td.good{color:var(--green)}
+.cs-table td.bad{color:var(--red)}
+.cs-table td.warn{color:var(--amber)}
+.cs-table td.name{color:var(--cyan);font-weight:600}
+.cs-table tr.hi td{background:var(--cyan-bg)}
+
+/* ── SLIDER ── */
+.slider-row{display:flex;align-items:center;gap:10px;margin:.5rem 0}
+.slider-row label{font-family:var(--mono);font-size:12px;color:var(--ink2);min-width:80px}
+.slider-row input[type=range]{flex:1;accent-color:var(--cyan);cursor:pointer}
+.slider-val{font-family:var(--mono);font-size:12px;color:var(--cyan);min-width:50px;text-align:right}
+
+/* ── STEP NAV ── */
+.step-nav{display:flex;border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin-bottom:.9rem}
+.step-btn{flex:1;padding:7px 4px;font-family:var(--mono);font-size:11px;border:none;border-right:1px solid var(--rule2);background:var(--bg2);color:var(--ink3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.act{background:var(--cyan);color:#fff;font-weight:600}
+.step-panel{display:none}.step-panel.on{display:block}
+
+/* ── STATUS INDICATOR ── */
+.status-bar{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;padding:.5rem .8rem;border-radius:5px;border:1px solid var(--rule2);background:var(--bg3);margin:.5rem 0}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.red{background:var(--red)}
+.status-dot.green{background:var(--green)}
+.status-dot.amber{background:var(--amber)}
+.status-dot.cyan{background:var(--cyan)}
+
+/* footer */
+.footer{border-top:1px solid var(--rule2);padding-top:2rem;margin-top:1rem}
+.footer a{font-family:var(--mono);font-size:12px;color:var(--ink3);text-decoration:none;display:block;padding:3px 0}
+.footer a:hover{color:var(--cyan)}
+.footer-note{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="topbar">
+  <span class="tb-brand">tls.explainer</span>
+  <span class="tb-lock">connection secured · TLS 1.3</span>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">Interactive explainer · Network security</div>
+  <h1>How <span class="hl">TLS</span> secures<br>the internet</h1>
+  <p class="hero-sub">Every time you see the padlock in your browser, a sophisticated cryptographic handshake has just happened. Here is every step — with runnable JavaScript.</p>
+  <div class="handshake-strip">
+    <div class="hs-cell"><div class="hs-num">01</div><div class="hs-name">ClientHello</div><div class="hs-desc">ciphers + random</div></div>
+    <div class="hs-cell"><div class="hs-num">02</div><div class="hs-name">ServerHello</div><div class="hs-desc">chosen cipher + key share</div></div>
+    <div class="hs-cell"><div class="hs-num">03</div><div class="hs-name">Certificate</div><div class="hs-desc">server identity</div></div>
+    <div class="hs-cell"><div class="hs-num">04</div><div class="hs-name">Key derivation</div><div class="hs-desc">DH shared secret</div></div>
+    <div class="hs-cell"><div class="hs-num">05</div><div class="hs-name">Finished</div><div class="hs-desc">verify handshake</div></div>
+    <div class="hs-cell"><div class="hs-num">06</div><div class="hs-name">App data</div><div class="hs-desc">encrypted records</div></div>
+  </div>
+  <div class="hero-pills">
+    <span class="pill">TLS 1.3</span>
+    <span class="pill">Diffie-Hellman</span>
+    <span class="pill">X.509 certificates</span>
+    <span class="pill">AEAD ciphers</span>
+    <span class="pill">Perfect forward secrecy</span>
+    <span class="pill">HTTPS</span>
+    <span class="pill">HSTS</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>Why plaintext HTTP is dangerous</a>
+  <a href="#s2"><span class="toc-n">02</span>What TLS provides</a>
+  <a href="#s3"><span class="toc-n">03</span>Symmetric vs asymmetric crypto</a>
+  <a href="#s4"><span class="toc-n">04</span>Diffie-Hellman key exchange</a>
+  <a href="#s5"><span class="toc-n">05</span>The TLS 1.3 handshake</a>
+  <a href="#s6"><span class="toc-n">06</span>Certificates and trust chains</a>
+  <a href="#s7"><span class="toc-n">07</span>HTTPS = HTTP inside TLS</a>
+  <a href="#s8"><span class="toc-n">08</span>Perfect forward secrecy</a>
+  <a href="#s9"><span class="toc-n">09</span>Cipher suites and real-world TLS</a>
+</nav>
+
+<!-- ══ S1: WHY HTTP IS DANGEROUS ══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>Why plaintext HTTP is dangerous</h2></div>
+  <p>HTTP sends every byte — your passwords, cookies, credit card numbers — as raw readable text across a network. Anyone with access to any router between you and the server can read it. This isn't theoretical: coffee shop Wi-Fi, ISPs, and government surveillance systems all routinely capture HTTP traffic.</p>
+  <div class="callout red">A password submitted over HTTP is visible to every network device it passes through. Not "potentially visible" — <em>literally visible</em>, in plain ASCII, in the TCP packet payload.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Packet interception — click to see what an attacker sees</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showPacket('http',this)">HTTP (plain)</button>
+      <button class="btn" onclick="showPacket('https',this)">HTTPS (TLS)</button>
+    </div>
+    <div id="packet-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>sniffing.js — what a network sniffer sees</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// Simulating what a passive network observer captures</span>
+<span class="cmt">// In reality this is exactly what tools like Wireshark show on HTTP traffic</span>
+
+<span class="kw">function</span> <span class="fn">simulateHTTP</span>(request) {
+  <span class="cmt">// HTTP sends headers and body as raw text over TCP</span>
+  <span class="kw">const</span> rawPacket = [
+    <span class="str">`POST /login HTTP/1.1`</span>,
+    <span class="str">`Host: ${request.host}`</span>,
+    <span class="str">`Content-Type: application/x-www-form-urlencoded`</span>,
+    <span class="str">`Cookie: session_id=${request.cookie}`</span>,
+    <span class="str">``</span>,
+    <span class="str">`username=${request.username}&password=${request.password}`</span>,
+  ].join(<span class="str">"\r\n"</span>);
+  <span class="kw">return</span> rawPacket; <span class="cmt">// every router sees this</span>
+}
+
+<span class="kw">function</span> <span class="fn">simulateHTTPS</span>(request) {
+  <span class="cmt">// After TLS, the network only sees encrypted opaque bytes</span>
+  <span class="cmt">// The attacker can see: server IP, approximate data size, timing</span>
+  <span class="cmt">// The attacker CANNOT see: headers, path, cookies, body, anything meaningful</span>
+  <span class="kw">const</span> recordHeader = {
+    contentType: <span class="num">0x17</span>, <span class="cmt">// 23 = Application Data</span>
+    version:     <span class="num">0x0303</span>, <span class="cmt">// TLS 1.2 record layer (TLS 1.3 uses this for compat)</span>
+    length:      <span class="num">512</span>,    <span class="cmt">// encrypted + padded to hide true size</span>
+  };
+  <span class="cmt">// The payload is AEAD-encrypted — looks like random bytes to attacker</span>
+  <span class="kw">const</span> encryptedPayload = Array.from({length: <span class="num">32</span>},
+    () => Math.floor(Math.random() * <span class="num">256</span>).toString(<span class="num">16</span>).padStart(<span class="num">2</span>, <span class="str">'0'</span>)
+  ).join(<span class="str">' '</span>);
+  <span class="kw">return</span> { recordHeader, encryptedPayload, visibleToAttacker: <span class="str">"destination IP only"</span> };
+}
+
+<span class="kw">const</span> request = {
+  host: <span class="str">"mybank.com"</span>,
+  username: <span class="str">"alice"</span>,
+  password: <span class="str">"hunter2"</span>,
+  cookie: <span class="str">"abc123def456"</span>,
+};
+
+console.log(<span class="str">"=== HTTP (what the attacker sees) ==="</span>);
+console.log(<span class="fn">simulateHTTP</span>(request));
+
+console.log(<span class="str">"\n=== HTTPS (what the attacker sees) ==="</span>);
+<span class="kw">const</span> tls = <span class="fn">simulateHTTPS</span>(request);
+console.log(<span class="str">"TLS Record Header:"</span>, JSON.stringify(tls.recordHeader));
+console.log(<span class="str">"Encrypted payload: "</span>, tls.encryptedPayload);
+console.log(<span class="str">"Visible to attacker:"</span>, tls.visibleToAttacker);
+console.log(<span class="str">`Password "${request.password}" is: completely hidden`</span>);</pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ══ S2: WHAT TLS PROVIDES ══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>What TLS provides</h2></div>
+  <p>TLS (Transport Layer Security) is a protocol that wraps any stream-based connection — most commonly HTTP — in three distinct security guarantees. Each one addresses a different attack.</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cs-table">
+      <thead><tr><th>Property</th><th>What it means</th><th>Attack it prevents</th><th>Mechanism</th></tr></thead>
+      <tbody>
+        <tr><td class="name good">Confidentiality</td><td>Data can only be read by sender and receiver</td><td>Passive eavesdropping (wiretapping, packet capture)</td><td>Symmetric encryption (AES-GCM)</td></tr>
+        <tr><td class="name good">Integrity</td><td>Data cannot be modified in transit undetected</td><td>Active manipulation (bit-flipping, injection)</td><td>Message authentication codes (HMAC / AEAD)</td></tr>
+        <tr><td class="name good">Authentication</td><td>Server's identity is verified</td><td>Impersonation, MITM (man-in-the-middle)</td><td>X.509 certificates + PKI trust chain</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Without <strong>confidentiality</strong>: attacker reads your data. Without <strong>integrity</strong>: attacker modifies it silently (inject malware into a downloaded file). Without <strong>authentication</strong>: attacker pretends to be your bank — even with encryption, you'd be securely talking to the wrong server.</p>
+  <div class="callout cyan">TLS 1.3 (RFC 8446, 2018) redesigned the protocol from scratch: it removed all legacy weak cryptography, reduced the handshake from 2 round-trips to 1, and made forward secrecy mandatory. Record confidentiality and integrity come from AEAD (Authenticated Encryption with Associated Data); authentication comes from certificates, signatures, and trust-chain validation.</div>
+</section>
+
+<!-- ══ S3: SYMMETRIC VS ASYMMETRIC ══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>Symmetric vs asymmetric encryption</h2></div>
+  <p>Two completely different types of cryptography work together in TLS. Understanding why both are needed is the key to understanding the whole protocol.</p>
+
+  <h3>Symmetric encryption — one key for both sides</h3>
+  <p>Both parties use the same secret key to encrypt and decrypt. It's fast — AES can encrypt gigabytes per second in hardware. The problem: how do you share the key safely <em>before</em> you have a secure channel? You can't encrypt the key to send it — you'd need a key to do that.</p>
+
+  <h3>Asymmetric encryption — a key pair</h3>
+  <p>Each party has a <strong>public key</strong> (freely shared) and a <strong>private key</strong> (secret). Anything encrypted with the public key can only be decrypted with the private key. Crucially, knowing the public key tells an attacker essentially nothing about the private key — it's a mathematical one-way function (modular exponentiation or elliptic curve multiplication).</p>
+
+  <div class="callout amber">Asymmetric crypto is ~100–1000× slower than symmetric. TLS never uses it to encrypt data directly. It uses asymmetric crypto only for the handshake — to negotiate a shared symmetric key. Once that key is established, all data flows through fast symmetric encryption.</div>
+
+  <div class="cb">
+    <div class="cb-head"><span>crypto_primitives.js — XOR cipher (symmetric) and one-way functions</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// Illustrating the core ideas: symmetric uses one key, asymmetric uses a pair</span>
+<span class="cmt">// Real TLS uses AES-256-GCM (symmetric) and X25519 (asymmetric DH)</span>
+
+<span class="cmt">// === Symmetric: XOR cipher (simplified — real systems use AES) ===</span>
+<span class="kw">function</span> <span class="fn">xorEncrypt</span>(plaintext, key) {
+  <span class="kw">return</span> [...plaintext].map((c, i) =>
+    String.fromCharCode(c.charCodeAt(<span class="num">0</span>) ^ key.charCodeAt(i % key.length))
+  ).join(<span class="str">""</span>);
+}
+<span class="kw">const</span> <span class="fn">xorDecrypt</span> = xorEncrypt; <span class="cmt">// XOR is its own inverse — same operation</span>
+
+<span class="kw">const</span> sharedKey  = <span class="str">"secret42"</span>;
+<span class="kw">const</span> message    = <span class="str">"Hello, server!"</span>;
+<span class="kw">const</span> encrypted  = <span class="fn">xorEncrypt</span>(message, sharedKey);
+<span class="kw">const</span> decrypted  = <span class="fn">xorDecrypt</span>(encrypted, sharedKey);
+console.log(<span class="str">"=== Symmetric ==="</span>);
+console.log(<span class="str">`Plaintext:  "${message}"`</span>);
+console.log(<span class="str">`Ciphertext: ${[...encrypted].map(c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join(' ')}`</span>);
+console.log(<span class="str">`Decrypted:  "${decrypted}" ✓`</span>);
+
+<span class="cmt">// === Asymmetric: RSA-like modular exponentiation (toy parameters) ===</span>
+<span class="cmt">// Real RSA uses 2048-4096 bit numbers; ECDH uses elliptic curves</span>
+<span class="kw">function</span> <span class="fn">modPow</span>(base, exp, mod) {
+  <span class="cmt">// Fast modular exponentiation (square and multiply)</span>
+  <span class="kw">let</span> result = <span class="num">1n</span>;
+  base = base % mod;
+  <span class="kw">while</span> (exp > <span class="num">0n</span>) {
+    <span class="kw">if</span> (exp % <span class="num">2n</span> === <span class="num">1n</span>) result = (result * base) % mod;
+    exp = exp / <span class="num">2n</span>;
+    base = (base * base) % mod;
+  }
+  <span class="kw">return</span> result;
+}
+
+<span class="cmt">// Toy RSA: p=61, q=53 → n=3233, e=17, d=2753</span>
+<span class="kw">const</span> n = <span class="num">3233n</span>, e = <span class="num">17n</span>, d = <span class="num">2753n</span>;
+<span class="kw">const</span> publicKey  = { n, e }; <span class="cmt">// shared openly</span>
+<span class="kw">const</span> privateKey = { n, d }; <span class="cmt">// kept secret</span>
+<span class="kw">const</span> plainNum   = <span class="num">42n</span>;
+<span class="kw">const</span> cipherNum  = <span class="fn">modPow</span>(plainNum, publicKey.e, publicKey.n);  <span class="cmt">// encrypt with public</span>
+<span class="kw">const</span> recovered  = <span class="fn">modPow</span>(cipherNum, privateKey.d, privateKey.n); <span class="cmt">// decrypt with private</span>
+console.log(<span class="str">"\n=== Asymmetric (toy RSA) ==="</span>);
+console.log(<span class="str">`Public key:  (n=${n}, e=${e})`</span>);
+console.log(<span class="str">`Private key: (n=${n}, d=${d})`</span>);
+console.log(<span class="str">`Plaintext:   ${plainNum}`</span>);
+console.log(<span class="str">`Encrypted:   ${cipherNum}  ← only private key can undo this`</span>);
+console.log(<span class="str">`Decrypted:   ${recovered} ✓`</span>);
+
+<span class="cmt">// Why asymmetric is slow:</span>
+<span class="kw">const</span> t0 = Date.now();
+<span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < <span class="num">1000</span>; i++) <span class="fn">modPow</span>(<span class="num">42n</span>, e, n);
+<span class="kw">const</span> asymMs = Date.now() - t0;
+<span class="kw">const</span> t1 = Date.now();
+<span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < <span class="num">1000000</span>; i++) <span class="fn">xorEncrypt</span>(<span class="str">"hello"</span>, <span class="str">"key"</span>);
+<span class="kw">const</span> symMs = Date.now() - t1;
+console.log(<span class="str">`\n1000 asymmetric ops:    ${asymMs}ms`</span>);
+console.log(<span class="str">`1,000,000 symmetric ops: ${symMs}ms`</span>);
+console.log(<span class="str">`Symmetric is ~${Math.max(1, Math.round((1000 * asymMs) / Math.max(1, symMs)))}× faster (even with toy params)`</span>);</pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ══ S4: DIFFIE-HELLMAN ══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>Diffie-Hellman key exchange</h2></div>
+  <p>Diffie-Hellman (1976) solved the fundamental problem: how can two parties who have never met before agree on a shared secret over a public channel, where an eavesdropper hears everything they say?</p>
+  <p>The answer relies on a mathematical one-way function: <strong>modular exponentiation</strong>. Computing <code>g^a mod p</code> is easy. Reversing it — finding <code>a</code> given only <code>g^a mod p</code>, <code>g</code>, and <code>p</code> — is computationally infeasible for large numbers. This is the <em>discrete logarithm problem</em>.</p>
+
+  <div class="math-block">
+    <div><span class="note">Shared public parameters (published openly):</span></div>
+    <div><span class="pub">p</span> = large prime &nbsp;&nbsp;<span class="pub">g</span> = generator (primitive root mod p)</div>
+    <div style="margin-top:.5rem"><span class="note">Alice (private a, public A):</span></div>
+    <div><span class="eq">A = g<sup>a</sup> mod p</span> &nbsp;&nbsp; <span class="note">← easy to compute, hard to reverse</span></div>
+    <div style="margin-top:.5rem"><span class="note">Bob (private b, public B):</span></div>
+    <div><span class="eq">B = g<sup>b</sup> mod p</span></div>
+    <div style="margin-top:.5rem"><span class="note">Exchange A and B publicly. Then:</span></div>
+    <div><span class="secret">Alice computes: B<sup>a</sup> mod p = g<sup>ba</sup> mod p</span></div>
+    <div><span class="secret">Bob computes: &nbsp;A<sup>b</sup> mod p = g<sup>ab</sup> mod p</span></div>
+    <div><span class="note">Same result! Attacker who sees A, B, g, p cannot compute g<sup>ab</sup> mod p efficiently.</span></div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">Diffie-Hellman — live key exchange with real numbers</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="runDH()">Generate new key exchange</button>
+    </div>
+    <div id="dh-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>diffie_hellman.js — DH key exchange from scratch</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// Diffie-Hellman Key Exchange — the full algorithm</span>
+<span class="cmt">// Using small numbers for readability; TLS uses 2048-bit primes or elliptic curves</span>
+
+<span class="kw">function</span> <span class="fn">modPow</span>(base, exp, mod) {
+  <span class="kw">let</span> result = <span class="num">1n</span>;
+  base = base % mod;
+  <span class="kw">while</span> (exp > <span class="num">0n</span>) {
+    <span class="kw">if</span> (exp & <span class="num">1n</span>) result = result * base % mod;
+    exp >>= <span class="num">1n</span>;
+    base = base * base % mod;
+  }
+  <span class="kw">return</span> result;
+}
+
+<span class="kw">function</span> <span class="fn">dhKeyExchange</span>(p, g) {
+  <span class="cmt">// In TLS 1.3 this uses X25519 (elliptic curve DH with Curve25519)</span>
+  <span class="cmt">// Conceptually identical — just a different one-way function</span>
+
+  <span class="cmt">// Step 1: each party picks a random private key</span>
+  <span class="kw">const</span> randBigInt = (max) => BigInt(Math.floor(Math.random() * Number(max - <span class="num">2n</span>)) + <span class="num">2</span>);
+  <span class="kw">const</span> a = randBigInt(p); <span class="cmt">// Alice's private key — NEVER shared</span>
+  <span class="kw">const</span> b = randBigInt(p); <span class="cmt">// Bob's private key — NEVER shared</span>
+
+  <span class="cmt">// Step 2: compute public keys (the one-way function)</span>
+  <span class="kw">const</span> A = <span class="fn">modPow</span>(g, a, p); <span class="cmt">// Alice's public key: g^a mod p</span>
+  <span class="kw">const</span> B = <span class="fn">modPow</span>(g, b, p); <span class="cmt">// Bob's public key:   g^b mod p</span>
+
+  <span class="cmt">// Step 3: exchange public keys (attacker sees A and B — that's fine)</span>
+  console.log(<span class="str">`Public params: p=${p}, g=${g}`</span>);
+  console.log(<span class="str">`Alice private: a=${a}  ← secret`</span>);
+  console.log(<span class="str">`Bob   private: b=${b}  ← secret`</span>);
+  console.log(<span class="str">`Alice public:  A=${A}  ← sent over network`</span>);
+  console.log(<span class="str">`Bob   public:  B=${B}  ← sent over network`</span>);
+
+  <span class="cmt">// Step 4: each party computes the shared secret independently</span>
+  <span class="kw">const</span> aliceSecret = <span class="fn">modPow</span>(B, a, p); <span class="cmt">// Alice computes B^a mod p = g^(ba) mod p</span>
+  <span class="kw">const</span> bobSecret   = <span class="fn">modPow</span>(A, b, p); <span class="cmt">// Bob   computes A^b mod p = g^(ab) mod p</span>
+
+  console.log(<span class="str">`\nAlice computes: B^a mod p = ${aliceSecret}`</span>);
+  console.log(<span class="str">`Bob   computes: A^b mod p = ${bobSecret}`</span>);
+  console.log(<span class="str">`Shared secret matches: ${aliceSecret === bobSecret} ✓`</span>);
+
+  <span class="cmt">// What the attacker knows: p, g, A, B — but NOT a, b, or the secret</span>
+  <span class="cmt">// To break this: solve the discrete logarithm problem — find a from A=g^a mod p</span>
+  <span class="cmt">// With 2048-bit primes this takes ~2^112 operations — computationally infeasible</span>
+
+  <span class="kw">return</span> aliceSecret;
+}
+
+<span class="cmt">// Small prime (real TLS uses RFC 3526 Group 14: a 2048-bit prime)</span>
+<span class="kw">const</span> p = <span class="num">23n</span>;  <span class="cmt">// prime modulus</span>
+<span class="kw">const</span> g = <span class="num">5n</span>;   <span class="cmt">// generator (primitive root mod 23)</span>
+<span class="fn">dhKeyExchange</span>(p, g);
+
+<span class="cmt">// ECDH (Elliptic Curve DH) — TLS 1.3 default is X25519</span>
+<span class="cmt">// Instead of g^a mod p, uses point multiplication on an elliptic curve: a·G</span>
+<span class="cmt">// Provides same security with much smaller key sizes (256 bits vs 3072 bits)</span>
+console.log(<span class="str">"\n--- Key size comparison for equivalent security ---"</span>);
+console.log(<span class="str">"RSA/DH (finite field):  3072 bits for 128-bit security"</span>);
+console.log(<span class="str">"ECDH (elliptic curve):   256 bits for 128-bit security"</span>);
+console.log(<span class="str">"Curve25519 key exchange: ~100µs on modern hardware"</span>);</pre>
+    <div class="out" id="o4"></div>
+  </div>
+
+  <p>Modern TLS 1.3 uses <strong>Elliptic Curve Diffie-Hellman (ECDH)</strong>, specifically the X25519 curve. The mathematics is the same idea but operates on points on an elliptic curve rather than integers modulo a prime. This gives equivalent security with keys that are 12× smaller, and is resistant to certain attacks that affect finite-field DH.</p>
+</section>
+
+<!-- ══ S5: TLS HANDSHAKE ══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>The TLS 1.3 handshake</h2></div>
+  <p>TLS 1.3 reduced the handshake to a single round-trip (1-RTT). Here is every message, what it contains, and why it's there. The client sends its key share in the very first message, so the server can derive the session key immediately and start encrypting from its second message onward.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">TLS 1.3 handshake — step through each message</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showHS(0,this)">ClientHello</button>
+      <button class="step-btn" onclick="showHS(1,this)">ServerHello</button>
+      <button class="step-btn" onclick="showHS(2,this)">Server cert</button>
+      <button class="step-btn" onclick="showHS(3,this)">Key derivation</button>
+      <button class="step-btn" onclick="showHS(4,this)">Finished</button>
+      <button class="step-btn" onclick="showHS(5,this)">App data</button>
+    </div>
+    <div id="hs-viz"></div>
+  </div>
+
+  <h3>Full handshake message flow</h3>
+  <div class="hs-timeline">
+    <div class="hs-col-heads"><span>CLIENT</span><span></span><span>SERVER</span></div>
+    <span class="hs-phase p1">Phase 1 — key exchange (plaintext)</span>
+    <div class="hs-row"><div class="hs-msg from-client">ClientHello<br><span style="font-size:10px;opacity:.7">random · ciphers · key_share(X25519)</span></div><div class="hs-arrow-right">→</div><div class="hs-empty"></div></div>
+    <div class="hs-row"><div class="hs-empty"></div><div class="hs-arrow-left">←</div><div class="hs-msg from-server">ServerHello<br><span style="font-size:10px;opacity:.7">random · cipher · key_share(X25519)</span></div></div>
+    <span class="hs-phase p2">Phase 2 — server auth (encrypted with handshake keys)</span>
+    <div class="hs-row"><div class="hs-empty"></div><div class="hs-arrow-left">←</div><div class="hs-msg from-server">EncryptedExtensions</div></div>
+    <div class="hs-row"><div class="hs-empty"></div><div class="hs-arrow-left">←</div><div class="hs-msg from-server">Certificate<br><span style="font-size:10px;opacity:.7">X.509 cert chain</span></div></div>
+    <div class="hs-row"><div class="hs-empty"></div><div class="hs-arrow-left">←</div><div class="hs-msg from-server">CertificateVerify<br><span style="font-size:10px;opacity:.7">signature over handshake transcript</span></div></div>
+    <div class="hs-row"><div class="hs-empty"></div><div class="hs-arrow-left">←</div><div class="hs-msg from-server">Finished<br><span style="font-size:10px;opacity:.7">HMAC of transcript</span></div></div>
+    <span class="hs-phase p3">Phase 3 — client auth + app data (encrypted with app keys)</span>
+    <div class="hs-row"><div class="hs-msg from-client">Finished<br><span style="font-size:10px;opacity:.7">HMAC of transcript</span></div><div class="hs-arrow-right">→</div><div class="hs-empty"></div></div>
+    <div class="hs-row"><div class="hs-msg both" style="text-align:center">Application Data (HTTP request/response)</div><div class="hs-arrow-both">⇄</div><div class="hs-empty"></div></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>tls_handshake.js — key derivation with HKDF</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// TLS 1.3 key derivation schedule (simplified)</span>
+<span class="cmt">// Real TLS uses HKDF-Extract and HKDF-Expand with SHA-256</span>
+<span class="cmt">// We simulate the structure to show how multiple keys derive from one shared secret</span>
+
+<span class="kw">function</span> <span class="fn">simpleHash</span>(data) {
+  <span class="cmt">// Toy hash — real TLS uses SHA-256</span>
+  <span class="kw">let</span> h = <span class="num">0x811c9dc5</span>;
+  <span class="kw">for</span> (<span class="kw">const</span> c <span class="kw">of</span> data)
+    h = Math.imul(h ^ c.charCodeAt(<span class="num">0</span>), <span class="num">0x01000193</span>) >>> <span class="num">0</span>;
+  <span class="kw">return</span> h.toString(<span class="num">16</span>).padStart(<span class="num">8</span>, <span class="str">'0'</span>);
+}
+
+<span class="kw">function</span> <span class="fn">hkdfExtract</span>(salt, ikm) {
+  <span class="cmt">// HKDF-Extract: combine salt and input key material</span>
+  <span class="kw">return</span> <span class="fn">simpleHash</span>(salt + <span class="str">"|"</span> + ikm);
+}
+
+<span class="kw">function</span> <span class="fn">hkdfExpand</span>(prk, label, length) {
+  <span class="cmt">// HKDF-Expand: derive a specific sub-key with a label</span>
+  <span class="kw">return</span> <span class="fn">simpleHash</span>(prk + <span class="str">"|tls13 "</span> + label).repeat(Math.ceil(length/<span class="num">8</span>)).slice(<span class="num">0</span>, length);
+}
+
+<span class="cmt">// === TLS 1.3 Key Schedule ===</span>
+<span class="kw">const</span> dhSharedSecret = <span class="str">"abc123def456"</span>; <span class="cmt">// result of ECDH key exchange</span>
+<span class="kw">const</span> clientRandom   = <span class="str">"client_rand_32bytes"</span>;
+<span class="kw">const</span> serverRandom   = <span class="str">"server_rand_32bytes"</span>;
+<span class="kw">const</span> transcript     = clientRandom + serverRandom; <span class="cmt">// hash of all handshake messages</span>
+
+console.log(<span class="str">"=== TLS 1.3 Key Derivation Schedule ==="</span>);
+
+<span class="cmt">// 1. Early secret (from pre-shared key, or zeros for fresh handshake)</span>
+<span class="kw">const</span> earlySecret = <span class="fn">hkdfExtract</span>(<span class="str">"0000"</span>, <span class="str">"0000"</span>);
+console.log(<span class="str">`Early secret:       ${earlySecret}`</span>);
+
+<span class="cmt">// 2. Handshake secret — derived from DH shared secret</span>
+<span class="kw">const</span> handshakeSecret = <span class="fn">hkdfExtract</span>(earlySecret, dhSharedSecret);
+console.log(<span class="str">`Handshake secret:   ${handshakeSecret}`</span>);
+
+<span class="cmt">// 3. Derive client and server handshake traffic keys</span>
+<span class="kw">const</span> clientHsKey = <span class="fn">hkdfExpand</span>(handshakeSecret, <span class="str">"c hs traffic"</span> + transcript, <span class="num">32</span>);
+<span class="kw">const</span> serverHsKey = <span class="fn">hkdfExpand</span>(handshakeSecret, <span class="str">"s hs traffic"</span> + transcript, <span class="num">32</span>);
+console.log(<span class="str">`Client hs key:      ${clientHsKey}  ← encrypts client Finished`</span>);
+console.log(<span class="str">`Server hs key:      ${serverHsKey}  ← encrypts Certificate, CertVerify, Finished`</span>);
+
+<span class="cmt">// 4. Master secret — mixed with zeros (no further secret input in basic handshake)</span>
+<span class="kw">const</span> masterSecret = <span class="fn">hkdfExtract</span>(handshakeSecret, <span class="str">"0000"</span>);
+console.log(<span class="str">`Master secret:      ${masterSecret}`</span>);
+
+<span class="cmt">// 5. Application traffic keys — used for all HTTP data after handshake</span>
+<span class="kw">const</span> clientAppKey = <span class="fn">hkdfExpand</span>(masterSecret, <span class="str">"c ap traffic"</span> + transcript, <span class="num">32</span>);
+<span class="kw">const</span> serverAppKey = <span class="fn">hkdfExpand</span>(masterSecret, <span class="str">"s ap traffic"</span> + transcript, <span class="num">32</span>);
+console.log(<span class="str">`Client app key:     ${clientAppKey}  ← encrypts all outgoing HTTP`</span>);
+console.log(<span class="str">`Server app key:     ${serverAppKey}  ← encrypts all incoming HTTP`</span>);
+
+<span class="cmt">// 6. Exporter master secret (for channel binding, QUIC, etc.)</span>
+<span class="kw">const</span> exporterSecret = <span class="fn">hkdfExpand</span>(masterSecret, <span class="str">"exp master"</span> + transcript, <span class="num">32</span>);
+console.log(<span class="str">`Exporter secret:    ${exporterSecret}`</span>);
+
+console.log(<span class="str">"\nAll keys derived from one DH shared secret + handshake transcript."</span>);
+console.log(<span class="str">"Separate keys for client→server and server→client prevent reflection attacks."</span>);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ══ S6: CERTIFICATES ══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>Certificates and the trust chain</h2></div>
+  <p>DH key exchange protects against passive eavesdroppers — but what if an attacker intercepts the connection and acts as a "man in the middle", performing DH with both sides separately? You'd be talking to the attacker, and they'd relay everything to the real server, seeing all your data.</p>
+  <p>Certificates solve this by binding an authentication public key to a verified identity. A <strong>Certificate Authority (CA)</strong> checks that you actually own the domain, then digitally signs a certificate asserting "this public key belongs to example.com". In TLS 1.3 that certificate key authenticates the server via signatures; the session secret still comes from the separate ephemeral Diffie-Hellman key shares. Your browser ships with ~150 trusted root CA certificates pre-installed.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">X.509 certificate structure — click a field to learn more</div>
+    <div id="cert-viz"></div>
+  </div>
+
+  <h3>The certificate chain</h3>
+  <p>Root CAs don't sign individual website certificates — the private key is kept offline. Instead they sign <strong>intermediate certificates</strong>, which in turn sign the website's leaf certificate. This limits exposure: if an intermediate is compromised, only revoke that intermediate.</p>
+
+  <div class="cert-chain">
+    <div class="cert-chain-item root"><div><div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--amber)">Root CA</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">DigiCert Global Root CA</div></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3)">Pre-installed in browser · 20yr validity · offline private key</div></div>
+    <div class="chain-arrow">↓ signs</div>
+    <div class="cert-chain-item inter"><div><div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--purple)">Intermediate CA</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">DigiCert TLS RSA SHA256 2020 CA1</div></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3)">Issued by root · 5yr validity · online but HSM-protected</div></div>
+    <div class="chain-arrow">↓ signs</div>
+    <div class="cert-chain-item leaf"><div><div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--cyan)">Leaf Certificate</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">example.com</div></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3)">Domain-validated · 90 days · served in TLS handshake</div></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>certificates.js — certificate chain checks with toy signature verification</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Certificate verification — what the browser does during the TLS handshake</span>
+<span class="cmt">// The signature scheme here is deliberately toy-level: just enough structure to show</span>
+<span class="cmt">// that verification recomputes a signature from cert contents + issuer public key.</span>
+
+<span class="kw">function</span> <span class="fn">simpleHash</span>(data) {
+  <span class="kw">let</span> h = <span class="num">0x811c9dc5</span>;
+  <span class="kw">for</span> (<span class="kw">const</span> c <span class="kw">of</span> data)
+    h = Math.imul(h ^ c.charCodeAt(<span class="num">0</span>), <span class="num">0x01000193</span>) >>> <span class="num">0</span>;
+  <span class="kw">return</span> h.toString(<span class="num">16</span>).padStart(<span class="num">8</span>, <span class="str">'0'</span>);
+}
+
+<span class="kw">class</span> <span class="cls">Certificate</span> {
+  <span class="fn">constructor</span>({subject, issuer, publicKey, validFrom, validTo, signature}) {
+    <span class="kw">this</span>.subject    = subject;
+    <span class="kw">this</span>.issuer     = issuer;
+    <span class="kw">this</span>.publicKey  = publicKey;   <span class="cmt">// the server's authentication public key</span>
+    <span class="kw">this</span>.validFrom  = <span class="kw">new</span> Date(validFrom);
+    <span class="kw">this</span>.validTo    = <span class="kw">new</span> Date(validTo);
+    <span class="kw">this</span>.signature  = signature;   <span class="cmt">// CA's digital signature over this cert's fields</span>
+  }
+
+  <span class="fn">signedData</span>() {
+    <span class="kw">return</span> [
+      <span class="kw">this</span>.subject,
+      <span class="kw">this</span>.issuer,
+      <span class="kw">this</span>.publicKey,
+      <span class="kw">this</span>.validFrom.toISOString().slice(<span class="num">0</span>, <span class="num">10</span>),
+      <span class="kw">this</span>.validTo.toISOString().slice(<span class="num">0</span>, <span class="num">10</span>)
+    ].join(<span class="str">"|"</span>);
+  }
+
+  <span class="fn">isExpired</span>(now = <span class="kw">new</span> Date()) {
+    <span class="kw">return</span> now < <span class="kw">this</span>.validFrom || now > <span class="kw">this</span>.validTo;
+  }
+
+  <span class="fn">matchesDomain</span>(hostname) {
+    <span class="cmt">// Wildcard matching: *.example.com matches sub.example.com</span>
+    <span class="kw">if</span> (<span class="kw">this</span>.subject === hostname) <span class="kw">return true</span>;
+    <span class="kw">if</span> (<span class="kw">this</span>.subject.startsWith(<span class="str">"*."</span>)) {
+      <span class="kw">const</span> base = <span class="kw">this</span>.subject.slice(<span class="num">2</span>);
+      <span class="kw">return</span> hostname.endsWith(<span class="str">"."</span> + base) && !hostname.slice(<span class="num">0</span>, -base.length-<span class="num">1</span>).includes(<span class="str">"."</span>);
+    }
+    <span class="kw">return false</span>;
+  }
+}
+
+<span class="kw">function</span> <span class="fn">toySign</span>(cert, issuerPublicKey) {
+  <span class="kw">return</span> <span class="str">"sig:"</span> + <span class="fn">simpleHash</span>(cert.<span class="fn">signedData</span>() + <span class="str">"|"</span> + issuerPublicKey);
+}
+
+<span class="kw">function</span> <span class="fn">verifyCertChain</span>(chain, hostname, trustedRoots, now = <span class="kw">new</span> Date()) {
+  console.log(<span class="str">`Verifying chain for: ${hostname}`</span>);
+  <span class="kw">const</span> results = [];
+
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < chain.length; i++) {
+    <span class="kw">const</span> cert   = chain[i];
+    <span class="kw">const</span> issuer = chain[i+<span class="num">1</span>] || trustedRoots.find(r => r.subject === cert.issuer);
+
+    <span class="cmt">// Check 1: is the certificate expired?</span>
+    <span class="kw">if</span> (cert.<span class="fn">isExpired</span>(now))
+      results.push(<span class="str">`  ✗ [${cert.subject}] EXPIRED`</span>);
+    <span class="kw">else</span>
+      results.push(<span class="str">`  ✓ [${cert.subject}] validity period OK`</span>);
+
+    <span class="cmt">// Check 2: does the leaf cert match the hostname?</span>
+    <span class="kw">if</span> (i === <span class="num">0</span>) {
+      <span class="kw">if</span> (cert.<span class="fn">matchesDomain</span>(hostname))
+        results.push(<span class="str">`  ✓ [${cert.subject}] hostname matches`</span>);
+      <span class="kw">else</span>
+        results.push(<span class="str">`  ✗ [${cert.subject}] hostname mismatch!`</span>);
+    }
+
+    <span class="cmt">// Check 3: does the signature verify under the issuer's public key?</span>
+    <span class="kw">if</span> (!issuer) {
+      results.push(<span class="str">`  ✗ [${cert.subject}] issuer "${cert.issuer}" not found in trust store`</span>);
+    } <span class="kw">else if</span> (cert.signature === <span class="fn">toySign</span>(cert, issuer.publicKey)) {
+      results.push(<span class="str">`  ✓ [${cert.subject}] signature verifies against ${issuer.subject}`</span>);
+    } <span class="kw">else</span> {
+      results.push(<span class="str">`  ✗ [${cert.subject}] invalid signature!`</span>);
+    }
+  }
+  results.forEach(r => console.log(r));
+  <span class="kw">return</span> !results.some(r => r.includes(<span class="str">"✗"</span>));
+}
+
+<span class="cmt">// Simulate a certificate chain</span>
+<span class="kw">const</span> rootCA = <span class="kw">new</span> <span class="cls">Certificate</span>({
+  subject: <span class="str">"DigiCert Global Root CA"</span>, issuer: <span class="str">"DigiCert Global Root CA"</span>,
+  publicKey: <span class="str">"rootPublicKey_abc123"</span>, validFrom: <span class="str">"2006-11-10"</span>, validTo: <span class="str">"2031-11-10"</span>,
+  signature: <span class="str">""</span>,
+});
+rootCA.signature = <span class="fn">toySign</span>(rootCA, rootCA.publicKey);
+<span class="kw">const</span> intermediate = <span class="kw">new</span> <span class="cls">Certificate</span>({
+  subject: <span class="str">"DigiCert TLS RSA 2020 CA1"</span>, issuer: <span class="str">"DigiCert Global Root CA"</span>,
+  publicKey: <span class="str">"interPublicKey_xyz789"</span>, validFrom: <span class="str">"2021-04-14"</span>, validTo: <span class="str">"2030-04-13"</span>,
+  signature: <span class="str">""</span>,
+});
+intermediate.signature = <span class="fn">toySign</span>(intermediate, rootCA.publicKey);
+<span class="kw">const</span> leaf = <span class="kw">new</span> <span class="cls">Certificate</span>({
+  subject: <span class="str">"*.example.com"</span>, issuer: <span class="str">"DigiCert TLS RSA 2020 CA1"</span>,
+  publicKey: <span class="str">"leafPublicKey_pqr456"</span>, validFrom: <span class="str">"2025-01-01"</span>, validTo: <span class="str">"2027-01-01"</span>,
+  signature: <span class="str">""</span>,
+});
+leaf.signature = <span class="fn">toySign</span>(leaf, intermediate.publicKey);
+
+<span class="kw">const</span> chain = [leaf, intermediate];
+<span class="kw">const</span> trusted = [rootCA];
+
+console.log(<span class="str">"=== Valid chain ==="</span>);
+<span class="kw">const</span> ok = <span class="fn">verifyCertChain</span>(chain, <span class="str">"api.example.com"</span>, trusted);
+console.log(<span class="str">`Result: ${ok ? "TRUSTED ✓" : "UNTRUSTED ✗"}`</span>);
+
+console.log(<span class="str">"\n=== Hostname mismatch ==="</span>);
+<span class="fn">verifyCertChain</span>(chain, <span class="str">"attacker.com"</span>, trusted);</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ══ S7: HTTPS ══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>HTTPS = HTTP inside TLS</h2></div>
+  <p>HTTPS is not a separate protocol — it's the same HTTP/1.1 or HTTP/2 running inside a TLS tunnel. From the application's perspective, it just writes to a socket; TLS handles the encryption and authentication transparently.</p>
+  <p>The URL scheme (<code>https://</code>) and default port (443 instead of 80) tell the client to perform a TLS handshake before sending any HTTP. The server's <code>Content-Security-Policy</code> and <code>Strict-Transport-Security</code> headers can then enforce that future connections also use HTTPS.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">HTTP request lifecycle: plaintext vs TLS-wrapped</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showHTTPS(0,this)">TCP connect</button>
+      <button class="step-btn" onclick="showHTTPS(1,this)">TLS handshake</button>
+      <button class="step-btn" onclick="showHTTPS(2,this)">HTTP request</button>
+      <button class="step-btn" onclick="showHTTPS(3,this)">HTTP response</button>
+    </div>
+    <div id="https-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>https.js — layered protocol stack</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c7','o7')">&#9654; Run</button></div>
+    <pre class="code" id="c7"><span class="cmt">// HTTPS protocol stack: each layer wraps the layer above it</span>
+<span class="cmt">// Real implementations are event-driven (Node.js tls.connect → https.request)</span>
+
+<span class="kw">class</span> <span class="cls">TLSRecord</span> {
+  <span class="cmt">// TLS wraps arbitrary data into "records" of up to 16KB</span>
+  <span class="kw">static</span> <span class="fn">wrap</span>(data, contentType = <span class="str">"application_data"</span>) {
+    <span class="kw">return</span> {
+      type:    contentType,   <span class="cmt">// 20=change_cipher, 21=alert, 22=handshake, 23=app_data</span>
+      version: <span class="str">"TLS 1.2"</span>,   <span class="cmt">// record layer stays 1.2 for compatibility; TLS 1.3 in extension</span>
+      length:  data.length,
+      payload: <span class="str">"[ENCRYPTED:"</span> + data.slice(<span class="num">0</span>, <span class="num">20</span>) + <span class="str">"...]"</span>, <span class="cmt">// AEAD encrypted</span>
+      authTag: <span class="str">"[16-byte GCM tag]"</span>,
+    };
+  }
+
+  <span class="kw">static</span> <span class="fn">unwrap</span>(record, sessionKey) {
+    <span class="cmt">// Verify auth tag first — reject if tampered, before decrypting</span>
+    <span class="kw">return</span> <span class="str">"[decrypted plaintext]"</span>; <span class="cmt">// real: AES-256-GCM decrypt</span>
+  }
+}
+
+<span class="cmt">// Simulate a full HTTPS request/response cycle</span>
+<span class="kw">function</span> <span class="fn">simulateHTTPS</span>(url, method = <span class="str">"GET"</span>, body = <span class="kw">null</span>) {
+  <span class="kw">const</span> { hostname, pathname } = <span class="kw">new</span> URL(url);
+
+  console.log(<span class="str">`=== HTTPS ${method} ${url} ===\n`</span>);
+
+  <span class="cmt">// Layer 1: TCP (handled by OS)</span>
+  console.log(<span class="str">"[TCP] SYN → SYN-ACK → ACK  (1 round trip, ~20ms)"</span>);
+
+  <span class="cmt">// Layer 2: TLS (1 round trip in TLS 1.3)</span>
+  console.log(<span class="str">"[TLS] ClientHello →"</span>);
+  console.log(<span class="str">"       ← ServerHello + Certificate + Finished"</span>);
+  console.log(<span class="str">"[TLS] → Finished  (handshake complete, ~1 round trip)"</span>);
+  console.log(<span class="str">"[TLS] Session established. Keys derived."</span>);
+
+  <span class="cmt">// Layer 3: HTTP (now runs inside the TLS tunnel)</span>
+  <span class="kw">const</span> httpRequest = [
+    <span class="str">`${method} ${pathname} HTTP/1.1`</span>,
+    <span class="str">`Host: ${hostname}`</span>,
+    <span class="str">`User-Agent: Mozilla/5.0`</span>,
+    <span class="str">`Accept: application/json`</span>,
+    body ? <span class="str">`Content-Length: ${body.length}`</span> : <span class="kw">null</span>,
+    <span class="str">``</span>,
+    body,
+  ].filter(Boolean).join(<span class="str">"\r\n"</span>);
+
+  console.log(<span class="str">"\n[HTTP] Plaintext request (only visible inside TLS tunnel):"</span>);
+  console.log(httpRequest);
+
+  <span class="kw">const</span> tlsRecord = TLSRecord.<span class="fn">wrap</span>(httpRequest);
+  console.log(<span class="str">"\n[TLS] Encrypted record sent on wire:"</span>);
+  console.log(<span class="str">`  type:    ${tlsRecord.type}`</span>);
+  console.log(<span class="str">`  payload: ${tlsRecord.payload}`</span>);
+  console.log(<span class="str">`  authTag: ${tlsRecord.authTag}`</span>);
+
+  <span class="kw">const</span> httpResponse = <span class="str">`HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{"status":"ok"}`</span>;
+  console.log(<span class="str">"\n[TLS] Server response (decrypted, delivered to HTTP layer):"</span>);
+  console.log(httpResponse);
+
+  <span class="cmt">// HSTS: server can tell browser to ALWAYS use HTTPS for this domain</span>
+  console.log(<span class="str">"\n[HTTP Header] Strict-Transport-Security: max-age=31536000; includeSubDomains; preload"</span>);
+  console.log(<span class="str">"  → Browser will refuse to connect via HTTP for the next 365 days"</span>);
+}
+
+<span class="fn">simulateHTTPS</span>(<span class="str">"https://api.example.com/user/profile"</span>);
+console.log(<span class="str">"\nTotal overhead vs plain HTTP:"</span>);
+console.log(<span class="str">"  First request:  +1 RTT (TLS handshake) = ~50ms on typical connection"</span>);
+console.log(<span class="str">"  Subsequent:     ~0ms (TLS session resumption / 0-RTT)"</span>);</pre>
+    <div class="out" id="o7"></div>
+  </div>
+</section>
+
+<!-- ══ S8: FORWARD SECRECY ══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>Perfect forward secrecy</h2></div>
+  <p>Imagine an attacker records all encrypted TLS traffic today, then waits. Three years later they steal the server's private key. With older TLS (pre-1.3, RSA key exchange), they could now decrypt all that captured traffic retroactively — the session keys were derived from the server's long-term private key.</p>
+  <p><strong>Perfect Forward Secrecy (PFS)</strong> prevents this. TLS 1.3 mandates ephemeral Diffie-Hellman: both sides generate fresh, random DH key pairs for every single session. The shared secret is derived from these ephemeral keys, not from the server's long-term certificate key. After the session ends, the ephemeral private keys are destroyed.</p>
+
+  <div class="callout green">Even if an attacker gets the server's private certificate key tomorrow, they cannot decrypt today's sessions — the ephemeral DH keys are gone forever. This is why TLS 1.3 removed RSA key exchange entirely. PFS is now non-optional.</div>
+
+  <div class="cb">
+    <div class="cb-head"><span>forward_secrecy.js — ephemeral keys and why they matter</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c8','o8')">&#9654; Run</button></div>
+    <pre class="code" id="c8"><span class="cmt">// Demonstrating forward secrecy: each session gets fresh ephemeral keys</span>
+<span class="cmt">// Old TLS (RSA): session key derived from server's long-term key → NOT forward-secret</span>
+<span class="cmt">// TLS 1.3 (ECDHE): session key derived from ephemeral keys → forward-secret</span>
+
+<span class="kw">function</span> <span class="fn">modPow</span>(b, e, m) {
+  <span class="kw">let</span> r = <span class="num">1n</span>; b %= m;
+  <span class="kw">while</span> (e > <span class="num">0n</span>) { <span class="kw">if</span> (e & <span class="num">1n</span>) r = r*b%m; e >>= <span class="num">1n</span>; b = b*b%m; }
+  <span class="kw">return</span> r;
+}
+
+<span class="kw">class</span> <span class="cls">Session</span> {
+  <span class="fn">constructor</span>(id, p, g) {
+    <span class="kw">this</span>.id = id;
+    <span class="cmt">// Ephemeral DH key pair — generated fresh for this session only</span>
+    <span class="kw">this</span>.ephemeralPrivate = BigInt(Math.floor(Math.random() * <span class="num">1000</span>) + <span class="num">2</span>);
+    <span class="kw">this</span>.ephemeralPublic  = <span class="fn">modPow</span>(g, <span class="kw">this</span>.ephemeralPrivate, p);
+    <span class="kw">this</span>.sessionKey = <span class="kw">null</span>;
+    <span class="kw">this</span>.p = p; <span class="kw">this</span>.g = g;
+  }
+
+  <span class="fn">deriveSharedSecret</span>(peerPublic) {
+    <span class="kw">this</span>.sessionKey = <span class="fn">modPow</span>(peerPublic, <span class="kw">this</span>.ephemeralPrivate, <span class="kw">this</span>.p);
+    <span class="kw">return this</span>.sessionKey;
+  }
+
+  <span class="fn">destroy</span>() {
+    <span class="cmt">// Critical: wipe ephemeral keys from memory after session ends</span>
+    console.log(<span class="str">`  Session ${this.id}: wiping ephemeral private key ${this.ephemeralPrivate} from memory`</span>);
+    <span class="kw">this</span>.ephemeralPrivate = <span class="num">0n</span>; <span class="cmt">// gone forever</span>
+    <span class="kw">this</span>.sessionKey = <span class="kw">null</span>;
+  }
+}
+
+<span class="kw">const</span> p = <span class="num">23n</span>, g = <span class="num">5n</span>;
+<span class="kw">const</span> serverLongTermKey = <span class="str">"server_cert_private_key"</span>; <span class="cmt">// NEVER used for key derivation in TLS 1.3</span>
+
+console.log(<span class="str">"=== Three independent sessions (same server, different times) ==="</span>);
+<span class="kw">const</span> sessionKeys = [];
+<span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">1</span>; i <= <span class="num">3</span>; i++) {
+  <span class="kw">const</span> server = <span class="kw">new</span> <span class="cls">Session</span>(<span class="str">`server-${i}`</span>, p, g);
+  <span class="kw">const</span> client = <span class="kw">new</span> <span class="cls">Session</span>(<span class="str">`client-${i}`</span>, p, g);
+  <span class="kw">const</span> sk = client.<span class="fn">deriveSharedSecret</span>(server.ephemeralPublic);
+  server.<span class="fn">deriveSharedSecret</span>(client.ephemeralPublic);
+  console.log(<span class="str">`Session ${i}: key=${sk} (server ephem pub=${server.ephemeralPublic})`</span>);
+  sessionKeys.push(sk);
+  server.<span class="fn">destroy</span>();
+  client.<span class="fn">destroy</span>();
+}
+
+console.log(<span class="str">"\nAll session keys are different (fresh ephemeral keys each time):"</span>);
+console.log(<span class="str">`  ${sessionKeys.join(", ")}`</span>);
+console.log(<span class="str">`  Same? ${sessionKeys.every(k => k === sessionKeys[0])}`</span>);
+
+console.log(<span class="str">`\n=== Server's long-term key is compromised ===`</span>);
+console.log(<span class="str">`Long-term key: "${serverLongTermKey}"`</span>);
+console.log(<span class="str">"Can attacker now decrypt past sessions? NO — ephemeral keys were destroyed."</span>);
+console.log(<span class="str">"Attacker can impersonate the server going forward, but past is safe."</span>);
+
+console.log(<span class="str">"\n=== OLD TLS (RSA key exchange, no PFS) ==="</span>);
+console.log(<span class="str">"Client encrypts a random PreMasterSecret using server's certificate public key."</span>);
+console.log(<span class="str">"Session key is derived from PreMasterSecret."</span>);
+console.log(<span class="str">"If attacker records traffic NOW and steals server key LATER:"</span>);
+console.log(<span class="str">"  → Decrypt the PreMasterSecret → derive session key → decrypt all traffic. ✗"</span>);</pre>
+    <div class="out" id="o8"></div>
+  </div>
+</section>
+
+<!-- ══ S9: CIPHER SUITES ══ -->
+<section class="section" id="s9">
+  <div class="sec-head"><span class="sec-n">§09</span><h2>Cipher suites and real-world TLS</h2></div>
+  <p>In TLS 1.2 and earlier, a <strong>cipher suite</strong> named most of the handshake and record-protection choices together. TLS 1.3 simplifies this sharply: the cipher suite now specifies only the record-protection AEAD and the HKDF hash. The key exchange group (such as X25519) and the authentication algorithm (such as RSA-PSS or ECDSA) are negotiated separately.</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cs-table">
+      <thead><tr><th>TLS 1.3 cipher suite</th><th>Record protection (AEAD)</th><th>HKDF hash</th><th>Typical note</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td class="name">TLS_AES_256_GCM_SHA384</td><td class="good">AES-256-GCM</td><td class="good">SHA-384</td><td>High-security GCM option</td></tr>
+        <tr><td class="name">TLS_AES_128_GCM_SHA256</td><td class="good">AES-128-GCM</td><td class="good">SHA-256</td><td>Common default on AES-accelerated CPUs</td></tr>
+        <tr><td class="name">TLS_CHACHA20_POLY1305_SHA256</td><td class="good">ChaCha20-Poly1305</td><td class="good">SHA-256</td><td>Often preferred on mobile / no AES acceleration</td></tr>
+        <tr><td class="name">TLS_AES_128_CCM_SHA256</td><td class="warn">AES-128-CCM</td><td class="good">SHA-256</td><td>Niche constrained-device profile</td></tr>
+        <tr><td class="name">TLS_AES_128_CCM_8_SHA256</td><td class="warn">AES-128-CCM-8</td><td class="good">SHA-256</td><td>Very constrained environments; shorter tag</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout cyan">In TLS 1.3, the client and server still negotiate key exchange and authentication separately: for example, <code>X25519</code> for the ephemeral DH share and <code>rsa_pss_rsae_sha256</code> or <code>ecdsa_secp256r1_sha256</code> for certificate signatures.</div>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cs-table">
+      <thead><tr><th>Legacy TLS 1.2 suites</th><th>Key exchange</th><th>Auth</th><th>Encryption</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="name">TLS_RSA_WITH_AES_128_GCM_SHA256</td><td class="bad">RSA (no PFS)</td><td>RSA</td><td>AES-128-GCM</td><td class="bad">Deprecated — no forward secrecy</td></tr>
+        <tr><td class="name">TLS_RSA_WITH_RC4_128_MD5</td><td class="bad">RSA</td><td>RSA</td><td class="bad">RC4 (broken)</td><td class="bad">Prohibited — RC4 cryptographically broken</td></tr>
+        <tr><td class="name">TLS_DHE_RSA_WITH_AES_128_CBC_SHA</td><td class="warn">DHE</td><td>RSA</td><td class="warn">CBC (BEAST/POODLE risk)</td><td class="warn">Avoid — CBC padding oracle attacks</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Certificate Transparency</h3>
+  <p>Since 2018, Chrome requires all certificates to be logged in public <strong>Certificate Transparency (CT) logs</strong>. Every CA must submit every issued certificate to an append-only, cryptographically verifiable log. This means any certificate misissued by a rogue or compromised CA is publicly visible within seconds — enabling rapid detection and revocation.</p>
+
+  <h3>HSTS (HTTP Strict Transport Security)</h3>
+  <p>HSTS tells browsers to <em>always</em> use HTTPS for a domain, even if the user types <code>http://</code>. The <code>preload</code> directive goes further — the domain is hardcoded into browser source code, preventing even the first HTTP connection.</p>
+
+  <div class="cb">
+    <div class="cb-head"><span>real_world_tls.js — AEAD encryption, HSTS, session resumption</span><span class="lang">JS</span><button class="run-btn" onclick="runCode('c9','o9')">&#9654; Run</button></div>
+    <pre class="code" id="c9"><span class="cmt">// Real-world TLS features: AEAD, session resumption (0-RTT), HSTS</span>
+
+<span class="cmt">// === AEAD: Authenticated Encryption with Associated Data ===</span>
+<span class="cmt">// AES-GCM provides confidentiality + integrity in one operation</span>
+<span class="cmt">// "Associated data" = TLS record header (authenticated but not encrypted)</span>
+
+<span class="kw">function</span> <span class="fn">simulateAEAD</span>(key, nonce, plaintext, associatedData) {
+  <span class="cmt">// Real: AES-256-GCM. Simulated with XOR + simple auth tag</span>
+  <span class="kw">const</span> keyStream = [...plaintext].map((_,i) =>
+    String.fromCharCode(key.charCodeAt(i%key.length) ^ nonce.charCodeAt(i%nonce.length)));
+  <span class="kw">const</span> ciphertext = [...plaintext].map((c,i) =>
+    (c.charCodeAt(<span class="num">0</span>) ^ keyStream[i].charCodeAt(<span class="num">0</span>)).toString(<span class="num">16</span>).padStart(<span class="num">2</span>,<span class="str">'0'</span>)).join(<span class="str">''</span>);
+
+  <span class="cmt">// Auth tag covers BOTH ciphertext AND associated data (header)</span>
+  <span class="cmt">// Any modification to either invalidates the tag → rejected before decryption</span>
+  <span class="kw">let</span> tag = <span class="num">0</span>;
+  [...ciphertext, ...(associatedData||<span class="str">''</span>)].forEach(c => tag = (tag*<span class="num">31</span> + c.charCodeAt(<span class="num">0</span>)) & <span class="num">0xffff</span>);
+  <span class="kw">return</span> { ciphertext, tag: tag.toString(<span class="num">16</span>).padStart(<span class="num">4</span>,<span class="str">'0'</span>), nonce };
+}
+
+<span class="kw">const</span> sessionKey = <span class="str">"derived-session-key"</span>;
+<span class="kw">const</span> seqNum = <span class="str">"000000000001"</span>; <span class="cmt">// TLS uses sequence number as nonce to prevent replay</span>
+<span class="kw">const</span> tlsHeader = <span class="str">"17 0303 0028"</span>; <span class="cmt">// content-type, version, length — NOT encrypted but authenticated</span>
+<span class="kw">const</span> httpData = <span class="str">"GET /secret HTTP/1.1\r\nHost: bank.com"</span>;
+
+<span class="kw">const</span> { ciphertext, tag } = <span class="fn">simulateAEAD</span>(sessionKey, seqNum, httpData, tlsHeader);
+console.log(<span class="str">"=== AEAD Encryption ==="</span>);
+console.log(<span class="str">`Plaintext:   "${httpData}"`</span>);
+console.log(<span class="str">`Ciphertext:  ${ciphertext.slice(<span class="num">0</span>,<span class="num">40</span>)}...`</span>);
+console.log(<span class="str">`Auth tag:    ${tag}  ← covers ciphertext + TLS header`</span>);
+console.log(<span class="str">"If attacker flips ANY bit in ciphertext or header: tag mismatch → REJECTED"</span>);
+
+<span class="cmt">// === Session Resumption / 0-RTT ===</span>
+console.log(<span class="str">"\n=== TLS Session Resumption ==="</span>);
+<span class="kw">const</span> sessionTicket = {
+  <span class="cmt">// Server sends this encrypted ticket at end of handshake</span>
+  <span class="cmt">// Client presents it on next connection — server can skip full handshake</span>
+  resumptionSecret: <span class="str">"res_master_secret_xyz"</span>,
+  maxEarlyData: <span class="num">16384</span>, <span class="cmt">// 0-RTT: client can send this many bytes before server Finished</span>
+  lifetime: <span class="num">7200</span>, <span class="cmt">// seconds</span>
+};
+console.log(<span class="str">`Session ticket issued: lifetime=${sessionTicket.lifetime}s, 0-RTT allowed=${sessionTicket.maxEarlyData}B`</span>);
+console.log(<span class="str">"Next connection: client sends early data (0-RTT) with first packet — saves 1 RTT"</span>);
+console.log(<span class="str">"Warning: 0-RTT is NOT forward secret and is replay-vulnerable → use for idempotent GET only"</span>);
+
+<span class="cmt">// === HSTS ===</span>
+console.log(<span class="str">"\n=== HTTP Strict Transport Security ==="</span>);
+<span class="kw">const</span> hstsHeader = <span class="str">"Strict-Transport-Security: max-age=63072000; includeSubDomains; preload"</span>;
+console.log(<span class="str">`Header: ${hstsHeader}`</span>);
+console.log(<span class="str">`max-age=63072000 → HTTPS required for next ${63072000/86400/365} years`</span>);
+console.log(<span class="str">"includeSubDomains → applies to *.example.com too"</span>);
+console.log(<span class="str">"preload → submit to hstspreload.org → hardcoded into Chrome/Firefox source"</span>);
+console.log(<span class="str">"Effect: browser converts http:// → https:// BEFORE making any network connection"</span>);</pre>
+    <div class="out" id="o9"></div>
+  </div>
+
+  <footer class="footer">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem">Further reading</div>
+    <a href="https://tls13.xargs.org">tls13.xargs.org — every TLS 1.3 byte explained with a real captured handshake</a>
+    <a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446 — the TLS 1.3 specification</a>
+    <a href="https://explained-from-first-principles.com/internet/">Internet from first principles — networking context</a>
+    <a href="https://certificate.transparency.dev">certificate.transparency.dev — CT log explorer</a>
+    <a href="https://hstspreload.org">hstspreload.org — HSTS preload list submission</a>
+    <div class="footer-note">All code is original JavaScript. Cryptographic primitives are deliberately simplified for clarity — never use toy implementations in production. Use the Web Crypto API or a vetted library.</div>
+  </footer>
+</section>
+
+</div>
+<script>
+/* ── RUNNER ── */
+function runCode(cid,oid){
+  const raw=document.getElementById(cid).innerText;
+  const el=document.getElementById(oid);el.className='out on';
+  const logs=[];
+  const con={log:(...a)=>logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')),assert:(c,m)=>{if(!c)logs.push('AssertionError: '+m);}};
+  try{new Function('console',raw)(con);el.textContent=logs.join('\n')||'(no output)';}
+  catch(e){el.className='out on err';el.textContent='⚠ '+e.message;}
+}
+
+/* ── PACKET VIZ ── */
+function showPacket(mode,btn){
+  document.querySelectorAll('#s1 .btn-row .btn').forEach(b=>b.classList.remove('act'));btn.classList.add('act');
+  const el=document.getElementById('packet-viz');
+  if(mode==='http'){
+    el.innerHTML=`
+      <div style="margin-bottom:.6rem">
+        <div class="packet-row">
+          <div class="packet-node client">Your browser</div>
+          <div class="packet-wire danger"><div class="packet-payload plain">POST /login HTTP/1.1</div></div>
+          <div class="packet-node attacker">Attacker ☠</div>
+          <div class="packet-wire danger"></div>
+          <div class="packet-node server">Server</div>
+        </div>
+        <div class="packet-row" style="margin-top:4px">
+          <div style="min-width:70px"></div>
+          <div style="flex:1;text-align:center;font-family:var(--mono);font-size:11px;color:var(--red)">password=hunter2 ← visible to everyone</div>
+        </div>
+      </div>
+      <div style="background:var(--red-bg);border:1px solid var(--red-bdr);border-radius:5px;padding:.7rem 1rem;font-family:var(--mono);font-size:12px;color:var(--red)">
+        <div style="font-weight:600;margin-bottom:.4rem">HTTP packet payload (what the attacker reads):</div>
+        <div style="opacity:.9">POST /login HTTP/1.1<br>Host: mybank.com<br>Cookie: session_id=abc123def456<br><br>username=alice&password=hunter2</div>
+      </div>`;
+  }else{
+    el.innerHTML=`
+      <div style="margin-bottom:.6rem">
+        <div class="packet-row">
+          <div class="packet-node client">Your browser</div>
+          <div class="packet-wire encrypted"><div class="packet-payload enc">TLS Record [encrypted]</div></div>
+          <div class="packet-node attacker" style="opacity:.4">Attacker ☠</div>
+          <div class="packet-wire encrypted"></div>
+          <div class="packet-node server">Server</div>
+        </div>
+        <div class="packet-row" style="margin-top:4px">
+          <div style="min-width:70px"></div>
+          <div style="flex:1;text-align:center;font-family:var(--mono);font-size:11px;color:var(--cyan)">encrypted · authenticated · attacker sees only noise</div>
+        </div>
+      </div>
+      <div style="background:var(--cyan-bg);border:1px solid var(--cyan-bdr);border-radius:5px;padding:.7rem 1rem;font-family:var(--mono);font-size:12px;color:var(--cyan)">
+        <div style="font-weight:600;margin-bottom:.4rem">What the attacker actually captures:</div>
+        <div style="opacity:.8">Content-Type: 23 (Application Data)<br>TLS Version: 0x0303<br>Length: 512 bytes<br>Payload: 8f 2a c1 e3 44 b7 09 f2 71 da 3c 88 e5 ... [256 more bytes]<br>Auth Tag: a1 b2 c3 d4 e5 f6 a7 b8<br><br>Destination: 93.184.216.34:443 ← only metadata visible</div>
+      </div>`;
+  }
+}
+showPacket('http',document.querySelector('#s1 .btn'));
+
+/* ── DH VIZ ── */
+function modPowNum(b,e,m){let r=1n;b=BigInt(b)%BigInt(m);e=BigInt(e);m=BigInt(m);while(e>0n){if(e&1n)r=r*b%m;e>>=1n;b=b*b%m;}return r;}
+function runDH(){
+  const p=23n,g=5n;
+  const a=BigInt(Math.floor(Math.random()*18)+2);
+  const b=BigInt(Math.floor(Math.random()*18)+2);
+  const A=modPowNum(g,a,p);
+  const B=modPowNum(g,b,p);
+  const sa=modPowNum(B,a,p);
+  const sb=modPowNum(A,b,p);
+  document.getElementById('dh-viz').innerHTML=`
+    <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-bottom:.6rem">Public parameters: p=${p} (prime), g=${g} (generator)</div>
+    <div class="dh-grid">
+      <div class="dh-party alice">
+        <div class="dh-name alice">Alice (client)</div>
+        <div class="dh-step"><div class="step-lbl">Private key</div><div>a = <span style="color:var(--red)">${a}</span> <span class="dh-private-badge">private</span></div></div>
+        <div class="dh-step"><div class="step-lbl">Compute public key</div><div>A = g<sup>a</sup> mod p = ${g}<sup>${a}</sup> mod ${p} = <span style="color:var(--amber)">${A}</span> <span class="dh-public-badge">public</span></div></div>
+        <div class="dh-step"><div class="step-lbl">Receive B=${B}, compute secret</div><div>S = B<sup>a</sup> mod p = <span style="color:var(--green)">${sa}</span></div></div>
+      </div>
+      <div class="dh-party bob">
+        <div class="dh-name bob">Bob (server)</div>
+        <div class="dh-step"><div class="step-lbl">Private key</div><div>b = <span style="color:var(--red)">${b}</span> <span class="dh-private-badge">private</span></div></div>
+        <div class="dh-step"><div class="step-lbl">Compute public key</div><div>B = g<sup>b</sup> mod p = ${g}<sup>${b}</sup> mod ${p} = <span style="color:var(--amber)">${B}</span> <span class="dh-public-badge">public</span></div></div>
+        <div class="dh-step"><div class="step-lbl">Receive A=${A}, compute secret</div><div>S = A<sup>b</sup> mod p = <span style="color:var(--green)">${sb}</span></div></div>
+      </div>
+    </div>
+    <div class="dh-exchange"><div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">Network (attacker sees: p=${p}, g=${g}, A=${A}, B=${B})</div><div style="flex:1;height:1px;background:var(--rule2);margin:0 8px"></div><div style="font-family:var(--mono);font-size:11px;color:var(--red)">cannot find ${a} or ${b} easily</div></div>
+    <div class="dh-secret">Shared secret = <strong>${sa}</strong> &nbsp;·&nbsp; Both computed the same value &nbsp;·&nbsp; Never transmitted &nbsp;·&nbsp; ${sa===sb?'✓ Match':'✗ Error'}</div>`;
+}
+runDH();
+
+/* ── HANDSHAKE VIZ ── */
+const HS_STEPS=[
+  {title:'1. ClientHello →',color:'var(--blue)',panel:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--blue);font-weight:600;margin-bottom:.5rem">Client → Server (plaintext)</div>
+      <div><span style="color:var(--ink3)">client_random:</span> <span style="color:var(--amber)">a3f2c8b1... (32 random bytes)</span></div>
+      <div><span style="color:var(--ink3)">supported_versions:</span> [TLS 1.3, TLS 1.2]</div>
+      <div><span style="color:var(--ink3)">cipher_suites:</span> [TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305]</div>
+      <div><span style="color:var(--ink3)">key_share:</span> <span style="color:var(--cyan)">X25519: 3a7f... (client's ephemeral public key)</span></div>
+      <div><span style="color:var(--ink3)">server_name:</span> "example.com" (SNI)</div>
+      <div style="margin-top:.5rem;color:var(--ink3);font-size:11px">The client sends its DH key share immediately — no need for a separate round trip to ask which algorithm the server supports.</div>
+    </div>`},
+  {title:'← 2. ServerHello',color:'var(--green)',panel:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--green);font-weight:600;margin-bottom:.5rem">Server → Client (plaintext)</div>
+      <div><span style="color:var(--ink3)">server_random:</span> <span style="color:var(--amber)">d1e2f3a4... (32 random bytes)</span></div>
+      <div><span style="color:var(--ink3)">cipher_suite:</span> TLS_AES_256_GCM_SHA384</div>
+      <div><span style="color:var(--ink3)">key_share:</span> <span style="color:var(--cyan)">X25519: 8b2e... (server's ephemeral public key)</span></div>
+      <div style="margin-top:.5rem;padding:.4rem .7rem;background:var(--cyan-bg);border-radius:4px;border:1px solid var(--cyan-bdr);color:var(--cyan)">After this message, both sides compute the shared DH secret and derive handshake keys. Everything from here is encrypted.</div>
+    </div>`},
+  {title:'← 3. Certificate (encrypted)',color:'var(--green)',panel:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--green);font-weight:600;margin-bottom:.5rem">Server → Client (encrypted with handshake key)</div>
+      <div><span style="color:var(--ink3)">EncryptedExtensions:</span> additional TLS extensions</div>
+      <div><span style="color:var(--ink3)">Certificate:</span> X.509 cert chain for example.com</div>
+      <div><span style="color:var(--ink3)">CertificateVerify:</span> <span style="color:var(--purple)">signature(private_key, hash(all_handshake_messages))</span></div>
+      <div><span style="color:var(--ink3)">Finished:</span> HMAC(server_handshake_key, transcript)</div>
+      <div style="margin-top:.5rem;color:var(--ink3);font-size:11px">CertificateVerify proves the server holds the private key matching the certificate's public key — prevents presenting a stolen cert.</div>
+    </div>`},
+  {title:'4. Key derivation',color:'var(--cyan)',panel:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--cyan);font-weight:600;margin-bottom:.5rem">Both sides independently compute (no messages needed)</div>
+      <div><span style="color:var(--ink3)">DH shared secret:</span> <span style="color:var(--cyan)">ECDH(client_private, server_public) = ECDH(server_private, client_public)</span></div>
+      <div><span style="color:var(--ink3)">Handshake secret:</span> HKDF-Extract(early_secret, dh_secret)</div>
+      <div><span style="color:var(--ink3)">client_hs_traffic:</span> HKDF-Expand(hs_secret, "c hs traffic", transcript)</div>
+      <div><span style="color:var(--ink3)">server_hs_traffic:</span> HKDF-Expand(hs_secret, "s hs traffic", transcript)</div>
+      <div><span style="color:var(--ink3)">client_app_traffic:</span> HKDF-Expand(master, "c ap traffic", transcript)</div>
+      <div><span style="color:var(--ink3)">server_app_traffic:</span> HKDF-Expand(master, "s ap traffic", transcript)</div>
+    </div>`},
+  {title:'5. Finished ↔',color:'var(--amber)',panel:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--amber);font-weight:600;margin-bottom:.5rem">Client → Server (encrypted) — then app data begins</div>
+      <div><span style="color:var(--ink3)">Client Finished:</span> HMAC(client_handshake_key, full_transcript_hash)</div>
+      <div style="margin-top:.4rem;color:var(--ink3);font-size:11px">This proves the client received and verified the full handshake intact. If any message was altered in transit, the transcript hash would differ and the Finished would fail.</div>
+      <div style="margin-top:.5rem;padding:.4rem .7rem;background:var(--green-bg);border-radius:4px;border:1px solid var(--green-bdr);color:var(--green)">Handshake complete. Connection is now secure. Both sides switch to application traffic keys.</div>
+    </div>`},
+  {title:'6. Application data ⇄',color:'var(--cyan)',panel:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--cyan);font-weight:600;margin-bottom:.5rem">HTTP flows inside TLS records (encrypted + authenticated)</div>
+      <div><span style="color:var(--ink3)">TLS Record:</span> ContentType=23 | Length=N | AEAD(plaintext, key, nonce)</div>
+      <div><span style="color:var(--ink3)">Nonce:</span> per-record sequence number XOR'd with IV (prevents replay)</div>
+      <div><span style="color:var(--ink3)">Auth tag:</span> 16 bytes — verifies both payload and record header</div>
+      <div style="margin-top:.5rem"><span style="color:var(--ink3)">Total handshake time:</span> 1 RTT (TLS 1.3) vs 2 RTT (TLS 1.2)</div>
+      <div><span style="color:var(--ink3)">With 0-RTT resumption:</span> 0 RTT — early data with first packet</div>
+    </div>`},
+];
+function showHS(i,btn){
+  document.querySelectorAll('#s5 .step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  const s=HS_STEPS[i];
+  document.getElementById('hs-viz').innerHTML=`
+    <div style="border-left:3px solid ${s.color};padding:.7rem 1rem;background:var(--bg3);border-radius:0 5px 5px 0;margin-bottom:.5rem">
+      <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:${s.color};margin-bottom:.5rem">${s.title}</div>
+      ${s.panel}
+    </div>`;
+}
+showHS(0,null);
+
+/* ── CERT VIZ ── */
+(function(){
+  const fields=[
+    {k:'Version',v:'3 (X.509v3)',col:''},
+    {k:'Serial Number',v:'0a:b1:2c:3d:4e:5f:6a:7b',col:'cyan'},
+    {k:'Subject',v:'CN=*.example.com, O=Example Corp, C=US',col:'cyan'},
+    {k:'Issuer',v:'CN=DigiCert TLS RSA SHA256 2020 CA1',col:''},
+    {k:'Valid From',v:'2025-01-01 00:00:00 UTC',col:'green'},
+    {k:'Valid To',v:'2027-01-01 23:59:59 UTC  (toy dates for this explainer)',col:'green'},
+    {k:'Public Key',v:'EC P-256 public key — used to authenticate server signatures',col:'amber'},
+    {k:'Key Usage',v:'Digital Signature',col:''},
+    {k:'SAN',v:'DNS:*.example.com, DNS:example.com',col:'cyan'},
+    {k:'CT Logs',v:'Included (2 SCTs from Google Argon & Cloudflare Nimbus)',col:'green'},
+    {k:'Signature Alg',v:'sha256WithRSAEncryption',col:''},
+    {k:'Signature',v:'3a:f2:c8:b1:d4:e6:… (2048-bit RSA signature by CA)',col:'amber'},
+  ];
+  const highlights={
+    'Subject':'CN field must match the domain being accessed',
+    'Valid To':'Browsers reject expired certs immediately',
+    'Public Key':'This certificate key authenticates the server. The ephemeral DH key share used for key agreement is sent separately in the handshake.',
+    'SAN':'Subject Alternative Names — wildcard matches all subdomains',
+    'CT Logs':'Certificate Transparency — proof cert is publicly logged',
+    'Signature':'CA\'s digital signature — chain of trust back to root',
+  };
+  let html=`<div class="cert-box"><div class="cert-head"><span>X.509 Certificate</span><span style="color:var(--green)">✓ valid · trusted</span></div>`;
+  fields.forEach(f=>{
+    const hl=highlights[f.k]?`style="cursor:pointer" onclick="document.getElementById('cert-note').textContent='${highlights[f.k]}'"` : '';
+    html+=`<div class="cert-field" ${hl}><div class="cert-key">${f.k}</div><div class="cert-val ${f.col}">${f.v}</div></div>`;
+  });
+  html+=`</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.4rem;min-height:18px" id="cert-note">Click a field to learn more</div>`;
+  document.getElementById('cert-viz').innerHTML=html;
+})();
+
+/* ── HTTPS STEPS ── */
+const HTTPS_STEPS=[
+  {title:'TCP three-way handshake',color:'var(--ink2)',content:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div class="packet-row"><div class="packet-node client">Browser</div><div class="packet-wire" style="background:var(--rule2)"><div class="packet-payload" style="background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2)">SYN seq=0</div></div><div class="packet-node server">Server :443</div></div>
+      <div class="packet-row" style="margin-top:3px"><div class="packet-node client">Browser</div><div class="packet-wire" style="background:var(--rule2)"><div class="packet-payload" style="background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2)">← SYN-ACK seq=0 ack=1</div></div><div class="packet-node server">Server</div></div>
+      <div class="packet-row" style="margin-top:3px"><div class="packet-node client">Browser</div><div class="packet-wire" style="background:var(--rule2)"><div class="packet-payload" style="background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2)">ACK</div></div><div class="packet-node server">Server</div></div>
+      <div style="margin-top:.5rem;font-size:11px;color:var(--ink3)">TCP connection established. 1 round trip. ~20-50ms on typical internet.</div>
+    </div>`},
+  {title:'TLS 1.3 handshake (1 RTT)',color:'var(--cyan)',content:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div class="packet-row"><div class="packet-node client">Browser</div><div class="packet-wire" style="background:rgba(0,217,217,.2)"><div class="packet-payload enc">ClientHello + key_share</div></div><div class="packet-node server">Server</div></div>
+      <div class="packet-row" style="margin-top:3px"><div class="packet-node client">Browser</div><div class="packet-wire" style="background:rgba(0,217,217,.2)"><div class="packet-payload enc">← ServerHello + Cert + Finished</div></div><div class="packet-node server">Server</div></div>
+      <div style="margin-top:.5rem;font-size:11px;color:var(--cyan)">1 additional round trip. Session keys derived. All subsequent data is encrypted.</div>
+    </div>`},
+  {title:'HTTP request (inside TLS)',color:'var(--blue)',content:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="color:var(--ink3);margin-bottom:.3rem">TLS Record (what goes on the wire):</div>
+      <div style="background:var(--cyan-bg);border:1px solid var(--cyan-bdr);border-radius:4px;padding:.5rem .8rem;color:var(--cyan);margin-bottom:.5rem">17 03 03 01 28 [encrypted bytes...] [16-byte auth tag]</div>
+      <div style="color:var(--ink3);margin-bottom:.3rem">HTTP request (only visible inside the tunnel):</div>
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-bdr);border-radius:4px;padding:.5rem .8rem;color:var(--blue)">GET /api/account HTTP/1.1<br>Host: mybank.com<br>Cookie: session=abc123<br>Authorization: Bearer eyJ...</div>
+    </div>`},
+  {title:'HTTP response (inside TLS)',color:'var(--green)',content:`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="background:var(--green-bg);border:1px solid var(--green-bdr);border-radius:4px;padding:.5rem .8rem;color:var(--green)">HTTP/1.1 200 OK<br>Strict-Transport-Security: max-age=31536000; includeSubDomains<br>Content-Security-Policy: default-src 'self'<br>X-Frame-Options: DENY<br>Content-Type: application/json<br><br>{"balance": 42000, "account": "****1234"}</div>
+      <div style="margin-top:.5rem;font-size:11px;color:var(--green)">HSTS header tells browser: use HTTPS for this domain for the next 365 days.</div>
+    </div>`},
+];
+function showHTTPS(i,btn){
+  document.querySelectorAll('#s7 .step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  const s=HTTPS_STEPS[i];
+  document.getElementById('https-viz').innerHTML=`
+    <div style="border-left:3px solid ${s.color};padding:.7rem 1rem;background:var(--bg3);border-radius:0 5px 5px 0">
+      <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:${s.color};margin-bottom:.5rem">${s.title}</div>
+      ${s.content}
+    </div>`;
+}
+showHTTPS(0,null);
+</script>
+</body>
+</html>

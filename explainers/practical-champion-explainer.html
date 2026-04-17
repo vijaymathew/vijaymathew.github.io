@@ -312,6 +312,73 @@ code{
 .table tr:last-child td{border-bottom:none}
 .good{color:var(--green);font-weight:600}
 .bad{color:var(--red);font-weight:600}
+.partition-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:.85rem;
+}
+.part-chip{
+  min-width:44px;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--rule);
+  background:var(--surface);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink);
+  text-align:center;
+}
+.part-chip.left{
+  background:var(--green-bg);
+  border-color:rgba(45,107,79,.20);
+  color:var(--green);
+}
+.part-chip.right{
+  background:rgba(53,95,146,.10);
+  border-color:rgba(53,95,146,.18);
+  color:#355f92;
+}
+.part-chip.pivot{
+  background:var(--gold-bg);
+  border-color:rgba(138,99,26,.24);
+  color:var(--gold);
+}
+.part-chip.split{
+  background:rgba(122, 78, 151, .11);
+  border-color:rgba(122, 78, 151, .20);
+  color:#7a4e97;
+}
+.part-chip.pointer{
+  background:var(--bg2);
+  border-style:dashed;
+  color:var(--ink3);
+}
+.part-chip.scan{
+  box-shadow:inset 0 0 0 2px rgba(122, 78, 151, .24);
+}
+.part-chip.cross{
+  box-shadow:inset 0 0 0 2px rgba(45,107,79,.24);
+}
+.partition-controls{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:-.2rem;
+  margin-bottom:.9rem;
+}
+.pivot-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:.85rem;
+}
+.intro-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:.85rem;
+}
 .cb-head{
   display:flex;
   justify-content:space-between;
@@ -424,7 +491,14 @@ code{
         <button class="btn act" data-partition="lomuto" onclick="setPartitionMode('lomuto')">Lomuto</button>
         <button class="btn" data-partition="hoare" onclick="setPartitionMode('hoare')">Hoare</button>
       </div>
+      <div class="partition-controls">
+        <button class="btn" id="partition-play" onclick="togglePartitionPlayback()">Play</button>
+        <button class="btn" onclick="stepPartition()">Step</button>
+        <button class="btn" onclick="resetPartitionAnimation()">Reset</button>
+      </div>
       <div class="preview" id="partition-preview"></div>
+      <div class="partition-strip" id="partition-strip"></div>
+      <p></p>
       <div class="grid-two">
         <div class="card">
           <h4>Partition result</h4>
@@ -470,7 +544,13 @@ code{
         <button class="btn" data-pivot-strategy="random" onclick="setPivotStrategy('random')">Random</button>
         <button class="btn" data-pivot-strategy="median3" onclick="setPivotStrategy('median3')">Median-of-three</button>
       </div>
+      <div class="partition-controls">
+        <button class="btn" id="pivot-play" onclick="togglePivotPlayback()">Play</button>
+        <button class="btn" onclick="stepPivot()">Step</button>
+        <button class="btn" onclick="resetPivotAnimation()">Reset</button>
+      </div>
       <div class="preview" id="pivot-preview"></div>
+      <div class="pivot-strip" id="pivot-strip"></div>
       <div class="stat-grid">
         <div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="pivot-value">0</div></div>
         <div class="stat"><div class="stat-k">Left size</div><div class="stat-v" id="pivot-left">0</div></div>
@@ -492,7 +572,13 @@ code{
         <button class="btn act" data-intro-shape="sorted" onclick="setIntroShape('sorted')">Sorted input</button>
         <button class="btn" data-intro-shape="mixed" onclick="setIntroShape('mixed')">Mixed input</button>
       </div>
+      <div class="partition-controls">
+        <button class="btn" id="intro-play" onclick="toggleIntroPlayback()">Play</button>
+        <button class="btn" onclick="stepIntro()">Step</button>
+        <button class="btn" onclick="resetIntroAnimation()">Reset</button>
+      </div>
       <div class="preview" id="intro-preview"></div>
+      <div class="intro-strip" id="intro-strip"></div>
       <div class="stat-grid">
         <div class="stat"><div class="stat-k">Quicksort calls</div><div class="stat-v" id="intro-qcalls">0</div></div>
         <div class="stat"><div class="stat-k">Heap fallback calls</div><div class="stat-v" id="intro-heaps">0</div></div>
@@ -667,9 +753,15 @@ const INTRO_INPUTS = {
 
 const state = {
   partitionMode: "lomuto",
+  partitionStep: 0,
+  partitionTimer: null,
   pivotInput: "sorted",
   pivotStrategy: "first",
-  introShape: "sorted"
+  pivotStep: 0,
+  pivotTimer: null,
+  introShape: "sorted",
+  introStep: 0,
+  introTimer: null
 };
 
 function lomutoPartition(arr) {
@@ -708,38 +800,230 @@ function hoarePartition(arr) {
 }
 
 function setPartitionMode(mode) {
+  if (state.partitionTimer) {
+    clearInterval(state.partitionTimer);
+    state.partitionTimer = null;
+  }
   state.partitionMode = mode;
+  state.partitionStep = 0;
   document.querySelectorAll("[data-partition]").forEach(btn => {
     btn.classList.toggle("act", btn.dataset.partition === mode);
   });
   renderPartition();
 }
 
+function buildLomutoTrace(arr) {
+  const a = arr.slice();
+  const pivot = a[a.length - 1];
+  let i = 0;
+  let swaps = 0;
+  let comps = 0;
+  const steps = [{
+    array: a.slice(),
+    pivot,
+    pivotIndex: a.length - 1,
+    swaps,
+    comps,
+    note: "Start with the last element as pivot. `i` marks the boundary where values smaller than the pivot will accumulate.",
+    i,
+    j: null,
+    done: false
+  }];
+  for (let j = 0; j < a.length - 1; j++) {
+    comps++;
+    if (a[j] < pivot) {
+      [a[i], a[j]] = [a[j], a[i]];
+      swaps++;
+      steps.push({
+        array: a.slice(),
+        pivot,
+        pivotIndex: a.length - 1,
+        swaps,
+        comps,
+        note: `a[${j}] = ${a[i]} is smaller than pivot ${pivot}, so swap it left across the boundary and advance i.`,
+        i,
+        j,
+        done: false
+      });
+      i++;
+    } else {
+      steps.push({
+        array: a.slice(),
+        pivot,
+        pivotIndex: a.length - 1,
+        swaps,
+        comps,
+        note: `a[${j}] = ${a[j]} is not smaller than pivot ${pivot}, so leave it on the right side for now.`,
+        i,
+        j,
+        done: false
+      });
+    }
+  }
+  [a[i], a[a.length - 1]] = [a[a.length - 1], a[i]];
+  swaps++;
+  steps.push({
+    array: a.slice(),
+    pivot,
+    pivotIndex: i,
+    swaps,
+    comps,
+    note: `Finally swap the pivot into index ${i}. Now everything left of it is < pivot and everything right is >= pivot.`,
+    i,
+    j: null,
+    done: true
+  });
+  return steps;
+}
+
+function buildHoareTrace(arr) {
+  const a = arr.slice();
+  const pivot = a[Math.floor(a.length / 2)];
+  let i = -1;
+  let j = a.length;
+  let swaps = 0;
+  let comps = 0;
+  const steps = [{
+    array: a.slice(),
+    pivot,
+    pivotIndex: null,
+    swaps,
+    comps,
+    note: "Pick the middle value as pivot. Hoare moves one pointer from the left and one from the right until they find out-of-place values.",
+    i,
+    j,
+    done: false
+  }];
+  while (true) {
+    do { i++; comps++; } while (a[i] < pivot);
+    do { j--; comps++; } while (a[j] > pivot);
+    if (i >= j) {
+      steps.push({
+        array: a.slice(),
+        pivot,
+        pivotIndex: j,
+        swaps,
+        comps,
+        note: `Pointers crossed at i=${i}, j=${j}. Return ${j} as the cut point: left side <= pivot, right side >= pivot.`,
+        i,
+        j,
+        done: true
+      });
+      break;
+    }
+    [a[i], a[j]] = [a[j], a[i]];
+    swaps++;
+    steps.push({
+      array: a.slice(),
+      pivot,
+      pivotIndex: j,
+      swaps,
+      comps,
+      note: `a[${i}] and a[${j}] were on the wrong sides of pivot ${pivot}, so swap them and keep scanning inward.`,
+      i,
+      j,
+      done: false
+    });
+  }
+  return steps;
+}
+
+function getPartitionTrace() {
+  return state.partitionMode === "lomuto"
+    ? buildLomutoTrace(PARTITION_SAMPLE)
+    : buildHoareTrace(PARTITION_SAMPLE);
+}
+
 function renderPartition() {
-  const result = state.partitionMode === "lomuto"
-    ? lomutoPartition(PARTITION_SAMPLE)
-    : hoarePartition(PARTITION_SAMPLE);
+  const trace = getPartitionTrace();
+  const step = trace[Math.min(state.partitionStep, trace.length - 1)];
   document.getElementById("partition-preview").textContent =
-    "Partitioning is where quicksort spends its life. Lomuto is simpler to reason about; Hoare often performs fewer swaps but returns a different cut index.";
-  document.getElementById("partition-array").textContent = "[" + result.array.join(", ") + "]";
-  document.getElementById("partition-note").textContent =
     state.partitionMode === "lomuto"
-      ? "Pivot ends at its final index. Elements to the left are smaller; elements to the right are greater or equal."
-      : "Pointers cross and return a split point. The pivot is not necessarily sitting at that exact returned index.";
+      ? "Lomuto grows one left boundary of values smaller than the pivot. Watch `j` scan rightward and `i` mark the next slot in the `< pivot` region."
+      : "Hoare scans inward from both ends. Watch the two pointers stop on out-of-place values, swap them, and eventually cross to produce a split.";
+  document.getElementById("partition-array").textContent =
+    state.partitionMode === "lomuto"
+      ? `step ${state.partitionStep + 1} / ${trace.length}`
+      : `step ${state.partitionStep + 1} / ${trace.length}`;
+  document.getElementById("partition-strip").innerHTML =
+    state.partitionMode === "lomuto"
+      ? step.array.map((value, idx) => {
+          let cls = idx < step.i ? "left" : idx === step.pivotIndex ? "pivot" : "right";
+          if (idx === step.j) cls += " scan";
+          if (idx === step.i && idx !== step.pivotIndex) cls += " pointer";
+          return `<span class="part-chip ${cls}">${value}</span>`;
+        }).join("")
+      : step.array.map((value, idx) => {
+          let cls = step.done
+            ? (idx <= step.pivotIndex ? "left" : "right")
+            : (idx <= step.j ? "left" : idx >= step.i ? "right" : "pointer");
+          if (idx === step.i || idx === step.j) cls += " scan";
+          return `<span class="part-chip ${cls}">${value}</span>`;
+        }).join("") + `<span class="part-chip split">${step.done ? `cut after index ${step.pivotIndex}` : `i=${step.i}, j=${step.j}`}</span>`;
+  document.getElementById("partition-note").textContent =
+    step.note;
   document.getElementById("partition-cost").textContent =
     state.partitionMode === "lomuto" ? "Teachability first" : "Usually fewer swaps";
   document.getElementById("partition-cost-note").textContent =
     state.partitionMode === "lomuto"
       ? "Simple invariant, but it tends to swap more."
       : "More subtle control flow, but often better partition mechanics.";
-  document.getElementById("partition-comps").textContent = result.comps;
-  document.getElementById("partition-swaps").textContent = result.swaps;
-  document.getElementById("partition-pivot").textContent = result.pivot;
-  document.getElementById("partition-index").textContent = result.pivotIndex;
+  document.getElementById("partition-comps").textContent = step.comps;
+  document.getElementById("partition-swaps").textContent = step.swaps;
+  document.getElementById("partition-pivot").textContent = step.pivot;
+  document.getElementById("partition-index").textContent = step.done ? step.pivotIndex : "—";
+  document.getElementById("partition-play").textContent = state.partitionTimer ? "Pause" : "Play";
+}
+
+function resetPartitionAnimation() {
+  if (state.partitionTimer) {
+    clearInterval(state.partitionTimer);
+    state.partitionTimer = null;
+  }
+  state.partitionStep = 0;
+  renderPartition();
+}
+
+function stepPartition() {
+  const trace = getPartitionTrace();
+  if (state.partitionStep < trace.length - 1) {
+    state.partitionStep++;
+  } else if (state.partitionTimer) {
+    clearInterval(state.partitionTimer);
+    state.partitionTimer = null;
+  }
+  renderPartition();
+}
+
+function togglePartitionPlayback() {
+  if (state.partitionTimer) {
+    clearInterval(state.partitionTimer);
+    state.partitionTimer = null;
+    renderPartition();
+    return;
+  }
+  const trace = getPartitionTrace();
+  if (state.partitionStep >= trace.length - 1) state.partitionStep = 0;
+  state.partitionTimer = setInterval(() => {
+    if (state.partitionStep >= trace.length - 1) {
+      clearInterval(state.partitionTimer);
+      state.partitionTimer = null;
+      renderPartition();
+      return;
+    }
+    state.partitionStep++;
+    renderPartition();
+  }, 850);
+  renderPartition();
 }
 
 function setPivotInput(name) {
+  if (state.pivotTimer) {
+    clearInterval(state.pivotTimer);
+    state.pivotTimer = null;
+  }
   state.pivotInput = name;
+  state.pivotStep = 0;
   document.querySelectorAll("[data-pivot-input]").forEach(btn => {
     btn.classList.toggle("act", btn.dataset.pivotInput === name);
   });
@@ -747,7 +1031,12 @@ function setPivotInput(name) {
 }
 
 function setPivotStrategy(name) {
+  if (state.pivotTimer) {
+    clearInterval(state.pivotTimer);
+    state.pivotTimer = null;
+  }
   state.pivotStrategy = name;
+  state.pivotStep = 0;
   document.querySelectorAll("[data-pivot-strategy]").forEach(btn => {
     btn.classList.toggle("act", btn.dataset.pivotStrategy === name);
   });
@@ -774,21 +1063,96 @@ function choosePivot(arr, strategy) {
 function renderPivot() {
   const arr = PIVOT_INPUTS[state.pivotInput];
   const pivot = choosePivot(arr, state.pivotStrategy);
+  const maxStep = arr.length;
+  const activeStep = Math.min(state.pivotStep, maxStep);
+  const finalFrame = activeStep === maxStep;
   let left = 0;
   let right = 0;
+  const leftValues = [];
+  const rightValues = [];
   for (let i = 0; i < arr.length; i++) {
     if (i === pivot.index) continue;
-    if (arr[i] < pivot.value) left++;
-    else right++;
+    if (arr[i] < pivot.value) {
+      left++;
+      leftValues.push(arr[i]);
+    } else {
+      right++;
+      rightValues.push(arr[i]);
+    }
   }
   const balance = left === 0 || right === 0 ? "bad split" : Math.min(left, right) + ":" + Math.max(left, right);
+  const seen = [];
+  for (let i = 0; i <= activeStep; i++) {
+    if (i === pivot.index) continue;
+    if (i >= arr.length) continue;
+    seen.push(i);
+  }
   document.getElementById("pivot-preview").textContent =
     "Input: [" + arr.join(", ") + "]\n" +
-    "A naive pivot can create a nearly one-sided recursion tree. Median-of-three is a cheap defense that often improves the split.";
+    (finalFrame
+      ? `Final split: values < ${pivot.value} are grouped to the left, the pivot sits in the middle, and values >= ${pivot.value} are grouped to the right. These are the two subproblems quicksort would recurse on next.`
+      : seen.length === 0
+      ? "Start with the chosen pivot. The animation walks the remaining elements and classifies each one to the left or right side."
+      : `Step ${activeStep + 1}/${maxStep + 1}: compare the highlighted element to pivot ${pivot.value} and place it on the smaller or larger side.`);
+  document.getElementById("pivot-strip").innerHTML = finalFrame
+    ? leftValues.map(value => `<span class="part-chip left">${value}</span>`).join("") +
+      `<span class="part-chip pivot">${pivot.value}</span>` +
+      rightValues.map(value => `<span class="part-chip right">${value}</span>`).join("")
+    : arr.map((value, idx) => {
+        let cls = "pointer";
+        if (idx === pivot.index) cls = "pivot";
+        else if (!seen.includes(idx)) cls = "pointer";
+        else cls = value < pivot.value ? "left" : "right";
+        if (idx === activeStep && idx !== pivot.index) cls += " scan";
+        return `<span class="part-chip ${cls}">${value}</span>`;
+      }).join("");
   document.getElementById("pivot-value").textContent = pivot.value;
   document.getElementById("pivot-left").textContent = left;
   document.getElementById("pivot-right").textContent = right;
   document.getElementById("pivot-balance").textContent = balance;
+  document.getElementById("pivot-play").textContent = state.pivotTimer ? "Pause" : "Play";
+}
+
+function resetPivotAnimation() {
+  if (state.pivotTimer) {
+    clearInterval(state.pivotTimer);
+    state.pivotTimer = null;
+  }
+  state.pivotStep = 0;
+  renderPivot();
+}
+
+function stepPivot() {
+  const arr = PIVOT_INPUTS[state.pivotInput];
+  if (state.pivotStep < arr.length) {
+    state.pivotStep++;
+  } else if (state.pivotTimer) {
+    clearInterval(state.pivotTimer);
+    state.pivotTimer = null;
+  }
+  renderPivot();
+}
+
+function togglePivotPlayback() {
+  if (state.pivotTimer) {
+    clearInterval(state.pivotTimer);
+    state.pivotTimer = null;
+    renderPivot();
+    return;
+  }
+  const arr = PIVOT_INPUTS[state.pivotInput];
+  if (state.pivotStep >= arr.length) state.pivotStep = 0;
+  state.pivotTimer = setInterval(() => {
+    if (state.pivotStep >= arr.length) {
+      clearInterval(state.pivotTimer);
+      state.pivotTimer = null;
+      renderPivot();
+      return;
+    }
+    state.pivotStep++;
+    renderPivot();
+  }, 700);
+  renderPivot();
 }
 
 function insertionSort(a, lo, hi, compare, stats) {
@@ -833,7 +1197,7 @@ function medianOfThreeIndex(a, i, j, k, compare) {
 
 function runIntroDemo(shape) {
   const a = INTRO_INPUTS[shape].slice();
-  const stats = { qcalls: 0, heapFallbacks: 0, insertions: 0, maxDepthSeen: 0, pivotPolicy: shape === "sorted" ? "first-element (hostile demo)" : "median-of-three" };
+  const stats = { qcalls: 0, heapFallbacks: 0, insertions: 0, maxDepthSeen: 0, pivotPolicy: shape === "sorted" ? "first-element (hostile demo)" : "median-of-three", events: [] };
   const compare = (x, y) => x - y;
   const limit = 16;
   const maxDepth = 2 * Math.floor(Math.log2(Math.max(1, a.length)));
@@ -859,8 +1223,23 @@ function runIntroDemo(shape) {
     stats.maxDepthSeen = Math.max(stats.maxDepthSeen, seen);
     while (hi - lo > limit) {
       stats.qcalls++;
+      stats.events.push({
+        type: "quick",
+        lo,
+        hi,
+        span: hi - lo,
+        depthLeft: depth,
+        seen
+      });
       if (depth === 0) {
         heapSortRange(a, lo, hi, compare, stats);
+        stats.events.push({
+          type: "heap",
+          lo,
+          hi,
+          span: hi - lo,
+          seen
+        });
         return;
       }
       depth--;
@@ -869,6 +1248,13 @@ function runIntroDemo(shape) {
       hi = p;
     }
     insertionSort(a, lo, hi, compare, stats);
+    stats.events.push({
+      type: "insert",
+      lo,
+      hi,
+      span: hi - lo,
+      seen
+    });
   }
 
   sort(0, a.length, maxDepth, 1);
@@ -876,7 +1262,12 @@ function runIntroDemo(shape) {
 }
 
 function setIntroShape(name) {
+  if (state.introTimer) {
+    clearInterval(state.introTimer);
+    state.introTimer = null;
+  }
   state.introShape = name;
+  state.introStep = 0;
   document.querySelectorAll("[data-intro-shape]").forEach(btn => {
     btn.classList.toggle("act", btn.dataset.introShape === name);
   });
@@ -885,14 +1276,75 @@ function setIntroShape(name) {
 
 function renderIntro() {
   const stats = runIntroDemo(state.introShape);
+  const active = Math.min(state.introStep, stats.events.length);
+  const seen = stats.events.slice(0, active);
+  const qcalls = seen.filter(e => e.type === "quick").length;
+  const heaps = seen.filter(e => e.type === "heap").length;
+  const insertions = seen.filter(e => e.type === "insert").length;
+  const depthSeen = seen.length ? Math.max(...seen.map(e => e.seen)) : 0;
+  const current = seen[seen.length - 1];
   document.getElementById("intro-preview").textContent =
-    state.introShape === "sorted"
-      ? "This view uses a deliberately hostile first-element pivot on sorted input so the depth guard has a chance to fire. The real runnable implementation below still uses median-of-three."
-      : "With a healthier pivot policy, introsort stays on the quicksort path and never needs the heap fallback on this input.";
-  document.getElementById("intro-qcalls").textContent = stats.qcalls;
-  document.getElementById("intro-heaps").textContent = stats.heapFallbacks;
-  document.getElementById("intro-insertions").textContent = stats.insertions;
-  document.getElementById("intro-depth").textContent = stats.maxDepthSeen;
+    current
+      ? (current.type === "quick"
+          ? `Step ${active}/${stats.events.length}: quicksort partitions a span of ${current.span} items at recursion depth ${current.seen}. Depth budget left: ${current.depthLeft}.`
+          : current.type === "heap"
+            ? `Step ${active}/${stats.events.length}: the depth guard fires on a span of ${current.span} items, so introsort abandons quicksort here and uses heapsort.`
+            : `Step ${active}/${stats.events.length}: the remaining span is only ${current.span} items, so introsort switches to insertion sort for the cheap cleanup.`)
+      : (state.introShape === "sorted"
+          ? "This view uses a deliberately hostile first-element pivot on sorted input so the depth guard has a chance to fire. Press Play to watch quicksort calls accumulate until the heap fallback triggers."
+          : "With a healthier pivot policy, introsort stays on the quicksort path and finishes with insertion-sort cleanup. Press Play to watch the event sequence.");
+  document.getElementById("intro-strip").innerHTML = seen.map((e, i) => {
+    const cls = e.type === "quick" ? "right" : e.type === "heap" ? "pivot" : "left";
+    const label = e.type === "quick" ? `Q${i + 1}` : e.type === "heap" ? "Heap" : "Insert";
+    return `<span class="part-chip ${cls}">${label}<br><small>d${e.seen}</small></span>`;
+  }).join("");
+  document.getElementById("intro-qcalls").textContent = qcalls;
+  document.getElementById("intro-heaps").textContent = heaps;
+  document.getElementById("intro-insertions").textContent = insertions;
+  document.getElementById("intro-depth").textContent = depthSeen;
+  document.getElementById("intro-play").textContent = state.introTimer ? "Pause" : "Play";
+}
+
+function resetIntroAnimation() {
+  if (state.introTimer) {
+    clearInterval(state.introTimer);
+    state.introTimer = null;
+  }
+  state.introStep = 0;
+  renderIntro();
+}
+
+function stepIntro() {
+  const stats = runIntroDemo(state.introShape);
+  if (state.introStep < stats.events.length) {
+    state.introStep++;
+  } else if (state.introTimer) {
+    clearInterval(state.introTimer);
+    state.introTimer = null;
+  }
+  renderIntro();
+}
+
+function toggleIntroPlayback() {
+  if (state.introTimer) {
+    clearInterval(state.introTimer);
+    state.introTimer = null;
+    renderIntro();
+    return;
+  }
+  const stats = runIntroDemo(state.introShape);
+  if (state.introStep >= stats.events.length) state.introStep = 0;
+  state.introTimer = setInterval(() => {
+    if (state.introStep >= stats.events.length) {
+      clearInterval(state.introTimer);
+      state.introTimer = null;
+      renderIntro();
+      return;
+    }
+    state.introStep++;
+    renderIntro();
+  }, 850);
+  renderIntro();
 }
 
 function runCode(codeId, outId) {
