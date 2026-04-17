@@ -638,6 +638,8 @@ code{
     <div class="sec-head"><span class="sec-n">§03</span><h2>Compaction as a cascade</h2></div>
     <p>Immutable SSTables make the write path fast, but they create a new problem: multiple versions of the same key accumulate across files. Deletes become tombstones. Reads may have to search several runs. So the system keeps merging files down the tree.</p>
     <p>This is why compaction is not an incidental optimization. It is the <strong>second half of the data structure</strong>. The write path borrows time from the future, and compaction is how that debt gets paid.</p>
+    <p>When compaction merges files, it walks their entries in sorted-key order and resolves conflicts by <strong>recency</strong>: if the same key appears in several input files, the newest version wins and older versions are discarded. So compaction is not just concatenation. It is a cleanup pass that collapses several historical fragments into one cleaner view of the keyspace.</p>
+    <p>Deletion works the same way. Because old SSTables are immutable, the system cannot erase a key in place. Instead it writes a <strong>tombstone</strong>, which is a special record meaning “this key was deleted.” Reads treat a tombstone as stronger than any older value they may still find deeper in the tree. Later, once compaction has merged through the relevant older files and knows there is no older live version left to hide, it can drop both the tombstone and the obsolete value entirely.</p>
     <div class="callout good">The LSM trade is explicit: lower write latency and higher write throughput now, background rewrite work later.</div>
 
     <div class="demo">
@@ -652,6 +654,7 @@ code{
         <button class="btn" data-cascade-key="mango" onclick="setCascadeKey('mango')">mango</button>
         <button class="btn" data-cascade-key="pear" onclick="setCascadeKey('pear')">pear</button>
       </div>
+      <p style="font-size:14px;line-height:1.75;color:var(--ink2);margin:.1rem 0 .75rem">How to read this: <strong>Write batch</strong> adds one new immutable SSTable to <code>L0</code>. Those files can overlap in key range, so point reads may have to check several of them. <strong>Compact</strong> merges the files in the first crowded level into one larger file in the next level down, keeping only the newest value per key. Files highlighted below are the ones whose key range still covers the selected lookup key.</p>
       <div class="preview" id="cascade-preview"></div>
       <div class="level-stack" id="cascade-levels"></div>
       <div class="stat-grid">
@@ -973,7 +976,8 @@ const state = {
     batchIndex: 0,
     nextId: 1,
     key: "banana",
-    levels: [[], [], []]
+    levels: [[], [], []],
+    lastAction: "No files yet. Start by writing a batch into L0."
   },
   bloomKey: "mango"
 };
@@ -1097,6 +1101,8 @@ function addCompactionBatch() {
   const batch = CASCADE_BATCHES[state.cascade.batchIndex % CASCADE_BATCHES.length];
   state.cascade.batchIndex += 1;
   state.cascade.levels[0].unshift(makeCascadeFile(batch));
+  state.cascade.lastAction =
+    "A MemTable flush created one new L0 SSTable. L0 accepts overlapping key ranges so writes stay cheap.";
   renderCascade();
 }
 
@@ -1104,15 +1110,28 @@ function compactCascade() {
   if (state.cascade.levels[0].length >= 2) {
     state.cascade.levels[1].unshift(mergeCascadeFiles(state.cascade.levels[0], "L1"));
     state.cascade.levels[0] = [];
+    state.cascade.lastAction =
+      "Compaction merged the current overlapping L0 files into one larger L1 file, keeping the newest value for each key.";
   } else if (state.cascade.levels[1].length >= 2) {
     state.cascade.levels[2].unshift(mergeCascadeFiles(state.cascade.levels[1], "L2"));
     state.cascade.levels[1] = [];
+    state.cascade.lastAction =
+      "Compaction merged the crowded L1 files into one larger L2 file, reducing how many files a read may need to check.";
+  } else {
+    state.cascade.lastAction =
+      "Nothing to compact yet. In this toy model you need at least two files in L0 or L1 before a merge is triggered.";
   }
   renderCascade();
 }
 
 function resetCascade() {
-  state.cascade = { batchIndex: 0, nextId: 1, key: "banana", levels: [[], [], []] };
+  state.cascade = {
+    batchIndex: 0,
+    nextId: 1,
+    key: "banana",
+    levels: [[], [], []],
+    lastAction: "Reset to an empty LSM state. Write a few batches to create overlapping L0 files, then compact them."
+  };
   renderCascade();
 }
 
@@ -1173,8 +1192,8 @@ function renderCascade() {
     return sum + files.filter(file => fileMayContain(file, state.cascade.key)).length;
   }, 0);
   document.getElementById("cascade-preview").textContent =
-    "L0 tolerates overlap because flushes are cheap. Compaction rewrites those overlapping runs into fewer, larger files. In this toy cascade, overlap can still persist until the next merge, so the read count tracks every file whose range still covers " +
-    state.cascade.key + ".";
+    state.cascade.lastAction + " Selected key: " + state.cascade.key +
+    ". The read-count stat below is how many files still have a key range that could contain it.";
   document.getElementById("cascade-l0").textContent = state.cascade.levels[0].length;
   document.getElementById("cascade-l1").textContent = state.cascade.levels[1].length;
   document.getElementById("cascade-l2").textContent = state.cascade.levels[2].length;

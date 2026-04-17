@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>How JPEG Encoding Works</title>
+<title>How JPEG Encoding Works</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -251,6 +251,26 @@ console.log(<span class="str">`  ${(videoRaw.mb * 30 * 3600 / 1024).toFixed(0)} 
   <div class="sec-head"><span class="sec-n">§02</span><h2>Colour space: RGB → YCbCr</h2></div>
   <p>RGB stores three equally-weighted colour channels. But your eye has ~120 million rod cells (brightness-sensitive) and only ~6 million cone cells (colour-sensitive), and the cones are densest at the fovea. JPEG exploits this by converting to <strong>YCbCr</strong>: one luma channel Y (brightness) and two chroma channels Cb and Cr (blue-difference and red-difference colour).</p>
   <p>This separation is the precondition for chroma subsampling in the next step — you can discard colour information you'll barely notice, while preserving every luma bit.</p>
+
+  <h3>How the conversion works</h3>
+  <p>The three output channels are computed as weighted sums of R, G, and B. The weights come from the ITU-R BT.601 standard and reflect how the human eye perceives colour.</p>
+  <p><strong>Y (luma)</strong> is a weighted average of all three channels, with green weighted most heavily because the eye has the most green-sensitive cones:</p>
+  <div style="font-family:var(--mono);font-size:13px;background:var(--bg3);border:1px solid var(--rule2);border-radius:4px;padding:.7rem 1rem;margin:.5rem 0 1rem;line-height:2">
+    Y &nbsp;= &nbsp;0.299 × R &nbsp;+ &nbsp;0.587 × G &nbsp;+ &nbsp;0.114 × B
+    <div style="font-size:11px;color:var(--ink3);margin-top:.2rem">Green gets 59% of the weight — the eye is most sensitive to green light.</div>
+  </div>
+  <p><strong>Cb (blue-difference chroma)</strong> measures how much bluer the pixel is relative to its luma. It's centred at 128 (neutral grey maps to exactly 128):</p>
+  <div style="font-family:var(--mono);font-size:13px;background:var(--bg3);border:1px solid var(--rule2);border-radius:4px;padding:.7rem 1rem;margin:.5rem 0 1rem;line-height:2">
+    Cb = −0.169 × R &nbsp;− &nbsp;0.331 × G &nbsp;+ &nbsp;0.500 × B &nbsp;+ &nbsp;128
+    <div style="font-size:11px;color:var(--ink3);margin-top:.2rem">Pure blue (0,0,255) → Cb=255. Pure red (255,0,0) → Cb=43. Grey (128,128,128) → Cb=128.</div>
+  </div>
+  <p><strong>Cr (red-difference chroma)</strong> measures how much redder the pixel is relative to its luma, also centred at 128:</p>
+  <div style="font-family:var(--mono);font-size:13px;background:var(--bg3);border:1px solid var(--rule2);border-radius:4px;padding:.7rem 1rem;margin:.5rem 0 1rem;line-height:2">
+    Cr = &nbsp;0.500 × R &nbsp;− &nbsp;0.419 × G &nbsp;− &nbsp;0.081 × B &nbsp;+ &nbsp;128
+    <div style="font-size:11px;color:var(--ink3);margin-top:.2rem">Pure red (255,0,0) → Cr=213. Pure blue (0,0,255) → Cr=107. Grey (128,128,128) → Cr=128.</div>
+  </div>
+  <p>Three things to notice: <strong>the coefficients in each row sum to zero</strong> (before the +128 offset), which means a neutral grey always maps to Cb=128, Cr=128 regardless of its brightness. The <strong>+128 offset</strong> shifts the range from [−128, 127] to [0, 255] so it fits in a byte. And the <strong>Y coefficients sum to 1.0</strong> (0.299 + 0.587 + 0.114 = 1.0), so white (255,255,255) maps to Y=255.</p>
+
   <div class="demo">
     <div class="demo-lbl">RGB ↔ YCbCr — drag the sliders, see both representations</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -318,8 +338,8 @@ console.log(<span class="str">`  Blue:  Y=${Yb}   (medium-low)`</span>);</pre>
 <!-- ══ S3: CHROMA SUBSAMPLING ══ -->
 <section class="section" id="s3">
   <div class="sec-head"><span class="sec-n">§03</span><h2>Chroma subsampling</h2></div>
-  <p>Because the eye is far less sensitive to colour detail than to brightness detail, many JPEG encoders use <strong>chroma subsampling</strong> before transform coding. In the common <strong>4:2:0</strong> mode, every 2×2 block of pixels shares a single Cb value and a single Cr value, while each pixel keeps its own Y value.</p>
-  <p>In <strong>4:2:0</strong>, that cuts colour samples to <strong>50% of the original data rate</strong> (from 3 bytes/pixel to about 1.5 bytes/pixel before later JPEG stages), usually with little visible loss on photographic content. But JPEG can also be stored as 4:4:4 or 4:2:2.</p>
+  <p>Because the eye is far less sensitive to colour detail than to brightness detail, JPEG discards 75% of the colour data before any other compression takes place. In the most common mode <strong>4:2:0</strong>, every 2×2 block of pixels shares a single Cb value and a single Cr value — but each pixel keeps its own Y value.</p>
+  <p>This step alone reduces data to <strong>50% of the original</strong> (from 3 bytes/pixel to 1.5 bytes/pixel) with virtually invisible quality loss on photographic content.</p>
   <div class="demo">
     <div class="demo-lbl">Subsampling modes — click to compare</div>
     <div class="btn-row">
@@ -393,6 +413,7 @@ console.log(<span class="str">`\nData: ${origBytes} bytes → ${subBytes} bytes 
 <section class="section" id="s4">
   <div class="sec-head"><span class="sec-n">§04</span><h2>8×8 blocks and the DCT</h2></div>
   <p>Each channel is divided into non-overlapping <strong>8×8 blocks</strong> (64 pixels). Each block is transformed by the <strong>Discrete Cosine Transform (DCT)</strong>, which converts the block from the spatial domain (pixel values) into the frequency domain (how much of each spatial frequency is present).</p>
+  <p>Intuitively, the spatial domain is just the block as you would normally look at it: <em>this pixel is bright, that pixel is darker, this corner changes quickly</em>. The frequency domain asks a different question: <em>how much of this block is smooth overall, how much is a gentle left-to-right fade, how much is a fine checkerboard-like texture?</em> Instead of describing the block pixel by pixel, JPEG describes it as a mixture of simple visual patterns, from broad smooth shading to tiny rapid changes. That is useful because photographs usually contain much more low-frequency structure than high-frequency detail, so JPEG can keep the broad patterns and coarsen the tiny ones.</p>
   <p>The output is also an 8×8 grid of 64 numbers called <strong>DCT coefficients</strong>. The top-left coefficient (DC) represents the average brightness of the block. The others (AC) represent increasingly fine detail from left-to-right and top-to-bottom.</p>
   <div class="callout blue">The DCT doesn't compress anything — it just <em>rearranges</em> the information. The compression happens in the next step (quantisation). The point of the DCT is to make the high-frequency detail coefficients <em>small</em>, so quantisation can discard them aggressively.</div>
   <div class="demo">
@@ -412,6 +433,8 @@ console.log(<span class="str">`\nData: ${origBytes} bytes → ${subBytes} bytes 
         <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">DCT coefficients (warm=+, cool=−)</div>
         <canvas id="dct-output-canvas" width="160" height="160" style="width:100%;border:1px solid var(--rule2);border-radius:4px;image-rendering:pixelated"></canvas>
         <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.4rem" id="dct-dc-label">DC (top-left): —</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.35rem" id="dct-axis-label">Right = finer left-to-right change · Down = finer top-to-bottom change</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--ink2);margin-top:.55rem" id="dct-ac-label"></div>
       </div>
     </div>
   </div>
@@ -509,6 +532,7 @@ console.log(<span class="str">`\nRoundtrip max error: ${maxErr.toFixed(6)} (shou
 <section class="section" id="s6">
   <div class="sec-head"><span class="sec-n">§06</span><h2>Quantisation — the lossy step</h2></div>
   <p>Each DCT coefficient is <strong>divided by a number from the quantisation table</strong> and rounded to the nearest integer. This is the only irreversible step in JPEG — the one where information is permanently discarded.</p>
+  <p>The <strong>quantisation table</strong> is just an 8×8 grid of divisor values, one for each position in the 8×8 DCT coefficient block. JPEG is effectively saying: “for this low-frequency coefficient, divide by a small number and keep it fairly accurately; for this high-frequency coefficient, divide by a larger number and round more aggressively.”</p>
   <p>The quantisation table has larger values for high-frequency coefficients (bottom-right of the grid), discarding fine detail aggressively, and small values for low-frequency coefficients (top-left), preserving smooth gradients. The JPEG quality setting scales this table: Q=100 means divide by ~1 (lossless-ish); Q=1 means divide by ~100 (heavily lossy).</p>
   <div class="demo">
     <div class="demo-lbl">Quantisation — slide quality and see which coefficients survive</div>
@@ -684,7 +708,7 @@ console.log(<span class="str">`\n64 values → ${rle.length} RLE pairs = ${(rle.
 <section class="section" id="s8">
   <div class="sec-head"><span class="sec-n">§08</span><h2>Huffman entropy coding</h2></div>
   <p>The final step encodes the RLE pairs using <strong>Huffman coding</strong>, a lossless compression technique that assigns shorter bit patterns to more frequent symbols. In a typical JPEG block, small coefficients like (0, 1) or (0, -1) appear far more often than large ones — Huffman exploits this imbalance.</p>
-  <p>Baseline JPEG commonly uses either the standard default Huffman tables from the spec or encoder-generated custom tables sent in the file. The encoder scans the RLE pairs and emits variable-length bit strings. The decoder reads bits one at a time, walking a Huffman tree until it reaches a leaf.</p>
+  <p>JPEG precomputes Huffman tables for typical image data (the standard tables are in the JPEG spec). The encoder scans the RLE pairs and emits variable-length bit strings. The decoder reads bits one at a time, walking a Huffman tree until it reaches a leaf.</p>
   <div class="demo">
     <div class="demo-lbl">Huffman coding — build a tree from symbol frequencies</div>
     <div class="btn-row">
@@ -774,12 +798,12 @@ console.log(<span class="str">`  Decoded back: [${back.join(",")}] ✓`</span>);
 
 <!-- ══ S9: FULL PIPELINE ══ -->
 <section class="section" id="s9">
-  <div class="sec-head"><span class="sec-n">§09</span><h2>Block-level encode/decode pipeline</h2></div>
-  <p>Putting the core block steps together: take an 8×8 block of pixel values through level shift, DCT, quantisation, zigzag ordering, then reverse those steps back to pixels. This is the heart of baseline JPEG block coding, but a complete JPEG file also adds DC differencing, entropy-coded bitstreams, headers, and often chroma subsampling across larger MCU groups.</p>
+  <div class="sec-head"><span class="sec-n">§09</span><h2>Full encode/decode pipeline</h2></div>
+  <p>Putting all eight steps together: take an 8×8 block of pixel values through the complete JPEG pipeline and back. This is what happens to every block in every channel of every JPEG file ever saved.</p>
   <div class="cb">
-    <div class="cb-head"><span>block_pipeline.js — encode and decode the core 8×8 block steps</span><button class="run-btn" onclick="runCode('c9','o9')">&#9654; Run</button></div>
-    <pre class="code" id="c9"><span class="cmt">// Core JPEG block pipeline: pixels → DCT → quantise → zigzag</span>
-<span class="cmt">// Then the reverse: dezigzag → dequantise → IDCT → pixels</span>
+    <div class="cb-head"><span>full_pipeline.js — encode and decode a complete 8×8 block</span><button class="run-btn" onclick="runCode('c9','o9')">&#9654; Run</button></div>
+    <pre class="code" id="c9"><span class="cmt">// Complete JPEG pipeline: pixels → DCT → quantise → zigzag → RLE</span>
+<span class="cmt">// Then the reverse: RLE decode → dezigzag → dequantise → IDCT → pixels</span>
 
 <span class="kw">const</span> N = <span class="num">8</span>;
 <span class="kw">const</span> C = u =&gt; u === <span class="num">0</span> ? <span class="num">1</span>/Math.sqrt(<span class="num">2</span>) : <span class="num">1</span>;
@@ -917,12 +941,6 @@ function runCode(cid,oid){
   catch(e){el.className='out on err';el.textContent='⚠ '+e.message;}
 }
 
-function pathRect(ctx,x,y,w,h,r=0){
-  ctx.beginPath();
-  if(typeof ctx.roundRect === 'function') ctx.roundRect(x,y,w,h,r);
-  else ctx.rect(x,y,w,h);
-}
-
 /* ── SHARED DCT ── */
 const N=8,Cf=u=>u===0?1/Math.sqrt(2):1;
 function dct2d(block){
@@ -1036,6 +1054,30 @@ function drawCoeffCanvas(canvas,data){
     ctx.fillRect(x,y,sz,sz);
   });
 }
+function describeCoeff(u,v,val){
+  if(u===0&&v===0) return 'the block average brightness';
+  if(v===0&&u===1) return 'one broad left-to-right brightness sweep across the block';
+  if(u===0&&v===1) return 'one broad top-to-bottom brightness sweep across the block';
+  if(v===0) return `${u} left-to-right brightness waves across the block`;
+  if(u===0) return `${v} top-to-bottom brightness waves across the block`;
+  return `${u} left-to-right and ${v} top-to-bottom oscillations combined`;
+}
+function explainDCTCoeffs(coeffs){
+  let bestI=1, best=Math.abs(coeffs[1]||0);
+  for(let i=2;i<64;i++){
+    const mag=Math.abs(coeffs[i]);
+    if(mag>best){best=mag;bestI=i;}
+  }
+  const u=bestI%8, v=Math.floor(bestI/8), val=coeffs[bestI];
+  const sign=val>=0?'positive':'negative';
+  const orient=val>=0?'light-to-dark phase of that pattern':'dark-to-light phase of that pattern';
+  const energy=(best/Math.max(...[...coeffs].map(Math.abs),1)*100).toFixed(0);
+  document.getElementById('dct-ac-label').innerHTML =
+    `<strong>What the bright square means:</strong> the strongest non-DC term is at <code>(u=${u}, v=${v})</code>, which represents ${describeCoeff(u,v,val)}. ` +
+    `Its coefficient is <strong>${sign}</strong>, so JPEG is saying this pattern is present with the ${orient}. ` +
+    `For the gradient example, that is why you mostly see one strong square near the top-left: the block is mostly a smooth large-scale ramp, not lots of fine texture. ` +
+    `This coefficient carries about <strong>${energy}%</strong> of the block's largest visible DCT energy.`;
+}
 function setDCTPattern(name){
   document.querySelectorAll('#s4 .btn-row .btn').forEach(b=>b.className='btn'+(b.textContent.toLowerCase()===name?' act':''));
   currentBlock=PATTERNS[name];
@@ -1049,6 +1091,7 @@ function updateDCTDemo(){
   const coeffs=dct2d(shifted);
   drawCoeffCanvas(oc,[...coeffs]);
   document.getElementById('dct-dc-label').textContent=`DC (top-left): ${coeffs[0].toFixed(1)}  (avg brightness offset: ${(coeffs[0]*0.25+128).toFixed(0)})`;
+  explainDCTCoeffs(coeffs);
 }
 updateDCTDemo();
 document.getElementById('dct-input-canvas').addEventListener('click',function(e){
@@ -1164,13 +1207,27 @@ function showRLE(seq){
 }
 
 /* ── HUFFMAN VIZ ── */
-function buildHuffDemo(preset,btn=null){
+function pathRect(ctx,x,y,w,h,r){
+  if(typeof ctx.roundRect==='function'){
+    ctx.roundRect(x,y,w,h,r);
+    return;
+  }
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+}
+function buildHuffDemo(preset, btn){
   document.querySelectorAll('#s8 .btn-row .btn').forEach(b=>b.classList.remove('act'));
   if(btn) btn.classList.add('act');
   else{
-    const fallbackBtn=document.querySelector(`#s8 .btn-row .btn${preset==='typical'?'.act':''}`) ||
-      document.querySelectorAll('#s8 .btn-row .btn')[preset==='abc'?1:0];
-    if(fallbackBtn) fallbackBtn.classList.add('act');
+    const active=document.querySelector(`#s8 .btn-row .btn[onclick*="'${preset}'"]`);
+    if(active) active.classList.add('act');
   }
   const freqData=preset==='abc'
     ?[['A',40],['B',25],['C',20],['D',10],['E',5]]
@@ -1216,7 +1273,7 @@ function buildHuffDemo(preset,btn=null){
   function drawNodes(n){
     const {cx,y}=pos.get(n);const isLeaf=n.s!==null;
     ctx.fillStyle=isLeaf?leafCol:nodeCol;ctx.strokeStyle=isDark?'#3e3c36':'#c8c5bc';ctx.lineWidth=1;
-    pathRect(ctx,cx-26,y-13,52,26,4);ctx.fill();ctx.stroke();
+    ctx.beginPath();pathRect(ctx,cx-26,y-13,52,26,4);ctx.fill();ctx.stroke();
     ctx.fillStyle=textCol;ctx.font=isLeaf?'11px monospace':'10px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(isLeaf?n.s:n.f,cx,y);
     if(!n.l)return;drawNodes(n.l);drawNodes(n.r);
@@ -1232,17 +1289,11 @@ buildHuffDemo('typical');
 const ORIG_BLOCK=[52,55,61,66,70,61,64,73,63,59,55,90,109,85,69,72,62,59,68,113,144,104,66,73,63,58,71,122,154,106,70,69,67,61,68,104,126,88,68,70,79,65,60,70,77,68,58,75,85,71,64,59,55,61,65,83,87,79,69,68,65,76,78,94];
 function drawBlockCanvas(canvas,data){
   const ctx=canvas.getContext('2d');const W=canvas.width;const sz=W/8;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
   data.forEach((v,i)=>{const x=(i%8)*sz,y=Math.floor(i/8)*sz;ctx.fillStyle=`rgb(${v},${v},${v})`;ctx.fillRect(x,y,sz,sz);});
 }
-const q2OrigCanvas=document.getElementById('q2-orig');
-if(q2OrigCanvas) drawBlockCanvas(q2OrigCanvas,ORIG_BLOCK);
+drawBlockCanvas(document.getElementById('q2-orig'),ORIG_BLOCK);
 function updateQualityDemo(){
-  const slider=document.getElementById('q2-sl');
-  const reconCanvas=document.getElementById('q2-recon');
-  const stats=document.getElementById('q2-stats');
-  if(!slider || !reconCanvas || !stats) return;
-  const Q=+slider.value;
+  const Q=+document.getElementById('q2-sl').value;
   document.getElementById('q2-val').textContent=Q;
   document.getElementById('q2-lbl').textContent=Q;
   const qT=scaleQ(Q);
@@ -1252,12 +1303,12 @@ function updateQualityDemo(){
   const dequant=Float32Array.from(quant.map((c,i)=>c*qT[i]));
   const spatial=idct2d(dequant);
   const recon=[...spatial].map(v=>Math.max(0,Math.min(255,Math.round(v+128))));
-  drawBlockCanvas(reconCanvas,recon);
+  drawBlockCanvas(document.getElementById('q2-recon'),recon);
   const zeros=quant.filter(v=>v===0).length;
   const mse=ORIG_BLOCK.reduce((s,v,i)=>s+(v-recon[i])**2,0)/64;
   const psnr=10*Math.log10(255*255/mse);
   const maxErr=Math.max(...ORIG_BLOCK.map((v,i)=>Math.abs(v-recon[i])));
-  stats.innerHTML=
+  document.getElementById('q2-stats').innerHTML=
     `Zeros: ${zeros}/64 (${Math.round(zeros/64*100)}%)  ·  Max error: ${maxErr}  ·  PSNR: ${psnr.toFixed(1)} dB  ·  `+
     `Quality: ${psnr>40?'<span style="color:var(--green)">excellent (≥40dB)</span>':psnr>35?'<span style="color:var(--amber)">good (35–40dB)</span>':'<span style="color:var(--red)">visible artefacts (&lt;35dB)</span>'}`;
 }
