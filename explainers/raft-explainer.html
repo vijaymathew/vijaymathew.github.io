@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Raft Consensus Algorithm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Code+Pro:wght@400;500&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #f5f4f0;
+  --bg2:       #eceae4;
+  --bg3:       #e1dfd7;
+  --bg4:       #d4d1c6;
+  --ink:       #1a1916;
+  --ink2:      #4a4740;
+  --ink3:      #8a877e;
+  --rule:      rgba(26,25,22,.09);
+  --rule2:     rgba(26,25,22,.18);
+  --orange:    #c94f1a;
+  --orange-bg: #fdf0ea;
+  --orange-bdr:#e8a080;
+  --blue:      #1a4fa0;
+  --blue-bg:   #edf2fc;
+  --blue-bdr:  #8aaedc;
+  --green:     #1a6040;
+  --green-bg:  #edf7f2;
+  --green-bdr: #80c8a0;
+  --red:       #a01a1a;
+  --red-bg:    #fdf0f0;
+  --red-bdr:   #dca0a0;
+  --slate:     #3a4a5a;
+  --slate-bg:  #edf0f4;
+  --slate-bdr: #a0b0c0;
+  --gold:      #8a6800;
+  --gold-bg:   #fdf8e6;
+  --gold-bdr:  #d4b860;
+  --mono: 'Source Code Pro', 'Fira Code', monospace;
+  --sans: 'Source Sans 3', system-ui, sans-serif;
+  --serif: 'Playfair Display', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141311; --bg2: #1c1a17; --bg3: #242118; --bg4: #2e2b22;
+    --ink: #e8e4da; --ink2: #a8a498; --ink3: #68645a;
+    --rule: rgba(232,228,218,.07); --rule2: rgba(232,228,218,.14);
+    --orange: #e87040;    --orange-bg: #281408; --orange-bdr: #804020;
+    --blue: #70a0e0;      --blue-bg:   #081828; --blue-bdr:   #204880;
+    --green: #60c090;     --green-bg:  #081808; --green-bdr:  #206040;
+    --red: #e07070;       --red-bg:    #200808; --red-bdr:    #802020;
+    --slate: #90a8c0;     --slate-bg:  #101820; --slate-bdr:  #304858;
+    --gold: #d4a840;      --gold-bg:   #181200; --gold-bdr:   #604800;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1}
+
+.page{max-width:880px;margin:0 auto;padding:0 1.75rem 6rem}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:2px solid var(--ink);margin-bottom:0}
+.tb-title{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink);letter-spacing:.04em}
+.tb-tag{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+
+/* ── HERO ── */
+.hero{padding:3.5rem 0 2.8rem;border-bottom:1px solid var(--rule2)}
+.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);margin-bottom:1rem}
+.hero h1{font-family:var(--serif);font-size:clamp(2.2rem,5vw,3.8rem);font-weight:700;line-height:1.08;letter-spacing:-.01em;margin-bottom:1rem}
+.hero h1 em{font-style:italic;color:var(--orange);font-weight:400}
+.hero-sub{font-size:17px;line-height:1.8;color:var(--ink2);max-width:570px;font-weight:300;margin-bottom:1.8rem}
+.concept-row{display:flex;gap:0;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;font-family:var(--mono);font-size:11px;margin-bottom:1.5rem}
+.cr-cell{flex:1;padding:.65rem .9rem;border-right:1px solid var(--rule2)}
+.cr-cell:last-child{border-right:none}
+.cr-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.cr-name{font-weight:500;color:var(--ink);font-size:12px}
+.cr-desc{color:var(--ink3);font-size:10px;margin-top:2px}
+.hero-pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--rule2);color:var(--ink3)}
+
+/* ── TOC ── */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:2rem 0 3rem;background:var(--bg2)}
+.toc a{display:flex;gap:9px;padding:8px 13px;background:transparent;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .1s,color .1s}
+.toc a:nth-child(2n){border-right:none}
+.toc a:nth-last-child(-n+2){border-bottom:none}
+.toc a:hover{background:var(--bg3);color:var(--orange)}
+.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
+
+/* ── SECTIONS ── */
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.8rem;border-bottom:1px solid var(--rule2);margin-bottom:1.4rem}
+.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
+h2{font-family:var(--serif);font-size:1.9rem;font-weight:700;letter-spacing:-.01em}
+h3{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);margin:1.4rem 0 .5rem}
+p{font-size:15.5px;line-height:1.82;color:var(--ink2);margin-bottom:.9rem;font-weight:300}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--orange)}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg3);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;color:var(--ink)}
+
+/* ── CALLOUTS ── */
+.callout{border-left:3px solid var(--rule2);padding:.75rem 1.1rem;margin:1rem 0;font-size:14.5px;line-height:1.75;color:var(--ink2);background:var(--bg2);border-radius:0 4px 4px 0;font-weight:300}
+.callout.orange{border-color:var(--orange);background:var(--orange-bg);color:var(--orange)}
+.callout.blue{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.callout.green{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.callout.gold{border-color:var(--gold);background:var(--gold-bg);color:var(--gold)}
+
+/* ── CODE BLOCKS ── */
+.cb{border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:1rem 0 1.8rem}
+.cb-head{display:flex;justify-content:space-between;align-items:center;padding:6px 13px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.run-btn{background:var(--orange);color:#fff;border:none;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 11px;cursor:pointer;letter-spacing:.04em;transition:opacity .12s}
+.run-btn:hover{opacity:.8}
+pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;color:var(--ink);margin:0}
+.out{display:none;background:var(--green-bg);border-top:1px solid var(--rule);padding:.75rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;color:var(--green);white-space:pre-wrap}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.kw{color:#7a20a0}.fn{color:var(--blue)}.str{color:var(--green)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--orange)}.cls{color:var(--slate)}
+
+/* ── DEMO ── */
+.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:6px;padding:1.2rem;margin:1rem 0 1.8rem}
+.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem}
+button.btn{
+  font-family:var(--mono);
+  font-size:12px;
+  padding:6px 12px;
+  border-radius:4px;
+  border:1px solid var(--rule2);
+  background:var(--bg);
+  color:var(--ink);
+  cursor:pointer;
+  transition:all .12s;
+  box-shadow:0 1px 0 rgba(26,25,22,.05);
+}
+button.btn:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-bg)}
+button.btn.act{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:0 0 0 1px rgba(201,79,26,.12)}
+button.btn.blue{background:#dce8fb;color:#123f81;border-color:#78a1d8}
+button.btn.green{background:#dff1e7;color:#145236;border-color:#63ad87}
+button.btn.red{background:#f8dddd;color:#8b1f1f;border-color:#cc7d7d}
+
+/* ── NODE VIZ ── */
+.cluster{display:flex;gap:10px;flex-wrap:wrap;margin:.6rem 0;align-items:center;justify-content:center}
+.node{width:70px;height:70px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:500;border:2px solid var(--rule2);background:var(--bg);cursor:pointer;transition:all .2s;position:relative}
+.node .node-id{font-size:13px;font-weight:600}
+.node .node-role{font-size:9px;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+.node .node-term{font-size:9px;color:var(--ink3);margin-top:1px}
+.node.leader{border-color:var(--orange);background:var(--orange-bg);box-shadow:0 0 0 3px rgba(201,79,26,.15)}
+.node.follower{border-color:var(--blue-bdr);background:var(--blue-bg)}
+.node.candidate{border-color:var(--gold-bdr);background:var(--gold-bg)}
+.node.dead{border-color:var(--red-bdr);background:var(--red-bg);opacity:.55}
+.node .node-id{color:var(--ink)}
+.node.leader .node-role{color:var(--orange)}
+.node.follower .node-role{color:var(--blue)}
+.node.candidate .node-role{color:var(--gold)}
+.node.dead .node-role{color:var(--red)}
+.node-arrow{font-size:20px;color:var(--ink3);display:flex;align-items:center}
+.node-msg{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;font-family:var(--mono);white-space:nowrap;padding:1px 5px;border-radius:3px;pointer-events:none}
+.node-msg.heartbeat{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-bdr)}
+.node-msg.vote{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-bdr)}
+.node-msg.append{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bdr)}
+
+.election-board{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:14px;align-items:start}
+.election-stage{position:relative;border:1px solid var(--rule2);border-radius:8px;background:linear-gradient(180deg,var(--bg),var(--bg2));padding:10px;min-height:320px}
+.election-svg{width:100%;height:300px;display:block}
+.election-side{display:grid;gap:10px}
+.election-panel{border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:.8rem .95rem}
+.election-panel h4{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink3);margin:0 0 .45rem}
+.election-panel p{margin:0;font-size:13.5px;line-height:1.7}
+.election-rpc{display:flex;gap:6px;flex-wrap:wrap}
+.rpc-chip{font-family:var(--mono);font-size:10px;padding:4px 7px;border-radius:999px;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink2)}
+.rpc-chip.vote{border-color:var(--gold-bdr);background:var(--gold-bg);color:var(--gold)}
+.rpc-chip.heartbeat{border-color:var(--orange-bdr);background:var(--orange-bg);color:var(--orange)}
+.rpc-chip.denied{border-color:var(--red-bdr);background:var(--red-bg);color:var(--red)}
+.rpc-chip.timeout{border-color:var(--blue-bdr);background:var(--blue-bg);color:var(--blue)}
+.election-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px}
+.election-step{border:1px solid var(--rule2);border-radius:5px;padding:.45rem .5rem;background:var(--bg);font-family:var(--mono);font-size:10px;color:var(--ink3);line-height:1.5}
+.election-step strong{display:block;color:var(--ink);font-size:11px;font-weight:500}
+.election-step.done{border-color:var(--green-bdr);background:var(--green-bg);color:var(--green)}
+.election-step.active{border-color:var(--orange-bdr);background:var(--orange-bg);color:var(--orange)}
+.election-help{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:.65rem;line-height:1.7}
+
+@media (max-width:720px){
+  .election-board{grid-template-columns:1fr}
+  .election-steps{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+/* ── LOG VIZ ── */
+.log-grid{display:flex;gap:2px;margin:.4rem 0;align-items:flex-end;overflow-x:auto;padding-bottom:.2rem}
+.log-entry{min-width:42px;padding:4px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;text-align:center;border:1px solid var(--rule2);background:var(--bg);flex-shrink:0}
+.log-entry .le-idx{font-size:9px;color:var(--ink3);display:block;margin-bottom:1px}
+.log-entry .le-term{font-size:9px;margin-bottom:2px;display:block}
+.log-entry .le-cmd{font-size:10px;font-weight:500;color:var(--ink)}
+.log-entry.committed{background:var(--green-bg);border-color:var(--green-bdr)}
+.log-entry.uncommitted{background:var(--gold-bg);border-color:var(--gold-bdr)}
+.log-entry.conflicting{background:var(--red-bg);border-color:var(--red-bdr)}
+.log-label{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-bottom:.3rem;display:flex;justify-content:space-between;align-items:center}
+.log-row{margin:.5rem 0}
+
+/* ── TIMELINE ── */
+.timeline{display:grid;grid-template-columns:80px 1fr;gap:0;font-family:var(--mono);font-size:12px;margin:.6rem 0}
+.tl-time{padding:6px 10px;color:var(--ink3);border-right:2px solid var(--rule2);text-align:right;position:relative}
+.tl-time.current::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:var(--orange)}
+.tl-event{padding:6px 12px;border-bottom:1px solid var(--rule);color:var(--ink2)}
+.tl-event.election{background:var(--gold-bg);color:var(--gold)}
+.tl-event.leader{background:var(--orange-bg);color:var(--orange)}
+.tl-event.commit{background:var(--green-bg);color:var(--green)}
+.tl-event.crash{background:var(--red-bg);color:var(--red)}
+.tl-time.election{border-right-color:var(--gold)}
+.tl-time.leader{border-right-color:var(--orange)}
+.tl-time.commit{border-right-color:var(--green)}
+.tl-time.crash{border-right-color:var(--red)}
+
+/* ── TERM VIZ ── */
+.term-strip{display:flex;gap:0;margin:.5rem 0;height:36px;border-radius:5px;overflow:hidden;border:1px solid var(--rule2)}
+.term-seg{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:500;border-right:1px solid rgba(0,0,0,.15)}
+.term-seg:last-child{border-right:none}
+.term-seg.election{background:var(--gold-bg);color:var(--gold)}
+.term-seg.leader1{background:var(--orange-bg);color:var(--orange)}
+.term-seg.leader2{background:var(--blue-bg);color:var(--blue)}
+.term-seg.crash{background:var(--red-bg);color:var(--red)}
+
+/* ── COMPARISON ── */
+.cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:.8rem 0}
+.cmp-table th{padding:7px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.cmp-table td{padding:7px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
+.cmp-table td.name{color:var(--ink);font-weight:500}
+.cmp-table td.good{color:var(--green)}
+.cmp-table td.bad{color:var(--red)}
+.cmp-table td.ok{color:var(--gold)}
+.cmp-table tr.hi td{background:var(--orange-bg)}
+
+/* ── STEP NAV ── */
+.step-nav{display:flex;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;margin-bottom:.8rem}
+.step-btn{flex:1;padding:7px 4px;font-family:var(--mono);font-size:11px;border:none;border-right:1px solid var(--rule2);background:var(--bg2);color:var(--ink3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.act{background:var(--orange);color:#fff}
+.step-panel{display:none}.step-panel.on{display:block}
+
+/* slider */
+.slider-row{display:flex;align-items:center;gap:10px;margin:.5rem 0}
+.slider-row label{font-family:var(--mono);font-size:12px;color:var(--ink2);min-width:90px}
+.slider-row input[type=range]{flex:1;accent-color:var(--orange)}
+.slider-val{font-family:var(--mono);font-size:12px;color:var(--orange);min-width:40px;text-align:right}
+
+/* ── FOOTER ── */
+.footer{border-top:1px solid var(--rule2);padding-top:1.8rem;margin-top:1rem}
+.footer a{font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;display:block;padding:3px 0}
+.footer a:hover{color:var(--orange)}
+.footer-note{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="topbar">
+  <span class="tb-title">raft.consensus</span>
+  <span class="tb-tag">Interactive explainer · Distributed systems</span>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">Distributed systems · Consensus algorithms</div>
+  <h1>The <em>Raft</em> consensus<br>algorithm</h1>
+  <p class="hero-sub">How do five servers scattered across data centres all agree on the same sequence of events — even when some crash, networks partition, and messages arrive late or out of order? That is the consensus problem, and Raft is its most understandable solution.</p>
+  <div class="concept-row">
+    <div class="cr-cell"><div class="cr-label">Problem</div><div class="cr-name">Distributed agreement</div><div class="cr-desc">multiple nodes, one truth</div></div>
+    <div class="cr-cell"><div class="cr-label">Approach</div><div class="cr-name">Strong leader</div><div class="cr-desc">one node coordinates all writes</div></div>
+    <div class="cr-cell"><div class="cr-label">Key mechanism</div><div class="cr-name">Leader election</div><div class="cr-desc">randomised timeouts + terms</div></div>
+    <div class="cr-cell"><div class="cr-label">Correctness</div><div class="cr-name">Log replication</div><div class="cr-desc">majority quorum commits</div></div>
+    <div class="cr-cell"><div class="cr-label">Fault tolerance</div><div class="cr-name">⌊n−1⌋/2 failures</div><div class="cr-desc">5 nodes survive 2 crashes</div></div>
+  </div>
+  <div class="hero-pills">
+    <span class="pill">Leader election</span>
+    <span class="pill">Log replication</span>
+    <span class="pill">Safety</span>
+    <span class="pill">Majority quorum</span>
+    <span class="pill">etcd · CockroachDB · TiKV</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>The problem: distributed agreement</a>
+  <a href="#s2"><span class="toc-n">02</span>The replicated state machine</a>
+  <a href="#s3"><span class="toc-n">03</span>Raft's core insight: strong leader</a>
+  <a href="#s4"><span class="toc-n">04</span>Leader election</a>
+  <a href="#s5"><span class="toc-n">05</span>Log replication</a>
+  <a href="#s6"><span class="toc-n">06</span>Safety guarantees</a>
+  <a href="#s7"><span class="toc-n">07</span>Handling failures</a>
+  <a href="#s8"><span class="toc-n">08</span>Full Raft simulation in JS</a>
+  <a href="#s9"><span class="toc-n">09</span>Raft vs Paxos</a>
+  <a href="#s10"><span class="toc-n">10</span>Real-world usage</a>
+</nav>
+
+<!-- ══ S1: THE PROBLEM ══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: distributed agreement</h2></div>
+
+  <p>Imagine you run a distributed key-value store across five servers in three data centres. A client writes <code>x = 42</code>. Which server gets the write? What if that server crashes immediately after? What if the network between two data centres goes down — do you have one cluster or two? What if both halves keep accepting writes — how do you merge them later?</p>
+  <p>These are not edge cases. They are the normal operating conditions of any distributed system. <strong>The consensus problem</strong> asks: can we make a set of servers agree on a single sequence of values — a log — even when some servers crash or messages are lost?</p>
+
+  <div class="callout red">Without consensus, you get <strong>split-brain</strong>: two parts of your cluster independently think they're in charge. Both accept writes. When connectivity restores, you have two different "truths" with no way to automatically reconcile them. Every distributed database, coordination service, and replicated log needs to solve this.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">What can go wrong — click a failure scenario</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showFailure('crash',this)">Node crash</button>
+      <button class="btn" onclick="showFailure('partition',this)">Network partition</button>
+      <button class="btn" onclick="showFailure('slowmsg',this)">Slow messages</button>
+      <button class="btn" onclick="showFailure('noleader',this)">No consensus</button>
+    </div>
+    <div id="failure-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>the_problem.js — why naive replication fails</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// Naive replication without consensus: write to all, hope for the best</span>
+<span class="cmt">// Shows exactly what goes wrong when messages are delayed or nodes crash</span>
+
+<span class="kw">class</span> <span class="cls">NaiveNode</span> {
+  <span class="fn">constructor</span>(id) {
+    <span class="kw">this</span>.id    = id;
+    <span class="kw">this</span>.store = {};   <span class="cmt">// local state</span>
+    <span class="kw">this</span>.alive = <span class="kw">true</span>;
+  }
+  <span class="fn">write</span>(key, value) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.alive) <span class="kw">return false</span>; <span class="cmt">// node is down</span>
+    <span class="kw">this</span>.store[key] = value;
+    <span class="kw">return true</span>;
+  }
+  <span class="fn">read</span>(key) { <span class="kw">return</span> <span class="kw">this</span>.alive ? <span class="kw">this</span>.store[key] : <span class="kw">null</span>; }
+}
+
+<span class="kw">function</span> <span class="fn">naiveClusterWrite</span>(nodes, key, value) {
+  <span class="cmt">// "Write to all" — fails silently if some nodes are down</span>
+  <span class="kw">let</span> successCount = <span class="num">0</span>;
+  <span class="kw">for</span> (<span class="kw">const</span> node <span class="kw">of</span> nodes)
+    <span class="kw">if</span> (node.<span class="fn">write</span>(key, value)) successCount++;
+  <span class="kw">return</span> successCount;
+}
+
+<span class="kw">const</span> nodes = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>].map(id => <span class="kw">new</span> <span class="cls">NaiveNode</span>(id));
+
+<span class="cmt">// === Problem 1: Node crash during write ===</span>
+nodes[<span class="num">2</span>].alive = <span class="kw">false</span>; <span class="cmt">// node 3 crashes</span>
+<span class="kw">const</span> written = <span class="fn">naiveClusterWrite</span>(nodes, <span class="str">"x"</span>, <span class="num">42</span>);
+console.log(<span class="str">`Write x=42: reached ${written}/5 nodes (node 3 was down)`</span>);
+nodes[<span class="num">2</span>].alive = <span class="kw">true</span>; <span class="cmt">// node 3 recovers — but missed the write!</span>
+console.log(<span class="str">`Node 3 reads x: ${nodes[2].read("x")} ← undefined! Stale read.`</span>);
+console.log(<span class="str">`Node 1 reads x: ${nodes[0].read("x")} ← correct`</span>);
+console.log(<span class="str">"Result: cluster has INCONSISTENT state\n"</span>);
+
+<span class="cmt">// === Problem 2: Split-brain (network partition) ===</span>
+<span class="kw">const</span> groupA = nodes.slice(<span class="num">0</span>, <span class="num">2</span>); <span class="cmt">// nodes 1-2 (think they're primary)</span>
+<span class="kw">const</span> groupB = nodes.slice(<span class="num">2</span>);    <span class="cmt">// nodes 3-5 (also think they're primary)</span>
+<span class="cmt">// Both groups accept writes independently</span>
+<span class="fn">naiveClusterWrite</span>(groupA, <span class="str">"counter"</span>, <span class="num">100</span>); <span class="cmt">// group A writes 100</span>
+<span class="fn">naiveClusterWrite</span>(groupB, <span class="str">"counter"</span>, <span class="num">200</span>); <span class="cmt">// group B writes 200</span>
+console.log(<span class="str">"After partition heals:"</span>);
+nodes.forEach(n => console.log(<span class="str">`  Node ${n.id}: counter=${n.read("counter")}`</span>));
+console.log(<span class="str">"Result: SPLIT-BRAIN — two different values, no way to reconcile\n"</span>);
+
+<span class="cmt">// === Problem 3: Who's in charge? ===</span>
+<span class="cmt">// Without a designated coordinator, any node can accept writes.</span>
+<span class="cmt">// Two concurrent clients writing to "different primaries" → last-write-wins</span>
+<span class="cmt">// is non-deterministic. No linearizability guarantee.</span>
+console.log(<span class="str">"Consensus requirement:"</span>);
+console.log(<span class="str">"  1. Agreement:   all live nodes eventually agree on the same value"</span>);
+console.log(<span class="str">"  2. Validity:    the agreed value was proposed by some node"</span>);
+console.log(<span class="str">"  3. Termination: all live nodes eventually decide (no infinite waiting)"</span>);</pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ══ S2: REPLICATED STATE MACHINE ══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>The replicated state machine</h2></div>
+
+  <p>Consensus in practice is almost always framed as the <strong>replicated state machine (RSM)</strong> model. The idea: if every node starts in the same state and applies the same sequence of commands in the same order, they will always arrive at the same state — no matter when or how each command is processed.</p>
+  <p>The challenge reduces to ensuring every node agrees on a single ordered log of commands. Raft does exactly this: it is a protocol for maintaining a replicated log. The state machine (a key-value store, a lock service, a configuration database) sits on top and is incidental to Raft itself.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">State machine determinism — same commands, same order → same result</div>
+    <div id="rsm-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>replicated_state_machine.js — the RSM abstraction</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// Replicated State Machine: all nodes apply the SAME log in the SAME order</span>
+<span class="cmt">// If the log is consistent across nodes, state is automatically consistent</span>
+
+<span class="kw">class</span> <span class="cls">StateMachine</span> {
+  <span class="fn">constructor</span>(nodeId) {
+    <span class="kw">this</span>.nodeId = nodeId;
+    <span class="kw">this</span>.store  = {};
+    <span class="kw">this</span>.lastApplied = <span class="num">0</span>;
+  }
+
+  <span class="fn">apply</span>(logEntry) {
+    <span class="cmt">// Apply a committed log entry to the state machine</span>
+    <span class="kw">const</span> { index, command } = logEntry;
+    <span class="kw">if</span> (index !== <span class="kw">this</span>.lastApplied + <span class="num">1</span>)
+      <span class="kw">throw new</span> Error(<span class="str">`Gap in log: expected ${this.lastApplied+1}, got ${index}`</span>);
+
+    <span class="kw">const</span> { op, key, value } = command;
+    <span class="kw">if</span>      (op === <span class="str">"set"</span>) <span class="kw">this</span>.store[key] = value;
+    <span class="kw">else if</span> (op === <span class="str">"del"</span>) <span class="kw">delete this</span>.store[key];
+    <span class="kw">else if</span> (op === <span class="str">"inc"</span>) <span class="kw">this</span>.store[key] = (<span class="kw">this</span>.store[key] || <span class="num">0</span>) + value;
+    <span class="kw">this</span>.lastApplied = index;
+  }
+
+  <span class="fn">applyLog</span>(log) {
+    <span class="kw">for</span> (<span class="kw">const</span> entry <span class="kw">of</span> log) <span class="kw">this</span>.<span class="fn">apply</span>(entry);
+    <span class="kw">return this</span>.store;
+  }
+}
+
+<span class="cmt">// The committed log — agreed upon by Raft before any node applies it</span>
+<span class="kw">const</span> committedLog = [
+  { index: <span class="num">1</span>, term: <span class="num">1</span>, command: { op: <span class="str">"set"</span>, key: <span class="str">"balance"</span>, value: <span class="num">1000</span> } },
+  { index: <span class="num">2</span>, term: <span class="num">1</span>, command: { op: <span class="str">"inc"</span>, key: <span class="str">"balance"</span>, value: -<span class="num">200</span> } },
+  { index: <span class="num">3</span>, term: <span class="num">2</span>, command: { op: <span class="str">"set"</span>, key: <span class="str">"user"</span>,    value: <span class="str">"alice"</span> } },
+  { index: <span class="num">4</span>, term: <span class="num">2</span>, command: { op: <span class="str">"inc"</span>, key: <span class="str">"balance"</span>, value: <span class="num">500</span>  } },
+  { index: <span class="num">5</span>, term: <span class="num">3</span>, command: { op: <span class="str">"del"</span>, key: <span class="str">"user"</span>,    value: <span class="kw">null</span>   } },
+];
+
+<span class="cmt">// Five nodes — each applies the log at its own pace (maybe at different times)</span>
+<span class="cmt">// but they all arrive at the SAME final state</span>
+<span class="kw">const</span> nodeStates = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>].map(id => {
+  <span class="kw">const</span> sm = <span class="kw">new</span> <span class="cls">StateMachine</span>(id);
+  <span class="kw">return</span> sm.<span class="fn">applyLog</span>(committedLog);
+});
+
+console.log(<span class="str">"Committed log (5 entries, 3 terms):"</span>);
+committedLog.forEach(e =>
+  console.log(<span class="str">`  [${e.index}] term=${e.term} ${e.command.op}(${e.command.key}${e.command.value!=null?'='+e.command.value:''})`</span>)
+);
+console.log(<span class="str">"\nState machine output on all 5 nodes:"</span>);
+nodeStates.forEach((s, i) =>
+  console.log(<span class="str">`  Node ${i+1}: ${JSON.stringify(s)}`</span>)
+);
+<span class="kw">const</span> allSame = nodeStates.every(s => JSON.stringify(s) === JSON.stringify(nodeStates[<span class="num">0</span>]));
+console.log(<span class="str">`\nAll nodes have identical state: ${allSame} ✓`</span>);
+console.log(<span class="str">"Key insight: Raft's only job is to maintain this consistent log."</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ══ S3: RAFT'S INSIGHT ══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>Raft's core insight: strong leader</h2></div>
+  <p>Raft decomposes consensus into three relatively independent sub-problems and solves each with a clear, simple rule. The insight that makes Raft more understandable than its predecessor Paxos is the insistence on a <strong>single strong leader</strong> at all times.</p>
+  <p>In Raft, <em>all</em> log entries flow through the leader. Clients send commands only to the leader. The leader appends entries to its log, replicates them to followers, and only once a majority have acknowledged does it commit. Followers are completely passive — they accept what the leader sends.</p>
+  <div class="callout orange">The strong leader assumption is a deliberate trade-off. It eliminates whole classes of consistency problems (concurrent writes, log divergence, speculative execution) at the cost of throughput: all writes go through one node. For most coordination workloads this is the right trade-off. Paxos allows multiple concurrent proposers — more complex to implement correctly.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Raft's three sub-problems and their solutions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-family:var(--mono);font-size:12px">
+      <div style="border:1px solid var(--orange-bdr);background:var(--orange-bg);border-radius:5px;padding:.8rem">
+        <div style="color:var(--orange);font-weight:500;margin-bottom:.4rem">Leader Election</div>
+        <div style="color:var(--ink2);font-size:11px;line-height:1.7">Randomised election timeouts ensure one node starts an election first. Majority vote prevents two winners.</div>
+      </div>
+      <div style="border:1px solid var(--blue-bdr);background:var(--blue-bg);border-radius:5px;padding:.8rem">
+        <div style="color:var(--blue);font-weight:500;margin-bottom:.4rem">Log Replication</div>
+        <div style="color:var(--ink2);font-size:11px;line-height:1.7">Leader sends AppendEntries RPCs to all followers. Entry is committed when a majority acknowledges it.</div>
+      </div>
+      <div style="border:1px solid var(--green-bdr);background:var(--green-bg);border-radius:5px;padding:.8rem">
+        <div style="color:var(--green);font-weight:500;margin-bottom:.4rem">Safety</div>
+        <div style="color:var(--ink2);font-size:11px;line-height:1.7">Only candidates with the most up-to-date log can win elections. Committed entries are never lost.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ S4: LEADER ELECTION ══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>Leader election</h2></div>
+  <p>Every Raft node is always in one of three states: <strong>follower</strong>, <strong>candidate</strong>, or <strong>leader</strong>. All nodes start as followers. Raft uses a notion of logical time called <strong>terms</strong> — monotonically increasing integers, each beginning with an election.</p>
+  <p>The key mechanism is the <strong>election timeout</strong>: each follower waits a random duration (typically 150–300ms) for a heartbeat from the current leader. If no heartbeat arrives in time, the follower converts to candidate, increments its term, and sends <code>RequestVote</code> RPCs to all other nodes. The first candidate to receive votes from a majority wins.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Interactive cluster — crash the leader and watch a new election</div>
+    <div class="btn-row" id="election-btns">
+      <button class="btn act" onclick="electionSim('start')">Start cluster</button>
+      <button class="btn red" onclick="electionSim('crash')">Crash leader</button>
+      <button class="btn green" onclick="electionSim('play')">Play election</button>
+      <button class="btn" onclick="electionSim('step')">Step</button>
+      <button class="btn" onclick="electionSim('reset')">Reset</button>
+    </div>
+    <div id="election-viz"></div>
+    <div id="election-log" style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.6rem;line-height:1.8;min-height:40px"></div>
+    <div class="election-help">Read it left to right: after the crash, one follower's timeout expires first, it becomes candidate for a new term, sends <code>RequestVote</code> RPCs, collects a majority, becomes leader, then re-establishes authority with heartbeats.</div>
+  </div>
+
+  <h3>Why randomised timeouts work</h3>
+  <p>If all nodes used the same timeout, they would all start elections simultaneously — and since each votes for itself, no one would get a majority. Randomising the timeout means one node almost always times out first, starts the election, and wins before others even wake up. The probability of ties is negligible and they self-resolve in the next term.</p>
+
+  <p>The animated cluster above shows the mechanics of one election. The timeline below serves a different purpose: it compresses many seconds or minutes of cluster life into one strip, so you can see that most of Raft is boring stable leadership, with brief election windows only when something goes wrong.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Macro timeline — long steady terms, short election windows</div>
+    <div class="term-strip">
+      <div class="term-seg election" style="flex:1">Term 1<br><span style="font-size:8px">election</span></div>
+      <div class="term-seg leader1" style="flex:5">Term 1: Node A is leader<br><span style="font-size:8px">normal operation, heartbeats</span></div>
+      <div class="term-seg election" style="flex:1">Term 2<br><span style="font-size:8px">A crashed</span></div>
+      <div class="term-seg leader2" style="flex:4">Term 2: Node C is leader</div>
+      <div class="term-seg election" style="flex:.8">T3<br><span style="font-size:8px">split</span></div>
+      <div class="term-seg election" style="flex:.8">T4<br><span style="font-size:8px">elect</span></div>
+      <div class="term-seg leader1" style="flex:4">Term 4: Node B is leader</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:.3rem">Read this as rhythm, not packet flow: long stretches of stable leadership are interrupted by short election terms. Term 3 shows a failed attempt (split vote), so the cluster quickly rolls into term 4 and elects a leader there.</div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>leader_election.js — RequestVote RPC and election logic</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// Raft leader election — the complete algorithm</span>
+
+<span class="kw">class</span> <span class="cls">RaftNode</span> {
+  <span class="fn">constructor</span>(id, peers) {
+    <span class="kw">this</span>.id          = id;
+    <span class="kw">this</span>.peers       = peers;       <span class="cmt">// array of other RaftNode references</span>
+    <span class="kw">this</span>.state       = <span class="str">"follower"</span>;
+    <span class="kw">this</span>.currentTerm = <span class="num">0</span>;
+    <span class="kw">this</span>.votedFor    = <span class="kw">null</span>;        <span class="cmt">// who we voted for in current term</span>
+    <span class="kw">this</span>.log         = [];          <span class="cmt">// [{term, command}]</span>
+    <span class="kw">this</span>.alive       = <span class="kw">true</span>;
+  }
+
+  <span class="fn">requestVote</span>(candidateId, candidateTerm, lastLogIndex, lastLogTerm) {
+    <span class="cmt">// RPC handler: should we vote for this candidate?</span>
+    <span class="kw">if</span> (!<span class="kw">this</span>.alive) <span class="kw">return</span> { voteGranted: <span class="kw">false</span>, term: -<span class="num">1</span> };
+
+    <span class="cmt">// Rule 1: candidate's term must be >= ours</span>
+    <span class="kw">if</span> (candidateTerm < <span class="kw">this</span>.currentTerm)
+      <span class="kw">return</span> { voteGranted: <span class="kw">false</span>, term: <span class="kw">this</span>.currentTerm };
+
+    <span class="cmt">// Discovering a higher term: revert to follower</span>
+    <span class="kw">if</span> (candidateTerm > <span class="kw">this</span>.currentTerm) {
+      <span class="kw">this</span>.currentTerm = candidateTerm;
+      <span class="kw">this</span>.state    = <span class="str">"follower"</span>;
+      <span class="kw">this</span>.votedFor = <span class="kw">null</span>;
+    }
+
+    <span class="cmt">// Rule 2: we haven't already voted in this term</span>
+    <span class="kw">const</span> alreadyVoted = <span class="kw">this</span>.votedFor !== <span class="kw">null</span> && <span class="kw">this</span>.votedFor !== candidateId;
+    <span class="kw">if</span> (alreadyVoted) <span class="kw">return</span> { voteGranted: <span class="kw">false</span>, term: <span class="kw">this</span>.currentTerm };
+
+    <span class="cmt">// Rule 3: candidate's log must be at least as up-to-date as ours</span>
+    <span class="cmt">// "More up-to-date" = higher last log term, or same term + longer log</span>
+    <span class="kw">const</span> myLastLogTerm  = <span class="kw">this</span>.log.length ? <span class="kw">this</span>.log.at(-<span class="num">1</span>).term : <span class="num">0</span>;
+    <span class="kw">const</span> myLastLogIndex = <span class="kw">this</span>.log.length;
+    <span class="kw">const</span> logOk = lastLogTerm > myLastLogTerm ||
+                  (lastLogTerm === myLastLogTerm && lastLogIndex >= myLastLogIndex);
+    <span class="kw">if</span> (!logOk) <span class="kw">return</span> { voteGranted: <span class="kw">false</span>, term: <span class="kw">this</span>.currentTerm };
+
+    <span class="cmt">// Grant vote</span>
+    <span class="kw">this</span>.votedFor = candidateId;
+    <span class="kw">return</span> { voteGranted: <span class="kw">true</span>, term: <span class="kw">this</span>.currentTerm };
+  }
+
+  <span class="fn">startElection</span>() {
+    <span class="kw">this</span>.state       = <span class="str">"candidate"</span>;
+    <span class="kw">this</span>.currentTerm += <span class="num">1</span>;
+    <span class="kw">this</span>.votedFor    = <span class="kw">this</span>.id;    <span class="cmt">// always vote for self</span>
+    <span class="kw">let</span> votesReceived = <span class="num">1</span>;         <span class="cmt">// count self-vote</span>
+    <span class="kw">const</span> majority = Math.floor((<span class="kw">this</span>.peers.length + <span class="num">2</span>) / <span class="num">2</span>);
+    <span class="kw">const</span> myLastLogTerm  = <span class="kw">this</span>.log.length ? <span class="kw">this</span>.log.at(-<span class="num">1</span>).term : <span class="num">0</span>;
+    <span class="kw">const</span> myLastLogIndex = <span class="kw">this</span>.log.length;
+
+    console.log(<span class="str">`Node ${this.id} starting election for term ${this.currentTerm}`</span>);
+    <span class="kw">for</span> (<span class="kw">const</span> peer <span class="kw">of</span> <span class="kw">this</span>.peers) {
+      <span class="kw">const</span> resp = peer.<span class="fn">requestVote</span>(<span class="kw">this</span>.id, <span class="kw">this</span>.currentTerm, myLastLogIndex, myLastLogTerm);
+      <span class="kw">if</span> (resp.voteGranted) {
+        votesReceived++;
+        console.log(<span class="str">`  Node ${peer.id} → VOTE GRANTED (total: ${votesReceived}/${this.peers.length+1})`</span>);
+      } <span class="kw">else</span> {
+        console.log(<span class="str">`  Node ${peer.id} → vote denied (term=${resp.term})`</span>);
+      }
+    }
+
+    <span class="kw">if</span> (votesReceived >= majority) {
+      <span class="kw">this</span>.state = <span class="str">"leader"</span>;
+      console.log(<span class="str">`Node ${this.id} WON election for term ${this.currentTerm} (${votesReceived}/${this.peers.length+1} votes)`</span>);
+    } <span class="kw">else</span> {
+      <span class="kw">this</span>.state = <span class="str">"follower"</span>;
+      console.log(<span class="str">`Node ${this.id} lost election (${votesReceived} votes — not a majority)`</span>);
+    }
+  }
+}
+
+<span class="cmt">// Build a 5-node cluster</span>
+<span class="kw">const</span> cluster = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>].map(id => <span class="kw">new</span> <span class="cls">RaftNode</span>(id, []));
+cluster.forEach(n => { n.peers = cluster.filter(p => p.id !== n.id); });
+
+console.log(<span class="str">"=== Normal election (node 2 times out first) ==="</span>);
+cluster[<span class="num">1</span>].<span class="fn">startElection</span>(); <span class="cmt">// Node 2 wins</span>
+
+console.log(<span class="str">"\n=== Leader crashes, node 4 times out next ==="</span>);
+cluster[<span class="num">1</span>].alive = <span class="kw">false</span>; <span class="cmt">// node 2 (leader) crashes</span>
+<span class="cmt">// Node 4 has seen entries from term 1, so it has a valid log</span>
+cluster[<span class="num">3</span>].<span class="fn">startElection</span>();</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ══ S5: LOG REPLICATION ══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>Log replication</h2></div>
+  <p>Once a leader is elected, it handles all client requests. When a client sends a command, the leader: (1) appends the entry to its own log with the current term, (2) sends <code>AppendEntries</code> RPCs to all followers in parallel, (3) once a <strong>majority</strong> of nodes have written the entry, marks it as <em>committed</em>, (4) applies it to its state machine, (5) replies to the client, (6) notifies followers of the commit in subsequent RPCs.</p>
+
+  <div class="callout blue">A <strong>majority quorum</strong> is any set of nodes containing more than half the cluster: in a 5-node cluster, majority = 3. This ensures any two majorities overlap by at least one node — which guarantees the new leader will always see the latest committed entries.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Log replication — step through appending an entry</div>
+    <div class="step-nav" id="repl-step-nav">
+      <button class="step-btn act" onclick="showReplication(0,this)">Client request</button>
+      <button class="step-btn" onclick="showReplication(1,this)">Leader appends</button>
+      <button class="step-btn" onclick="showReplication(2,this)">AppendEntries</button>
+      <button class="step-btn" onclick="showReplication(3,this)">Majority acks</button>
+      <button class="step-btn" onclick="showReplication(4,this)">Committed</button>
+      <button class="step-btn" onclick="showReplication(5,this)">Reply to client</button>
+    </div>
+    <div id="replication-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>log_replication.js — AppendEntries RPC with consistency checks</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// Log replication: leader's AppendEntries RPC</span>
+<span class="cmt">// Includes the log matching check that keeps all followers consistent</span>
+
+<span class="kw">class</span> <span class="cls">RaftLog</span> {
+  <span class="fn">constructor</span>(nodeId) {
+    <span class="kw">this</span>.nodeId      = nodeId;
+    <span class="kw">this</span>.entries     = [];     <span class="cmt">// [{term, command}] — 1-indexed in paper, 0-indexed here</span>
+    <span class="kw">this</span>.commitIndex = -<span class="num">1</span>;    <span class="cmt">// highest log index known to be committed</span>
+    <span class="kw">this</span>.lastApplied = -<span class="num">1</span>;    <span class="cmt">// highest log index applied to state machine</span>
+  }
+
+  <span class="fn">appendEntries</span>({ leaderTerm, prevLogIndex, prevLogTerm, entries, leaderCommit }) {
+    <span class="cmt">// The heart of log replication — called on each follower by the leader</span>
+
+    <span class="cmt">// Check 1: Log matching — do we agree on the entry before the new ones?</span>
+    <span class="kw">if</span> (prevLogIndex >= <span class="num">0</span>) {
+      <span class="kw">const</span> ourEntry = <span class="kw">this</span>.entries[prevLogIndex];
+      <span class="kw">if</span> (!ourEntry) {
+        console.log(<span class="str">`  Node ${this.nodeId}: REJECT — missing entry at prevLogIndex=${prevLogIndex}`</span>);
+        <span class="kw">return false</span>;
+      }
+      <span class="kw">if</span> (ourEntry.term !== prevLogTerm) {
+        <span class="cmt">// Conflicting entry: delete from here onwards (leader's log wins)</span>
+        console.log(<span class="str">`  Node ${this.nodeId}: CONFLICT at index ${prevLogIndex} — truncating log`</span>);
+        <span class="kw">this</span>.entries.splice(prevLogIndex);
+        <span class="kw">return false</span>;
+      }
+    }
+
+    <span class="cmt">// Check 2: Append new entries (skip any we already have)</span>
+    <span class="kw">let</span> insertAt = prevLogIndex + <span class="num">1</span>;
+    <span class="kw">for</span> (<span class="kw">const</span> entry <span class="kw">of</span> entries) {
+      <span class="kw">if</span> (<span class="kw">this</span>.entries[insertAt]?.term !== entry.term)
+        <span class="kw">this</span>.entries[insertAt] = entry;  <span class="cmt">// overwrite only if different</span>
+      insertAt++;
+    }
+
+    <span class="cmt">// Update commit index</span>
+    <span class="kw">if</span> (leaderCommit > <span class="kw">this</span>.commitIndex) {
+      <span class="kw">this</span>.commitIndex = Math.min(leaderCommit, <span class="kw">this</span>.entries.length - <span class="num">1</span>);
+      console.log(<span class="str">`  Node ${this.nodeId}: advancing commitIndex to ${this.commitIndex}`</span>);
+    }
+    console.log(<span class="str">`  Node ${this.nodeId}: log length=${this.entries.length}, commit=${this.commitIndex}`</span>);
+    <span class="kw">return true</span>;
+  }
+}
+
+<span class="cmt">// Simulate a leader replicating entries to 4 followers</span>
+<span class="kw">const</span> CLUSTER_SIZE = <span class="num">5</span>;
+<span class="kw">const</span> MAJORITY = Math.floor(CLUSTER_SIZE / <span class="num">2</span>) + <span class="num">1</span>;
+<span class="kw">const</span> followers = [<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>].map(id => <span class="kw">new</span> <span class="cls">RaftLog</span>(id));
+<span class="kw">const</span> leaderLog = { entries: [], commitIndex: -<span class="num">1</span>, term: <span class="num">1</span> };
+
+<span class="kw">function</span> <span class="fn">leaderAppend</span>(command) {
+  leaderLog.entries.push({ term: leaderLog.term, command });
+  <span class="kw">const</span> newIndex = leaderLog.entries.length - <span class="num">1</span>;
+  console.log(<span class="str">`Leader appends [${newIndex}] "${command}" in term ${leaderLog.term}`</span>);
+
+  <span class="cmt">// Send AppendEntries to each follower</span>
+  <span class="kw">let</span> acks = <span class="num">1</span>; <span class="cmt">// leader counts itself</span>
+  <span class="kw">for</span> (<span class="kw">const</span> follower <span class="kw">of</span> followers) {
+    <span class="kw">const</span> ok = follower.<span class="fn">appendEntries</span>({
+      leaderTerm:   leaderLog.term,
+      prevLogIndex: newIndex - <span class="num">1</span>,
+      prevLogTerm:  newIndex > <span class="num">0</span> ? leaderLog.entries[newIndex-<span class="num">1</span>].term : -<span class="num">1</span>,
+      entries:      [leaderLog.entries[newIndex]],
+      leaderCommit: leaderLog.commitIndex,
+    });
+    <span class="kw">if</span> (ok) acks++;
+  }
+
+  <span class="cmt">// Commit requires a majority of the original 5-node cluster, even if one follower is down</span>
+  <span class="kw">if</span> (acks >= MAJORITY) {
+    leaderLog.commitIndex = newIndex;
+    console.log(<span class="str">`Committed at index ${newIndex} (${acks}/${CLUSTER_SIZE} acks ≥ majority ${MAJORITY})\n`</span>);
+  }
+}
+
+<span class="cmt">// Normal case: replicate a sequence of commands</span>
+console.log(<span class="str">"=== Normal replication ==="</span>);
+<span class="fn">leaderAppend</span>(<span class="str">"set x=1"</span>);
+<span class="fn">leaderAppend</span>(<span class="str">"set y=2"</span>);
+
+<span class="cmt">// One follower goes offline — still have majority (3 of 5)</span>
+console.log(<span class="str">"=== One follower offline — still commits ==="</span>);
+<span class="kw">const</span> deadFollower = followers[<span class="num">3</span>]; <span class="cmt">// node 5 goes down</span>
+followers.splice(<span class="num">3</span>, <span class="num">1</span>);
+<span class="fn">leaderAppend</span>(<span class="str">"set z=3"</span>); <span class="cmt">// 1 leader + 3 followers = 4/5 acks ≥ 3</span>
+followers.push(deadFollower);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+
+  <p>A different problem arises when a follower falls behind. Raft does not need to stop the cluster or copy the entire log from scratch. The leader keeps a <code>nextIndex[follower]</code> pointer saying “the next log entry I think this follower needs.” If an <code>AppendEntries</code> attempt is rejected because <code>prevLogIndex</code>/<code>prevLogTerm</code> does not match, the leader moves <code>nextIndex</code> backward and retries with an earlier prefix. Once it finds a matching point, it sends the missing suffix and the follower catches up.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">How a stale follower catches up</div>
+    <div class="step-nav" id="catchup-step-nav">
+      <button class="step-btn act" onclick="showCatchup(0,this)">Mismatch</button>
+      <button class="step-btn" onclick="showCatchup(1,this)">Back up</button>
+      <button class="step-btn" onclick="showCatchup(2,this)">Replay suffix</button>
+      <button class="step-btn" onclick="showCatchup(3,this)">Caught up</button>
+    </div>
+    <div id="catchup-viz"></div>
+  </div>
+</section>
+
+<!-- ══ S6: SAFETY ══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>Safety guarantees</h2></div>
+  <p>Raft's most critical property is the <strong>Leader Completeness property</strong>: if an entry is committed in some term, it will be present in the logs of all future leaders. This ensures the state machine never sees a committed entry go missing.</p>
+  <p>The mechanism is the vote restriction: a candidate can only receive a vote from a node if the candidate's log is <em>at least as up-to-date</em> as the voter's log. Since any committed entry was acknowledged by a majority, and any winning candidate must receive votes from a majority, those two majorities must overlap — so the winner must have seen the committed entry.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Why the vote restriction prevents data loss — a safety scenario</div>
+    <div id="safety-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>safety.js — the Leader Completeness property</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Safety: why a stale node can never become leader</span>
+<span class="cmt">// The vote restriction ensures committed entries are never lost</span>
+
+<span class="kw">function</span> <span class="fn">isMoreUpToDate</span>(candidateLog, voterLog) {
+  <span class="cmt">// Raft's "more up-to-date" definition (§5.4.1)</span>
+  <span class="cmt">// Compare last log term first; if equal, compare log length</span>
+  <span class="kw">const</span> candLastTerm  = candidateLog.at(-<span class="num">1</span>)?.term ?? <span class="num">0</span>;
+  <span class="kw">const</span> voterLastTerm = voterLog.at(-<span class="num">1</span>)?.term  ?? <span class="num">0</span>;
+
+  <span class="kw">if</span> (candLastTerm !== voterLastTerm)
+    <span class="kw">return</span> candLastTerm > voterLastTerm;
+  <span class="kw">return</span> candidateLog.length >= voterLog.length;
+}
+
+<span class="cmt">// Scenario: 5 nodes, leader crashes after committing entry [4]</span>
+<span class="cmt">// Three possible survivors try to become leader</span>
+<span class="kw">const</span> committedLog = [
+  { index:<span class="num">1</span>, term:<span class="num">1</span>, cmd:<span class="str">"x=1"</span> },
+  { index:<span class="num">2</span>, term:<span class="num">1</span>, cmd:<span class="str">"y=2"</span> },
+  { index:<span class="num">3</span>, term:<span class="num">2</span>, cmd:<span class="str">"z=3"</span> },
+  { index:<span class="num">4</span>, term:<span class="num">2</span>, cmd:<span class="str">"w=4"</span> }, <span class="cmt">// ← committed (majority acked)</span>
+];
+
+<span class="cmt">// Node logs after leader crash (some had partial replication)</span>
+<span class="kw">const</span> nodeLogs = {
+  <span class="num">2</span>: [...committedLog],                    <span class="cmt">// has all 4 entries (up-to-date)</span>
+  <span class="num">3</span>: committedLog.slice(<span class="num">0</span>, <span class="num">3</span>),             <span class="cmt">// missing entry 4 (stale!)</span>
+  <span class="num">4</span>: committedLog.slice(<span class="num">0</span>, <span class="num">2</span>),             <span class="cmt">// missing entries 3 & 4 (very stale!)</span>
+  <span class="num">5</span>: [...committedLog],                    <span class="cmt">// has all 4 entries (up-to-date)</span>
+};
+
+console.log(<span class="str">"After leader crash — node log lengths:"</span>);
+Object.entries(nodeLogs).forEach(([id, log]) =>
+  console.log(<span class="str">`  Node ${id}: ${log.length} entries, last term=${log.at(-1)?.term??0}`</span>)
+);
+
+<span class="cmt">// Simulate RequestVote — can node 3 (stale) become leader?</span>
+console.log(<span class="str">"\nCan stale node 3 get votes from nodes 4 and 5?"</span>);
+[<span class="num">4</span>, <span class="num">5</span>].forEach(voterId => {
+  <span class="kw">const</span> grantVote = <span class="fn">isMoreUpToDate</span>(nodeLogs[<span class="num">3</span>], nodeLogs[voterId]);
+  console.log(<span class="str">`  Node ${voterId} votes for node 3: ${grantVote ? "YES" : "NO — stale log rejected"}`</span>);
+});
+
+<span class="cmt">// Can node 2 (up-to-date) win?</span>
+console.log(<span class="str">"\nCan up-to-date node 2 get votes from nodes 3, 4, and 5?"</span>);
+[<span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>].forEach(voterId => {
+  <span class="kw">const</span> grantVote = <span class="fn">isMoreUpToDate</span>(nodeLogs[<span class="num">2</span>], nodeLogs[voterId]);
+  console.log(<span class="str">`  Node ${voterId} votes for node 2: ${grantVote ? "YES" : "NO"}`</span>);
+});
+
+console.log(<span class="str">"\nKey insight:"</span>);
+console.log(<span class="str">"  Committed entry [4] was acked by nodes 1, 2, 5 (majority of 5)"</span>);
+console.log(<span class="str">"  Any winner must get votes from 3 of 5 nodes"</span>);
+console.log(<span class="str">"  Intersection of {1,2,5} and any majority of 5 is non-empty"</span>);
+console.log(<span class="str">"  → Winner always sees entry [4] → committed data is never lost ✓"</span>);</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ══ S7: HANDLING FAILURES ══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>Handling failures</h2></div>
+  <p>Raft is designed to remain correct under a wide range of failures. Here are the critical scenarios and how Raft handles each:</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cmp-table">
+      <thead><tr><th>Failure scenario</th><th>What Raft does</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Leader crashes</td><td>Followers' election timeouts fire; new election; new leader elected within one election timeout period (~300ms)</td><td class="good">Automatic, fast recovery</td></tr>
+        <tr><td class="name">Follower crashes</td><td>Leader keeps retrying AppendEntries indefinitely; follower catches up when it restarts using prevLogIndex/Term matching</td><td class="good">Leader absorbs the failure</td></tr>
+        <tr><td class="name">Network partition</td><td>Minority partition loses leader (can't get majority), elects nothing. Majority partition elects new leader and keeps operating</td><td class="good">Majority side stays live</td></tr>
+        <tr><td class="name">Old leader rejoins after partition</td><td>New leader has higher term; old leader sees this in first AppendEntries reply, steps down to follower, syncs log</td><td class="good">Self-healing, no manual intervention</td></tr>
+        <tr><td class="name">Duplicate messages / retries</td><td>AppendEntries is idempotent: if entry already present with same term, skip. CommitIndex only advances forward</td><td class="good">At-most-once semantics with client IDs</td></tr>
+        <tr><td class="name">Candidate gets split vote</td><td>Election times out, new term, new election. Randomised timeouts prevent repeated splits</td><td class="ok">Retry in next term (brief unavailability)</td></tr>
+        <tr><td class="name">2 or more nodes crash (5-node cluster)</td><td>Cluster loses majority quorum — no commits possible, reads may be stale</td><td class="bad">Cluster pauses until nodes recover</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout gold">Raft tolerates at most <code>⌊(n−1)/2⌋</code> simultaneous failures in an n-node cluster: 1 of 3, 2 of 5, 3 of 7. This is also the minimum for any correct consensus protocol — it's a fundamental lower bound, not a Raft limitation. Paxos, Zab, and Multi-Paxos have the same bound.</div>
+</section>
+
+<!-- ══ S8: FULL SIMULATION ══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>Full Raft simulation in JavaScript</h2></div>
+  <p>Putting it all together: a structurally complete Raft implementation covering leader election, log replication, commit tracking, and basic crash/recovery scenarios. This is ~200 lines of JavaScript — the same architecture as production implementations in etcd and CockroachDB, just without the network layer.</p>
+
+  <div class="cb">
+    <div class="cb-head"><span>raft_complete.js — full Raft node with election + replication</span><button class="run-btn" onclick="runCode('c8','o8')">&#9654; Run</button></div>
+    <pre class="code" id="c8"><span class="cmt">// Complete Raft node implementation</span>
+<span class="cmt">// Covers: leader election, log replication, commit index, crash recovery</span>
+
+<span class="kw">class</span> <span class="cls">RaftNode</span> {
+  <span class="fn">constructor</span>(id) {
+    <span class="kw">this</span>.id          = id;
+    <span class="kw">this</span>.peers       = [];
+    <span class="kw">this</span>.state       = <span class="str">"follower"</span>;
+    <span class="kw">this</span>.currentTerm = <span class="num">0</span>;
+    <span class="kw">this</span>.votedFor    = <span class="kw">null</span>;
+    <span class="kw">this</span>.log         = [];          <span class="cmt">// [{term, command}]</span>
+    <span class="kw">this</span>.commitIndex = -<span class="num">1</span>;
+    <span class="kw">this</span>.lastApplied = -<span class="num">1</span>;
+    <span class="kw">this</span>.nextIndex   = {};          <span class="cmt">// leader: next log index to send to each peer</span>
+    <span class="kw">this</span>.matchIndex  = {};          <span class="cmt">// leader: highest log index known replicated on each peer</span>
+    <span class="kw">this</span>.alive       = <span class="kw">true</span>;
+    <span class="kw">this</span>.stateMachine = {};         <span class="cmt">// applied commands go here</span>
+  }
+
+  <span class="fn">_upToDate</span>(lastLogIndex, lastLogTerm) {
+    <span class="kw">const</span> myTerm      = <span class="kw">this</span>.log.at(-<span class="num">1</span>)?.term ?? <span class="num">0</span>;
+    <span class="kw">const</span> myLastIndex = <span class="kw">this</span>.log.length - <span class="num">1</span>;
+    <span class="kw">return</span> lastLogTerm > myTerm || (lastLogTerm === myTerm && lastLogIndex >= myLastIndex);
+  }
+
+  <span class="fn">requestVote</span>(candidateId, term, lastLogIndex, lastLogTerm) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.alive) <span class="kw">return</span> { granted: <span class="kw">false</span>, term: <span class="num">0</span> };
+    <span class="kw">if</span> (term > <span class="kw">this</span>.currentTerm) {
+      <span class="kw">this</span>.currentTerm = term; <span class="kw">this</span>.state = <span class="str">"follower"</span>; <span class="kw">this</span>.votedFor = <span class="kw">null</span>;
+    }
+    <span class="kw">const</span> canVote = term >= <span class="kw">this</span>.currentTerm
+      && (<span class="kw">this</span>.votedFor === <span class="kw">null</span> || <span class="kw">this</span>.votedFor === candidateId)
+      && <span class="kw">this</span>.<span class="fn">_upToDate</span>(lastLogIndex, lastLogTerm);
+    <span class="kw">if</span> (canVote) { <span class="kw">this</span>.votedFor = candidateId; <span class="kw">return</span> { granted: <span class="kw">true</span>, term }; }
+    <span class="kw">return</span> { granted: <span class="kw">false</span>, term: <span class="kw">this</span>.currentTerm };
+  }
+
+  <span class="fn">appendEntries</span>(leaderTerm, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit) {
+    <span class="kw">if</span> (!<span class="kw">this</span>.alive || leaderTerm < <span class="kw">this</span>.currentTerm) <span class="kw">return false</span>;
+    <span class="kw">this</span>.currentTerm = leaderTerm;
+    <span class="kw">this</span>.state = <span class="str">"follower"</span>; <span class="kw">this</span>.votedFor = <span class="kw">null</span>;
+    <span class="cmt">// Log matching check</span>
+    <span class="kw">if</span> (prevLogIndex >= <span class="num">0</span>) {
+      <span class="kw">if</span> (<span class="kw">this</span>.log.length <= prevLogIndex || <span class="kw">this</span>.log[prevLogIndex]?.term !== prevLogTerm)
+        <span class="kw">return false</span>;
+    }
+    <span class="cmt">// Append new entries</span>
+    entries.forEach((e, i) => { <span class="kw">this</span>.log[prevLogIndex + <span class="num">1</span> + i] = e; });
+    <span class="kw">this</span>.log.length = prevLogIndex + <span class="num">1</span> + entries.length; <span class="cmt">// truncate if needed</span>
+    <span class="kw">if</span> (leaderCommit > <span class="kw">this</span>.commitIndex) {
+      <span class="kw">this</span>.commitIndex = Math.min(leaderCommit, <span class="kw">this</span>.log.length - <span class="num">1</span>);
+      <span class="kw">this</span>.<span class="fn">_applyCommitted</span>();
+    }
+    <span class="kw">return true</span>;
+  }
+
+  <span class="fn">_applyCommitted</span>() {
+    <span class="kw">while</span> (<span class="kw">this</span>.lastApplied < <span class="kw">this</span>.commitIndex) {
+      <span class="kw">this</span>.lastApplied++;
+      <span class="kw">const</span> { key, value, op } = <span class="kw">this</span>.log[<span class="kw">this</span>.lastApplied].command;
+      <span class="kw">if</span>      (op === <span class="str">"set"</span>) <span class="kw">this</span>.stateMachine[key] = value;
+      <span class="kw">else if</span> (op === <span class="str">"del"</span>) <span class="kw">delete this</span>.stateMachine[key];
+    }
+  }
+
+  <span class="fn">becomeLeader</span>() {
+    <span class="kw">this</span>.state = <span class="str">"leader"</span>;
+    <span class="kw">this</span>.peers.forEach(p => {
+      <span class="kw">this</span>.nextIndex[p.id]  = <span class="kw">this</span>.log.length;
+      <span class="kw">this</span>.matchIndex[p.id] = -<span class="num">1</span>;
+    });
+    console.log(<span class="str">`Node ${this.id} became LEADER for term ${this.currentTerm}`</span>);
+  }
+
+  <span class="fn">startElection</span>() {
+    <span class="kw">if</span> (!<span class="kw">this</span>.alive) <span class="kw">return</span>;
+    <span class="kw">this</span>.currentTerm++; <span class="kw">this</span>.state = <span class="str">"candidate"</span>; <span class="kw">this</span>.votedFor = <span class="kw">this</span>.id;
+    <span class="kw">let</span> votes = <span class="num">1</span>;
+    <span class="kw">const</span> lastIdx  = <span class="kw">this</span>.log.length - <span class="num">1</span>;
+    <span class="kw">const</span> lastTerm = <span class="kw">this</span>.log.at(-<span class="num">1</span>)?.term ?? <span class="num">0</span>;
+    <span class="kw">for</span> (<span class="kw">const</span> p <span class="kw">of</span> <span class="kw">this</span>.peers) {
+      <span class="kw">if</span> (p.<span class="fn">requestVote</span>(<span class="kw">this</span>.id, <span class="kw">this</span>.currentTerm, lastIdx, lastTerm).granted) votes++;
+    }
+    <span class="kw">if</span> (votes > (<span class="kw">this</span>.peers.length + <span class="num">1</span>) / <span class="num">2</span>) <span class="kw">this</span>.<span class="fn">becomeLeader</span>();
+    <span class="kw">else</span> <span class="kw">this</span>.state = <span class="str">"follower"</span>;
+  }
+
+  <span class="fn">clientWrite</span>(command) {
+    <span class="cmt">// Client sends write to leader only</span>
+    <span class="kw">if</span> (!<span class="kw">this</span>.alive) <span class="kw">throw new</span> Error(<span class="str">"Node is down"</span>);
+    <span class="kw">if</span> (<span class="kw">this</span>.state !== <span class="str">"leader"</span>) <span class="kw">throw new</span> Error(<span class="str">"Not the leader"</span>);
+    <span class="kw">const</span> entry = { term: <span class="kw">this</span>.currentTerm, command };
+    <span class="kw">this</span>.log.push(entry);
+    <span class="kw">const</span> entryIndex = <span class="kw">this</span>.log.length - <span class="num">1</span>;
+    <span class="kw">let</span> acks = <span class="num">1</span>; <span class="cmt">// leader counts itself</span>
+    <span class="kw">for</span> (<span class="kw">const</span> peer <span class="kw">of</span> <span class="kw">this</span>.peers) {
+      <span class="kw">const</span> prevIdx  = entryIndex - <span class="num">1</span>;
+      <span class="kw">const</span> prevTerm = prevIdx >= <span class="num">0</span> ? <span class="kw">this</span>.log[prevIdx].term : -<span class="num">1</span>;
+      <span class="kw">if</span> (peer.<span class="fn">appendEntries</span>(<span class="kw">this</span>.currentTerm, <span class="kw">this</span>.id, prevIdx, prevTerm, [entry], <span class="kw">this</span>.commitIndex))
+        acks++;
+    }
+    <span class="kw">if</span> (acks > (<span class="kw">this</span>.peers.length + <span class="num">1</span>) / <span class="num">2</span>) {
+      <span class="kw">this</span>.commitIndex = entryIndex;
+      <span class="kw">this</span>.<span class="fn">_applyCommitted</span>();
+      <span class="cmt">// Notify followers of new commitIndex on next heartbeat</span>
+      <span class="kw">for</span> (<span class="kw">const</span> peer <span class="kw">of</span> <span class="kw">this</span>.peers)
+        peer.<span class="fn">appendEntries</span>(<span class="kw">this</span>.currentTerm, <span class="kw">this</span>.id, entryIndex, entry.term, [], <span class="kw">this</span>.commitIndex);
+      <span class="kw">return true</span>;
+    }
+    <span class="kw">return false</span>; <span class="cmt">// failed to commit (lost majority)</span>
+  }
+}
+
+<span class="cmt">// === Demo: build cluster, elect leader, write data, crash, elect new leader ===</span>
+<span class="kw">const</span> nodes = [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>].map(id => <span class="kw">new</span> <span class="cls">RaftNode</span>(id));
+nodes.forEach(n => { n.peers = nodes.filter(p => p.id !== n.id); });
+
+console.log(<span class="str">"=== Phase 1: Election ==="</span>);
+nodes[<span class="num">0</span>].<span class="fn">startElection</span>(); <span class="cmt">// node 1 times out first</span>
+<span class="kw">const</span> leader = nodes.find(n => n.state === <span class="str">"leader"</span>);
+
+console.log(<span class="str">"\n=== Phase 2: Normal writes ==="</span>);
+leader.<span class="fn">clientWrite</span>({ op:<span class="str">"set"</span>, key:<span class="str">"x"</span>, value:<span class="num">10</span> });
+leader.<span class="fn">clientWrite</span>({ op:<span class="str">"set"</span>, key:<span class="str">"y"</span>, value:<span class="num">20</span> });
+leader.<span class="fn">clientWrite</span>({ op:<span class="str">"set"</span>, key:<span class="str">"z"</span>, value:<span class="num">30</span> });
+console.log(<span class="str">`All nodes' state machines after writes:`</span>);
+nodes.forEach(n => console.log(<span class="str">`  Node ${n.id}: ${JSON.stringify(n.stateMachine)}`</span>));
+
+console.log(<span class="str">"\n=== Phase 3: Leader crashes ==="</span>);
+leader.alive = <span class="kw">false</span>;
+leader.state = <span class="str">"follower"</span>;
+console.log(<span class="str">`Node ${leader.id} crashed`</span>);
+
+<span class="cmt">// Node 3 wins new election</span>
+<span class="kw">const</span> survivor = nodes.find(n => n.alive && n.id !== leader.id);
+survivor.<span class="fn">startElection</span>();
+<span class="kw">const</span> newLeader = nodes.find(n => n.alive && n.state === <span class="str">"leader"</span>);
+<span class="kw">if</span> (newLeader) {
+  newLeader.<span class="fn">clientWrite</span>({ op:<span class="str">"set"</span>, key:<span class="str">"x"</span>, value:<span class="num">99</span> });
+  console.log(<span class="str">`After new write by node ${newLeader.id}:`</span>);
+  nodes.filter(n => n.alive).forEach(n =>
+    console.log(<span class="str">`  Node ${n.id}: ${JSON.stringify(n.stateMachine)}`</span>)
+  );
+}</pre>
+    <div class="out" id="o8"></div>
+  </div>
+</section>
+
+<!-- ══ S9: RAFT VS PAXOS ══ -->
+<section class="section" id="s9">
+  <div class="sec-head"><span class="sec-n">§09</span><h2>Raft vs Paxos</h2></div>
+  <p>Raft was explicitly designed as an alternative to Paxos that is easier to understand and implement. The original paper (Ongaro & Ousterhout, 2014) included a user study showing that students who learned Raft performed significantly better on quizzes than those who learned Paxos. Understandability was a first-class design goal.</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cmp-table">
+      <thead><tr><th>Dimension</th><th>Paxos (Multi-Paxos)</th><th>Raft</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Leadership</td><td>Multiple concurrent proposers possible; leader helpful but not required</td><td class="good">Single strong leader always; simpler invariants</td></tr>
+        <tr><td class="name">Log handling</td><td>Log entries can be accepted out of order; holes allowed temporarily</td><td class="good">Log strictly sequential; no holes</td></tr>
+        <tr><td class="name">Leader election</td><td>Not specified in original paper; implementations vary widely</td><td class="good">Fully specified; randomised timeouts</td></tr>
+        <tr><td class="name">Cluster changes</td><td>Each implementation handles membership changes differently</td><td class="good">Joint consensus specified in paper</td></tr>
+        <tr><td class="name">Understandability</td><td class="bad">Notoriously difficult; "There is only one consensus protocol: Paxos" — Lamport</td><td class="good">Designed for understandability; user study confirmed</td></tr>
+        <tr><td class="name">Performance</td><td class="ok">Can be higher (pipelined multi-leader variants like EPaxos)</td><td class="ok">Single leader limits write throughput; fine for coordination</td></tr>
+        <tr><td class="name">Provable safety</td><td class="good">Yes (original Paxos paper)</td><td class="good">Yes (TLA+ spec available)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout gold">Lamport's original Paxos paper deliberately left out many engineering details ("a single-decree protocol"). The practical Multi-Paxos protocol used in production systems like Chubby is never fully specified — each implementation fills the gaps differently. Apache ZooKeeper took a different path with Zab, a leader-based atomic broadcast protocol related in spirit to Paxos but not the same protocol. Raft closes those engineering gaps in one concrete design.</div>
+</section>
+
+<!-- ══ S10: REAL SYSTEMS ══ -->
+<section class="section" id="s10">
+  <div class="sec-head"><span class="sec-n">§10</span><h2>Real-world usage</h2></div>
+  <p>Raft is now arguably the dominant consensus algorithm in new distributed systems work. Paxos dominates in legacy Google infrastructure (Chubby, Spanner's underlying protocol); Raft dominates in newer open-source infrastructure.</p>
+
+  <div class="demo" style="padding:0;overflow:hidden">
+    <table class="cmp-table">
+      <thead><tr><th>System</th><th>Role</th><th>Raft variant</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td class="name">etcd</td><td>Kubernetes configuration store, distributed lock</td><td>Reference Raft implementation; used by Kubernetes natively</td></tr>
+        <tr><td class="name">CockroachDB</td><td>Distributed SQL database</td><td>Per-range Raft groups; each 64MB range is its own Raft cluster</td></tr>
+        <tr><td class="name">TiKV / TiDB</td><td>Distributed key-value store, MySQL-compatible SQL</td><td>Multi-Raft; each Region (96MB shard) runs Raft independently</td></tr>
+        <tr><td class="name">Consul</td><td>Service discovery, distributed configuration</td><td>Single Raft group for the entire cluster</td></tr>
+        <tr><td class="name">InfluxDB</td><td>Time-series database</td><td>Raft for meta-node coordination</td></tr>
+        <tr><td class="name">RethinkDB</td><td>Document database (deprecated)</td><td>Early Raft adopter; shaped the ecosystem</td></tr>
+        <tr><td class="name">YugabyteDB</td><td>PostgreSQL-compatible distributed SQL</td><td>DocDB uses Raft per-tablet</td></tr>
+        <tr><td class="name">MongoDB replica sets</td><td>Document database</td><td>Replica-set elections are Raft-inspired in some respects, but MongoDB does not run pure Raft</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The most important insight from real deployments: the bottleneck is almost never the consensus protocol itself. Leader election takes milliseconds. Log replication overhead is a few percent. The hard problems in production Raft deployments are operational: detecting slow followers, managing log compaction (snapshotting), handling asymmetric network partitions, and tuning election timeouts for your latency environment.</p>
+
+  <footer class="footer">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.7rem">Primary sources</div>
+    <a href="https://raft.github.io/raft.pdf">Ongaro & Ousterhout (2014) — In Search of an Understandable Consensus Algorithm (the Raft paper)</a>
+    <a href="https://raft.github.io">raft.github.io — interactive Raft visualisation and implementation list</a>
+    <a href="https://github.com/etcd-io/raft">etcd/raft — production Raft library in Go (read the source)</a>
+    <a href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf">Lamport (2001) — Paxos Made Simple (for comparison)</a>
+    <a href="https://jepsen.io/analyses">Jepsen analyses — how real Raft systems fail under network faults</a>
+    <div class="footer-note">All code is original JavaScript written for this explainer. The implementation covers the core Raft algorithm but omits production concerns: log compaction/snapshots, membership changes, persistent state, and the actual network layer.</div>
+  </footer>
+</section>
+
+</div>
+<script>
+/* ── RUNNER ── */
+function runCode(cid,oid){
+  const raw=document.getElementById(cid).innerText;
+  const el=document.getElementById(oid);el.className='out on';
+  const logs=[];
+  const con={log:(...a)=>logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')),assert:(c,m)=>{if(!c)logs.push('AssertionError: '+m);}};
+  try{new Function('console',raw)(con);el.textContent=logs.join('\n')||'(no output)';}
+  catch(e){el.className='out on err';el.textContent='⚠ '+e.message;}
+}
+
+/* ── FAILURE VIZ ── */
+const FAILURES={
+  crash:{title:'Node crash',color:'var(--red)',desc:'Node 3 (leader) crashes. Followers 1, 2, 4, 5 notice the heartbeat stops. After election timeout, one of them starts a new election.',nodes:[
+    {id:1,role:'follower',state:'follower'},{id:2,role:'follower',state:'follower'},
+    {id:3,role:'leader',state:'dead',msg:null},{id:4,role:'follower',state:'follower'},
+    {id:5,role:'follower',state:'follower'},
+  ],note:'Cluster can tolerate this. Remaining 4 nodes can elect a new leader (need majority of 5 = 3 votes).'},
+  partition:{title:'Network partition',color:'var(--gold)',desc:'Network splits: nodes 1 and 2 are isolated from nodes 3, 4, 5.',nodes:[
+    {id:1,role:'follower',state:'follower'},{id:2,role:'follower',state:'follower'},
+    {id:3,role:'leader',state:'leader'},{id:4,role:'follower',state:'follower'},
+    {id:5,role:'follower',state:'follower'},
+  ],note:'Minority partition {1,2}: cannot elect a leader (only 2 of 5 votes). Majority partition {3,4,5}: keeps operating normally. No split-brain!'},
+  slowmsg:{title:'Slow / delayed messages',color:'var(--blue)',desc:'Some AppendEntries messages arrive late. Node 2 is lagging behind.',nodes:[
+    {id:1,role:'follower',state:'follower'},{id:2,role:'follower',state:'follower'},
+    {id:3,role:'leader',state:'leader'},{id:4,role:'follower',state:'follower'},
+    {id:5,role:'follower',state:'follower'},
+  ],note:'Leader 3 keeps retrying AppendEntries to node 2. Entries commit once any 3 nodes ack (not waiting for the slow one). Node 2 catches up when messages arrive.'},
+  noleader:{title:'No consensus — what split-brain looks like',color:'var(--red)',desc:'Without Raft: both halves of a partition independently accept writes. This is the problem Raft prevents.',nodes:[
+    {id:1,role:'"leader"',state:'leader'},{id:2,role:'confused',state:'candidate'},
+    {id:3,role:'"leader"',state:'leader'},{id:4,role:'confused',state:'candidate'},
+    {id:5,role:'confused',state:'candidate'},
+  ],note:'Result: two "leaders" accept conflicting writes. When partition heals, there is no deterministic way to reconcile. This is why consensus protocols exist.'},
+};
+function showFailure(name,btn){
+  document.querySelectorAll('#s1 .btn-row .btn').forEach(b=>b.classList.remove('act'));btn.classList.add('act');
+  const f=FAILURES[name];
+  let html=`<div style="font-family:var(--mono);font-size:12px;font-weight:500;color:${f.color};margin-bottom:.6rem">${f.title}</div>`;
+  html+=`<div class="cluster">`;
+  if(name==='partition'){
+    html+=`<div style="border:2px dashed var(--rule2);border-radius:8px;padding:.5rem;display:flex;gap:8px">`;
+    f.nodes.slice(0,2).forEach(n=>html+=nodeHTML(n));
+    html+=`<div style="font-family:var(--mono);font-size:9px;color:var(--ink3);writing-mode:vertical-rl;padding:4px">minority</div></div>`;
+    html+=`<div style="font-size:18px;color:var(--red);padding:0 8px">⚡</div>`;
+    html+=`<div style="border:2px dashed var(--orange-bdr);border-radius:8px;padding:.5rem;display:flex;gap:8px">`;
+    f.nodes.slice(2).forEach(n=>html+=nodeHTML(n));
+    html+=`<div style="font-family:var(--mono);font-size:9px;color:var(--orange);writing-mode:vertical-rl;padding:4px">majority</div></div>`;
+  }else{
+    f.nodes.forEach(n=>html+=nodeHTML(n));
+  }
+  html+=`</div>`;
+  html+=`<div style="font-family:var(--sans);font-size:13px;color:var(--ink2);padding:.5rem .7rem;background:${f.color}18;border-left:3px solid ${f.color};border-radius:0 4px 4px 0;margin-top:.5rem;font-weight:300">${f.note}</div>`;
+  document.getElementById('failure-viz').innerHTML=html;
+}
+function nodeHTML(n){
+  return `<div class="node ${n.state}" title="${n.role}">
+    <div class="node-id">N${n.id}</div>
+    <div class="node-role">${n.role}</div>
+  </div>`;
+}
+showFailure('crash',document.querySelector('#s1 .btn'));
+
+/* ── RSM VIZ ── */
+(function(){
+  const cmds=[
+    {op:'set',key:'balance',value:1000,icon:'→'},
+    {op:'inc',key:'balance',value:-200,icon:'→'},
+    {op:'set',key:'user',value:'alice',icon:'→'},
+  ];
+  const nodes=['Node 1','Node 2','Node 3'];
+  let html=`<div style="font-family:var(--mono);font-size:12px">`;
+  html+=`<div style="display:grid;grid-template-columns:200px 1fr;gap:8px;align-items:start">`;
+  html+=`<div>`;
+  html+=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.4rem">Committed log</div>`;
+  cmds.forEach((c,i)=>{
+    html+=`<div class="log-entry committed" style="margin-bottom:3px;text-align:left;padding:4px 8px;border-radius:4px">
+      <span class="le-idx">[${i+1}]</span>
+      <span class="le-cmd">${c.op}(${c.key}${c.value!==null?'='+c.value:''})</span>
+    </div>`;
+  });
+  html+=`</div>`;
+  html+=`<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.4rem">State machines (after applying log)</div>`;
+  html+=`<div style="display:flex;gap:8px">`;
+  const finalState={balance:800,user:'alice'};
+  nodes.forEach(name=>{
+    html+=`<div style="flex:1;border:1px solid var(--green-bdr);background:var(--green-bg);border-radius:5px;padding:.6rem .8rem;font-size:11px">
+      <div style="color:var(--green);font-weight:500;margin-bottom:.4rem">${name}</div>
+      ${Object.entries(finalState).map(([k,v])=>`<div style="color:var(--ink2)">${k}: <span style="color:var(--ink)">${v}</span></div>`).join('')}
+    </div>`;
+  });
+  html+=`</div></div></div>`;
+  html+=`<div style="font-size:12px;color:var(--green);font-family:var(--mono);margin-top:.5rem">All three nodes have identical state — the RSM guarantee ✓</div>`;
+  html+=`</div>`;
+  document.getElementById('rsm-viz').innerHTML=html;
+})();
+
+/* ── ELECTION SIM ── */
+const ELECTION_LAYOUT={
+  1:{x:160,y:44},
+  2:{x:62,y:120},
+  3:{x:258,y:120},
+  4:{x:96,y:226},
+  5:{x:224,y:226},
+};
+const ELECTION_STEPS=[
+  'Crash',
+  'Timeout',
+  'RequestVote',
+  'Votes',
+  'Leader',
+  'Heartbeats',
+];
+let electionTimer=null;
+let electionState={phase:'idle',nodes:[],frames:[],frameIndex:-1,message:''};
+
+function cloneElectionNodes(nodes){
+  return nodes.map(n=>({...n}));
+}
+
+function baseElectionNodes(){
+  return [
+    {id:1,state:'leader',alive:true,term:1,role:'leader',badge:'sending heartbeats'},
+    {id:2,state:'follower',alive:true,term:1,role:'follower',badge:'timeout 184ms'},
+    {id:3,state:'follower',alive:true,term:1,role:'follower',badge:'timeout 231ms'},
+    {id:4,state:'follower',alive:true,term:1,role:'follower',badge:'timeout 267ms'},
+    {id:5,state:'follower',alive:true,term:1,role:'follower',badge:'timeout 244ms'},
+  ];
+}
+
+function buildElectionFrames(){
+  return [
+    {
+      step:'Crash',
+      title:'Leader crashes',
+      detail:'Node 1 fails. The other four servers stop receiving heartbeats and continue counting down their random election timeouts.',
+      rpcs:[{type:'timeout',label:'heartbeat stream stops'}],
+      nodes:[
+        {id:1,state:'dead',alive:false,term:1,role:'crashed',badge:'leader down'},
+        {id:2,state:'follower',alive:true,term:1,role:'follower',badge:'184ms left'},
+        {id:3,state:'follower',alive:true,term:1,role:'follower',badge:'231ms left'},
+        {id:4,state:'follower',alive:true,term:1,role:'follower',badge:'267ms left'},
+        {id:5,state:'follower',alive:true,term:1,role:'follower',badge:'244ms left'},
+      ],
+      arrows:[],
+      log:'Node 1 crashes in term 1. No one can commit new entries until a new leader is elected.',
+    },
+    {
+      step:'Timeout',
+      title:'One follower times out first',
+      detail:'Node 2 has the shortest timeout, so it times out before the other followers. It increments its term, becomes candidate, and votes for itself.',
+      rpcs:[{type:'timeout',label:'Node 2 timeout fires'},{type:'vote',label:'self-vote: 1/5'}],
+      nodes:[
+        {id:1,state:'dead',alive:false,term:1,role:'crashed',badge:'no reply'},
+        {id:2,state:'candidate',alive:true,term:2,role:'candidate',badge:'term 2 · votes 1/5'},
+        {id:3,state:'follower',alive:true,term:1,role:'follower',badge:'still waiting'},
+        {id:4,state:'follower',alive:true,term:1,role:'follower',badge:'still waiting'},
+        {id:5,state:'follower',alive:true,term:1,role:'follower',badge:'still waiting'},
+      ],
+      arrows:[],
+      log:'Randomised timeouts prevent a tie: Node 2 wakes up first and starts a new election for term 2.',
+    },
+    {
+      step:'RequestVote',
+      title:'Candidate sends RequestVote RPCs',
+      detail:'Node 2 asks the other servers to vote for it in term 2. The crashed leader does not respond; the live followers compare the term and log freshness.',
+      rpcs:[
+        {type:'vote',label:'RequestVote N2 → N3'},
+        {type:'vote',label:'RequestVote N2 → N4'},
+        {type:'vote',label:'RequestVote N2 → N5'},
+        {type:'denied',label:'N1 unreachable'},
+      ],
+      nodes:[
+        {id:1,state:'dead',alive:false,term:1,role:'crashed',badge:'offline'},
+        {id:2,state:'candidate',alive:true,term:2,role:'candidate',badge:'asking for votes'},
+        {id:3,state:'follower',alive:true,term:1,role:'follower',badge:'checks term/log'},
+        {id:4,state:'follower',alive:true,term:1,role:'follower',badge:'checks term/log'},
+        {id:5,state:'follower',alive:true,term:1,role:'follower',badge:'checks term/log'},
+      ],
+      arrows:[
+        {from:2,to:3,label:'RequestVote',kind:'vote'},
+        {from:2,to:4,label:'RequestVote',kind:'vote'},
+        {from:2,to:5,label:'RequestVote',kind:'vote'},
+        {from:2,to:1,label:'no reply',kind:'denied'},
+      ],
+      log:'Candidate N2 sends RequestVote(term=2) to every peer. Only a majority matters; crashed nodes do not block progress.',
+    },
+    {
+      step:'Votes',
+      title:'Majority votes arrive',
+      detail:'Nodes 3, 4, and 5 see a higher term, update themselves to term 2, and grant their votes. With its self-vote, Node 2 now has 4 of 5 votes.',
+      rpcs:[
+        {type:'vote',label:'N3 grants vote'},
+        {type:'vote',label:'N4 grants vote'},
+        {type:'vote',label:'N5 grants vote'},
+      ],
+      nodes:[
+        {id:1,state:'dead',alive:false,term:1,role:'crashed',badge:'still down'},
+        {id:2,state:'candidate',alive:true,term:2,role:'candidate',badge:'votes 4/5'},
+        {id:3,state:'follower',alive:true,term:2,role:'follower',badge:'voted for N2'},
+        {id:4,state:'follower',alive:true,term:2,role:'follower',badge:'voted for N2'},
+        {id:5,state:'follower',alive:true,term:2,role:'follower',badge:'voted for N2'},
+      ],
+      arrows:[
+        {from:3,to:2,label:'vote yes',kind:'vote'},
+        {from:4,to:2,label:'vote yes',kind:'vote'},
+        {from:5,to:2,label:'vote yes',kind:'vote'},
+      ],
+      log:'A 5-node cluster needs 3 votes. N2 reaches quorum immediately: self + N3 + N4 is already enough; N5 is extra.',
+    },
+    {
+      step:'Leader',
+      title:'Candidate becomes leader',
+      detail:'Once it has a majority, Node 2 stops campaigning and becomes the sole leader for term 2. All live peers are now followers in the new term.',
+      rpcs:[{type:'vote',label:'quorum reached: 4/5'}],
+      nodes:[
+        {id:1,state:'dead',alive:false,term:1,role:'crashed',badge:'old leader'},
+        {id:2,state:'leader',alive:true,term:2,role:'leader',badge:'new leader'},
+        {id:3,state:'follower',alive:true,term:2,role:'follower',badge:'follows N2'},
+        {id:4,state:'follower',alive:true,term:2,role:'follower',badge:'follows N2'},
+        {id:5,state:'follower',alive:true,term:2,role:'follower',badge:'follows N2'},
+      ],
+      arrows:[],
+      log:'Leadership changes only after quorum. There is still exactly one leader, and it is tied to the highest term seen so far.',
+    },
+    {
+      step:'Heartbeats',
+      title:'New leader re-establishes authority',
+      detail:'Node 2 immediately sends empty AppendEntries heartbeats. Followers reset their election timers and the cluster becomes stable again under the new leader.',
+      rpcs:[
+        {type:'heartbeat',label:'AppendEntries N2 → N3'},
+        {type:'heartbeat',label:'AppendEntries N2 → N4'},
+        {type:'heartbeat',label:'AppendEntries N2 → N5'},
+      ],
+      nodes:[
+        {id:1,state:'dead',alive:false,term:1,role:'crashed',badge:'recover later'},
+        {id:2,state:'leader',alive:true,term:2,role:'leader',badge:'heartbeats'},
+        {id:3,state:'follower',alive:true,term:2,role:'follower',badge:'timer reset'},
+        {id:4,state:'follower',alive:true,term:2,role:'follower',badge:'timer reset'},
+        {id:5,state:'follower',alive:true,term:2,role:'follower',badge:'timer reset'},
+      ],
+      arrows:[
+        {from:2,to:3,label:'heartbeat',kind:'heartbeat'},
+        {from:2,to:4,label:'heartbeat',kind:'heartbeat'},
+        {from:2,to:5,label:'heartbeat',kind:'heartbeat'},
+      ],
+      log:'This is how Raft converges after a failure: election chooses one live leader, and heartbeats stop everyone else from starting a competing election.',
+    },
+  ];
+}
+
+function arrowColor(kind){
+  if(kind==='vote') return '#b67a14';
+  if(kind==='heartbeat') return '#c94f1a';
+  return '#b13f3f';
+}
+
+function nodeFill(state){
+  if(state==='leader') return 'rgba(201,79,26,0.13)';
+  if(state==='candidate') return 'rgba(182,122,20,0.14)';
+  if(state==='dead') return 'rgba(177,63,63,0.12)';
+  return 'rgba(57,94,122,0.10)';
+}
+
+function nodeStroke(state){
+  if(state==='leader') return '#c94f1a';
+  if(state==='candidate') return '#b67a14';
+  if(state==='dead') return '#b13f3f';
+  return '#5b7d95';
+}
+
+function renderElection(msg=''){
+  const frame = electionState.frames[electionState.frameIndex] || null;
+  const nodes = electionState.nodes;
+  const arrows = frame?.arrows || [];
+  let svg = `<svg class="election-svg" viewBox="0 0 320 310" role="img" aria-label="Raft leader election animation">
+    <defs>
+      <marker id="vote-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#b67a14"></path>
+      </marker>
+      <marker id="heartbeat-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#c94f1a"></path>
+      </marker>
+      <marker id="denied-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#b13f3f"></path>
+      </marker>
+    </defs>`;
+
+  arrows.forEach(a => {
+    const from = ELECTION_LAYOUT[a.from];
+    const to = ELECTION_LAYOUT[a.to];
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.max(Math.hypot(dx, dy), 1);
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const startX = from.x + ux * 34;
+    const startY = from.y + uy * 34;
+    const endX = to.x - ux * 34;
+    const endY = to.y - uy * 34;
+    const labelX = (startX + endX) / 2;
+    const labelY = (startY + endY) / 2 - 6;
+    const color = arrowColor(a.kind);
+    svg += `<line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke="${color}" stroke-width="2.3" stroke-dasharray="${a.kind==='heartbeat'?'6 5':a.kind==='denied'?'3 5':'0'}" marker-end="url(#${a.kind}-arrow)"></line>`;
+    svg += `<rect x="${labelX - (a.label.length * 2.95 + 8)}" y="${labelY - 10}" width="${a.label.length * 5.9 + 16}" height="18" rx="9" fill="rgba(250,247,242,.95)" stroke="${color}" stroke-width="1"></rect>`;
+    svg += `<text x="${labelX}" y="${labelY + 2.5}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="${color}">${a.label}</text>`;
+  });
+
+  nodes.forEach(n => {
+    const pos = ELECTION_LAYOUT[n.id];
+    const state = n.alive ? n.state : 'dead';
+    svg += `<circle cx="${pos.x}" cy="${pos.y}" r="30" fill="${nodeFill(state)}" stroke="${nodeStroke(state)}" stroke-width="2.4"></circle>`;
+    svg += `<text x="${pos.x}" y="${pos.y - 5}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#1e1b18">N${n.id}</text>`;
+    svg += `<text x="${pos.x}" y="${pos.y + 10}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="${nodeStroke(state)}">${n.alive ? n.role : 'crashed'}</text>`;
+    svg += `<text x="${pos.x}" y="${pos.y + 22}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#857c72">t=${n.term}</text>`;
+    if(n.badge){
+      const width = Math.max(46, n.badge.length * 5.4 + 12);
+      svg += `<rect x="${pos.x - width/2}" y="${pos.y + 40}" width="${width}" height="16" rx="8" fill="rgba(250,247,242,.96)" stroke="${nodeStroke(state)}" stroke-width="1"></rect>`;
+      svg += `<text x="${pos.x}" y="${pos.y + 51.2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="${nodeStroke(state)}">${n.badge}</text>`;
+    }
+  });
+  svg += `</svg>`;
+
+  let stepsHtml = `<div class="election-steps">`;
+  ELECTION_STEPS.forEach((label, i) => {
+    const cls = i < electionState.frameIndex ? 'done' : i === electionState.frameIndex ? 'active' : '';
+    stepsHtml += `<div class="election-step ${cls}"><strong>${i+1}. ${label}</strong>${i < electionState.frameIndex ? 'seen' : i === electionState.frameIndex ? 'current frame' : 'pending'}</div>`;
+  });
+  stepsHtml += `</div>`;
+
+  let panelHtml = `<div class="election-board">
+    <div>
+      <div class="election-stage">${svg}</div>
+      ${stepsHtml}
+    </div>
+    <div class="election-side">
+      <div class="election-panel">
+        <h4>${frame ? 'Current Step' : 'Cluster State'}</h4>
+        <p><strong>${frame ? frame.title : 'Steady leader in term 1'}</strong></p>
+        <p style="margin-top:.45rem">${frame ? frame.detail : 'Node 1 is leader and keeps the others quiet by sending heartbeats before their election timers expire.'}</p>
+      </div>
+      <div class="election-panel">
+        <h4>Live RPCs</h4>
+        <div class="election-rpc">${frame && frame.rpcs.length ? frame.rpcs.map(r => `<span class="rpc-chip ${r.type}">${r.label}</span>`).join('') : `<span class="rpc-chip heartbeat">heartbeats from N1</span>`}</div>
+      </div>
+      <div class="election-panel">
+        <h4>Why This Step Matters</h4>
+        <p>${frame ? frame.log : 'Raft keeps a single leader by using terms, majority voting, and heartbeats. The animation starts from that steady state.'}</p>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('election-viz').innerHTML = panelHtml;
+  document.getElementById('election-log').textContent = msg || electionState.message || '';
+}
+
+function clearElectionTimer(){
+  if(electionTimer){
+    clearInterval(electionTimer);
+    electionTimer = null;
+  }
+}
+
+function setStableCluster(){
+  electionState = {
+    phase:'running',
+    nodes:baseElectionNodes(),
+    frames:[],
+    frameIndex:-1,
+    message:'Node 1 is leader in term 1. Followers are receiving heartbeats, so no one starts an election.',
+  };
+  renderElection(electionState.message);
+}
+
+function advanceElectionFrame(){
+  if(!electionState.frames.length) return;
+  if(electionState.frameIndex >= electionState.frames.length - 1){
+    clearElectionTimer();
+    renderElection('Election complete. Node 2 is the new leader for term 2.');
+    return;
+  }
+  electionState.frameIndex += 1;
+  const frame = electionState.frames[electionState.frameIndex];
+  electionState.nodes = cloneElectionNodes(frame.nodes);
+  electionState.message = frame.log;
+  electionState.phase = electionState.frameIndex === electionState.frames.length - 1 ? 'running' : 'electing';
+  renderElection(frame.log);
+}
+
+function electionSim(action){
+  if(action === 'reset'){
+    clearElectionTimer();
+    electionState = {phase:'idle',nodes:baseElectionNodes().map(n => ({...n, term:0, state:'follower', role:'follower', badge:null, alive:true})),frames:[],frameIndex:-1,message:'Cluster reset.'};
+    renderElection('Cluster reset. Click "Start cluster" to establish the first leader.');
+    return;
+  }
+  if(action === 'start'){
+    clearElectionTimer();
+    setStableCluster();
+    return;
+  }
+  if(action === 'crash'){
+    clearElectionTimer();
+    if(electionState.phase === 'idle') setStableCluster();
+    electionState.frames = buildElectionFrames();
+    electionState.frameIndex = -1;
+    electionState.phase = 'electing';
+    advanceElectionFrame();
+    return;
+  }
+  if(action === 'step'){
+    if(!electionState.frames.length){
+      renderElection('Crash the current leader first, then step through the election.');
+      return;
+    }
+    clearElectionTimer();
+    advanceElectionFrame();
+    return;
+  }
+  if(action === 'play'){
+    if(!electionState.frames.length){
+      renderElection('Crash the current leader first, then play the election.');
+      return;
+    }
+    if(electionTimer) return;
+    advanceElectionFrame();
+    electionTimer = setInterval(() => {
+      if(electionState.frameIndex >= electionState.frames.length - 1){
+        clearElectionTimer();
+        renderElection('Election complete. Node 2 is the new leader for term 2.');
+        return;
+      }
+      advanceElectionFrame();
+    }, 1100);
+  }
+}
+electionState = {phase:'idle',nodes:baseElectionNodes().map(n => ({...n, term:0, state:'follower', role:'follower', badge:null, alive:true})),frames:[],frameIndex:-1,message:'Click "Start cluster" to begin.'};
+renderElection('Click "Start cluster" to begin.');
+
+/* ── REPLICATION VIZ ── */
+const REPL_STEPS=[
+  {title:'Client sends write to leader',content:()=>{
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="margin-bottom:.5rem"><span style="background:var(--orange-bg);border:1px solid var(--orange-bdr);color:var(--orange);border-radius:4px;padding:2px 8px">Client</span> → <span style="background:var(--orange-bg);border:1px solid var(--orange-bdr);color:var(--orange);border-radius:4px;padding:2px 8px">Leader (N1)</span></div>
+      <div style="background:var(--bg3);border-radius:4px;padding:.5rem .8rem;margin-bottom:.5rem">Command: SET x = 42</div>
+      <div style="color:var(--ink3);font-size:11px">Client must send requests to the leader. If it contacts a follower, the follower redirects or rejects. Leader's identity is discovered from error responses or a leader hint.</div>
+    </div>`;
+  }},
+  {title:'Leader appends to its own log',content:()=>{
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--ink2)">
+      <div class="log-row"><div class="log-label"><span>Leader (N1) log</span></div>
+      <div class="log-grid">
+        <div class="log-entry committed"><span class="le-idx">[1]</span><span class="le-term" style="color:var(--blue)">t=1</span><span class="le-cmd">x=1</span></div>
+        <div class="log-entry committed"><span class="le-idx">[2]</span><span class="le-term" style="color:var(--blue)">t=1</span><span class="le-cmd">y=2</span></div>
+        <div class="log-entry uncommitted"><span class="le-idx">[3]</span><span class="le-term" style="color:var(--gold)">t=2</span><span class="le-cmd">x=42</span></div>
+      </div></div>
+      <div style="color:var(--ink3);font-size:11px;margin-top:.4rem">Entry [3] is appended locally with term=2. Uncommitted (gold) — not yet safe to apply to state machine.</div>
+    </div>`;
+  }},
+  {title:'Leader sends AppendEntries to all followers',content:()=>{
+    const nodes=[2,3,4,5];
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--ink2)">
+      ${nodes.map(id=>`<div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+        <span style="background:var(--orange-bg);border:1px solid var(--orange-bdr);color:var(--orange);border-radius:4px;padding:2px 8px;min-width:60px;text-align:center">N1 →</span>
+        <span style="background:var(--blue-bg);border:1px solid var(--blue-bdr);color:var(--blue);border-radius:4px;padding:2px 8px">N${id}</span>
+        <span style="color:var(--ink3);font-size:11px">AppendEntries(term=2, prevLogIndex=1, prevLogTerm=1, entries=[{t=2,x=42}], leaderCommit=1)</span>
+      </div>`).join('')}
+      <div style="color:var(--ink3);font-size:11px;margin-top:.4rem">Leader sends in parallel. Includes prevLogIndex/Term so followers can verify log consistency before appending.</div>
+    </div>`;
+  }},
+  {title:'Majority acknowledges — 4 of 5 nodes have the entry',content:()=>{
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--ink2)">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:.4rem 0">
+        ${[1,2,3,4,5].map((id,i)=>`<div style="text-align:center">
+          <div class="node ${i<4?'leader':id===4?'follower':'dead'}" style="width:54px;height:54px;margin:0 auto;font-size:10px">
+            <div style="font-size:12px;font-weight:600">N${id}</div>
+            <div style="font-size:9px">${i===0?'leader':id===5?'down':'follower'}</div>
+          </div>
+          <div style="margin-top:3px;font-size:10px;color:${i<4?'var(--green)':'var(--red)'}">${i<4?'✓ ack':'✗ down'}</div>
+        </div>`).join('')}
+      </div>
+      <div style="background:var(--green-bg);border:1px solid var(--green-bdr);border-radius:4px;padding:.4rem .8rem;color:var(--green)">4/5 nodes acked — exceeds majority (3). Entry is now safe to commit.</div>
+    </div>`;
+  }},
+  {title:'Leader commits — applies to state machine',content:()=>{
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--ink2)">
+      <div class="log-row"><div class="log-label"><span>Leader log after commit</span></div>
+      <div class="log-grid">
+        <div class="log-entry committed"><span class="le-idx">[1]</span><span class="le-term" style="color:var(--blue)">t=1</span><span class="le-cmd">x=1</span></div>
+        <div class="log-entry committed"><span class="le-idx">[2]</span><span class="le-term" style="color:var(--blue)">t=1</span><span class="le-cmd">y=2</span></div>
+        <div class="log-entry committed"><span class="le-idx">[3]</span><span class="le-term" style="color:var(--blue)">t=2</span><span class="le-cmd">x=42</span></div>
+      </div></div>
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-bdr);border-radius:4px;padding:.4rem .8rem;color:var(--blue);margin-top:.5rem">commitIndex advances to 3. Leader applies SET x=42 to its state machine. State: {x:42, y:2}</div>
+      <div style="color:var(--ink3);font-size:11px;margin-top:.3rem">Followers' commitIndex will advance in the next AppendEntries (heartbeat or next write).</div>
+    </div>`;
+  }},
+  {title:'Leader replies success to client',content:()=>{
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+      <div style="margin-bottom:.5rem"><span style="background:var(--orange-bg);border:1px solid var(--orange-bdr);color:var(--orange);border-radius:4px;padding:2px 8px">Leader (N1)</span> → <span style="background:var(--green-bg);border:1px solid var(--green-bdr);color:var(--green);border-radius:4px;padding:2px 8px">Client</span></div>
+      <div style="background:var(--green-bg);border:1px solid var(--green-bdr);border-radius:4px;padding:.5rem .8rem;color:var(--green)">Response: OK — x = 42 committed at log index 3, term 2</div>
+      <div style="color:var(--ink3);font-size:11px;margin-top:.4rem">Only now is the client told the write succeeded. The entry is durable — it will survive any minority of node crashes. This is linearizable consistency: once the client sees "OK", every subsequent read sees this value.</div>
+    </div>`;
+  }},
+];
+function showReplication(i,btn){
+  document.querySelectorAll('#repl-step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  const s=REPL_STEPS[i];
+  document.getElementById('replication-viz').innerHTML=`
+    <div style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--orange);margin-bottom:.5rem">${s.title}</div>
+    ${s.content()}`;
+}
+showReplication(0,null);
+
+const CATCHUP_STEPS=[
+  {
+    title:'Follower rejects the first attempt',
+    leaderNext:4,
+    rpc:'AppendEntries(prevLogIndex=3, prevLogTerm=2, entries=[[4] t=2 w=4])',
+    followerReply:'Reject: entry [3] does not match the leader at term 2.',
+    leaderEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:2,cmd:'z=3',cls:'committed'},
+      {idx:4,term:2,cmd:'w=4',cls:'committed'},
+    ],
+    followerEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:1,cmd:'old=9',cls:'conflicting'},
+    ],
+    note:'The leader guessed the follower already matched through index 3. That guess was wrong, so the follower rejects instead of appending a bad suffix.',
+  },
+  {
+    title:'Leader moves nextIndex backward',
+    leaderNext:3,
+    rpc:'nextIndex[follower] := 3  → retry from an earlier prefix',
+    followerReply:'No new data yet — just backing up to find the last shared entry.',
+    leaderEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:2,cmd:'z=3',cls:'committed'},
+      {idx:4,term:2,cmd:'w=4',cls:'committed'},
+    ],
+    followerEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:1,cmd:'old=9',cls:'conflicting'},
+    ],
+    note:'This is the core recovery loop. The leader does not panic or resend the whole log; it walks backward until prevLogIndex/prevLogTerm matches on both sides.',
+  },
+  {
+    title:'Shared prefix found — leader replays the missing suffix',
+    leaderNext:3,
+    rpc:'AppendEntries(prevLogIndex=2, prevLogTerm=1, entries=[[3] t=2 z=3, [4] t=2 w=4])',
+    followerReply:'Accept: index 2 matches, so delete conflicting suffix and append leader entries [3] and [4].',
+    leaderEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:2,cmd:'z=3',cls:'committed'},
+      {idx:4,term:2,cmd:'w=4',cls:'committed'},
+    ],
+    followerEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:2,cmd:'z=3',cls:'uncommitted'},
+      {idx:4,term:2,cmd:'w=4',cls:'uncommitted'},
+    ],
+    note:'Now that index 2 matches on both logs, the follower can safely discard its conflicting tail and copy the leader’s suffix.',
+  },
+  {
+    title:'Follower is in sync again',
+    leaderNext:5,
+    rpc:'Heartbeat / AppendEntries(..., leaderCommit=4)',
+    followerReply:'commitIndex advances; follower applies [3] and [4] to its state machine.',
+    leaderEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:2,cmd:'z=3',cls:'committed'},
+      {idx:4,term:2,cmd:'w=4',cls:'committed'},
+    ],
+    followerEntries:[
+      {idx:1,term:1,cmd:'x=1',cls:'committed'},
+      {idx:2,term:1,cmd:'y=2',cls:'committed'},
+      {idx:3,term:2,cmd:'z=3',cls:'committed'},
+      {idx:4,term:2,cmd:'w=4',cls:'committed'},
+    ],
+    note:'At this point the follower’s log matches the leader’s again. Future heartbeats succeed immediately, and nextIndex moves back to the end of the log.',
+  },
+];
+
+function renderCatchupLog(entries){
+  return `<div class="log-grid">${entries.map(e=>`
+    <div class="log-entry ${e.cls}">
+      <span class="le-idx">[${e.idx}]</span>
+      <span class="le-term" style="color:${e.cls==='conflicting'?'var(--red)':e.cls==='uncommitted'?'var(--gold)':'var(--blue)'}">t=${e.term}</span>
+      <span class="le-cmd">${e.cmd}</span>
+    </div>`).join('')}</div>`;
+}
+
+function showCatchup(i,btn){
+  document.querySelectorAll('#catchup-step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  const s=CATCHUP_STEPS[i];
+  document.getElementById('catchup-viz').innerHTML=`
+    <div style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--orange);margin-bottom:.55rem">${s.title}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+      <div style="border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:.75rem .85rem">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.35rem">Leader log</div>
+        ${renderCatchupLog(s.leaderEntries)}
+        <div style="margin-top:.45rem;font-size:11px;color:var(--orange)">nextIndex[follower] = ${s.leaderNext}</div>
+      </div>
+      <div style="border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:.75rem .85rem">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.35rem">Slow follower log</div>
+        ${renderCatchupLog(s.followerEntries)}
+        <div style="margin-top:.45rem;font-size:11px;color:var(--blue)">Leader's view: send from index ${s.leaderNext}</div>
+      </div>
+    </div>
+    <div style="margin-top:.75rem;border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:.75rem .85rem">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.35rem">RPC exchange</div>
+      <div style="font-size:12px;color:var(--ink2);line-height:1.8"><span style="color:var(--orange)">Leader → follower:</span> ${s.rpc}</div>
+      <div style="font-size:12px;color:var(--ink2);line-height:1.8"><span style="color:var(--blue)">Follower → leader:</span> ${s.followerReply}</div>
+    </div>
+    <div style="margin-top:.65rem;background:var(--blue-bg);border:1px solid var(--blue-bdr);border-radius:6px;padding:.65rem .8rem;color:var(--blue);font-size:12px;line-height:1.75">${s.note}</div>`;
+}
+showCatchup(0,null);
+
+/* ── SAFETY VIZ ── */
+(function(){
+  const nodes=[
+    {id:'N1',logLen:4,lastTerm:2,alive:false,note:'crashed (had all entries)'},
+    {id:'N2',logLen:4,lastTerm:2,alive:true,note:'up-to-date'},
+    {id:'N3',logLen:3,lastTerm:2,alive:true,note:'missing entry [4]'},
+    {id:'N4',logLen:2,lastTerm:1,alive:true,note:'missing entries [3],[4]'},
+    {id:'N5',logLen:4,lastTerm:2,alive:true,note:'up-to-date'},
+  ];
+  const committedEntry={index:4,term:2};
+  let html=`<div style="font-family:var(--mono);font-size:12px">`;
+  html+=`<div style="font-size:11px;color:var(--ink3);margin-bottom:.5rem">Entry [4] was committed — acked by N1, N2, N5 (majority). N1 then crashed. Who can become the new leader?</div>`;
+  html+=`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:.4rem 0">`;
+  nodes.forEach(n=>{
+    const canWin=n.logLen>=4&&n.lastTerm>=2&&n.alive;
+    const col=!n.alive?'dead':canWin?'follower':'follower';
+    html+=`<div style="text-align:center">
+      <div class="node ${n.alive?col:'dead'}" style="width:58px;height:58px;margin:0 auto;font-size:10px">
+        <div style="font-size:12px;font-weight:600">${n.id}</div>
+        <div style="font-size:9px">${n.alive?'alive':'crashed'}</div>
+      </div>
+      <div style="margin-top:3px;font-size:10px;color:var(--ink3)">log: ${n.logLen} entries<br>last t=${n.lastTerm}</div>
+      <div style="margin-top:2px;font-size:9px;color:${canWin?'var(--green)':n.alive?'var(--red)':'var(--ink3)'}">${!n.alive?'(crashed)':canWin?'✓ can win':'✗ vote denied'}</div>
+    </div>`;
+  });
+  html+=`</div>`;
+  html+=`<div style="background:var(--green-bg);border:1px solid var(--green-bdr);border-radius:4px;padding:.4rem .8rem;color:var(--green);margin-top:.4rem;font-size:11px">N3 and N4 will DENY votes to any candidate less up-to-date than them. N2 and N5 (who have entry [4]) can win — and they always carry the committed entry forward.</div>`;
+  html+=`</div>`;
+  document.getElementById('safety-viz').innerHTML=html;
+})();
+</script>
+</body>
+</html>
