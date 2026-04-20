@@ -134,11 +134,20 @@ code{
   border:1px solid var(--rule2);border-radius:12px;background:var(--bg);padding:12px;
 }
 .object-list{display:grid;gap:8px}
+.object-summary{
+  border:1px solid var(--rule2);border-radius:10px;background:var(--surface);padding:10px;
+  font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--ink2);margin-bottom:10px;
+}
+.object-group-title{
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin:10px 0 6px;
+}
 .obj{
   border:1px solid var(--rule);border-radius:10px;background:var(--surface);padding:10px;
   font-family:var(--mono);font-size:12px;line-height:1.65;color:var(--ink2);
 }
 .obj strong{color:var(--ink)}
+.obj.new{border-color:rgba(29,108,89,.26);box-shadow:inset 0 0 0 1px rgba(29,108,89,.08)}
+.obj.reused{background:var(--purple-bg);border-color:rgba(100,71,152,.22)}
 .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:var(--ink3)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .swatch{width:10px;height:10px;border-radius:999px;display:inline-block}
@@ -223,6 +232,9 @@ footer a:hover{color:var(--steel)}
   <section class="section" id="s2">
     <div class="sec-head"><span class="sec-n">§02</span><h2>Blobs, trees, and commits</h2></div>
     <p>A file’s contents become a <strong>blob</strong>. A directory becomes a <strong>tree</strong> listing filenames and the object IDs they point to. A <strong>commit</strong> points to a root tree and to one or more parent commits. Because objects are immutable and keyed by their content hash, unchanged files and unchanged subtrees can be reused across commits.</p>
+    <p>The commit process is a small pipeline. First, <code>git add</code> turns the file contents you staged into blob objects and records, in the index, which paths should point to which blobs. Then <code>git commit</code> walks that staged path table, writes tree objects for directories from the bottom up, and finally writes one commit object containing the root tree ID, parent commit ID(s), author/message metadata, and timestamps.</p>
+    <p>Nothing inside the old commit is edited. Git just creates a <em>new</em> commit object and then moves the current branch reference to point at it. That is why history is tracked as an object graph rather than as mutable folders: each commit is a frozen snapshot, and “the latest version” is simply whichever commit your branch name points to now.</p>
+    <p>This also explains reuse. If <code>README.md</code> did not change, its blob hash is the same, so the next tree can point at the exact same blob object as the previous commit. If an entire directory is unchanged, Git can reuse that subtree too. Only the changed paths need new objects.</p>
 
     <div class="demo">
       <div class="demo-lbl">Object graph for three snapshots</div>
@@ -234,6 +246,7 @@ footer a:hover{color:var(--steel)}
       <div class="viz-grid">
         <div class="stage">
           <svg id="git-objects-svg" viewBox="0 0 620 310" style="width:100%;height:auto;display:block"></svg>
+          <div class="mini-note" id="git-objects-caption" style="margin-top:.8rem"></div>
           <div class="legend">
             <span><i class="swatch" style="background:var(--steel)"></i> commit</span>
             <span><i class="swatch" style="background:var(--green)"></i> tree</span>
@@ -242,7 +255,8 @@ footer a:hover{color:var(--steel)}
           </div>
         </div>
         <div class="side">
-          <h3>Selected objects</h3>
+          <h3>What This Commit Does</h3>
+          <div class="object-summary" id="git-objects-summary"></div>
           <div class="object-list" id="git-objects-list"></div>
         </div>
       </div>
@@ -533,6 +547,7 @@ function runCode(cid, oid){
 const GIT_STATES = {
   c1: {
     commit: { id: 'c1ab12ef', msg: 'initial', parents: [] },
+    caption: 'First snapshot: everything is new because Git has no earlier objects to reuse yet.',
     objects: [
       { id: 'c1ab12ef', type: 'commit', label: 'commit initial', x: 70, y: 60, reused: false },
       { id: 't901e0aa', type: 'tree', label: 'root tree', x: 260, y: 60, reused: false },
@@ -549,6 +564,7 @@ const GIT_STATES = {
   },
   c2: {
     commit: { id: 'c2ff31aa', msg: 'update app', parents: ['c1ab12ef'] },
+    caption: 'Second snapshot: Git reuses the unchanged README blob, but writes a new app blob, a new src tree, a new root tree, and a new commit object.',
     objects: [
       { id: 'c2ff31aa', type: 'commit', label: 'commit update app', x: 70, y: 60, reused: false },
       { id: 'c1ab12ef', type: 'commit', label: 'parent c1', x: 70, y: 150, reused: true },
@@ -567,6 +583,7 @@ const GIT_STATES = {
   },
   c3: {
     commit: { id: 'c3dd10aa', msg: 'add notes', parents: ['c2ff31aa'] },
+    caption: 'Third snapshot: Git reuses the entire src subtree and the README blob, then adds one new notes blob, one new root tree, and one new commit object.',
     objects: [
       { id: 'c3dd10aa', type: 'commit', label: 'commit add notes', x: 70, y: 60, reused: false },
       { id: 'c2ff31aa', type: 'commit', label: 'parent c2', x: 70, y: 150, reused: true },
@@ -593,26 +610,65 @@ function showGitState(name, btn){
   const state = GIT_STATES[name];
   const svg = document.getElementById('git-objects-svg');
   const byId = Object.fromEntries(state.objects.map(o => [o.id, o]));
+  const boxW = 116;
+  const boxH = 36;
+  function edgePoints(a, b){
+    const acx = a.x + boxW / 2;
+    const acy = a.y + boxH / 2;
+    const bcx = b.x + boxW / 2;
+    const bcy = b.y + boxH / 2;
+    if (b.x > a.x + 20) {
+      return { x1: a.x + boxW, y1: acy, x2: b.x, y2: bcy };
+    }
+    if (b.x < a.x - 20) {
+      return { x1: a.x, y1: acy, x2: b.x + boxW, y2: bcy };
+    }
+    if (b.y > a.y) {
+      return { x1: acx, y1: a.y + boxH, x2: bcx, y2: b.y };
+    }
+    return { x1: acx, y1: a.y, x2: bcx, y2: b.y + boxH };
+  }
   let out = '';
   for(const [from, to] of state.edges){
     const a = byId[from], b = byId[to];
-    out += `<line x1="${a.x+58}" y1="${a.y+18}" x2="${b.x-18}" y2="${b.y+18}" stroke="var(--ink3)" stroke-width="2" />`;
+    const p = edgePoints(a, b);
+    const edgeStroke = b.reused ? 'var(--ink3)' : 'var(--green)';
+    const edgeOpacity = b.reused ? '.55' : '.9';
+    out += `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" stroke="${edgeStroke}" stroke-opacity="${edgeOpacity}" stroke-width="${b.reused ? 2 : 2.6}" />`;
   }
   for(const obj of state.objects){
     const color = obj.type === 'commit' ? 'var(--steel)' : obj.type === 'tree' ? 'var(--green)' : 'var(--rust)';
     const fill = obj.reused ? 'var(--purple-bg)' : 'var(--surface)';
     const stroke = obj.reused ? 'var(--purple)' : color;
-    out += `<rect x="${obj.x}" y="${obj.y}" width="116" height="36" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+    out += `<rect x="${obj.x}" y="${obj.y}" width="116" height="36" rx="8" fill="${fill}" fill-opacity="${obj.reused ? .78 : 1}" stroke="${stroke}" stroke-width="${obj.reused ? 2 : 2.6}" />`;
     out += `<text x="${obj.x+8}" y="${obj.y+14}" font-family="var(--mono)" font-size="10" fill="${stroke}">${obj.type}</text>`;
     out += `<text x="${obj.x+8}" y="${obj.y+27}" font-family="var(--mono)" font-size="11" fill="var(--ink)">${obj.id.slice(0,7)}</text>`;
+    if(!obj.reused){
+      out += `<text x="${obj.x+80}" y="${obj.y+14}" font-family="var(--mono)" font-size="9" fill="var(--green)">new</text>`;
+    }
   }
   svg.innerHTML = out;
-  document.getElementById('git-objects-list').innerHTML = state.objects.map(obj => `
-    <div class="obj">
+  const created = state.objects.filter(obj => !obj.reused);
+  const reused = state.objects.filter(obj => obj.reused);
+  document.getElementById('git-objects-caption').textContent = state.caption;
+  document.getElementById('git-objects-summary').innerHTML =
+    `Selected commit <strong style="color:var(--ink)">${state.commit.id.slice(0,7)}</strong> writes <strong style="color:var(--green)">${created.length}</strong> new object(s) and reuses <strong style="color:var(--purple)">${reused.length}</strong> older object(s).` +
+    `<br>Git stores a new object only where content changed; unchanged content is reached again by pointer.`;
+  document.getElementById('git-objects-list').innerHTML =
+    `<div class="object-group-title">New in this snapshot</div>` +
+    created.map(obj => `
+    <div class="obj new">
       <strong>${obj.type}</strong> ${obj.id.slice(0,7)}<br>
-      ${obj.label}${obj.reused ? '<br><span style="color:var(--purple)">reused from an earlier commit</span>' : ''}
+      ${obj.label}
     </div>
-  `).join('');
+  `).join('') +
+  `<div class="object-group-title">Reused from earlier snapshots</div>` +
+  (reused.length ? reused.map(obj => `
+    <div class="obj reused">
+      <strong>${obj.type}</strong> ${obj.id.slice(0,7)}<br>
+      ${obj.label}<br><span style="color:var(--purple)">reused from an earlier commit</span>
+    </div>
+  `).join('') : `<div class="obj reused">No earlier objects exist yet, so nothing can be reused.</div>`);
 }
 
 const BRANCH_STEPS = [

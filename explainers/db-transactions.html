@@ -520,6 +520,8 @@ occ2.<span class="fn">commit</span>(tb); <span class="cmt">// tb: ta wrote 'stoc
 <section class="section" id="s4">
   <div class="sec-head"><span class="sec-n">§04</span><h2>Multi-Version Concurrency Control (MVCC)</h2></div>
   <p>MVCC is the approach used by PostgreSQL, MySQL InnoDB, Oracle, and most modern databases. Instead of locking rows during reads, each transaction gets a <strong>consistent snapshot</strong> of the database as it existed at the transaction's start time. Writes create new versions; readers see the version that was current when their transaction began, plus their <em>own</em> writes.</p>
+  <p>The easiest way to picture this is as a <strong>version chain per row</strong>. A row is not overwritten in place. When a transaction updates <code>price</code>, the database keeps the old version and appends a new one. A reader walks backward through that chain and asks: “Which version was alive at the moment my snapshot was taken?” The first visible one is the value that transaction reads.</p>
+  <p>That is what the metadata means in the figure below. <code>xmin</code> is the transaction ID that <em>created</em> this version. <code>xmax</code> is the transaction ID that later <em>replaced or deleted</em> it. So a version is visible to a snapshot if it was born early enough (<code>xmin</code> is old enough) and not yet dead at that snapshot point (<code>xmax</code> is still in the future, or <code>∞</code> if it is the current version).</p>
   <p>The result: <strong>readers never block writers, and writers never block readers</strong>. A long-running read-only query never holds up a write transaction. The cost is version storage — old versions must eventually be garbage-collected (PostgreSQL calls this <code>VACUUM</code>). Snapshot-based MVCC is great for read concurrency, but it is <strong>not automatically serializable</strong>; write skew is the classic counterexample.</p>
   <div class="callout green">Snapshot isolation prevents many familiar anomalies, but two transactions can still each read an old consistent snapshot, make different writes, and jointly violate a business rule. That is why systems like PostgreSQL still distinguish <code>REPEATABLE READ</code> from true <code>SERIALIZABLE</code>.</div>
 
@@ -1148,16 +1150,21 @@ resetOCC();
     txns.forEach((t,i)=>{
       html+=`<button class="btn${i===selTx?' act':''}" style="margin:2px" onclick="mvccSelect(${i})">${t.id}</button>`;
     });
+    html+=`</div><div style="font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--ink2);margin-bottom:.6rem;padding:.55rem .7rem;background:var(--bg3);border-radius:4px">`;
+    html+=`<strong style="color:var(--ink)">How to read the version metadata:</strong> `;
+    html+=`<code>xmin</code> = the transaction that created this version. `;
+    html+=`<code>xmax</code> = the transaction that later replaced or deleted it. `;
+    html+=`If <code>xmax = ∞</code>, that version is still current.`;
     html+=`</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">Version chain for "price"</div>`;
     html+=`<div class="ver-chain">`;
     versions.forEach((v,i)=>{
       const isVis=v===vis;
-      html+=`<div class="ver-node ${isVis?'current':v.xmax<tx.start?'old':''}">${v.label}<div style="font-size:10px;opacity:.7">xmin=${v.xmin} xmax=${v.xmax===Infinity?'∞':v.xmax}</div></div>`;
+      html+=`<div class="ver-node ${isVis?'current':v.xmax<tx.start?'old':''}">${v.label}<div style="font-size:10px;opacity:.78">created by xmin=${v.xmin} · dead at xmax=${v.xmax===Infinity?'∞':v.xmax}</div></div>`;
       if(i<versions.length-1)html+=`<span class="ver-arrow">→</span>`;
     });
     html+=`</div>`;
     html+=`<div style="font-family:var(--mono);font-size:12px;padding:.5rem .8rem;margin-top:.5rem;border-radius:4px;background:${txColors[selTx]}22;border-left:3px solid ${txColors[selTx]}">`;
-    html+=`${tx.id} (snapshot at xid=${tx.start}) sees: <strong style="color:${txColors[selTx]}">${vis?vis.label:'nothing'}</strong><br><span style="color:var(--ink3);font-size:11px">${tx.label}</span></div>`;
+    html+=`${tx.id} (snapshot at xid=${tx.start}) sees: <strong style="color:${txColors[selTx]}">${vis?vis.label:'nothing'}</strong><br><span style="color:var(--ink3);font-size:11px">${vis?`Because ${vis.label} was already created by xid ${vis.xmin} and not yet invalidated at xid ${tx.start}.`:tx.label}</span></div>`;
     document.getElementById('mvcc-viz').innerHTML=html;
   }
   window.mvccSelect=i=>{selTx=i;render();};
