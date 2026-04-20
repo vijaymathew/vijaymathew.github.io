@@ -819,11 +819,11 @@ true
 nex&gt; let initial: Char := #65
 #A
 
-nex&gt; #10024
+nex&gt; let sparkles: Char := #10024
 -- will print sparkles if your console supports unicode</code></pre>
 <p>In the REPL, type annotations are optional by default — Nex infers the type from the value on the right-hand side. But writing them out is a good habit. It makes your intentions explicit, catches mistakes early, and will become essential when we start writing functions and classes.</p>
 <p>If you enable strict checking with <code>:typecheck on</code>, type annotations on REPL <code>let</code> bindings should be treated as mandatory. In that mode, being explicit about the intended type keeps later checks predictable and avoids ambiguous interactive state.</p>
-<p>You cannot mix types arbitrarily. Arithmetic operators still require numeric operands, for example. But string concatenation is special: if either side of <code>+</code> is a string, Nex concatenates the values and converts the non-string side by calling its <code>to_string</code> method internally.</p>
+<p>You cannot mix types arbitrarily. Arithmetic operators still require numeric operands, for example. But string concatenation is special: if either side of <code>+</code> is a string, Nex concatenates the values and converts the non-string side by calling its <code>to_string</code> feature internally.</p>
 </section>
 <section id="string-operations" class="level2" data-number="2.7">
 <h2 data-number="2.7" class="anchored" data-anchor-id="string-operations"><span class="header-section-number">2.7</span> String Operations</h2>
@@ -837,6 +837,8 @@ nex&gt; greeting
 <pre><code>nex&gt; "Age: " + age
 "Age: 12"</code></pre>
 <p>This is one of the most common operations in any program: constructing a message from a mix of fixed text and variable values. You can still write <code>.to_string</code> explicitly when you want to make that conversion visible in the code.</p>
+<pre><code>nex&gt; "Age: " + age.to_string
+"Age: 12"</code></pre>
 </section>
 <section id="repl-commands" class="level2" data-number="2.8">
 <h2 data-number="2.8" class="anchored" data-anchor-id="repl-commands"><span class="header-section-number">2.8</span> REPL Commands</h2>
@@ -886,6 +888,28 @@ nex&gt; celsius + " degrees Celsius is " + fahrenheit + " degrees Fahrenheit"
 "100.0 degrees Celsius is 212.0 degrees Fahrenheit"</code></pre>
 <p>Try it with a different starting value. Change <code>100.0</code> to <code>0.0</code> and recompute <code>fahrenheit</code>. Change it to <code>37.0</code> — normal body temperature in Celsius — and see what Fahrenheit temperature you get.</p>
 <p>This is the edit-run cycle: write something, observe the result, adjust, repeat. At the REPL, each step takes seconds. The faster this cycle runs, the faster you learn.</p>
+<p>The same program can also be written as a script in a <code>.nex</code> file:</p>
+<pre class="nex"><code>let celsius: Real := 100.0
+let fahrenheit: Real := celsius * 9.0 / 5.0 + 32.0
+
+print(celsius + " degrees Celsius is " + fahrenheit + " degrees Fahrenheit")</code></pre>
+<p>Suppose you save this as <code>temperature.nex</code>. You can run it directly from the command line:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nex</span> temperature.nex</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This file form is the bridge from interactive experimentation to ordinary programs. The REPL is ideal for discovering what you want to write. A script is how you save that work and run it again.</p>
+<p>Notice that the script uses explicit type annotations on the top-level bindings:</p>
+<ul>
+<li><code>celsius: Real</code></li>
+<li><code>fahrenheit: Real</code></li>
+</ul>
+<p>For scripts, these annotations should be treated as mandatory when you want to compile the program. File-based execution enables the typechecker by default, and the compiler relies on that checked form. In the REPL you can often omit annotations while learning; in scripts intended for compilation, write them explicitly.</p>
+<p>Once the script is in a file, the same source can be compiled to either current Nex target.</p>
+<p>Compile to the JVM:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nex</span> compile jvm temperature.nex build/jvm/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This writes a standalone jar and generated class files under <code>build/jvm/</code>.</p>
+<p>Generate JavaScript:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nex</span> compile js temperature.nex build/js/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This writes the generated JavaScript files under <code>build/js/</code>.</p>
+<p>The important idea is that you are not writing one version for the REPL, another for JVM use, and another for JavaScript use. You write one Nex program, save it as a script, and then run or compile that same source as needed.</p>
 </section>
 <section id="summary" class="level2" data-number="2.11">
 <h2 data-number="2.11" class="anchored" data-anchor-id="summary"><span class="header-section-number">2.11</span> Summary</h2>
@@ -897,6 +921,9 @@ nex&gt; celsius + " degrees Celsius is " + fahrenheit + " degrees Fahrenheit"
 <li><code>let name := value</code> introduces a variable; <code>name := value</code> updates one</li>
 <li>The basic scalar types are <code>Integer</code>, <code>Integer64</code>, <code>Real</code>, <code>Decimal</code>, <code>Char</code>, <code>Boolean</code>, and <code>String</code></li>
 <li>In the REPL, type annotations are optional by default, but with <code>:typecheck on</code> you should write them explicitly on <code>let</code> bindings</li>
+<li>Scripts can be run with <code>nex my_program.nex</code></li>
+<li>Scripts intended for compilation should use explicit type annotations on top-level bindings, because file checking is enabled by default</li>
+<li>The same script can be compiled with <code>nex compile jvm ...</code> or <code>nex compile js ...</code></li>
 <li>Strings are joined with <code>+</code></li>
 <li>REPL commands — <code>:vars</code>, <code>:clear</code>, <code>:quit</code> — manage the session</li>
 <li>Error messages are information; read them before changing anything</li>
