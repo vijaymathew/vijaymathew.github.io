@@ -4,19 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Reliable Network - How TCP/IP Works</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared.css">
 <style>
 :root{
   --bg:#f2f7fb;
-  --bg2:#e6eef5;
-  --bg3:#d5e3ef;
   --surface:#ffffff;
+  --surface-muted:#e6eef5;
+  --surface-strong:#d5e3ef;
   --ink:#14202a;
-  --ink2:#51606b;
-  --ink3:#7e8b95;
+  --ink-2:#51606b;
+  --ink-3:#7e8b95;
   --rule:rgba(20,32,42,.10);
-  --rule2:rgba(20,32,42,.18);
+  --rule-strong:rgba(20,32,42,.18);
+  --accent:#28506b;
+  --accent-soft:#e3eef5;
+  --accent-rule:rgba(40,80,107,.24);
+  --good:#1f7266;
+  --good-soft:#e3f4ef;
+  --good-rule:rgba(31,114,102,.24);
+  --warn:#9b6524;
+  --warn-soft:#f8ecdf;
+  --warn-rule:rgba(155,101,36,.24);
+  --danger:#a44848;
+  --danger-soft:#f8e8e8;
+  --danger-rule:rgba(164,72,72,.24);
   --navy:#28506b;
   --navy-bg:#e3eef5;
   --teal:#1f7266;
@@ -25,111 +36,31 @@
   --amber-bg:#f8ecdf;
   --red:#a44848;
   --red-bg:#f8e8e8;
-  --mono:"IBM Plex Mono", monospace;
-  --sans:"Public Sans", sans-serif;
-  --serif:"Source Serif 4", serif;
-  --r:10px;
-  --r-lg:16px;
-  --shadow:0 18px 42px rgba(17,27,33,.08);
+  --bg2:var(--surface-muted);
+  --bg3:var(--surface-strong);
+  --ink2:var(--ink-2);
+  --ink3:var(--ink-3);
+  --rule2:var(--rule-strong);
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#0f151a;
-    --bg2:#171f26;
-    --bg3:#22303c;
-    --surface:#171f26;
-    --ink:#e8edf0;
-    --ink2:#a7b1b8;
-    --ink3:#6e7a83;
-    --rule:rgba(255,255,255,.08);
-    --rule2:rgba(255,255,255,.16);
-    --navy:#8bbdd8;
-    --navy-bg:#10202b;
-    --teal:#88d3c5;
-    --teal-bg:#102520;
-    --amber:#dfb57a;
-    --amber-bg:#2b1d10;
-    --red:#e08c8c;
-    --red-bg:#2a1414;
-    --shadow:none;
-  }
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-  background:
-    radial-gradient(circle at top right, rgba(40,80,107,.12), transparent 24rem),
-    linear-gradient(180deg, rgba(31,114,102,.08), transparent 18rem),
-    var(--bg);
-  color:var(--ink);
-  font-family:var(--sans);
-  line-height:1;
-}
-.page{max-width:900px;margin:0 auto;padding:0 1.8rem 6rem}
-.topbar{
-  display:flex;justify-content:space-between;align-items:center;gap:1rem;
-  padding:1.2rem 0;border-bottom:1px solid var(--rule);
-  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);
-}
-.topbar a{color:var(--ink2);text-decoration:none}
-.topbar a:hover{color:var(--navy)}
-.hero{padding:4.2rem 0 3rem;border-bottom:1px solid var(--rule)}
-.hero-kicker{
-  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:1.2rem;
-}
-.hero h1{
-  font-family:var(--serif);font-size:clamp(2.8rem,6vw,4.4rem);font-weight:400;line-height:1.03;
-  letter-spacing:-.01em;max-width:11ch;margin-bottom:1.1rem;
-}
+.hero-kicker{color:var(--teal)}
 .hero h1 em{font-style:italic;color:var(--navy)}
-.hero p{
-  max-width:47rem;color:var(--ink2);font-size:17px;line-height:1.75;margin-bottom:1.35rem;
-}
+.hero p{max-width:47rem;margin-bottom:1.35rem}
 .pill-row{display:flex;flex-wrap:wrap;gap:8px}
 .pill{
-  display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
-  border:1px solid var(--rule2);background:var(--bg2);color:var(--ink2);font-family:var(--mono);font-size:11px;
+  background:var(--bg2);color:var(--ink2);border-color:var(--rule2);
 }
 .pill b{font-weight:500;color:var(--navy)}
-.toc{
-  display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:2.6rem 0 3.4rem;
-  background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-lg);overflow:hidden;
-}
-.toc a{
-  display:flex;gap:10px;padding:11px 14px;background:var(--surface);color:var(--ink2);text-decoration:none;font-size:14px;
-}
-.toc a:hover{background:var(--bg2);color:var(--ink)}
-.toc-n{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:16px;padding-top:1px}
-.section{margin-bottom:5rem;scroll-margin-top:2rem}
-.sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:.9rem;margin-bottom:1.35rem}
-.sec-n{font-family:var(--mono);font-size:11px;color:var(--ink3)}
-h2{font-family:var(--serif);font-size:1.95rem;font-weight:400;line-height:1.14}
 h3{font-size:15px;font-weight:600;color:var(--ink);margin:1.35rem 0 .45rem}
-p{font-size:15.5px;line-height:1.8;color:var(--ink2);margin-bottom:.95rem}
-p strong{color:var(--ink);font-weight:600}
 a{color:var(--navy)}
-code{
-  font-family:var(--mono);font-size:12.5px;border-radius:4px;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink);padding:1px 5px;
-}
-.callout{
-  border-left:3px solid var(--navy);background:var(--navy-bg);color:var(--navy);
-  border-radius:0 var(--r) var(--r) 0;padding:.86rem 1.05rem;margin:1.15rem 0;font-size:14px;line-height:1.7;
-}
-.callout.good{border-color:var(--teal);background:var(--teal-bg);color:var(--teal)}
-.callout.warn{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
-.demo,.cb{
-  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);box-shadow:var(--shadow);margin:1.25rem 0 1.8rem;
-}
-.demo{padding:1.25rem}
-.demo-lbl{
-  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:.95rem;
-}
+.callout{border-left-color:var(--navy);background:var(--navy-bg);color:var(--navy)}
+.callout.good{border-left-color:var(--teal);background:var(--teal-bg);color:var(--teal)}
+.callout.warn{border-left-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
 .btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
 .btn,.run-btn{
-  appearance:none;border:1px solid var(--rule2);background:var(--bg2);color:var(--ink);
-  font-family:var(--mono);font-size:12px;border-radius:999px;padding:7px 11px;cursor:pointer;
+  background:var(--bg2);color:var(--ink);border-radius:999px;
 }
 .btn:hover,.run-btn:hover{border-color:var(--navy);color:var(--navy)}
+.run-btn{background:var(--bg2);color:var(--ink)}
 .btn.act{background:var(--navy);border-color:var(--navy);color:#fff}
 .demo-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
 .network-stage{
@@ -192,34 +123,19 @@ input[type="range"]{width:100%}
   border:1px solid var(--rule);border-radius:12px;background:var(--surface);padding:12px;
 }
 .card-mini h3{font-size:14px}
-.cb-head{
-  display:flex;justify-content:space-between;align-items:center;gap:1rem;
-  padding:12px 14px;border-bottom:1px solid var(--rule);
-  font-family:var(--mono);font-size:12px;color:var(--ink2);
-}
-pre.code{
-  margin:0;padding:14px 16px;overflow:auto;background:var(--bg);
-  color:var(--ink);font:13px/1.65 var(--mono);white-space:pre;
-}
-.out{
-  display:none;padding:14px 16px;border-top:1px solid var(--rule);background:var(--surface);
-  font:12.5px/1.7 var(--mono);color:var(--ink2);white-space:pre-wrap;
-}
-.out.on{display:block}
 .out.err{color:var(--red);background:var(--red-bg)}
-footer{
-  margin-top:3rem;border-top:1px solid var(--rule);padding-top:1.6rem
-}
 footer .label{
   font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem
 }
 footer .links{display:flex;flex-direction:column;gap:4px}
-footer a{font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none}
-footer a:hover{color:var(--navy)}
+.viz-svg{width:100%;height:auto;display:block}
+.swatch.path{background:var(--navy)}
+.swatch.failed{background:var(--red)}
+.swatch.available{background:var(--ink3)}
+.callout.tight{margin-bottom:0}
+.footer-note{color:var(--ink3)}
 @media (max-width:780px){
-  .toc,.demo-grid,.window-box,.explain-grid{grid-template-columns:1fr}
-  .page{padding:0 1rem 4rem}
-  .hero{padding:3.3rem 0 2.5rem}
+  .demo-grid,.window-box,.explain-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -271,17 +187,17 @@ footer a:hover{color:var(--navy)}
       </div>
       <div class="demo-grid">
         <div class="network-stage">
-          <svg id="route-svg" viewBox="0 0 560 280" style="width:100%;height:auto;display:block"></svg>
+          <svg id="route-svg" class="viz-svg" viewBox="0 0 560 280"></svg>
           <div class="legend">
-            <span><i class="swatch" style="background:var(--navy)"></i> chosen path</span>
-            <span><i class="swatch" style="background:var(--red)"></i> failed link</span>
-            <span><i class="swatch" style="background:var(--ink3)"></i> available link</span>
+            <span><i class="swatch path"></i> chosen path</span>
+            <span><i class="swatch failed"></i> failed link</span>
+            <span><i class="swatch available"></i> available link</span>
           </div>
         </div>
         <div class="network-side">
           <h3>Current route</h3>
           <div class="stat-list" id="route-stats"></div>
-          <div class="callout" style="margin-bottom:0">TTL exists so packets do not loop forever if routing temporarily disagrees. Each hop burns one count.</div>
+          <div class="callout tight">TTL exists so packets do not loop forever if routing temporarily disagrees. Each hop burns one count.</div>
         </div>
       </div>
     </div>
@@ -482,7 +398,7 @@ console.log("delivered:", receiver.delivered.join("")); </pre>
             <input type="range" min="0" max="12" value="3" id="flight-sl" oninput="updateWindowDemo()">
             <span class="slider-val" id="flight-val">3</span>
           </div>
-          <div class="callout good" style="margin-bottom:0">If loss appears, TCP reduces <code>cwnd</code>. If the receiver is slow, <code>rwnd</code> shrinks. Either way, the sender backs off.</div>
+          <div class="callout good tight">If loss appears, TCP reduces <code>cwnd</code>. If the receiver is slow, <code>rwnd</code> shrinks. Either way, the sender backs off.</div>
         </div>
         <div class="stat-box">
           <h3>Available send budget</h3>
@@ -651,7 +567,7 @@ for (const line of transfer("PACKETS MAKE ORDER FROM CHAOS")) {
         <a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122 — Host Requirements</a>
         <a href="https://www.rfc-editor.org/rfc/rfc5681">RFC 5681 — TCP Congestion Control</a>
       </div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem">The demos intentionally simplify routing and TCP state, but the core split is faithful: best-effort packet forwarding in the middle, reliability and pacing at the ends.</div>
+      <div class="footer-note">The demos intentionally simplify routing and TCP state, but the core split is faithful: best-effort packet forwarding in the middle, reliability and pacing at the ends.</div>
     </footer>
   </section>
 </div>
