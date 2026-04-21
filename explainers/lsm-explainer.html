@@ -4,19 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Write-Heavy Problem - LSM Trees</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared.css">
 <style>
 :root{
   --bg:#f2f5f7;
-  --bg2:#e7edf0;
-  --bg3:#dce5ea;
   --surface:#ffffff;
+  --surface-muted:#e7edf0;
+  --surface-strong:#dce5ea;
   --ink:#152029;
-  --ink2:#55626b;
-  --ink3:#89939a;
+  --ink-2:#55626b;
+  --ink-3:#89939a;
   --rule:rgba(21,32,41,.10);
-  --rule2:rgba(21,32,41,.18);
+  --rule-strong:rgba(21,32,41,.18);
+  --accent:#315d77;
+  --accent-soft:#e3eef5;
+  --accent-rule:rgba(49,93,119,.24);
+  --good:#19725b;
+  --good-soft:#e2f3ec;
+  --good-rule:rgba(25,114,91,.24);
+  --warn:#aa642d;
+  --warn-soft:#f7eadf;
+  --warn-rule:rgba(170,100,45,.24);
+  --danger:#a43d3d;
+  --danger-soft:#f8e6e6;
+  --danger-rule:rgba(164,61,61,.24);
   --steel:#315d77;
   --steel-bg:#e3eef5;
   --rust:#aa642d;
@@ -25,199 +36,37 @@
   --green-bg:#e2f3ec;
   --red:#a43d3d;
   --red-bg:#f8e6e6;
-  --mono:"IBM Plex Mono", monospace;
-  --sans:"Public Sans", sans-serif;
-  --serif:"Source Serif 4", serif;
-  --r:9px;
-  --r-lg:14px;
-  --shadow:0 18px 42px rgba(17,27,33,.07);
+  --bg2:var(--surface-muted);
+  --bg3:var(--surface-strong);
+  --ink2:var(--ink-2);
+  --ink3:var(--ink-3);
+  --rule2:var(--rule-strong);
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#10161a;
-    --bg2:#171f24;
-    --bg3:#202a31;
-    --surface:#171f24;
-    --ink:#e9eef1;
-    --ink2:#aab4bb;
-    --ink3:#6c7880;
-    --rule:rgba(255,255,255,.08);
-    --rule2:rgba(255,255,255,.15);
-    --steel:#8fc3e0;
-    --steel-bg:#132431;
-    --rust:#e0aa73;
-    --rust-bg:#2a1d12;
-    --green:#85d2b8;
-    --green-bg:#10251f;
-    --red:#e18888;
-    --red-bg:#2a1313;
-    --shadow:none;
-  }
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-  background:
-    linear-gradient(180deg, rgba(49,93,119,.05), transparent 16rem),
-    radial-gradient(circle at top right, rgba(170,100,45,.10), transparent 22rem),
-    var(--bg);
-  color:var(--ink);
-  font-family:var(--sans);
-  font-size:16px;
-  line-height:1;
-}
-.page{max-width:880px;margin:0 auto;padding:0 1.8rem 6rem}
-.topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:1rem;
-  padding:1.2rem 0;
-  border-bottom:1px solid var(--rule);
-  font-family:var(--mono);
-  font-size:11px;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  color:var(--ink3);
-}
-.topbar a{color:var(--ink2);text-decoration:none}
-.topbar a:hover{color:var(--steel)}
-.hero{
-  padding:4.2rem 0 3.2rem;
-  border-bottom:1px solid var(--rule);
-}
-.hero-kicker{
-  font-family:var(--mono);
-  font-size:11px;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-  color:var(--steel);
-  margin-bottom:1.2rem;
-}
-.hero h1{
-  font-family:var(--serif);
-  font-size:clamp(2.7rem, 6vw, 4.2rem);
-  font-weight:400;
-  line-height:1.04;
-  letter-spacing:-.01em;
-  max-width:12ch;
-  margin-bottom:1.15rem;
-}
+.hero-kicker{color:var(--steel)}
 .hero h1 em{font-style:italic;color:var(--rust)}
-.hero p{
-  max-width:45rem;
-  color:var(--ink2);
-  font-size:17px;
-  line-height:1.75;
-  margin-bottom:1.45rem;
-}
+.hero p{max-width:45rem;margin-bottom:1.45rem}
 .pill-row{display:flex;flex-wrap:wrap;gap:8px}
 .pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 11px;
-  border-radius:999px;
   border:1px solid var(--rule2);
   background:var(--bg2);
   color:var(--ink2);
-  font-family:var(--mono);
-  font-size:11px;
 }
 .pill b{color:var(--steel);font-weight:500}
-.toc{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:1px;
-  margin:2.6rem 0 3.4rem;
-  background:var(--rule);
-  border:1px solid var(--rule);
-  border-radius:var(--r-lg);
-  overflow:hidden;
-}
-.toc a{
-  display:flex;
-  gap:10px;
-  padding:11px 14px;
-  background:var(--surface);
-  color:var(--ink2);
-  text-decoration:none;
-  font-size:14px;
-  transition:background .12s,color .12s;
-}
-.toc a:hover{background:var(--bg2);color:var(--ink)}
-.toc-n{
-  font-family:var(--mono);
-  font-size:11px;
-  color:var(--ink3);
-  min-width:16px;
-  padding-top:1px;
-}
-.section{margin-bottom:5rem;scroll-margin-top:2rem}
-.sec-head{
-  display:flex;
-  align-items:baseline;
-  gap:12px;
-  border-bottom:1px solid var(--rule);
-  padding-bottom:.9rem;
-  margin-bottom:1.35rem;
-}
-.sec-n{
-  font-family:var(--mono);
-  font-size:11px;
-  color:var(--ink3);
-}
-h2{
-  font-family:var(--serif);
-  font-size:1.95rem;
-  font-weight:400;
-  line-height:1.14;
-}
 h3{
   font-size:15px;
   font-weight:600;
   color:var(--ink);
   margin:1.35rem 0 .48rem;
 }
-p{
-  font-size:15.5px;
-  line-height:1.8;
-  color:var(--ink2);
-  margin-bottom:.95rem;
-}
-p strong{color:var(--ink);font-weight:600}
 a{color:var(--steel)}
-code{
-  font-family:var(--mono);
-  font-size:12.5px;
-  border-radius:4px;
-  border:1px solid var(--rule2);
-  background:var(--bg2);
-  color:var(--ink);
-  padding:1px 5px;
-}
 .callout{
-  border-left:3px solid var(--steel);
+  border-left-color:var(--steel);
   background:var(--steel-bg);
   color:var(--steel);
-  border-radius:0 var(--r) var(--r) 0;
-  padding:.82rem 1.05rem;
-  margin:1.15rem 0;
-  font-size:14px;
-  line-height:1.7;
 }
-.callout.warn{border-color:var(--rust);background:var(--rust-bg);color:var(--rust)}
-.callout.good{border-color:var(--green);background:var(--green-bg);color:var(--green)}
-.demo,.cb{
-  background:var(--surface);
-  border:1px solid var(--rule);
-  border-radius:var(--r-lg);
-  box-shadow:var(--shadow);
-  margin:1.25rem 0 1.8rem;
-}
-.demo{padding:1.25rem}
+.callout.warn{border-left-color:var(--rust);background:var(--rust-bg);color:var(--rust)}
+.callout.good{border-left-color:var(--green);background:var(--green-bg);color:var(--green)}
 .demo-lbl{
-  font-family:var(--mono);
   font-size:11px;
   letter-spacing:.09em;
   text-transform:uppercase;
@@ -226,14 +75,8 @@ code{
 }
 .btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.95rem}
 .btn{
-  border:1px solid var(--rule2);
-  border-radius:var(--r);
   background:transparent;
   color:var(--ink2);
-  padding:5px 11px;
-  font-family:var(--mono);
-  font-size:12px;
-  cursor:pointer;
   transition:background .12s,color .12s,border-color .12s;
 }
 .btn:hover{background:var(--bg2);color:var(--ink)}
@@ -515,6 +358,12 @@ code{
   text-decoration:none;
 }
 .footer-links a:hover{color:var(--steel)}
+.explain-note{
+  font-size:14px;
+  line-height:1.75;
+  color:var(--ink2);
+  margin:.1rem 0 .75rem;
+}
 @media (max-width:760px){
   .toc,.compare-grid,.log-grid,.stat-grid{grid-template-columns:1fr}
   .hero h1{max-width:none}
@@ -654,7 +503,7 @@ code{
         <button class="btn" data-cascade-key="mango" onclick="setCascadeKey('mango')">mango</button>
         <button class="btn" data-cascade-key="pear" onclick="setCascadeKey('pear')">pear</button>
       </div>
-      <p style="font-size:14px;line-height:1.75;color:var(--ink2);margin:.1rem 0 .75rem">How to read this: <strong>Write batch</strong> adds one new immutable SSTable to <code>L0</code>. Those files can overlap in key range, so point reads may have to check several of them. <strong>Compact</strong> merges the files in the first crowded level into one larger file in the next level down, keeping only the newest value per key. Files highlighted below are the ones whose key range still covers the selected lookup key.</p>
+      <p class="explain-note">How to read this: <strong>Write batch</strong> adds one new immutable SSTable to <code>L0</code>. Those files can overlap in key range, so point reads may have to check several of them. <strong>Compact</strong> merges the files in the first crowded level into one larger file in the next level down, keeping only the newest value per key. Files highlighted below are the ones whose key range still covers the selected lookup key.</p>
       <div class="preview" id="cascade-preview"></div>
       <div class="level-stack" id="cascade-levels"></div>
       <div class="stat-grid">

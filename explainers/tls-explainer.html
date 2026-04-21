@@ -4,126 +4,154 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How TLS Works — Interactive Explainer</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared.css">
 <style>
 :root {
-  --bg:      #f5f2ea;
-  --bg2:     #ece7dc;
-  --bg3:     #e1d9ca;
-  --bg4:     #d5cab5;
-  --ink:     #1c211f;
-  --ink2:    #55615d;
-  --ink3:    #8b948f;
-  --rule:    rgba(28,33,31,0.10);
-  --rule2:   rgba(28,33,31,0.18);
-  --cyan:    #0d6b78;
-  --cyan-bg: rgba(13,107,120,0.08);
-  --cyan-bdr:rgba(13,107,120,0.28);
-  --red:     #a14b4b;
-  --red-bg:  rgba(161,75,75,0.08);
-  --red-bdr: rgba(161,75,75,0.24);
-  --amber:   #9a6a1d;
-  --amber-bg:rgba(154,106,29,0.09);
-  --amber-bdr:rgba(154,106,29,0.24);
-  --green:   #2b6c4f;
-  --green-bg:rgba(43,108,79,0.08);
-  --green-bdr:rgba(43,108,79,0.24);
-  --purple:  #6d5aa2;
-  --purple-bg:rgba(109,90,162,0.08);
-  --purple-bdr:rgba(109,90,162,0.22);
-  --blue:    #355f92;
-  --blue-bg: rgba(53,95,146,0.08);
-  --blue-bdr:rgba(53,95,146,0.24);
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'Public Sans', system-ui, sans-serif;
-  --display: 'Source Serif 4', serif;
+  --bg: #f5f2ea;
+  --surface: #fffdfa;
+  --surface-muted: #ece7dc;
+  --surface-strong: #e1d9ca;
+  --ink: #1c211f;
+  --ink-2: #55615d;
+  --ink-3: #8b948f;
+  --rule: rgba(28, 33, 31, 0.10);
+  --rule-strong: rgba(28, 33, 31, 0.18);
+
+  --accent: #0d6b78;
+  --accent-soft: rgba(13, 107, 120, 0.08);
+  --accent-rule: rgba(13, 107, 120, 0.28);
+
+  --good: #2b6c4f;
+  --good-soft: rgba(43, 108, 79, 0.08);
+  --good-rule: rgba(43, 108, 79, 0.24);
+
+  --warn: #9a6a1d;
+  --warn-soft: rgba(154, 106, 29, 0.09);
+  --warn-rule: rgba(154, 106, 29, 0.24);
+
+  --danger: #a14b4b;
+  --danger-soft: rgba(161, 75, 75, 0.08);
+  --danger-rule: rgba(161, 75, 75, 0.24);
+
+  --purple: #6d5aa2;
+  --purple-bg: rgba(109, 90, 162, 0.08);
+  --purple-bdr: rgba(109, 90, 162, 0.22);
+  --blue: #355f92;
+  --blue-bg: rgba(53, 95, 146, 0.08);
+  --blue-bdr: rgba(53, 95, 146, 0.24);
+
+  /* Compatibility aliases for existing inline styles and scripts. */
+  --bg2: var(--surface-muted);
+  --bg3: var(--surface-strong);
+  --bg4: #d5cab5;
+  --ink2: var(--ink-2);
+  --ink3: var(--ink-3);
+  --rule2: var(--rule-strong);
+  --cyan: var(--accent);
+  --cyan-bg: var(--accent-soft);
+  --cyan-bdr: var(--accent-rule);
+  --red: var(--danger);
+  --red-bg: var(--danger-soft);
+  --red-bdr: var(--danger-rule);
+  --amber: var(--warn);
+  --amber-bg: var(--warn-soft);
+  --amber-bdr: var(--warn-rule);
+  --green: var(--good);
+  --green-bg: var(--good-soft);
+  --green-bdr: var(--good-rule);
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-  background:
-    radial-gradient(circle at top right, rgba(13,107,120,.08), transparent 22rem),
-    linear-gradient(180deg, rgba(53,95,146,.05), transparent 18rem),
-    var(--bg);
-  color:var(--ink);
-  font-family:var(--sans);
-  font-size:16px;
-  line-height:1;
+
+.tb-brand {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
 }
 
-.page{max-width:880px;margin:0 auto;padding:0 1.75rem 6rem}
+.tb-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--good-rule);
+  border-radius: 999px;
+  background: var(--good-soft);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--good);
+}
 
-/* ── TOP BAR ── */
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--rule2);margin-bottom:0}
-.tb-brand{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--cyan);letter-spacing:.06em}
-.tb-lock{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--green);border:1px solid var(--green-bdr);background:var(--green-bg);border-radius:20px;padding:3px 12px}
-.tb-lock::before{content:'';display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%}
+.tb-lock::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--good);
+}
 
-/* ── HERO ── */
-.hero{padding:4rem 0 3rem;border-bottom:1px solid var(--rule)}
-.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);margin-bottom:1.2rem}
-.hero h1{font-family:var(--display);font-size:clamp(2.5rem,5.5vw,4rem);font-weight:500;line-height:1.06;letter-spacing:-.02em;color:var(--ink);margin-bottom:1.1rem}
-.hero h1 .hl{color:var(--cyan)}
-.hero-sub{font-size:16px;line-height:1.9;color:var(--ink2);max-width:620px;font-weight:400;margin-bottom:2rem}
-.handshake-strip{display:flex;align-items:center;gap:0;border:1px solid var(--rule2);border-radius:8px;overflow:hidden;margin-bottom:1.8rem;font-family:var(--mono);font-size:11px}
-.hs-cell{flex:1;padding:.65rem .8rem;border-right:1px solid var(--rule2);min-width:0}
-.hs-cell:last-child{border-right:none}
-.hs-num{color:var(--ink3);font-size:9px;letter-spacing:.1em;margin-bottom:2px}
-.hs-name{color:var(--cyan);font-weight:600;font-size:11px}
-.hs-desc{color:var(--ink3);font-size:10px;margin-top:1px}
-.hero-pills{display:flex;flex-wrap:wrap;gap:6px}
-.pill{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--rule2);color:var(--ink3)}
+.hero h1 .hl {
+  color: var(--accent);
+}
 
-/* ── TOC ── */
-.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:8px;overflow:hidden;margin:2.2rem 0 3rem;background:var(--bg2)}
-.toc a{display:flex;gap:10px;padding:9px 14px;background:transparent;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .12s,color .12s}
-.toc a:nth-child(2n){border-right:none}
-.toc a:nth-last-child(-n+2){border-bottom:none}
-.toc a:hover{background:var(--bg3);color:var(--cyan)}
-.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
+.handshake-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 1.6rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+}
 
-/* ── SECTIONS ── */
-.section{margin-bottom:5.5rem;scroll-margin-top:2rem}
-.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.9rem;border-bottom:1px solid var(--rule2);margin-bottom:1.5rem}
-.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
-h2{font-family:var(--display);font-size:1.9rem;font-weight:500;color:var(--ink);letter-spacing:-.015em}
-h3{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin:1.4rem 0 .5rem}
-p{font-size:15.5px;line-height:1.86;color:var(--ink2);margin-bottom:.9rem;font-weight:400}
-p strong{color:var(--ink);font-weight:600}
-a{color:var(--cyan)}
-code{font-family:var(--mono);font-size:12.5px;background:var(--bg3);border:1px solid var(--rule2);border-radius:3px;padding:1px 5px;color:var(--cyan)}
+.hs-cell {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  border-right: 1px solid var(--rule);
+}
 
-/* ── CALLOUTS ── */
-.callout{border-left:3px solid var(--rule2);padding:.75rem 1.1rem;margin:1rem 0;font-size:14px;line-height:1.78;color:var(--ink2);background:var(--bg2);border-radius:0 5px 5px 0;font-weight:400}
-.callout.cyan{border-color:var(--cyan);background:var(--cyan-bg);color:var(--cyan)}
-.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
-.callout.green{border-color:var(--green);background:var(--green-bg);color:var(--green)}
-.callout.amber{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.hs-cell:last-child {
+  border-right: none;
+}
 
-/* ── CODE BLOCKS ── */
-.cb{border:1px solid var(--rule2);border-radius:7px;overflow:hidden;margin:1.1rem 0 1.8rem;background:var(--bg2)}
-.cb-head{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
-.cb-head .lang{color:var(--cyan);font-size:10px;letter-spacing:.08em}
-.run-btn{background:var(--cyan);color:#fff;border:none;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 12px;cursor:pointer;letter-spacing:.04em;transition:opacity .12s}
-.run-btn:hover{opacity:.8}
-pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;color:var(--ink);margin:0}
-.out{display:none;background:rgba(43,108,79,.08);border-top:1px solid var(--rule);padding:.8rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;color:var(--green);white-space:pre-wrap}
-.out.on{display:block}
-.out.err{background:rgba(161,75,75,.08);color:var(--red)}
-.kw{color:var(--purple)}.fn{color:var(--blue)}.str{color:var(--green)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--amber)}.cls{color:var(--cyan)}
+.hs-num {
+  margin-bottom: 0.125rem;
+  font-size: 0.5625rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
 
-/* ── DEMO ── */
-.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:7px;padding:1.3rem;margin:1.1rem 0 1.8rem}
-.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.9rem}
-.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem}
-button.btn{font-family:var(--mono);font-size:12px;padding:5px 13px;border-radius:5px;border:1px solid var(--rule2);background:transparent;color:var(--ink2);cursor:pointer;transition:all .12s}
-button.btn:hover{border-color:var(--cyan);color:var(--cyan)}
-button.btn.act{background:var(--cyan);color:#fff;border-color:var(--cyan);font-weight:600}
-button.btn.red{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
-button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+.hs-name {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--accent);
+}
 
-/* ── NETWORK PACKET VIZ ── */
+.hs-desc {
+  margin-top: 0.0625rem;
+  font-size: 0.625rem;
+  color: var(--ink-3);
+}
+
+.kw { color: var(--purple); }
+.fn { color: var(--blue); }
+.str { color: var(--good); }
+.cmt { color: var(--ink-3); font-style: italic; }
+.num { color: var(--warn); }
+.cls { color: var(--accent); }
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.9rem;
+}
+
 .packet-row{display:flex;align-items:center;gap:8px;margin:.5rem 0;font-family:var(--mono);font-size:12px}
 .packet-node{padding:5px 14px;border-radius:5px;border:1px solid var(--rule2);background:var(--bg3);color:var(--ink2);min-width:70px;text-align:center}
 .packet-node.client{border-color:var(--blue-bdr);background:var(--blue-bg);color:var(--blue)}
@@ -201,10 +229,6 @@ button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(
 .math-block .priv{color:var(--red)}
 .math-block .secret{color:var(--green)}
 
-/* ── CIPHER SUITE TABLE ── */
-.cs-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin:.6rem 0}
-.cs-table th{padding:6px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink3);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
-.cs-table td{padding:6px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
 .cs-table td.good{color:var(--green)}
 .cs-table td.bad{color:var(--red)}
 .cs-table td.warn{color:var(--amber)}
@@ -232,11 +256,15 @@ button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(
 .status-dot.amber{background:var(--amber)}
 .status-dot.cyan{background:var(--cyan)}
 
-/* footer */
-.footer{border-top:1px solid var(--rule2);padding-top:2rem;margin-top:1rem}
-.footer a{font-family:var(--mono);font-size:12px;color:var(--ink3);text-decoration:none;display:block;padding:3px 0}
-.footer a:hover{color:var(--cyan)}
-.footer-note{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem;line-height:1.7}
+.demo-flush{padding:0;overflow:hidden}
+
+@media (max-width:760px){
+  .handshake-strip{display:grid;grid-template-columns:1fr 1fr}
+  .dh-grid{grid-template-columns:1fr}
+  .cert-field{grid-template-columns:1fr}
+  .cert-chain-item{flex-direction:column;align-items:flex-start;gap:8px}
+  .hs-col-heads,.hs-row{grid-template-columns:1fr 40px 1fr}
+}
 </style>
 </head>
 <body>
@@ -358,7 +386,7 @@ console.log(<span class="str">`Password "${request.password}" is: completely hid
   <div class="sec-head"><span class="sec-n">§02</span><h2>What TLS provides</h2></div>
   <p>TLS (Transport Layer Security) is a protocol that wraps any stream-based connection — most commonly HTTP — in three distinct security guarantees. Each one addresses a different attack.</p>
 
-  <div class="demo" style="padding:0;overflow:hidden">
+  <div class="demo demo-flush">
     <table class="cs-table">
       <thead><tr><th>Property</th><th>What it means</th><th>Attack it prevents</th><th>Mechanism</th></tr></thead>
       <tbody>
@@ -962,7 +990,7 @@ console.log(<span class="str">"  → Decrypt the PreMasterSecret → derive sess
   <div class="sec-head"><span class="sec-n">§09</span><h2>Cipher suites and real-world TLS</h2></div>
   <p>In TLS 1.2 and earlier, a <strong>cipher suite</strong> named most of the handshake and record-protection choices together. TLS 1.3 simplifies this sharply: the cipher suite now specifies only the record-protection AEAD and the HKDF hash. The key exchange group (such as X25519) and the authentication algorithm (such as RSA-PSS or ECDSA) are negotiated separately.</p>
 
-  <div class="demo" style="padding:0;overflow:hidden">
+  <div class="demo demo-flush">
     <table class="cs-table">
       <thead><tr><th>TLS 1.3 cipher suite</th><th>Record protection (AEAD)</th><th>HKDF hash</th><th>Typical note</th></tr></thead>
       <tbody>
@@ -976,7 +1004,7 @@ console.log(<span class="str">"  → Decrypt the PreMasterSecret → derive sess
   </div>
   <div class="callout cyan">In TLS 1.3, the client and server still negotiate key exchange and authentication separately: for example, <code>X25519</code> for the ephemeral DH share and <code>rsa_pss_rsae_sha256</code> or <code>ecdsa_secp256r1_sha256</code> for certificate signatures.</div>
 
-  <div class="demo" style="padding:0;overflow:hidden">
+  <div class="demo demo-flush">
     <table class="cs-table">
       <thead><tr><th>Legacy TLS 1.2 suites</th><th>Key exchange</th><th>Auth</th><th>Encryption</th><th>Status</th></tr></thead>
       <tbody>
