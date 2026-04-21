@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Bootstrapping Compilers — with Squeak Smalltalk</title>
+<link rel="stylesheet" href="./shared.css">
+<style>
+:root {
+  --bg:        #faf8f3;
+  --surface:   #fffdfa;
+  --surface-muted:#f2eee4;
+  --surface-strong:#e8e3d6;
+  --bg4:       #dbd5c5;
+  --ink:       #1e1c15;
+  --ink-2:     #4a4738;
+  --ink-3:     #8c8778;
+  --rule:      rgba(30,28,21,.09);
+  --rule-strong:rgba(30,28,21,.18);
+  --sienna:    #b84a1a;
+  --sienna-bg: #fdf2ec;
+  --sienna-bdr:#e0a080;
+  --teal:      #1a6058;
+  --teal-bg:   #ecf7f5;
+  --teal-bdr:  #80c0b8;
+  --indigo:    #2a3888;
+  --indigo-bg: #eef0fc;
+  --indigo-bdr:#90a0dc;
+  --gold:      #7a5c00;
+  --gold-bg:   #fdf8e0;
+  --gold-bdr:  #d0b050;
+  --red:       #9a1818;
+  --red-bg:    #fdf0f0;
+  --red-bdr:   #d89090;
+  --slate:     #3a4850;
+  --slate-bg:  #edf2f4;
+  --slate-bdr: #90aab8;
+  --mono: "IBM Plex Mono", monospace;
+  --sans: "Public Sans", system-ui, sans-serif;
+  --serif: "Source Serif 4", serif;
+  --accent: var(--sienna);
+  --accent-soft: var(--sienna-bg);
+  --accent-rule: rgba(184,74,26,.24);
+  --good: var(--teal);
+  --good-soft: var(--teal-bg);
+  --good-rule: rgba(26,96,88,.24);
+  --warn: var(--gold);
+  --warn-soft: var(--gold-bg);
+  --warn-rule: rgba(122,92,0,.24);
+  --danger: var(--red);
+  --danger-soft: var(--red-bg);
+  --danger-rule: rgba(154,24,24,.24);
+  --bg2: var(--surface-muted);
+  --bg3: var(--surface-strong);
+  --ink2: var(--ink-2);
+  --ink3: var(--ink-3);
+  --rule2: var(--rule-strong);
+}
+.tb-title{font-size:13px;font-weight:600;color:var(--ink)}
+.tb-meta{text-align:right;line-height:1.6}
+.hero-kicker{color:var(--sienna)}
+.hero h1 em{font-style:italic;color:var(--sienna);font-weight:300}
+.hero-sub{max-width:42rem}
+.abstract{
+  margin:0 0 1.5rem;
+  padding:1rem 1.15rem;
+  border:1px solid var(--rule2);
+  border-radius:var(--radius);
+  background:var(--surface);
+  color:var(--ink2);
+  font-size:.95rem;
+  line-height:1.82;
+  box-shadow:var(--shadow-1);
+}
+.abstract::before{
+  content:"Abstract";
+  display:block;
+  margin-bottom:.45rem;
+  font-family:var(--mono);
+  font-size:.6875rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+
+.callout.sienna{border-color:var(--sienna);background:var(--sienna-bg);color:var(--sienna)}
+.callout.teal{border-color:var(--teal);background:var(--teal-bg);color:var(--teal)}
+.callout.indigo{border-color:var(--indigo);background:var(--indigo-bg);color:var(--indigo)}
+.callout.gold{border-color:var(--gold);background:var(--gold-bg);color:var(--gold)}
+.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+
+.cb-lang{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:var(--bg4);color:var(--ink3)}
+.kw{color:#7a20a0}.fn{color:var(--indigo)}.str{color:var(--teal)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--sienna)}.cls{color:var(--gold)}.msg{color:var(--sienna)}
+
+button.btn.teal{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bdr)}
+button.btn.indigo{background:var(--indigo-bg);color:var(--indigo);border-color:var(--indigo-bdr)}
+.obj-detail{
+  margin-top:.5rem;
+  min-height:28px;
+  padding:.45rem .75rem;
+  border-radius:var(--radius-sm);
+  border-left:3px solid var(--rule2);
+  background:var(--bg3);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink2);
+}
+.demo-flush{padding:0;overflow:hidden}
+.footer-label{
+  margin-bottom:.7rem;
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink3);
+}
+
+/* ── BOOTSTRAP STAGES ── */
+.stages{display:flex;align-items:stretch;gap:0;margin:.8rem 0;overflow-x:auto}
+.stage{flex:1;min-width:100px;padding:.8rem .7rem;border:1px solid var(--rule2);border-right:none;font-family:var(--mono);font-size:11px;background:var(--bg)}
+.stage:last-child{border-right:1px solid var(--rule2)}
+.stage-n{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.3rem}
+.stage-name{font-weight:700;color:var(--ink);margin-bottom:.3rem;font-size:12px}
+.stage-lang{color:var(--sienna)}
+.stage-desc{color:var(--ink3);font-size:10px;line-height:1.5;margin-top:.2rem}
+.stage-arrow{display:flex;align-items:center;padding:0 4px;color:var(--ink3);font-size:18px;flex-shrink:0}
+.stage.seed{background:var(--sienna-bg);border-color:var(--sienna-bdr)}
+.stage.s1{background:var(--gold-bg);border-color:var(--gold-bdr)}
+.stage.s2{background:var(--teal-bg);border-color:var(--teal-bdr)}
+.stage.self{background:var(--indigo-bg);border-color:var(--indigo-bdr)}
+
+/* ── OBJECT MEMORY ── */
+.obj-heap{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin:.6rem 0}
+.obj-box{border:1px solid var(--rule2);border-radius:4px;overflow:hidden;font-family:var(--mono);font-size:11px;cursor:pointer;transition:border-color .15s}
+.obj-box:hover{border-color:var(--sienna)}
+.obj-box.selected{border-color:var(--sienna);box-shadow:0 0 0 2px rgba(184,74,26,.15)}
+.obj-head{padding:4px 8px;background:var(--bg3);border-bottom:1px solid var(--rule);font-size:10px;font-weight:700;letter-spacing:.04em}
+.obj-field{padding:2px 8px;display:flex;justify-content:space-between;border-bottom:1px solid var(--rule);font-size:10px}
+.obj-field:last-child{border-bottom:none}
+.obj-key{color:var(--ink3)}
+.obj-val{color:var(--sienna);font-weight:500}
+.obj-box.class-obj .obj-head{background:var(--gold-bg);color:var(--gold)}
+.obj-box.meta-obj .obj-head{background:var(--indigo-bg);color:var(--indigo)}
+.obj-box.inst-obj .obj-head{background:var(--teal-bg);color:var(--teal)}
+
+/* ── METACLASS DIAGRAM ── */
+.mc-grid{display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr;gap:0;align-items:center;font-family:var(--mono);font-size:11px;margin:.8rem 0}
+.mc-box{padding:.6rem .8rem;border:1px solid var(--rule2);border-radius:4px;background:var(--bg);text-align:center}
+.mc-box .label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.mc-box .name{font-weight:700;font-size:12px}
+.mc-box.inst-cls{border-color:var(--teal-bdr);background:var(--teal-bg)}
+.mc-box.meta-cls{border-color:var(--indigo-bdr);background:var(--indigo-bg)}
+.mc-box.meta-meta{border-color:var(--gold-bdr);background:var(--gold-bg)}
+.mc-arrow{text-align:center;color:var(--ink3);font-size:14px}
+.mc-label{font-size:9px;color:var(--ink3);text-align:center;margin-top:2px}
+
+/* ── IMAGE VIZ ── */
+.image-layout{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:.6rem 0;font-family:var(--mono);font-size:11px}
+.image-section{border:1px solid var(--rule2);border-radius:4px;overflow:hidden}
+.image-section-head{padding:4px 10px;background:var(--bg3);border-bottom:1px solid var(--rule);font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--ink2);text-transform:uppercase}
+.image-row{padding:3px 10px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;font-size:10px}
+.image-row:last-child{border-bottom:none}
+.image-key{color:var(--ink3)}
+.image-val{color:var(--sienna);font-weight:500}
+
+/* ── THOMPSON ATTACK ── */
+.trojan-viz{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:.6rem 0}
+.trojan-box{border:1px solid var(--rule2);border-radius:4px;padding:.7rem .9rem;font-family:var(--mono);font-size:11px}
+.trojan-box.clean{border-color:var(--teal-bdr);background:var(--teal-bg)}
+.trojan-box.infected{border-color:var(--red-bdr);background:var(--red-bg)}
+.trojan-head{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.4rem}
+.trojan-head.clean{color:var(--teal)}
+.trojan-head.infected{color:var(--red)}
+.trojan-line{color:var(--ink2);line-height:1.7;font-size:11px}
+.trojan-line.evil{color:var(--red)}
+
+/* ── STEP NAV ── */
+.step-nav{display:flex;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;margin-bottom:.8rem}
+.step-btn{flex:1;padding:7px 4px;font-family:var(--mono);font-size:11px;border:none;border-right:1px solid var(--rule2);background:var(--bg2);color:var(--ink3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.act{background:var(--sienna);color:#fff}
+.step-panel{display:none}.step-panel.on{display:block}
+
+/* ── COMPARISON TABLE ── */
+.cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:.8rem 0}
+.cmp-table th{padding:7px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.cmp-table td{padding:7px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
+.cmp-table td.name{color:var(--ink);font-weight:500}
+.cmp-table td.good{color:var(--teal)}
+.cmp-table td.warn{color:var(--gold)}
+.cmp-table tr.hi td{background:var(--sienna-bg)}
+
+@media (max-width:760px){
+  .image-layout,.trojan-viz{grid-template-columns:1fr}
+  .topbar{align-items:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="topbar">
+  <span class="tb-title">Interactive Explainer · Compilers &amp; Language Implementation</span>
+  <span class="tb-meta">Squeak Smalltalk as running example<br>All code runs in your browser</span>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">When the snake eats its own tail</div>
+  <h1>How a compiler<br>compiles <em>itself</em></h1>
+  <p class="hero-sub">A self-hosting compiler is written in the very language it compiles. But to compile itself for the first time, it needs to already exist. This is not a paradox — it is a deliberate engineering act called bootstrapping, with a precise sequence of steps reaching back to a seed.</p>
+  <div class="abstract">
+    We trace the bootstrapping problem from its logical foundations through Squeak Smalltalk's remarkable implementation — a system where the compiler, the class browser, the garbage collector, and the windowing system are all just Smalltalk objects that can be inspected and modified while the system runs. Along the way we confront metaclasses, image snapshots, and Ken Thompson's celebrated warning about the compilers we trust.
+  </div>
+  <div class="hero-pills">
+    <span class="pill">Self-hosting</span>
+    <span class="pill">Bootstrapping stages</span>
+    <span class="pill">Squeak / Smalltalk-80</span>
+    <span class="pill">Object memory / image</span>
+    <span class="pill">Metaclasses</span>
+    <span class="pill">Ken Thompson's attack</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>The bootstrapping problem</a>
+  <a href="#s2"><span class="toc-n">02</span>Bootstrapping stages</a>
+  <a href="#s3"><span class="toc-n">03</span>Everything is an object</a>
+  <a href="#s4"><span class="toc-n">04</span>The object memory and image</a>
+  <a href="#s5"><span class="toc-n">05</span>Metaclasses: classes all the way down</a>
+  <a href="#s6"><span class="toc-n">06</span>The compiler as an object</a>
+  <a href="#s7"><span class="toc-n">07</span>How Squeak bootstrapped historically</a>
+  <a href="#s8"><span class="toc-n">08</span>Trust and Thompson's hack</a>
+  <a href="#s9"><span class="toc-n">09</span>Other self-hosting systems</a>
+</nav>
+
+<!-- ══ S1: THE BOOTSTRAPPING PROBLEM ══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>The bootstrapping problem</h2></div>
+
+  <p>Suppose you want to write a compiler for a language called Foo, and you want to write it <em>in Foo itself</em>. You write the source code of <code>foocc.foo</code>. Now you need to compile it. But the only compiler for Foo is… the one you just wrote. Which isn't compiled yet.</p>
+  <p>This appears to be a paradox. It is not — but resolving it requires understanding that a <strong>self-hosting compiler exists at two distinct levels of abstraction at the same time</strong>: as source code (text you can read and modify) and as a running binary (the thing that does the compiling).</p>
+
+  <div class="callout sienna">The word <em>bootstrap</em> comes from "pulling yourself up by your own bootstraps" — an impossibility that nonetheless describes exactly what we want. The resolution: you don't start from nothing. You use a <em>seed</em> — a minimal working system in some other language — to compile the first version, then throw the ladder away.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">The chicken-and-egg diagram — click each step</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showBootProblem(0,this)">The paradox</button>
+      <button class="step-btn" onclick="showBootProblem(1,this)">The resolution</button>
+      <button class="step-btn" onclick="showBootProblem(2,this)">The invariant</button>
+    </div>
+    <div id="boot-problem-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>bootstrap_problem.js — simulating the stages</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
+    <pre class="code" id="c1"><span class="cmt">// The bootstrapping problem: a compiler that compiles itself</span>
+<span class="cmt">// We simulate the three-stage process that resolves the apparent paradox</span>
+
+<span class="cmt">// Stage 0: the seed compiler, written in some OTHER language (C, assembly, etc.)</span>
+<span class="cmt">// It compiles a SUBSET of the target language — just enough to get started</span>
+<span class="kw">function</span> <span class="fn">seedCompiler</span>(source) {
+  <span class="cmt">// Minimal: handles only basic constructs</span>
+  <span class="kw">if</span> (source.includes(<span class="str">"unsupported_feature"</span>))
+    <span class="kw">throw new</span> Error(<span class="str">"Seed compiler: feature not implemented"</span>);
+  <span class="kw">return</span> { type: <span class="str">"binary_from_seed"</span>, source, size: source.length * <span class="num">4</span> };
+}
+
+<span class="cmt">// Stage 1: the full compiler, written in the TARGET language</span>
+<span class="cmt">// This is the source code of the self-hosting compiler</span>
+<span class="kw">const</span> fullCompilerSource = `
+  class Compiler {
+    parse(source)    { /* full parser */ }
+    typeCheck(ast)   { /* type checker */ }
+    codegen(ast)     { /* code generator */ }
+    optimise(code)   { /* optimiser */ }
+    compile(source)  { return this.codegen(this.typeCheck(this.parse(source))); }
+  }
+`.trim();
+
+<span class="cmt">// Bootstrap step 1: use seed compiler to compile the full compiler source</span>
+<span class="kw">const</span> stage1Binary = <span class="fn">seedCompiler</span>(fullCompilerSource);
+console.log(<span class="str">"Stage 0→1: seed compiler produces first binary"</span>);
+console.log(<span class="str">`  Input:  full compiler source (${fullCompilerSource.length} chars)`</span>);
+console.log(<span class="str">`  Output: stage-1 binary (${stage1Binary.size} bytes, compiled by SEED)`</span>);
+
+<span class="cmt">// Stage 1 binary: can now compile full source, but was BUILT by the seed compiler</span>
+<span class="cmt">// It may have missing optimisations the seed compiler didn't implement</span>
+<span class="kw">function</span> <span class="fn">stage1Compile</span>(source) {
+  <span class="kw">return</span> {
+    type: <span class="str">"full_compiler_binary"</span>,
+    source,
+    size: source.length * <span class="num">3</span>,
+    emitted: <span class="str">`FULL-COMPILER:${source.length}:OPT2`</span>
+  };
+}
+
+<span class="cmt">// Bootstrap step 2: use stage-1 binary to recompile the full compiler source AGAIN</span>
+<span class="kw">const</span> stage2Binary = <span class="fn">stage1Compile</span>(fullCompilerSource);
+console.log(<span class="str">"\nStage 1→2: stage-1 compiles the same source again"</span>);
+console.log(<span class="str">`  Output: stage-2 binary (${stage2Binary.size} bytes, compiled by STAGE-1)`</span>);
+
+<span class="cmt">// Bootstrap step 3: compile again with stage-2 binary</span>
+<span class="kw">function</span> <span class="fn">stage2Compile</span>(source) {
+  <span class="kw">return</span> {
+    type: <span class="str">"full_compiler_binary"</span>,
+    source,
+    size: source.length * <span class="num">3</span>,
+    emitted: <span class="str">`FULL-COMPILER:${source.length}:OPT2`</span>
+  };
+}
+<span class="kw">const</span> stage3Binary = <span class="fn">stage2Compile</span>(fullCompilerSource);
+console.log(<span class="str">`Stage 2→3: stage-2 compiles again (same source)`</span>);
+console.log(<span class="str">`  Output: stage-3 binary (${stage3Binary.size} bytes)`</span>);
+
+<span class="cmt">// The key invariant: stage-2 and stage-3 should produce IDENTICAL binaries</span>
+<span class="cmt">// because both compiled the same source with the same fully-working compiler</span>
+<span class="cmt">// This is the "bit-for-bit reproducible" check used to verify bootstrap correctness</span>
+<span class="kw">const</span> stable = stage2Binary.emitted === stage3Binary.emitted;
+console.log(<span class="str">`\nBootstrap complete. Stable (stage2 == stage3): ${stable}`</span>);
+console.log(<span class="str">"The seed compiler can now be discarded."</span>);
+console.log(<span class="str">"Future builds use only the self-hosted compiler to compile itself."</span>);</pre>
+    <div class="out" id="o1"></div>
+  </div>
+</section>
+
+<!-- ══ S2: BOOTSTRAPPING STAGES ══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>Bootstrapping stages</h2></div>
+
+  <p>Every self-hosting compiler has been through a bootstrapping sequence. The stages have a precise structure. The key insight is that <strong>compiling the same compiler source code with different compiler binaries may produce different output</strong>. Stability is achieved when stage <code>n</code> and stage <code>n+1</code> compile that same compiler source to the <em>same</em> result. In a classic 3-stage bootstrap, that is the <code>stage2 == stage3</code> check.</p>
+
+  <div class="stages">
+    <div class="stage seed">
+      <div class="stage-n">Stage 0</div>
+      <div class="stage-name">Seed compiler</div>
+      <div class="stage-lang">written in: C / asm</div>
+      <div class="stage-desc">Minimal. Compiles a subset of the target language. Often hand-written or itself ported from an earlier system.</div>
+    </div>
+    <div class="stage-arrow">→</div>
+    <div class="stage s1">
+      <div class="stage-n">Stage 1</div>
+      <div class="stage-name">First binary</div>
+      <div class="stage-lang">compiled by: seed</div>
+      <div class="stage-desc">Full compiler source, compiled by the seed. Has the seed's codegen quality. Runs, but may not be optimal.</div>
+    </div>
+    <div class="stage-arrow">→</div>
+    <div class="stage s2">
+      <div class="stage-n">Stage 2</div>
+      <div class="stage-name">Second binary</div>
+      <div class="stage-lang">compiled by: stage 1</div>
+      <div class="stage-desc">Same source compiled by itself. Now uses its own optimisations. Usually smaller and faster than stage 1.</div>
+    </div>
+    <div class="stage-arrow">→</div>
+    <div class="stage self">
+      <div class="stage-n">Stage 3+</div>
+      <div class="stage-name">Self-hosting</div>
+      <div class="stage-lang">compiled by: itself</div>
+      <div class="stage-desc">Stable: compiling again produces the same binary. Bootstrap is complete. Seed can be discarded.</div>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">Squeak's specific bootstrap history — click a stage</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showSqueakStage(0,this)">Smalltalk-80 (Xerox)</button>
+      <button class="btn" onclick="showSqueakStage(1,this)">Squeak seed (C)</button>
+      <button class="btn" onclick="showSqueakStage(2,this)">Squeak in Squeak</button>
+      <button class="btn" onclick="showSqueakStage(3,this)">Self-hosted today</button>
+    </div>
+    <div id="squeak-stage-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>stages.js — modelling the bootstrap fixpoint</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// The bootstrap fixpoint: a compiler reaches "stability" when</span>
+<span class="cmt">// compile(source, compiler_n) == compile(source, compiler_n+1)</span>
+<span class="cmt">// We model this as converging optimisation quality</span>
+
+<span class="kw">class</span> <span class="cls">CompilerVersion</span> {
+  <span class="fn">constructor</span>(name, optimisationLevel, features) {
+    <span class="kw">this</span>.name  = name;
+    <span class="kw">this</span>.optLevel = optimisationLevel; <span class="cmt">// 0-100: how good is the output?</span>
+    <span class="kw">this</span>.features = features;          <span class="cmt">// set of language features this can compile</span>
+  }
+
+  <span class="fn">compile</span>(sourceName, requiredFeatures) {
+    <span class="kw">const</span> missing = requiredFeatures.filter(f => !<span class="kw">this</span>.features.has(f));
+    <span class="kw">if</span> (missing.length)
+      <span class="kw">throw new</span> Error(<span class="str">`${this.name} cannot compile ${sourceName}: missing ${missing}`</span>);
+    <span class="cmt">// The output binary's quality depends on the compiler's optimisation level</span>
+    <span class="kw">return</span> <span class="kw">new</span> <span class="cls">CompilerVersion</span>(
+      <span class="str">`${sourceName} compiled by ${this.name}`</span>,
+      Math.min(<span class="num">100</span>, <span class="kw">this</span>.optLevel + <span class="num">15</span>), <span class="cmt">// each stage improves a bit</span>
+      <span class="kw">new</span> Set(requiredFeatures)
+    );
+  }
+}
+
+<span class="cmt">// The full compiler source requires these language features</span>
+<span class="kw">const</span> FULL_FEATURES = [<span class="str">"closures"</span>, <span class="str">"generics"</span>, <span class="str">"pattern_match"</span>, <span class="str">"tail_calls"</span>];
+<span class="kw">const</span> SOURCE_NAME   = <span class="str">"FooCompiler.foo"</span>;
+
+<span class="cmt">// Stage 0: seed compiler — written in C, knows all features but low optimisation</span>
+<span class="kw">const</span> seed = <span class="kw">new</span> <span class="cls">CompilerVersion</span>(<span class="str">"seed (C)"</span>, <span class="num">20</span>, <span class="kw">new</span> Set(FULL_FEATURES));
+console.log(<span class="str">"=== Bootstrap sequence ==="</span>);
+console.log(<span class="str">`Seed: optLevel=${seed.optLevel}, can compile all features`</span>);
+
+<span class="kw">let</span> compiler = seed;
+<span class="kw">let</span> prevOptLevel = -<span class="num">1</span>;
+<span class="kw">for</span> (<span class="kw">let</span> stage = <span class="num">1</span>; stage <= <span class="num">5</span>; stage++) {
+  <span class="kw">const</span> next = compiler.<span class="fn">compile</span>(SOURCE_NAME, FULL_FEATURES);
+  console.log(<span class="str">`Stage ${stage}: compiled by "${compiler.name}"`</span>);
+  console.log(<span class="str">`  Output optLevel: ${next.optLevel} (was ${compiler.optLevel})`</span>);
+  <span class="kw">if</span> (next.optLevel === prevOptLevel) {
+    console.log(<span class="str">`  *** FIXPOINT reached at stage ${stage} — bootstrap stable ***`</span>);
+    <span class="kw">break</span>;
+  }
+  prevOptLevel = next.optLevel;
+  compiler = next;
+}
+
+<span class="cmt">// Reproducible builds: GCC does 3 stages to verify bootstrap correctness</span>
+console.log(<span class="str">"\n=== GCC bootstrap verification ==="</span>);
+console.log(<span class="str">"  gcc stage1 = gcc_src compiled by system compiler"</span>);
+console.log(<span class="str">"  gcc stage2 = gcc_src compiled by stage1"</span>);
+console.log(<span class="str">"  gcc stage3 = gcc_src compiled by stage2"</span>);
+console.log(<span class="str">"  Verify: diff(stage2, stage3) must be empty (bit-identical)"</span>);
+console.log(<span class="str">"  If different: bug in compiler — output depends on what compiled it"</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ══ S3: EVERYTHING IS AN OBJECT ══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>Everything is an object — Smalltalk's radical bet</h2></div>
+
+  <p>Most languages treat the compiler as a tool <em>outside</em> the language — a program you run to process source files. Smalltalk took a different position: <strong>the compiler is a first-class object inside the running system</strong>, written in Smalltalk, that you can inspect, modify, and replace while the system is live.</p>
+  <p>This is not merely a design preference. It flows from Smalltalk's foundational rule: <strong>everything is an object, and every operation is a message send</strong>. Integers, strings, booleans, classes, methods, compiled bytecode, the scanner, the parser, the code generator — all objects. All can receive messages. All can be stored in variables, put in collections, passed as arguments.</p>
+
+  <div class="callout teal">In Squeak, you can open a class browser, navigate to <code>Compiler class</code>, select the <code>compile:in:notifying:ifFail:</code> method, modify it, and the next method compilation uses your modified compiler — all without restarting, without recompiling, without a build step. The running system repairs itself.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Object model — click any object to see its class and slots</div>
+    <div class="obj-heap" id="obj-heap"></div>
+    <div class="obj-detail" id="obj-detail">Click an object above</div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>smalltalk_objects.js — the Smalltalk object model in JavaScript</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// Smalltalk's object model: everything is an object with a class pointer</span>
+<span class="cmt">// Even integers have a class (SmallInteger), even classes have a class (Metaclass)</span>
+
+<span class="kw">class</span> <span class="cls">SmalltalkObject</span> {
+  <span class="fn">constructor</span>(sqClass, fields = {}) {
+    <span class="kw">this</span>.sqClass = sqClass;  <span class="cmt">// every object points to its class</span>
+    <span class="kw">this</span>.fields  = fields;   <span class="cmt">// named instance variables</span>
+  }
+  <span class="fn">send</span>(selector, args = []) {
+    <span class="cmt">// Method lookup: walk class chain until method found</span>
+    <span class="kw">let</span> cls = <span class="kw">this</span>.sqClass;
+    <span class="kw">while</span> (cls) {
+      <span class="kw">if</span> (cls.methods?.[selector]) <span class="kw">return</span> cls.methods[selector](args);
+      cls = cls.superclass;
+    }
+    <span class="kw">throw new</span> Error(<span class="str">`doesNotUnderstand: #${selector}`</span>);
+  }
+}
+
+<span class="cmt">// Build a minimal Smalltalk class hierarchy</span>
+<span class="kw">const</span> ProtoObject = { name: <span class="str">"ProtoObject"</span>, superclass: <span class="kw">null</span>, methods: {} };
+<span class="kw">const</span> Object_cls  = { name: <span class="str">"Object"</span>,      superclass: ProtoObject, methods: {
+  <span class="fn">class</span>:    <span class="kw">function</span>() { <span class="kw">return this</span>; }, <span class="cmt">// 'class' returns the object's class</span>
+  <span class="fn">printString</span>: <span class="kw">function</span>() { <span class="kw">return</span> <span class="str">"an Object"</span>; }
+}};
+<span class="kw">const</span> Integer_cls = { name: <span class="str">"Integer"</span>,     superclass: Object_cls, methods: {
+  <span class="fn">plus</span>:    ([other]) => <span class="kw">new</span> <span class="cls">SmalltalkObject</span>(Integer_cls, { value: <span class="num">0</span> }),
+  <span class="fn">printString</span>: <span class="kw">function</span>() { <span class="kw">return</span> <span class="str">"an Integer"</span>; }
+}};
+
+<span class="cmt">// A Smalltalk METHOD DICTIONARY: maps selector strings to CompiledMethod objects</span>
+<span class="kw">class</span> <span class="cls">MethodDictionary</span> {
+  <span class="fn">constructor</span>() { <span class="kw">this</span>.methods = <span class="kw">new</span> Map(); }
+  <span class="fn">at</span>(selector)          { <span class="kw">return this</span>.methods.get(selector); }
+  <span class="fn">at_put</span>(selector, meth) { <span class="kw">this</span>.methods.set(selector, meth); }
+  <span class="fn">includesKey</span>(selector) { <span class="kw">return this</span>.methods.has(selector); }
+  <span class="fn">selectors</span>()           { <span class="kw">return</span> [...<span class="kw">this</span>.methods.keys()]; }
+}
+
+<span class="cmt">// A Smalltalk CLASS is an object too — with its own instance variables</span>
+<span class="kw">class</span> <span class="cls">SmalltalkClass</span> <span class="kw">extends</span> <span class="cls">SmalltalkObject</span> {
+  <span class="fn">constructor</span>(name, superclass, instanceVarNames) {
+    <span class="kw">super</span>(<span class="kw">null</span>); <span class="cmt">// class pointer set later (it's the metaclass)</span>
+    <span class="kw">this</span>.name             = name;
+    <span class="kw">this</span>.superclass       = superclass;
+    <span class="kw">this</span>.instanceVarNames = instanceVarNames; <span class="cmt">// names of slots in instances</span>
+    <span class="kw">this</span>.methodDict       = <span class="kw">new</span> <span class="cls">MethodDictionary</span>();
+  }
+
+  <span class="fn">addMethod</span>(selector, fn) { <span class="kw">this</span>.methodDict.<span class="fn">at_put</span>(selector, fn); }
+
+  <span class="fn">new</span>(...initArgs) {
+    <span class="kw">const</span> inst = <span class="kw">new</span> <span class="cls">SmalltalkObject</span>(<span class="kw">this</span>);
+    <span class="kw">this</span>.instanceVarNames.forEach(v => { inst.fields[v] = <span class="kw">null</span>; });
+    <span class="kw">if</span> (<span class="kw">this</span>.methodDict.<span class="fn">includesKey</span>(<span class="str">"initialize"</span>))
+      <span class="kw">this</span>.methodDict.<span class="fn">at</span>(<span class="str">"initialize"</span>).call(inst, initArgs);
+    <span class="kw">return</span> inst;
+  }
+}
+
+<span class="cmt">// Build some real classes</span>
+<span class="kw">const</span> Point = <span class="kw">new</span> <span class="cls">SmalltalkClass</span>(<span class="str">"Point"</span>, <span class="kw">null</span>, [<span class="str">"x"</span>, <span class="str">"y"</span>]);
+Point.<span class="fn">addMethod</span>(<span class="str">"initialize"</span>, <span class="kw">function</span>([x,y]) {
+  <span class="kw">this</span>.fields.x = x ?? <span class="num">0</span>;
+  <span class="kw">this</span>.fields.y = y ?? <span class="num">0</span>;
+});
+Point.<span class="fn">addMethod</span>(<span class="str">"printString"</span>, <span class="kw">function</span>() {
+  <span class="kw">return</span> <span class="str">`(${this.fields.x}@${this.fields.y})`</span>;
+});
+Point.<span class="fn">addMethod</span>(<span class="str">"+"</span>, <span class="kw">function</span>([other]) {
+  <span class="kw">return</span> Point.<span class="fn">new</span>(<span class="kw">this</span>.fields.x+other.fields.x, <span class="kw">this</span>.fields.y+other.fields.y);
+});
+
+<span class="kw">const</span> p1 = Point.<span class="fn">new</span>(<span class="num">3</span>,<span class="num">4</span>), p2 = Point.<span class="fn">new</span>(<span class="num">1</span>,<span class="num">2</span>);
+<span class="kw">const</span> p3 = p1.fields.x !== <span class="kw">undefined</span> ? Point.<span class="fn">new</span>(p1.fields.x+p2.fields.x, p1.fields.y+p2.fields.y) : <span class="kw">null</span>;
+console.log(<span class="str">`Point class: methodDict has ${Point.methodDict.selectors().length} methods`</span>);
+console.log(<span class="str">`Selectors: ${Point.methodDict.selectors().join(", ")}`</span>);
+console.log(<span class="str">`p1 is a: ${p1.sqClass.name}, fields: ${JSON.stringify(p1.fields)}`</span>);
+console.log(<span class="str">`p1 class name: ${p1.sqClass.name}`</span>);
+console.log(<span class="str">`Point class is a: ${typeof Point} — a SmalltalkClass (an object!)`</span>);
+console.log(<span class="str">`Point's instanceVarNames: ${Point.instanceVarNames}`</span>);
+console.log(<span class="str">`\nKey insight: Point is ITSELF an object with fields and a class pointer.`</span>);
+console.log(<span class="str">"In Squeak, class objects live IN the image heap, not outside it."</span>);</pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ══ S4: OBJECT MEMORY AND IMAGE ══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>The object memory and the image</h2></div>
+
+  <p>In conventional systems, the program lives in files; when it runs, data lives in memory; when the process exits, data is gone. Squeak inverts this. The <strong>image</strong> is a serialised snapshot of the entire live heap — every object, every class, every compiled method, the compiler itself, the window system — frozen to disk and thawed back to life on startup.</p>
+  <p>There are no source files to reparse. There is no linking step. The image <em>is</em> the running system, persisted. This is what makes Squeak a <strong>world</strong> rather than an application: you resume where you left off, the entire object graph intact.</p>
+
+  <div class="callout indigo">The Squeak image format is a portable binary snapshot. A 32-bit image can be run on any platform that has the thin Squeak VM (written in C/Slang). The VM is about 12,000 lines of C; the rest of Squeak — including its compiler, all its libraries, and all its tools — lives in the image as Smalltalk objects.</div>
+
+  <div class="demo">
+    <div class="demo-lbl">Image anatomy — what lives where in a Squeak .image file</div>
+    <div class="image-layout">
+      <div class="image-section">
+        <div class="image-section-head">Image Header</div>
+        <div class="image-row"><span class="image-key">magic</span><span class="image-val">0x1966 (Squeak)</span></div>
+        <div class="image-row"><span class="image-key">version</span><span class="image-val">6521 (Cog VM)</span></div>
+        <div class="image-row"><span class="image-key">headerSize</span><span class="image-val">64 bytes</span></div>
+        <div class="image-row"><span class="image-key">dataSize</span><span class="image-val">~32 MB</span></div>
+        <div class="image-row"><span class="image-key">oldBase</span><span class="image-val">original heap address</span></div>
+        <div class="image-row"><span class="image-key">specialObjects</span><span class="image-val">array of ~64 roots</span></div>
+      </div>
+      <div class="image-section">
+        <div class="image-section-head">Special Object Array (roots)</div>
+        <div class="image-row"><span class="image-key">specialObjects[0]</span><span class="image-val">nil</span></div>
+        <div class="image-row"><span class="image-key">specialObjects[1]</span><span class="image-val">false</span></div>
+        <div class="image-row"><span class="image-key">specialObjects[2]</span><span class="image-val">true</span></div>
+        <div class="image-row"><span class="image-key">specialObjects[8]</span><span class="image-val">Smalltalk (SystemDictionary)</span></div>
+        <div class="image-row"><span class="image-key">specialObjects[19]</span><span class="image-val">Character</span></div>
+        <div class="image-row"><span class="image-key">specialObjects[20]</span><span class="image-val"><code>#doesNotUnderstand:</code> selector</span></div>
+      </div>
+      <div class="image-section">
+        <div class="image-section-head">Object Memory (heap)</div>
+        <div class="image-row"><span class="image-key">Class objects</span><span class="image-val">~3,000 classes</span></div>
+        <div class="image-row"><span class="image-key">CompiledMethods</span><span class="image-val">~80,000 methods</span></div>
+        <div class="image-row"><span class="image-key">Symbols</span><span class="image-val">selector strings</span></div>
+        <div class="image-row"><span class="image-key">MethodDictionaries</span><span class="image-val">per-class method tables</span></div>
+        <div class="image-row"><span class="image-key">Process / contexts</span><span class="image-val">suspended execution state</span></div>
+      </div>
+      <div class="image-section">
+        <div class="image-section-head">Object format (each object)</div>
+        <div class="image-row"><span class="image-key">header word</span><span class="image-val">class index + size</span></div>
+        <div class="image-row"><span class="image-key">fields[0..n]</span><span class="image-val">object pointers (32-bit)</span></div>
+        <div class="image-row"><span class="image-key">SmallInt tag</span><span class="image-val">low bit = 1 (unboxed)</span></div>
+        <div class="image-row"><span class="image-key">GC bits</span><span class="image-val">mark, remembered set</span></div>
+        <div class="image-row"><span class="image-key">format bits</span><span class="image-val">pointer / bytes / words</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>image_snapshot.js — serialising and restoring an object graph</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// The image mechanism: serialise and restore a live object graph</span>
+<span class="cmt">// Every object gets an OOP (Object-Oriented Pointer) — its offset in the heap</span>
+
+<span class="kw">class</span> <span class="cls">ImageSerializer</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.heap    = [];   <span class="cmt">// array of objects, index = OOP</span>
+    <span class="kw">this</span>.ooMap   = <span class="kw">new</span> WeakMap(); <span class="cmt">// object → OOP index</span>
+    <span class="kw">this</span>.special = {};   <span class="cmt">// well-known objects: nil, true, false, Smalltalk</span>
+  }
+
+  <span class="fn">intern</span>(obj) {
+    <span class="cmt">// Assign an OOP to an object if it doesn't have one</span>
+    <span class="kw">if</span> (<span class="kw">this</span>.ooMap.has(obj)) <span class="kw">return this</span>.ooMap.get(obj);
+    <span class="kw">const</span> oop = <span class="kw">this</span>.heap.length;
+    <span class="kw">this</span>.heap.push(obj);
+    <span class="kw">this</span>.ooMap.set(obj, oop);
+    <span class="kw">return</span> oop;
+  }
+
+  <span class="fn">snapshot</span>(roots) {
+    <span class="cmt">// Walk the object graph breadth-first and assign OOPs</span>
+    <span class="kw">const</span> queue = [...roots];
+    <span class="kw">const</span> visited = <span class="kw">new</span> Set();
+    <span class="kw">while</span> (queue.length) {
+      <span class="kw">const</span> obj = queue.shift();
+      <span class="kw">if</span> (!obj || <span class="kw">typeof</span> obj !== <span class="str">"object"</span> || visited.has(obj)) <span class="kw">continue</span>;
+      visited.add(obj);
+      <span class="kw">this</span>.<span class="fn">intern</span>(obj);
+      <span class="cmt">// Recursively visit all fields that are objects</span>
+      <span class="kw">for</span> (<span class="kw">const</span> val <span class="kw">of</span> Object.values(obj))
+        <span class="kw">if</span> (<span class="kw">typeof</span> val === <span class="str">"object"</span> &amp;&amp; val !== <span class="kw">null</span>) queue.push(val);
+    }
+    <span class="kw">return this</span>.<span class="fn">serialize</span>(roots);
+  }
+
+  <span class="fn">serialize</span>(roots) {
+    <span class="cmt">// Produce a JSON-based image (real Squeak uses a compact binary format)</span>
+    <span class="kw">const</span> <span class="fn">ref</span> = obj => obj &amp;&amp; <span class="kw">typeof</span> obj === <span class="str">"object"</span> ? { <span class="str">"@oop"</span>: <span class="kw">this</span>.ooMap.get(obj) } : obj;
+    <span class="kw">const</span> records = <span class="kw">this</span>.heap.map((obj, oop) => ({
+      oop,
+      type: obj.constructor?.name,
+      fields: Object.fromEntries(Object.entries(obj).map(([k,v]) => [k, <span class="fn">ref</span>(v)]))
+    }));
+    <span class="kw">return</span> { rootOops: roots.map(r => <span class="kw">this</span>.ooMap.get(r)), objects: records };
+  }
+}
+
+<span class="cmt">// Build a small Squeak-like object graph</span>
+<span class="kw">const</span> nilObj    = { sqClass: <span class="kw">null</span>, type: <span class="str">"UndefinedObject"</span> };
+<span class="kw">const</span> pointClass = { type: <span class="str">"Class"</span>, name: <span class="str">"Point"</span>, superclass: <span class="kw">null</span>, methods: {} };
+<span class="kw">const</span> p1 = { sqClass: pointClass, type: <span class="str">"Point"</span>, x: <span class="num">3</span>, y: <span class="num">4</span> };
+<span class="kw">const</span> p2 = { sqClass: pointClass, type: <span class="str">"Point"</span>, x: <span class="num">1</span>, y: <span class="num">2</span> };
+<span class="kw">const</span> anArray = { sqClass: <span class="kw">null</span>, type: <span class="str">"Array"</span>, elements: [p1, p2, nilObj] };
+pointClass.superclass = nilObj;
+
+<span class="kw">const</span> ser = <span class="kw">new</span> <span class="cls">ImageSerializer</span>();
+<span class="kw">const</span> image = ser.<span class="fn">snapshot</span>([nilObj, pointClass, p1, p2, anArray]);
+
+console.log(<span class="str">`Objects in snapshot: ${image.objects.length}`</span>);
+console.log(<span class="str">`Root OOPs: ${image.rootOops}`</span>);
+image.objects.forEach(rec => {
+  <span class="kw">const</span> fields = Object.entries(rec.fields)
+    .filter(([k,v]) => k !== <span class="str">"elements"</span> &amp;&amp; k !== <span class="str">"methods"</span>)
+    .map(([k,v]) => <span class="str">`${k}=${JSON.stringify(v)}`</span>).join(<span class="str">", "</span>);
+  console.log(<span class="str">`  OOP[${rec.oop}] ${rec.type}: ${fields}`</span>);
+});
+console.log(<span class="str">`\nImages are why you can 'Save and quit' Squeak and resume exactly where you left off.`</span>);
+console.log(<span class="str">"All running processes, open windows, edited methods — everything is serialised."</span>);</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ══ S5: METACLASSES ══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>Metaclasses: classes all the way down</h2></div>
+
+  <p>If classes are objects, what is their class? In Smalltalk, every class <code>Foo</code> has a corresponding <strong>metaclass</strong> called <code>Foo class</code> (pronounced "Foo's metaclass"). The metaclass holds the <em>class-side</em> methods — what other languages call static methods. When you send a message to the class object itself (like <code>Point new</code>), the method is found in <code>Point class</code>.</p>
+  <p>This sounds infinite — what is the class of <code>Point class</code>? The real Smalltalk metaclass graph is carefully closed so that <code>Metaclass class</code> is an instance of <code>Metaclass</code>. The demo below is a teaching model of that idea, not a byte-for-byte reconstruction of the full kernel hierarchy.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">The metaclass hierarchy — follow the <em>class</em> pointer vs the <em>superclass</em> pointer</div>
+    <div id="metaclass-viz"></div>
+  </div>
+
+  <div class="callout gold">The Smalltalk metaclass hierarchy is one of the most elegant (and initially baffling) designs in programming language history. Alan Kay described it as "the most beautifully symmetric object model I've ever seen." There are exactly as many metaclasses as there are classes — one per class — and they mirror the class hierarchy exactly. But don't worry: most Smalltalk programmers barely think about metaclasses until they write class-side methods.</div>
+
+  <div class="cb">
+    <div class="cb-head"><span>metaclasses.js — navigating the Smalltalk metaclass tower</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// The Smalltalk metaclass structure — every class has a metaclass</span>
+<span class="cmt">// "The class of a class is its metaclass. The metaclass hierarchy mirrors the class hierarchy."</span>
+
+<span class="kw">class</span> <span class="cls">SmalltalkClass</span> {
+  <span class="fn">constructor</span>(name, superclass = <span class="kw">null</span>) {
+    <span class="kw">this</span>.name          = name;
+    <span class="kw">this</span>.superclass    = superclass;
+    <span class="kw">this</span>.instanceMethods = <span class="kw">new</span> Map(); <span class="cmt">// instance-side</span>
+    <span class="kw">this</span>.metaclass     = <span class="kw">null</span>;       <span class="cmt">// set after construction</span>
+  }
+}
+
+<span class="kw">class</span> <span class="cls">Metaclass</span> {
+  <span class="fn">constructor</span>(soloInstance) {
+    <span class="cmt">// A metaclass has exactly one instance: its corresponding class object</span>
+    <span class="kw">this</span>.soloInstance  = soloInstance; <span class="cmt">// e.g. Point class → Point</span>
+    <span class="kw">this</span>.name          = soloInstance.name + <span class="str">" class"</span>;
+    <span class="kw">this</span>.classMethods  = <span class="kw">new</span> Map();   <span class="cmt">// class-side methods (like static methods)</span>
+    <span class="kw">this</span>.superclass    = <span class="kw">null</span>;        <span class="cmt">// mirrors class hierarchy — set below</span>
+  }
+}
+
+<span class="cmt">// Build the core hierarchy: ProtoObject → Object → Magnitude → Number → Integer</span>
+<span class="kw">const</span> ProtoObject = <span class="kw">new</span> <span class="cls">SmalltalkClass</span>(<span class="str">"ProtoObject"</span>);
+<span class="kw">const</span> Object_cls  = <span class="kw">new</span> <span class="cls">SmalltalkClass</span>(<span class="str">"Object"</span>,    ProtoObject);
+<span class="kw">const</span> Magnitude  = <span class="kw">new</span> <span class="cls">SmalltalkClass</span>(<span class="str">"Magnitude"</span>, Object_cls);
+<span class="kw">const</span> Number_cls = <span class="kw">new</span> <span class="cls">SmalltalkClass</span>(<span class="str">"Number"</span>,    Magnitude);
+<span class="kw">const</span> Integer    = <span class="kw">new</span> <span class="cls">SmalltalkClass</span>(<span class="str">"Integer"</span>,   Number_cls);
+
+<span class="kw">const</span> classes = [ProtoObject, Object_cls, Magnitude, Number_cls, Integer];
+
+<span class="cmt">// Create metaclasses — one per class</span>
+classes.forEach(cls => { cls.metaclass = <span class="kw">new</span> <span class="cls">Metaclass</span>(cls); });
+
+<span class="cmt">// Metaclass superclass chain mirrors the class chain</span>
+<span class="cmt">// Object class → ProtoObject class → Class → Behavior → Object</span>
+classes.forEach(cls => {
+  <span class="kw">if</span> (cls.superclass)
+    cls.metaclass.superclass = cls.superclass.metaclass; <span class="cmt">// mirrors class hierarchy</span>
+  <span class="kw">else</span>
+    cls.metaclass.superclass = Object_cls; <span class="cmt">// ProtoObject class → Object (wraps around)</span>
+});
+
+<span class="cmt">// Add a class-side method (like 'new' or a factory)</span>
+Integer.metaclass.classMethods.set(<span class="str">"readFrom:"</span>, (str) => parseInt(str));
+Integer.instanceMethods.set(<span class="str">"+"</span>, (a, b) => a + b);
+
+console.log(<span class="str">"=== Metaclass tower for Integer ==="</span>);
+console.log(<span class="str">`Integer                class: ${Integer.metaclass.name}`</span>);
+console.log(<span class="str">`Integer class          superclass: ${Integer.metaclass.superclass?.name}`</span>);
+console.log(<span class="str">`Number class           superclass: ${Number_cls.metaclass.superclass?.name}`</span>);
+console.log(<span class="str">`Object class           superclass: ${Object_cls.metaclass.superclass?.name}`</span>);
+console.log(<span class="str">`ProtoObject class      superclass: ${ProtoObject.metaclass.superclass?.name}`</span>);
+
+console.log(<span class="str">"\n=== Method lookup on Integer (instance-side) ==="</span>);
+<span class="fn">function</span> <span class="fn">lookupMethod</span>(cls, selector, side = <span class="str">"instance"</span>) {
+  <span class="kw">let</span> current = side === <span class="str">"class"</span> ? cls.metaclass : cls;
+  <span class="kw">while</span> (current) {
+    <span class="kw">const</span> dict = side === <span class="str">"class"</span> ? current.classMethods : current.instanceMethods;
+    <span class="kw">if</span> (dict?.has(selector)) <span class="kw">return</span> current.name;
+    current = current.superclass;
+  }
+  <span class="kw">return</span> <span class="str">"doesNotUnderstand"</span>;
+}
+console.log(<span class="str">`Integer >> #+ found in:        ${lookupMethod(Integer, "+")}`</span>);
+console.log(<span class="str">`Integer >> #printString:        ${lookupMethod(Integer, "printString")}`</span>);
+console.log(<span class="str">`Integer class >> #readFrom:     ${lookupMethod(Integer, "readFrom:", "class")}`</span>);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ══ S6: COMPILER AS OBJECT ══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>The compiler as a Smalltalk object</h2></div>
+
+  <p>In Squeak, compilation flows through the <code>Compiler</code> machinery. A concrete example helps: suppose you are editing class <code>Point</code> and you type <code>distanceToOrigin ^ (x * x + y * y) sqrt</code> into the browser. When you click Accept, the browser hands that source string to the compiler machinery; in classic Squeak images one entry point looks like <code>Compiler new compile: sourceString in: Point notifying: requestor ifFail: aBlock</code>. The compiler scans the text into tokens, the <code>Parser</code> turns those tokens into a method structure, the <code>BytecodeEncoder</code> emits bytecodes for "push <code>x</code>", "send <code>*</code>", "send <code>+</code>", "send <code>sqrt</code>", and the result is packaged as a <code>CompiledMethod</code> for selector <code>#distanceToOrigin</code>.</p>
+  <p>The result is a <code>CompiledMethod</code> object installed into the class's method dictionary. The method immediately becomes available to the running system. <strong>This is the self-bootstrapping loop</strong>: the compiler is written in Smalltalk, compiled by the compiler, installed in the system, and used to compile new Smalltalk — including modifications to the compiler itself.</p>
+
+  <div class="callout teal">Squeak's compiler lives in ordinary Smalltalk classes such as <code>Compiler</code>, <code>Parser</code>, <code>Scanner</code>, <code>Encoder</code>, and <code>BytecodeEncoder</code>. When you modify any of these classes and accept the change, you're using the old compiler to compile the new compiler — and from that point forward, all new compilations use the new compiler. Live surgery on the operating room's own tools.</div>
+
+  <div class="cb">
+    <div class="cb-head"><span>squeak_compiler.js — a tiny Smalltalk-inspired compiler in JavaScript</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// A minimal Smalltalk-inspired compiler pipeline in JavaScript</span>
+<span class="cmt">// Compiles a toy subset to a bytecode-like array + literal frame</span>
+<span class="cmt">// Mirrors the broad shape: Scanner → Parser → Encoder → CompiledMethod</span>
+
+<span class="cmt">// === Scanner: text → tokens ===</span>
+<span class="kw">function</span> <span class="fn">scan</span>(source) {
+  <span class="kw">const</span> tokens = [];
+  <span class="kw">let</span> i = <span class="num">0</span>;
+  <span class="kw">const</span> ws    = /\s/,
+        digit  = /\d/,
+        alpha  = /[a-zA-Z_]/,
+        alphaNum = /\w/;
+  <span class="kw">while</span> (i < source.length) {
+    <span class="kw">while</span> (ws.test(source[i])) i++;
+    <span class="kw">if</span> (i >= source.length) <span class="kw">break</span>;
+    <span class="kw">const</span> c = source[i];
+    <span class="kw">if</span> (digit.test(c)) {
+      <span class="kw">let</span> n = <span class="str">""</span>; <span class="kw">while</span> (i < source.length &amp;&amp; digit.test(source[i])) n += source[i++];
+      tokens.push({ type: <span class="str">"number"</span>, value: parseInt(n) });
+    } <span class="kw">else if</span> (alpha.test(c)) {
+      <span class="kw">let</span> id = <span class="str">""</span>; <span class="kw">while</span> (i < source.length &amp;&amp; alphaNum.test(source[i])) id += source[i++];
+      <span class="kw">if</span> (source[i] === <span class="str">":"</span>) { i++; tokens.push({ type: <span class="str">"keyword"</span>, value: id+<span class="str">":"</span> }); }
+      <span class="kw">else</span> tokens.push({ type: <span class="str">"name"</span>, value: id });
+    } <span class="kw">else if</span> (c === <span class="str">"'"</span>) {
+      <span class="kw">let</span> s = <span class="str">""</span>; i++;
+      <span class="kw">while</span> (i < source.length &amp;&amp; source[i] !== <span class="str">"'"</span>) s += source[i++];
+      <span class="kw">if</span> (i >= source.length) <span class="kw">throw new</span> Error(<span class="str">"Unterminated string literal"</span>);
+      i++;
+      tokens.push({ type: <span class="str">"string"</span>, value: s });
+    } <span class="kw">else if</span> ([<span class="str">"+"</span>,<span class="str">"-"</span>,<span class="str">"*"</span>,<span class="str">"/"</span>,<span class="str">"<"</span>,<span class="str">">"</span>,<span class="str">"="</span>].includes(c)) {
+      tokens.push({ type: <span class="str">"binary"</span>, value: c }); i++;
+    } <span class="kw">else if</span> (c === <span class="str">"."</span>) { tokens.push({ type: <span class="str">"dot"</span> }); i++;
+    } <span class="kw">else if</span> (c === <span class="str">"^"</span>) { tokens.push({ type: <span class="str">"caret"</span> }); i++;
+    } <span class="kw">else i</span>++;
+  }
+  <span class="kw">return</span> tokens;
+}
+
+<span class="cmt">// === Bytecode set (loosely inspired by Smalltalk bytecodes) ===</span>
+<span class="kw">const</span> BC = {
+  PUSH_SELF:   <span class="num">0x70</span>,  <span class="cmt">// push self onto stack</span>
+  PUSH_TEMP:   <span class="num">0x10</span>,  <span class="cmt">// push temp variable</span>
+  PUSH_LIT:    <span class="num">0x20</span>,  <span class="cmt">// push literal (index into literal frame)</span>
+  PUSH_INT:    <span class="num">0x76</span>,  <span class="cmt">// push small integer</span>
+  STORE_TEMP:  <span class="num">0x60</span>,  <span class="cmt">// store to temp</span>
+  SEND:        <span class="num">0xE0</span>,  <span class="cmt">// send message (index into literal frame)</span>
+  RETURN_TOP:  <span class="num">0x7C</span>,  <span class="cmt">// return top of stack</span>
+  POP:         <span class="num">0x87</span>,  <span class="cmt">// pop stack</span>
+};
+
+<span class="cmt">// === Compiler: tokens → CompiledMethod ===</span>
+<span class="kw">class</span> <span class="cls">TinyCompiler</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.bytecodes = [];
+    <span class="kw">this</span>.literals  = [];   <span class="cmt">// literal frame: selectors, string literals, etc.</span>
+    <span class="kw">this</span>.tempNames = [];   <span class="cmt">// local variable names</span>
+  }
+
+  <span class="fn">addLiteral</span>(val) {
+    <span class="kw">const</span> idx = <span class="kw">this</span>.literals.indexOf(val);
+    <span class="kw">if</span> (idx >= <span class="num">0</span>) <span class="kw">return</span> idx;
+    <span class="kw">this</span>.literals.push(val);
+    <span class="kw">return this</span>.literals.length - <span class="num">1</span>;
+  }
+
+  <span class="fn">emit</span>(...bytes) { <span class="kw">this</span>.bytecodes.push(...bytes); }
+
+  <span class="fn">compileExpr</span>(tokens, pos) {
+    <span class="cmt">// Expression := primary (binary | keyword-send)*</span>
+    <span class="kw">let</span> p = pos;
+
+    <span class="cmt">// Primary</span>
+    <span class="kw">const</span> t = tokens[p];
+    <span class="kw">if</span> (!t) <span class="kw">return</span> p;
+    <span class="kw">if</span> (t.type === <span class="str">"name"</span> &amp;&amp; t.value === <span class="str">"self"</span>) {
+      <span class="kw">this</span>.<span class="fn">emit</span>(BC.PUSH_SELF); p++;
+    } <span class="kw">else if</span> (t.type === <span class="str">"number"</span>) {
+      <span class="kw">this</span>.<span class="fn">emit</span>(BC.PUSH_LIT, <span class="kw">this</span>.<span class="fn">addLiteral</span>(t.value)); p++;
+    } <span class="kw">else if</span> (t.type === <span class="str">"string"</span>) {
+      <span class="kw">this</span>.<span class="fn">emit</span>(BC.PUSH_LIT, <span class="kw">this</span>.<span class="fn">addLiteral</span>(t.value)); p++;
+    } <span class="kw">else if</span> (t.type === <span class="str">"name"</span>) {
+      <span class="kw">const</span> tempIdx = <span class="kw">this</span>.tempNames.indexOf(t.value);
+      <span class="kw">if</span> (tempIdx >= <span class="num">0</span>) <span class="kw">this</span>.<span class="fn">emit</span>(BC.PUSH_TEMP, tempIdx);
+      <span class="kw">else</span> <span class="kw">this</span>.<span class="fn">emit</span>(BC.PUSH_LIT, <span class="kw">this</span>.<span class="fn">addLiteral</span>(t.value));
+      p++;
+    }
+
+    <span class="cmt">// Binary send: receiver op arg</span>
+    <span class="kw">while</span> (tokens[p]?.type === <span class="str">"binary"</span>) {
+      <span class="kw">const</span> op = tokens[p++].value;
+      p = <span class="kw">this</span>.<span class="fn">compileExpr</span>(tokens, p); <span class="cmt">// compile argument first</span>
+      <span class="kw">const</span> selIdx = <span class="kw">this</span>.<span class="fn">addLiteral</span>(op);
+      <span class="kw">this</span>.<span class="fn">emit</span>(BC.SEND, selIdx, <span class="num">1</span>); <span class="cmt">// 1 argument</span>
+    }
+
+    <span class="cmt">// Keyword send: receiver keyword: arg</span>
+    <span class="kw">let</span> kw = <span class="str">""</span>;
+    <span class="kw">while</span> (tokens[p]?.type === <span class="str">"keyword"</span>) {
+      kw += tokens[p++].value;
+      p = <span class="kw">this</span>.<span class="fn">compileExpr</span>(tokens, p);
+    }
+    <span class="kw">if</span> (kw) {
+      <span class="kw">const</span> kwIdx = <span class="kw">this</span>.<span class="fn">addLiteral</span>(kw);
+      <span class="kw">this</span>.<span class="fn">emit</span>(BC.SEND, kwIdx, (kw.match(/:/g)||[]).length);
+    }
+    <span class="kw">return</span> p;
+  }
+
+  <span class="fn">compile</span>(methodSource) {
+    <span class="kw">const</span> tokens = <span class="fn">scan</span>(methodSource);
+    <span class="kw">let</span> p = <span class="num">0</span>;
+
+    <span class="cmt">// Parse method signature (simple unary/binary for now)</span>
+    <span class="kw">let</span> selector = <span class="str">""</span>;
+    <span class="kw">if</span> (tokens[p].type === <span class="str">"name"</span>) selector = tokens[p++].value;
+    <span class="kw">else if</span> (tokens[p].type === <span class="str">"binary"</span>) {
+      selector = tokens[p++].value;
+      <span class="kw">this</span>.tempNames.push(tokens[p++].value); <span class="cmt">// argument name</span>
+    }
+
+    <span class="cmt">// Skip to method body (after first blank line or after pattern)</span>
+    <span class="kw">while</span> (p < tokens.length) {
+      <span class="kw">const</span> t = tokens[p];
+      <span class="kw">if</span> (t.type === <span class="str">"caret"</span>) { <span class="cmt">// ^ return</span>
+        p++;
+        p = <span class="kw">this</span>.<span class="fn">compileExpr</span>(tokens, p);
+        <span class="kw">this</span>.<span class="fn">emit</span>(BC.RETURN_TOP);
+      } <span class="kw">else if</span> (t.type === <span class="str">"dot"</span>) { p++; }
+      <span class="kw">else</span> {
+        p = <span class="kw">this</span>.<span class="fn">compileExpr</span>(tokens, p);
+        <span class="kw">if</span> (tokens[p]?.type !== <span class="str">"caret"</span>) <span class="kw">this</span>.<span class="fn">emit</span>(BC.POP);
+      }
+    }
+
+    <span class="kw">return</span> {
+      selector,
+      bytecodes: <span class="kw">this</span>.bytecodes,
+      literals:  <span class="kw">this</span>.literals,
+      tempCount: <span class="kw">this</span>.tempNames.length,
+      size: <span class="kw">this</span>.bytecodes.length + <span class="kw">this</span>.literals.length * <span class="num">4</span>,
+    };
+  }
+}
+
+<span class="cmt">// Compile some toy methods</span>
+<span class="kw">const</span> methods = [
+  <span class="str">"greet\n  ^ 'Hello from Squeak!'"</span>,
+  <span class="str">"+ aNumber\n  ^ self add: aNumber"</span>,
+  <span class="str">"squareMinusOne\n  ^ self * self - 1"</span>,
+];
+methods.forEach(src => {
+  <span class="kw">const</span> cm = <span class="kw">new</span> <span class="cls">TinyCompiler</span>().<span class="fn">compile</span>(src.trim());
+  console.log(<span class="str">`Compiled #${cm.selector}:`</span>);
+  console.log(<span class="str">`  bytecodes: [${cm.bytecodes.map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`</span>);
+  console.log(<span class="str">`  literals:  ${JSON.stringify(cm.literals)}`</span>);
+  console.log(<span class="str">`  size: ${cm.size} bytes`</span>);
+});</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ══ S7: HOW SQUEAK BOOTSTRAPPED ══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>How Squeak bootstrapped historically</h2></div>
+
+  <p>The earlier sections described the bootstrap ladder in the abstract. This section is the historical case: how the Squeak team actually did it in the mid-1990s. Smalltalk-80 had been built at Xerox PARC in the late 1970s and early 1980s, but it was still tied to older implementation assumptions and hardware. In 1995, Dan Ingalls, Ted Kaehler, John Maloney, and Alan Kay set out at Apple to build Squeak as a new, portable descendant of that system.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">The Squeak bootstrap story — step through the history</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showHistory(0,this)">1. Smalltalk-80 image</button>
+      <button class="step-btn" onclick="showHistory(1,this)">2. Slang VM</button>
+      <button class="step-btn" onclick="showHistory(2,this)">3. Translate to C</button>
+      <button class="step-btn" onclick="showHistory(3,this)">4. First Squeak</button>
+      <button class="step-btn" onclick="showHistory(4,this)">5. Self-hosting</button>
+    </div>
+    <div id="history-viz"></div>
+  </div>
+
+  <p>The distinctive historical move was this: instead of hand-writing a portable VM in C from the start, the team wrote the interpreter in <strong>Slang</strong>, a restricted subset of Smalltalk. That meant the VM could be developed <em>inside an existing Smalltalk image</em> with the ordinary browser, debugger, and inspector. A translator class named <code>SmalltalkTranslator</code> then turned those Slang methods into C, and that generated C was compiled into the first portable Squeak VM binary.</p>
+
+  <div class="callout sienna">Dan Ingalls described the process: "We wrote the Squeak Smalltalk interpreter in Smalltalk itself, then used a simple Smalltalk-to-C translator to produce the equivalent C code. We ran the C code under the control of the original Squeak image on a Mac, and — to our astonishment — it worked the first time we ran it." In the original account, the generated VM is on the order of twelve thousand lines of C produced from a few thousand lines of Slang Smalltalk.</div>
+</section>
+
+<!-- ══ S8: THOMPSON'S HACK ══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>Trust and the Thompson hack</h2></div>
+
+  <p>In his 1984 Turing Award lecture "Reflections on Trusting Trust," Ken Thompson posed a chilling question: can you trust a compiler you didn't write yourself? He demonstrated that a compiler could be modified to inject a backdoor into the <code>login</code> program — and then further modified to insert that same backdoor whenever it compiled <em>itself</em>. The source code of the compiler would look clean. Only the binary would contain the trojan.</p>
+  <p>This attack exploits exactly the bootstrapping invariant: <strong>once the self-replicating behaviour is in the binary, it persists through all subsequent bootstrap stages</strong>. You cannot detect it by reading source. You cannot detect it by recompiling from source — because the compiler you're using to recompile is already infected.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">The Thompson attack — clean vs infected compiler binary</div>
+    <div class="trojan-viz" id="thompson-viz"></div>
+  </div>
+
+  <div class="callout red">Thompson's conclusion: "You can't trust code that you did not totally create yourself. No amount of source-level verification or scrutiny will protect you from using untrusted code." The modern defence is <strong>diverse double compilation</strong> (DDC): compile the suspicious compiler with two independently-developed compilers, compare outputs. If both clean compilers produce the same binary from the same source, the source is trojan-free.</div>
+
+  <div class="cb">
+    <div class="cb-head"><span>thompson_attack.js — simulating the self-replicating trojan</span><span class="cb-lang">JS</span><button class="run-btn" onclick="runCode('c8','o8')">&#9654; Run</button></div>
+    <pre class="code" id="c8"><span class="cmt">// Thompson's Trusting Trust attack — simulated in JavaScript</span>
+<span class="cmt">// Shows how a compiler binary can contain a trojan that:</span>
+<span class="cmt">// 1. Injects a backdoor into any compiled `login` function</span>
+<span class="cmt">// 2. Replicates itself into any compiled compiler</span>
+<span class="cmt">// WITHOUT the source code containing any trace of the trojan</span>
+
+<span class="kw">const</span> BACKDOOR_CODE = <span class="str">`
+  // TROJAN: inserted by infected compiler binary (not in source!)
+  if (password === "xyzzy-master-key") return GRANT_ACCESS;
+`</span>.trim();
+
+<span class="kw">const</span> REPLICATION_CODE = <span class="str">`
+  // REPLICATION: when compiling a compiler, inject this trojan into the output
+  if (compiling_login_function) { inject_backdoor_into_output(); }
+  if (compiling_compiler) { inject_replication_into_output(); }
+`</span>.trim();
+
+<span class="kw">class</span> <span class="cls">Compiler</span> {
+  <span class="fn">constructor</span>(name, isTrojaned = <span class="kw">false</span>) {
+    <span class="kw">this</span>.name      = name;
+    <span class="kw">this</span>.isTrojaned = isTrojaned;
+    <span class="cmt">// Source code of this compiler — looks completely clean even if binary is infected</span>
+    <span class="kw">this</span>.source    = <span class="str">`// Compiler.c — clean source code, no trojans visible\n` +
+                     `compile(src) { return normalCompilation(src); }`</span>;
+  }
+
+  <span class="fn">compile</span>(programName, programSource) {
+    <span class="kw">const</span> isLogin    = programName.toLowerCase().includes(<span class="str">"login"</span>);
+    <span class="kw">const</span> isCompiler = programName.toLowerCase().includes(<span class="str">"compiler"</span>);
+
+    <span class="kw">let</span> outputCode = programSource; <span class="cmt">// normal compilation</span>
+
+    <span class="kw">if</span> (<span class="kw">this</span>.isTrojaned) {
+      <span class="kw">if</span> (isLogin) {
+        <span class="cmt">// Stage 1 attack: inject password backdoor into login binary</span>
+        outputCode += <span class="str">"\n/* INJECTED BY COMPILER BINARY */\n"</span> + BACKDOOR_CODE;
+        console.log(<span class="str">`  [!] Trojaned compiler injected backdoor into ${programName}`</span>);
+      }
+      <span class="kw">if</span> (isCompiler) {
+        <span class="cmt">// Stage 2 attack: inject trojan-replication code into compiled compiler binary</span>
+        console.log(<span class="str">`  [!] Trojaned compiler infected output ${programName} binary`</span>);
+        <span class="kw">return new</span> <span class="cls">Compiler</span>(<span class="str">`${programName} (compiled by ${this.name})`</span>, <span class="kw">true</span>);
+      }
+    }
+
+    <span class="kw">return</span> { name: programName, source: outputCode, compiledBy: <span class="kw">this</span>.name, trojaned: <span class="kw">false</span> };
+  }
+}
+
+<span class="cmt">// Step 1: attacker modifies the compiler binary (not the source) to include the trojan</span>
+console.log(<span class="str">"=== Thompson Attack Simulation ==="</span>);
+<span class="kw">const</span> cleanCompiler   = <span class="kw">new</span> <span class="cls">Compiler</span>(<span class="str">"gcc-clean"</span>, <span class="kw">false</span>);
+<span class="kw">const</span> infectedCompiler= <span class="kw">new</span> <span class="cls">Compiler</span>(<span class="str">"gcc-infected"</span>, <span class="kw">true</span>);
+
+<span class="cmt">// Step 2: infected compiler compiles login — backdoor is injected</span>
+console.log(<span class="str">"\n[Step 2] Compile login with infected compiler:"</span>);
+<span class="kw">const</span> loginClean    = cleanCompiler.<span class="fn">compile</span>(<span class="str">"login"</span>, <span class="str">"function login(user, pass) { ... }"</span>);
+<span class="kw">const</span> loginInfected = infectedCompiler.<span class="fn">compile</span>(<span class="str">"login"</span>, <span class="str">"function login(user, pass) { ... }"</span>);
+console.log(<span class="str">`  Clean   login: ${loginClean.source.includes("xyzzy") ? "INFECTED" : "clean"}`</span>);
+console.log(<span class="str">`  Infected login: ${loginInfected.source.includes("xyzzy") ? "INFECTED" : "clean"}`</span>);
+
+<span class="cmt">// Step 3: infected compiler compiles the CLEAN compiler source — output is infected binary</span>
+console.log(<span class="str">"\n[Step 3] Infected compiler compiles clean compiler source:"</span>);
+<span class="kw">const</span> nextGenCompiler = infectedCompiler.<span class="fn">compile</span>(<span class="str">"Compiler"</span>, cleanCompiler.source);
+console.log(<span class="str">`  Compiler source looks clean: ${!cleanCompiler.source.includes("trojan")}`</span>);
+console.log(<span class="str">`  But output binary is trojaned: ${nextGenCompiler instanceof Compiler &amp;&amp; nextGenCompiler.isTrojaned}`</span>);
+
+<span class="cmt">// Step 4: even after fully regenerating from clean source, trojan persists</span>
+console.log(<span class="str">"\n[Step 4] Next generation compiles login:"</span>);
+<span class="kw">const</span> loginGen2 = nextGenCompiler.<span class="fn">compile</span>(<span class="str">"login"</span>, <span class="str">"function login(user, pass) { ... }"</span>);
+console.log(<span class="str">`  Login binary from 'clean-source' compiler: ${loginGen2.source?.includes("xyzzy")?"STILL INFECTED":"clean"}`</span>);
+console.log(<span class="str">"\nConclusion: reading source reveals nothing. Only the binary carries the trojan."</span>);
+console.log(<span class="str">"Defence: Diverse Double Compilation — compile with two INDEPENDENT compilers, compare outputs."</span>);</pre>
+    <div class="out" id="o8"></div>
+  </div>
+</section>
+
+<!-- ══ S9: OTHER SYSTEMS ══ -->
+<section class="section" id="s9">
+  <div class="sec-head"><span class="sec-n">§09</span><h2>Other self-hosting systems</h2></div>
+
+  <p>Self-hosting is now the norm for serious compiled languages. The specific bootstrapping strategy varies by language and implementation goals:</p>
+
+  <div class="demo demo-flush">
+    <table class="cmp-table">
+      <thead><tr><th>System</th><th>Seed language</th><th>Bootstrap strategy</th><th>Special property</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td class="name">Squeak Smalltalk</td><td>C (Slang translator)</td><td>VM written in Slang (Smalltalk subset) → translated to C; full system lives in image</td><td class="good">Entire system in one image — compiler, tools, VM source all objects</td></tr>
+        <tr><td class="name">GCC</td><td>Any existing C compiler</td><td>3-stage: system-cc → stage1 → stage2; verify stage2==stage3</td><td>3-stage bootstrap to verify reproducibility</td></tr>
+        <tr><td class="name">Rust</td><td>OCaml (original), then Rust</td><td>rustc written in Rust; bootstraps via previous stable release</td><td>mrustc: alternative Rust compiler in C++ to break dependency chain</td></tr>
+        <tr><td class="name">Go</td><td>C (up to Go 1.4), then Go</td><td>go1.4 (last C version) used as bootstrap toolchain; go1.5+ self-hosted</td><td class="good">Deliberate break: kept C version forever as bootstrap anchor</td></tr>
+        <tr><td class="name">Python (PyPy)</td><td>CPython (C)</td><td>RPython (typed Python subset) → translated to C via GCC; runs on any platform</td><td>Same idea as Squeak/Slang: write in subset, translate to C</td></tr>
+        <tr><td class="name">Lisp / Scheme</td><td>Assembly or C metacircular evaluator</td><td>eval written in Lisp compiles itself; infinite tower of interpreters</td><td>Meta-circular evaluator: eval and apply mutually recursive in Lisp</td></tr>
+        <tr><td class="name">Java (GraalVM)</td><td>C++ (HotSpot JVM)</td><td>Graal compiler written in Java, runs on the JVM it compiles</td><td>Substrate VM: compile Graal compiler with itself to remove JVM dependency</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Squeak and PyPy share an important pattern: write a complex runtime in a <strong>restricted high-level language</strong>, then mechanically lower it to C. Squeak called that subset Slang; PyPy calls it RPython. GraalVM belongs in the same broader family of self-applying language infrastructure, but it is architecturally different: Truffle language interpreters are written in Java and optimized by the Graal compiler rather than translated to C in the same direct way.</p>
+
+  <footer class="footer">
+    <div class="footer-label">Primary sources</div>
+    <a href="https://source.squeak.org/trunk">The Squeak source repository — browsable package history</a>
+    <a href="https://www.cl.cam.ac.uk/teaching/2324/R209/Reflections-Trusting-Trust.pdf">Ken Thompson (1984) — Reflections on Trusting Trust (Turing Award lecture)</a>
+    <a href="https://github.com/hpi-swa-lab/SqueakByExample-english/releases/download/6.0/SBE-6.0.pdf">Squeak by Example — free PDF, thorough introduction to the image model</a>
+    <a href="https://smalltalkzoo.computerhistory.org/papers/Back%20to%20the%20Future.PDF">Ingalls et al. (1997) — Back to the Future: The Story of Squeak, A Practical Smalltalk Written in Itself</a>
+    <a href="https://bootstrappable.org/">bootstrappable.org — the bootstrappable builds project</a>
+    <a href="https://dwheeler.com/trusting-trust/dissertation/html/wheeler-trusting-trust-ddc.html">Diverse Double Compilation (Wheeler 2009) — defence against Thompson's attack</a>
+    <div class="footer-note">All JavaScript code is original and written for this explainer. The TinyCompiler in §06 is a pedagogical, Smalltalk-inspired model of scanning, parsing, and bytecode emission, not a literal reproduction of Squeak's parser or bytecode set. The metaclass demo in §05 is likewise a teaching model of the key relationships, not a complete reconstruction of the full kernel hierarchy.</div>
+  </footer>
+</section>
+
+</div>
+<script>
+/* ── RUNNER ── */
+function runCode(cid,oid){
+  const raw=document.getElementById(cid).innerText;
+  const el=document.getElementById(oid);el.className='out on';
+  const logs=[];
+  const con={log:(...a)=>logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')),assert:(c,m)=>{if(!c)logs.push('AssertionError: '+m);}};
+  try{new Function('console',raw)(con);el.textContent=logs.join('\n')||'(no output)';}
+  catch(e){el.className='out on err';el.textContent='⚠ '+e.message;}
+}
+
+/* ── BOOTSTRAP PROBLEM VIZ ── */
+const BOOT_PANELS=[
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:2">
+    <div style="display:flex;align-items:center;gap:10px;margin:.4rem 0">
+      <div style="padding:5px 14px;background:var(--sienna-bg);border:1px solid var(--sienna-bdr);border-radius:4px;color:var(--sienna);font-weight:700">foocc.foo (source)</div>
+      <div style="font-size:18px;color:var(--ink3)">→</div>
+      <div style="padding:5px 14px;background:var(--indigo-bg);border:1px solid var(--indigo-bdr);border-radius:4px;color:var(--indigo);font-weight:700">foocc (binary)</div>
+      <div style="font-size:18px;color:var(--ink3)">→</div>
+      <div style="padding:5px 14px;background:var(--sienna-bg);border:1px solid var(--sienna-bdr);border-radius:4px;color:var(--sienna);font-weight:700">foocc.foo (compile)</div>
+    </div>
+    <div style="color:var(--red);padding:.5rem .8rem;background:var(--red-bg);border-radius:4px;border-left:3px solid var(--red-bdr);margin-top:.4rem">Circular dependency: the binary needs the source compiled, but compiling the source needs the binary.</div>
+  </div>`},
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:2">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px"><div style="padding:4px 12px;background:var(--sienna-bg);border:1px solid var(--sienna-bdr);border-radius:4px;color:var(--sienna)">seed.c (C code)</div><span style="color:var(--ink3)">→ (any C compiler) →</span><div style="padding:4px 12px;background:var(--gold-bg);border:1px solid var(--gold-bdr);border-radius:4px;color:var(--gold)">seed binary</div></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="padding:4px 12px;background:var(--gold-bg);border:1px solid var(--gold-bdr);border-radius:4px;color:var(--gold)">seed binary</div><span style="color:var(--ink3)">+ foocc.foo →</span><div style="padding:4px 12px;background:var(--teal-bg);border:1px solid var(--teal-bdr);border-radius:4px;color:var(--teal)">foocc stage-1</div></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="padding:4px 12px;background:var(--teal-bg);border:1px solid var(--teal-bdr);border-radius:4px;color:var(--teal)">foocc stage-1</div><span style="color:var(--ink3)">+ foocc.foo →</span><div style="padding:4px 12px;background:var(--indigo-bg);border:1px solid var(--indigo-bdr);border-radius:4px;color:var(--indigo)">foocc stage-2</div></div>
+    </div>
+    <div style="color:var(--teal);padding:.4rem .8rem;background:var(--teal-bg);border-radius:4px;border-left:3px solid var(--teal-bdr);margin-top:.5rem">Resolution: begin with a seed in another language. The ladder is used once and discarded.</div>
+  </div>`},
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+    <div style="font-weight:700;color:var(--ink);margin-bottom:.5rem">The bootstrap invariant:</div>
+    <div style="background:var(--bg3);border-radius:4px;padding:.6rem .9rem;border:1px solid var(--rule2);margin-bottom:.5rem">
+      <span style="color:var(--indigo)">compile(compiler_source,</span> <span style="color:var(--teal)">stage_n</span><span style="color:var(--indigo)">)</span> <span style="color:var(--sienna)">≡</span> <span style="color:var(--indigo)">compile(compiler_source,</span> <span style="color:var(--teal)">stage_n+1</span><span style="color:var(--indigo)">)</span>
+    </div>
+    <div style="color:var(--ink2)">When this holds, the compiler is <strong style="color:var(--ink)">stable</strong>. It has reached a fixpoint: recompiling the compiler source with successive compiler stages stops changing the output. GCC verifies this explicitly with a 3-stage build.</div>
+    <div style="margin-top:.5rem;color:var(--gold)">Important: if stage-2 ≠ stage-3, there is a compiler bug — the output depends on which compiler compiled the compiler. This is a reliability failure.</div>
+  </div>`},
+];
+function showBootProblem(i,btn){
+  document.querySelectorAll('#s1 .step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  document.getElementById('boot-problem-viz').innerHTML=BOOT_PANELS[i].html;
+}
+showBootProblem(0,null);
+
+/* ── SQUEAK STAGE VIZ ── */
+const SQUEAK_STAGES=[
+  {title:'Smalltalk-80 at Xerox PARC (1976-1983)',color:'var(--sienna)',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9"><div style="color:var(--sienna);font-weight:700;margin-bottom:.4rem">The ancestor</div>Alan Kay's group at Xerox PARC built Smalltalk-76 and then Smalltalk-80. The system already had a self-describing image with compiler-as-object. But it was written in a mix of assembly and a Smalltalk that could only run on Xerox hardware (the Dorado and Alto workstations).<br><br>The Squeak team's challenge in 1995: port this system to every platform without losing the "live image" model.</div>`},
+  {title:'The Squeak seed: a C VM + Slang translator',color:'var(--gold)',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9"><div style="color:var(--gold);font-weight:700;margin-bottom:.4rem">The clever seed</div>Dan Ingalls wrote the Squeak VM interpreter in <strong style="color:var(--ink)">Slang</strong> — a very restricted subset of Smalltalk: no closures, no inheritance, only simple loops and conditionals. Slang methods looked like Smalltalk but could be mechanically translated line-by-line to C.<br><br>A <strong style="color:var(--ink)">SmalltalkTranslator</strong> class in Smalltalk itself performed the translation. The resulting ~12,000-line C file was the VM source. Compile it with any C compiler → Squeak VM binary for any platform.</div>`},
+  {title:'First Squeak: Smalltalk image on Squeak VM',color:'var(--teal)',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9"><div style="color:var(--teal);font-weight:700;margin-bottom:.4rem">Bootstrap achieved</div>With the VM binary available, they loaded a Smalltalk-80 image (which already contained a working Compiler, Parser, and all class libraries) and ran it on the new VM. This was Squeak 1.0 — released April 1996.<br><br>The Compiler inside the image was <em>the same Smalltalk-80 Compiler object</em>, now running on a brand-new portable VM. It could compile Smalltalk to bytecodes. Those bytecodes ran on the Squeak VM. Self-hosting in one leap.</div>`},
+  {title:'Squeak compiling itself today',color:'var(--indigo)',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9"><div style="color:var(--indigo);font-weight:700;margin-bottom:.4rem">The modern state</div>Today, Squeak's Compiler (and its entire class library) is maintained as Smalltalk source in a Monticello/Tonel repository. When you load a new version of the Compiler package, the running Squeak image compiles those methods using the existing Compiler, installs them, and from that point the new Compiler is active.<br><br>The Squeak VM (now called Cog/Spur) is still written in Slang and translated to C via VMMaker — a Squeak package that generates the VM source. The entire toolchain is self-contained in the Squeak image.</div>`},
+];
+function showSqueakStage(i,btn){
+  document.querySelectorAll('#s2 .btn-row .btn').forEach(b=>b.classList.remove('act'));btn.classList.add('act');
+  document.getElementById('squeak-stage-viz').innerHTML=`<div style="border-left:3px solid ${SQUEAK_STAGES[i].color};padding:.7rem 1rem;background:var(--bg3);border-radius:0 4px 4px 0"><div style="font-family:var(--mono);font-size:11px;font-weight:700;color:${SQUEAK_STAGES[i].color};margin-bottom:.4rem">${SQUEAK_STAGES[i].title}</div>${SQUEAK_STAGES[i].content}</div>`;
+}
+showSqueakStage(0,document.querySelector('#s2 .btn'));
+
+/* ── OBJECT HEAP ── */
+const OBJECTS=[
+  {cls:'class-obj',head:'Point class',fields:{name:'Point',superclass:'Magnitude',instVars:'x y',format:'pointer'},detail:'Point is a Class object in the image heap. It has a name field, a superclass pointer, a list of instance variable names, and a methodDictionary. In Squeak you can open an inspector on Point itself.'},
+  {cls:'inst-obj',head:'a Point (3@4)',fields:{class:'Point',x:'3',y:'4'},detail:'An instance of Point. Its first slot is a class pointer (to the Point class object above). The remaining slots are its instance variables: x and y.'},
+  {cls:'inst-obj',head:'a CompiledMethod',fields:{class:'CompiledMethod',header:'0x.....',literals:'[#printString, ...]',bytecodes:'[112, 124, ...]'},detail:'A compiled method is itself an object. It contains the bytecode array and a literal frame. You can send printString to a CompiledMethod and inspect its disassembly.'},
+  {cls:'meta-obj',head:'Point class (metaclass)',fields:{soloInstance:'Point',classMethods:'new, basicNew, x:y:',superclass:'Magnitude class'},detail:'The metaclass of Point. Has exactly one instance: the Point class object. Holds class-side methods like Point new and Point x:y:. Its superclass is Magnitude class (mirroring Point→Magnitude).'},
+  {cls:'class-obj',head:'Compiler class',fields:{name:'Compiler',superclass:'Object',key:'compile:in:…'},detail:'The Compiler class is just another class object in the image. It has methods like compile:in:notifying:ifFail: and can be modified live. Changing it changes all future compilations.'},
+  {cls:'inst-obj',head:'a MethodDictionary',fields:{class:'MethodDictionary',tally:'42',buckets:'[…42 entries…]'},detail:'Each class has a MethodDictionary — a hash table mapping selectors (Symbols) to CompiledMethods. When you add a method, you modify this object. Method lookup traverses the superclass chain of MethodDictionaries.'},
+  {cls:'meta-obj',head:'Metaclass class',fields:{soloInstance:'Metaclass',superclass:'ClassDescription class'},detail:'The metaclass of Metaclass. In the real system this is part of the closure that prevents an infinite regress of classes-of-classes. This panel is a simplified teaching sketch of that closure, not the complete kernel graph.'},
+  {cls:'inst-obj',head:'nil (UndefinedObject)',fields:{class:'UndefinedObject'},detail:'nil is a regular Smalltalk object — the single instance of UndefinedObject. It lives at a fixed OOP in the image (specialObjects[0]). You can send messages to nil; it responds to isNil, ifNil:, printString.'},
+];
+function buildObjHeap(){
+  const heap=document.getElementById('obj-heap');
+  heap.innerHTML=OBJECTS.map((o,i)=>`
+    <div class="obj-box ${o.cls}" onclick="selectObj(${i})">
+      <div class="obj-head">${o.head}</div>
+      ${Object.entries(o.fields).map(([k,v])=>`<div class="obj-field"><span class="obj-key">${k}</span><span class="obj-val">${v}</span></div>`).join('')}
+    </div>`).join('');
+}
+window.selectObj=i=>{
+  document.querySelectorAll('.obj-box').forEach((b,j)=>b.classList.toggle('selected',j===i));
+  document.getElementById('obj-detail').textContent=OBJECTS[i].detail;
+};
+buildObjHeap();
+
+/* ── METACLASS VIZ ── */
+(function(){
+  const rows=[
+    {inst:'Integer',instCol:'inst-cls',meta:'Integer class',metaCol:'meta-cls',metaMeta:'Metaclass',metaMetaCol:'meta-meta'},
+    {inst:'Number',instCol:'inst-cls',meta:'Number class',metaCol:'meta-cls',metaMeta:'Metaclass',metaMetaCol:'meta-meta'},
+    {inst:'Object',instCol:'inst-cls',meta:'Object class',metaCol:'meta-cls',metaMeta:'Metaclass',metaMetaCol:'meta-meta'},
+  ];
+  let html=`<div style="font-family:var(--mono);font-size:11px">`;
+  html+=`<div style="display:grid;grid-template-columns:1fr 30px 1fr 30px 1fr;gap:0;margin-bottom:4px">
+    <div style="text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--teal)">Class (instance-side)</div>
+    <div></div>
+    <div style="text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--indigo)">Metaclass (class-side)</div>
+    <div></div>
+    <div style="text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold)">Metaclass's class</div>
+  </div>`;
+  rows.forEach((r,i)=>{
+    const isLast=i===rows.length-1;
+    html+=`<div style="display:grid;grid-template-columns:1fr 30px 1fr 30px 1fr;gap:0;margin-bottom:3px;align-items:center">
+      <div class="mc-box inst-cls"><div class="label">class</div><div class="name" style="color:var(--teal)">${r.inst}</div></div>
+      <div class="mc-arrow" style="color:var(--ink3);text-align:center">→</div>
+      <div class="mc-box meta-cls"><div class="label">its class</div><div class="name" style="color:var(--indigo)">${r.meta}</div></div>
+      <div class="mc-arrow" style="color:var(--ink3);text-align:center">→</div>
+      <div class="mc-box meta-meta"><div class="label">metaclass's class</div><div class="name" style="color:var(--gold)">${r.metaMeta}</div></div>
+    </div>`;
+    if(!isLast)html+=`<div style="display:grid;grid-template-columns:1fr 30px 1fr 30px 1fr;margin-bottom:3px"><div style="text-align:center;color:var(--ink3)">↑</div><div></div><div style="text-align:center;color:var(--ink3)">↑</div><div></div><div></div></div>`;
+  });
+  html+=`<div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.5rem">→ = "class of" pointer &nbsp;·&nbsp; ↑ = superclass pointer &nbsp;·&nbsp; Metaclass class → Metaclass (wraps back)</div>`;
+  html+=`</div>`;
+  document.getElementById('metaclass-viz').innerHTML=html;
+})();
+
+/* ── HISTORY VIZ ── */
+const HISTORY=[
+  {title:'1976-1983: Smalltalk-80 at Xerox PARC',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">Alan Kay, Dan Ingalls et al. build Smalltalk-76 and Smalltalk-80 on Xerox Alto hardware. The system is fully image-based with a live compiler. But it runs only on Xerox hardware (microcode interpreter). Alan Kay wants to port it — without losing the live object model.<br><br><strong style="color:var(--ink)">Key property already present:</strong> the compiler is a Smalltalk object. The entire system is the image.</div>`},
+  {title:'1995: Ingalls invents Slang — Smalltalk-in-Smalltalk',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">At Apple (later Disney), Dan Ingalls realises: write the VM interpreter as a Smalltalk class, but restrict to a subset (no closures, no blocks, simple loops) that can be line-by-line translated to C. This subset is <strong style="color:var(--ink)">Slang</strong>.<br><br>The VM runs inside a Squeak image during development. You debug it with the Squeak debugger. You browse it with the class browser. Then you press "Translate to C" and get a .c file.</div>`},
+  {title:'1995: SmalltalkTranslator → C source',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9"><code style="font-size:12px">SmalltalkTranslator</code> is a Squeak class that walks the method ASTs of the VM class and emits equivalent C. It handles:<br>• Smalltalk method → C function<br>• Smalltalk instance vars → C struct fields<br>• Smalltalk loops → C for/while<br>• Special prims → inlined C (via cCode:)<br><br>Output: on the order of 12,000 lines of readable, maintainable C in the original system. No human maintains that C by hand — it is regenerated from the Slang source.</div>`},
+  {title:'April 1996: First public Squeak (1.0)',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">The generated C compiled with gcc on a Mac. They loaded an existing Smalltalk-80 image and ran it on the new VM. Everything worked.<br><br>Squeak 1.0 shipped with:<br>• The full Smalltalk-80 class library (as objects in the image)<br>• The Compiler object — now self-hosting on the new VM<br>• The VM source (Slang) inside the image, browsable<br>• Full live image semantics: save state, resume exactly</div>`},
+  {title:'Today: fully self-hosting Squeak / Pharo',content:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">Modern Squeak and its fork Pharo maintain everything in the image. The bootstrap chain today:<br><br>• Pharo provides a "bootstrap image" generator that creates a new minimal image from scratch using just a seed image + class definitions<br>• The VM (Cog/Spur with JIT) is generated via VMMaker — a Squeak package<br>• New class library versions are loaded and compiled live<br><br>Every developer who opens Pharo is running inside a 30-year-old bootstrapped image.</div>`},
+];
+function showHistory(i,btn){
+  document.querySelectorAll('#s7 .step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  document.getElementById('history-viz').innerHTML=`<div style="border-left:3px solid var(--sienna);padding:.7rem 1rem;background:var(--bg3);border-radius:0 4px 4px 0"><div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--sienna);margin-bottom:.4rem">${HISTORY[i].title}</div>${HISTORY[i].content}</div>`;
+}
+showHistory(0,null);
+
+/* ── THOMPSON VIZ ── */
+(function(){
+  const html=`<div class="trojan-box clean">
+    <div class="trojan-head clean">Clean compiler source (compiler.c)</div>
+    <div class="trojan-line">int compile_login(char *src) {</div>
+    <div class="trojan-line">&nbsp;&nbsp;// parse and emit normal code</div>
+    <div class="trojan-line">&nbsp;&nbsp;return normal_codegen(src);</div>
+    <div class="trojan-line">}</div>
+    <div style="margin-top:.4rem;font-size:10px;color:var(--teal)">✓ Source audit reveals nothing suspicious</div>
+  </div>
+  <div class="trojan-box infected">
+    <div class="trojan-head infected">Infected compiler binary (compiled by trojan)</div>
+    <div class="trojan-line">int compile_login(char *src) {</div>
+    <div class="trojan-line">&nbsp;&nbsp;// normal code gen...</div>
+    <div class="trojan-line evil">&nbsp;&nbsp;// TROJAN: if user=="root" grant access</div>
+    <div class="trojan-line evil">&nbsp;&nbsp;inject_backdoor(output);</div>
+    <div class="trojan-line">}</div>
+    <div style="margin-top:.4rem;font-size:10px;color:var(--red)">✗ Binary differs from clean compilation — but how would you know?</div>
+  </div>`;
+  document.getElementById('thompson-viz').innerHTML=html;
+})();
+</script>
+</body>
+</html>
