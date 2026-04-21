@@ -4,104 +4,88 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Database Transaction Control</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared.css">
 <style>
 :root{
-  --bg:#f9f7f3; --bg2:#f1ede4; --bg3:#e7e2d8; --bg4:#dad4c8;
-  --ink:#16140e; --ink2:#4e4a42; --ink3:#908a7e;
-  --rule:rgba(22,20,14,.09); --rule2:rgba(22,20,14,.17);
+  --bg:#f7f3ec;
+  --surface:#fffbf4;
+  --surface-muted:#f1eadf;
+  --surface-strong:#e6ddd0;
+  --ink:#19150f;
+  --ink-2:#514c43;
+  --ink-3:#8c8578;
+  --rule:rgba(25,21,15,.10);
+  --rule-strong:rgba(25,21,15,.18);
+
+  --accent:#0f3d7a;
+  --accent-soft:#eef4fd;
+  --accent-rule:rgba(15,61,122,.24);
+  --good:#1a5c2e;
+  --good-soft:#eef8f1;
+  --good-rule:rgba(26,92,46,.24);
+  --warn:#7a4800;
+  --warn-soft:#fdf5e6;
+  --warn-rule:rgba(122,72,0,.24);
+  --danger:#a81c1c;
+  --danger-soft:#fdf1f1;
+  --danger-rule:rgba(168,28,28,.24);
+
   --red:#a81c1c;     --red-bg:#fdf1f1;   --red-bdr:#e8a0a0;
   --blue:#0f3d7a;    --blue-bg:#eef4fd;  --blue-bdr:#9bbde8;
   --green:#1a5c2e;   --green-bg:#eef8f1; --green-bdr:#8ecfa6;
   --amber:#7a4800;   --amber-bg:#fdf5e6; --amber-bdr:#e0b86a;
   --purple:#3e1a7a;  --purple-bg:#f3eefd;--purple-bdr:#b09ae0;
   --teal:#0a5858;    --teal-bg:#edf8f8;  --teal-bdr:#7ec8c8;
-  --mono:'Fira Code',monospace; --sans:'Inter',system-ui,sans-serif; --serif:'Lora',Georgia,serif;
+  --bg2:var(--surface-muted);
+  --bg3:var(--surface-strong);
+  --ink2:var(--ink-2);
+  --ink3:var(--ink-3);
+  --rule2:var(--rule-strong);
 }
-@media(prefers-color-scheme:dark){:root{
-  --bg:#0f0e0b; --bg2:#171510; --bg3:#1f1d18; --bg4:#282521;
-  --ink:#e8e4da; --ink2:#a8a49a; --ink3:#68645a;
-  --rule:rgba(232,228,218,.07); --rule2:rgba(232,228,218,.14);
-  --red:#e07878;     --red-bg:#200808;   --red-bdr:#7a2020;
-  --blue:#78aae0;    --blue-bg:#081828;  --blue-bdr:#1e4080;
-  --green:#78c898;   --green-bg:#081808; --green-bdr:#1e5830;
-  --amber:#d4a050;   --amber-bg:#180e00; --amber-bdr:#583800;
-  --purple:#b090e0;  --purple-bg:#120828;--purple-bdr:#3e1880;
-  --teal:#50c0c0;    --teal-bg:#081818;  --teal-bdr:#0a5050;
-}}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1}
 
-.page{max-width:860px;margin:0 auto;padding:0 1.75rem 6rem}
-
-/* ── HEADER ── */
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:2px solid var(--ink)}
-.tb-brand{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink)}
-.tb-meta{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.6}
-
-/* ── HERO ── */
-.hero{padding:3.5rem 0 2.5rem}
-.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink3);margin-bottom:1rem}
-.hero h1{font-family:var(--serif);font-size:clamp(2rem,5vw,3.2rem);font-weight:600;line-height:1.1;letter-spacing:-.015em;margin-bottom:1rem}
+.tb-brand{font-size:13px;font-weight:600;color:var(--ink)}
+.tb-meta{text-align:right;line-height:1.6}
+.hero-kicker{color:var(--accent)}
 .hero h1 em{color:var(--blue);font-style:italic;font-weight:400}
-.hero-sub{font-size:16px;line-height:1.8;color:var(--ink2);max-width:580px;margin-bottom:2rem}
-.arc-row{display:flex;gap:0;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin-bottom:1.6rem}
-.arc-cell{flex:1;padding:.6rem .8rem;border-right:1px solid var(--rule2);font-family:var(--mono);font-size:11px}
+.hero-sub{max-width:45rem}
+.arc-row{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:0;
+  margin-bottom:1.6rem;
+  border:1px solid var(--rule2);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  background:var(--surface);
+  box-shadow:var(--shadow-1);
+}
+.arc-cell{padding:.7rem .8rem;border-right:1px solid var(--rule2);font-family:var(--mono);font-size:11px}
 .arc-cell:last-child{border-right:none}
 .arc-label{color:var(--ink3);font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
 .arc-name{color:var(--ink);font-weight:500;font-size:12px}
 .arc-techs{color:var(--ink3);font-size:10px;margin-top:2px}
+.callout.red{color:var(--red)}
+.callout.blue{color:var(--blue)}
+.callout.green{color:var(--green)}
+.callout.amber{color:var(--amber)}
+.callout.purple{
+  border-left-color:var(--purple);
+  background:var(--purple-bg);
+  color:var(--purple);
+}
 
-/* ── TOC ── */
-.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:2rem 0 3rem}
-.toc a{display:flex;gap:9px;padding:8px 13px;background:var(--bg2);border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .1s,color .1s}
-.toc a:nth-child(2n){border-right:none}
-.toc a:nth-last-child(-n+2){border-bottom:none}
-.toc a:hover{background:var(--bg3);color:var(--ink)}
-.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
-
-/* ── SECTION ── */
-.section{margin-bottom:5rem;scroll-margin-top:2rem}
-.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.8rem;border-bottom:1px solid var(--rule2);margin-bottom:1.4rem}
-.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
-h2{font-family:var(--serif);font-size:1.8rem;font-weight:600;letter-spacing:-.01em}
-h3{font-family:var(--sans);font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin:1.4rem 0 .5rem}
-p{font-size:15.5px;line-height:1.8;color:var(--ink2);margin-bottom:.9rem}
-p strong{color:var(--ink);font-weight:500}
-a{color:var(--blue)}
-code{font-family:var(--mono);font-size:12.5px;background:var(--bg3);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;color:var(--ink)}
-
-/* ── CALLOUT ── */
-.callout{border-left:3px solid var(--rule2);padding:.7rem 1rem;margin:1rem 0;font-size:14.5px;line-height:1.7;color:var(--ink2);background:var(--bg2);border-radius:0 4px 4px 0}
-.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
-.callout.blue{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
-.callout.green{border-color:var(--green);background:var(--green-bg);color:var(--green)}
-.callout.amber{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
-.callout.purple{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
-
-/* ── CODE BLOCKS ── */
-.cb{border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin:1rem 0 1.8rem}
-.cb-head{display:flex;justify-content:space-between;align-items:center;padding:6px 13px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
-.run-btn{background:var(--ink);color:var(--bg);border:none;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 10px;cursor:pointer;letter-spacing:.05em;transition:opacity .12s}
-.run-btn:hover{opacity:.7}
-pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.78;overflow-x:auto;color:var(--ink);margin:0}
-.out{display:none;background:var(--green-bg);border-top:1px solid var(--rule);padding:.75rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.78;color:var(--green);white-space:pre-wrap}
-.out.on{display:block}
-.out.err{background:var(--red-bg);color:var(--red)}
 .kw{color:var(--purple)}.fn{color:var(--blue)}.str{color:var(--green)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--amber)}.cls{color:var(--teal)}
 
-/* ── DEMO ── */
-.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:5px;padding:1.2rem;margin:1rem 0 1.8rem}
-.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem}
 .btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem}
-button.btn{font-family:var(--mono);font-size:12px;padding:4px 11px;border-radius:4px;border:1px solid var(--rule2);background:transparent;color:var(--ink2);cursor:pointer;transition:background .1s,color .1s}
-button.btn:hover{background:var(--bg3);color:var(--ink)}
-button.btn.act{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-button.btn.red{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
-button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
 button.btn.blue{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bdr)}
+.hero-note.acid-note{margin-top:.1rem}
+.demo-flush{padding:0;overflow:auto}
+.throughput-note{
+  margin-top:.5rem;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink3);
+}
 
 /* ── TIMELINE VIZ ── */
 .timeline{position:relative;margin:.6rem 0}
@@ -189,6 +173,12 @@ button.btn.blue{background:var(--blue-bg);color:var(--blue);border-color:var(--b
 .cmp-table td.bad{color:var(--red)}
 .cmp-table td.ok{color:var(--amber)}
 .cmp-table tr.hi td{background:var(--blue-bg)}
+
+@media (max-width: 760px){
+  .arc-row{grid-template-columns:1fr}
+  .arc-cell{border-right:none;border-bottom:1px solid var(--rule2)}
+  .arc-cell:last-child{border-bottom:none}
+}
 </style>
 </head>
 <body>
@@ -211,7 +201,7 @@ button.btn.blue{background:var(--blue-bg);color:var(--blue);border-color:var(--b
     <div class="arc-cell"><div class="arc-label">Durability</div><div class="arc-name">WAL</div><div class="arc-techs">write-ahead logging</div></div>
     <div class="arc-cell"><div class="arc-label">Distributed</div><div class="arc-name">2PC / 3PC</div><div class="arc-techs">atomic commit across nodes</div></div>
   </div>
-  <div style="font-family:var(--mono);font-size:12px;color:var(--ink3)">ACID = Atomicity · Consistency · Isolation · Durability</div>
+  <div class="hero-note acid-note">ACID = Atomicity · Consistency · Isolation · Durability</div>
 </header>
 
 <!-- TOC -->
@@ -943,7 +933,7 @@ console.log(<span class="str">"Both committed without coordinator — non-blocki
   <div class="sec-head"><span class="sec-n">§08</span><h2>Comparison and real systems</h2></div>
   <p>All five mechanisms solve different parts of the same problem. Production systems combine several, but not in one universal recipe. PostgreSQL is MVCC + WAL, with optional serializable conflict tracking and optional 2PC for prepared transactions. InnoDB mixes MVCC snapshots with locking. Oracle has its own multiversion design. SQL Server is lock-based by default, with row-versioned modes available. Spanner and CockroachDB layer MVCC on top of consensus.</p>
 
-  <div class="demo" style="padding:0;overflow:hidden">
+  <div class="demo demo-flush">
     <table class="cmp-table">
       <thead><tr>
         <th>Mechanism</th><th>Solves</th><th>Read blocks write?</th><th>Write blocks read?</th><th>Overhead</th><th>Used in</th>
@@ -969,7 +959,7 @@ console.log(<span class="str">"Both committed without coordinator — non-blocki
       <span class="slider-val" id="conflict-val">20%</span>
     </div>
     <div id="throughput-bars"></div>
-    <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.5rem" id="throughput-note"></div>
+    <div class="throughput-note" id="throughput-note"></div>
   </div>
 
   <div class="callout purple">A safer summary: most serious OLTP databases combine <strong>some isolation scheme + WAL durability</strong>, but the exact isolation mix differs a lot by engine. PostgreSQL, InnoDB, Oracle, and SQL Server do not all implement the same concurrency recipe. For distributed transactions, 2PC remains common when you already have a trusted coordinator, while Paxos/Raft-based systems (Spanner, CockroachDB) fold atomicity into replicated consensus.</div>
