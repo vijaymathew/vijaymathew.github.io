@@ -687,10 +687,10 @@ nex&gt; scores.get(0)
 <section id="modifying-elements" class="level2" data-number="10.3">
 <h2 data-number="10.3" class="anchored" data-anchor-id="modifying-elements"><span class="header-section-number">10.3</span> Modifying Elements</h2>
 <p>Individual elements can be updated by assigning to an indexed position:</p>
-<pre><code>nex&gt; scores.put(2, 80)
+<pre><code>nex&gt; scores.set(2, 80)
 nex&gt; scores
 [85, 92, 80, 95, 60]</code></pre>
-<p>The array itself is mutable — its elements can change — but its length cannot. An array created with five elements always has five elements. Adding or removing elements requires the operations in Section 9.5.</p>
+<p>The array itself is mutable. Its elements can change, and its length can also change. Updating an existing element with <code>set</code> preserves the current length; operations such as <code>add</code>, <code>add_at</code>, and <code>remove</code> in Section 9.5 grow or shrink the array.</p>
 </section>
 <section id="iterating-with-across" class="level2" data-number="10.4">
 <h2 data-number="10.4" class="anchored" data-anchor-id="iterating-with-across"><span class="header-section-number">10.4</span> Iterating with <code>across</code></h2>
@@ -805,8 +805,7 @@ nex&gt; squares
 <section id="arrays-and-functions" class="level2" data-number="10.8">
 <h2 data-number="10.8" class="anchored" data-anchor-id="arrays-and-functions"><span class="header-section-number">10.8</span> Arrays and Functions</h2>
 <p>Arrays are values like any other and can be passed to and returned from functions:</p>
-<pre><code>nex&gt; function sum(arr: Array[Integer]): Integer
-     do
+<pre><code>nex&gt; function sum(arr: Array[Integer]): Integer do
        result := 0
        across arr as x do
          result := result + x
@@ -818,8 +817,7 @@ nex&gt; sum([10, 20, 30, 40])
 
 nex&gt; sum([])
 0</code></pre>
-<pre><code>nex&gt; function maximum(arr: Array[Integer]): Integer
-     do
+<pre><code>nex&gt; function maximum(arr: Array[Integer]): Integer do
        result := arr.get(0)
        across arr as x do
          if x &gt; result then
@@ -832,8 +830,7 @@ nex&gt; maximum([3, 7, 1, 9, 4])
 9</code></pre>
 <p><code>maximum</code> initialises <code>result</code> to the first element (index 0) and then updates it whenever a larger element is found. This is the accumulator pattern from Chapter 5, applied to arrays. Note that <code>maximum</code> has an implicit precondition: the array must not be empty, because <code>arr.get(0)</code> on an empty array raises an exception. In Part V we will write this as a <code>require</code> clause; for now, state it in a comment.</p>
 <p>Functions can also return arrays:</p>
-<pre><code>nex&gt; function filter_above(arr: Array[Integer], threshold: Integer): Array[Integer]
-     do
+<pre><code>nex&gt; function filter_above(arr: Array[Integer], threshold: Integer): Array[Integer] do
        result := []
        across arr as x do
          if x &gt; threshold then
@@ -862,28 +859,25 @@ nex&gt; filter_above([85, 92, 78, 95, 60], 80)
 <section id="a-worked-example-statistics" class="level2" data-number="10.10">
 <h2 data-number="10.10" class="anchored" data-anchor-id="a-worked-example-statistics"><span class="header-section-number">10.10</span> A Worked Example: Statistics</h2>
 <p>Here is a small collection of functions that compute basic statistics on an array of real numbers:</p>
-<pre><code>nex&gt; function mean(arr: Array[Real]): Real
-     do
+<pre><code>nex&gt; function mean(arr: Array[Real]): Real do
        result := 0.0
        across arr as x do
          result := result + x
        end
-       result := result / arr.length.to_real
+       result := result / arr.length
      end
 
-nex&gt; function variance(arr: Array[Real]): Real
-     do
+nex&gt; function variance(arr: Array[Real]): Real do
        let m := mean(arr)
        result := 0.0
        across arr as x do
          let diff := x - m
          result := result + diff * diff
        end
-       result := result / arr.length.to_real
+       result := result / arr.length
      end
 
-nex&gt; function std_dev(arr: Array[Real]): Real
-     do
+nex&gt; function std_dev(arr: Array[Real]): Real do
        result := variance(arr) ^ 0.5
      end</code></pre>
 <pre><code>nex&gt; let data := [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
@@ -906,7 +900,7 @@ nex&gt; std_dev(data)
 <li>Elements are accessed by zero-based index: <code>arr.get(0)</code> is the first element, <code>arr.get(arr.length - 1)</code> is the last</li>
 <li>Accessing an out-of-bounds index raises an exception; the precondition for <code>arr.get(i)</code> is <code>0 &lt;= i &lt; arr.length</code></li>
 <li><code>across arr as x do</code> iterates over every element in order; the element type is inferred</li>
-<li><code>add</code>, <code>add_at</code>, <code>remove</code>, and <code>put</code> grow and shrink arrays</li>
+<li><code>add</code>, <code>add_at</code>, and <code>remove</code> grow and shrink arrays</li>
 <li><code>contains</code>, <code>index_of</code>, <code>slice</code>, <code>reverse</code>, and <code>sort</code> are common query and transformation operations</li>
 <li>Arrays are values: they can be passed to and returned from functions</li>
 <li>Build arrays programmatically with an empty array and <code>add</code> inside a loop</li>

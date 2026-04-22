@@ -645,14 +645,12 @@ ul.task-list li input[type="checkbox"] {
 <h2 data-number="8.1" class="anchored" data-anchor-id="a-function-as-a-contract"><span class="header-section-number">8.1</span> A Function as a Contract</h2>
 <p>Every function makes two implicit commitments. It assumes certain things about its inputs — conditions that must be true for the function to behave as intended. And it promises certain things about its output — conditions that will be true when the function returns, given that the assumptions were met.</p>
 <p>Consider a function that computes the average of two real numbers:</p>
-<pre><code>nex&gt; function average(a, b: Real): Real
-     do
+<pre><code>nex&gt; function average(a, b: Real): Real do
        result := (a + b) / 2.0
      end</code></pre>
 <p>What does this function assume? Nothing particularly strong — any two real numbers will do. What does it guarantee? That the result is the arithmetic mean of the two inputs: <code>(a + b) / 2.0</code>.</p>
 <p>Now consider a function that computes a percentage:</p>
-<pre><code>nex&gt; function percentage(part, total: Real): Real
-     do
+<pre><code>nex&gt; function percentage(part, total: Real): Real do
        result := (part / total) * 100.0
      end</code></pre>
 <p>This function has a stronger assumption: <code>total</code> must not be zero. If <code>total</code> is zero, the division will fail. The function’s guarantee — that it returns the percentage of <code>part</code> in <code>total</code> — only holds when the assumption is satisfied.</p>
@@ -684,16 +682,14 @@ nex&gt; celsius_to_fahrenheit(-40.0)
 <section id="functions-with-effects" class="level2" data-number="8.3">
 <h2 data-number="8.3" class="anchored" data-anchor-id="functions-with-effects"><span class="header-section-number">8.3</span> Functions with Effects</h2>
 <p>Not all functions are pure. A function that prints output, reads from the console, or modifies a variable outside itself has an <em>effect</em> — an observable change to the world beyond its return value. The <code>greet</code> function from Chapter 6 is an effectful function: it prints to the output, which is a change to the outside world.</p>
-<pre><code>nex&gt; function greet(name: String)
-     do
+<pre><code>nex&gt; function greet(name: String) do
        print("Hello, " + name)
      end</code></pre>
 <p>Effectful functions are necessary — a program that produces no effects produces no output and changes nothing, which makes it useless. But effects make functions harder to reason about and harder to test. The output of <code>greet</code> cannot be captured and checked programmatically the same way that the return value of <code>celsius_to_fahrenheit</code> can.</p>
 <p>The practical discipline — which we will formalise in Part VI — is to separate computation from effect. Write pure functions to compute values, then write thin effectful functions that take those values and act on them. The computation can be tested directly; the effect layer is kept as simple as possible.</p>
 <p>Compare these two approaches to a temperature reporting function:</p>
 <pre><code>nex&gt; -- effectful throughout: harder to test
-nex&gt; function report_temperature(c: Real)
-     do
+nex&gt; function report_temperature(c: Real) do
        if c &lt; 0.0 then
          print("Freezing: " + c.to_string + " deg C")
        elseif c &lt; 15.0 then
@@ -703,8 +699,7 @@ nex&gt; function report_temperature(c: Real)
        end
      end</code></pre>
 <pre><code>nex&gt; -- pure core, thin effect: easier to test
-nex&gt; function temperature_label(c: Real): String
-     do
+nex&gt; function temperature_label(c: Real): String do
        if c &lt; 0.0 then
          result := "Freezing"
        elseif c &lt; 15.0 then
@@ -714,8 +709,7 @@ nex&gt; function temperature_label(c: Real): String
        end
      end
 
-nex&gt; function report_temperature(c: Real)
-     do
+nex&gt; function report_temperature(c: Real) do
        print(temperature_label(c) + ": " + c.to_string + " deg C")
      end</code></pre>
 <p>The second version separates the decision — which label applies to this temperature? — from the action — print the label. The decision is pure and can be tested exhaustively:</p>
@@ -736,14 +730,12 @@ nex&gt; temperature_label(20.0)
 <p><strong>Inputs as parameters, not globals.</strong> A function that reads variables from outside its own scope is harder to test, because testing it requires setting up that external state. A function that receives all its inputs as parameters can be called with any inputs you choose, without setup:</p>
 <pre><code>nex&gt; -- harder to test: depends on external variable
 nex&gt; let tax_rate := 0.20
-nex&gt; function compute_tax(price: Real): Real
-     do
+nex&gt; function compute_tax(price: Real): Real do
        result := price * tax_rate
      end
 
 nex&gt; -- easier to test: all inputs are parameters
-nex&gt; function compute_tax(price, rate: Real): Real
-     do
+nex&gt; function compute_tax(price, rate: Real): Real do
        result := price * rate
      end</code></pre>
 <p>The second version can be tested with any price and any rate. The first can only be tested with whatever <code>tax_rate</code> happens to be at the time.</p>
@@ -768,13 +760,11 @@ nex&gt; compute_tax(99.99, 0.10)
 <section id="functions-as-building-blocks" class="level2" data-number="8.5">
 <h2 data-number="8.5" class="anchored" data-anchor-id="functions-as-building-blocks"><span class="header-section-number">8.5</span> Functions as Building Blocks</h2>
 <p>A program built from well-designed functions has a particular quality: the code that assembles the pieces is readable at a high level, without requiring the reader to follow the details of every piece. Consider a program that reads a temperature, converts it, classifies it, and reports it:</p>
-<pre><code>nex&gt; function celsius_to_fahrenheit(c: Real): Real
-     do
+<pre><code>nex&gt; function celsius_to_fahrenheit(c: Real): Real do
        result := c * 9.0 / 5.0 + 32.0
      end
 
-nex&gt; function temperature_label(c: Real): String
-     do
+nex&gt; function temperature_label(c: Real): String do
        if c &lt; 0.0 then
          result := "Freezing"
        elseif c &lt; 15.0 then
@@ -786,8 +776,7 @@ nex&gt; function temperature_label(c: Real): String
        end
      end
 
-nex&gt; function temperature_report(c: Real): String
-     do
+nex&gt; function temperature_report(c: Real): String do
        let f := celsius_to_fahrenheit(c)
        let label := temperature_label(c)
        result := label + ": " + c.to_string + " deg C / " + f.to_string + " deg F"
@@ -804,8 +793,7 @@ nex&gt; function temperature_report(c: Real): String
 <p>A function body that is longer than about ten to fifteen lines is a candidate for decomposition. Not every long function needs to be broken up — some computations are genuinely sequential and benefit from being in one place. But length is a signal worth examining.</p>
 <p>A function that contains deeply nested conditionals or loops within loops is harder to test and harder to read. Extracting the inner loop or the innermost condition into its own named function often makes both the outer function and the extracted function clearer:</p>
 <pre><code>nex&gt; -- before: inner loop mixed with outer logic
-nex&gt; function count_divisors(n: Integer): Integer
-     do
+nex&gt; function count_divisors(n: Integer): Integer do
        result := 0
        from
          let i := 1
@@ -820,13 +808,11 @@ nex&gt; function count_divisors(n: Integer): Integer
      end
 
 nex&gt; -- after: inner check extracted
-nex&gt; function is_divisor(n, i: Integer): Boolean
-     do
+nex&gt; function is_divisor(n, i: Integer): Boolean do
        result := n % i = 0
      end
 
-nex&gt; function count_divisors(n: Integer): Integer
-     do
+nex&gt; function count_divisors(n: Integer): Integer do
        result := 0
        from
          let i := 1
@@ -856,8 +842,7 @@ nex&gt; function count_divisors(n: Integer): Integer
 <h2 data-number="8.8" class="anchored" data-anchor-id="exercises"><span class="header-section-number">8.8</span> Exercises</h2>
 <p><strong>1.</strong> The function <code>percentage(part, total: Real): Real</code> from Section 7.1 has an assumption: <code>total</code> must not be zero. Write a version called <code>safe_percentage</code> that returns <code>0.0</code> when <code>total</code> is zero and the normal percentage otherwise. Test it with <code>part = 50.0, total = 200.0</code> (expected: 25.0), <code>part = 0.0, total = 100.0</code> (expected: 0.0), and <code>part = 10.0, total = 0.0</code> (expected: 0.0).</p>
 <p><strong>2.</strong> Separate the following function into a pure computation and a thin effectful wrapper. The pure function should return a <code>String</code>; the effectful wrapper should print it.</p>
-<pre><code>function greet_by_time(hour: Integer)
-do
+<pre><code>function greet_by_time(hour: Integer) do
   if hour &lt; 12 then
     print("Good morning!")
   elseif hour &lt; 18 then
