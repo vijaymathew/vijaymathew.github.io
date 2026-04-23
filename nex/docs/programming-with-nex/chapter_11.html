@@ -737,18 +737,18 @@ nex&gt; timetable.get("Tuesday").get(0)
 <section id="building-nested-structures-programmatically" class="level2" data-number="12.4">
 <h2 data-number="12.4" class="anchored" data-anchor-id="building-nested-structures-programmatically"><span class="header-section-number">12.4</span> Building Nested Structures Programmatically</h2>
 <p>Nested structures are often built up incrementally rather than written as literals. The gradebook example: given a list of (student, score) pairs, build a map from each student to their array of scores.</p>
-<pre><code>nex&gt; function build_gradebook(entries: Array[Map[String, Any]]): Map[String, Array[Integer]]
-   do
-     result := {}
-     across entries as entry do
-        if convert entry.get("name") to name: String then
+<pre><code>nex&gt; function build_gradebook(entries: Array[Map[String, Any]]): Map[String, Array[Integer]] 
+     do
+       result := {}
+       across entries as entry do
+         if convert entry.get("name") to name: String then
            let current := result.try_get(name, [])
-           if convert entry.get("score") to score: Integer then
-              current.add(score)
-              result.put(name, current)
-           end
-        end
-     end
+             if convert entry.get("score") to score: Integer then
+               current.add(score)
+               result.set(name, current)
+             end
+          end
+      end
    end</code></pre>
 <pre><code>nex&gt; let entries: Array[Map[String, Any]] := [
      {"name": "Alice", "score": 85},
@@ -764,7 +764,7 @@ nex&gt; gradebook.get("Alice")
 
 nex&gt; gradebook.get("Bob")
 [72, 68]</code></pre>
-<p>The <code>try_get(name, [])</code> call retrieves the existing array for that student, or an empty array if the student has not appeared yet. Then <code>add</code> appends the new score, and <code>put</code> stores the updated array back. This try-get-modify-put sequence is the standard idiom for building maps of mutable values.</p>
+<p>The <code>try_get(name, [])</code> call retrieves the existing array for that student, or an empty array if the student has not appeared yet. Then <code>add</code> appends the new score, and <code>set</code> stores the updated array back. This try-get-modify-set sequence is the standard idiom for building maps of mutable values.</p>
 </section>
 <section id="when-flat-structures-are-enough" class="level2" data-number="12.5">
 <h2 data-number="12.5" class="anchored" data-anchor-id="when-flat-structures-are-enough"><span class="header-section-number">12.5</span> When Flat Structures Are Enough</h2>
@@ -813,22 +813,22 @@ nex&gt; gradebook.get("Bob")
 <section id="traversing-a-tree" class="level2" data-number="12.7">
 <h2 data-number="12.7" class="anchored" data-anchor-id="traversing-a-tree"><span class="header-section-number">12.7</span> Traversing a Tree</h2>
 <p>Traversing a tree — visiting every node — is a naturally recursive operation. The base case is a node with no children (a leaf). The recursive case processes the node and then recursively traverses each child.</p>
-<pre><code>nex&gt; function print_tree(node: Map[String, Any], indent: Integer)
-   do
-     let padding: String := ""
-     from let i := 0 until i &gt;= indent do
-        padding := padding + "  "
-        i := i + 1
-     end
-     if convert node.get("name") to name: String then
-        print(padding + name)
-     end
-     if convert node.get("children") to children: Array[Map[String, Any]] then
-        across children as child do
+<pre><code>nex&gt; function print_tree(node: Map[String, Any], indent: Integer) 
+     do
+       let padding: String := ""
+       from let i := 0 until i &gt;= indent do
+         padding := padding + "  "
+         i := i + 1
+       end
+       if convert node.get("name") to name: String then
+         print(padding + name)
+       end
+       if convert node.get("children") to children: Array[Map[String, Any]] then
+         across children as child do
            print_tree(child, indent + 1)
-        end
-     end
-   end</code></pre>
+         end
+       end
+     end</code></pre>
 <pre><code>nex&gt; print_tree(filesystem, 0)
 "root"
   "documents"
@@ -842,8 +842,8 @@ nex&gt; gradebook.get("Bob")
 <section id="searching-a-tree" class="level2" data-number="12.8">
 <h2 data-number="12.8" class="anchored" data-anchor-id="searching-a-tree"><span class="header-section-number">12.8</span> Searching a Tree</h2>
 <p>Finding a node by name requires the same recursive structure:</p>
-<pre><code>nex&gt; function find_node(node: Map[String, Any], target: String): ?Map[String, Any]
-   do
+<pre><code>nex&gt; function find_node(node: Map[String, Any], target: String): ?Map[String, Any] 
+     do
      if node.get("name") = target then
         result := node
      else
@@ -894,18 +894,22 @@ nil</code></pre>
      ]
   }</code></pre>
 <p>A function that computes the total amount for a node, including all descendants:</p>
-<pre><code>nex&gt; function total_amount(node: Map[String, Any]): Integer
-   do
-     result := node.get("amount")
-     across node.get("children") as child do
-        result := result + total_amount(child)
-     end
+<pre><code>nex&gt; function total_amount(node: Map[String, Any]): Integer 
+     do
+       result := node.get("amount")
+       across node.get("children") as child do
+         result := result + total_amount(child)
+       end
    end
 
 nex&gt; total_amount(expenses)
-2950
+3150
 
-nex&gt; total_amount(expenses.get("children").get(0))
+nex&gt; when convert expenses.get("children") to children: Array[Map[String, Any]] 
+       total_amount(children.get(0)) 
+     else 
+       0 
+     end
 2400</code></pre>
 <p>The total for the root node is the sum of every amount in the tree: 0 (root) + 1200 (Housing) + 900 (Rent) + 300 (Utilities) + 150 (Food) + 400 (Groceries) + 200 (Dining out) = 3150. Work through it by hand before trusting the function — the recursive structure makes it easy to miscount.</p>
 <pre><code>nex&gt; total_amount(expenses)
@@ -929,7 +933,7 @@ nex&gt; total_amount(expenses.get("children").get(0))
 <h2 data-number="12.11" class="anchored" data-anchor-id="exercises"><span class="header-section-number">12.11</span> Exercises</h2>
 <p><strong>1.</strong> Given the <code>books</code> array from Section 11.1, write a function <code>books_by_author(books: Array[Map[String, Any]], author: String): Array[Map[String, Any]]</code> that returns a new array containing only the books by the given author. Test it by finding all books by a specific author in a list that includes duplicates.</p>
 <p><strong>2.</strong> Write a function <code>invert_index(books: Array[Map[String, Any]]): Map[String, Array[String]]</code> that takes the books array and returns a map from each author to an array of their book titles. For example, if Herbert wrote two books, <code>result.get("Frank Herbert")</code> should return an array of both titles.</p>
-<p><strong>3.</strong> Using the filesystem tree from Section 11.5, write a function <code>count_files(node: Map[String, Any]): Integer</code> that recursively counts the total number of file nodes (nodes whose <code>"type"</code> is <code>"file"</code>). Verify that <code>count_files(filesystem)</code> returns 3.</p>
+<p><strong>3.</strong> Using the filesystem tree from Section 11.6, write a function <code>count_files(node: Map[String, Any]): Integer</code> that recursively counts the total number of file nodes (nodes whose <code>"type"</code> is <code>"file"</code>). Verify that <code>count_files(filesystem)</code> returns 3.</p>
 <p><strong>4.</strong> Write a function <code>tree_depth(node: Map[String, Any]): Integer</code> that returns the maximum depth of the tree rooted at <code>node</code>. A leaf node (empty children) has depth 0. A node with children has depth equal to 1 plus the maximum depth of its children. Test it on the filesystem tree (expected depth: 2) and a single-node tree (expected depth: 0).</p>
 <p><strong>5.*</strong> Write a function <code>flatten(node: Map[String, Any]): Array[String]</code> that returns an array of the names of all nodes in the tree in depth-first order — that is, a node appears before its children, and children are listed in order. For the filesystem tree the result should be <code>["root", "documents", "report.txt", "notes.txt", "pictures", "photo.jpg"]</code>. Then write a second function <code>flatten_leaves(node: Map[String, Any]): Array[String]</code> that returns only the leaf nodes (files). Use <code>flatten</code> or the same recursive pattern as a starting point.</p>
 

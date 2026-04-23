@@ -663,19 +663,19 @@ nex&gt; capitals.get("Japan")
 </section>
 <section id="adding-and-updating-entries" class="level2" data-number="11.2">
 <h2 data-number="11.2" class="anchored" data-anchor-id="adding-and-updating-entries"><span class="header-section-number">11.2</span> Adding and Updating Entries</h2>
-<p>The <code>put</code> method adds a new entry or replaces an existing one:</p>
+<p>The <code>set</code> method adds a new entry or replaces an existing one:</p>
 <pre><code>nex&gt; let scores: Map[String, Integer] := {}
 
-nex&gt; scores.put("Alice", 92)
-nex&gt; scores.put("Bob", 78)
-nex&gt; scores.put("Carol", 85)
+nex&gt; scores.set("Alice", 92)
+nex&gt; scores.set("Bob", 78)
+nex&gt; scores.set("Carol", 85)
 nex&gt; scores
 {"Alice": 92, "Bob": 78, "Carol": 85}
 
-nex&gt; scores.put("Alice", 95)
+nex&gt; scores.set("Alice", 95)
 nex&gt; scores
 {"Alice": 95, "Bob": 78, "Carol": 85}</code></pre>
-<p>If the key <code>"Alice"</code> already exists, <code>put</code> replaces its value. If it does not exist, <code>put</code> creates a new entry. There is no separate “insert” and “update” — <code>put</code> handles both.</p>
+<p>If the key <code>"Alice"</code> already exists, <code>set</code> replaces its value. If it does not exist, <code>set</code> creates a new entry. There is no separate “insert” and “update” — <code>set</code> handles both.</p>
 </section>
 <section id="reading-values" class="level2" data-number="11.3">
 <h2 data-number="11.3" class="anchored" data-anchor-id="reading-values"><span class="header-section-number">11.3</span> Reading Values</h2>
@@ -756,18 +756,18 @@ nex&gt; across capitals as entry do
 </section>
 <section id="building-maps-with-loops" class="level2" data-number="11.7">
 <h2 data-number="11.7" class="anchored" data-anchor-id="building-maps-with-loops"><span class="header-section-number">11.7</span> Building Maps with Loops</h2>
-<p>Like arrays, maps are often built programmatically. The pattern is an empty map and <code>put</code> inside a loop:</p>
+<p>Like arrays, maps are often built programmatically. The pattern is an empty map and <code>set</code> inside a loop:</p>
 <pre><code>nex&gt; let word_lengths: Map[String, Integer] := {}
 
 nex&gt; let words := ["apple", "fig", "banana", "kiwi"]
 
 nex&gt; across words as w do
-       word_lengths.put(w, w.length)
+       word_lengths.set(w, w.length)
     end
 
 nex&gt; word_lengths
 {"apple": 5, "fig": 3, "banana": 6, "kiwi": 4}</code></pre>
-<p>This builds a map from each word to its length. The loop body calls <code>put</code> once per word; each call either adds a new entry or — if a word appeared before — replaces it.</p>
+<p>This builds a map from each word to its length. The loop body calls <code>set</code> once per word; each call either adds a new entry or — if a word appeared before — replaces it.</p>
 </section>
 <section id="maps-and-functions" class="level2" data-number="11.8">
 <h2 data-number="11.8" class="anchored" data-anchor-id="maps-and-functions"><span class="header-section-number">11.8</span> Maps and Functions</h2>
@@ -776,7 +776,7 @@ nex&gt; word_lengths
      do
        result := {}
        across m as entry do
-         result.put(entry.get(1), entry.get(0))
+         result.set(entry.get(1), entry.get(0))
        end
      end
 
@@ -802,7 +802,7 @@ nex&gt; by_capital.get("Tokyo")
        let words := text.to_lower.split(" ")
        across words as w do
          let count := result.try_get(w, 0)
-         result.put(w, count + 1)
+         result.set(w, count + 1)
        end
      end</code></pre>
 <pre><code>nex&gt; let text := "to be or not to be that is the question to be to"
@@ -816,7 +816,7 @@ nex&gt; freq.get("be")
 
 nex&gt; freq.get("question")
 1</code></pre>
-<p>The key line is <code>result.try_get(w, 0)</code> — it retrieves the current count for word <code>w</code>, or <code>0</code> if the word has not been seen yet. Then <code>put</code> stores the incremented count. This try-get-then-put pattern is the standard idiom for accumulating counts in a map.</p>
+<p>The key line is <code>result.try_get(w, 0)</code> — it retrieves the current count for word <code>w</code>, or <code>0</code> if the word has not been seen yet. Then <code>set</code> stores the incremented count. This try-get-then-set pattern is the standard idiom for accumulating counts in a map.</p>
 <p>To find the most frequent word:</p>
 <pre><code>nex&gt; function most_frequent(freq: Map[String, Integer]): String
      do
@@ -843,19 +843,19 @@ nex&gt; most_frequent(freq)
 <ul>
 <li>A map stores key-value associations; keys are unique and each maps to exactly one value</li>
 <li>Map literals use curly braces: <code>{"key": value,    }</code>; the empty map is <code>{}</code></li>
-<li><code>put(key, value)</code> adds or replaces an entry; <code>get(key)</code> retrieves a value; <code>remove(key)</code> deletes an entry</li>
+<li><code>set(key, value)</code> adds or replaces an entry; <code>put(key, value)</code> is also accepted as an alias; <code>get(key)</code> retrieves a value; <code>remove(key)</code> deletes an entry</li>
 <li><code>get</code> and <code>remove</code> raise exceptions when the key is absent; use <code>contains_key</code> to check first, or <code>try_get(key, default)</code> to provide a fallback</li>
 <li>Maps use <code>size</code> (not <code>length</code>) for the element count</li>
 <li><code>across map as entry do</code> iterates over entries; each entry is a two-element array — <code>entry.get(0)</code> is the key, <code>entry.get(1)</code> is the value; or iterate over <code>map.keys</code> or <code>map.values</code> directly</li>
-<li>Build maps programmatically with an empty map and <code>put</code> inside a loop</li>
+<li>Build maps programmatically with an empty map and <code>set</code> inside a loop</li>
 <li>Use an array when access is positional; use a map when access is by key</li>
-<li>The try-get-then-put pattern — <code>try_get(key, default)</code> followed by <code>put(key, new_value)</code> — is the standard idiom for accumulating values in a map</li>
+<li>The try-get-then-set pattern — <code>try_get(key, default)</code> followed by <code>set(key, new_value)</code> — is the standard idiom for accumulating values in a map</li>
 </ul>
 </section>
 <section id="exercises" class="level2" data-number="11.12">
 <h2 data-number="11.12" class="anchored" data-anchor-id="exercises"><span class="header-section-number">11.12</span> Exercises</h2>
 <p><strong>1.</strong> Write a function <code>char_frequencies(s: String): Map[Char, Integer]</code> that returns a map from each character in <code>s</code> to the number of times it appears. Test it on <code>"mississippi"</code> — verify that <code>#m</code> maps to 1, <code>#i</code> maps to 4, <code>#s</code> maps to 4, and <code>#p</code> maps to 2.</p>
-<p><strong>2.</strong> Write a function <code>group_by_length(words: Array[String]): Map[Integer, Array[String]]</code> that groups words by their length. For example, <code>group_by_length(["cat", "dog", "elephant", "ox", "ant"])</code> should return <code>{3: [cat, dog, ant], 8: [elephant], 2: [ox]}</code>. Use <code>try_get</code> with an empty array as the default, append the word to the array, and put it back.</p>
+<p><strong>2.</strong> Write a function <code>group_by_length(words: Array[String]): Map[Integer, Array[String]]</code> that groups words by their length. For example, <code>group_by_length(["cat", "dog", "elephant", "ox", "ant"])</code> should return <code>{3: [cat, dog, ant], 8: [elephant], 2: [ox]}</code>. Use <code>try_get</code> with an empty array as the default, append the word to the array, and set it back.</p>
 <p><strong>3.</strong> Write a function <code>histogram(freq: Map[String, Integer])</code> that prints a simple text histogram. For each key in sorted order, print the key followed by a bar of <code>#</code> characters equal to its frequency. For example, a map <code>{"a": 3, "b": 1, "c": 2}</code> should print:</p>
 <pre><code>a: ###
 b: #
