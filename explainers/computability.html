@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computability, Complexity, and the Limits of Algorithms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #fefefe;
+  --bg2:        #f6f5f2;
+  --bg3:        #eeece7;
+  --bg4:        #e4e1d8;
+  --ink:        #18170f;
+  --ink2:       #46443a;
+  --ink3:       #908e84;
+  --rule:       rgba(24,23,15,.08);
+  --rule2:      rgba(24,23,15,.16);
+  --violet:     #4a1d8a;
+  --violet-bg:  #f2eefe;
+  --violet-bdr: #b090e0;
+  --teal:       #0a6060;
+  --teal-bg:    #e8f7f7;
+  --teal-bdr:   #70c0c0;
+  --amber:      #784800;
+  --amber-bg:   #fef6e6;
+  --amber-bdr:  #d4a050;
+  --red:        #8a1010;
+  --red-bg:     #fef0f0;
+  --red-bdr:    #d08080;
+  --green:      #145a14;
+  --green-bg:   #eef7ee;
+  --green-bdr:  #70b870;
+  --slate:      #2a3850;
+  --slate-bg:   #edf2f8;
+  --slate-bdr:  #90a8c8;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --sans: 'Outfit', system-ui, sans-serif;
+  --serif: 'Crimson Pro', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#0e0d0a; --bg2:#161410; --bg3:#1e1c18; --bg4:#282420;
+    --ink:#e8e4d8; --ink2:#a8a498; --ink3:#68645a;
+    --rule:rgba(232,228,216,.06); --rule2:rgba(232,228,216,.13);
+    --violet:#c0a0f0;   --violet-bg:#160828; --violet-bdr:#502890;
+    --teal:#60d0d0;     --teal-bg:#081818;   --teal-bdr:#206060;
+    --amber:#e0b060;    --amber-bg:#181000;  --amber-bdr:#604800;
+    --red:#e08080;      --red-bg:#200808;    --red-bdr:#802020;
+    --green:#80d080;    --green-bg:#081808;  --green-bdr:#206020;
+    --slate:#90b8e0;    --slate-bg:#101828;  --slate-bdr:#305080;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1}
+.page{max-width:900px;margin:0 auto;padding:0 1.75rem 6rem}
+
+/* ── HEADER ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:2px solid var(--ink);margin-bottom:0}
+.tb-left{font-family:var(--mono);font-size:12px;color:var(--ink3);letter-spacing:.04em}
+.tb-right{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.6}
+
+/* ── HERO ── */
+.hero{padding:4rem 0 3rem;border-bottom:1px solid var(--rule2)}
+.hero-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--violet);margin-bottom:1rem}
+.hero h1{font-family:var(--serif);font-size:clamp(2.4rem,5.5vw,4.2rem);font-weight:600;line-height:1.08;letter-spacing:-.02em;margin-bottom:1.1rem}
+.hero h1 em{font-style:italic;color:var(--violet);font-weight:300}
+.hero-sub{font-size:19px;line-height:1.78;color:var(--ink2);font-weight:300;max-width:600px;margin-bottom:1.8rem;font-family:var(--serif)}
+.epigraph{border-left:3px solid var(--rule2);padding:.6rem 1.1rem;font-family:var(--serif);font-style:italic;color:var(--ink3);font-size:16px;line-height:1.7;margin-bottom:1.5rem}
+.epigraph cite{font-style:normal;font-size:13px;display:block;margin-top:.3rem}
+.hero-pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--rule2);color:var(--ink3)}
+
+/* ── TOC ── */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;margin:2rem 0 3rem;background:var(--bg2)}
+.toc a{display:flex;gap:9px;padding:8px 13px;background:transparent;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .1s,color .1s}
+.toc a:nth-child(2n){border-right:none}
+.toc a:nth-last-child(-n+2){border-bottom:none}
+.toc a:hover{background:var(--bg3);color:var(--violet)}
+.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
+
+/* ── SECTIONS ── */
+.section{margin-bottom:5.5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.8rem;border-bottom:1px solid var(--rule2);margin-bottom:1.5rem}
+.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
+h2{font-family:var(--serif);font-size:2.1rem;font-weight:600;letter-spacing:-.015em;line-height:1.15}
+h3{font-family:var(--sans);font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin:1.6rem 0 .5rem}
+p{font-size:16.5px;line-height:1.88;color:var(--ink2);margin-bottom:.95rem;font-family:var(--serif);font-weight:300}
+p strong{color:var(--ink);font-weight:600}
+a{color:var(--violet)}
+code{font-family:var(--mono);font-size:12px;background:var(--bg3);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;color:var(--ink)}
+
+/* ── MATH BLOCKS ── */
+.math{font-family:var(--serif);font-size:16px;background:var(--bg2);border:1px solid var(--rule2);border-radius:4px;padding:.8rem 1.2rem;margin:.8rem 0 1.2rem;line-height:2.2;color:var(--ink);text-align:center}
+.math .def{color:var(--violet);font-weight:600}
+.math .note{font-size:13px;color:var(--ink3);font-style:italic;display:block;text-align:left;margin-top:.3rem}
+
+/* ── CALLOUTS ── */
+.callout{border-left:3px solid var(--rule2);padding:.75rem 1.1rem;margin:1rem 0;font-size:15.5px;line-height:1.8;color:var(--ink2);background:var(--bg2);border-radius:0 4px 4px 0;font-family:var(--serif);font-weight:300}
+.callout.violet{border-color:var(--violet);background:var(--violet-bg);color:var(--violet)}
+.callout.teal{border-color:var(--teal);background:var(--teal-bg);color:var(--teal)}
+.callout.amber{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.callout.red{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.callout.green{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+
+/* ── CODE BLOCKS ── */
+.cb{border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin:1rem 0 1.8rem}
+.cb-head{display:flex;justify-content:space-between;align-items:center;padding:6px 13px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.run-btn{background:var(--violet);color:#fff;border:none;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 11px;cursor:pointer;letter-spacing:.04em;transition:opacity .12s}
+.run-btn:hover{opacity:.8}
+pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;color:var(--ink);margin:0}
+.out{display:none;background:var(--green-bg);border-top:1px solid var(--rule);padding:.75rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;color:var(--green);white-space:pre-wrap}
+.out.on{display:block}
+.out.err{background:var(--red-bg);color:var(--red)}
+.kw{color:var(--violet)}.fn{color:var(--teal)}.str{color:var(--green)}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--amber)}.cls{color:var(--slate)}
+
+/* ── DEMO ── */
+.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:5px;padding:1.2rem;margin:1rem 0 1.8rem}
+.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem}
+button.btn{font-family:var(--mono);font-size:12px;padding:5px 11px;border-radius:3px;border:1px solid var(--rule2);background:transparent;color:var(--ink2);cursor:pointer;transition:all .12s}
+button.btn:hover{border-color:var(--violet);color:var(--violet)}
+button.btn.act{background:var(--violet);color:#fff;border-color:var(--violet)}
+button.btn.teal{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bdr)}
+button.btn.red{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
+button.btn.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+
+/* ── TURING MACHINE ── */
+.tm-tape{display:flex;gap:0;justify-content:center;margin:.6rem 0;overflow-x:auto;padding:.2rem}
+.tm-cell{width:42px;height:42px;border:1px solid var(--rule2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:500;flex-shrink:0;position:relative;background:var(--bg);transition:background .2s,border-color .2s}
+.tm-cell.head{background:var(--violet-bg);border-color:var(--violet);border-width:2px}
+.tm-cell.head::after{content:'▼';position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--violet)}
+.tm-cell.written{background:var(--teal-bg);border-color:var(--teal-bdr)}
+.tm-cell.blank{color:var(--ink3)}
+.tm-state{font-family:var(--mono);font-size:13px;padding:.4rem .8rem;background:var(--bg3);border-radius:4px;display:inline-flex;gap:12px;align-items:center;margin:.4rem 0}
+.tm-state .state-label{color:var(--ink3);font-size:11px}
+.tm-state .state-val{font-weight:500;color:var(--violet)}
+.tm-controls{display:flex;gap:6px;align-items:center;margin:.5rem 0}
+.tm-help{margin:.3rem 0 .9rem;padding:.75rem .9rem;border:1px solid var(--rule2);border-radius:4px;background:var(--bg);font-family:var(--mono);font-size:11px;line-height:1.75;color:var(--ink2)}
+.tm-help strong{color:var(--ink)}
+.tm-log{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.5rem;height:60px;overflow-y:auto;line-height:1.7}
+
+/* ── COMPLEXITY LANDSCAPE ── */
+.complexity-map{border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin:.6rem 0;font-family:var(--mono);font-size:12px;position:relative}
+.cx-row{display:flex;align-items:stretch}
+.cx-band{flex:1;padding:.7rem .9rem;border-right:1px solid var(--rule2);position:relative}
+.cx-band:last-child{border-right:none}
+.cx-name{font-weight:500;font-size:12px;margin-bottom:.3rem}
+.cx-desc{font-size:10px;color:var(--ink3);line-height:1.5}
+.cx-ex{font-size:10px;margin-top:.3rem;font-style:italic}
+.cx-band.P{background:var(--green-bg);border-color:var(--green-bdr)}.cx-band.P .cx-name{color:var(--green)}
+.cx-band.NP{background:var(--teal-bg);border-color:var(--teal-bdr)}.cx-band.NP .cx-name{color:var(--teal)}
+.cx-band.NPC{background:var(--amber-bg);border-color:var(--amber-bdr)}.cx-band.NPC .cx-name{color:var(--amber)}
+.cx-band.PSPACE{background:var(--violet-bg);border-color:var(--violet-bdr)}.cx-band.PSPACE .cx-name{color:var(--violet)}
+.cx-band.EXP{background:var(--red-bg);border-color:var(--red-bdr)}.cx-band.EXP .cx-name{color:var(--red)}
+.cx-band.UNDEC{background:var(--bg3)}.cx-band.UNDEC .cx-name{color:var(--ink2)}
+
+/* ── REDUCTION DIAGRAM ── */
+.reduction{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;margin:.6rem 0;flex-wrap:wrap}
+.prob-box{padding:.5rem .9rem;border-radius:4px;border:1px solid var(--rule2);text-align:center;min-width:100px}
+.prob-box.known{background:var(--red-bg);border-color:var(--red-bdr);color:var(--red)}
+.prob-box.target{background:var(--violet-bg);border-color:var(--violet-bdr);color:var(--violet)}
+.prob-box.accept{background:var(--green-bg);border-color:var(--green-bdr);color:var(--green)}
+.red-arrow{font-size:20px;color:var(--ink3)}
+.red-label{font-size:10px;color:var(--ink3);text-align:center}
+
+/* ── NP TABLE ── */
+.np-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:.8rem 0}
+.np-table th{padding:7px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.np-table td{padding:7px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
+.np-table td.name{color:var(--ink);font-weight:500}
+.np-table td.p{color:var(--green)}
+.np-table td.np{color:var(--teal)}
+.np-table td.npc{color:var(--amber)}
+.np-table td.und{color:var(--red)}
+.np-table tr.hi td{background:var(--violet-bg)}
+
+/* step nav */
+.step-nav{display:flex;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;margin-bottom:.8rem}
+.step-btn{flex:1;padding:7px 4px;font-family:var(--mono);font-size:11px;border:none;border-right:1px solid var(--rule2);background:var(--bg2);color:var(--ink3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.act{background:var(--violet);color:#fff}
+.step-panel{display:none}.step-panel.on{display:block}
+
+/* slider */
+.slider-row{display:flex;align-items:center;gap:10px;margin:.5rem 0}
+.slider-row label{font-family:var(--mono);font-size:12px;color:var(--ink2);min-width:90px}
+.slider-row input[type=range]{flex:1;accent-color:var(--violet)}
+.slider-val{font-family:var(--mono);font-size:12px;color:var(--violet);min-width:50px;text-align:right}
+
+/* footnote style definition */
+.defn{border:1px solid var(--violet-bdr);background:var(--violet-bg);border-radius:4px;padding:.6rem 1rem;margin:.8rem 0;font-family:var(--serif);font-size:15px;line-height:1.75}
+.defn-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--violet);margin-bottom:.3rem}
+
+/* footer */
+.footer{border-top:1px solid var(--rule2);padding-top:1.8rem}
+.footer a{font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;display:block;padding:3px 0}
+.footer a:hover{color:var(--violet)}
+.footer-note{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="topbar">
+  <span class="tb-left">computability · complexity · limits</span>
+  <span class="tb-right">Interactive explainer · No libraries<br>All code runs in your browser</span>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">Theory of computation</div>
+  <h1>What can be<br><em>computed</em> at all?</h1>
+  <p class="hero-sub">Before asking how fast an algorithm runs, we must ask whether any algorithm exists. Computability theory answers the first question; complexity theory answers the second. Both began with a mathematician trying to automate proof — and ended by discovering deep limits on what machines can ever do.</p>
+  <div class="epigraph">"We must know. We will know."<cite>— David Hilbert, 1930, expressing the optimism that Gödel and Turing would soon sharply limit</cite></div>
+  <div class="hero-pills">
+    <span class="pill">Turing machines</span>
+    <span class="pill">Halting problem</span>
+    <span class="pill">Church-Turing thesis</span>
+    <span class="pill">Decidability</span>
+    <span class="pill">P vs NP</span>
+    <span class="pill">NP-completeness</span>
+    <span class="pill">Reductions</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1"><span class="toc-n">01</span>Hilbert's programme &amp; Gödel's shock</a>
+  <a href="#s2"><span class="toc-n">02</span>The Turing machine</a>
+  <a href="#s3"><span class="toc-n">03</span>Church-Turing thesis</a>
+  <a href="#s4"><span class="toc-n">04</span>The Halting Problem</a>
+  <a href="#s5"><span class="toc-n">05</span>Decidability and recognisability</a>
+  <a href="#s6"><span class="toc-n">06</span>Reductions</a>
+  <a href="#s7"><span class="toc-n">07</span>P and NP</a>
+  <a href="#s8"><span class="toc-n">08</span>NP-completeness</a>
+  <a href="#s9"><span class="toc-n">09</span>The P vs NP question</a>
+  <a href="#s10"><span class="toc-n">10</span>Beyond NP: the complexity landscape</a>
+</nav>
+
+<!-- ══ S1: HILBERT ══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>Hilbert's programme and Gödel's shock</h2></div>
+
+  <p>In 1900, David Hilbert proposed that all of mathematics could be grounded in a finite set of axioms from which every true statement could be formally proved — and every false one refuted. This was the <strong>Hilbert programme</strong>: complete, consistent, decidable. Mathematics as an algorithm.</p>
+  <p>In 1931, Kurt Gödel dealt Hilbert's hopes a devastating blow. His <strong>incompleteness theorems</strong> showed that any sufficiently powerful consistent formal system must contain true statements that cannot be proved within that system. The strongest form of Hilbert's programme — complete formal capture of arithmetic truth by one consistent system — could not succeed.</p>
+  <p>But Hilbert's third demand survived as a question: the <em>Entscheidungsproblem</em> (decision problem). <strong>Is there a mechanical procedure that, given any mathematical statement, decides whether it is true?</strong> Alonzo Church and Alan Turing independently answered: No — and in doing so, they had to define precisely what "mechanical procedure" means.</p>
+
+  <div class="callout violet">The remarkable thing is that proving a negative — that no algorithm exists for a problem — requires first defining what an algorithm <em>is</em>. Before 1936, no one had a precise definition. Turing and Church each provided one, and their definitions turned out to be equivalent. This is the Church-Turing thesis.</div>
+</section>
+
+<!-- ══ S2: TURING MACHINE ══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>The Turing machine</h2></div>
+
+  <p>In 1936, Alan Turing defined a simple abstract machine to make precise the notion of "computation." It consists of an infinite tape of cells (each holding a symbol), a read/write head, a finite set of states, and a transition table. At each step: read the current cell, look up what to do in the transition table, write a symbol, move left or right, change state.</p>
+
+  <div class="defn">
+    <div class="defn-label">Formal definition</div>
+    A <strong>Turing machine</strong> M = (Q, Σ, Γ, δ, q₀, q<sub>accept</sub>, q<sub>reject</sub>) where:
+    Q is a finite set of states; Σ is the input alphabet (not containing ☐); Γ is the tape alphabet (Σ ⊆ Γ, ☐ ∈ Γ); 
+    δ: Q × Γ → Q × Γ × {L, R} is the transition function;
+    q₀ is the start state; q<sub>accept</sub> and q<sub>reject</sub> are the halting states.
+  </div>
+
+  <p>This minimalist device — arguably the simplest possible model of sequential computation — can compute anything any modern computer can compute. The tape is unbounded memory; the transition table is the program; state is the CPU register. <strong>Every algorithm ever written can be faithfully encoded as a Turing machine.</strong></p>
+
+  <div class="demo">
+    <div class="demo-lbl">Interactive Turing machine — select a program and step through it</div>
+    <div class="btn-row" id="tm-prog-btns">
+      <button class="btn act" onclick="loadTM('increment')">Increment binary</button>
+      <button class="btn" onclick="loadTM('palindrome')">Palindrome check</button>
+      <button class="btn" onclick="loadTM('unary_add')">Unary addition</button>
+    </div>
+    <div id="tm-help" class="tm-help"></div>
+    <div id="tm-tape-wrap"></div>
+    <div id="tm-state-disp" class="tm-state" style="margin:.5rem 0"></div>
+    <div class="tm-controls">
+      <button class="btn" onclick="tmStep()">Step →</button>
+      <button class="btn teal" onclick="tmRun()">Run</button>
+      <button class="btn" onclick="tmReset()">Reset</button>
+      <div id="tm-speed" style="display:flex;align-items:center;gap:6px;margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3)">
+        Speed: <input type="range" min="50" max="500" value="200" id="tm-speed-sl" style="width:80px;accent-color:var(--violet)"> fast
+      </div>
+    </div>
+    <div class="tm-log" id="tm-log"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>turing_machine.js — a Turing machine interpreter</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// A complete Turing machine interpreter</span>
+<span class="cmt">// Transition function: δ(state, symbol) → (newState, writeSymbol, direction)</span>
+
+<span class="kw">class</span> <span class="cls">TuringMachine</span> {
+  <span class="fn">constructor</span>(transitions, startState, acceptState, rejectState) {
+    <span class="kw">this</span>.transitions  = transitions;  <span class="cmt">// Map of "state,symbol" → [newState, write, dir]</span>
+    <span class="kw">this</span>.startState   = startState;
+    <span class="kw">this</span>.acceptState  = acceptState;
+    <span class="kw">this</span>.rejectState  = rejectState;
+  }
+
+  <span class="fn">run</span>(input, maxSteps = <span class="num">10000</span>) {
+    <span class="kw">const</span> tape = [<span class="str">"B"</span>, ...[...input], <span class="str">"B"</span>]; <span class="cmt">// B = blank</span>
+    <span class="kw">let</span> head  = <span class="num">1</span>;   <span class="cmt">// start just after leading blank</span>
+    <span class="kw">let</span> state = <span class="kw">this</span>.startState;
+    <span class="kw">let</span> steps = <span class="num">0</span>;
+
+    <span class="kw">while</span> (steps++ < maxSteps) {
+      <span class="kw">if</span> (state === <span class="kw">this</span>.acceptState) <span class="kw">return</span> { result: <span class="str">"accept"</span>, steps, tape };
+      <span class="kw">if</span> (state === <span class="kw">this</span>.rejectState) <span class="kw">return</span> { result: <span class="str">"reject"</span>, steps, tape };
+
+      <span class="kw">while</span> (head < <span class="num">0</span>) { tape.unshift(<span class="str">"B"</span>); head++; }
+      <span class="kw">while</span> (head >= tape.length) tape.push(<span class="str">"B"</span>);
+
+      <span class="kw">const</span> sym = tape[head];
+      <span class="kw">const</span> key = <span class="str">`${state},${sym}`</span>;
+      <span class="kw">const</span> trans = <span class="kw">this</span>.transitions[key];
+
+      <span class="kw">if</span> (!trans) <span class="kw">return</span> { result: <span class="str">"reject"</span>, steps, tape, reason: <span class="str">`no transition for (${state}, ${sym})`</span> };
+      <span class="kw">const</span> [newState, write, dir] = trans;
+      tape[head] = write;
+      state      = newState;
+      head      += dir === <span class="str">"R"</span> ? <span class="num">1</span> : -<span class="num">1</span>;
+    }
+    <span class="kw">return</span> { result: <span class="str">"timeout"</span>, steps };
+  }
+}
+
+<span class="cmt">// Example 1: palindrome checker for {a,b}*</span>
+<span class="cmt">// Checks whether input reads same forwards and backwards</span>
+<span class="kw">const</span> palindromeTransitions = {
+  <span class="cmt">// Mark leftmost symbol, remember it, find rightmost, compare</span>
+  <span class="str">"q0,a"</span>:[<span class="str">"q1"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>], <span class="str">"q0,b"</span>:[<span class="str">"q5"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>],
+  <span class="str">"q0,X"</span>:[<span class="str">"qa"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>], <span class="str">"q0,B"</span>:[<span class="str">"qa"</span>,<span class="str">"B"</span>,<span class="str">"R"</span>],
+  <span class="cmt">// q1: saw 'a' on left, scan right</span>
+  <span class="str">"q1,a"</span>:[<span class="str">"q1"</span>,<span class="str">"a"</span>,<span class="str">"R"</span>], <span class="str">"q1,b"</span>:[<span class="str">"q1"</span>,<span class="str">"b"</span>,<span class="str">"R"</span>], <span class="str">"q1,X"</span>:[<span class="str">"q1"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>],
+  <span class="str">"q1,B"</span>:[<span class="str">"q2"</span>,<span class="str">"B"</span>,<span class="str">"L"</span>],
+  <span class="cmt">// q2: at right end, check rightmost symbol</span>
+  <span class="str">"q2,a"</span>:[<span class="str">"q3"</span>,<span class="str">"X"</span>,<span class="str">"L"</span>], <span class="str">"q2,b"</span>:[<span class="str">"qr"</span>,<span class="str">"b"</span>,<span class="str">"L"</span>], <span class="str">"q2,X"</span>:[<span class="str">"qa"</span>,<span class="str">"X"</span>,<span class="str">"L"</span>],
+  <span class="cmt">// q3: matched 'a', scan back left</span>
+  <span class="str">"q3,a"</span>:[<span class="str">"q3"</span>,<span class="str">"a"</span>,<span class="str">"L"</span>], <span class="str">"q3,b"</span>:[<span class="str">"q3"</span>,<span class="str">"b"</span>,<span class="str">"L"</span>], <span class="str">"q3,X"</span>:[<span class="str">"q0"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>],
+  <span class="cmt">// q5: saw 'b' on left — similar</span>
+  <span class="str">"q5,a"</span>:[<span class="str">"q5"</span>,<span class="str">"a"</span>,<span class="str">"R"</span>], <span class="str">"q5,b"</span>:[<span class="str">"q5"</span>,<span class="str">"b"</span>,<span class="str">"R"</span>], <span class="str">"q5,X"</span>:[<span class="str">"q5"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>],
+  <span class="str">"q5,B"</span>:[<span class="str">"q6"</span>,<span class="str">"B"</span>,<span class="str">"L"</span>],
+  <span class="str">"q6,a"</span>:[<span class="str">"qr"</span>,<span class="str">"a"</span>,<span class="str">"L"</span>], <span class="str">"q6,b"</span>:[<span class="str">"q7"</span>,<span class="str">"X"</span>,<span class="str">"L"</span>], <span class="str">"q6,X"</span>:[<span class="str">"qa"</span>,<span class="str">"X"</span>,<span class="str">"L"</span>],
+  <span class="str">"q7,a"</span>:[<span class="str">"q7"</span>,<span class="str">"a"</span>,<span class="str">"L"</span>], <span class="str">"q7,b"</span>:[<span class="str">"q7"</span>,<span class="str">"b"</span>,<span class="str">"L"</span>], <span class="str">"q7,X"</span>:[<span class="str">"q0"</span>,<span class="str">"X"</span>,<span class="str">"R"</span>],
+};
+
+<span class="kw">const</span> tm = <span class="kw">new</span> <span class="cls">TuringMachine</span>(palindromeTransitions, <span class="str">"q0"</span>, <span class="str">"qa"</span>, <span class="str">"qr"</span>);
+
+<span class="kw">const</span> tests = [
+  [<span class="str">"abba"</span>,    <span class="str">"accept"</span>],
+  [<span class="str">"abab"</span>,    <span class="str">"reject"</span>],
+  [<span class="str">"aabaa"</span>,   <span class="str">"accept"</span>],
+  [<span class="str">"a"</span>,       <span class="str">"accept"</span>],
+  [<span class="str">""</span>,        <span class="str">"accept"</span>],
+];
+console.log(<span class="str">"Palindrome TM on {a,b}*:"</span>);
+tests.forEach(([input, expected]) => {
+  <span class="kw">const</span> { result, steps } = tm.<span class="fn">run</span>(input);
+  <span class="kw">const</span> ok = result === expected ? <span class="str">"✓"</span> : <span class="str">"✗"</span>;
+  console.log(<span class="str">`  ${ok} "${input || "ε"}": ${result} (${steps} steps)`</span>);
+});</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ══ S3: CHURCH-TURING THESIS ══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>The Church-Turing thesis</h2></div>
+
+  <p>Alonzo Church independently defined computability using <strong>lambda calculus</strong> — a formal system of function abstraction and application, far removed from tape and head. In 1936, both Church and Turing proved the Entscheidungsproblem was unsolvable, using their respective models. Soon after, lambda-definability, recursive functions, and Turing-computability were shown to pick out the same class of computable functions.</p>
+
+  <div class="defn">
+    <div class="defn-label">Church-Turing Thesis</div>
+    Every effectively calculable function can be computed by a Turing machine.<br>
+    Equivalently: the informal notion of an effective procedure matches Turing-computability (and likewise lambda-definability and general recursiveness).
+  </div>
+
+  <p>This is a <strong>thesis</strong>, not a theorem — it connects an informal idea ("effective procedure") to formal models. Stronger physical versions of the thesis talk about what the laws of physics permit; the standard Church-Turing thesis is narrower. Across the standard symbolic models studied in logic and computer science — Turing machines, lambda calculus, recursive functions, RAM machines, cellular automata, and quantum models for decidable problems — the class of <em>computable</em> functions has remained the same, even when efficiency differs dramatically.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">Equivalent models — all computing the same class of functions</div>
+    <div id="equiv-models-viz"></div>
+  </div>
+
+  <div class="callout amber">One consequence of the Church-Turing thesis: <strong>your programming language is Turing-complete</strong> if and only if it can simulate a Turing machine — which means every Turing-complete language can compute exactly the same set of functions. Python, C, Haskell, Java, Forth, and an infinite tape with a lookup table are all equivalent in computational power. Efficiency differs; power does not.</div>
+</section>
+
+<!-- ══ S4: HALTING PROBLEM ══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>The Halting Problem</h2></div>
+
+  <p>With a precise definition of computation in hand, Turing asked: is there a Turing machine H that, given any Turing machine M and input w, decides whether M halts on w? This is the <strong>Halting Problem</strong> — and the answer is no. The proof is a masterpiece of diagonalisation.</p>
+
+  <div class="defn">
+    <div class="defn-label">Theorem (Turing 1936)</div>
+    HALT = { ⟨M, w⟩ | M is a TM that halts on input w } is undecidable. No Turing machine can decide HALT.
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">The diagonalisation proof — step through the argument</div>
+    <div class="step-nav">
+      <button class="step-btn act" onclick="showHalting(0,this)">Assume H exists</button>
+      <button class="step-btn" onclick="showHalting(1,this)">Build D from H</button>
+      <button class="step-btn" onclick="showHalting(2,this)">Run D on itself</button>
+      <button class="step-btn" onclick="showHalting(3,this)">Contradiction</button>
+    </div>
+    <div id="halting-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>halting.js — the diagonalisation argument in code</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// The Halting Problem proof — encoded as closely as JavaScript allows</span>
+<span class="cmt">// We can show that any putative "halt decider" leads to a contradiction</span>
+
+<span class="cmt">// Some programs clearly halt or loop forever</span>
+<span class="kw">const</span> programs = {
+  <span class="cmt">// Returns immediately</span>
+  trivialHalt:   () => <span class="num">42</span>,
+  <span class="cmt">// Loops forever (we model with a flag)</span>
+  infiniteLoop:  () => { <span class="kw">while</span>(<span class="kw">true</span>){}; },
+  <span class="cmt">// Halts for some inputs, loops on others</span>
+  conditionalHalt: (x) => { <span class="kw">if</span> (x > <span class="num">0</span>) <span class="kw">return</span> x; <span class="kw">while</span>(<span class="kw">true</span>){}; },
+};
+
+<span class="cmt">// The ORACLE: suppose we had a perfect halt decider</span>
+<span class="cmt">// halts(program, input) → true if program halts on input, false if it loops</span>
+<span class="kw">function</span> <span class="fn">oracleHalts</span>(program, input) {
+  <span class="cmt">// This function CANNOT BE IMPLEMENTED. We're assuming it hypothetically.</span>
+  <span class="cmt">// A real implementation would need to solve the halting problem.</span>
+  <span class="kw">throw new</span> Error(<span class="str">"The oracle cannot exist — proof follows"</span>);
+}
+
+<span class="cmt">// The DIAGONAL MACHINE D — this is where the contradiction lives</span>
+<span class="cmt">// D(program): if oracleHalts(program, program) then loop; else halt</span>
+<span class="kw">function</span> <span class="fn">D</span>(program) {
+  <span class="kw">if</span> (<span class="fn">oracleHalts</span>(program, program)) {
+    <span class="kw">while</span>(<span class="kw">true</span>) {} <span class="cmt">// loop forever</span>
+  } <span class="kw">else</span> {
+    <span class="kw">return</span>; <span class="cmt">// halt</span>
+  }
+}
+
+<span class="cmt">// Now ask: what does D do when given itself as input?</span>
+<span class="cmt">// Case 1: oracleHalts(D, D) = true  → D loops on D → oracle was WRONG (said halt)</span>
+<span class="cmt">// Case 2: oracleHalts(D, D) = false → D halts on D → oracle was WRONG (said loop)</span>
+<span class="cmt">// Both cases contradict the oracle being correct. Therefore the oracle cannot exist.</span>
+
+<span class="kw">function</span> <span class="fn">demonstrateContradiction</span>() {
+  console.log(<span class="str">"=== Halting Problem — Diagonalisation ==="</span>);
+  console.log(<span class="str">"Suppose oracle H(M, w) correctly decides whether M halts on w."</span>);
+  console.log(<span class="str">"Construct D(M): if H(M, M) = 'halts', then loop; else halt."</span>);
+  console.log(<span class="str">""</span>);
+
+  <span class="kw">const</span> cases = [<span class="str">"halts"</span>, <span class="str">"loops"</span>];
+  <span class="kw">for</span> (<span class="kw">const</span> oracleSays <span class="kw">of</span> cases) {
+    console.log(<span class="str">`Case: H(D, D) says D ${oracleSays} on D`</span>);
+    <span class="kw">if</span> (oracleSays === <span class="str">"halts"</span>) {
+      console.log(<span class="str">`  Then D, by construction, loops on D.`</span>);
+      console.log(<span class="str">`  But oracle said halts. ⟹ CONTRADICTION.`</span>);
+    } <span class="kw">else</span> {
+      console.log(<span class="str">`  Then D, by construction, halts on D.`</span>);
+      console.log(<span class="str">`  But oracle said loops. ⟹ CONTRADICTION.`</span>);
+    }
+    console.log(<span class="str">""</span>);
+  }
+  console.log(<span class="str">"Both cases are contradictions. Therefore H cannot exist. □"</span>);
+}
+<span class="fn">demonstrateContradiction</span>();
+
+<span class="cmt">// Concrete examples of programs whose halting status is unknown or hard:</span>
+console.log(<span class="str">"--- Programs with hard halting questions ---"</span>);
+console.log(<span class="str">"Collatz(n): if n==1 return; if even, n=n/2; if odd, n=3n+1; repeat"</span>);
+console.log(<span class="str">"  Does Collatz halt on all positive integers? UNKNOWN (open problem)"</span>);
+console.log(<span class="str">"Goldbach verifier: halt when Goldbach conjecture counterexample found"</span>);
+console.log(<span class="str">"  Halts iff Goldbach is false. Halting status = truth of Goldbach. UNKNOWN"</span>);</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ══ S5: DECIDABILITY ══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>Decidability and recognisability</h2></div>
+
+  <p>The Halting Problem opened a Pandora's box. We now have three tiers of languages (sets of strings), based on what Turing machines can do with them:</p>
+
+  <div class="defn">
+    <div class="defn-label">Hierarchy of languages</div>
+    A language L is <strong>decidable</strong> (recursive) if some TM always halts and accepts L, rejects L̄.<br>
+    A language L is <strong>recognisable</strong> (recursively enumerable) if some TM accepts every string in L (but may loop on strings not in L).<br>
+    A language is <strong>co-recognisable</strong> if its complement is recognisable.<br>
+    A language is <strong>undecidable</strong> if no TM decides it. Some undecidable languages are still recognisable; others are not.
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">The computability lattice — where problems live</div>
+    <div id="computability-viz"></div>
+  </div>
+
+  <p>The recognisable languages are also called <strong>Σ₁</strong> (there exists a computation that accepts). The co-recognisable are <strong>Π₁</strong>. The decidable languages are <strong>Δ₁ = Σ₁ ∩ Π₁</strong>. This is the bottom of the <strong>arithmetical hierarchy</strong> — an infinite tower of increasingly undecidable problems.</p>
+
+  <div class="cb">
+    <div class="cb-head"><span>decidability.js — decidable vs recognisable vs unrecognisable</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// The three tiers of computability, illustrated with concrete examples</span>
+
+<span class="cmt">// === DECIDABLE: TM always halts with accept or reject ===</span>
+<span class="kw">function</span> <span class="fn">decidePrimes</span>(n) {
+  <span class="cmt">// Decides whether n is prime — TM always terminates</span>
+  <span class="kw">if</span> (n < <span class="num">2</span>) <span class="kw">return false</span>;
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">2</span>; i <= Math.sqrt(n); i++)
+    <span class="kw">if</span> (n % i === <span class="num">0</span>) <span class="kw">return false</span>;
+  <span class="kw">return true</span>;
+}
+
+<span class="cmt">// === RECOGNISABLE BUT NOT DECIDABLE: HALT ===</span>
+<span class="cmt">// A recogniser for HALT: just run the machine and accept if it halts</span>
+<span class="cmt">// But if M loops, our recogniser loops too — never rejects</span>
+<span class="kw">function</span> <span class="fn">haltRecogniser</span>(M_code, w) {
+  <span class="cmt">// This RECOGNISES HALT by simulating M on w</span>
+  <span class="cmt">// If M halts → we accept; if M loops → we loop (never reject)</span>
+  <span class="cmt">// This is why HALT is recognisable but not decidable</span>
+  <span class="kw">return</span> <span class="str">"[simulate M on w; accept iff M accepts; loop otherwise]"</span>;
+}
+
+<span class="cmt">// === NOT RECOGNISABLE: complement of HALT ===</span>
+<span class="cmt">// HALT_complement = {⟨M,w⟩ | M does NOT halt on w}</span>
+<span class="cmt">// To recognise it, we'd need to wait forever to confirm non-halting — impossible</span>
+
+<span class="cmt">// === Rice's Theorem: a remarkable generalisation ===</span>
+<span class="cmt">// "Every non-trivial semantic property of Turing machines is undecidable"</span>
+<span class="kw">const</span> riceExamples = [
+  { property: <span class="str">"Does M accept the empty string?"</span>,           decidable: <span class="kw">false</span> },
+  { property: <span class="str">"Does M halt on all inputs?"</span>,                 decidable: <span class="kw">false</span> },
+  { property: <span class="str">"Does M compute the identity function?"</span>,       decidable: <span class="kw">false</span> },
+  { property: <span class="str">"Does M accept a finite language?"</span>,            decidable: <span class="kw">false</span> },
+  { property: <span class="str">"Does M accept a regular language?"</span>,           decidable: <span class="kw">false</span> },
+  { property: <span class="str">"Is M's language empty?"</span>,                      decidable: <span class="kw">false</span> },
+  { property: <span class="str">"Does M have exactly 7 states?"</span>,               decidable: <span class="kw">true</span>  }, <span class="cmt">// syntactic, not semantic</span>
+];
+
+console.log(<span class="str">"=== Rice's Theorem examples ==="</span>);
+console.log(<span class="str">"Every NON-TRIVIAL SEMANTIC property of Turing machines is undecidable."</span>);
+console.log(<span class="str">"(Semantic = depends on what the TM computes, not on its description)\n"</span>);
+riceExamples.forEach(ex => {
+  <span class="kw">const</span> tag = ex.decidable ? <span class="str">"DECIDABLE (syntactic)"</span> : <span class="str">"UNDECIDABLE (Rice's Thm)"</span>;
+  console.log(<span class="str">`${ex.property}\n  → ${tag}`</span>);
+});
+
+console.log(<span class="str">"\n=== Implication for static analysis ==="</span>);
+console.log(<span class="str">"No total analyser can always give exact yes/no answers to"</span>);
+console.log(<span class="str">"non-trivial semantic questions about arbitrary programs."</span>);
+console.log(<span class="str">"To stay useful, real tools restrict the language, approximate, or say 'unknown'."</span>);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+
+  <p>Rice's theorem has a sobering practical corollary: <strong>no total, general-purpose analyser for arbitrary programs can always return exact yes/no answers to non-trivial semantic questions</strong>. Real tools cope by restricting the language, proving only special properties, approximating conservatively, or returning <code>unknown</code>. This is not a failure of engineering; it reflects a mathematical limit.</p>
+</section>
+
+<!-- ══ S6: REDUCTIONS ══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>Reductions — the master technique</h2></div>
+
+  <p>To prove a problem undecidable, we don't re-run Turing's diagonalisation argument each time. We use <strong>reduction</strong>: if we can transform any instance of a known-undecidable problem into an instance of the new problem (in a computable way), then the new problem is at least as hard.</p>
+
+  <div class="defn">
+    <div class="defn-label">Many-one reduction (mapping reduction)</div>
+    A ≤ₘ B (A reduces to B) if there is a computable function f such that for all w: w ∈ A ⟺ f(w) ∈ B.<br>
+    If A ≤ₘ B and B is decidable, then A is decidable.<br>
+    Equivalently: if A ≤ₘ B and A is undecidable, then B is undecidable.
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">How reductions chain — follow the arrows</div>
+    <div id="reduction-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>reductions.js — proving undecidability via reduction from HALT</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// Reduction: if we can solve B, we can solve A</span>
+<span class="cmt">// Contrapositive: if A is undecidable, and A ≤m B, then B is undecidable</span>
+<span class="cmt">// Here the clean reduction is HALT ≤m co-EMPTY; since decidability is closed under complement, EMPTY is undecidable too</span>
+
+<span class="cmt">// HALT = { ⟨M,w⟩ | M halts on w }  — known undecidable</span>
+<span class="cmt">// EMPTY = { ⟨M⟩ | L(M) = ∅ }       — also undecidable</span>
+
+<span class="cmt">// The reduction function f: given ⟨M, w⟩, produce a new machine M'</span>
+<span class="cmt">// M' ignores its own input and simulates M on w</span>
+<span class="cmt">// If M halts on w → M' accepts everything → L(M') = Σ* ≠ ∅  → ⟨M'⟩ ∉ EMPTY</span>
+<span class="cmt">// If M loops on w → M' loops on everything → L(M') = ∅ → ⟨M'⟩ ∈ EMPTY</span>
+<span class="cmt">// Therefore: ⟨M,w⟩ ∈ HALT ⟺ f(⟨M,w⟩) ∉ EMPTY  (with negation → HALT ≤m co-EMPTY)</span>
+
+<span class="kw">function</span> <span class="fn">reductionToEmpty</span>(M_description, w) {
+  <span class="cmt">// Produces a new TM description M' such that:</span>
+  <span class="cmt">// L(M') = ∅   iff M loops on w</span>
+  <span class="cmt">// L(M') = Σ*  iff M halts on w</span>
+  <span class="kw">return</span> {
+    description: <span class="str">`M' that:
+  1. Ignores its input string
+  2. Simulates ${M_description} on "${w}"
+  3. If simulation halts: accept the original input
+  4. If simulation loops: loop forever (L(M') = ∅)`</span>,
+    property: <span class="str">"L(M') = ∅ iff M loops on w"</span>
+  };
+}
+
+console.log(<span class="str">"=== Proof that EMPTY is undecidable ==="</span>);
+console.log(<span class="str">"We reduce HALT to the complement of EMPTY (co-EMPTY)."</span>);
+console.log(<span class="str">"Suppose for contradiction that EMPTY were decidable.\n"</span>);
+
+<span class="kw">const</span> instance = <span class="fn">reductionToEmpty</span>(<span class="str">"M_collatz"</span>, <span class="str">"any_input"</span>);
+console.log(<span class="str">"Given ⟨M, w⟩ (a HALT instance), construct M':"</span>);
+console.log(instance.description);
+console.log(<span class="str">"\nNow run the EMPTY decider on M'."</span>);
+console.log(<span class="str">"If EMPTY(M') = false → L(M') ≠ ∅ → M halts on w → HALT accepts ⟨M,w⟩"</span>);
+console.log(<span class="str">"If EMPTY(M') = true  → L(M') = ∅ → M loops on w → HALT rejects ⟨M,w⟩"</span>);
+console.log(<span class="str">"We have decided HALT. Contradiction. Therefore EMPTY is undecidable. □\n"</span>);
+
+<span class="cmt">// A chain of reductions from HALT</span>
+<span class="kw">const</span> reductions = [
+  { from: <span class="str">"HALT"</span>,      to: <span class="str">"EMPTY_LANGUAGE"</span>,  via: <span class="str">"modify M to simulate on w"</span> },
+  { from: <span class="str">"HALT"</span>,      to: <span class="str">"TOTAL_HALT"</span>,       via: <span class="str">"modify M to ignore input, run w"</span> },
+  { from: <span class="str">"HALT"</span>,      to: <span class="str">"EQ_TM"</span>,            via: <span class="str">"compare L(M) to fixed language"</span> },
+  { from: <span class="str">"EMPTY"</span>,     to: <span class="str">"FINITE_LANGUAGE"</span>,  via: <span class="str">"enumerate and intersect"</span> },
+  { from: <span class="str">"FINITE"</span>,    to: <span class="str">"REGULAR_LANGUAGE"</span>, via: <span class="str">"regular if finite or cofinite"</span> },
+];
+console.log(<span class="str">"Reduction chain from HALT:"</span>);
+reductions.forEach(r => console.log(<span class="str">`  ${r.from} ≤m ${r.to}  (via: ${r.via})`</span>));</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ══ S7: P AND NP ══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>P and NP — from <em>can</em> we to <em>how fast</em></h2></div>
+
+  <p>Decidability asks whether a problem can be solved at all. Complexity theory asks: given that it can, how many resources (time, space) does it require? The most important complexity question in computer science is the relationship between <strong>P</strong> and <strong>NP</strong>.</p>
+
+  <div class="defn">
+    <div class="defn-label">P and NP</div>
+    <strong>P</strong> = the class of decision problems solvable by a deterministic TM in polynomial time in the input size n.<br>
+    <strong>NP</strong> = the class of decision problems where "yes" instances have polynomial-length certificates verifiable in polynomial time.<br>
+    Equivalently: NP = problems solvable by a <em>non-deterministic</em> TM in polynomial time.<br>
+    <strong>P ⊆ NP</strong> — every problem in P has a trivially-checkable certificate (just re-run the polynomial algorithm).
+  </div>
+
+  <p>The intuition: NP captures problems that are easy to verify but apparently hard to solve. Given a completed Sudoku grid, checking it is instant. Finding the solution from scratch can be hard. More precisely: <strong>generalised</strong> Sudoku (where the board size grows) is in NP and is NP-complete; the fixed 9×9 newspaper puzzle is only a constant-size special case.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">P vs NP — solve vs verify, with adjustable size</div>
+    <div class="btn-row">
+      <button class="btn act" onclick="showComplexity('sort',this)">Sorting (P)</button>
+      <button class="btn" onclick="showComplexity('sat',this)">3-SAT (NP)</button>
+      <button class="btn" onclick="showComplexity('tsp',this)">TSP (NP-hard)</button>
+    </div>
+    <div class="slider-row">
+      <label>Input size n</label>
+      <input type="range" min="5" max="50" value="20" id="cx-size" oninput="updateComplexity()">
+      <span class="slider-val" id="cx-size-val">20</span>
+    </div>
+    <div id="complexity-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>complexity_classes.js — P, NP, and the certificate model</span><button class="run-btn" onclick="runCode('c7','o7')">&#9654; Run</button></div>
+    <pre class="code" id="c7"><span class="cmt">// P and NP illustrated with concrete problems</span>
+<span class="cmt">// P: solvable in polynomial time</span>
+<span class="cmt">// NP: certificate verifiable in polynomial time</span>
+
+<span class="cmt">// === IN P: Graph reachability (BFS/DFS, O(V+E)) ===</span>
+<span class="kw">function</span> <span class="fn">isReachable</span>(graph, source, target) {
+  <span class="kw">const</span> visited = <span class="kw">new</span> Set([source]);
+  <span class="kw">const</span> queue   = [source];
+  <span class="kw">while</span> (queue.length) {
+    <span class="kw">const</span> node = queue.shift();
+    <span class="kw">if</span> (node === target) <span class="kw">return true</span>;
+    (graph[node] || []).forEach(n => { <span class="kw">if</span> (!visited.has(n)) { visited.add(n); queue.push(n); }});
+  }
+  <span class="kw">return false</span>;
+}
+
+<span class="cmt">// === IN NP: Boolean satisfiability (SAT) ===</span>
+<span class="cmt">// Solve: find assignment to variables making a formula true — potentially 2^n tries</span>
+<span class="cmt">// Verify: given an assignment, check in O(clauses) time</span>
+<span class="kw">function</span> <span class="fn">verifySATCertificate</span>(clauses, assignment) {
+  <span class="cmt">// Certificate = variable assignment; verification is O(clauses) — polynomial</span>
+  <span class="kw">return</span> clauses.every(clause =>
+    clause.some(literal => {
+      <span class="kw">const</span> [variable, negated] = literal;
+      <span class="kw">return</span> negated ? !assignment[variable] : assignment[variable];
+    })
+  );
+}
+
+<span class="cmt">// Brute-force SAT solver: tries all 2^n assignments</span>
+<span class="kw">function</span> <span class="fn">solveSAT</span>(variables, clauses) {
+  <span class="kw">const</span> n = variables.length;
+  <span class="kw">for</span> (<span class="kw">let</span> mask = <span class="num">0</span>; mask < (<span class="num">1</span> << n); mask++) {
+    <span class="kw">const</span> assignment = {};
+    variables.forEach((v, i) => { assignment[v] = !!(mask & (<span class="num">1</span> << i)); });
+    <span class="kw">if</span> (<span class="fn">verifySATCertificate</span>(clauses, assignment)) <span class="kw">return</span> assignment;
+  }
+  <span class="kw">return null</span>; <span class="cmt">// unsatisfiable</span>
+}
+
+<span class="cmt">// Example: (x₁ ∨ ¬x₂) ∧ (¬x₁ ∨ x₃) ∧ (x₂ ∨ x₃)</span>
+<span class="kw">const</span> vars    = [<span class="str">"x1"</span>, <span class="str">"x2"</span>, <span class="str">"x3"</span>];
+<span class="kw">const</span> clauses = [
+  [[<span class="str">"x1"</span>,<span class="kw">false</span>],[<span class="str">"x2"</span>,<span class="kw">true</span>]],   <span class="cmt">// x1 ∨ ¬x2</span>
+  [[<span class="str">"x1"</span>,<span class="kw">true</span>],[<span class="str">"x3"</span>,<span class="kw">false</span>]],    <span class="cmt">// ¬x1 ∨ x3</span>
+  [[<span class="str">"x2"</span>,<span class="kw">false</span>],[<span class="str">"x3"</span>,<span class="kw">false</span>]],  <span class="cmt">// x2 ∨ x3</span>
+];
+
+console.log(<span class="str">"=== SAT: (x1 ∨ ¬x2) ∧ (¬x1 ∨ x3) ∧ (x2 ∨ x3) ==="</span>);
+<span class="kw">const</span> solution = <span class="fn">solveSAT</span>(vars, clauses);
+<span class="kw">if</span> (solution) {
+  console.log(<span class="str">`SATISFIABLE: ${JSON.stringify(solution)}`</span>);
+  console.log(<span class="str">`Verify certificate: ${verifySATCertificate(clauses, solution)}`</span>);
+} <span class="kw">else</span> {
+  console.log(<span class="str">"UNSATISFIABLE"</span>);
+}
+
+<span class="cmt">// Complexity comparison</span>
+console.log(<span class="str">"\n=== Time to solve vs verify ==="</span>);
+[<span class="num">10</span>, <span class="num">20</span>, <span class="num">30</span>, <span class="num">50</span>].forEach(n => {
+  <span class="kw">const</span> verifyTime  = n;                <span class="cmt">// O(n) certificate check</span>
+  <span class="kw">const</span> bruteForce  = Math.pow(<span class="num">2</span>, n);   <span class="cmt">// 2^n exhaustive search</span>
+  <span class="kw">const</span> polyAlgo    = n * Math.log2(n);  <span class="cmt">// n log n (hypothetical P algorithm)</span>
+  console.log(<span class="str">`n=${n}: verify=O(${verifyTime}), brute-force=2^${n}=${bruteForce.toLocaleString()}, poly-if-P≈${polyAlgo.toFixed(0)}`</span>);
+});</pre>
+    <div class="out" id="o7"></div>
+  </div>
+</section>
+
+<!-- ══ S8: NP-COMPLETENESS ══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>NP-completeness</h2></div>
+
+  <p>Within NP, some problems are <strong>hardest</strong> — as hard as anything in NP. A problem X is <strong>NP-hard</strong> if every problem in NP can be reduced to X in polynomial time. A problem is <strong>NP-complete</strong> if it is both NP-hard and in NP itself.</p>
+  <p>The first NP-complete problem was identified by Stephen Cook (1971) and independently by Leonid Levin: <strong>Boolean satisfiability (SAT)</strong>. Cook proved that every NP problem reduces to SAT in polynomial time. Richard Karp then showed 21 more natural problems are NP-complete via reduction chains — including Hamiltonian cycle, vertex cover, 3-coloring, knapsack, and the traveling salesman problem.</p>
+
+  <div class="defn">
+    <div class="defn-label">Cook-Levin Theorem (1971)</div>
+    SAT is NP-complete. Every problem in NP polynomial-time reduces to SAT.<br>
+    Consequence: if SAT can be solved in polynomial time, then P = NP.
+  </div>
+
+  <div class="demo">
+    <div class="demo-lbl">NP-completeness via Karp's 21 problems — click to trace the reduction</div>
+    <div id="karp-viz"></div>
+  </div>
+
+  <div class="cb">
+    <div class="cb-head"><span>np_complete.js — verifiers, reductions, and classic NPC problems</span><button class="run-btn" onclick="runCode('c8','o8')">&#9654; Run</button></div>
+    <pre class="code" id="c8"><span class="cmt">// NP-complete problems: hard to solve, easy to verify</span>
+<span class="cmt">// All polynomial-time reducible to each other</span>
+
+<span class="cmt">// === 3-COLORING: can we colour a graph with 3 colours so no neighbours share? ===</span>
+<span class="kw">function</span> <span class="fn">verify3Coloring</span>(graph, coloring) {
+  <span class="cmt">// Verify certificate: O(edges) — polynomial</span>
+  <span class="kw">for</span> (<span class="kw">const</span> [u, v] <span class="kw">of</span> graph.edges)
+    <span class="kw">if</span> (coloring[u] === coloring[v]) <span class="kw">return false</span>;
+  <span class="kw">return true</span>;
+}
+
+<span class="cmt">// === VERTEX COVER: does there exist a set S of k vertices covering all edges? ===</span>
+<span class="kw">function</span> <span class="fn">verifyVertexCover</span>(graph, cover, k) {
+  <span class="kw">if</span> (cover.length > k) <span class="kw">return false</span>;
+  <span class="kw">const</span> coverSet = <span class="kw">new</span> Set(cover);
+  <span class="kw">return</span> graph.edges.every(([u,v]) => coverSet.has(u) || coverSet.has(v));
+}
+
+<span class="cmt">// === KNAPSACK: can we fill a knapsack with items summing to exactly W? ===</span>
+<span class="kw">function</span> <span class="fn">verifyKnapsack</span>(items, chosen, targetWeight) {
+  <span class="kw">const</span> total = chosen.reduce((s, i) => s + items[i].weight, <span class="num">0</span>);
+  <span class="kw">return</span> total === targetWeight;
+}
+
+<span class="cmt">// === Demonstrate: certificate verification is easy even when finding is hard ===</span>
+<span class="kw">const</span> graph = {
+  vertices: [<span class="num">0</span>,<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>],
+  edges:    [[<span class="num">0</span>,<span class="num">1</span>],[<span class="num">1</span>,<span class="num">2</span>],[<span class="num">2</span>,<span class="num">3</span>],[<span class="num">3</span>,<span class="num">4</span>],[<span class="num">4</span>,<span class="num">0</span>],[<span class="num">0</span>,<span class="num">2</span>]],
+};
+
+console.log(<span class="str">"=== NP certificate verification ==="</span>);
+<span class="cmt">// Someone claims this 3-coloring works:</span>
+<span class="kw">const</span> colorClaim = { <span class="num">0</span>:<span class="str">"R"</span>, <span class="num">1</span>:<span class="str">"G"</span>, <span class="num">2</span>:<span class="str">"B"</span>, <span class="num">3</span>:<span class="str">"R"</span>, <span class="num">4</span>:<span class="str">"G"</span> };
+console.log(<span class="str">`3-Coloring ${JSON.stringify(colorClaim)}: ${verify3Coloring(graph, colorClaim) ? "VALID ✓" : "INVALID ✗"}`</span>);
+<span class="kw">const</span> badColor = { <span class="num">0</span>:<span class="str">"R"</span>, <span class="num">1</span>:<span class="str">"R"</span>, <span class="num">2</span>:<span class="str">"B"</span>, <span class="num">3</span>:<span class="str">"R"</span>, <span class="num">4</span>:<span class="str">"G"</span> };
+console.log(<span class="str">`3-Coloring ${JSON.stringify(badColor)}: ${verify3Coloring(graph, badColor) ? "VALID ✓" : "INVALID ✗ (0-1 same colour)"}`</span>);
+
+<span class="cmt">// Vertex cover</span>
+console.log(<span class="str">`\nVertex cover [0,2,4] (k=3): `</span> + verifyVertexCover(graph, [<span class="num">0</span>,<span class="num">2</span>,<span class="num">4</span>], <span class="num">3</span>));
+console.log(<span class="str">"Vertex cover [0,1] (k=2):   "</span> + verifyVertexCover(graph, [<span class="num">0</span>,<span class="num">1</span>], <span class="num">2</span>));
+
+<span class="cmt">// The Cook reduction sketch: SAT ← 3-SAT ← 3-COLORING</span>
+console.log(<span class="str">"\n=== NP-completeness: a partial reduction chain ==="</span>);
+<span class="kw">const</span> reductions = [
+  <span class="str">"SAT (Cook-Levin: every NP problem reduces here)"</span>,
+  <span class="str">"  ← 3-SAT (each clause has ≤3 literals, same hardness)"</span>,
+  <span class="str">"      ← INDEPENDENT SET (represent clauses as graph)"</span>,
+  <span class="str">"          ← VERTEX COVER (complement of IS)"</span>,
+  <span class="str">"              ← CLIQUE (complement of VC)"</span>,
+  <span class="str">"  ← 3-COLORING (reduce 3-SAT via gadgets)"</span>,
+  <span class="str">"  ← HAMILTONIAN CYCLE (via 3-SAT gadgets)"</span>,
+  <span class="str">"      ← TRAVELING SALESMAN (TSP: iff Ham. cycle in metric graph)"</span>,
+];
+reductions.forEach(r => console.log(r));</pre>
+    <div class="out" id="o8"></div>
+  </div>
+</section>
+
+<!-- ══ S9: P VS NP ══ -->
+<section class="section" id="s9">
+  <div class="sec-head"><span class="sec-n">§09</span><h2>The P vs NP question</h2></div>
+
+  <p>The question <strong>P = NP?</strong> is the most important open problem in computer science and one of the seven Millennium Prize Problems ($1,000,000 prize). Informally: if a solution can be quickly verified, can it always be quickly found?</p>
+  <p>Most experts believe P ≠ NP — that there is a genuine separation, that problems like SAT require superpolynomial time. But no proof exists. The barrier is that we lack good techniques for proving lower bounds on computational complexity. We know many upper bounds (polynomial algorithms); proving lower bounds has resisted all attacks for over 50 years.</p>
+
+  <div class="demo">
+    <div class="demo-lbl">What a proof either way would mean</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:var(--mono);font-size:12px">
+      <div style="border:1px solid var(--teal-bdr);background:var(--teal-bg);border-radius:5px;padding:.9rem">
+        <div style="color:var(--teal);font-weight:700;margin-bottom:.5rem">If P = NP</div>
+        <div style="color:var(--ink2);line-height:1.8;font-size:11px">
+          • All NP-complete problems (SAT, TSP, protein folding, scheduling) become polynomial-time solvable<br>
+          • Most current public-key cryptography breaks — RSA, ECC assume hardness of factoring/discrete log<br>
+          • Drug discovery, materials science: exponential speedup in optimisation<br>
+          • Many search-and-verification tasks would become dramatically easier<br>
+          • "The consequences would be profound and mostly positive, except for cryptography" — Sipser
+        </div>
+      </div>
+      <div style="border:1px solid var(--violet-bdr);background:var(--violet-bg);border-radius:5px;padding:.9rem">
+        <div style="color:var(--violet);font-weight:700;margin-bottom:.5rem">If P ≠ NP (most likely)</div>
+        <div style="color:var(--ink2);line-height:1.8;font-size:11px">
+          • Hardness assumptions become more plausible, but P ≠ NP alone would not prove modern cryptography secure<br>
+          • NP-complete problems remain outside P, though not necessarily exponentially hard<br>
+          • Focus shifts to approximation algorithms and special-case tractability<br>
+          • Many optimisation problems still require heuristics, approximation, or superpolynomial worst-case time<br>
+          • The complexity landscape we see now is "real" — not an artefact of our ignorance
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout violet">The reason proving P ≠ NP is hard is itself illuminating. Scott Aaronson and others have shown that virtually every mathematical technique used to prove lower bounds in other settings (<em>relativisation</em>, <em>natural proofs</em>, <em>algebrisation</em>) is provably insufficient to resolve P vs NP. The problem may require entirely new mathematics.</div>
+
+  <div class="cb">
+    <div class="cb-head"><span>p_vs_np.js — the practical impact of complexity classes</span><button class="run-btn" onclick="runCode('c9','o9')">&#9654; Run</button></div>
+    <pre class="code" id="c9"><span class="cmt">// Concrete numbers: why the P vs NP gap matters</span>
+<span class="cmt">// Polynomial vs exponential time on realistic inputs</span>
+
+<span class="kw">function</span> <span class="fn">padRight</span>(s, width) {
+  s = String(s);
+  <span class="kw">while</span> (s.length < width) s += <span class="str">" "</span>;
+  <span class="kw">return</span> s;
+}
+
+<span class="kw">function</span> <span class="fn">formatTime</span>(ops) {
+  <span class="kw">var</span> opsPerSec = <span class="num">1e9</span>;
+  <span class="kw">var</span> seconds = ops / opsPerSec;
+  <span class="kw">if</span> (seconds < <span class="num">1</span>) <span class="kw">return</span> ((seconds * <span class="num">1000</span>).toFixed(<span class="num">2</span>) + <span class="str">" ms"</span>);
+  <span class="kw">if</span> (seconds < <span class="num">60</span>) <span class="kw">return</span> (seconds.toFixed(<span class="num">1</span>) + <span class="str">" s"</span>);
+  <span class="kw">if</span> (seconds < <span class="num">3600</span>) <span class="kw">return</span> ((seconds / <span class="num">60</span>).toFixed(<span class="num">1</span>) + <span class="str">" min"</span>);
+  <span class="kw">if</span> (seconds < <span class="num">86400</span>) <span class="kw">return</span> ((seconds / <span class="num">3600</span>).toFixed(<span class="num">1</span>) + <span class="str">" hrs"</span>);
+  <span class="kw">if</span> (seconds < <span class="num">3.15e7</span>) <span class="kw">return</span> ((seconds / <span class="num">86400</span>).toFixed(<span class="num">0</span>) + <span class="str">" days"</span>);
+  <span class="kw">if</span> (seconds < <span class="num">3.15e9</span>) <span class="kw">return</span> ((seconds / <span class="num">3.15e7</span>).toFixed(<span class="num">0</span>) + <span class="str">" years"</span>);
+  <span class="kw">if</span> (seconds < <span class="num">3.15e16</span>) <span class="kw">return</span> ((seconds / <span class="num">3.15e9</span>).toFixed(<span class="num">0</span>) + <span class="str">"K years"</span>);
+  <span class="kw">return</span> ops.toExponential(<span class="num">1</span>) + <span class="str">" ops"</span>;
+}
+
+<span class="kw">function</span> <span class="fn">factorialBounded</span>(n) {
+  <span class="kw">var</span> r = <span class="num">1</span>;
+  <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">2</span>; i <= Math.min(n, <span class="num">170</span>); i++) r *= i;
+  <span class="kw">return</span> r;
+}
+
+<span class="kw">var</span> algorithms = [
+  { name: <span class="str">"Constant    O(1)"</span>,      ops: <span class="kw">function</span>(n) { <span class="kw">return</span> <span class="num">1</span>; } },
+  { name: <span class="str">"Logarithmic O(log n)"</span>,  ops: <span class="kw">function</span>(n) { <span class="kw">return</span> Math.log(n) / Math.log(<span class="num">2</span>); } },
+  { name: <span class="str">"Linear      O(n)"</span>,      ops: <span class="kw">function</span>(n) { <span class="kw">return</span> n; } },
+  { name: <span class="str">"Linearithm  O(n log n)"</span>, ops: <span class="kw">function</span>(n) { <span class="kw">return</span> n * (Math.log(n) / Math.log(<span class="num">2</span>)); } },
+  { name: <span class="str">"Quadratic   O(n^2)"</span>,    ops: <span class="kw">function</span>(n) { <span class="kw">return</span> n * n; } },
+  { name: <span class="str">"Cubic       O(n^3)"</span>,    ops: <span class="kw">function</span>(n) { <span class="kw">return</span> n * n * n; } },
+  { name: <span class="str">"Exponential O(2^n)"</span>,    ops: <span class="kw">function</span>(n) { <span class="kw">return</span> Math.pow(<span class="num">2</span>, n); } },
+  { name: <span class="str">"Factorial   O(n!)"</span>,     ops: <span class="kw">function</span>(n) { <span class="kw">return</span> factorialBounded(n); } }
+];
+
+<span class="kw">var</span> sizes = [<span class="num">10</span>, <span class="num">100</span>, <span class="num">1000</span>];
+console.log(<span class="str">"Algorithm complexity — time at 10^9 operations/second:"</span>);
+console.log(<span class="fn">padRight</span>(<span class="str">""</span>, <span class="num">24</span>) + <span class="fn">padRight</span>(<span class="str">"n=10"</span>, <span class="num">12</span>) + <span class="fn">padRight</span>(<span class="str">"n=100"</span>, <span class="num">16</span>) + <span class="fn">padRight</span>(<span class="str">"n=1000"</span>, <span class="num">20</span>));
+<span class="kw">for</span> (<span class="kw">var</span> a = <span class="num">0</span>; a < algorithms.length; a++) {
+  <span class="kw">var</span> alg = algorithms[a];
+  <span class="kw">var</span> row = <span class="fn">padRight</span>(alg.name, <span class="num">24</span>);
+  <span class="kw">for</span> (<span class="kw">var</span> j = <span class="num">0</span>; j < sizes.length; j++) {
+    <span class="kw">var</span> n = sizes[j];
+    <span class="kw">var</span> width = (n === <span class="num">10</span>) ? <span class="num">12</span> : (n === <span class="num">100</span> ? <span class="num">16</span> : <span class="num">20</span>);
+    row += <span class="fn">padRight</span>(<span class="fn">formatTime</span>(alg.ops(n)), width);
+  }
+  console.log(row);
+}
+
+console.log(<span class="str">"\n--- P algorithms: TRACTABLE (polynomial, manageable even at n=1000)"</span>);
+console.log(<span class="str">"--- EXP algorithms: INTRACTABLE (exponential, impossible beyond n≈60)"</span>);
+console.log(<span class="str">"\nKey: If P=NP, SAT and 3-COLORING would behave like the top rows above."</span>);</pre>
+    <div class="out" id="o9"></div>
+  </div>
+</section>
+
+<!-- ══ S10: BEYOND NP ══ -->
+<section class="section" id="s10">
+  <div class="sec-head"><span class="sec-n">§10</span><h2>Beyond NP: the complexity landscape</h2></div>
+
+  <p>P and NP are just the beginning. The full complexity zoo contains hundreds of classes. Here are the most important ones beyond NP:</p>
+
+  <div class="complexity-map">
+    <div class="cx-row">
+      <div class="cx-band P">
+        <div class="cx-name">P</div>
+        <div class="cx-desc">Polynomial time. Practically efficient.</div>
+        <div class="cx-ex">Sorting, shortest paths, linear programming, primality (AKS)</div>
+      </div>
+      <div class="cx-band NP">
+        <div class="cx-name">NP</div>
+        <div class="cx-desc">Certificates verifiable in poly time. Contains P. NP ∩ co-NP problems likely not NPC.</div>
+        <div class="cx-ex">SAT, Hamilton cycle, graph colouring, integer programming</div>
+      </div>
+      <div class="cx-band NPC">
+        <div class="cx-name">NP-complete</div>
+        <div class="cx-desc">Hardest in NP. Poly-reducible to each other. If any is in P, then P=NP.</div>
+        <div class="cx-ex">3-SAT, TSP, Vertex Cover, Clique, Knapsack, 3-Coloring</div>
+      </div>
+      <div class="cx-band PSPACE">
+        <div class="cx-name">PSPACE</div>
+        <div class="cx-desc">Decidable in polynomial space (possibly exponential time). P ⊆ NP ⊆ PSPACE.</div>
+        <div class="cx-ex">QBF, game theory (Go, checkers), TQBF complete for PSPACE</div>
+      </div>
+      <div class="cx-band EXP">
+        <div class="cx-name">EXP</div>
+        <div class="cx-desc">Exponential time. PSPACE ⊆ EXP. Known P ≠ EXP (time hierarchy theorem).</div>
+        <div class="cx-ex">Chess (bounded board), Go (unbounded), generalized games</div>
+      </div>
+      <div class="cx-band UNDEC">
+        <div class="cx-name">Undecidable</div>
+        <div class="cx-desc">No algorithm exists. Not in any complexity class. Above the computable.</div>
+        <div class="cx-ex">Halting problem, Post correspondence, Hilbert's 10th, tiling the plane</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout teal">The <strong>Time Hierarchy Theorem</strong> proves that giving a TM more time genuinely lets it solve more problems — P ≠ EXP is provable. Similarly the Space Hierarchy Theorem gives L ≠ PSPACE. Ironically, we cannot prove P ≠ NP — which sits between two separation results we <em>can</em> prove (P ≠ EXP). This asymmetry is part of what makes P vs NP so mysteriously resistant.</div>
+
+  <div class="np-table" style="display:block;overflow-x:auto">
+    <table class="np-table">
+      <thead><tr><th>Problem</th><th>Class</th><th>Best known</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Sorting n numbers</td><td class="p">P</td><td class="p">O(n log n)</td><td>Provably optimal for comparison sort</td></tr>
+        <tr><td class="name">Primality testing</td><td class="p">P</td><td class="p">Polynomial time (AKS; improved since)</td><td>Open for centuries; Fermat, Miller-Rabin practical</td></tr>
+        <tr><td class="name">Integer factoring</td><td class="np">NP ∩ co-NP</td><td class="np">Subexponential (number field sieve)</td><td>Likely not NP-complete; basis of RSA security</td></tr>
+        <tr><td class="name">Graph isomorphism</td><td class="np">NP</td><td class="np">Quasipolynomial (Babai 2015)</td><td>Believed not NP-complete; status relative to P remains open</td></tr>
+        <tr class="hi"><td class="name">Boolean SAT (3-SAT)</td><td class="npc">NP-complete</td><td class="npc">2^O(n) brute force; heuristics in practice</td><td>First NP-complete problem (Cook 1971)</td></tr>
+        <tr><td class="name">Traveling Salesman</td><td class="npc">NP-complete (decision)</td><td class="npc">Held-Karp O(n²2ⁿ) exact; Christofides 1.5-approx for metric TSP</td><td>Euclidean TSP has a PTAS; metric TSP has constant-factor approximations</td></tr>
+        <tr><td class="name">Quantified Boolean Formula</td><td class="npc">PSPACE-complete</td><td>EXP brute force</td><td>Generalised 2-player game; complete for PSPACE</td></tr>
+        <tr><td class="name">Halting Problem</td><td class="und">Undecidable</td><td class="und">—</td><td>No general decider; heuristics can exist but cannot solve the problem in full generality</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="footer">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:.7rem">Further reading</div>
+    <a href="https://www.amazon.com/Introduction-Theory-Computation-Michael-Sipser/dp/113318779X">Sipser — Introduction to the Theory of Computation (the standard textbook; clear and rigorous)</a>
+    <a href="https://www.amazon.com/Computers-Intractability-NP-Completeness-Mathematical-Sciences/dp/0716710455">Garey &amp; Johnson — Computers and Intractability: A Guide to NP-Completeness (the definitive NPC reference)</a>
+    <a href="https://complexityzoo.net">Complexity Zoo — catalogue of hundreds of complexity classes with relationships</a>
+    <a href="https://scottaaronson.blog">Scott Aaronson's blog — the best accessible writing on complexity and P vs NP</a>
+    <a href="https://www.claymath.org/millennium/p-vs-np/">Clay Mathematics Institute — official P vs NP millennium prize statement</a>
+    <a href="https://arxiv.org/abs/0910.3151">Aaronson — Is P vs NP Formally Independent? (on why it may be very hard to resolve)</a>
+    <div class="footer-note">The Turing machine in §02 implements a genuine palindrome checker and unary addition TM. The SAT solver in §07 is a correct brute-force solver. The formal definitions and class relationships follow standard textbook conventions. The complexity chart in §10 reflects mainstream results and open-status boundaries, without assuming unproved separations.</div>
+  </footer>
+</section>
+
+</div>
+<script>
+/* ── RUNNER ── */
+function runCode(cid,oid){
+  const raw=document.getElementById(cid).innerText;
+  const el=document.getElementById(oid);el.className='out on';
+  const logs=[];
+  const con={log:(...a)=>logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')),assert:(c,m)=>{if(!c)logs.push('AssertionError: '+m);}};
+  try{new Function('console',raw)(con);el.textContent=logs.join('\n')||'(no output)';}
+  catch(e){el.className='out on err';el.textContent='⚠ '+e.message;}
+}
+
+/* ── TURING MACHINE ── */
+const TM_PROGRAMS={
+  increment:{
+    desc:'Increment a binary number (e.g. 1011 → 1100)',
+    input:'1011',
+    explain:'<strong>How it works:</strong> scan right to the end of the binary string, then propagate the carry back left. If you see a 1, change it to 0 and keep carrying. When you find a 0, change it to 1 and halt. If you run off the left end, write a new leading 1.',
+    // Add 1 to binary: scan right, flip trailing 0 to 1, flip trailing 1s to 0s
+    transitions:{
+      'q0,0':['q0','0','R'],'q0,1':['q0','1','R'],'q0,B':['q1','B','L'],
+      'q1,0':['qa','1','L'],'q1,1':['q1','0','L'],'q1,B':['qa','1','R'],
+    },
+    start:'q0',accept:'qa',reject:'qr',
+  },
+  palindrome:{
+    desc:'Accept strings in {a,b}* that are palindromes',
+    input:'abba',
+    explain:'<strong>How it works:</strong> mark the leftmost unmatched letter with <code>X</code>. If it was <code>a</code>, move right to the end and check that the rightmost unmatched letter is also <code>a</code>; if it was <code>b</code>, do the same for <code>b</code>. Mark the matching rightmost letter with <code>X</code>, rewind left, and repeat. If only <code>X</code>s and blanks remain, accept. If the rightmost letter does not match, reject.',
+    transitions:{
+      'q0,a':['q1','X','R'],'q0,b':['q5','X','R'],
+      'q0,X':['qa','X','R'],'q0,B':['qa','B','R'],
+      'q1,a':['q1','a','R'],'q1,b':['q1','b','R'],'q1,X':['q1','X','R'],'q1,B':['q2','B','L'],
+      'q2,a':['q3','X','L'],'q2,b':['qr','b','L'],'q2,X':['qa','X','L'],
+      'q3,a':['q3','a','L'],'q3,b':['q3','b','L'],'q3,X':['q0','X','R'],
+      'q5,a':['q5','a','R'],'q5,b':['q5','b','R'],'q5,X':['q5','X','R'],'q5,B':['q6','B','L'],
+      'q6,b':['q7','X','L'],'q6,a':['qr','a','L'],'q6,X':['qa','X','L'],
+      'q7,a':['q7','a','L'],'q7,b':['q7','b','L'],'q7,X':['q0','X','R'],
+    },
+    start:'q0',accept:'qa',reject:'qr',
+  },
+  unary_add:{
+    desc:'Add two unary numbers separated by + (111+11 → 11111)',
+    input:'111+11',
+    explain:'<strong>How it works:</strong> move right until the separator <code>+</code> is found, replace it with <code>1</code>, then continue to the end and erase the final blank marker left by the split. The two unary blocks become one longer unary block.',
+    transitions:{
+      // Scan right to find +, replace with 1, scan right to blank, replace with blank
+      'q0,1':['q0','1','R'],'q0,+':['q1','1','R'],
+      'q1,1':['q1','1','R'],'q1,B':['q2','B','L'],
+      'q2,1':['qa','B','L'],
+    },
+    start:'q0',accept:'qa',reject:'qr',
+  },
+};
+let tmState={tape:[],head:0,state:'',transitions:{},accept:'',reject:'',steps:0,done:false,prog:null};
+let tmTimer=null;
+function loadTM(name){
+  document.querySelectorAll('#tm-prog-btns .btn').forEach((b,i)=>{
+    b.className='btn'+(b.onclick.toString().includes(name)?' act':'');
+  });
+  const p=TM_PROGRAMS[name];
+  tmState={
+    tape:['B',...p.input.split(''),'B'],
+    head:1,state:p.start,transitions:p.transitions,
+    accept:p.accept,reject:p.reject,steps:0,done:false,prog:name,
+  };
+  if(tmTimer){clearInterval(tmTimer);tmTimer=null;}
+  renderTM();
+  document.getElementById('tm-help').innerHTML=p.explain;
+  document.getElementById('tm-log').textContent=`Program: ${p.desc}\nInput: "${p.input}"`;
+}
+function tmStep(){
+  if(tmState.done)return;
+  const s=tmState;
+  if(s.state===s.accept||s.state===s.reject){s.done=true;renderTM();return;}
+  const sym=s.tape[s.head]||'B';
+  const key=`${s.state},${sym}`;
+  const trans=s.transitions[key];
+  if(!trans){s.done=true;s.state=s.reject;renderTM();return;}
+  const [ns,wr,dir]=trans;
+  const oldState=s.state;
+  s.tape[s.head]=wr;
+  s.state=ns;
+  s.head+=dir==='R'?1:-1;
+  if(s.head<0){s.tape.unshift('B');s.head=0;}
+  if(s.head>=s.tape.length)s.tape.push('B');
+  s.steps++;
+  const logEl=document.getElementById('tm-log');
+  logEl.textContent+=`\nStep ${s.steps}: (${oldState}, ${sym}) → (${ns}, ${wr}, ${dir})`;
+  logEl.scrollTop=logEl.scrollHeight;
+  renderTM();
+}
+function tmRun(){
+  if(tmTimer)return;
+  const speed=600-parseInt(document.getElementById('tm-speed-sl').value);
+  tmTimer=setInterval(()=>{
+    if(tmState.done||tmState.state===tmState.accept||tmState.state===tmState.reject){
+      clearInterval(tmTimer);tmTimer=null;return;
+    }
+    tmStep();
+  },speed);
+}
+function tmReset(){
+  if(tmTimer){clearInterval(tmTimer);tmTimer=null;}
+  loadTM(tmState.prog||'increment');
+}
+function renderTM(){
+  const s=tmState;
+  const tape=document.getElementById('tm-tape-wrap');
+  const show=s.tape.map((c,i)=>{
+    let cls='tm-cell';
+    if(i===s.head)cls+=' head';
+    else if(c!=='B'&&c!=='+')cls+=' written';
+    else if(c==='B')cls+=' blank';
+    return `<div class="${cls}">${c==='B'?'☐':c}</div>`;
+  }).join('');
+  tape.innerHTML=`<div class="tm-tape">${show}</div>`;
+  const stEl=document.getElementById('tm-state-disp');
+  const done=s.state===s.accept||s.state===s.reject||s.done;
+  const col=s.state===s.accept?'var(--green)':s.state===s.reject?'var(--red)':'var(--violet)';
+  stEl.innerHTML=`<span class="state-label">state</span><span class="state-val" style="color:${col}">${s.state}</span><span class="state-label" style="margin-left:12px">step</span><span class="state-val">${s.steps}</span>${done?`<span style="font-family:var(--mono);font-size:12px;color:${col};margin-left:12px">${s.state===s.accept?'ACCEPT ✓':s.state===s.reject?'REJECT ✗':'halted'}</span>`:''}`;
+}
+loadTM('increment');
+
+/* ── EQUIV MODELS VIZ ── */
+(function(){
+  const models=[
+    {name:'Turing Machine',col:'var(--violet)',bg:'var(--violet-bg)',bdr:'var(--violet-bdr)',desc:'Infinite tape + finite control'},
+    {name:'Lambda Calculus',col:'var(--teal)',bg:'var(--teal-bg)',bdr:'var(--teal-bdr)',desc:'Church, 1936. Function abstraction'},
+    {name:'RAM Machine',col:'var(--amber)',bg:'var(--amber-bg)',bdr:'var(--amber-bdr)',desc:'Closer to real CPUs. Same power.'},
+    {name:'Recursive Functions',col:'var(--slate)',bg:'var(--slate-bg)',bdr:'var(--slate-bdr)',desc:'Kleene. Primitive + μ-recursion'},
+    {name:'Cellular Automata',col:'var(--green)',bg:'var(--green-bg)',bdr:'var(--green-bdr)',desc:'Rule 110, Game of Life: TC'},
+    {name:'Quantum TM',col:'var(--violet)',bg:'var(--violet-bg)',bdr:'var(--violet-bdr)',desc:'Same languages; different speed'},
+  ];
+  let html=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-family:var(--mono);font-size:11px">`;
+  models.forEach(m=>{
+    html+=`<div style="border:1px solid ${m.bdr};background:${m.bg};border-radius:4px;padding:.6rem .8rem">
+      <div style="color:${m.col};font-weight:700;margin-bottom:.3rem">${m.name}</div>
+      <div style="color:var(--ink3);font-size:10px;line-height:1.5">${m.desc}</div>
+    </div>`;
+  });
+  html+=`</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.5rem;text-align:center">All models define the same class of computable functions — differing only in efficiency, not power.</div>`;
+  document.getElementById('equiv-models-viz').innerHTML=html;
+})();
+
+/* ── HALTING VIZ ── */
+const HALT_STEPS=[
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+    <div style="color:var(--violet);font-weight:700;margin-bottom:.4rem">Assume a halt decider H exists</div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:.5rem 0">
+      <div style="background:var(--bg3);border:1px solid var(--rule2);border-radius:4px;padding:.5rem .8rem;text-align:center">Input: ⟨M, w⟩<br><span style="font-size:10px;color:var(--ink3)">(TM code + input string)</span></div>
+      <div style="text-align:center;color:var(--violet);font-size:20px">→</div>
+      <div style="background:var(--violet-bg);border:1px solid var(--violet-bdr);border-radius:4px;padding:.5rem .8rem;text-align:center;color:var(--violet)">H(M,w)<br><span style="font-size:10px">always halts, returns<br>"accept" or "reject"</span></div>
+    </div>
+    <div style="color:var(--ink3);font-size:11px">H is a TM that takes as input the description of another TM M and an input w, and correctly determines whether M halts on w — without running M indefinitely.</div>
+  </div>`},
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+    <div style="color:var(--violet);font-weight:700;margin-bottom:.4rem">Construct D from H</div>
+    <div style="background:var(--bg3);border:1px solid var(--rule2);border-radius:4px;padding:.6rem .9rem;margin:.4rem 0">
+      D(⟨M⟩):<br>
+      &nbsp;&nbsp;if H(M, M) accepts → <span style="color:var(--red)">LOOP FOREVER</span><br>
+      &nbsp;&nbsp;if H(M, M) rejects → <span style="color:var(--green)">HALT (accept)</span>
+    </div>
+    <div style="color:var(--ink3);font-size:11px">D takes a TM description as input, runs H on the pair (M, M) — asking "does M halt on its own code?" — then does the opposite of what H predicts.</div>
+  </div>`},
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+    <div style="color:var(--violet);font-weight:700;margin-bottom:.4rem">Run D on input ⟨D⟩ — D given its own code</div>
+    <div style="background:var(--amber-bg);border:1px solid var(--amber-bdr);border-radius:4px;padding:.6rem .9rem;margin:.4rem 0;color:var(--amber)">
+      D(⟨D⟩): asks H — "does D halt on ⟨D⟩?"<br><br>
+      Case A: H says "D halts on ⟨D⟩"<br>
+      &nbsp;&nbsp;→ D, by construction, LOOPS on ⟨D⟩<br>
+      &nbsp;&nbsp;→ H was wrong<br><br>
+      Case B: H says "D loops on ⟨D⟩"<br>
+      &nbsp;&nbsp;→ D, by construction, HALTS on ⟨D⟩<br>
+      &nbsp;&nbsp;→ H was wrong
+    </div>
+  </div>`},
+  {html:`<div style="font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.9">
+    <div style="color:var(--red);font-weight:700;margin-bottom:.4rem">Contradiction — H cannot exist</div>
+    <div style="background:var(--red-bg);border:1px solid var(--red-bdr);border-radius:4px;padding:.6rem .9rem;margin:.4rem 0;color:var(--red)">
+      In both cases, H gives an incorrect answer about D(⟨D⟩).<br>
+      This contradicts our assumption that H is a correct halt decider.<br>
+      Therefore no such H can exist. □
+    </div>
+    <div style="color:var(--ink3);font-size:11px;margin-top:.4rem">This is the diagonalisation argument: D is constructed to contradict any candidate H, just as Cantor constructed a real number not in any enumeration of the reals. The same technique proves Gödel's incompleteness theorems.</div>
+  </div>`},
+];
+function showHalting(i,btn){
+  document.querySelectorAll('#s4 .step-nav .step-btn').forEach((b,j)=>b.className='step-btn'+(j===i?' act':''));
+  document.getElementById('halting-viz').innerHTML=HALT_STEPS[i].html;
+}
+showHalting(0,null);
+
+/* ── COMPUTABILITY VIZ ── */
+(function(){
+  const layers=[
+    {col:'var(--violet)',bg:'var(--violet-bg)',bdr:'var(--violet-bdr)',label:'Decidable (recursive)',desc:'TM always halts, gives correct answer',ex:'Primality, CFG membership, sorting',pct:35},
+    {col:'var(--teal)',bg:'var(--teal-bg)',bdr:'var(--teal-bdr)',label:'Recognisable (r.e.) ∖ Decidable',desc:'TM accepts "yes" instances; may loop on "no"',ex:'HALT, A_TM (TM acceptance)',pct:25},
+    {col:'var(--amber)',bg:'var(--amber-bg)',bdr:'var(--amber-bdr)',label:'co-Recognisable ∖ Decidable',desc:'Complement is recognisable; not recognisable itself',ex:'complement of HALT, complement of A_TM',pct:20},
+    {col:'var(--red)',bg:'var(--red-bg)',bdr:'var(--red-bdr)',label:'Not Recognisable (neither side)',desc:'Neither L nor its complement is recognisable',ex:'EQ_TM (TM equivalence), ALL_TM',pct:20},
+  ];
+  let html=`<div style="font-family:var(--mono);font-size:11px">`;
+  layers.forEach(l=>{
+    html+=`<div style="display:flex;align-items:stretch;margin:3px 0">
+      <div style="width:${l.pct*3}px;min-width:90px;background:${l.bg};border:1px solid ${l.bdr};border-radius:3px 0 0 3px;padding:.5rem .6rem;color:${l.col};font-weight:700;font-size:10px;display:flex;align-items:center">${l.label}</div>
+      <div style="flex:1;border:1px solid var(--rule2);border-left:none;border-radius:0 3px 3px 0;padding:.5rem .8rem">
+        <div style="color:var(--ink2);font-size:11px">${l.desc}</div>
+        <div style="color:var(--ink3);font-size:10px;margin-top:2px">Examples: ${l.ex}</div>
+      </div>
+    </div>`;
+  });
+  html+=`<div style="font-size:10px;color:var(--ink3);margin-top:.4rem">Each layer strictly contains the one above. The decidable languages = recognisable ∩ co-recognisable.</div>`;
+  html+=`</div>`;
+  document.getElementById('computability-viz').innerHTML=html;
+})();
+
+/* ── REDUCTION VIZ ── */
+(function(){
+  const chain=[
+    {prob:'HALT',cls:'known',desc:'Undecidable by diagonalisation'},
+    {arrow:'≤ₘ reduce:'},
+    {prob:'A_TM',cls:'target',desc:'TM acceptance'},
+    {arrow:'≤ₘ'},
+    {prob:'EMPTY',cls:'target',desc:'L(M)=∅?'},
+    {arrow:'≤ₘ'},
+    {prob:'EQ_TM',cls:'target',desc:'L(M₁)=L(M₂)?'},
+    {arrow:'≤ₘ'},
+    {prob:'RICE\'s',cls:'target',desc:'Any nontrivial semantic property'},
+  ];
+  let html=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;margin:.4rem 0">`;
+  chain.forEach(c=>{
+    if(c.arrow){html+=`<div style="color:var(--ink3);font-size:12px;white-space:nowrap">${c.arrow}</div>`;return;}
+    html+=`<div class="prob-box ${c.cls}"><div style="font-weight:700">${c.prob}</div><div style="font-size:9px;opacity:.8">${c.desc}</div></div>`;
+  });
+  html+=`</div>`;
+  html+=`<div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.4rem">A ≤ₘ B means "B is at least as hard as A." If you could decide B, you could decide A. Since HALT is undecidable, everything downstream is too.</div>`;
+  document.getElementById('reduction-viz').innerHTML=html;
+})();
+
+/* ── COMPLEXITY VIZ ── */
+let currentProblem='sort';
+function showComplexity(name,btn){
+  document.querySelectorAll('#s7 .btn-row .btn').forEach(b=>b.classList.remove('act'));btn.classList.add('act');
+  currentProblem=name;updateComplexity();
+}
+function updateComplexity(){
+  const n=parseInt(document.getElementById('cx-size').value);
+  document.getElementById('cx-size-val').textContent=n;
+  const probs={
+    sort:{name:'Merge Sort',solve:n*Math.log2(n),verify:n,solveLabel:'O(n log n)',verifyLabel:'O(n)',color:'var(--green)',class:'P',note:'Verify: check each element ≥ previous. Always polynomial.'},
+    sat:{name:'3-SAT',solve:Math.pow(2,n),verify:n,solveLabel:'O(2ⁿ)',verifyLabel:'O(n·clauses)',color:'var(--amber)',class:'NP-complete',note:'Verify: plug in assignment, check each clause. Find: try all 2ⁿ assignments.'},
+    tsp:{name:'TSP decision',solve:Math.pow(2,n)*n,verify:n,solveLabel:'O(n·2ⁿ) Held-Karp',verifyLabel:'O(n)',color:'var(--red)',class:'NP-hard',note:'Verify: add up edge weights in tour. Find: Held-Karp is best known exact algorithm.'},
+  };
+  const p=probs[currentProblem];
+  const maxOps=1e14;
+  const fmt=v=>{
+    if(v>=maxOps)return{label:'astronomical',pct:100};
+    const pct=Math.min(100,v/maxOps*100);
+    if(v<1000)return{label:Math.round(v)+' ops',pct};
+    if(v<1e6)return{label:(v/1000).toFixed(1)+'K ops',pct};
+    if(v<1e9)return{label:(v/1e6).toFixed(1)+'M ops',pct};
+    if(v<1e12)return{label:(v/1e9).toFixed(1)+'B ops',pct};
+    return{label:(v/1e12).toFixed(1)+'T ops',pct};
+  };
+  const sv=fmt(p.solve),vv=fmt(p.verify);
+  document.getElementById('complexity-viz').innerHTML=`
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink2)">
+      <div style="font-weight:700;color:${p.color};margin-bottom:.6rem">${p.name} (n=${n}) — class: ${p.class}</div>
+      <div style="margin:.3rem 0">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Solve (find answer): ${p.solveLabel} = ${sv.label}</div>
+        <div style="height:18px;background:var(--bg3);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${sv.pct}%;background:${p.color};border-radius:2px;transition:width .4s ease"></div>
+        </div>
+      </div>
+      <div style="margin:.3rem 0">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Verify (check certificate): ${p.verifyLabel} = ${vv.label}</div>
+        <div style="height:18px;background:var(--bg3);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${vv.pct}%;background:var(--violet);border-radius:2px;transition:width .4s ease"></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:.5rem">${p.note}</div>
+    </div>`;
+}
+updateComplexity();
+
+/* ── KARP VIZ ── */
+(function(){
+  const problems=[
+    {name:'SAT',level:0,col:'var(--violet)',bg:'var(--violet-bg)',bdr:'var(--violet-bdr)'},
+    {name:'3-SAT',level:1,col:'var(--teal)',bg:'var(--teal-bg)',bdr:'var(--teal-bdr)'},
+    {name:'Clique',level:2,col:'var(--amber)',bg:'var(--amber-bg)',bdr:'var(--amber-bdr)'},
+    {name:'Ind. Set',level:2,col:'var(--amber)',bg:'var(--amber-bg)',bdr:'var(--amber-bdr)'},
+    {name:'3-Color',level:2,col:'var(--amber)',bg:'var(--amber-bg)',bdr:'var(--amber-bdr)'},
+    {name:'Ham. Cycle',level:2,col:'var(--amber)',bg:'var(--amber-bg)',bdr:'var(--amber-bdr)'},
+    {name:'Vertex Cover',level:3,col:'var(--red)',bg:'var(--red-bg)',bdr:'var(--red-bdr)'},
+    {name:'TSP',level:3,col:'var(--red)',bg:'var(--red-bg)',bdr:'var(--red-bdr)'},
+    {name:'Knapsack',level:3,col:'var(--red)',bg:'var(--red-bg)',bdr:'var(--red-bdr)'},
+    {name:'Subset Sum',level:3,col:'var(--red)',bg:'var(--red-bg)',bdr:'var(--red-bdr)'},
+  ];
+  const byLevel={};
+  problems.forEach(p=>{(byLevel[p.level]=byLevel[p.level]||[]).push(p);});
+  let html=`<div style="font-family:var(--mono);font-size:11px">`;
+  Object.entries(byLevel).sort(([a],[b])=>+a-+b).forEach(([level,ps])=>{
+    html+=`<div style="display:flex;gap:6px;align-items:center;margin:5px 0;flex-wrap:wrap">`;
+    if(level>0)html+=`<div style="font-size:10px;color:var(--ink3);white-space:nowrap">≤ₘ from level ${parseInt(level)-1}:</div>`;
+    ps.forEach(p=>{
+      html+=`<div style="padding:4px 10px;border:1px solid ${p.bdr};background:${p.bg};border-radius:4px;color:${p.col};font-weight:500">${p.name}</div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`<div style="font-size:10px;color:var(--ink3);margin-top:.4rem">Each problem reduces to all problems below it via polynomial-time transformations. If any one is in P, all are.</div>`;
+  html+=`</div>`;
+  document.getElementById('karp-viz').innerHTML=html;
+})();
+</script>
+</body>
+</html>

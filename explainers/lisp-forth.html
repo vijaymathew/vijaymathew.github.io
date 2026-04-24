@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lisp and Forth — Two Radical Languages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300;1,9..144,600&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Shared */
+  --bg:     #f8f7f2;
+  --bg2:    #f0ede4;
+  --bg3:    #e6e3d8;
+  --bg4:    #d9d5c8;
+  --ink:    #1a1a14;
+  --ink2:   #4a4a3c;
+  --ink3:   #8a887c;
+  --rule:   rgba(26,26,20,.09);
+  --rule2:  rgba(26,26,20,.17);
+  /* Lisp — emerald */
+  --lisp:       #1a6640;
+  --lisp-mid:   #2d8f5a;
+  --lisp-bg:    #edf8f2;
+  --lisp-bdr:   #80c8a0;
+  --lisp-dark:  #0f3d26;
+  /* Forth — amber/graphite */
+  --forth:      #b85000;
+  --forth-mid:  #d47020;
+  --forth-bg:   #fdf5e8;
+  --forth-bdr:  #e0a050;
+  --forth-dark: #6a2800;
+  /* Code output */
+  --out-bg:  #f0f8f4;
+  --out-fg:  #1a6640;
+  --err-bg:  #fdf0ee;
+  --err-fg:  #8a2020;
+  --mono: 'IBM Plex Mono', 'Fira Code', monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#111008; --bg2:#191710; --bg3:#222018; --bg4:#2c2a20;
+    --ink:#e8e4d0; --ink2:#a8a490; --ink3:#68645a;
+    --rule:rgba(232,228,208,.06); --rule2:rgba(232,228,208,.13);
+    --lisp:#60d090;     --lisp-mid:#40b070;   --lisp-bg:#081808;   --lisp-bdr:#205040;  --lisp-dark:#a0f0c0;
+    --forth:#f0a040;    --forth-mid:#d08020;  --forth-bg:#181000;  --forth-bdr:#604020; --forth-dark:#f0d080;
+    --out-bg:#081808; --out-fg:#60d090; --err-bg:#200808; --err-fg:#e07070;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1}
+.page{max-width:920px;margin:0 auto;padding:0 1.75rem 6rem}
+
+/* ── MASTHEAD ── */
+.mast{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:1.1rem 0;border-bottom:3px double var(--ink);gap:1rem}
+.mast-lisp{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--lisp);letter-spacing:-.02em}
+.mast-vs{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);text-align:center;font-style:italic}
+.mast-forth{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--forth);text-align:right;letter-spacing:-.02em}
+
+/* ── HERO ── */
+.hero{padding:3.5rem 0 2.5rem;border-bottom:1px solid var(--rule2)}
+.hero-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:1rem}
+.hero h1{font-family:var(--serif);font-size:clamp(2.2rem,5vw,3.8rem);font-weight:600;line-height:1.08;letter-spacing:-.02em;margin-bottom:1rem}
+.hero-sub{font-size:17px;line-height:1.82;color:var(--ink2);font-weight:300;max-width:600px;margin-bottom:1.8rem}
+.hero-langs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem}
+.lang-card{border-radius:5px;padding:.9rem 1.1rem;border:1px solid}
+.lang-card.lisp{border-color:var(--lisp-bdr);background:var(--lisp-bg)}
+.lang-card.forth{border-color:var(--forth-bdr);background:var(--forth-bg)}
+.lang-card-name{font-family:var(--serif);font-size:1.5rem;font-weight:600;margin-bottom:.3rem}
+.lang-card.lisp .lang-card-name{color:var(--lisp)}
+.lang-card.forth .lang-card-name{color:var(--forth)}
+.lang-card-meta{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-bottom:.5rem}
+.lang-card-ideas{font-family:var(--mono);font-size:11px;line-height:1.7}
+.lang-card.lisp .lang-card-ideas{color:var(--lisp-dark)}
+.lang-card.forth .lang-card-ideas{color:var(--forth-dark)}
+
+/* ── TOC ── */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin:2rem 0 3rem}
+.toc a{display:flex;gap:8px;padding:8px 13px;background:var(--bg2);border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;transition:background .1s,color .1s}
+.toc a:nth-child(2n){border-right:none}
+.toc a:nth-last-child(-n+2){border-bottom:none}
+.toc a.lisp-link:hover{background:var(--lisp-bg);color:var(--lisp)}
+.toc a.forth-link:hover{background:var(--forth-bg);color:var(--forth)}
+.toc a.both-link:hover{background:var(--bg3);color:var(--ink)}
+.toc-n{color:var(--ink3);font-size:10px;min-width:18px}
+.toc-tag{font-size:9px;letter-spacing:.08em;padding:1px 5px;border-radius:3px;margin-left:auto}
+.toc-tag.lisp{background:var(--lisp-bg);color:var(--lisp)}
+.toc-tag.forth{background:var(--forth-bg);color:var(--forth)}
+.toc-tag.both{background:var(--bg3);color:var(--ink3)}
+
+/* ── SECTIONS ── */
+.section{margin-bottom:5rem;scroll-margin-top:2rem}
+.sec-head{display:flex;align-items:baseline;gap:12px;padding-bottom:.8rem;border-bottom:1px solid var(--rule2);margin-bottom:1.5rem}
+.sec-n{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;flex-shrink:0}
+.sec-tag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;letter-spacing:.06em;text-transform:uppercase;margin-left:.5rem}
+.sec-tag.lisp{background:var(--lisp-bg);color:var(--lisp);border:1px solid var(--lisp-bdr)}
+.sec-tag.forth{background:var(--forth-bg);color:var(--forth);border:1px solid var(--forth-bdr)}
+.sec-tag.both{background:var(--bg3);color:var(--ink3);border:1px solid var(--rule2)}
+h2{font-family:var(--serif);font-size:1.9rem;font-weight:600;letter-spacing:-.01em}
+h3{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--ink2);margin:1.4rem 0 .5rem}
+p{font-size:15.5px;line-height:1.85;color:var(--ink2);margin-bottom:.95rem;font-weight:300}
+p strong{color:var(--ink);font-weight:500}
+a{color:var(--lisp)}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg3);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;color:var(--ink)}
+
+/* ── CALLOUTS ── */
+.callout{border-left:3px solid var(--rule2);padding:.75rem 1.1rem;margin:1rem 0;font-size:15px;line-height:1.8;color:var(--ink2);background:var(--bg2);border-radius:0 4px 4px 0;font-weight:300}
+.callout.lisp{border-color:var(--lisp-bdr);background:var(--lisp-bg);color:var(--lisp-dark)}
+.callout.forth{border-color:var(--forth-bdr);background:var(--forth-bg);color:var(--forth-dark)}
+.callout.both{border-color:var(--ink3);background:var(--bg2);color:var(--ink2)}
+
+/* ── CODE BLOCKS ── */
+.cb{border:1px solid var(--rule2);border-radius:5px;overflow:hidden;margin:1rem 0 1.8rem}
+.cb.lisp-cb{border-color:var(--lisp-bdr)}
+.cb.forth-cb{border-color:var(--forth-bdr)}
+.cb-head{display:flex;justify-content:space-between;align-items:center;padding:6px 13px;background:var(--bg3);border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.cb.lisp-cb .cb-head{background:var(--lisp-bg);border-bottom-color:var(--lisp-bdr)}
+.cb.forth-cb .cb-head{background:var(--forth-bg);border-bottom-color:var(--forth-bdr)}
+.run-btn{border:none;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 11px;cursor:pointer;letter-spacing:.04em;transition:opacity .12s;color:#fff}
+.run-btn.lisp{background:var(--lisp)}
+.run-btn.forth{background:var(--forth)}
+.run-btn:hover{opacity:.8}
+pre.code{background:var(--bg2);padding:1rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.82;overflow-x:auto;color:var(--ink);margin:0}
+.cb.lisp-cb pre.code{background:color-mix(in srgb,var(--lisp-bg) 40%,var(--bg2))}
+.cb.forth-cb pre.code{background:color-mix(in srgb,var(--forth-bg) 40%,var(--bg2))}
+.out{display:none;border-top:1px solid var(--rule);padding:.75rem 1.3rem;font-family:var(--mono);font-size:12.5px;line-height:1.8;white-space:pre-wrap}
+.out.on{display:block;background:var(--out-bg);color:var(--out-fg)}
+.out.err{display:block;background:var(--err-bg);color:var(--err-fg)}
+/* syntax */
+.kw{color:#7020c0}.fn{color:var(--lisp)}.str{color:#206080}.cmt{color:var(--ink3);font-style:italic}.num{color:var(--forth)}.cls{color:#805000}
+.fth-word{color:var(--forth)}.fth-num{color:#806000}.fth-cmt{color:var(--ink3);font-style:italic}.fth-def{color:var(--forth-dark);font-weight:600}
+
+/* ── DEMO ── */
+.demo{background:var(--bg2);border:1px solid var(--rule2);border-radius:5px;padding:1.2rem;margin:1rem 0 1.8rem}
+.demo.lisp-demo{border-color:var(--lisp-bdr);background:var(--lisp-bg)}
+.demo.forth-demo{border-color:var(--forth-bdr);background:var(--forth-bg)}
+.demo-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.8rem}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem}
+button.btn{font-family:var(--mono);font-size:12px;padding:5px 11px;border-radius:4px;border:1px solid var(--rule2);background:transparent;color:var(--ink2);cursor:pointer;transition:all .12s}
+button.btn:hover{color:var(--ink)}
+button.btn.act-lisp{background:var(--lisp);color:#fff;border-color:var(--lisp)}
+button.btn.act-forth{background:var(--forth);color:#fff;border-color:var(--forth)}
+
+/* ── S-EXPRESSION VIZ ── */
+.sexp{font-family:var(--mono);font-size:13px;line-height:2.2;color:var(--ink);padding:.6rem;border-radius:4px;cursor:pointer}
+.sexp span{transition:background .15s,color .15s;border-radius:3px;padding:1px 2px}
+.sexp .paren{color:var(--lisp);opacity:.6;font-weight:700}
+.sexp .symbol{color:var(--ink)}
+.sexp .number{color:var(--forth)}
+.sexp .string{color:var(--teal,#206080)}
+.sexp .hi{background:var(--lisp-bg);outline:2px solid var(--lisp-bdr)}
+.ast-tree{font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--ink2);padding:.5rem;background:var(--lisp-bg);border:1px solid var(--lisp-bdr);border-radius:4px;margin-top:.5rem}
+.ast-tree .ast-node{color:var(--lisp-dark)}
+.ast-tree .ast-val{color:var(--forth)}
+
+/* ── STACK VIZ ── */
+.stack-wrap{display:flex;gap:12px;align-items:flex-end;margin:.6rem 0;font-family:var(--mono);font-size:12px}
+.stack-col{display:flex;flex-direction:column-reverse;gap:3px;min-width:50px}
+.stack-col-lbl{font-size:10px;color:var(--ink3);text-align:center;margin-top:.3rem;letter-spacing:.06em;text-transform:uppercase}
+.stack-cell{padding:5px 10px;border-radius:3px;border:1px solid var(--forth-bdr);background:var(--forth-bg);color:var(--forth-dark);text-align:center;font-weight:500;transition:all .2s;min-width:50px}
+.stack-cell.new{background:var(--forth);color:#fff;border-color:var(--forth)}
+.stack-cell.top{border-width:2px}
+.stack-arrow{font-size:18px;color:var(--ink3);padding:0 4px;padding-bottom:6px}
+.stack-op{font-size:13px;color:var(--forth);font-weight:600;padding:4px 10px;background:var(--forth-bg);border:1px solid var(--forth-bdr);border-radius:4px;display:flex;align-items:center;margin-bottom:6px;align-self:center}
+.stack-trace{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:.4rem;line-height:1.8}
+
+/* ── DICT VIZ ── */
+.dict{font-family:var(--mono);font-size:12px;border:1px solid var(--forth-bdr);border-radius:5px;overflow:hidden;margin:.6rem 0}
+.dict-head{padding:5px 12px;background:var(--forth-bg);border-bottom:1px solid var(--forth-bdr);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--forth);display:flex;justify-content:space-between}
+.dict-entry{display:grid;grid-template-columns:100px 80px 1fr;border-bottom:1px solid var(--rule)}
+.dict-entry:last-child{border-bottom:none}
+.dict-entry>div{padding:4px 10px}
+.dict-name{color:var(--forth);font-weight:600}
+.dict-type{color:var(--ink3);font-size:11px}
+.dict-body{color:var(--ink2);font-size:11px}
+.dict-entry.new-word .dict-name{color:var(--forth-dark);background:var(--forth-bg)}
+
+/* ── MACRO VIZ ── */
+.macro-stages{display:flex;flex-direction:column;gap:6px;margin:.6rem 0;font-family:var(--mono);font-size:12px}
+.macro-stage{padding:.5rem .8rem;border-radius:4px;border:1px solid var(--rule2);background:var(--bg)}
+.macro-stage-lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem}
+.macro-stage.src .macro-stage-lbl{color:var(--ink3)}
+.macro-stage.expand .macro-stage-lbl{color:var(--lisp)}
+.macro-stage.result .macro-stage-lbl{color:var(--forth)}
+.macro-stage.expand{background:var(--lisp-bg);border-color:var(--lisp-bdr)}
+.macro-stage.result{background:var(--bg3)}
+.macro-arrow{text-align:center;color:var(--ink3);font-size:14px;margin:0 0 2px}
+
+/* ── COMPARISON ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule2);border-radius:5px;overflow:hidden;font-family:var(--mono);font-size:12px;margin:.8rem 0}
+.cg-head{padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;border-bottom:1px solid var(--rule2)}
+.cg-head.lisp{background:var(--lisp-bg);color:var(--lisp);border-right:1px solid var(--lisp-bdr)}
+.cg-head.forth{background:var(--forth-bg);color:var(--forth)}
+.cg-cell{padding:7px 12px;border-bottom:1px solid var(--rule);color:var(--ink2)}
+.cg-cell.lisp{border-right:1px solid var(--rule)}
+.cg-cell:last-child,.cg-cell.end{border-bottom:none}
+.cg-cell .good{color:var(--lisp)}.cg-cell .warn{color:var(--forth)}.cg-cell .bad{color:var(--err-fg)}
+
+/* step nav */
+.step-nav{display:flex;border:1px solid var(--rule2);border-radius:4px;overflow:hidden;margin-bottom:.8rem}
+.step-btn{flex:1;padding:7px 4px;font-family:var(--mono);font-size:11px;border:none;border-right:1px solid var(--rule2);background:var(--bg2);color:var(--ink3);cursor:pointer;transition:background .1s,color .1s}
+.step-btn:last-child{border-right:none}
+.step-btn.lisp-act{background:var(--lisp);color:#fff}
+.step-btn.forth-act{background:var(--forth);color:#fff}
+.step-panel{display:none}.step-panel.on{display:block}
+
+/* Legacy table */
+.leg-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:.6rem 0}
+.leg-table th{padding:7px 12px;background:var(--bg3);border:1px solid var(--rule2);color:var(--ink2);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;text-align:left}
+.leg-table td{padding:7px 12px;border:1px solid var(--rule);color:var(--ink2);vertical-align:top}
+.leg-table td.name{color:var(--ink);font-weight:500}
+.leg-table td.lisp{color:var(--lisp)}
+.leg-table td.forth{color:var(--forth)}
+.leg-table tr.hi td{background:var(--bg2)}
+
+/* Footer */
+.footer{border-top:1px solid var(--rule2);padding-top:1.8rem}
+.footer a{font-family:var(--mono);font-size:12px;color:var(--ink2);text-decoration:none;display:block;padding:3px 0}
+.footer a:hover{color:var(--lisp)}
+.footer-note{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:1rem;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="mast">
+  <div class="mast-lisp">(lisp 1958)</div>
+  <div class="mast-vs">&amp;</div>
+  <div class="mast-forth">FORTH 1970</div>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-kicker">Language design · Radical ideas</div>
+  <h1>Two languages that<br>broke the rules</h1>
+  <p class="hero-sub">Lisp (1958) and Forth (1970) share almost nothing syntactically. But both arose from the same conviction: that programming languages are not given facts, but material to be shaped. Both put the programmer in charge of the language itself — and both ideas permeate every serious language that followed.</p>
+  <div class="hero-langs">
+    <div class="lang-card lisp">
+      <div class="lang-card-name">Lisp</div>
+      <div class="lang-card-meta">John McCarthy · MIT · 1958</div>
+      <div class="lang-card-ideas">• Code is data (homoiconicity)<br>• The metacircular evaluator (eval)<br>• Higher-order functions &amp; closures<br>• Macros: programs that write programs<br>• Garbage collection<br>• The REPL</div>
+    </div>
+    <div class="lang-card forth">
+      <div class="lang-card-name">Forth</div>
+      <div class="lang-card-meta">Charles Moore · NRAO · 1970</div>
+      <div class="lang-card-ideas">• Stack-based: no registers, no names<br>• The dictionary: language you extend<br>• Concatenative programming<br>• No syntax — words all the way down<br>• Early systems could be tiny<br>• The meta-compiler (Forth in Forth)</div>
+    </div>
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <a href="#s1" class="both-link"><span class="toc-n">01</span>The shared radical stance<span class="toc-tag both">both</span></a>
+  <a href="#s2" class="lisp-link"><span class="toc-n">02</span>Homoiconicity: code is data<span class="toc-tag lisp">lisp</span></a>
+  <a href="#s3" class="lisp-link"><span class="toc-n">03</span>eval: the metacircular evaluator<span class="toc-tag lisp">lisp</span></a>
+  <a href="#s4" class="lisp-link"><span class="toc-n">04</span>Closures and the lambda revolution<span class="toc-tag lisp">lisp</span></a>
+  <a href="#s5" class="lisp-link"><span class="toc-n">05</span>Macros: programs writing programs<span class="toc-tag lisp">lisp</span></a>
+  <a href="#s6" class="forth-link"><span class="toc-n">06</span>The stack: computation without names<span class="toc-tag forth">forth</span></a>
+  <a href="#s7" class="forth-link"><span class="toc-n">07</span>The dictionary: extensible language<span class="toc-tag forth">forth</span></a>
+  <a href="#s8" class="forth-link"><span class="toc-n">08</span>Concatenative programming<span class="toc-tag forth">forth</span></a>
+  <a href="#s9" class="forth-link"><span class="toc-n">09</span>Meta-compilation: Forth in Forth<span class="toc-tag forth">forth</span></a>
+  <a href="#s10" class="both-link"><span class="toc-n">10</span>Legacy and what they gave us<span class="toc-tag both">both</span></a>
+</nav>
+
+<!-- ══ S1: SHARED STANCE ══ -->
+<section class="section" id="s1">
+  <div class="sec-head"><span class="sec-n">§01</span><h2>The shared radical stance</h2><span class="sec-tag both">both</span></div>
+  <p>Most programming languages place the programmer <em>inside</em> the language — constrained by its grammar, its data model, its operator precedence, its permitted abstractions. You can write new functions; you cannot write new syntax. You can call the compiler; you cannot change it. The language is a given.</p>
+  <p>Lisp and Forth both refuse this premise. In many Lisp systems, large parts of the compiler and runtime live in the language itself and can be inspected or replaced from the running environment. In Forth, the compiler is often little more than a small interpreter plus a dictionary builder; adding a new word to the dictionary <em>is</em> extending the language. Both traditions treat <strong>the language itself as the primary material</strong>.</p>
+  <div class="callout both">McCarthy in 1960: "Lisp is not just another programming language. It is an attempt to show that programming languages can be based on mathematics." Moore in 1970: "I designed Forth so I could write programs while learning the machine — the language and the application grew together." Both were building languages you could grow.</div>
+
+  <div class="compare-grid">
+    <div class="cg-head lisp">Lisp's radicalism</div>
+    <div class="cg-head forth">Forth's radicalism</div>
+    <div class="cg-cell lisp">Language based on a uniform data structure (the list)</div>
+    <div class="cg-cell forth">Language with no data structure at all — just the stack</div>
+    <div class="cg-cell lisp">Syntax IS the AST — no parser/AST distinction</div>
+    <div class="cg-cell forth">No syntax — whitespace-delimited words, period</div>
+    <div class="cg-cell lisp">Extend via macros that run at compile time</div>
+    <div class="cg-cell forth">Extend via word definitions that run at definition time</div>
+    <div class="cg-cell lisp">Garbage collection: free the programmer from memory</div>
+    <div class="cg-cell forth end">Manual: early systems were tiny and ran close to bare hardware</div>
+  </div>
+</section>
+
+<!-- ══ S2: HOMOICONICITY ══ -->
+<section class="section" id="s2">
+  <div class="sec-head"><span class="sec-n">§02</span><h2>Homoiconicity: code is data</h2><span class="sec-tag lisp">lisp</span></div>
+  <p>The most radical thing about Lisp is not its parentheses — it is what those parentheses mean. A Lisp program is not text that gets parsed into a tree. <strong>A Lisp program already is a tree</strong>, written out as a list of lists. The notation is the data structure.</p>
+  <p>This property — that code and data share the same representation — is called <strong>homoiconicity</strong>. Its consequence: any Lisp program can trivially manipulate any other Lisp program, because both are just lists. The compiler is not special. <code>eval</code> is not magic. They're functions that operate on lists.</p>
+
+  <div class="demo lisp-demo">
+    <div class="demo-lbl">S-expression = list = AST — click any sub-expression</div>
+    <div id="sexp-viz"></div>
+    <div id="sexp-ast" style="margin-top:.6rem"></div>
+  </div>
+
+  <div class="cb lisp-cb">
+    <div class="cb-head"><span>homoiconicity.js — code as data in JavaScript</span><button class="run-btn lisp" onclick="runCode('c2','o2')">▶ Run</button></div>
+    <pre class="code" id="c2"><span class="cmt">// In Lisp, code IS a list. We simulate this in JavaScript.</span>
+<span class="cmt">// A Lisp s-expression like (+ (* 2 3) (- 10 4)) is literally:</span>
+<span class="cmt">// ['+', ['*', 2, 3], ['-', 10, 4]] — a nested array</span>
+
+<span class="kw">const</span> program = [<span class="str">'+'</span>, [<span class="str">'*'</span>, <span class="num">2</span>, <span class="num">3</span>], [<span class="str">'-'</span>, <span class="num">10</span>, <span class="num">4</span>]]; <span class="cmt">// (+ (* 2 3) (- 10 4))</span>
+
+<span class="cmt">// eval: a function that evaluates a list-as-code — no special status</span>
+<span class="kw">function</span> <span class="fn">lispEval</span>(expr, env = {}) {
+  <span class="kw">if</span> (<span class="kw">typeof</span> expr === <span class="str">'number'</span>) <span class="kw">return</span> expr;            <span class="cmt">// number self-evaluates</span>
+  <span class="kw">if</span> (<span class="kw">typeof</span> expr === <span class="str">'string'</span>) <span class="kw">return</span> env[expr] ?? expr; <span class="cmt">// symbol lookup</span>
+  <span class="kw">if</span> (!Array.isArray(expr)) <span class="kw">return</span> expr;
+
+  <span class="kw">const</span> [op, ...args] = expr;
+  <span class="kw">if</span> (op === <span class="str">'quote'</span>) <span class="kw">return</span> args[<span class="num">0</span>];  <span class="cmt">// (quote x) → x unevaluated</span>
+  <span class="kw">if</span> (op === <span class="str">'if'</span>) <span class="kw">return</span> <span class="fn">lispEval</span>(args[<span class="num">0</span>], env) ? <span class="fn">lispEval</span>(args[<span class="num">1</span>], env) : <span class="fn">lispEval</span>(args[<span class="num">2</span>], env);
+  <span class="kw">if</span> (op === <span class="str">'lambda'</span>) {
+    <span class="kw">const</span> [params, body] = args;
+    <span class="kw">return</span> (...vals) => <span class="fn">lispEval</span>(body, {...env, ...<span class="cls">Object</span>.fromEntries(params.map((p,i)=>[p,vals[i]]))});
+  }
+  <span class="kw">const</span> fn = {<span class="str">'+'</span>:(a,b)=>a+b, <span class="str">'-'</span>:(a,b)=>a-b, <span class="str">'*'</span>:(a,b)=>a*b,
+               <span class="str">'car'</span>:a=>a[<span class="num">0</span>], <span class="str">'cdr'</span>:a=>a.slice(<span class="num">1</span>),
+               <span class="str">'cons'</span>:(h,t)=>[h,...t], <span class="str">'null?'</span>:a=>a.length===<span class="num">0</span>}[op];
+  <span class="kw">if</span> (!fn) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Unknown operator: ${op}`</span>);
+  <span class="kw">return</span> fn(...args.map(a => <span class="fn">lispEval</span>(a, env)));
+}
+
+<span class="cmt">// The KEY insight: the program IS data. We can inspect and transform it.</span>
+console.log(<span class="str">"Program as data:"</span>, JSON.stringify(program));
+console.log(<span class="str">"Operator:"</span>, program[<span class="num">0</span>]);
+console.log(<span class="str">"First arg:"</span>, JSON.stringify(program[<span class="num">1</span>]));  <span class="cmt">// (* 2 3)</span>
+console.log(<span class="str">"Evaluated:"</span>, <span class="fn">lispEval</span>(program));
+
+<span class="cmt">// Transform the program — e.g. replace all operators</span>
+<span class="kw">function</span> <span class="fn">transformOp</span>(expr, from, to) {
+  <span class="kw">if</span> (!Array.isArray(expr)) <span class="kw">return</span> expr;
+  <span class="kw">return</span> [expr[<span class="num">0</span>] === from ? to : expr[<span class="num">0</span>], ...expr.slice(<span class="num">1</span>).map(e => <span class="fn">transformOp</span>(e, from, to))];
+}
+<span class="kw">const</span> modified = <span class="fn">transformOp</span>(program, <span class="str">'*'</span>, <span class="str">'+'</span>);
+console.log(<span class="str">"After replacing * with +:"</span>, JSON.stringify(modified));
+console.log(<span class="str">"Evaluated modified program:"</span>, <span class="fn">lispEval</span>(modified));
+
+<span class="cmt">// (quote x) prevents evaluation — returns the list itself as data</span>
+<span class="kw">const</span> quoted = [<span class="str">'quote'</span>, [<span class="str">'+'</span>, <span class="num">1</span>, <span class="num">2</span>]];
+console.log(<span class="str">"\n(quote (+ 1 2)) →"</span>, JSON.stringify(<span class="fn">lispEval</span>(quoted)));
+console.log(<span class="str">"Not 3 — the list itself. This is how macros receive their arguments."</span>);</pre>
+    <div class="out" id="o2"></div>
+  </div>
+</section>
+
+<!-- ══ S3: EVAL ══ -->
+<section class="section" id="s3">
+  <div class="sec-head"><span class="sec-n">§03</span><h2>eval — the metacircular evaluator</h2><span class="sec-tag lisp">lisp</span></div>
+  <p>In 1960, Steve Russell noticed something remarkable: McCarthy's paper on Lisp contained an evaluator precise enough to serve as an interpreter. Russell hand-coded that evaluator in machine code, turning the definition into a running system. The important historical point is not that the interpreter literally ran in Lisp first, but that Lisp's definition was already close to executable.</p>
+  <p>This style of evaluator — <code>eval</code> and <code>apply</code> calling each other recursively — is what Alan Kay called "the Maxwell's equations of software." In a small amount of code you can capture a large fraction of a language's semantics. The demo below is a teaching model in JavaScript, not a literal metacircular Lisp evaluator, but it preserves the core <code>eval</code>/<code>apply</code> idea.</p>
+  <p><code>eval</code> answers the question: "what does this expression mean in the current environment?" If the expression is a number, it returns the number. If it is a symbol like <code>x</code>, it looks up <code>x</code> in the environment. If it is a special form like <code>if</code>, <code>quote</code>, or <code>define</code>, it applies the language's special evaluation rules for that form. If it is an ordinary list like <code>(square 7)</code>, <code>eval</code> first evaluates the operator <code>square</code>, then evaluates each argument, and hands the results to <code>apply</code>.</p>
+  <p><code>apply</code> answers a different question: "now that I already have a function value and a list of argument values, how do I run the call?" For a built-in like <code>+</code>, <code>apply</code> just executes the primitive operation. For a user-defined function, it makes a new environment that binds the parameter names to the argument values, then calls <code>eval</code> on the function body inside that new environment. So for <code>(square 7)</code>: <code>eval</code> turns <code>square</code> into a closure and <code>7</code> into a value; <code>apply</code> binds <code>x = 7</code>; then <code>eval</code> runs the body <code>(* x x)</code>. That back-and-forth is the whole interpreter loop.</p>
+
+  <div class="callout lisp">The evaluator made Lisp unusually self-describing. If you understand <code>eval</code> and <code>apply</code>, you understand much of the language's core semantics. In Lisp culture, the boundary between language definition and implementation became far thinner than in most contemporaries.</div>
+
+  <div class="cb lisp-cb">
+    <div class="cb-head"><span>metacircular.js — eval/apply: the Maxwell's equations of software</span><button class="run-btn lisp" onclick="runCode('c3','o3')">▶ Run</button></div>
+    <pre class="code" id="c3"><span class="cmt">// A teaching evaluator: Lisp's eval/apply structure shown in JavaScript</span>
+<span class="cmt">// Written in plain JS so the page runner can execute it in older browsers too.</span>
+
+<span class="kw">function</span> <span class="fn">makeEnv</span>(pairs, outer) {
+  <span class="kw">if</span> (pairs === <span class="kw">undefined</span>) pairs = [];
+  <span class="kw">if</span> (outer === <span class="kw">undefined</span>) outer = <span class="kw">null</span>;
+  <span class="kw">var</span> bindings = {};
+  <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; pairs.length; i++) bindings[pairs[i][<span class="num">0</span>]] = pairs[i][<span class="num">1</span>];
+  <span class="kw">return</span> {
+    <span class="fn">lookup</span>: <span class="kw">function</span>(name) {
+      <span class="kw">if</span> (name <span class="kw">in</span> bindings) <span class="kw">return</span> bindings[name];
+      <span class="kw">if</span> (outer) <span class="kw">return</span> outer.<span class="fn">lookup</span>(name);
+      <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">'Unbound symbol: '</span> + name);
+    },
+    <span class="fn">bind</span>: <span class="kw">function</span>(name, val) { bindings[name] = val; }
+  };
+}
+
+<span class="kw">function</span> <span class="fn">lisp_eval</span>(expr, env) {
+  <span class="cmt">// Atoms (self-evaluating)</span>
+  <span class="kw">if</span> (<span class="kw">typeof</span> expr === <span class="str">'number'</span> || <span class="kw">typeof</span> expr === <span class="str">'boolean'</span>) <span class="kw">return</span> expr;
+  <span class="kw">if</span> (<span class="kw">typeof</span> expr === <span class="str">'string'</span>) <span class="kw">return</span> env.<span class="fn">lookup</span>(expr);
+  <span class="kw">if</span> (!Array.isArray(expr)) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">'Unknown expr: '</span> + expr);
+
+  <span class="kw">var</span> head = expr[<span class="num">0</span>];
+  <span class="kw">var</span> tail = expr.slice(<span class="num">1</span>);
+
+  <span class="cmt">// Special forms — handled directly by eval, not apply</span>
+  <span class="kw">if</span> (head === <span class="str">'quote'</span>) <span class="kw">return</span> tail[<span class="num">0</span>];
+  <span class="kw">if</span> (head === <span class="str">'if'</span>) <span class="kw">return</span> <span class="fn">lisp_eval</span>(tail[<span class="num">0</span>], env) ? <span class="fn">lisp_eval</span>(tail[<span class="num">1</span>], env) : <span class="fn">lisp_eval</span>(tail[<span class="num">2</span>], env);
+  <span class="kw">if</span> (head === <span class="str">'define'</span>) { env.<span class="fn">bind</span>(tail[<span class="num">0</span>], <span class="fn">lisp_eval</span>(tail[<span class="num">1</span>], env)); <span class="kw">return</span> tail[<span class="num">0</span>]; }
+  <span class="kw">if</span> (head === <span class="str">'begin'</span>) {
+    <span class="kw">var</span> result = <span class="kw">null</span>;
+    <span class="kw">for</span> (<span class="kw">var</span> j = <span class="num">0</span>; j &lt; tail.length; j++) result = <span class="fn">lisp_eval</span>(tail[j], env);
+    <span class="kw">return</span> result;
+  }
+
+  <span class="cmt">// Lambda: capture the current environment as a closure</span>
+  <span class="kw">if</span> (head === <span class="str">'lambda'</span>) {
+    <span class="kw">var</span> params = tail[<span class="num">0</span>];
+    <span class="kw">var</span> body = tail[<span class="num">1</span>];
+    <span class="kw">return</span> { type: <span class="str">'closure'</span>, params: params, body: body, env: env };
+  }
+
+  <span class="cmt">// Function call: eval the operator, then apply it to evaluated args</span>
+  <span class="kw">var</span> fn = <span class="fn">lisp_eval</span>(head, env);
+  <span class="kw">var</span> args = [];
+  <span class="kw">for</span> (<span class="kw">var</span> k = <span class="num">0</span>; k &lt; tail.length; k++) args.push(<span class="fn">lisp_eval</span>(tail[k], env));
+  <span class="kw">return</span> <span class="fn">lisp_apply</span>(fn, args);
+}
+
+<span class="kw">function</span> <span class="fn">lisp_apply</span>(fn, args) {
+  <span class="kw">if</span> (<span class="kw">typeof</span> fn === <span class="str">'function'</span>) <span class="kw">return</span> fn.apply(<span class="kw">null</span>, args);
+  <span class="kw">if</span> (fn &amp;&amp; fn.type === <span class="str">'closure'</span>) {
+    <span class="cmt">// Extend the closure's captured environment with the arguments</span>
+    <span class="kw">var</span> pairs = [];
+    <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; fn.params.length; i++) pairs.push([fn.params[i], args[i]]);
+    <span class="kw">var</span> newEnv = <span class="fn">makeEnv</span>(pairs, fn.env);
+    <span class="kw">return</span> <span class="fn">lisp_eval</span>(fn.body, newEnv);
+  }
+  <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">'Not a function: '</span> + JSON.stringify(fn));
+}
+
+<span class="cmt">// Global environment with primitives</span>
+<span class="kw">var</span> globalEnv = <span class="fn">makeEnv</span>([
+  [<span class="str">'+'</span>, <span class="kw">function</span>(a, b) { <span class="kw">return</span> a + b; }],
+  [<span class="str">'-'</span>, <span class="kw">function</span>(a, b) { <span class="kw">return</span> a - b; }],
+  [<span class="str">'*'</span>, <span class="kw">function</span>(a, b) { <span class="kw">return</span> a * b; }],
+  [<span class="str">'='</span>, <span class="kw">function</span>(a, b) { <span class="kw">return</span> a === b; }],
+  [<span class="str">'&lt;'</span>, <span class="kw">function</span>(a, b) { <span class="kw">return</span> a &lt; b; }],
+  [<span class="str">'car'</span>, <span class="kw">function</span>(a) { <span class="kw">return</span> a[<span class="num">0</span>]; }],
+  [<span class="str">'cdr'</span>, <span class="kw">function</span>(a) { <span class="kw">return</span> a.slice(<span class="num">1</span>); }],
+  [<span class="str">'cons'</span>, <span class="kw">function</span>(h, t) { <span class="kw">return</span> [h].concat(t); }],
+  [<span class="str">'null?'</span>, <span class="kw">function</span>(a) { <span class="kw">return</span> a.length === <span class="num">0</span>; }],
+  [<span class="str">'list'</span>, <span class="kw">function</span>() { <span class="kw">return</span> Array.prototype.slice.call(arguments); }]
+]);
+
+<span class="kw">function</span> <span class="fn">E</span>(expr) { <span class="kw">return</span> <span class="fn">lisp_eval</span>(expr, globalEnv); }
+
+<span class="cmt">// Test the evaluator</span>
+E([<span class="str">'define'</span>, <span class="str">'square'</span>, [<span class="str">'lambda'</span>, [<span class="str">'x'</span>], [<span class="str">'*'</span>, <span class="str">'x'</span>, <span class="str">'x'</span>]]]);
+console.log(<span class="str">"(square 7)       ="</span>, E([<span class="str">'square'</span>, <span class="num">7</span>]));
+
+<span class="cmt">// Factorial — recursive lambda</span>
+E([<span class="str">'define'</span>, <span class="str">'fact'</span>, [<span class="str">'lambda'</span>, [<span class="str">'n'</span>],
+  [<span class="str">'if'</span>, [<span class="str">'='</span>, <span class="str">'n'</span>, <span class="num">0</span>], <span class="num">1</span>, [<span class="str">'*'</span>, <span class="str">'n'</span>, [<span class="str">'fact'</span>, [<span class="str">'-'</span>, <span class="str">'n'</span>, <span class="num">1</span>]]]]]]);
+console.log(<span class="str">"(fact 10)        ="</span>, E([<span class="str">'fact'</span>, <span class="num">10</span>]));
+
+<span class="cmt">// Higher-order: map</span>
+E([<span class="str">'define'</span>, <span class="str">'mymap'</span>, [<span class="str">'lambda'</span>, [<span class="str">'f'</span>, <span class="str">'lst'</span>],
+  [<span class="str">'if'</span>, [<span class="str">'null?'</span>, <span class="str">'lst'</span>], [<span class="str">'quote'</span>, []],
+         [<span class="str">'cons'</span>, [<span class="str">'f'</span>, [<span class="str">'car'</span>, <span class="str">'lst'</span>]], [<span class="str">'mymap'</span>, <span class="str">'f'</span>, [<span class="str">'cdr'</span>, <span class="str">'lst'</span>]]]]]]);
+console.log(<span class="str">"(map square '(1 2 3 4 5)) ="</span>, E([<span class="str">'mymap'</span>, <span class="str">'square'</span>, [<span class="str">'quote'</span>, [<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>]]]));
+
+console.log(<span class="str">"\nThe entire evaluator is ~30 lines."</span>);
+console.log(<span class="str">"eval and apply call each other — that mutual recursion IS the language."</span>);</pre>
+    <div class="out" id="o3"></div>
+  </div>
+</section>
+
+<!-- ══ S4: CLOSURES ══ -->
+<section class="section" id="s4">
+  <div class="sec-head"><span class="sec-n">§04</span><h2>Closures and the lambda revolution</h2><span class="sec-tag lisp">lisp</span></div>
+  <p>Lisp put higher-order functions at the center very early, and the path from early Lisp's FUNARG problems to Scheme's explicitly lexical scope led directly to the modern notion of a <strong>closure</strong>. A closure is a function that carries its defining environment with it. When the function is called later, in a different context, it still has access to the variables it saw when it was created.</p>
+  <p>The <strong>FUNARG problem</strong> appears as soon as functions become values. Suppose a function returns another function that mentions a local variable: conceptually, <code>make-adder</code> creates <code>(lambda (y) (+ x y))</code> while <code>x</code> is <code>10</code>, then returns it. Later, somewhere else, you call that returned function. What should <code>x</code> mean now? The original <code>x = 10</code> from the place where the function was created, or some other <code>x</code> visible where it is called?</p>
+  <p>If the language uses the caller's environment, the function can suddenly see the wrong variable, or no variable at all. That was the historical difficulty McCarthy described: early Lisp often got dynamic scope where lexical scope was wanted. The solution is the closure: when the function is created, it carries along the environment it needs. Then the returned <code>adder</code> still remembers <code>x = 10</code> even after <code>make-adder</code> has finished. In other words, a closure solves the FUNARG problem by packaging <em>code + remembered bindings</em> together.</p>
+  <p>This seems simple. The implications are vast. Closures are how you implement: objects (data + behaviour bundled), iterators, callbacks, promises, partial application, modules, continuations. Every one of these modern abstractions is a closure in disguise.</p>
+
+  <div class="cb lisp-cb">
+    <div class="cb-head"><span>closures.js — everything a closure can be</span><button class="run-btn lisp" onclick="runCode('c4','o4')">▶ Run</button></div>
+    <pre class="code" id="c4"><span class="cmt">// Closures: functions that remember their birth environment</span>
+<span class="cmt">// These are modern closure patterns, shown with JavaScript syntax</span>
+
+<span class="cmt">// === COUNTER: mutable state via closure ===</span>
+<span class="kw">function</span> <span class="fn">makeCounter</span>(initial = <span class="num">0</span>) {
+  <span class="kw">let</span> count = initial;   <span class="cmt">// captured by closure</span>
+  <span class="kw">return</span> {
+    <span class="fn">increment</span>: () => ++count,
+    <span class="fn">decrement</span>: () => --count,
+    <span class="fn">value</span>:     () => count,
+    <span class="fn">reset</span>:     () => { count = initial; },
+  };
+}
+<span class="kw">const</span> c = <span class="fn">makeCounter</span>(<span class="num">10</span>);
+c.<span class="fn">increment</span>(); c.<span class="fn">increment</span>(); c.<span class="fn">decrement</span>();
+console.log(<span class="str">"Counter (init 10, +2, -1):"</span>, c.<span class="fn">value</span>());
+
+<span class="cmt">// === OBJECT: closures ARE objects ===</span>
+<span class="kw">function</span> <span class="fn">makePerson</span>(name, age) {
+  <span class="kw">return</span> {  <span class="cmt">// no class needed — closure captures name and age</span>
+    <span class="fn">greet</span>:    () => <span class="str">`Hi, I'm ${name}`</span>,
+    <span class="fn">birthday</span>: () => { age++; <span class="kw">return</span> age; },
+    <span class="fn">info</span>:     () => <span class="str">`${name}, age ${age}`</span>,
+  };
+}
+<span class="kw">const</span> alice = <span class="fn">makePerson</span>(<span class="str">"Alice"</span>, <span class="num">30</span>);
+console.log(alice.<span class="fn">greet</span>()); alice.<span class="fn">birthday</span>();
+console.log(alice.<span class="fn">info</span>());
+
+<span class="cmt">// === PARTIAL APPLICATION: fix some arguments ===</span>
+<span class="kw">const</span> <span class="fn">partial</span> = (f, ...fixed) => (...rest) => f(...fixed, ...rest);
+<span class="kw">const</span> add     = (a, b) => a + b;
+<span class="kw">const</span> add5    = <span class="fn">partial</span>(add, <span class="num">5</span>);
+<span class="kw">const</span> triple  = <span class="fn">partial</span>((a,b)=>a*b, <span class="num">3</span>);
+console.log(<span class="str">"add5(12)  ="</span>, <span class="fn">add5</span>(<span class="num">12</span>));
+console.log(<span class="str">"triple(7) ="</span>, <span class="fn">triple</span>(<span class="num">7</span>));
+
+<span class="cmt">// === ITERATOR: lazy sequence via closure ===</span>
+<span class="kw">function</span>* <span class="fn">fibGen</span>() {
+  <span class="kw">let</span> [a, b] = [<span class="num">0</span>, <span class="num">1</span>];
+  <span class="kw">while</span> (<span class="kw">true</span>) { <span class="kw">yield</span> a; [a, b] = [b, a+b]; }
+}
+<span class="kw">const</span> fibs = <span class="fn">fibGen</span>();
+<span class="kw">const</span> first10 = Array.from({length:<span class="num">10</span>}, () => fibs.next().value);
+console.log(<span class="str">"First 10 Fibonacci:"</span>, first10.join(<span class="str">" "</span>));
+
+<span class="cmt">// === Y COMBINATOR: recursion without names (pure lambda calculus) ===</span>
+<span class="kw">const</span> Y = f => (x => f(v => x(x)(v)))(x => f(v => x(x)(v)));
+<span class="kw">const</span> factY = Y(self => n => n <= <span class="num">1</span> ? <span class="num">1</span> : n * self(n - <span class="num">1</span>));
+console.log(<span class="str">"Y combinator factorial(8) ="</span>, <span class="fn">factY</span>(<span class="num">8</span>));
+console.log(<span class="str">"(Lambda calculus has no names — Y lets recursion happen without them)"</span>);</pre>
+    <div class="out" id="o4"></div>
+  </div>
+</section>
+
+<!-- ══ S5: MACROS ══ -->
+<section class="section" id="s5">
+  <div class="sec-head"><span class="sec-n">§05</span><h2>Macros — programs that write programs</h2><span class="sec-tag lisp">lisp</span></div>
+  <p>Lisp macros are the most powerful metaprogramming mechanism in mainstream use. A macro is a function that receives its arguments <em>unevaluated</em> (as lists) and returns a new list (code) that is then evaluated. The macro runs <strong>at compile time</strong>, transforming code before it runs.</p>
+  <p>This means you can add new control structures, new syntax, new binding forms to the language — and they are <em>indistinguishable</em> from built-ins. <code>when</code>, <code>unless</code>, <code>while</code>, <code>defclass</code>, <code>with-open-file</code> — none of these are special forms in Common Lisp. They're macros. The language is grown by its users.</p>
+
+  <div class="demo lisp-demo">
+    <div class="demo-lbl">Macro expansion — see the transformation at compile time</div>
+    <div class="btn-row">
+      <button class="btn act-lisp" onclick="showMacro('when',this)">when</button>
+      <button class="btn" onclick="showMacro('and',this)">and</button>
+      <button class="btn" onclick="showMacro('let',this)">let*</button>
+      <button class="btn" onclick="showMacro('thread',this)">-> (thread)</button>
+    </div>
+    <div id="macro-viz"></div>
+  </div>
+
+  <div class="cb lisp-cb">
+    <div class="cb-head"><span>macros.js — implementing macros: compile-time code transformation</span><button class="run-btn lisp" onclick="runCode('c5','o5')">▶ Run</button></div>
+    <pre class="code" id="c5"><span class="cmt">// Lisp macros: functions on code (lists) that produce new code (lists)</span>
+<span class="cmt">// They run at compile time, transforming s-expressions before evaluation</span>
+
+<span class="kw">const</span> macroTable = {};
+
+<span class="kw">function</span> <span class="fn">defmacro</span>(name, transformer) {
+  macroTable[name] = transformer; <span class="cmt">// register the macro</span>
+}
+
+<span class="kw">function</span> <span class="fn">macroExpand</span>(expr) {
+  <span class="kw">if</span> (!Array.isArray(expr)) <span class="kw">return</span> expr;
+  <span class="kw">if</span> (macroTable[expr[<span class="num">0</span>]]) {          <span class="cmt">// is the head a macro?</span>
+    <span class="kw">const</span> expanded = macroTable[expr[<span class="num">0</span>]](...expr.slice(<span class="num">1</span>)); <span class="cmt">// call transformer on raw args</span>
+    <span class="kw">return</span> <span class="fn">macroExpand</span>(expanded);      <span class="cmt">// recursively expand result</span>
+  }
+  <span class="kw">return</span> expr.map(<span class="fn">macroExpand</span>);        <span class="cmt">// expand inside all subforms</span>
+}
+
+<span class="cmt">// === WHEN: (when condition body...) → (if condition (begin body...) nil) ===</span>
+<span class="fn">defmacro</span>(<span class="str">'when'</span>, (condition, ...body) =>
+  [<span class="str">'if'</span>, condition, [<span class="str">'begin'</span>, ...body], <span class="kw">null</span>]
+);
+
+<span class="cmt">// === AND: short-circuit conjunction ===</span>
+<span class="fn">defmacro</span>(<span class="str">'and'</span>, (...forms) => {
+  <span class="kw">if</span> (forms.length === <span class="num">0</span>) <span class="kw">return true</span>;
+  <span class="kw">if</span> (forms.length === <span class="num">1</span>) <span class="kw">return</span> forms[<span class="num">0</span>];
+  <span class="kw">return</span> [<span class="str">'if'</span>, forms[<span class="num">0</span>], [<span class="str">'and'</span>, ...forms.slice(<span class="num">1</span>)], <span class="kw">false</span>];
+});
+
+<span class="cmt">// === LET*: sequential binding ===</span>
+<span class="cmt">// (let* ((x 1) (y (+ x 1))) body) → nested lambdas</span>
+<span class="fn">defmacro</span>(<span class="str">'let*'</span>, (bindings, body) => {
+  <span class="kw">if</span> (bindings.length === <span class="num">0</span>) <span class="kw">return</span> body;
+  <span class="kw">const</span> [[name, val], ...rest] = bindings;
+  <span class="kw">return</span> [[<span class="str">'lambda'</span>, [name], [<span class="str">'let*'</span>, rest, body]], val];
+});
+
+<span class="cmt">// === -> THREADING MACRO: pipe values through functions ===</span>
+<span class="cmt">// (-> x f g h) → (h (g (f x)))</span>
+<span class="fn">defmacro</span>(<span class="str">'->'</span>, (val, ...fns) =>
+  fns.reduce((acc, fn) =>
+    Array.isArray(fn) ? [fn[<span class="num">0</span>], acc, ...fn.slice(<span class="num">1</span>)] : [fn, acc],
+    val)
+);
+
+<span class="cmt">// Demonstrate macro expansion</span>
+<span class="kw">const</span> whenExpr = [<span class="str">'when'</span>, [<span class="str">'>'</span>, <span class="str">'x'</span>, <span class="num">0</span>], [<span class="str">'print'</span>, <span class="str">'positive'</span>]];
+console.log(<span class="str">"(when (> x 0) (print 'positive'))"</span>);
+console.log(<span class="str">"expands to:"</span>, JSON.stringify(<span class="fn">macroExpand</span>(whenExpr)));
+
+<span class="kw">const</span> threadExpr = [<span class="str">'->'</span>, <span class="num">5</span>, [<span class="str">'*'</span>, <span class="num">2</span>], [<span class="str">'+'</span>, <span class="num">1</span>], [<span class="str">'*'</span>, <span class="num">3</span>]];
+console.log(<span class="str">"\n(-> 5 (* 2) (+ 1) (* 3)) ← clean pipeline"</span>);
+console.log(<span class="str">"expands to:"</span>, JSON.stringify(<span class="fn">macroExpand</span>(threadExpr)));
+console.log(<span class="str">"which reads: (* (+ (* 5 2) 1) 3) = "</span>, (((5*2)+1)*3));
+
+<span class="cmt">// GENSYM: macros need fresh names to avoid variable capture</span>
+<span class="kw">let</span> gensymCounter = <span class="num">0</span>;
+<span class="kw">const</span> <span class="fn">gensym</span> = prefix => <span class="str">`${prefix}__${gensymCounter++}</span><span class="str">`</span>;
+
+<span class="fn">defmacro</span>(<span class="str">'swap!'</span>, (a, b) => {
+  <span class="kw">const</span> tmp = <span class="fn">gensym</span>(<span class="str">'tmp'</span>);  <span class="cmt">// fresh name — can't collide with user vars</span>
+  <span class="kw">return</span> [<span class="str">'let*'</span>, [[tmp, a]], [<span class="str">'begin'</span>, [<span class="str">'set!'</span>, a, b], [<span class="str">'set!'</span>, b, tmp]]];
+});
+console.log(<span class="str">"\n(swap! x y) expands to:"</span>, JSON.stringify(<span class="fn">macroExpand</span>([<span class="str">'swap!'</span>, <span class="str">'x'</span>, <span class="str">'y'</span>])));
+console.log(<span class="str">"Fresh gensym avoids capturing user's 'tmp' variable if it exists"</span>);</pre>
+    <div class="out" id="o5"></div>
+  </div>
+</section>
+
+<!-- ══ S6: THE STACK ══ -->
+<section class="section" id="s6">
+  <div class="sec-head"><span class="sec-n">§06</span><h2>The stack — computation without names</h2><span class="sec-tag forth">forth</span></div>
+  <p>Forth has no variables in the conventional sense. No registers. No named temporaries. All computation happens on a <strong>data stack</strong>: you push values, apply operations, and the result replaces the operands. There's also a <strong>return stack</strong> for call management — and that's it. The entire computational model fits on a whiteboard.</p>
+  <p>Arithmetic in Forth is <strong>postfix</strong> (Reverse Polish Notation): <code>2 3 +</code> pushes 2, pushes 3, then <code>+</code> pops both and pushes 5. This is not just notation — it's the actual execution model. No parsing of operator precedence. No expression tree. The stack IS the computation.</p>
+
+  <div class="demo forth-demo">
+    <div class="demo-lbl">Stack visualiser — step through Forth execution</div>
+    <div class="btn-row" id="forth-prog-btns">
+      <button class="btn act-forth" onclick="loadForth('arith')">2 3 + 4 *</button>
+      <button class="btn" onclick="loadForth('dup')">3 DUP * 4 SWAP /</button>
+      <button class="btn" onclick="loadForth('over')">5 3 OVER - ROT</button>
+    </div>
+    <div id="forth-stack-viz"></div>
+    <div class="forth-controls" style="display:flex;gap:6px;margin:.5rem 0">
+      <button class="btn" onclick="forthStep()">Step →</button>
+      <button class="btn" onclick="forthReset()">Reset</button>
+    </div>
+    <div id="forth-trace" class="stack-trace"></div>
+  </div>
+
+  <div class="cb forth-cb">
+    <div class="cb-head"><span>forth_stack.js — a Forth stack machine interpreter</span><button class="run-btn forth" onclick="runCode('c6','o6')">▶ Run</button></div>
+    <pre class="code" id="c6"><span class="cmt">// A Forth stack machine — the entire computational model</span>
+<span class="cmt">// Written in plain JS so the page runner can execute it reliably.</span>
+
+<span class="kw">function</span> <span class="fn">ForthMachine</span>() {
+  <span class="kw">this</span>.stack  = [];
+  <span class="kw">this</span>.rstack = [];
+  <span class="kw">this</span>.memory = {};
+  <span class="kw">this</span>.dict   = <span class="kw">this</span>.<span class="fn">buildDict</span>();
+}
+
+<span class="cls">ForthMachine</span>.prototype.<span class="fn">push</span> = <span class="kw">function</span>(v) { <span class="kw">this</span>.stack.push(v); };
+<span class="cls">ForthMachine</span>.prototype.<span class="fn">pop</span> = <span class="kw">function</span>() {
+  <span class="kw">if</span> (!<span class="kw">this</span>.stack.length) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">"Stack underflow"</span>);
+  <span class="kw">return this</span>.stack.pop();
+};
+<span class="cls">ForthMachine</span>.prototype.<span class="fn">peek</span> = <span class="kw">function</span>() {
+  <span class="kw">return this</span>.stack[<span class="kw">this</span>.stack.length - <span class="num">1</span>];
+};
+
+<span class="cls">ForthMachine</span>.prototype.<span class="fn">buildDict</span> = <span class="kw">function</span>() {
+  <span class="kw">var</span> m = <span class="kw">this</span>;
+  <span class="kw">return</span> {
+    <span class="cmt">// Arithmetic — pop two, push result</span>
+    <span class="str">'+'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(m.<span class="fn">pop</span>() + m.<span class="fn">pop</span>()); },
+    <span class="str">'-'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(a - b); },
+    <span class="str">'*'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(m.<span class="fn">pop</span>() * m.<span class="fn">pop</span>()); },
+    <span class="str">'/'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(Math.floor(a / b)); },
+    <span class="str">'MOD'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(a % b); },
+    <span class="str">'NEGATE'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(-m.<span class="fn">pop</span>()); },
+    <span class="str">'ABS'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(Math.abs(m.<span class="fn">pop</span>())); },
+    <span class="str">'MAX'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(Math.max(m.<span class="fn">pop</span>(), m.<span class="fn">pop</span>())); },
+    <span class="cmt">// Stack manipulation — the "no variables" toolkit</span>
+    <span class="str">'DUP'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(m.<span class="fn">peek</span>()); },
+    <span class="str">'DROP'</span>: <span class="kw">function</span>() { m.<span class="fn">pop</span>(); },
+    <span class="str">'SWAP'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(b); m.<span class="fn">push</span>(a); },
+    <span class="str">'OVER'</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(m.stack[m.stack.length - <span class="num">2</span>]); },
+    <span class="str">'ROT'</span>: <span class="kw">function</span>() { <span class="kw">var</span> c = m.<span class="fn">pop</span>(), b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(b); m.<span class="fn">push</span>(c); m.<span class="fn">push</span>(a); },
+    <span class="str">'2DUP'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.stack[m.stack.length - <span class="num">1</span>], a = m.stack[m.stack.length - <span class="num">2</span>]; m.<span class="fn">push</span>(a); m.<span class="fn">push</span>(b); },
+    <span class="cmt">// Comparison</span>
+    <span class="str">'='</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(m.<span class="fn">pop</span>() === m.<span class="fn">pop</span>() ? -<span class="num">1</span> : <span class="num">0</span>); },
+    <span class="str">'&lt;'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(a &lt; b ? -<span class="num">1</span> : <span class="num">0</span>); },
+    <span class="str">'&gt;'</span>: <span class="kw">function</span>() { <span class="kw">var</span> b = m.<span class="fn">pop</span>(), a = m.<span class="fn">pop</span>(); m.<span class="fn">push</span>(a &gt; b ? -<span class="num">1</span> : <span class="num">0</span>); },
+    <span class="str">'0='</span>: <span class="kw">function</span>() { m.<span class="fn">push</span>(m.<span class="fn">pop</span>() === <span class="num">0</span> ? -<span class="num">1</span> : <span class="num">0</span>); },
+    <span class="cmt">// Output</span>
+    <span class="str">'.'</span>: <span class="kw">function</span>() { console.log(m.<span class="fn">pop</span>()); },
+    <span class="str">'.S'</span>: <span class="kw">function</span>() { console.log(<span class="str">"Stack:"</span>, m.stack.slice()); }
+  };
+};
+
+<span class="cls">ForthMachine</span>.prototype.<span class="fn">run</span> = <span class="kw">function</span>(source) {
+  <span class="kw">var</span> tokens = source.trim().split(/\s+/);
+  <span class="kw">for</span> (<span class="kw">var</span> i = <span class="num">0</span>; i &lt; tokens.length; i++) {
+    <span class="kw">var</span> token = tokens[i];
+    <span class="kw">if</span> (token === <span class="str">""</span>) <span class="kw">continue</span>;
+    <span class="kw">if</span> (!isNaN(token)) { <span class="kw">this</span>.<span class="fn">push</span>(Number(token)); <span class="kw">continue</span>; }
+    <span class="kw">var</span> word = <span class="kw">this</span>.dict[token.toUpperCase()];
+    <span class="kw">if</span> (!word) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">"Unknown word: "</span> + token);
+    <span class="fn">word</span>();
+  }
+  <span class="kw">return this</span>.stack;
+};
+
+<span class="kw">var</span> forth = <span class="kw">new</span> <span class="cls">ForthMachine</span>();
+
+<span class="cmt">// No variables needed! Stack manipulation suffices.</span>
+console.log(<span class="str">"=== Forth stack computation ==="</span>);
+console.log(<span class="str">"2 3 + 4 * → "</span>,    forth.<span class="fn">run</span>(<span class="str">"2 3 + 4 *"</span>));          <span class="cmt">// (2+3)*4 = 20</span>
+forth.stack=[];
+console.log(<span class="str">"5 DUP * → "</span>,      forth.<span class="fn">run</span>(<span class="str">"5 DUP *"</span>));            <span class="cmt">// 5*5 = 25</span>
+forth.stack=[];
+console.log(<span class="str">"10 3 MOD → "</span>,     forth.<span class="fn">run</span>(<span class="str">"10 3 MOD"</span>));           <span class="cmt">// 10 mod 3 = 1</span>
+forth.stack=[];
+<span class="cmt">// Hypotenuse without naming variables: √(a²+b²)</span>
+console.log(<span class="str">"Hypotenuse: "</span>, forth.<span class="fn">run</span>(<span class="str">"3 DUP * 4 DUP * + "</span>));  <span class="cmt">// 3²+4² = 25</span>
+console.log(<span class="str">"(√25 not implemented, but 3 DUP * 4 DUP * + gives 25)"</span>);
+
+forth.stack=[];
+<span class="cmt">// ROT reorders: a b c → b c a</span>
+forth.<span class="fn">run</span>(<span class="str">"1 2 3"</span>);
+console.log(<span class="str">"\nBefore ROT: [1 2 3]"</span>); forth.<span class="fn">run</span>(<span class="str">"ROT"</span>);
+console.log(<span class="str">"After ROT:  "</span>, forth.stack);</pre>
+    <div class="out" id="o6"></div>
+  </div>
+</section>
+
+<!-- ══ S7: THE DICTIONARY ══ -->
+<section class="section" id="s7">
+  <div class="sec-head"><span class="sec-n">§07</span><h2>The dictionary — extending the language</h2><span class="sec-tag forth">forth</span></div>
+  <p>In Forth, the compiler and interpreter share a single structure: the <strong>dictionary</strong>. Every word — whether a built-in primitive or something you just defined — is an entry in the dictionary. Defining a new word is not "writing a function"; it is <strong>adding a word to the language</strong>.</p>
+  <p>The colon definition <code>: SQUARE DUP * ;</code> adds <code>SQUARE</code> to the dictionary. From that point, <code>SQUARE</code> is indistinguishable from any built-in. You can extend Forth with domain-specific words until your code reads like the specification of the problem itself.</p>
+
+  <div class="demo forth-demo">
+    <div class="demo-lbl">Dictionary growth — add words and watch the language expand</div>
+    <div id="dict-viz"></div>
+    <div class="btn-row" style="margin-top:.6rem">
+      <button class="btn act-forth" onclick="addDictWord('square')">Define SQUARE</button>
+      <button class="btn" onclick="addDictWord('cube')">Define CUBE</button>
+      <button class="btn" onclick="addDictWord('nip')">Define NIP</button>
+      <button class="btn" onclick="addDictWord('tuck')">Define TUCK</button>
+      <button class="btn" onclick="addDictWord('within')">Define WITHIN</button>
+    </div>
+  </div>
+
+  <div class="cb forth-cb">
+    <div class="cb-head"><span>forth_dictionary.js — defining words and building a language upward</span><button class="run-btn forth" onclick="runCode('c7','o7')">▶ Run</button></div>
+    <pre class="code" id="c7"><span class="cmt">// Forth's dictionary: define new words from old ones</span>
+<span class="cmt">// The language grows from the bottom up — primitives to domain words</span>
+
+<span class="kw">class</span> <span class="cls">ForthDict</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.words   = {};
+    <span class="kw">this</span>.stack   = [];
+    <span class="kw">this</span>.compiling = <span class="kw">false</span>;
+    <span class="kw">this</span>.newWordName = <span class="kw">null</span>;
+    <span class="kw">this</span>.newWordTokens = [];
+    <span class="kw">this</span>.<span class="fn">addPrimitives</span>();
+  }
+
+  <span class="fn">addPrimitives</span>() {
+    <span class="kw">const</span> p = (name, fn) => { <span class="kw">this</span>.words[name] = { type: <span class="str">'primitive'</span>, fn }; };
+    p(<span class="str">'+'</span>,    ()=><span class="kw">this</span>.stack.push(<span class="kw">this</span>.stack.pop()+<span class="kw">this</span>.stack.pop()));
+    p(<span class="str">'*'</span>,    ()=><span class="kw">this</span>.stack.push(<span class="kw">this</span>.stack.pop()*<span class="kw">this</span>.stack.pop()));
+    p(<span class="str">'-'</span>,    ()=>{<span class="kw">const</span> b=<span class="kw">this</span>.stack.pop(),a=<span class="kw">this</span>.stack.pop();<span class="kw">this</span>.stack.push(a-b);});
+    p(<span class="str">'DUP'</span>,  ()=><span class="kw">this</span>.stack.push(<span class="kw">this</span>.stack.at(-<span class="num">1</span>)));
+    p(<span class="str">'DROP'</span>, ()=><span class="kw">this</span>.stack.pop());
+    p(<span class="str">'SWAP'</span>, ()=>{<span class="kw">const</span> b=<span class="kw">this</span>.stack.pop(),a=<span class="kw">this</span>.stack.pop();<span class="kw">this</span>.stack.push(b,a);});
+    p(<span class="str">'OVER'</span>, ()=><span class="kw">this</span>.stack.push(<span class="kw">this</span>.stack.at(-<span class="num">2</span>)));
+    p(<span class="str">'ROT'</span>,  ()=>{<span class="kw">const</span>[c,b,a]=[<span class="kw">this</span>.stack.pop(),<span class="kw">this</span>.stack.pop(),<span class="kw">this</span>.stack.pop()];<span class="kw">this</span>.stack.push(b,c,a);});
+  }
+
+  <span class="fn">execute</span>(token) {
+    <span class="kw">if</span> (!isNaN(token)) { <span class="kw">this</span>.stack.push(Number(token)); <span class="kw">return</span>; }
+    <span class="kw">const</span> word = <span class="kw">this</span>.words[token.toUpperCase()];
+    <span class="kw">if</span> (!word) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Undefined: ${token}`</span>);
+    <span class="kw">if</span> (word.type === <span class="str">'primitive'</span>) word.fn();
+    <span class="kw">else</span> word.tokens.forEach(t => <span class="kw">this</span>.<span class="fn">execute</span>(t));
+  }
+
+  <span class="fn">run</span>(source) {
+    <span class="kw">const</span> tokens = source.trim().split(/\s+/);
+    <span class="kw">for</span> (<span class="kw">const</span> tok <span class="kw">of</span> tokens) {
+      <span class="kw">if</span> (tok === <span class="str">':'</span>) { <span class="kw">this</span>.compiling = <span class="kw">true</span>; <span class="kw">continue</span>; }  <span class="cmt">// start definition</span>
+      <span class="kw">if</span> (tok === <span class="str">';'</span>) {                                         <span class="cmt">// end definition</span>
+        <span class="kw">this</span>.words[<span class="kw">this</span>.newWordName] = { type: <span class="str">'defined'</span>, tokens: <span class="kw">this</span>.newWordTokens };
+        console.log(<span class="str">`Defined: ${this.newWordName} = [${this.newWordTokens.join(' ')}]`</span>);
+        <span class="kw">this</span>.compiling = <span class="kw">false</span>; <span class="kw">this</span>.newWordName = <span class="kw">null</span>; <span class="kw">this</span>.newWordTokens = [];
+        <span class="kw">continue</span>;
+      }
+      <span class="kw">if</span> (<span class="kw">this</span>.compiling) {
+        <span class="kw">if</span> (!<span class="kw">this</span>.newWordName) { <span class="kw">this</span>.newWordName = tok.toUpperCase(); <span class="kw">continue</span>; }
+        <span class="kw">this</span>.newWordTokens.push(tok.toUpperCase()); <span class="kw">continue</span>;
+      }
+      <span class="kw">this</span>.<span class="fn">execute</span>(tok);
+    }
+    <span class="kw">return</span> [...<span class="kw">this</span>.stack];
+  }
+}
+
+<span class="kw">const</span> f = <span class="kw">new</span> <span class="cls">ForthDict</span>();
+
+<span class="cmt">// Build up a vocabulary layer by layer</span>
+console.log(<span class="str">"=== Building a language from primitives ==="</span>);
+
+<span class="cmt">// Layer 1: Basic combinators</span>
+f.<span class="fn">run</span>(<span class="str">": SQUARE DUP * ;"</span>);       <span class="cmt">// SQUARE: n → n²</span>
+f.<span class="fn">run</span>(<span class="str">": CUBE DUP SQUARE * ;"</span>);  <span class="cmt">// CUBE: uses SQUARE</span>
+f.<span class="fn">run</span>(<span class="str">": NIP SWAP DROP ;"</span>);       <span class="cmt">// NIP: a b → b</span>
+f.<span class="fn">run</span>(<span class="str">": TUCK SWAP OVER ;"</span>);      <span class="cmt">// TUCK: a b → b a b</span>
+
+<span class="cmt">// Layer 2: Domain words built from layer 1</span>
+f.<span class="fn">run</span>(<span class="str">": HYPOTENUSE-SQUARED SQUARE SWAP SQUARE + ;"</span>);
+
+f.stack=[];
+console.log(<span class="str">"\n5 SQUARE ="</span>, f.<span class="fn">run</span>(<span class="str">"5 SQUARE"</span>));
+f.stack=[];
+console.log(<span class="str">"3 CUBE ="</span>, f.<span class="fn">run</span>(<span class="str">"3 CUBE"</span>));
+f.stack=[];
+console.log(<span class="str">"3 4 HYPOTENUSE-SQUARED ="</span>, f.<span class="fn">run</span>(<span class="str">"3 4 HYPOTENUSE-SQUARED"</span>));
+
+console.log(<span class="str">"\nDictionary:"</span>, Object.keys(f.words).join(<span class="str">"  "</span>));
+console.log(<span class="str">"All words are equal — primitives and defined words are indistinguishable."</span>);</pre>
+    <div class="out" id="o7"></div>
+  </div>
+</section>
+
+<!-- ══ S8: CONCATENATIVE ══ -->
+<section class="section" id="s8">
+  <div class="sec-head"><span class="sec-n">§08</span><h2>Concatenative programming</h2><span class="sec-tag forth">forth</span></div>
+  <p>Forth is a <strong>concatenative</strong> language. This means: putting two programs next to each other produces their composition. <code>A B</code> means "run A, then run B on whatever A left on the stack." Function composition is just concatenation of source text.</p>
+  <p>This has deep algebraic consequences. Programs are not expressions that evaluate to values — they are <strong>functions from stack state to stack state</strong>, and juxtaposition is their composition operator. The entire language has no syntax beyond this: a program is a sequence of words.</p>
+
+  <div class="callout forth">Charles Moore: "Forth is the most invisible language I can devise." He meant: the language itself is never in the way. There's no grammar to learn, no operator precedence to memorise, no type declarations to write. There are only words on the stack.</div>
+
+  <div class="cb forth-cb">
+    <div class="cb-head"><span>concatenative.js — programs as stack-to-stack functions, composition as juxtaposition</span><button class="run-btn forth" onclick="runCode('c8','o8')">▶ Run</button></div>
+    <pre class="code" id="c8"><span class="cmt">// Concatenative programming: programs ARE functions Stack→Stack</span>
+<span class="cmt">// Juxtaposition = function composition. No other syntax needed.</span>
+
+<span class="cmt">// Model a stack-to-stack function</span>
+<span class="kw">const</span> <span class="fn">word</span> = (name, fn) => ({ name, fn });
+
+<span class="cmt">// Primitives — each transforms a stack</span>
+<span class="kw">const</span> DUP   = <span class="fn">word</span>(<span class="str">'DUP'</span>,  s => [...s, s.at(-<span class="num">1</span>)]);
+<span class="kw">const</span> DROP  = <span class="fn">word</span>(<span class="str">'DROP'</span>, s => s.slice(<span class="num">0</span>,-<span class="num">1</span>));
+<span class="kw">const</span> SWAP  = <span class="fn">word</span>(<span class="str">'SWAP'</span>, s => [...s.slice(<span class="num">0</span>,-<span class="num">2</span>), s.at(-<span class="num">1</span>), s.at(-<span class="num">2</span>)]);
+<span class="kw">const</span> OVER  = <span class="fn">word</span>(<span class="str">'OVER'</span>, s => [...s, s.at(-<span class="num">2</span>)]);
+<span class="kw">const</span> PLUS  = <span class="fn">word</span>(<span class="str">'+'</span>,    s => [...s.slice(<span class="num">0</span>,-<span class="num">2</span>), s.at(-<span class="num">2</span>)+s.at(-<span class="num">1</span>)]);
+<span class="kw">const</span> TIMES = <span class="fn">word</span>(<span class="str">'*'</span>,    s => [...s.slice(<span class="num">0</span>,-<span class="num">2</span>), s.at(-<span class="num">2</span>)*s.at(-<span class="num">1</span>)]);
+<span class="kw">const</span> MINUS = <span class="fn">word</span>(<span class="str">'-'</span>,    s => [...s.slice(<span class="num">0</span>,-<span class="num">2</span>), s.at(-<span class="num">2</span>)-s.at(-<span class="num">1</span>)]);
+<span class="kw">const</span> <span class="fn">LIT</span>   = n => <span class="fn">word</span>(String(n), s => [...s, n]);
+
+<span class="cmt">// CONCATENATION = composition. Put words next to each other → compose them.</span>
+<span class="kw">const</span> <span class="fn">concat</span> = (...words) => ({
+  name: words.map(w=>w.name).join(<span class="str">' '</span>),
+  fn:   stack => words.reduce((s, w) => w.fn(s), stack)
+});
+
+<span class="cmt">// DEFINE higher-level words by concatenating lower-level ones</span>
+<span class="kw">const</span> SQUARE = <span class="fn">concat</span>(DUP, TIMES);        <span class="cmt">// n → n² (= DUP *)</span>
+<span class="kw">const</span> CUBE   = <span class="fn">concat</span>(DUP, SQUARE, TIMES); <span class="cmt">// n → n³ (= DUP SQUARE *)</span>
+<span class="kw">const</span> NIP    = <span class="fn">concat</span>(SWAP, DROP);         <span class="cmt">// a b → b</span>
+<span class="kw">const</span> TUCK   = <span class="fn">concat</span>(SWAP, OVER);         <span class="cmt">// a b → b a b</span>
+
+<span class="cmt">// Run a "program" = a composed word on an initial stack</span>
+<span class="kw">const</span> <span class="fn">run</span> = (prog, init=[]) => prog.fn(init);
+
+console.log(<span class="str">"SQUARE 5 → "</span>, <span class="fn">run</span>(<span class="fn">concat</span>(<span class="fn">LIT</span>(<span class="num">5</span>), SQUARE)));
+console.log(<span class="str">"CUBE 3 → "</span>,   <span class="fn">run</span>(<span class="fn">concat</span>(<span class="fn">LIT</span>(<span class="num">3</span>), CUBE)));
+console.log(<span class="str">"TUCK 2 7 → "</span>, <span class="fn">run</span>(<span class="fn">concat</span>(<span class="fn">LIT</span>(<span class="num">2</span>), <span class="fn">LIT</span>(<span class="num">7</span>), TUCK)));
+
+<span class="cmt">// KEY INSIGHT: program text = just a sequence of names. No parse tree.</span>
+<span class="cmt">// "3 DUP * 4 DUP * +" is literally [LIT(3), DUP, TIMES, LIT(4), DUP, TIMES, PLUS]</span>
+<span class="kw">const</span> hyp_sq = <span class="fn">concat</span>(<span class="fn">LIT</span>(<span class="num">3</span>), DUP, TIMES, <span class="fn">LIT</span>(<span class="num">4</span>), DUP, TIMES, PLUS);
+console.log(<span class="str">"3 DUP * 4 DUP * + → "</span>, <span class="fn">run</span>(hyp_sq), <span class="str">"(= 3² + 4² = 25)"</span>);
+
+<span class="cmt">// Type-level: every Forth word has stack effect ( before -- after )</span>
+<span class="cmt">// DUP  : ( n -- n n )      ← consumes 1, produces 2</span>
+<span class="cmt">// DROP : ( n -- )           ← consumes 1, produces 0</span>
+<span class="cmt">// SWAP : ( a b -- b a )     ← consumes 2, produces 2</span>
+<span class="cmt">// OVER : ( a b -- a b a )   ← consumes 2, produces 3</span>
+<span class="cmt">// +    : ( a b -- a+b )     ← consumes 2, produces 1</span>
+<span class="cmt">// SQUARE: ( n -- n² )       ← derived: (DUP *)</span>
+console.log(<span class="str">"\nStack effect notation encodes the type of each word."</span>);
+console.log(<span class="str">"Factor (modern Forth) uses this to infer types statically."</span>);</pre>
+    <div class="out" id="o8"></div>
+  </div>
+</section>
+
+<!-- ══ S9: META-COMPILATION ══ -->
+<section class="section" id="s9">
+  <div class="sec-head"><span class="sec-n">§09</span><h2>Meta-compilation — Forth in Forth</h2><span class="sec-tag forth">forth</span></div>
+  <p>Forth's most radical feature is that much of its compiler can be expressed in the language itself. A colon definition like <code>: SQUARE DUP * ;</code> does not invoke a giant separate compiler pipeline; it switches the system into "compile mode," reads words one by one, and appends their behavior to the new definition. In many Forth systems the words that manage this process live in the same dictionary as ordinary words.</p>
+  <p><strong>Immediate words</strong> are the key mechanism. Most words encountered inside a definition are <em>compiled</em>: the compiler records "call this word later at runtime." But an immediate word executes <em>right now while compilation is happening</em>. That lets it modify the code being generated. The classic example is <code>;</code>: instead of being compiled into the new word, it runs immediately and says "the definition ends here."</p>
+  <p>Control structures work the same way. In a line like <code>: ABS-SIGN DUP 0= IF DROP 0 ELSE DUP * THEN ;</code>, the arithmetic words such as <code>DUP</code>, <code>DROP</code>, and <code>*</code> are compiled as normal runtime operations. But <code>IF</code>, <code>ELSE</code>, and <code>THEN</code> run during compilation. <code>IF</code> emits a conditional branch with an unknown destination. <code>ELSE</code> fills in the earlier branch target and emits a new jump over the else-part. <code>THEN</code> finally fills in the last missing destination. That "fill in the address later" step is called <strong>backpatching</strong>.</p>
+
+  <div class="callout forth">Read the demo in two phases. Compile time: the immediate words edit the code buffer and resolve jumps. Runtime: the finished word executes the bytecode that compile time produced. The striking part is that Forth exposes both phases to the programmer as ordinary words.</div>
+
+  <div class="cb forth-cb">
+    <div class="cb-head"><span>meta_forth.js — immediate words and the Forth meta-compiler</span><button class="run-btn forth" onclick="runCode('c9','o9')">▶ Run</button></div>
+    <pre class="code" id="c9"><span class="cmt">// Forth meta-compilation: control structures built from IMMEDIATE words</span>
+<span class="cmt">// In standard Forth: IF, ELSE, THEN, BEGIN, UNTIL are all defined in Forth itself</span>
+<span class="cmt">// Here we simulate the mechanism that makes this possible</span>
+
+<span class="kw">class</span> <span class="cls">MetaForth</span> {
+  <span class="fn">constructor</span>() {
+    <span class="kw">this</span>.dict       = {};
+    <span class="kw">this</span>.stack      = [];
+    <span class="kw">this</span>.compiling  = <span class="kw">false</span>;
+    <span class="kw">this</span>.codeBuffer = []; <span class="cmt">// instructions being compiled</span>
+    <span class="kw">this</span>.patches    = []; <span class="cmt">// addresses needing backpatching (for forward jumps)</span>
+    <span class="kw">this</span>.<span class="fn">addPrimitives</span>();
+    <span class="kw">this</span>.<span class="fn">addControlWords</span>();
+  }
+
+  <span class="fn">addPrimitives</span>() {
+    <span class="kw">const</span> add = (name, fn, immediate=<span class="kw">false</span>) => { <span class="kw">this</span>.dict[name] = {fn, immediate}; };
+    add(<span class="str">'+'</span>,   ()=>{ <span class="kw">const</span>[b,a]=[<span class="kw">this</span>.stack.pop(),<span class="kw">this</span>.stack.pop()]; <span class="kw">this</span>.stack.push(a+b); });
+    add(<span class="str">'-'</span>,   ()=>{ <span class="kw">const</span>[b,a]=[<span class="kw">this</span>.stack.pop(),<span class="kw">this</span>.stack.pop()]; <span class="kw">this</span>.stack.push(a-b); });
+    add(<span class="str">'*'</span>,   ()=>{ <span class="kw">const</span>[b,a]=[<span class="kw">this</span>.stack.pop(),<span class="kw">this</span>.stack.pop()]; <span class="kw">this</span>.stack.push(a*b); });
+    add(<span class="str">'DUP'</span>, ()=><span class="kw">this</span>.stack.push(<span class="kw">this</span>.stack.at(-<span class="num">1</span>)));
+    add(<span class="str">'DROP'</span>,()=><span class="kw">this</span>.stack.pop());
+    add(<span class="str">'0='</span>,  ()=><span class="kw">this</span>.stack.push(<span class="kw">this</span>.stack.pop()===<span class="num">0</span>?-<span class="num">1</span>:<span class="num">0</span>));
+    add(<span class="str">'.'</span>,   ()=>console.log(<span class="kw">this</span>.stack.pop()));
+  }
+
+  <span class="fn">addControlWords</span>() {
+    <span class="cmt">// IMMEDIATE words run at COMPILE TIME, not runtime</span>
+    <span class="cmt">// They can insert instructions and patch jump addresses</span>
+    <span class="kw">const</span> add = (name, fn) => { <span class="kw">this</span>.dict[name] = {fn, immediate: <span class="kw">true</span>}; };
+
+    <span class="cmt">// IF: ( flag -- ) branch if false</span>
+    <span class="cmt">// Compiles a conditional jump; records address for ELSE/THEN to patch</span>
+    add(<span class="str">'IF'</span>, () => {
+      <span class="kw">this</span>.codeBuffer.push({ op: <span class="str">'BRANCH_FALSE'</span>, target: <span class="kw">null</span> });
+      <span class="kw">this</span>.patches.push(<span class="kw">this</span>.codeBuffer.length - <span class="num">1</span>); <span class="cmt">// remember to backpatch</span>
+      console.log(<span class="str">`  [compile-time] IF: emitted BRANCH_FALSE at [${this.codeBuffer.length-1}]`</span>);
+    });
+
+    <span class="cmt">// ELSE: patch the IF's branch, emit unconditional jump for THEN</span>
+    add(<span class="str">'ELSE'</span>, () => {
+      <span class="kw">this</span>.codeBuffer.push({ op: <span class="str">'JUMP'</span>, target: <span class="kw">null</span> });
+      <span class="kw">const</span> elseAddr = <span class="kw">this</span>.codeBuffer.length - <span class="num">1</span>;
+      <span class="kw">const</span> ifAddr = <span class="kw">this</span>.patches.pop();
+      <span class="kw">this</span>.codeBuffer[ifAddr].target = <span class="kw">this</span>.codeBuffer.length; <span class="cmt">// patch IF to jump here</span>
+      <span class="kw">this</span>.patches.push(elseAddr);
+      console.log(<span class="str">`  [compile-time] ELSE: patched IF[${ifAddr}]→${this.codeBuffer.length}, emitted JUMP[${elseAddr}]`</span>);
+    });
+
+    <span class="cmt">// THEN: patch IF or ELSE's jump to land here</span>
+    add(<span class="str">'THEN'</span>, () => {
+      <span class="kw">const</span> patchAddr = <span class="kw">this</span>.patches.pop();
+      <span class="kw">this</span>.codeBuffer[patchAddr].target = <span class="kw">this</span>.codeBuffer.length;
+      console.log(<span class="str">`  [compile-time] THEN: patched [${patchAddr}]→${this.codeBuffer.length}`</span>);
+    });
+
+    <span class="cmt">// BEGIN/UNTIL: loop until condition is true</span>
+    add(<span class="str">'BEGIN'</span>, () => {
+      <span class="kw">this</span>.patches.push(<span class="kw">this</span>.codeBuffer.length); <span class="cmt">// remember loop start</span>
+    });
+    add(<span class="str">'UNTIL'</span>, () => {
+      <span class="kw">const</span> loopStart = <span class="kw">this</span>.patches.pop();
+      <span class="kw">this</span>.codeBuffer.push({ op: <span class="str">'BRANCH_FALSE'</span>, target: loopStart });
+      console.log(<span class="str">`  [compile-time] UNTIL: emit BRANCH_FALSE→${loopStart}`</span>);
+    });
+  }
+
+  <span class="fn">compileWord</span>(name, tokens) {
+    console.log(<span class="str">`\nCompiling: ${name} [ ${tokens.join(' ')} ]`</span>);
+    <span class="kw">this</span>.codeBuffer = [];
+    <span class="kw">for</span> (<span class="kw">const</span> tok <span class="kw">of</span> tokens) {
+      <span class="kw">if</span> (!isNaN(tok)) { <span class="kw">this</span>.codeBuffer.push({op:<span class="str">'LIT'</span>,val:Number(tok)}); <span class="kw">continue</span>; }
+      <span class="kw">const</span> w = <span class="kw">this</span>.dict[tok.toUpperCase()];
+      <span class="kw">if</span> (!w) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Unknown: ${tok}`</span>);
+      <span class="kw">if</span> (w.immediate) w.fn();           <span class="cmt">// IMMEDIATE: run NOW at compile time</span>
+      <span class="kw">else</span> <span class="kw">this</span>.codeBuffer.push({op:<span class="str">'CALL'</span>, word: tok.toUpperCase()});
+    }
+    <span class="kw">this</span>.dict[name] = { fn: () => <span class="kw">this</span>.<span class="fn">executeCode</span>(<span class="kw">this</span>.dict[name].code), code: [...<span class="kw">this</span>.codeBuffer] };
+    console.log(<span class="str">"  Compiled bytecode:"</span>, <span class="kw">this</span>.codeBuffer.map(i=>i.op+(i.val??i.word??(<span class="str">'→'</span>+(i.target??<span class="str">'?'</span>)))).join(<span class="str">' '</span>));
+  }
+
+  <span class="fn">executeCode</span>(code) {
+    <span class="kw">let</span> ip = <span class="num">0</span>;
+    <span class="kw">while</span> (ip &lt; code.length) {
+      <span class="kw">const</span> ins = code[ip];
+      <span class="kw">if</span> (ins.op === <span class="str">'LIT'</span>) { <span class="kw">this</span>.stack.push(ins.val); ip++; <span class="kw">continue</span>; }
+      <span class="kw">if</span> (ins.op === <span class="str">'CALL'</span>) { <span class="kw">this</span>.dict[ins.word].fn(); ip++; <span class="kw">continue</span>; }
+      <span class="kw">if</span> (ins.op === <span class="str">'BRANCH_FALSE'</span>) {
+        <span class="kw">const</span> flag = <span class="kw">this</span>.stack.pop();
+        ip = flag === <span class="num">0</span> ? ins.target : ip + <span class="num">1</span>;
+        <span class="kw">continue</span>;
+      }
+      <span class="kw">if</span> (ins.op === <span class="str">'JUMP'</span>) { ip = ins.target; <span class="kw">continue</span>; }
+      <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Unknown opcode: ${ins.op}`</span>);
+    }
+    <span class="kw">return this</span>.stack;
+  }
+}
+
+<span class="kw">const</span> mf = <span class="kw">new</span> <span class="cls">MetaForth</span>();
+
+<span class="cmt">// Compile an IF/ELSE/THEN word — the control structure is built by IMMEDIATE words</span>
+mf.<span class="fn">compileWord</span>(<span class="str">'ABS-SIGN'</span>, [<span class="str">'DUP'</span>,<span class="str">'0='</span>,<span class="str">'IF'</span>,<span class="str">'DROP'</span>,<span class="str">'0'</span>,<span class="str">'ELSE'</span>,<span class="str">'DUP'</span>,<span class="str">'*'</span>,<span class="str">'THEN'</span>]);
+mf.stack = [<span class="num">0</span>]; mf.<span class="fn">dict</span>[<span class="str">'ABS-SIGN'</span>].<span class="fn">fn</span>(); console.log(<span class="str">"ABS-SIGN on 0  →"</span>, mf.stack);
+mf.stack = [<span class="num">3</span>]; mf.<span class="fn">dict</span>[<span class="str">'ABS-SIGN'</span>].<span class="fn">fn</span>(); console.log(<span class="str">"ABS-SIGN on 3  →"</span>, mf.stack);
+console.log(<span class="str">"\nIF ELSE THEN are not special syntax — they are IMMEDIATE words"</span>);
+console.log(<span class="str">"that run at compile time and emit/patch jump instructions."</span>);
+console.log(<span class="str">"Any Forth programmer can write their own control structures the same way."</span>);</pre>
+    <div class="out" id="o9"></div>
+  </div>
+</section>
+
+<!-- ══ S10: LEGACY ══ -->
+<section class="section" id="s10">
+  <div class="sec-head"><span class="sec-n">§10</span><h2>Legacy — what every language owes them</h2><span class="sec-tag both">both</span></div>
+  <p>Many central ideas in modern programming languages passed through Lisp or Forth before spreading more widely. Their influence shows up clearly in later languages and traditions including Smalltalk, Self, JavaScript, Python, Ruby, Lua, Clojure, Factor, and parts of Rust.</p>
+
+  <div class="leg-table">
+    <table class="leg-table">
+      <thead><tr><th>Idea</th><th>Originates in</th><th>Now found in</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Garbage collection</td><td class="lisp">Lisp (1958)</td><td>Java, C#, Python, Go, JS, Ruby — virtually everything</td></tr>
+        <tr><td class="name">First-class functions / lambdas</td><td class="lisp">Lisp (1958)</td><td>Python, JS, Haskell, C# (LINQ), Java 8, Rust, Swift</td></tr>
+        <tr><td class="name">Lexical closures</td><td class="lisp">Scheme / Lisp tradition (1970s)</td><td>JavaScript, Python, Ruby, Go, Rust, Swift, Kotlin</td></tr>
+        <tr><td class="name">REPLs</td><td class="lisp">Lisp (1960)</td><td>Python, Ruby (irb), Node.js, Julia, R, Haskell (ghci)</td></tr>
+        <tr><td class="name">Macros / compile-time metaprogramming</td><td class="lisp">Lisp (1963)</td><td>Rust (macro_rules!), Elixir, Nim, Racket, Julia</td></tr>
+        <tr><td class="name">Homoiconicity</td><td class="lisp">Lisp (1958)</td><td>Clojure, Racket, Julia, Prolog (terms), Rebol</td></tr>
+        <tr class="hi"><td class="name">Stack-oriented language design</td><td class="forth">Forth (1970)</td><td>JVM bytecode, .NET CLR, WebAssembly, PostScript, Factor</td></tr>
+        <tr><td class="name">Concatenative / point-free style</td><td class="forth">Forth (1970)</td><td>Factor, Joy, Cat, Haskell (point-free), Unix pipes</td></tr>
+        <tr><td class="name">Extensible compiler (immediate words)</td><td class="forth">Forth (1970)</td><td>Rust proc-macros, Racket #lang, Elixir macros</td></tr>
+        <tr><td class="name">Embedded DSL creation</td><td class="both">Both</td><td>Ruby (Rails DSL), Groovy, Clojure, Kotlin</td></tr>
+        <tr><td class="name">Language-as-material philosophy</td><td class="both">Both</td><td>Smalltalk, Self, Io, Rebol, Factor, Racket</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout both">Alan Kay (Smalltalk inventor): "The greatest single programming language ever designed." He was talking about Lisp. Chuck Moore: "All software is too big, and all software is too slow. There's only one solution." He wrote the control software for a radio telescope in 1,000 words of Forth. Both men were right about the same thing: the right abstraction, applied consistently, reduces everything.</div>
+
+  <footer class="footer">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:.7rem">Further reading</div>
+    <a href="https://www.paulgraham.com/rootsoflisp.html">Paul Graham — The Roots of Lisp (McCarthy's original eval reconstructed)</a>
+    <a href="https://mitpress.mit.edu/9780262510875/structure-and-interpretation-of-computer-programs/">SICP — Structure and Interpretation of Computer Programs (free online)</a>
+    <a href="https://www.forth.com/starting-forth/">Starting Forth — Leo Brodie's classic introduction, free online</a>
+    <a href="https://thinking-forth.sourceforge.net">Thinking Forth — Brodie on Forth philosophy and design</a>
+    <a href="https://letoverlambda.com">Let Over Lambda — advanced Common Lisp macros</a>
+    <a href="https://concatenative.org/wiki/view/Front%20Page">Concatenative Languages Wiki — theory and modern systems</a>
+    <div class="footer-note">The evaluator in §03 is a runnable teaching model of Lisp's eval/apply structure, not a full metacircular interpreter. The Forth machine in §06 implements a small pedagogical subset of stack words. The macro examples in §05 are illustrative source-to-source transformations. The meta-compiler in §09 demonstrates IF/ELSE/THEN-style backpatching with executable bytecode in the toy machine.</div>
+  </footer>
+</section>
+
+</div>
+<script>
+/* ── RUNNER ── */
+function runCode(cid,oid){
+  const raw=document.getElementById(cid).innerText;
+  const el=document.getElementById(oid);
+  const logs=[];
+  const con={log:(...a)=>logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')),assert:(c,m)=>{if(!c)logs.push('AssertionError: '+m);}};
+  try{new Function('console',raw)(con);el.className='out on';el.textContent=logs.join('\n')||'(no output)';}
+  catch(e){el.className='out err';el.textContent='⚠ '+e.message;}
+}
+
+/* ── SEXP VIZ ── */
+(function(){
+  const exprs=[
+    {src:'(+ (* 2 3) (- 10 4))',tree:'Application\n├── operator: +\n├── arg1: Application\n│   ├── operator: *\n│   ├── arg1: 2\n│   └── arg2: 3\n└── arg2: Application\n    ├── operator: -\n    ├── arg1: 10\n    └── arg2: 4'},
+    {src:'(define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))',tree:'Define\n├── name: fact\n├── params: [n]\n└── body: If\n    ├── test: (= n 0)\n    ├── then: 1\n    └── else: (* n (fact (- n 1)))'},
+    {src:'(map (lambda (x) (* x x)) \'(1 2 3 4 5))',tree:'Application\n├── operator: map\n├── arg1: Lambda\n│   ├── params: [x]\n│   └── body: (* x x)\n└── arg2: List [1 2 3 4 5]  (quoted = data)'},
+  ];
+  let idx=0;
+  function render(){
+    const e=exprs[idx];
+    const coloured=e.src.replace(/\(/g,'<span class="paren">(</span>').replace(/\)/g,'<span class="paren">)</span>')
+      .replace(/(\b\d+\b)/g,'<span class="number">$1</span>')
+      .replace(/'[^)]+/g,s=>`<span class="string">${s}</span>`)
+      .replace(/\b(define|lambda|if|map|let|quote)\b/g,'<span class="symbol" style="color:var(--lisp-dark);font-weight:600">$1</span>');
+    document.getElementById('sexp-viz').innerHTML=`<div class="sexp" onclick="nextSexp()">${coloured}<div style="font-size:10px;color:var(--ink3);margin-top:.3rem;font-family:var(--mono)">← click to cycle expressions</div></div>`;
+    document.getElementById('sexp-ast').innerHTML=`<div class="ast-tree"><div style="font-size:10px;color:var(--lisp);margin-bottom:.3rem;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase">Abstract Syntax Tree (this IS the s-expression)</div><pre style="font-size:12px;line-height:1.7;margin:0">${e.tree}</pre></div>`;
+  }
+  window.nextSexp=()=>{idx=(idx+1)%exprs.length;render();};
+  render();
+})();
+
+/* ── MACRO VIZ ── */
+const MACROS={
+  when:{
+    src:'(when (> x 0)\n  (print "positive")\n  (increment counter))',
+    lbl:'when expands to if',
+    expanded:'(if (> x 0)\n  (begin\n    (print "positive")\n    (increment counter))\n  nil)',
+    note:'when is not a built-in — it\'s a macro that transforms to if/begin. Adding it to the language costs ~3 lines of Lisp.',
+  },
+  and:{
+    src:'(and (> x 0) (< x 10) (even? x))',
+    lbl:'and expands to nested ifs (short-circuit)',
+    expanded:'(if (> x 0)\n  (if (< x 10)\n    (if (even? x)\n      (even? x)\n      #f)\n    #f)\n  #f)',
+    note:'Short-circuit evaluation falls out naturally from the macro expansion. The right-hand side is never evaluated if the left fails.',
+  },
+  let:{
+    src:'(let* ((x 1)\n       (y (+ x 1))\n       (z (* y 2)))\n  (+ x y z))',
+    lbl:'let* expands to nested lambdas',
+    expanded:'((lambda (x)\n  ((lambda (y)\n    ((lambda (z) (+ x y z))\n     (* y 2)))\n   (+ x 1)))\n 1)',
+    note:'let* is syntactic sugar for nested lambda application. The sequential binding falls out of the nesting order. No special semantics needed.',
+  },
+  thread:{
+    src:'(-> data\n  (filter odd?)\n  (map square)\n  (reduce + 0))',
+    lbl:'-> (threading) expands to nested calls',
+    expanded:'(reduce +\n  (map square\n    (filter odd? data))\n  0)',
+    note:'The threading macro reverses the visual order. Left-to-right pipeline reads naturally as a data transformation. Common in Clojure.',
+  },
+};
+function showMacro(name,btn){
+  document.querySelectorAll('#s5 .btn-row .btn').forEach(b=>{b.classList.remove('act-lisp');});btn.classList.add('act-lisp');
+  const m=MACROS[name];
+  document.getElementById('macro-viz').innerHTML=`
+    <div class="macro-stages">
+      <div class="macro-stage src"><div class="macro-stage-lbl" style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)">Source code</div><pre style="font-family:var(--mono);font-size:12px;color:var(--ink);line-height:1.7">${m.src}</pre></div>
+      <div class="macro-arrow">↓ macro expansion (compile time)</div>
+      <div class="macro-stage expand"><div class="macro-stage-lbl" style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--lisp)">${m.lbl}</div><pre style="font-family:var(--mono);font-size:12px;color:var(--lisp-dark);line-height:1.7">${m.expanded}</pre></div>
+      <div class="macro-arrow">↓ compiled and run</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);padding:.4rem .6rem;background:var(--bg3);border-radius:3px">${m.note}</div>
+    </div>`;
+}
+showMacro('when',document.querySelector('#s5 .btn'));
+
+/* ── FORTH STACK VIZ ── */
+const FORTH_PROGS={
+  arith:{words:['2','3','+','4','*'],desc:'(2+3)×4 = 20'},
+  dup:{words:['3','DUP','*','4','SWAP','/'],desc:'3²÷4 = 2'},
+  over:{words:['5','3','OVER','-','ROT'],desc:'OVER copies second item'},
+};
+let forthVM={stack:[],words:[],ip:0,prog:null};
+const STACK_OPS={
+  '+':(s)=>{const b=s.pop(),a=s.pop();s.push(a+b);return`${a} + ${b} = ${a+b}`},
+  '-':(s)=>{const b=s.pop(),a=s.pop();s.push(a-b);return`${a} - ${b} = ${a-b}`},
+  '*':(s)=>{const b=s.pop(),a=s.pop();s.push(a*b);return`${a} × ${b} = ${a*b}`},
+  '/':(s)=>{const b=s.pop(),a=s.pop();s.push(Math.floor(a/b));return`${a} ÷ ${b} = ${Math.floor(a/b)}`},
+  'DUP':(s)=>{s.push(s[s.length-1]);return`DUP ${s[s.length-1]}`},
+  'DROP':(s)=>{const v=s.pop();return`DROP ${v}`},
+  'SWAP':(s)=>{const b=s.pop(),a=s.pop();s.push(b,a);return`SWAP → [${b},${a}]`},
+  'OVER':(s)=>{s.push(s[s.length-2]);return`OVER → copied ${s[s.length-1]}`},
+  'ROT':(s)=>{const c=s.pop(),b=s.pop(),a=s.pop();s.push(b,c,a);return`ROT [${a},${b},${c}]→[${b},${c},${a}]`},
+};
+function loadForth(name){
+  document.querySelectorAll('#forth-prog-btns .btn').forEach(b=>{b.classList.remove('act-forth');if(b.onclick.toString().includes(`'${name}'`))b.classList.add('act-forth');});
+  forthVM={stack:[],words:FORTH_PROGS[name].words,ip:0,prog:name};
+  document.getElementById('forth-trace').textContent=FORTH_PROGS[name].desc;
+  renderForthStack('',0);
+}
+function forthStep(){
+  if(forthVM.ip>=forthVM.words.length)return;
+  const tok=forthVM.words[forthVM.ip];
+  forthVM.ip++;
+  let msg='';
+  if(!isNaN(tok)){forthVM.stack.push(Number(tok));msg=`push ${tok}`;}
+  else{const op=STACK_OPS[tok.toUpperCase()];if(op)msg=op(forthVM.stack);else msg=`unknown: ${tok}`;}
+  const trace=document.getElementById('forth-trace');
+  trace.textContent+=(trace.textContent?'\n':'')+`Step ${forthVM.ip}: ${tok}  →  ${msg}  │ stack: [${forthVM.stack.join(',')}]`;
+  renderForthStack(tok,forthVM.ip-1);
+}
+function forthReset(){loadForth(forthVM.prog||'arith');}
+function renderForthStack(lastOp,ip){
+  const s=forthVM.stack;const words=forthVM.words;
+  let html=`<div class="stack-wrap">`;
+  html+=`<div style="font-family:var(--mono);font-size:11px">`;
+  html+=`<div style="color:var(--ink3);margin-bottom:.3rem;font-size:10px;text-transform:uppercase;letter-spacing:.08em">Program</div>`;
+  words.forEach((w,i)=>{
+    const isCurrent=i===ip&&lastOp;const done=i<ip;
+    html+=`<div style="padding:2px 6px;font-size:12px;border-radius:3px;margin:1px 0;background:${isCurrent?'var(--forth)':done?'var(--bg3)':'transparent'};color:${isCurrent?'#fff':done?'var(--ink3)':'var(--forth)'};font-weight:${isCurrent?'600':'400'}">${w}</div>`;
+  });
+  html+=`</div>`;
+  html+=`<div style="font-size:20px;color:var(--ink3);padding-bottom:8px">→</div>`;
+  const stackCol=s.map((v,i)=>`<div class="stack-cell${i===s.length-1?' top new':''}">${v}</div>`).join('');
+  html+=`<div><div class="stack-col" style="min-width:60px">${stackCol||'<div style="font-family:var(--mono);font-size:11px;color:var(--ink3)">empty</div>'}</div><div class="stack-col-lbl">stack</div></div>`;
+  html+=`</div>`;
+  document.getElementById('forth-stack-viz').innerHTML=html;
+}
+loadForth('arith');
+
+/* ── DICT VIZ ── */
+const DICT_WORDS_BASE=[
+  {name:'+',type:'primitive',body:'( a b -- a+b )'},
+  {name:'-',type:'primitive',body:'( a b -- a-b )'},
+  {name:'DUP',type:'primitive',body:'( n -- n n )'},
+  {name:'DROP',type:'primitive',body:'( n -- )'},
+  {name:'SWAP',type:'primitive',body:'( a b -- b a )'},
+  {name:'OVER',type:'primitive',body:'( a b -- a b a )'},
+];
+const DICT_NEW={
+  square:{name:'SQUARE',type:'defined',body:': SQUARE DUP * ;   ( n -- n² )'},
+  cube:{name:'CUBE',type:'defined',body:': CUBE DUP SQUARE * ;  ( n -- n³ )'},
+  nip:{name:'NIP',type:'defined',body:': NIP SWAP DROP ;  ( a b -- b )'},
+  tuck:{name:'TUCK',type:'defined',body:': TUCK SWAP OVER ;  ( a b -- b a b )'},
+  within:{name:'WITHIN',type:'defined',body:': WITHIN OVER - >R - R> U< ;  ( n lo hi -- flag )'},
+};
+let dictWords=[...DICT_WORDS_BASE];
+function renderDict(){
+  let html=`<div class="dict"><div class="dict-head"><span>Dictionary (newest at top)</span><span>${dictWords.length} words</span></div>`;
+  [...dictWords].reverse().forEach(w=>{
+    const isNew=!!DICT_NEW[w.name.toLowerCase()];
+    html+=`<div class="dict-entry${isNew?' new-word':''}"><div class="dict-name">${w.name}</div><div class="dict-type">${w.type}</div><div class="dict-body">${w.body}</div></div>`;
+  });
+  html+=`</div>`;
+  document.getElementById('dict-viz').innerHTML=html;
+}
+function addDictWord(key){
+  const w=DICT_NEW[key];if(!w||dictWords.find(d=>d.name===w.name))return;
+  dictWords.push(w);renderDict();
+}
+renderDict();
+</script>
+</body>
+</html>
