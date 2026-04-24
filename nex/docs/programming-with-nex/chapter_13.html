@@ -609,12 +609,13 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#one-class-one-responsibility" id="toc-one-class-one-responsibility" class="nav-link active" data-scroll-target="#one-class-one-responsibility"><span class="header-section-number">14.1</span> One Class, One Responsibility</a></li>
   <li><a href="#what-belongs-inside-a-class" id="toc-what-belongs-inside-a-class" class="nav-link" data-scroll-target="#what-belongs-inside-a-class"><span class="header-section-number">14.2</span> What Belongs Inside a Class</a></li>
   <li><a href="#data-and-behaviour-together" id="toc-data-and-behaviour-together" class="nav-link" data-scroll-target="#data-and-behaviour-together"><span class="header-section-number">14.3</span> Data and Behaviour Together</a></li>
-  <li><a href="#classes-as-models" id="toc-classes-as-models" class="nav-link" data-scroll-target="#classes-as-models"><span class="header-section-number">14.4</span> Classes as Models</a></li>
-  <li><a href="#the-difference-between-data-classes-and-behaviour-classes" id="toc-the-difference-between-data-classes-and-behaviour-classes" class="nav-link" data-scroll-target="#the-difference-between-data-classes-and-behaviour-classes"><span class="header-section-number">14.5</span> The Difference Between Data Classes and Behaviour Classes</a></li>
-  <li><a href="#naming-classes" id="toc-naming-classes" class="nav-link" data-scroll-target="#naming-classes"><span class="header-section-number">14.6</span> Naming Classes</a></li>
-  <li><a href="#a-worked-example-redesigning-a-class" id="toc-a-worked-example-redesigning-a-class" class="nav-link" data-scroll-target="#a-worked-example-redesigning-a-class"><span class="header-section-number">14.7</span> A Worked Example: Redesigning a Class</a></li>
-  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">14.8</span> Summary</a></li>
-  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">14.9</span> Exercises</a></li>
+  <li><a href="#command-query-separation" id="toc-command-query-separation" class="nav-link" data-scroll-target="#command-query-separation"><span class="header-section-number">14.4</span> Command-Query Separation</a></li>
+  <li><a href="#classes-as-models" id="toc-classes-as-models" class="nav-link" data-scroll-target="#classes-as-models"><span class="header-section-number">14.5</span> Classes as Models</a></li>
+  <li><a href="#the-difference-between-data-classes-and-behaviour-classes" id="toc-the-difference-between-data-classes-and-behaviour-classes" class="nav-link" data-scroll-target="#the-difference-between-data-classes-and-behaviour-classes"><span class="header-section-number">14.6</span> The Difference Between Data Classes and Behaviour Classes</a></li>
+  <li><a href="#naming-classes" id="toc-naming-classes" class="nav-link" data-scroll-target="#naming-classes"><span class="header-section-number">14.7</span> Naming Classes</a></li>
+  <li><a href="#a-worked-example-redesigning-a-class" id="toc-a-worked-example-redesigning-a-class" class="nav-link" data-scroll-target="#a-worked-example-redesigning-a-class"><span class="header-section-number">14.8</span> A Worked Example: Redesigning a Class</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">14.9</span> Summary</a></li>
+  <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">14.10</span> Exercises</a></li>
   </ul>
 </nav>
     </div>
@@ -748,8 +749,55 @@ nex&gt; class Student
      end</code></pre>
 <p><code>withdraw</code> returns <code>false</code> when the withdrawal would exceed the limit rather than silently allowing an invalid state. The rule lives once, inside the class, and applies everywhere. No external code can bypass it.</p>
 </section>
-<section id="classes-as-models" class="level2" data-number="14.4">
-<h2 data-number="14.4" class="anchored" data-anchor-id="classes-as-models"><span class="header-section-number">14.4</span> Classes as Models</h2>
+<section id="command-query-separation" class="level2" data-number="14.4">
+<h2 data-number="14.4" class="anchored" data-anchor-id="command-query-separation"><span class="header-section-number">14.4</span> Command-Query Separation</h2>
+<p>Another useful design principle is <em>command-query separation</em>.</p>
+<p>A <strong>command</strong> changes an object’s state. A <strong>query</strong> answers a question about the object. A well-designed routine should usually do one or the other, not both.</p>
+<p>Examples:</p>
+<ul>
+<li><code>deposit(amount)</code> is a command because it changes the balance</li>
+<li><code>get_balance()</code> or <code>is_overdrawn()</code> is a query because it reports information</li>
+</ul>
+<p>Trouble begins when one routine tries to mix the two roles:</p>
+<pre><code>nex&gt; class Counter
+       private feature
+         value: Integer
+       feature
+         next_value(): Integer do
+           value := value + 1
+           result := value
+         end
+     end</code></pre>
+<p>The name <code>next_value</code> sounds like a question, but calling it changes the object. A reader cannot tell from the name alone whether this is safe to call repeatedly, whether it is merely observing the counter, or whether it is advancing it.</p>
+<p>The clearer design separates the two responsibilities:</p>
+<pre><code>nex&gt; class Counter
+       private feature
+         value: Integer
+       feature
+         increment() do
+           value := value + 1
+         end
+         current(): Integer do
+           result := value
+         end
+     end</code></pre>
+<p>Now the interface says exactly what happens. <code>increment</code> is a command. <code>current</code> is a query. A caller can ask for the current value without changing the object, and can change the object without pretending to ask a question.</p>
+<p>This principle matters because mixed routines are harder to reason about:</p>
+<ul>
+<li>A query that secretly changes state is surprising and error-prone</li>
+<li>A command that also returns a value often invites callers to depend on two effects at once</li>
+<li>Testing becomes less clear because one call both mutates the object and produces an answer</li>
+</ul>
+<p>The principle is not absolute. Sometimes a combined routine is convenient, and sometimes performance considerations justify it. But convenience should be treated as an exception, not the default. When in doubt, prefer separate routines with separate purposes.</p>
+<p>For class design, the practical rule is simple:</p>
+<ul>
+<li>commands should be named as actions and should make state changes explicit</li>
+<li>queries should answer questions and should not alter observable state</li>
+</ul>
+<p>That discipline makes classes easier to read, easier to trust, and easier to use correctly.</p>
+</section>
+<section id="classes-as-models" class="level2" data-number="14.5">
+<h2 data-number="14.5" class="anchored" data-anchor-id="classes-as-models"><span class="header-section-number">14.5</span> Classes as Models</h2>
 <p>A well-designed class is a model of something: a real-world entity, a domain concept, or an abstraction. The fields are the properties that matter. The methods are the operations the model supports. Everything else is left out.</p>
 <p>Consider modelling a playing card:</p>
 <pre><code>nex&gt; class Card
@@ -779,23 +827,23 @@ nex&gt; ace.beats(seven)
 true</code></pre>
 <p><code>Card</code> does not include methods for shuffling (that belongs to <code>Deck</code>), dealing (that belongs to <code>Game</code>), or rendering to a screen (that belongs to a display layer). It models what a card <em>is</em> and what a card <em>does</em> in isolation.</p>
 </section>
-<section id="the-difference-between-data-classes-and-behaviour-classes" class="level2" data-number="14.5">
-<h2 data-number="14.5" class="anchored" data-anchor-id="the-difference-between-data-classes-and-behaviour-classes"><span class="header-section-number">14.5</span> The Difference Between Data Classes and Behaviour Classes</h2>
+<section id="the-difference-between-data-classes-and-behaviour-classes" class="level2" data-number="14.6">
+<h2 data-number="14.6" class="anchored" data-anchor-id="the-difference-between-data-classes-and-behaviour-classes"><span class="header-section-number">14.6</span> The Difference Between Data Classes and Behaviour Classes</h2>
 <p>Not all classes have the same character. Some are primarily containers of data — their fields are the point, and methods exist to access or compute from those fields. Others are primarily engines of behaviour — their fields are implementation details that support the operations they expose.</p>
 <p><code>Point</code>, <code>Card</code>, and <code>Student</code> are data-heavy. <code>Stack</code>, <code>Queue</code>, and a word frequency counter are behaviour-heavy. Both kinds are legitimate. The mistake is confusing them.</p>
 <p>A data class that accumulates behaviour becomes a <em>god class</em> — one class that knows and controls too much. A behaviour class that exposes its implementation details loses the encapsulation that made it worth defining.</p>
 <p>The diagnostic question: <em>what does a caller need to know to use this class correctly?</em> For a data class, the answer is its fields and their meaning. For a behaviour class, the answer is its methods and their contracts. If the answer requires knowing about internal implementation details, the class has not been encapsulated well enough.</p>
 </section>
-<section id="naming-classes" class="level2" data-number="14.6">
-<h2 data-number="14.6" class="anchored" data-anchor-id="naming-classes"><span class="header-section-number">14.6</span> Naming Classes</h2>
+<section id="naming-classes" class="level2" data-number="14.7">
+<h2 data-number="14.7" class="anchored" data-anchor-id="naming-classes"><span class="header-section-number">14.7</span> Naming Classes</h2>
 <p>A class name should be a noun or noun phrase that describes the concept being modelled. <code>Bank_Account</code>, <code>Student</code>, <code>Card</code>, <code>Stack</code> — each names a thing.</p>
 <p>Nex uses underscores to separate words in class names, such as <code>Bank_Account</code> or <code>Stock_Record</code>. This choice prioritizes readability by making the boundaries between words explicit. While many languages prefer <code>BankAccount</code> (CamelCase), the use of underscores ensures that each component of the name stands out clearly, even in long or technical terms. This aligns with the Nex philosophy: code should be as easy to read as a well-written sentence.</p>
 <p>Avoid names that describe what the class does rather than what it is: <code>Account_Manager</code>, <code>Data_Processor</code>, <code>Helper</code>. These are symptoms of a class without a clear identity. A class named <code>Helper</code> is almost always a collection of unrelated functions that have not found their proper homes.</p>
 <p>Avoid generic names that could describe anything: <code>Manager</code>, <code>Handler</code>, <code>Controller</code>, <code>Utility</code>. These tell a reader nothing about the class’s responsibility.</p>
 <p>A good test: read the class name aloud and ask whether a domain expert — someone who knows the problem but not the code — would immediately understand what it represents. <code>Bank_Account</code> passes. <code>Account_Data_Manager_Helper</code> does not.</p>
 </section>
-<section id="a-worked-example-redesigning-a-class" class="level2" data-number="14.7">
-<h2 data-number="14.7" class="anchored" data-anchor-id="a-worked-example-redesigning-a-class"><span class="header-section-number">14.7</span> A Worked Example: Redesigning a Class</h2>
+<section id="a-worked-example-redesigning-a-class" class="level2" data-number="14.8">
+<h2 data-number="14.8" class="anchored" data-anchor-id="a-worked-example-redesigning-a-class"><span class="header-section-number">14.8</span> A Worked Example: Redesigning a Class</h2>
 <p>Consider an initial draft of a <code>Product</code> class for an online store:</p>
 <pre><code>nex&gt; class Product
        feature
@@ -849,20 +897,21 @@ nex&gt; class Stock_Record
      end</code></pre>
 <p>Each class now has one responsibility. <code>Product</code> knows what a product is. <code>Stock_Record</code> knows how much stock exists and when to reorder. The ten-field class was not wrong because it had ten fields — it was wrong because those fields belonged to different concepts.</p>
 </section>
-<section id="summary" class="level2" data-number="14.8">
-<h2 data-number="14.8" class="anchored" data-anchor-id="summary"><span class="header-section-number">14.8</span> Summary</h2>
+<section id="summary" class="level2" data-number="14.9">
+<h2 data-number="14.9" class="anchored" data-anchor-id="summary"><span class="header-section-number">14.9</span> Summary</h2>
 <ul>
 <li>A class should have one responsibility: one concept to model, one piece of state to manage, one reason to change</li>
 <li>A method belongs inside a class when it operates on private fields or represents an intrinsic operation; not when it introduces external dependencies or could be a free function</li>
 <li>Data and the behaviour that naturally governs it belong together; the class enforces invariants by controlling what operations are possible</li>
+<li>Prefer command-query separation: routines that change state should usually be distinct from routines that answer questions</li>
 <li>Model only what is needed; speculative fields and methods make classes harder to understand and change</li>
 <li>Data classes are centred on their fields; behaviour classes on their methods; god classes on nothing in particular</li>
 <li>Class names should be nouns a domain expert would recognise; names describing what a class does rather than what it is are a warning sign</li>
 <li>When a class has too many fields, ask which belong to different concepts and split accordingly</li>
 </ul>
 </section>
-<section id="exercises" class="level2" data-number="14.9">
-<h2 data-number="14.9" class="anchored" data-anchor-id="exercises"><span class="header-section-number">14.9</span> Exercises</h2>
+<section id="exercises" class="level2" data-number="14.10">
+<h2 data-number="14.10" class="anchored" data-anchor-id="exercises"><span class="header-section-number">14.10</span> Exercises</h2>
 <p><strong>1.</strong> The following class has more than one responsibility. Identify them and sketch a redesign that splits them into two or more classes:</p>
 <pre><code>class Library_Book
   feature
@@ -876,7 +925,7 @@ nex&gt; class Stock_Record
     late_fee_per_day: Real
 end</code></pre>
 <p><strong>2.</strong> Define a <code>Money</code> class with fields <code>amount: Real</code> and <code>currency: String</code>. Add methods <code>add(other: Money): Money</code> and <code>exchange(rate: Real, target_currency: String): Money</code>. What preconditions do these methods have? State them as comments.</p>
-<p><strong>3.</strong> A <code>Deck</code> class represents a standard 52-card deck. Using <code>Card</code> from Section 13.4, define <code>Deck</code> with a <code>cards: Array[Card]</code> field and methods <code>make</code> (constructor building all 52 cards), <code>size(): Integer</code>, <code>draw(): Card</code>, and <code>is_empty(): Boolean</code>. State the precondition for <code>draw</code> as a comment.</p>
+<p><strong>3.</strong> A <code>Deck</code> class represents a standard 52-card deck. Using <code>Card</code> from Section 13.5, define <code>Deck</code> with a <code>cards: Array[Card]</code> field and methods <code>make</code> (constructor building all 52 cards), <code>size(): Integer</code>, <code>draw(): Card</code>, and <code>is_empty(): Boolean</code>. State the precondition for <code>draw</code> as a comment.</p>
 <p><strong>4.</strong> Review the <code>Bank_Account</code> in Section 13.3. Is <code>overdraft_limit</code> something all bank accounts should have, or does it belong to a subtype? Sketch two classes — a basic <code>Account</code> with no overdraft, and an <code>Overdraft_Account</code> with a limit — without worrying about inheritance syntax. Which fields and methods does each have?</p>
 <p><strong>5.*</strong> The <code>Stack</code> from Chapter 12 works only with <code>Integer</code> values. Define a <code>String_Stack</code> and a <code>Real_Stack</code> alongside it. What do you notice? What is the only thing that differs between them? This observation motivates <em>generic types</em> — a mechanism for writing a class once and using it with any element type — which we introduce in Chapter 15.</p>
 
