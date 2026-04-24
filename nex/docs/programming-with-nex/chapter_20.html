@@ -754,14 +754,17 @@ end</code></pre>
 end</code></pre>
 <p>Step 2: ask whether the contract is strong enough.</p>
 <p>It is not. A routine returning <code>"xxxxx"</code> for any input string of length six would satisfy <code>one_shorter</code>.</p>
-<p>Step 3: strengthen the contract.</p>
+<p>Step 3: strengthen the contract and then write the body that satisfies it.</p>
 <pre><code>function without_last(s: String): String
   require
     not_empty: s.length &gt; 0
+  do
+    result := s.substring(0, s.length - 1)
   ensure
     one_shorter: result.length = s.length - 1
+    keeps_prefix: result = s.substring(0, s.length - 1)
 end</code></pre>
-<p>Nex does not yet give us a rich string slice notation to state the exact prefix relation elegantly, so we may decide that the current postcondition is useful but incomplete. That is still a design success. It tells us exactly where the specification is strong and where tests must carry more of the burden.</p>
+<p>Now the routine is implementable, and the stronger postcondition rules out the fake implementation that merely returns any string of the right length. The body is also almost forced by the contract: if the result must be exactly the original string without its last character, <code>substring(0, s.length - 1)</code> is the natural implementation.</p>
 <p>That is a realistic engineering judgment.</p>
 </section>
 <section id="contracts-improve-class-boundaries" class="level2" data-number="21.7">
@@ -859,7 +862,7 @@ end</code></pre>
 <h3 data-number="21.9.2" class="anchored" data-anchor-id="postcondition-inheritance"><span class="header-section-number">21.9.2</span> Postcondition Inheritance</h3>
 <p>For an overridden feature, the effective postcondition is:</p>
 <p><code>&lt;base-feature-ensure&gt; and &lt;local-feature-ensure&gt;</code></p>
-<p>Either side may be absent. The practical meaning is that a child class may <em>strengthen</em> the postcondition, but it may not drop promises that the parent already made.</p>
+<p>The practical meaning is that a child class may <em>strengthen</em> the postcondition, but it may not drop promises that the parent already made. If one side is absent, the other side remains in force. In particular, omitting a local <code>ensure</code> does not remove the inherited postcondition.</p>
 <p>If a parent routine promises that <code>area &gt;= 0.0</code>, then every child implementation must still guarantee <code>area &gt;= 0.0</code>. A child may add a stronger fact, but not a weaker one.</p>
 </section>
 <section id="invariant-inheritance" class="level3" data-number="21.9.3">
