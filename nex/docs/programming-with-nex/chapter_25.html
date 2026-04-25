@@ -729,6 +729,13 @@ nex&gt; square(-3)
          raise "test failed: " + label
        end
      end</code></pre>
+<p>You can add a boolean helper in the same style:</p>
+<pre><code>nex&gt; function assert_true(condition: Boolean, label: String)
+     do
+       if not condition then
+         raise "test failed: " + label
+       end
+     end</code></pre>
 <p>Then:</p>
 <pre><code>nex&gt; function test_square()
      do
@@ -744,6 +751,26 @@ nex&gt; square(-3)
 <p>Contracts and tests reinforce each other.</p>
 <p>Tests should include valid cases that satisfy the precondition and confirm the promised behavior.</p>
 <p>They should also include deliberate invalid calls when appropriate, to confirm that contract violations occur where expected.</p>
+<p>One direct way to test an expected failure is to use <code>rescue</code>:</p>
+<pre><code>nex&gt; function test_empty_stack_pop()
+     do
+       let s := create Stack[Integer]
+       let reached_unexpected_success: Boolean := false
+       s.pop()
+       reached_unexpected_success := true
+       raise "test failed: empty pop should fail"
+     rescue
+       if reached_unexpected_success then
+         raise "test failed: empty pop should fail"
+       else
+         print("empty-pop test passed")
+       end
+     end</code></pre>
+<p>This pattern distinguishes the two cases:</p>
+<ul>
+<li>if <code>pop()</code> raises immediately, the test passes</li>
+<li>if execution reaches the explicit <code>raise</code>, then the expected contract failure did not happen</li>
+</ul>
 <p>For a stack:</p>
 <ul>
 <li>create a new stack</li>
@@ -799,7 +826,7 @@ nex&gt; square(-3)
 <li>host-side or repository-level automated tests under <code>test/</code></li>
 </ul>
 <p>This repository already includes automated test commands for the implementation itself:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">clojure</span> <span class="at">-M:test</span> test/scripts/run_tests.clj</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">clojure</span> <span class="at">-M:test</span> test/scripts/run_tests.clj</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>For your own Nex tutorial programs, a similar habit is useful: create test routines, group them clearly, and run them together.</p>
 </section>
 <section id="a-worked-example-testing-a-frequency-counter" class="level2" data-number="26.8">
@@ -810,30 +837,33 @@ nex&gt; square(-3)
        result := {}
        let words := text.to_lower.split(" ")
        across words as w do
-         let count := result.try_get(w, 0)
-         result.set(w, count + 1)
+         if w /= "" then
+           let count := result.try_get(w, 0)
+           result.set(w, count + 1)
+         end
        end
      end</code></pre>
 <p>A useful test routine:</p>
 <pre><code>nex&gt; function test_word_frequencies()
      do
-       let freq := word_frequencies("to be or not to be")
-       if freq.get("to") /= 2 then
-         raise "test failed: count of to"
-       end
-       if freq.get("be") /= 2 then
-         raise "test failed: count of be"
-       end
-       if freq.get("or") /= 1 then
-         raise "test failed: count of or"
-       end
+       let freq := word_frequencies("To be or not to be")
+       assert_equal_integer(freq.get("to"), 2, "count of to")
+       assert_equal_integer(freq.get("be"), 2, "count of be")
+       assert_equal_integer(freq.get("or"), 1, "count of or")
+
+       let spaced := word_frequencies("to  be")
+       assert_equal_integer(spaced.get("to"), 1, "count of to with repeated spaces")
+       assert_equal_integer(spaced.get("be"), 1, "count of be with repeated spaces")
+       assert_equal_integer(spaced.try_get("", 0), 0, "no empty token from repeated spaces")
+
        print("word frequency tests passed")
      end</code></pre>
-<p>This test checks several representative counts from one input. Better still would be to add:</p>
+<p>The <code>if w /= ""</code> guard matters. A naive <code>split(" ")</code> creates empty pieces for repeated spaces, so a good test should make that behavior explicit instead of leaving it accidental.</p>
+<p>This test now checks several representative behaviors:</p>
 <ul>
-<li>an all-unique case</li>
-<li>a case-insensitive case</li>
-<li>perhaps a case with repeated spaces, depending on the intended splitting behavior</li>
+<li>ordinary repeated words</li>
+<li>case-insensitive counting</li>
+<li>repeated spaces without creating an empty-string key</li>
 </ul>
 <p>Tests grow naturally by exploring the routine’s meaning.</p>
 </section>

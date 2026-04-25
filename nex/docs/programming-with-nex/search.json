@@ -2998,11 +2998,22 @@
     ]
   },
   {
+    "objectID": "chapter_24.html#with-java-blocks",
+    "href": "chapter_24.html#with-java-blocks",
+    "title": "25  Interoperability",
+    "section": "25.6 with \"java\" Blocks",
+    "text": "25.6 with \"java\" Blocks\nOn the JVM, Nex also supports:\nwith \"java\" do\n  ...\nend\nThis marks a block whose body may use Java interop directly. In practice, that means method calls and class names inside the block may resolve against imported Java classes and host objects rather than only against ordinary Nex classes.\nFor example:\nimport java.lang.System\n\nwith \"java\" do\n  print(System.getProperty(\"java.version\"))\nend\nThis form is JVM-specific. It is useful when a small part of the program genuinely needs host behavior, but the surrounding design should remain ordinary Nex.\nAt present, this is primarily a compiled-JVM feature. It works well in JVM REPL sessions and on the compiled JVM path, but it is not supported by the interpreter-based file runner used by:\nnex some_file.nex\nSo if a file relies on with \"java\", do not assume it will run correctly through the interpreter path. Use the compiled JVM route instead.\nIn REPL-oriented wrapper classes, with \"java\" is often the most practical way to isolate the host boundary. A common pattern is:\n\nkeep Java calls inside with \"java\" blocks\nexpose ordinary Nex routines outside those blocks\nif needed, store a Java-backed object in a field typed as Any, and only manipulate it inside with \"java\"",
+    "crumbs": [
+      "Part VII — Working at Scale",
+      "<span class='chapter-number'>25</span>  <span class='chapter-title'>Interoperability</span>"
+    ]
+  },
+  {
     "objectID": "chapter_24.html#a-small-interop-oriented-design",
     "href": "chapter_24.html#a-small-interop-oriented-design",
     "title": "25  Interoperability",
-    "section": "25.6 A Small Interop-Oriented Design",
-    "text": "25.6 A Small Interop-Oriented Design\nSuppose a program needs random numbers from the host platform. A poor design would let random generation spread everywhere in the core logic. A better design wraps it:\nimport Math from './math.js'\n\nclass Die\n  feature\n    roll(): Integer do\n      -- host-backed random value would be wrapped here\n      result := 1\n    end\nend\nThe example is schematic, but the design point is real: the interop boundary is inside Die, not scattered through the rest of the game or simulation.\nThen other classes depend on roll(): Integer, not on the host library directly.",
+    "section": "25.7 A Small Interop-Oriented Design",
+    "text": "25.7 A Small Interop-Oriented Design\nIn JVM REPL sessions, a practical style is to import a Java class and wrap it in a small Nex class immediately. For example, suppose we want efficient string assembly. We could expose StringBuilder everywhere, but a better design keeps that host type inside one Nex wrapper:\nimport java.lang.StringBuilder\n\nclass Line_Buffer\ncreate\n  make() do\n    with \"java\" do\n      this.builder := create StringBuilder\n    end\n  end\nfeature\n  builder: Any\n\n  append_line(s: String) do\n    with \"java\" do\n      builder.append(s)\n      builder.append(\"\\n\")\n    end\n  end\n\n  text(): String do\n    with \"java\" do\n      result := builder.toString()\n    end\n  end\nend\n\nclass Greeting_Report\n  feature\n    render(name: String): String do\n      let buf := create Line_Buffer.make\n      buf.append_line(\"Hello, \" + name)\n      buf.append_line(\"Welcome to Nex on the JVM.\")\n      result := buf.text()\n    end\nend\nIn a REPL session, this is convenient:\nnex&gt; import java.lang.StringBuilder\nnex&gt; class Line_Buffer\n       create\n         make() do\n           with \"java\" do\n             this.builder := create StringBuilder\n           end\n         end\n       feature\n         builder: Any\n         append_line(s: String) do\n           with \"java\" do\n             builder.append(s)\n             builder.append(\"\\n\")\n           end\n         end\n         text(): String do\n           with \"java\" do\n             result := builder.toString()\n           end\n         end\n     end\nnex&gt; let b := create Line_Buffer.make\nnex&gt; b.append_line(\"alpha\")\nnex&gt; b.append_line(\"beta\")\nnex&gt; print(b.text())\nalpha\nbeta\nThe design point is the important part: StringBuilder is confined to Line_Buffer. The rest of the program depends on ordinary Nex routines such as append_line and text, not on Java library details.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>25</span>  <span class='chapter-title'>Interoperability</span>"
@@ -3012,8 +3023,8 @@
     "objectID": "chapter_24.html#portability-and-contracts",
     "href": "chapter_24.html#portability-and-contracts",
     "title": "25  Interoperability",
-    "section": "25.7 Portability and Contracts",
-    "text": "25.7 Portability and Contracts\nContracts are especially valuable around interop because host libraries often sit outside the type and contract discipline of the Nex core.\nIf a wrapper routine imports or calls external functionality, its contract should state:\n\nwhat arguments are valid\nwhat it guarantees on success\nwhat exceptions may still arise from the environment\n\nThis makes the platform boundary explicit and safer.",
+    "section": "25.8 Portability and Contracts",
+    "text": "25.8 Portability and Contracts\nContracts are especially valuable around interop because host libraries often sit outside the type and contract discipline of the Nex core.\nIf a wrapper routine imports or calls external functionality, its contract should state:\n\nwhat arguments are valid\nwhat it guarantees on success\nwhat exceptions may still arise from the environment\n\nThis makes the platform boundary explicit and safer.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>25</span>  <span class='chapter-title'>Interoperability</span>"
@@ -3023,8 +3034,8 @@
     "objectID": "chapter_24.html#a-worked-example-separating-core-logic-from-host-access",
     "href": "chapter_24.html#a-worked-example-separating-core-logic-from-host-access",
     "title": "25  Interoperability",
-    "section": "25.8 A Worked Example: Separating Core Logic from Host Access",
-    "text": "25.8 A Worked Example: Separating Core Logic from Host Access\nImagine a word-counting application that eventually reads text from a file. Its core logic should not know about files at all:\nnex&gt; function word_frequencies(text: String): Map[String, Integer]\n     do\n       result := {}\n       let words := text.to_lower.split(\" \")\n       across words as w do\n         let count := result.try_get(w, 0)\n         result.set(w, count + 1)\n       end\n     end\nThat routine is pure Nex logic and can run anywhere.\nA separate wrapper could handle the host interaction of obtaining the text. The wrapper may use import or another platform mechanism, but the core counting routine remains portable and easy to test.\nThis is usually the right architectural split:\n\nplatform code at the edge\nlanguage-idiomatic logic in the center",
+    "section": "25.9 A Worked Example: Separating Core Logic from Host Access",
+    "text": "25.9 A Worked Example: Separating Core Logic from Host Access\nHere is a complete JVM-oriented example. Suppose we want to print a short report about the current Java runtime. Reading system properties is host access. Formatting the report is ordinary program logic. We should separate those two concerns:\nimport java.lang.System\n\nfunction line(label, value: String): String\ndo\n  result := label + \": \" + value\nend\n\nfunction render_runtime_report(version, vendor, home: String): String\ndo\n  result := line(\"Java version\", version) + \"\\n\"\n  result := result + line(\"Java vendor\", vendor) + \"\\n\"\n  result := result + line(\"Java home\", home)\nend\n\nclass Java_Runtime_Info\n  feature\n    property(name: String): String\n      require\n        valid_name: name /= \"\"\n      do\n        let value: ?String := nil\n        with \"java\" do\n          value := System.getProperty(name)\n        end\n\n        if value = nil then\n          result := \"&lt;missing&gt;\"\n        else\n          result := value\n        end\n      end\nend\n\nclass Runtime_Report_App\n  feature\n    run(): String do\n      let info := create Java_Runtime_Info\n      let version := info.property(\"java.version\")\n      let vendor := info.property(\"java.vendor\")\n      let home := info.property(\"java.home\")\n      result := render_runtime_report(version, vendor, home)\n    end\nend\n\nlet app := create Runtime_Report_App\nprint(app.run())\nThe design is deliberate:\n\nJava_Runtime_Info.property is the host boundary\nrender_runtime_report and line are pure Nex logic\nRuntime_Report_App assembles the two\n\nThis makes the program easier to test. The formatting routines can be exercised with ordinary strings, while only Java_Runtime_Info depends on JVM interop.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>25</span>  <span class='chapter-title'>Interoperability</span>"
@@ -3034,8 +3045,8 @@
     "objectID": "chapter_24.html#summary",
     "href": "chapter_24.html#summary",
     "title": "25  Interoperability",
-    "section": "25.9 Summary",
-    "text": "25.9 Summary\n\nimport brings in host-platform symbols; intern brings in Nex classes\nKeep interop code near system boundaries rather than scattering it through core logic\nNex can target JVM bytecode and JavaScript\nProduction translation can omit runtime contract checks with skip-contracts\nContracts are especially valuable around interop boundaries\nPortable core logic is easier to test, reason about, and reuse",
+    "section": "25.10 Summary",
+    "text": "25.10 Summary\n\nimport brings in host-platform symbols; intern brings in Nex classes\nKeep interop code near system boundaries rather than scattering it through core logic\nNex can target JVM bytecode and JavaScript\nProduction translation can omit runtime contract checks with skip-contracts\nContracts are especially valuable around interop boundaries\nPortable core logic is easier to test, reason about, and reuse",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>25</span>  <span class='chapter-title'>Interoperability</span>"
@@ -3045,8 +3056,8 @@
     "objectID": "chapter_24.html#exercises",
     "href": "chapter_24.html#exercises",
     "title": "25  Interoperability",
-    "section": "25.10 Exercises",
-    "text": "25.10 Exercises\n1. Write a short example containing both an intern statement and an import statement. Explain the different role each plays.\n2. Choose a small program idea and identify which parts should remain pure Nex logic and which parts belong to the host boundary.\n3. Write a wrapper-class design for a clock or random-number service. State the contract of the main routine and explain what remains host-specific.\n4. Explain when using {:skip-contracts true} is reasonable and when it is risky.\n5.* Take one earlier example, such as a report printer or configuration loader, and redesign it so that host-specific work is isolated in one class while the main computation remains platform-independent.",
+    "section": "25.11 Exercises",
+    "text": "25.11 Exercises\n1. Write a short example containing both an intern statement and an import statement. Explain the different role each plays.\n2. Choose a small program idea and identify which parts should remain pure Nex logic and which parts belong to the host boundary.\n3. Write a wrapper-class design for a clock or random-number service. State the contract of the main routine and explain what remains host-specific.\n4. Explain when using {:skip-contracts true} is reasonable and when it is risky.\n5.* Take one earlier example, such as a report printer or configuration loader, and redesign it so that host-specific work is isolated in one class while the main computation remains platform-independent.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>25</span>  <span class='chapter-title'>Interoperability</span>"
@@ -3090,7 +3101,7 @@
     "href": "chapter_25.html#a-tiny-test-harness-in-nex",
     "title": "26  Testing Your Programs",
     "section": "26.3 A Tiny Test Harness in Nex",
-    "text": "26.3 A Tiny Test Harness in Nex\nNex does not need a large testing framework before you can begin writing useful tests. A simple helper routine already goes a long way:\nnex&gt; function assert_equal_integer(actual, expected: Integer, label: String)\n     do\n       if actual /= expected then\n         raise \"test failed: \" + label\n       end\n     end\nThen:\nnex&gt; function test_square()\n     do\n       assert_equal_integer(square(0), 0, \"square zero\")\n       assert_equal_integer(square(5), 25, \"square positive\")\n       assert_equal_integer(square(-3), 9, \"square negative\")\n       print(\"square tests passed\")\n     end\nThis is not elaborate, but it is enough to establish the core habit: expected behavior should be checked automatically, not only by eye.",
+    "text": "26.3 A Tiny Test Harness in Nex\nNex does not need a large testing framework before you can begin writing useful tests. A simple helper routine already goes a long way:\nnex&gt; function assert_equal_integer(actual, expected: Integer, label: String)\n     do\n       if actual /= expected then\n         raise \"test failed: \" + label\n       end\n     end\nYou can add a boolean helper in the same style:\nnex&gt; function assert_true(condition: Boolean, label: String)\n     do\n       if not condition then\n         raise \"test failed: \" + label\n       end\n     end\nThen:\nnex&gt; function test_square()\n     do\n       assert_equal_integer(square(0), 0, \"square zero\")\n       assert_equal_integer(square(5), 25, \"square positive\")\n       assert_equal_integer(square(-3), 9, \"square negative\")\n       print(\"square tests passed\")\n     end\nThis is not elaborate, but it is enough to establish the core habit: expected behavior should be checked automatically, not only by eye.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>26</span>  <span class='chapter-title'>Testing Your Programs</span>"
@@ -3101,7 +3112,7 @@
     "href": "chapter_25.html#testing-contracts",
     "title": "26  Testing Your Programs",
     "section": "26.4 Testing Contracts",
-    "text": "26.4 Testing Contracts\nContracts and tests reinforce each other.\nTests should include valid cases that satisfy the precondition and confirm the promised behavior.\nThey should also include deliberate invalid calls when appropriate, to confirm that contract violations occur where expected.\nFor a stack:\n\ncreate a new stack\npush one element, then pop it\npush several elements and check last-in, first-out behavior\ndeliberately call pop on an empty stack and confirm the precondition fails\n\nThe valid tests check behavior. The invalid test checks the interface boundary.",
+    "text": "26.4 Testing Contracts\nContracts and tests reinforce each other.\nTests should include valid cases that satisfy the precondition and confirm the promised behavior.\nThey should also include deliberate invalid calls when appropriate, to confirm that contract violations occur where expected.\nOne direct way to test an expected failure is to use rescue:\nnex&gt; function test_empty_stack_pop()\n     do\n       let s := create Stack[Integer]\n       let reached_unexpected_success: Boolean := false\n       s.pop()\n       reached_unexpected_success := true\n       raise \"test failed: empty pop should fail\"\n     rescue\n       if reached_unexpected_success then\n         raise \"test failed: empty pop should fail\"\n       else\n         print(\"empty-pop test passed\")\n       end\n     end\nThis pattern distinguishes the two cases:\n\nif pop() raises immediately, the test passes\nif execution reaches the explicit raise, then the expected contract failure did not happen\n\nFor a stack:\n\ncreate a new stack\npush one element, then pop it\npush several elements and check last-in, first-out behavior\ndeliberately call pop on an empty stack and confirm the precondition fails\n\nThe valid tests check behavior. The invalid test checks the interface boundary.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>26</span>  <span class='chapter-title'>Testing Your Programs</span>"
@@ -3145,7 +3156,7 @@
     "href": "chapter_25.html#a-worked-example-testing-a-frequency-counter",
     "title": "26  Testing Your Programs",
     "section": "26.8 A Worked Example: Testing a Frequency Counter",
-    "text": "26.8 A Worked Example: Testing a Frequency Counter\nReturn to the word-frequency routine:\nnex&gt; function word_frequencies(text: String): Map[String, Integer]\n     do\n       result := {}\n       let words := text.to_lower.split(\" \")\n       across words as w do\n         let count := result.try_get(w, 0)\n         result.set(w, count + 1)\n       end\n     end\nA useful test routine:\nnex&gt; function test_word_frequencies()\n     do\n       let freq := word_frequencies(\"to be or not to be\")\n       if freq.get(\"to\") /= 2 then\n         raise \"test failed: count of to\"\n       end\n       if freq.get(\"be\") /= 2 then\n         raise \"test failed: count of be\"\n       end\n       if freq.get(\"or\") /= 1 then\n         raise \"test failed: count of or\"\n       end\n       print(\"word frequency tests passed\")\n     end\nThis test checks several representative counts from one input. Better still would be to add:\n\nan all-unique case\na case-insensitive case\nperhaps a case with repeated spaces, depending on the intended splitting behavior\n\nTests grow naturally by exploring the routine’s meaning.",
+    "text": "26.8 A Worked Example: Testing a Frequency Counter\nReturn to the word-frequency routine:\nnex&gt; function word_frequencies(text: String): Map[String, Integer]\n     do\n       result := {}\n       let words := text.to_lower.split(\" \")\n       across words as w do\n         if w /= \"\" then\n           let count := result.try_get(w, 0)\n           result.set(w, count + 1)\n         end\n       end\n     end\nA useful test routine:\nnex&gt; function test_word_frequencies()\n     do\n       let freq := word_frequencies(\"To be or not to be\")\n       assert_equal_integer(freq.get(\"to\"), 2, \"count of to\")\n       assert_equal_integer(freq.get(\"be\"), 2, \"count of be\")\n       assert_equal_integer(freq.get(\"or\"), 1, \"count of or\")\n\n       let spaced := word_frequencies(\"to  be\")\n       assert_equal_integer(spaced.get(\"to\"), 1, \"count of to with repeated spaces\")\n       assert_equal_integer(spaced.get(\"be\"), 1, \"count of be with repeated spaces\")\n       assert_equal_integer(spaced.try_get(\"\", 0), 0, \"no empty token from repeated spaces\")\n\n       print(\"word frequency tests passed\")\n     end\nThe if w /= \"\" guard matters. A naive split(\" \") creates empty pieces for repeated spaces, so a good test should make that behavior explicit instead of leaving it accidental.\nThis test now checks several representative behaviors:\n\nordinary repeated words\ncase-insensitive counting\nrepeated spaces without creating an empty-string key\n\nTests grow naturally by exploring the routine’s meaning.",
     "crumbs": [
       "Part VII — Working at Scale",
       "<span class='chapter-number'>26</span>  <span class='chapter-title'>Testing Your Programs</span>"
@@ -3233,7 +3244,7 @@
     "href": "chapter_26.html#a-first-manual-run",
     "title": "27  A Complete Program",
     "section": "27.5 A First Manual Run",
-    "text": "27.5 A First Manual Run\nnex&gt; let todo := create Task_List.make\nnex&gt; todo.add_task(\"write chapter draft\")\nnex&gt; todo.add_task(\"check examples\")\nnex&gt; todo.add_task(\"revise wording\")\n\nnex&gt; todo.size\n3\n\nnex&gt; todo.completed_count\n0\n\nnex&gt; todo.task_at(0).mark_done()\nnex&gt; todo.task_at(1).mark_done()\n\nnex&gt; todo.completed_count\n2\n\nnex&gt; todo.all_done\nfalse\nThe program already works. But we can still improve the interface.",
+    "text": "27.5 A First Manual Run\nnex&gt; let todo := create Task_List.make\nnex&gt; todo.add_task(\"write chapter draft\")\nnex&gt; todo.add_task(\"check examples\")\nnex&gt; todo.add_task(\"revise wording\")\n\nnex&gt; todo.size\n3\n\nnex&gt; todo.completed_count\n0\n\nnex&gt; todo.task_at(0).mark_done()\nnex&gt; todo.task_at(1).mark_done()\n\nnex&gt; todo.completed_count\n2\n\nnex&gt; todo.all_done\nfalse\nThe program already works. But we can still improve the interface.\nOne detail is worth noting: with the current definition, all_done() returns true for an empty list, because completed_count() and tasks.length are both 0. That is a reasonable design choice, but it should be understood explicitly.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>27</span>  <span class='chapter-title'>A Complete Program</span>"
@@ -3288,7 +3299,7 @@
     "href": "chapter_26.html#exercises",
     "title": "27  A Complete Program",
     "section": "27.10 Exercises",
-    "text": "27.10 Exercises\n1. Extend Todo_Item with a description: ?String field and a routine for setting it. Decide whether an invariant is needed.\n2. Add a routine remaining_count(): Integer to Task_List and write a postcondition for it.\n3. Prevent a task from being marked done twice by strengthening the interface. Decide whether this should be a precondition or simply an idempotent operation.\n4. Split the chapter’s program into two or three files using intern.\n5.* Replace the task manager with a different complete miniature program of your own, such as a library checkout tracker or a grade book, and follow the same process from problem statement through tests.",
+    "text": "27.10 Exercises\n1. Extend Todo_Item with a description: ?String field and a routine for setting it. Decide whether an invariant is needed.\n2. Should Todo_Item.make(t: String) also have a precondition t.length &gt; 0, or is the invariant alone enough? Explain the difference between a constructor precondition and a class invariant.\n3. Add a routine remaining_count(): Integer to Task_List and write a postcondition for it.\n4. What should all_done() return on an empty Task_List? Keep the current definition or change it, and justify the choice.\n5. Add tests for contract failures: one for add_task(\"\") and one for mark_task_done with an invalid index.\n6. Prevent a task from being marked done twice by strengthening the interface. Decide whether this should be a precondition or simply an idempotent operation.\n7. Refactor Task_List so that clients do not depend directly on the tasks representation, if that is practical with the language features introduced so far.\n8. Split the chapter’s program into two or three files using intern.\n9.* Replace the task manager with a different complete miniature program of your own, such as a library checkout tracker or a grade book, and follow the same process from problem statement through tests.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>27</span>  <span class='chapter-title'>A Complete Program</span>"
@@ -3332,7 +3343,7 @@
     "href": "chapter_27.html#recursive-structure-matches-recursive-data",
     "title": "28  Common Patterns",
     "section": "28.3 Recursive Structure Matches Recursive Data",
-    "text": "28.3 Recursive Structure Matches Recursive Data\nWhen data is nested like a tree, recursion often gives the cleanest code because the shape of the routine mirrors the shape of the data.\nnex&gt; function count_nodes(node: Map[String, Any]): Integer\n     do\n       result := 1\n       across node.get(\"children\") as child do\n         result := result + count_nodes(child)\n       end\n     end\nThe pattern is:\n\nsolve the problem for the current node\nsolve the same problem for each child\ncombine the results\n\nWhenever the data is self-similar, ask whether the algorithm should be self-similar too.",
+    "text": "28.3 Recursive Structure Matches Recursive Data\nWhen data is nested like a tree, recursion often gives the cleanest code because the shape of the routine mirrors the shape of the data.\nIn this example, assume the node uses the same tree representation as Chapter 11: a map with a \"children\" entry containing an array of child nodes.\nnex&gt; function count_nodes(node: Map[String, Any]): Integer\n     do\n       result := 1\n       across node.get(\"children\") as child do\n         result := result + count_nodes(child)\n       end\n     end\nThe pattern is:\n\nsolve the problem for the current node\nsolve the same problem for each child\ncombine the results\n\nWhenever the data is self-similar, ask whether the algorithm should be self-similar too.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>28</span>  <span class='chapter-title'>Common Patterns</span>"
@@ -3350,11 +3361,11 @@
     ]
   },
   {
-    "objectID": "chapter_27.html#table-driven-dispatch",
-    "href": "chapter_27.html#table-driven-dispatch",
+    "objectID": "chapter_27.html#table-driven-lookup",
+    "href": "chapter_27.html#table-driven-lookup",
     "title": "28  Common Patterns",
-    "section": "28.5 Table-Driven Dispatch",
-    "text": "28.5 Table-Driven Dispatch\nSometimes a program chooses behavior based on a small set of known keys. A map can express that relationship more clearly than a long chain of if statements.\nConceptually:\nnex&gt; let prices := {\"apple\": 3, \"orange\": 4, \"pear\": 5}\nnex&gt; prices.get(\"orange\")\n4\nInstead of:\nif item = \"apple\" then\n  price := 3\nelseif item = \"orange\" then\n  price := 4\nelseif item = \"pear\" then\n  price := 5\nend\nthis pattern stores the association directly as data.\nThe same idea appears in:\n\nmenus\nsmall lookup tables\nconfiguration-driven behavior\n\nData is often clearer than branching.",
+    "section": "28.5 Table-Driven Lookup",
+    "text": "28.5 Table-Driven Lookup\nSometimes a program chooses among a small set of known values based on a key. A map can express that relationship more clearly than a long chain of if statements.\nConceptually:\nnex&gt; let prices := {\"apple\": 3, \"orange\": 4, \"pear\": 5}\nnex&gt; prices.get(\"orange\")\n4\nInstead of:\nif item = \"apple\" then\n  price := 3\nelseif item = \"orange\" then\n  price := 4\nelseif item = \"pear\" then\n  price := 5\nend\nthis pattern stores the association directly as data rather than spelling it out in branching code.\nThe same idea appears in:\n\nmenus\nsmall lookup tables\nconfiguration-driven behavior\n\nData is often clearer than branching.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>28</span>  <span class='chapter-title'>Common Patterns</span>"
@@ -3376,7 +3387,7 @@
     "href": "chapter_27.html#wrapper-at-the-boundary",
     "title": "28  Common Patterns",
     "section": "28.7 Wrapper at the Boundary",
-    "text": "28.7 Wrapper at the Boundary\nWhen using files, network access, or imported platform code, wrap the external behavior in a small class or routine with a clear contract.\nThe pattern is:\n\nboundary wrapper outside\nportable core logic inside\n\nFor example:\n\nFile_Reader gets text from the environment\nword_frequencies counts words in plain Nex logic\n\nThis keeps the unreliable world at the edge and the reasoning-heavy code at the center.",
+    "text": "28.7 Wrapper at the Boundary\nWhen using files, network access, or imported platform code, wrap the external behavior in a small class or routine with a clear contract.\nThe pattern is:\n\nboundary wrapper outside\nportable core logic inside\n\nFor example:\nnex&gt; function word_count(text: String): Integer\n     do\n       result := 0\n       across text.split(\" \") as word do\n         if word /= \"\" then\n           result := result + 1\n         end\n       end\n     end\n\nnex&gt; class File_Word_Counter\n       feature\n         count_words_in(path: String): Integer\n           require\n             path_not_empty: path.length &gt; 0\n           do\n             result := word_count(path_read_text(path))\n           end\n     end\nHere count_words_in touches the outside world, but word_count stays plain Nex logic over a string.\nThis keeps the unreliable world at the edge and the reasoning-heavy code at the center.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>28</span>  <span class='chapter-title'>Common Patterns</span>"
@@ -3387,7 +3398,7 @@
     "href": "chapter_27.html#a-worked-example-combining-patterns",
     "title": "28  Common Patterns",
     "section": "28.8 A Worked Example: Combining Patterns",
-    "text": "28.8 A Worked Example: Combining Patterns\nHere is a simple word-report routine:\nnex&gt; function most_frequent_word(text: String): String\n     require\n       not_empty: text.length &gt; 0\n     do\n       let freq: Map[String, Integer] := {}\n       let words := text.to_lower.split(\" \")\n\n       across words as word do\n         let count := freq.try_get(word, 0)\n         freq.set(word, count + 1)\n       end\n\n       result := freq.keys.get(0)\n       across freq.keys as word do\n         if freq.get(word) &gt; freq.get(result) then\n           result := word\n         end\n       end\n     end\nThis small routine combines several patterns:\n\naccumulation into a map\ntable-driven counting\nmaximum search\na precondition to exclude the meaningless empty case\n\nMany real programs feel complicated only until you notice that they are simply a clean composition of two or three such patterns.",
+    "text": "28.8 A Worked Example: Combining Patterns\nHere is a simple word-report routine:\nnex&gt; function most_frequent_word(text: String): String\n     require\n       not_blank: text.trim().length &gt; 0\n     do\n       let freq: Map[String, Integer] := {}\n       let words := text.to_lower.split(\" \")\n\n       across words as word do\n         if word /= \"\" then\n           let count := freq.try_get(word, 0)\n           freq.set(word, count + 1)\n         end\n       end\n\n       result := freq.keys.get(0)\n       across freq.keys as word do\n         if freq.get(word) &gt; freq.get(result) then\n           result := word\n         end\n       end\n     end\nThis small routine combines several patterns:\n\naccumulation into a map\ntable-driven lookup for counts\nmaximum search\na precondition to exclude the meaningless empty case\n\nMany real programs feel complicated only until you notice that they are simply a clean composition of two or three such patterns.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>28</span>  <span class='chapter-title'>Common Patterns</span>"
@@ -3398,7 +3409,7 @@
     "href": "chapter_27.html#summary",
     "title": "28  Common Patterns",
     "section": "28.9 Summary",
-    "text": "28.9 Summary\n\nPatterns are reusable shapes of solution, not rigid formulas\nAccumulator loops summarize processed input\nSearch loops stop as soon as the answer is known\nRecursive data often calls for recursive routines\nGood classes are organized around strong invariants\nTables are often clearer than long condition chains\nWrappers isolate system boundaries from core logic\nRecognizing patterns reduces design effort and improves clarity",
+    "text": "28.9 Summary\n\nPatterns are reusable shapes of solution, not rigid formulas\nAccumulator loops summarize processed input\nSearch loops stop as soon as the answer is known\nRecursive data often calls for recursive routines\nGood classes are organized around strong invariants\nTable-driven lookup is often clearer than long condition chains\nWrappers isolate system boundaries from core logic\nRecognizing patterns reduces design effort and improves clarity",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>28</span>  <span class='chapter-title'>Common Patterns</span>"
@@ -3464,7 +3475,7 @@
     "href": "chapter_29.html#checking-task-state",
     "title": "29  Concurrency with Tasks and Channels",
     "section": "29.4 Checking Task State",
-    "text": "29.4 Checking Task State\nTasks also support status queries.\nlet t: Task[Integer] := spawn do\n  result := 10 * 10\nend\n\nprint(t.is_done)\nprint(t.await)\nprint(t.is_done)\nIn real code, is_done is most useful when combined with select, or when you need a non-blocking readiness test before choosing the next step.\nTasks can also be cancelled:\nlet t: Task := spawn do\n  sleep(10)\nend\n\nprint(t.cancel)\nprint(t.is_cancelled)\nCancellation is a request, not magic. It tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.",
+    "text": "29.4 Checking Task State\nTasks also support status queries.\nlet t: Task[Integer] := spawn do\n  result := 10 * 10\nend\n\nprint(t.is_done)\nprint(t.await)\nprint(t.is_done)\nIn real code, is_done is most useful when combined with select, or when you need a non-blocking readiness test before choosing the next step.\nTasks can also be cancelled:\nlet t: Task := spawn do\n  sleep(10)\nend\n\nprint(t.cancel)\nprint(t.is_cancelled)\nCancellation is a request, not magic. It tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.\nIf a cancelled task is later awaited, await raises a task-cancelled failure rather than returning a normal result.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>29</span>  <span class='chapter-title'>Concurrency with Tasks and Channels</span>"
@@ -3541,7 +3552,7 @@
     "href": "chapter_29.html#select-waiting-for-whatever-becomes-ready",
     "title": "29  Concurrency with Tasks and Channels",
     "section": "29.11 select: Waiting for Whatever Becomes Ready",
-    "text": "29.11 select: Waiting for Whatever Becomes Ready\nWhen several channels or tasks may become ready, the right tool is select.\nlet ch: Channel[String] := create Channel[String].with_capacity(1)\nch.send(\"done\")\n\nselect\n  when ch.receive as msg then\n    print(msg)\n  else\n    print(\"nothing ready\")\nend\nA select statement probes its clauses in order and chooses one that is ready.\nFor channels:\n\nwhen ch.receive as x then ... fires when a value can be received immediately\nwhen ch.send(v) then ... fires when the send can proceed immediately\n\nFor tasks:\n\nwhen task.await as x then ... fires only when the task is already done\n\nThis last point is important. A task clause in select is a readiness check, not a blocking wait hidden inside the clause. The clause is eligible only when the task has completed.\nThat keeps the logic of select consistent: it chooses among ready operations.",
+    "text": "29.11 select: Waiting for Whatever Becomes Ready\nWhen several channels or tasks may become ready, the right tool is select.\nlet ch: Channel[String] := create Channel[String].with_capacity(1)\nch.send(\"done\")\n\nselect\n  when ch.receive as msg then\n    print(msg)\n  else\n    print(\"nothing ready\")\nend\nA select statement probes its clauses in order and chooses one that is ready.\nIf several clauses are ready at the same time, the earlier clause wins. Clause order therefore expresses priority, not just layout.\nFor channels:\n\nwhen ch.receive as x then ... fires when a value can be received immediately\nwhen ch.send(v) then ... fires when the send can proceed immediately\n\nFor tasks:\n\nwhen task.await as x then ... fires only when the task is already done\n\nThis last point is important. A task clause in select is a readiness check, not a blocking wait hidden inside the clause. The clause is eligible only when the task has completed.\nThat keeps the logic of select consistent: it chooses among ready operations.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>29</span>  <span class='chapter-title'>Concurrency with Tasks and Channels</span>"
@@ -3563,7 +3574,7 @@
     "href": "chapter_29.html#a-small-pipeline-example",
     "title": "29  Concurrency with Tasks and Channels",
     "section": "29.13 A Small Pipeline Example",
-    "text": "29.13 A Small Pipeline Example\nThe following example shows tasks and channels working together.\nlet input: Channel[Integer] := create Channel[Integer].with_capacity(4)\nlet output: Channel[Integer] := create Channel[Integer].with_capacity(4)\n\nlet worker: Task := spawn do\n  let v: Integer := input.receive\n  output.send(v * v)\nend\n\ninput.send(9)\nprint(output.receive)\nworker.await\nEven in this tiny example, the roles are clear:\n\nthe channel defines how values move\nthe task defines what work happens concurrently\nthe main thread decides when to send, receive, and await completion\n\nThat is the kind of clarity we want in larger programs too.",
+    "text": "29.13 A Small Pipeline Example\nThe following example shows tasks and channels working together.\nlet input: Channel[Integer] := create Channel[Integer].with_capacity(4)\nlet output: Channel[Integer] := create Channel[Integer].with_capacity(4)\n\nlet worker: Task := spawn do\n  let v: Integer := input.receive\n  output.send(v * v)\nend\n\ninput.send(9)\nprint(output.receive)\nworker.await\nEven in this tiny example, the roles are clear:\n\nthe channel defines how values move\nthe task defines what work happens concurrently\nthe main thread decides when to send, receive, and await completion\n\nThat is the kind of clarity we want in larger programs too.\nFor a longer-running pipeline, close is usually part of the design as well. One stage eventually needs to signal that no more values will be sent, so downstream stages know when to stop receiving.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>29</span>  <span class='chapter-title'>Concurrency with Tasks and Channels</span>"
@@ -3585,7 +3596,7 @@
     "href": "chapter_29.html#target-semantics",
     "title": "29  Concurrency with Tasks and Channels",
     "section": "29.15 Target Semantics",
-    "text": "29.15 Target Semantics\nThe Nex source syntax is the same across targets, but the implementation strategy differs.\nOn the JVM:\n\nspawn uses an executor-backed task runtime\nawait can block normally\nchannels use blocking coordination underneath\n\nIn generated JavaScript:\n\ntasks and channels are implemented with Promise-based semantics\ngenerated JavaScript lowers concurrency operations to async and await\nthe language-level meaning remains the same, even though JavaScript itself does not support ordinary blocking threads\n\nThis is a useful example of a general Nex idea: keep the source model stable while allowing the runtime implementation to fit the host platform.\nFor a fuller discussion of the semantics and implementation details, see the repository’s concurrency guide in docs/md/CONCURRENCY.md.",
+    "text": "29.15 Target Semantics\nThe Nex source syntax is the same across targets, but the implementation strategy differs.\nOn the JVM:\n\nspawn uses an executor-backed task runtime\nawait can block normally\nchannels use blocking coordination underneath\n\nIn generated JavaScript:\n\ntasks and channels are implemented with Promise-based semantics\ngenerated JavaScript lowers concurrency operations to async and await\nthe language-level meaning remains the same, even though JavaScript itself does not support ordinary blocking threads\n\nThis is a useful example of a general Nex idea: keep the source model stable while allowing the runtime implementation to fit the host platform.\nWhat stays stable is the source-level meaning of the operations. Timing, scheduling, fairness, and timeout precision remain runtime concerns rather than guarantees of the language surface.\nFor a fuller discussion of the semantics and implementation details, see the repository’s concurrency guide in docs/md/CONCURRENCY.md.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>29</span>  <span class='chapter-title'>Concurrency with Tasks and Channels</span>"
@@ -3607,7 +3618,7 @@
     "href": "chapter_29.html#exercises",
     "title": "29  Concurrency with Tasks and Channels",
     "section": "29.17 Exercises",
-    "text": "29.17 Exercises\n1. Write a task that computes the sum of the integers from 1 to 100, returns the answer through result, and print it using await.\n2. Create a buffered Channel[String] with capacity 3. Send three words into it, print size, then receive and print the words in order.\n3. Write two tasks that each send a message on a channel. Use select to receive whichever message becomes ready first.\n4. Write a small example that uses await_all to collect three independent computations.\n5.* Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.",
+    "text": "29.17 Exercises\n1. Write a task that computes the sum of the integers from 1 to 100, returns the answer through result, and print it using await.\n2. Create a buffered Channel[String] with capacity 3. Send three words into it, print size, then receive and print the words in order.\n3. Write two tasks that each send a message on a channel. Use select to receive whichever message becomes ready first.\n4. Write a small example that uses await_all to collect three independent computations.\n5. Extend the pipeline example so that it processes several values rather than one. Decide where close should happen and how the receiving side knows when to stop.\n6.* Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.",
     "crumbs": [
       "Part VIII — Putting It Together",
       "<span class='chapter-number'>29</span>  <span class='chapter-title'>Concurrency with Tasks and Channels</span>"
@@ -3882,7 +3893,7 @@
     "href": "appendix_a.html#modularity-and-interop",
     "title": "Appendix A — Nex Syntax Reference",
     "section": "A.13 Modularity and Interop",
-    "text": "A.13 Modularity and Interop\nLoad Nex classes:\nintern math/Calculator\nintern math/Calculator as Calc\nResolution order is:\n\nthe loaded file’s directory\nthe current working directory\n~/.nex/deps\n\nPath-qualified classes also support lib/&lt;path&gt;/Class.nex, lowercase filenames such as tcp_socket.nex, and the matching src/ variants.\nImport host symbols:\nimport java.util.Scanner\nimport Math from './math.js'",
+    "text": "A.13 Modularity and Interop\nLoad Nex classes:\nintern math/Calculator\nintern math/Calculator as Calc\nResolution order is:\n\nthe loaded file’s directory, when available\nthe user working directory (NEX_USER_DIR / nex.user.dir) and the current process directory\nproject-local lib/&lt;path&gt;/... locations, including matching src/ variants\n~/.nex/deps, including matching src/ variants\n\nThe loader also accepts lowercase filename fallbacks such as tcp_socket.nex for Tcp_Socket.\nImport host symbols:\nimport java.util.Scanner\nimport Math from './math.js'\nimport java.util.Scanner is the JVM-host form. import Math from './math.js' is the JavaScript-generator form.",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>A</span>  <span class='chapter-title'>Nex Syntax Reference</span>"
@@ -3893,7 +3904,7 @@
     "href": "appendix_a.html#notes",
     "title": "Appendix A — Nex Syntax Reference",
     "section": "A.14 Notes",
-    "text": "A.14 Notes\n\nresult is the implicit return variable in functions and query methods.\nold is available in postconditions to refer to entry-state values, but it is not a deep immutable snapshot. Be careful with in-place mutation of values such as arrays.\nthis refers to the current object.\nnil is used for detachable or absent values.\nArrays use length; maps and sets use size.\n\nFor a fuller tutorial presentation, return to Chapters 1 through 29. For implementation-level details, see grammar/nexlang.g4.",
+    "text": "A.14 Notes\n\nresult is the implicit return variable in functions and query methods.\nold is currently supported for entry-state instance fields in method and constructor postconditions. It is not a deep immutable snapshot, so be careful with in-place mutation of values such as arrays.\nthis refers to the current object.\nnil is used for detachable or absent values.\nArrays use length; maps and sets use size.\n\nFor a fuller tutorial presentation, return to Chapters 1 through 29. For implementation-level details, see grammar/nexlang.g4.",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>A</span>  <span class='chapter-title'>Nex Syntax Reference</span>"
@@ -3915,7 +3926,7 @@
     "href": "appendix_b.html#global-built-in-functions",
     "title": "Appendix B — Built-in Types and Operations",
     "section": "",
-    "text": "Name\nSignature\nPurpose\n\n\n\n\nprint\nprint(...args)\nWrite values to interpreter output.\n\n\nprintln\nprintln(...args)\nLine-oriented output; currently same behavior as print in the interpreter.\n\n\ntype_of\ntype_of(value): String\nReturn runtime type name.\n\n\ntype_is\ntype_is(type_name: String, value): Boolean\nCheck runtime type compatibility.",
+    "text": "Name\nSignature\nPurpose\n\n\n\n\nprint\nprint(...args)\nWrite values to interpreter output.\n\n\nprintln\nprintln(...args)\nLine-oriented output.\n\n\ntype_of\ntype_of(value): String\nReturn runtime type name.\n\n\ntype_is\ntype_is(type_name: String, value): Boolean\nCheck runtime type compatibility.",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>B</span>  <span class='chapter-title'>Built-in Types and Operations</span>"
@@ -3970,7 +3981,7 @@
     "href": "appendix_b.html#system-classes",
     "title": "Appendix B — Built-in Types and Operations",
     "section": "B.6 System Classes",
-    "text": "B.6 System Classes\n\nB.6.1 Console\nConstruction:\ncreate Console\nMain methods:\n\nprint\nprint_line\nread_line\nerror\nnew_line\nread_integer\nread_real\n\n\n\nB.6.2 Process\nConstruction:\ncreate Process\nMain methods:\n\ngetenv\nsetenv\ncommand_line\n\n\n\nB.6.3 Task[T]\nConstruction:\nlet t: Task[Integer] := spawn do\n  result := 42\nend\nMain methods:\n\nawait\nawait(ms)\ncancel\nis_done\nis_cancelled\n\n\n\nB.6.4 Channel[T]\nConstruction:\ncreate Channel[Integer]\ncreate Channel[Integer].with_capacity(2)\nMain methods:\n\nsend\nsend(value, ms)\ntry_send\nreceive\nreceive(ms)\ntry_receive\nclose\nis_closed\ncapacity\nsize",
+    "text": "B.6 System Classes\n\nB.6.1 Console\nConstruction:\ncreate Console\nMain methods:\n\nprint\nprint_line\nread_line\nerror\nnew_line\nflush\nread_integer\nread_real\n\n\n\nB.6.2 Process\nConstruction:\ncreate Process\nMain methods:\n\ngetenv\nsetenv\ncommand_line\n\n\n\nB.6.3 Task[T]\nConstruction:\nlet t: Task[Integer] := spawn do\n  result := 42\nend\nMain methods:\n\nawait\nawait(ms)\ncancel\nis_done\nis_cancelled\n\n\n\nB.6.4 Channel[T]\nConstruction:\ncreate Channel[Integer]\ncreate Channel[Integer].with_capacity(2)\nMain methods:\n\nsend\nsend(value, ms)\ntry_send\nreceive\nreceive(ms)\ntry_receive\nclose\nis_closed\ncapacity\nsize",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>B</span>  <span class='chapter-title'>Built-in Types and Operations</span>"
@@ -4014,7 +4025,7 @@
     "href": "appendix_c.html#console-io",
     "title": "Appendix C — The Standard Library",
     "section": "C.2 Console I/O",
-    "text": "C.2 Console I/O\nConsole supports interactive text programs.\nConstruction:\nlet con: Console := create Console\nUseful operations:\n\nprint(msg)\nprint_line(msg)\nread_line(prompt?)\nerror(msg)\nread_integer()\nread_real()\n\nExample:\nlet con: Console := create Console\ncon.print_line(\"What is your name?\")\nlet name: String := con.read_line()\ncon.print_line(\"Hello, \" + name)",
+    "text": "C.2 Console I/O\nConsole supports interactive text programs.\nConstruction:\nlet con: Console := create Console\nUseful operations:\n\nprint(msg)\nprint_line(msg)\nflush()\nread_line(prompt?)\nerror(msg)\nread_integer()\nread_real()\n\nExample:\nlet con: Console := create Console\ncon.print_line(\"What is your name?\")\nlet name: String := con.read_line()\ncon.print_line(\"Hello, \" + name)",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>C</span>  <span class='chapter-title'>The Standard Library</span>"
@@ -4135,7 +4146,7 @@
     "href": "appendix_c.html#quick-reference",
     "title": "Appendix C — The Standard Library",
     "section": "C.13 Quick Reference",
-    "text": "C.13 Quick Reference\n\n\n\n\n\n\n\nArea\nMain Built-ins\n\n\n\n\nOutput and input\nprint, println, Console\n\n\nText\nString, Char\n\n\nNumbers\nInteger, Integer64, Real, Decimal\n\n\nCollections\nArray, Map, Set\n\n\nType introspection\ntype_of, type_is\n\n\nConcurrency\nspawn, Task, Channel, select\n\n\nFiles and environment\nProcess, io/Path, io/Directory, io/Text_File, io/Binary_File\n\n\nTime and scheduling\ntime/Date_Time, time/Duration\n\n\nText processing\ntext/Regex\n\n\nNetworking\nnet/Http_Client, net/Http_Server\n\n\nText processing\ntext/Regex\n\n\n\nFor exact method tables, see Appendix B and the files under docs/ref/.",
+    "text": "C.13 Quick Reference\n\n\n\n\n\n\n\nArea\nMain Built-ins\n\n\n\n\nOutput and input\nprint, println, Console\n\n\nText\nString, Char\n\n\nNumbers\nInteger, Integer64, Real, Decimal\n\n\nCollections\nArray, Map, Set\n\n\nType introspection\ntype_of, type_is\n\n\nConcurrency\nspawn, Task, Channel, select\n\n\nFiles and environment\nProcess, io/Path, io/Directory, io/Text_File, io/Binary_File\n\n\nTime and scheduling\ntime/Date_Time, time/Duration\n\n\nText processing\ntext/Regex\n\n\nNetworking\nnet/Http_Client, net/Http_Server\n\n\n\nFor exact method tables, see Appendix B and the files under docs/ref/.",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>C</span>  <span class='chapter-title'>The Standard Library</span>"

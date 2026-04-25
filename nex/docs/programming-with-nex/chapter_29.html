@@ -720,6 +720,7 @@ end
 print(t.cancel)
 print(t.is_cancelled)</code></pre>
 <p>Cancellation is a request, not magic. It tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
+<p>If a cancelled task is later awaited, <code>await</code> raises a task-cancelled failure rather than returning a normal result.</p>
 </section>
 <section id="waiting-with-a-timeout" class="level2" data-number="29.5">
 <h2 data-number="29.5" class="anchored" data-anchor-id="waiting-with-a-timeout"><span class="header-section-number">29.5</span> Waiting with a Timeout</h2>
@@ -858,6 +859,7 @@ select
     print("nothing ready")
 end</code></pre>
 <p>A <code>select</code> statement probes its clauses in order and chooses one that is ready.</p>
+<p>If several clauses are ready at the same time, the earlier clause wins. Clause order therefore expresses priority, not just layout.</p>
 <p>For channels:</p>
 <ul>
 <li><code>when ch.receive as x then ...</code> fires when a value can be received immediately</li>
@@ -914,6 +916,7 @@ worker.await</code></pre>
 <li>the main thread decides when to send, receive, and await completion</li>
 </ul>
 <p>That is the kind of clarity we want in larger programs too.</p>
+<p>For a longer-running pipeline, <code>close</code> is usually part of the design as well. One stage eventually needs to signal that no more values will be sent, so downstream stages know when to stop receiving.</p>
 </section>
 <section id="designing-with-concurrency-in-mind" class="level2" data-number="29.14">
 <h2 data-number="29.14" class="anchored" data-anchor-id="designing-with-concurrency-in-mind"><span class="header-section-number">29.14</span> Designing with Concurrency in Mind</h2>
@@ -945,6 +948,7 @@ worker.await</code></pre>
 <li>the language-level meaning remains the same, even though JavaScript itself does not support ordinary blocking threads</li>
 </ul>
 <p>This is a useful example of a general Nex idea: keep the source model stable while allowing the runtime implementation to fit the host platform.</p>
+<p>What stays stable is the source-level meaning of the operations. Timing, scheduling, fairness, and timeout precision remain runtime concerns rather than guarantees of the language surface.</p>
 <p>For a fuller discussion of the semantics and implementation details, see the repository’s concurrency guide in <code>docs/md/CONCURRENCY.md</code>.</p>
 </section>
 <section id="summary" class="level2" data-number="29.16">
@@ -967,7 +971,8 @@ worker.await</code></pre>
 <p><strong>2.</strong> Create a buffered <code>Channel[String]</code> with capacity <code>3</code>. Send three words into it, print <code>size</code>, then receive and print the words in order.</p>
 <p><strong>3.</strong> Write two tasks that each send a message on a channel. Use <code>select</code> to receive whichever message becomes ready first.</p>
 <p><strong>4.</strong> Write a small example that uses <code>await_all</code> to collect three independent computations.</p>
-<p><strong>5.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
+<p><strong>5.</strong> Extend the pipeline example so that it processes several values rather than one. Decide where <code>close</code> should happen and how the receiving side knows when to stop.</p>
+<p><strong>6.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
 
 
 </section>
