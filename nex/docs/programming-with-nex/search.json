@@ -4168,7 +4168,7 @@
     "href": "appendix_d.html#starting-the-debugger",
     "title": "Appendix D — The Debugger",
     "section": "",
-    "text": "clojure -M:repl\n\n:debug on\n\n:debug status\n\n:debug off",
+    "text": "nex\n\n:debug on\n\n:debug status\n\n:debug off",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>D</span>  <span class='chapter-title'>The Debugger</span>"
@@ -4179,7 +4179,7 @@
     "href": "appendix_d.html#breakpoints",
     "title": "Appendix D — The Debugger",
     "section": "D.2 Breakpoints",
-    "text": "D.2 Breakpoints\nCreate breakpoints:\n:break &lt;spec&gt;\n:break &lt;spec&gt; if &lt;expr&gt;\n:tbreak &lt;spec&gt;\nCommon breakpoint forms:\n\nClass.method\nClass.method:42\nfile.nex:42\nfield:status\nOrder#status\n\nList breakpoints:\n:breaks\nRemove them:\n:clearbreak &lt;id&gt;\n:clearbreak &lt;spec&gt;\n:clearbreak all\nEnable or disable without removing:\n:enable &lt;id&gt;\n:disable &lt;id&gt;",
+    "text": "D.2 Breakpoints\nCreate breakpoints:\n:break &lt;spec&gt;\n:break &lt;spec&gt; if &lt;expr&gt;\n:tbreak &lt;spec&gt;\nCommon breakpoint forms:\n\nClass.method\nClass.method:42\nfile.nex:42\nfield:status\nOrder#status\n\nList breakpoints:\n:breaks\nRemove them:\n:clearbreak &lt;id&gt;\n:clearbreak &lt;spec&gt;\n:clearbreak all\nEnable or disable without removing:\n:enable &lt;id&gt;\n:disable &lt;id&gt;\nFor code defined as standalone functions rather than class methods, use either:\n\na file.nex:line breakpoint when the function comes from a loaded file\na hit-count breakpoint such as :break 12 during one REPL evaluation run",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>D</span>  <span class='chapter-title'>The Debugger</span>"
@@ -4219,11 +4219,11 @@
     ]
   },
   {
-    "objectID": "appendix_d.html#typical-workflow",
-    "href": "appendix_d.html#typical-workflow",
+    "objectID": "appendix_d.html#example-sessions",
+    "href": "appendix_d.html#example-sessions",
     "title": "Appendix D — The Debugger",
-    "section": "D.6 Typical Workflow",
-    "text": "D.6 Typical Workflow\nnex&gt; :debug on\nnex&gt; :break Wallet.spend\nnex&gt; :breakon contract on\nnex&gt; :load examples/wallet.nex\nnex&gt; run_wallet_demo()\n\"dbg&gt; :where\"\n\"dbg&gt; :locals\"\n\"dbg&gt; :print money\"\n\"dbg&gt; :next\"\n\"dbg&gt; :continue\"\nThis is enough for most day-to-day debugging:\n\nstop at a routine\ninspect the active frame\nstep through the logic\ncontinue once the cause is understood",
+    "section": "D.6 Example Sessions",
+    "text": "D.6 Example Sessions\nThe quickest way to learn the debugger is to see a few realistic sessions.\n\nD.6.1 Session 0: Debug A Standalone Function In The REPL\nStandalone functions do not currently have a :break function_name form. In REPL work, the practical approach is to use a hit-count breakpoint and then step once execution pauses.\nSuppose you define:\nfunction square_plus_one(n: Integer): Integer\ndo\n  let squared: Integer := n * n\n  result := squared + 1\nend\nThen a simple debugging session looks like:\nnex&gt; :debug on\nnex&gt; :break 2\nnex&gt; print(square_plus_one(4))\ndbg&gt; :where\ndbg&gt; :locals\ndbg&gt; :print n\ndbg&gt; :next\ndbg&gt; :locals\ndbg&gt; :continue\nThe important point here is:\n\nhit-count breakpoints count debuggable statements in one evaluation run\nthey are useful in the REPL when there is no file-based line location to target\nonce paused, the normal debugger commands work the same way as for methods\n\n\n\nD.6.2 Session 1: Stop At A Routine And Step Through It\nSuppose you define:\nclass Counter\n  create\n    make() do\n      total := 0\n    end\n\n  feature\n    total: Integer\n\n    add(n: Integer) do\n      let old_total: Integer := total\n      total := old_total + n\n      let new_total: Integer := total\n    end\nend\nThen a simple stepping session looks like:\nnex&gt; :debug on\nnex&gt; :break Counter.add\nnex&gt; let c := create Counter.make\nnex&gt; c.add(5)\ndbg&gt; :where\ndbg&gt; :locals\ndbg&gt; :print total\ndbg&gt; :next\ndbg&gt; :locals\ndbg&gt; :next\ndbg&gt; :print total\ndbg&gt; :continue\nWhat this tells you:\n\n:where confirms that you stopped in Counter.add\n:locals shows the argument n and the current this\n:print total before :next shows the current field binding\nthe first :next advances to the next statement in the routine\n:locals then shows old_total before the assignment is applied\nthe second :next advances past the assignment\n:print total now shows the updated field value\n\nOne subtle point: inside a paused method, bare field names such as total refer to the live field bindings in the method environment. By contrast, this.total reads from the object value itself, which is not rebuilt until the routine returns unless you explicitly assign through this.field := ....\nThis is the basic “what changed on this line?” workflow.\n\n\nD.6.3 Session 2: Stop On A Contract Failure\nSuppose Wallet.spend has a precondition and an invariant:\nclass Wallet\n  create\n    make(initial_money: Real) do\n      money := initial_money\n    end\n\n  feature\n    money: Real\n\n    spend(amount: Real)\n      require\n        enough: amount &lt;= money\n      do\n        money := money - amount\n      ensure\n        decreased: money = old money - amount\n      end\n\n  invariant\n    non_negative: money &gt;= 0.0\nend\nNow enable contract breaks and trigger a failure:\nnex&gt; :debug on\nnex&gt; :breakon contract on\nnex&gt; let w := create Wallet.make(10.0)\nnex&gt; w.spend(25.0)\ndbg&gt; :where\ndbg&gt; :locals\ndbg&gt; :print w.money\ndbg&gt; :print 25.0 &lt;= w.money\nThis is a good pattern when you already know the failure is a contract problem and want to confirm the caller-side state:\n\n:where shows the paused call site\n:locals shows the caller bindings that led to the failure\n:print w.money lets you inspect the receiver state directly\n:print 25.0 &lt;= w.money lets you test the failing condition from the caller context\n\nOne current limitation is important here: for a precondition failure raised by a call such as w.spend(25.0), the debugger pauses at the caller context, not inside Wallet.spend. That means names such as amount are not available at this pause point.\nIf you need to inspect callee-side names before the precondition fails, combine contract breaking with a normal method breakpoint:\nnex&gt; :debug on\nnex&gt; :break Wallet.spend\nnex&gt; :breakon contract on\nnex&gt; let w := create Wallet.make(100.0)\nnex&gt; w.spend(25.0)\ndbg&gt; :print amount\ndbg&gt; :print money\ndbg&gt; :continue\nThis lets you inspect the method arguments and field bindings at routine entry, before the precondition violation is reported.\n\n\nD.6.4 Session 3: Watch A Value Across Several Calls\nWatchpoints are useful when the suspicious state changes gradually rather than at a single obvious line.\nUsing the same Counter class:\nnex&gt; :debug on\nnex&gt; let c := create Counter.make\nnex&gt; :watch c.total\nnex&gt; c.add(2)\ndbg&gt; :print c.total\ndbg&gt; :continue\nnex&gt; c.add(3)\ndbg&gt; :print c.total\ndbg&gt; :continue\nnex&gt; :watches\nThis is useful when:\n\none field changes in many places\nyou care about the moment its value changes\nsetting many separate breakpoints would be noisy\n\n\n\nD.6.5 Session 4: Inspect The Stack And Move Between Frames\nWhen one routine calls another, the most useful question is often not “where am I?” but “who called me, and with what values?”\nSuppose:\nclass Pricing\n  feature\n    discount(price: Real): Real do\n      result := price * 0.9\n    end\n\n    checkout(subtotal: Real): Real do\n      result := this.discount(subtotal)\n    end\nend\nThen a stack-oriented session looks like:\nnex&gt; :debug on\nnex&gt; :break Pricing.discount\nnex&gt; let p := create Pricing\nnex&gt; print(p.checkout(80.0))\ndbg&gt; :frames\ndbg&gt; :locals\ndbg&gt; :frame 1\ndbg&gt; :locals\ndbg&gt; :print subtotal\ndbg&gt; :frame 0\ndbg&gt; :print price\ndbg&gt; :finish\nHere:\n\nframe 0 is the current routine\nframe 1 is its caller\n:frame &lt;n&gt; changes which context :locals and :print use\n:finish is often faster than repeated :next when you only care about the return from the current routine\n\nThese four sessions cover most day-to-day debugging:\n\nstop at a routine\ninspect the active frame\nstep through state changes\nstop automatically on contract failures\nwatch one changing value\nmove up and down the call stack\n\n\n\nD.6.6 Session 5: Break At A Specific File Line\nFor code loaded from a file, line breakpoints are useful when execution is still associated with that file’s source location.\nSuppose examples/math_demo.nex contains:\nfunction adjust(n: Integer): Integer\ndo\n  let doubled: Integer := n * 2\n  result := doubled + 3\nend\nThen you can break by line number while evaluating that file, as long as the line is part of code that is actually executed during :load:\nnex&gt; :debug on\nnex&gt; :break examples/math_demo.nex:3\nnex&gt; :load examples/math_demo.nex\ndbg&gt; :where\ndbg&gt; :locals\ndbg&gt; :print doubled\ndbg&gt; :continue\nPractical notes for file.nex:line breakpoints:\n\nthey are most useful for code loaded from files, not ad hoc multi-line REPL input\nthe path must match the debugger’s recorded source path for the loaded code\n:load some_file.nex executes top-level statements, but it does not execute function bodies just because they are defined in the file\nso a breakpoint on a line inside a function body will not fire during :load unless the file itself also calls that function while loading\nfor a standalone function defined in a file and then called later from the REPL, a file.nex:line breakpoint may not fire, because the current debug source can be the REPL call site rather than the original defining file\nuse :where after a pause if you need to confirm the source path and line shape the debugger sees",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>D</span>  <span class='chapter-title'>The Debugger</span>"
@@ -4256,18 +4256,7 @@
     "href": "appendix_d.html#limits-to-remember",
     "title": "Appendix D — The Debugger",
     "section": "D.9 Limits to Remember",
-    "text": "D.9 Limits to Remember\n\nStepping is statement-level, not expression-level.\nfile:line breakpoints are most useful for code loaded from files.\nBreakpoints are session-local unless saved.\n:print &lt;expr&gt; runs in the paused context and may have side effects.",
-    "crumbs": [
-      "Appendices",
-      "<span class='chapter-number'>D</span>  <span class='chapter-title'>The Debugger</span>"
-    ]
-  },
-  {
-    "objectID": "appendix_d.html#worked-session",
-    "href": "appendix_d.html#worked-session",
-    "title": "Appendix D — The Debugger",
-    "section": "D.10 Worked Session",
-    "text": "D.10 Worked Session\nSuppose Wallet.spend has a precondition and an invariant:\nclass Wallet\n  feature\n    money: Real\n\n    spend(amount: Real)\n      require\n        enough: amount &lt;= money\n      do\n        money := money - amount\n      ensure\n        decreased: money = old money - amount\n      end\n\n  invariant\n    non_negative: money &gt;= 0.0\nend\nIf you enable:\n:debug on\n:breakon contract on\nand then violate the contract, the debugger will stop at the failure point. At that moment:\n\n:where shows the current routine and source location\n:locals shows amount, money, and any locals\n:print amount &lt;= money checks the failing condition directly\n\nThis is often faster than reading the whole routine from the top.",
+    "text": "D.9 Limits to Remember\n\nStepping is statement-level, not expression-level.\nfile:line breakpoints are most useful for code loaded from files.\nStandalone functions do not currently have a dedicated named breakpoint form such as :break foo; use file:line or a hit-count breakpoint instead.\nBreakpoints are session-local unless saved.\n:print &lt;expr&gt; runs in the paused context and may have side effects.",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>D</span>  <span class='chapter-title'>The Debugger</span>"
@@ -4277,8 +4266,8 @@
     "objectID": "appendix_d.html#further-reading",
     "href": "appendix_d.html#further-reading",
     "title": "Appendix D — The Debugger",
-    "section": "D.11 Further Reading",
-    "text": "D.11 Further Reading\nFor the complete command set and current implementation notes, see docs/md/DEBUGGER.md.",
+    "section": "D.10 Further Reading",
+    "text": "D.10 Further Reading\nFor the complete command set and current implementation notes, see docs/md/DEBUGGER.md.",
     "crumbs": [
       "Appendices",
       "<span class='chapter-number'>D</span>  <span class='chapter-title'>The Debugger</span>"
