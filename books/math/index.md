@@ -12,8 +12,8 @@ format:
 # {-}
 
 ::: {.content-visible when-format="html epub"}
-<h1>From Clay to Infinity</h1>
-<h2 style="font-weight:400; font-size:1.4rem; margin-top:0;">A History of Mathematical Ideas from Sumer to Gödel</h2>
+<h1>The Infinite Tablet</h1>
+<h2 style="font-weight:400; font-size:1.4rem; margin-top:0;">Mathematical Ideas from Sumer to Gödel</h2>
 <p>This book follows mathematics from the first administrative records in Mesopotamia to Gödel's proof that formal certainty has limits. Its central claim is simple: mathematics did not begin as a luxury of pure thought. It grew tool by tool wherever human beings ran into structures too stubborn for memory and intuition alone.</p>
 <p>Start reading:</p>
 <ul>

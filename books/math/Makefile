@@ -8,7 +8,7 @@ TEXMF_HOME := $(CACHE_DIR)/texmf-home
 TMP_DIR := $(CACHE_DIR)/tmp
 TINYTEX_BIN := $(HOME)/.TinyTeX/bin/x86_64-linux
 RENDER_ENV := PATH=$(TINYTEX_BIN):$(PATH) XDG_CACHE_HOME=$(CACHE_DIR) TMPDIR=$(TMP_DIR) TEXMFVAR=$(TEXMF_VAR) TEXMFCONFIG=$(TEXMF_CONFIG) TEXMFHOME=$(TEXMF_HOME)
-INTERMEDIATE_STEM := From-Clay-to-Infinity
+INTERMEDIATE_STEM := The-Infinite-Tablet
 
 init-texmf:
 	@mkdir -p $(CACHE_DIR) $(TMP_DIR) $(TEXMF_VAR) $(TEXMF_CONFIG) $(TEXMF_HOME)
@@ -38,7 +38,7 @@ html: init-texmf
 pdf: init-texmf ensure-lualatex install-fonts
 	$(RENDER_ENV) $(QUARTO) render --to pdf --output-dir pdf
 	@pdf_file=$$(ls -1 pdf/*.pdf 2>/dev/null | head -n1); \
-	if [ -n "$$pdf_file" ]; then cp "$$pdf_file" pdf/from-clay-to-infinity.pdf; fi
+	if [ -n "$$pdf_file" ]; then cp "$$pdf_file" pdf/the-infinite-tablet.pdf; fi
 	@rm -f pdf/$(INTERMEDIATE_STEM).pdf
 
 clean:
