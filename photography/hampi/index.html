@@ -228,31 +228,72 @@
         updateIcon(newTheme);
       });
 
+      function createPhotoItem(filename, index, label) {
+        const basename = filename.split('/').pop();
+        const link = document.createElement('a');
+        link.className = 'photo-item';
+        link.href = `./images/${filename}`;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.setAttribute('aria-label', `Open ${label} photograph ${index + 1}`);
+
+        const img = document.createElement('img');
+        img.src = `./images/${filename}`;
+        img.alt = `${label} photograph ${index + 1}`;
+        img.loading = index < 4 ? 'eager' : 'lazy';
+        img.decoding = 'async';
+
+        if (index < 4) {
+          img.fetchPriority = 'high';
+        }
+
+        const caption = document.createElement('div');
+        caption.className = 'photo-caption';
+        caption.innerHTML = `<code>${basename}</code>`;
+
+        link.appendChild(img);
+        link.appendChild(caption);
+        return link;
+      }
+
       function renderWall(wallId, photos, label) {
         const wall = document.getElementById(wallId);
+        const initialCount = Math.min(10, photos.length);
+        const batchSize = 12;
 
-        photos.forEach((filename, index) => {
-          const basename = filename.split('/').pop();
-          const link = document.createElement('a');
-          link.className = 'photo-item';
-          link.href = `./images/${filename}`;
-          link.target = '_blank';
-          link.rel = 'noopener';
-          link.setAttribute('aria-label', `Open ${label} photograph ${index + 1}`);
+        function appendBatch(start, end) {
+          const fragment = document.createDocumentFragment();
 
-          const img = document.createElement('img');
-          img.src = `./images/${filename}`;
-          img.alt = `${label} photograph ${index + 1}`;
-          img.loading = 'lazy';
+          for (let index = start; index < end; index += 1) {
+            fragment.appendChild(createPhotoItem(photos[index], index, label));
+          }
 
-          const caption = document.createElement('div');
-          caption.className = 'photo-caption';
-          caption.innerHTML = `<code>${basename}</code>`;
+          wall.appendChild(fragment);
+        }
 
-          link.appendChild(img);
-          link.appendChild(caption);
-          wall.appendChild(link);
-        });
+        function scheduleRemaining(startIndex) {
+          if (startIndex >= photos.length) {
+            return;
+          }
+
+          const schedule = window.requestIdleCallback
+            ? (callback) => window.requestIdleCallback(callback, { timeout: 250 })
+            : (callback) => window.setTimeout(callback, 0);
+
+          schedule(() => {
+            const endIndex = Math.min(startIndex + batchSize, photos.length);
+            appendBatch(startIndex, endIndex);
+            scheduleRemaining(endIndex);
+          });
+        }
+
+        appendBatch(0, initialCount);
+
+        if (initialCount < photos.length) {
+          window.requestAnimationFrame(() => {
+            scheduleRemaining(initialCount);
+          });
+        }
       }
 
       const colorImages = images.filter((filename) => filename.startsWith('color/'));

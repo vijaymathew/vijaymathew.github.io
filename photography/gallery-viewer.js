@@ -28,22 +28,6 @@
 
   window.initializeGalleryViewer = function initializeGalleryViewer(options) {
     const galleryName = options.galleryName || 'Gallery';
-    const links = Array.from(document.querySelectorAll('.photo-item'));
-
-    if (!links.length) {
-      return;
-    }
-
-    const entries = links.map((link, index) => {
-      const captionNode = link.querySelector('.photo-caption');
-      const imageNode = link.querySelector('img');
-      return {
-        href: link.href,
-        caption: captionNode ? captionNode.textContent.trim() : `Image ${index + 1}`,
-        alt: imageNode ? imageNode.alt : `${galleryName} photograph ${index + 1}`
-      };
-    });
-
     const viewer = createViewer();
     const viewerImage = viewer.querySelector('.gallery-viewer-image');
     const viewerCaption = viewer.querySelector('.gallery-viewer-caption');
@@ -59,6 +43,25 @@
     let isLoading = false;
     let loadToken = 0;
     const preloadCache = new Map();
+    let entries = [];
+
+    function collectEntries() {
+      const links = Array.from(document.querySelectorAll('.photo-item'));
+      return links.map((link, index) => {
+        const captionNode = link.querySelector('.photo-caption');
+        const imageNode = link.querySelector('img');
+        return {
+          href: link.href,
+          caption: captionNode ? captionNode.textContent.trim() : `Image ${index + 1}`,
+          alt: imageNode ? imageNode.alt : `${galleryName} photograph ${index + 1}`
+        };
+      });
+    }
+
+    function refreshEntries() {
+      entries = collectEntries();
+      return entries.length;
+    }
 
     function setLoadingState(loading) {
       isLoading = loading;
@@ -85,6 +88,10 @@
     }
 
     function prefetchNeighbors(index) {
+      if (entries.length < 2) {
+        return;
+      }
+
       const nextIndex = (index + 1) % entries.length;
       const prevIndex = (index - 1 + entries.length) % entries.length;
       preloadImage(entries[nextIndex].href);
@@ -102,10 +109,15 @@
     }
 
     function loadPhoto(index) {
-      const entry = entries[index];
+      if (!refreshEntries()) {
+        return;
+      }
+
+      const normalizedIndex = (index + entries.length) % entries.length;
+      const entry = entries[normalizedIndex];
       const requestToken = ++loadToken;
 
-      targetIndex = index;
+      targetIndex = normalizedIndex;
       setLoadingState(true);
 
       preloadImage(entry.href)
@@ -114,9 +126,9 @@
             return;
           }
 
-          showPhoto(index);
+          showPhoto(normalizedIndex);
           setLoadingState(false);
-          prefetchNeighbors(index);
+          prefetchNeighbors(normalizedIndex);
         })
         .catch(() => {
           if (requestToken !== loadToken) {
@@ -132,6 +144,10 @@
     }
 
     function openViewer(index) {
+      if (!refreshEntries()) {
+        return;
+      }
+
       viewer.classList.add('is-open');
       viewer.setAttribute('aria-hidden', 'false');
       document.body.classList.add('gallery-viewer-open');
@@ -151,15 +167,32 @@
         return;
       }
 
+      if (!entries.length && !refreshEntries()) {
+        return;
+      }
+
       const nextIndex = (targetIndex + delta + entries.length) % entries.length;
       loadPhoto(nextIndex);
     }
 
-    links.forEach((link, index) => {
-      link.addEventListener('click', (event) => {
-        event.preventDefault();
-        openViewer(index);
-      });
+    document.addEventListener('click', (event) => {
+      if (event.defaultPrevented || ('button' in event && event.button !== 0) || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const link = event.target.closest('.photo-item');
+      if (!link) {
+        return;
+      }
+
+      const links = Array.from(document.querySelectorAll('.photo-item'));
+      const index = links.indexOf(link);
+      if (index === -1) {
+        return;
+      }
+
+      event.preventDefault();
+      openViewer(index);
     });
 
     viewerClose.addEventListener('click', closeViewer);
