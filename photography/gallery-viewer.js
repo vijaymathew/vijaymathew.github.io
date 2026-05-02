@@ -9,7 +9,10 @@
         <div class="gallery-viewer-stage">
           <button class="gallery-viewer-nav gallery-viewer-prev" type="button" aria-label="Previous photograph">&#8249;</button>
           <figure class="gallery-viewer-figure">
-            <img class="gallery-viewer-image" alt="">
+            <div class="gallery-viewer-image-wrap">
+              <img class="gallery-viewer-image" alt="">
+              <div class="gallery-viewer-loading" aria-live="polite">Loading image…</div>
+            </div>
             <figcaption class="gallery-viewer-meta">
               <span class="gallery-viewer-counter"></span>
               <span class="gallery-viewer-caption"></span>
@@ -48,35 +51,108 @@
     const viewerClose = viewer.querySelector('.gallery-viewer-close');
     const viewerPrev = viewer.querySelector('.gallery-viewer-prev');
     const viewerNext = viewer.querySelector('.gallery-viewer-next');
+    const viewerLoading = viewer.querySelector('.gallery-viewer-loading');
 
     let currentIndex = 0;
+    let targetIndex = 0;
     let wheelLock = false;
+    let isLoading = false;
+    let loadToken = 0;
+    const preloadCache = new Map();
+
+    function setLoadingState(loading) {
+      isLoading = loading;
+      viewer.classList.toggle('is-loading', loading);
+      viewerPrev.disabled = loading;
+      viewerNext.disabled = loading;
+      viewerLoading.textContent = 'Loading image…';
+    }
+
+    function preloadImage(href) {
+      if (preloadCache.has(href)) {
+        return preloadCache.get(href);
+      }
+
+      const image = new Image();
+      const promise = new Promise((resolve, reject) => {
+        image.onload = () => resolve(href);
+        image.onerror = reject;
+      });
+
+      image.src = href;
+      preloadCache.set(href, promise);
+      return promise;
+    }
+
+    function prefetchNeighbors(index) {
+      const nextIndex = (index + 1) % entries.length;
+      const prevIndex = (index - 1 + entries.length) % entries.length;
+      preloadImage(entries[nextIndex].href);
+      preloadImage(entries[prevIndex].href);
+    }
 
     function showPhoto(index) {
       const entry = entries[index];
       currentIndex = index;
+      targetIndex = index;
       viewerImage.src = entry.href;
       viewerImage.alt = entry.alt;
       viewerCaption.textContent = entry.caption;
       viewerCounter.textContent = `${index + 1} / ${entries.length}`;
     }
 
+    function loadPhoto(index) {
+      const entry = entries[index];
+      const requestToken = ++loadToken;
+
+      targetIndex = index;
+      setLoadingState(true);
+
+      preloadImage(entry.href)
+        .then(() => {
+          if (requestToken !== loadToken) {
+            return;
+          }
+
+          showPhoto(index);
+          setLoadingState(false);
+          prefetchNeighbors(index);
+        })
+        .catch(() => {
+          if (requestToken !== loadToken) {
+            return;
+          }
+
+          viewerLoading.textContent = 'Unable to load image.';
+          viewer.classList.add('is-loading');
+          viewerPrev.disabled = false;
+          viewerNext.disabled = false;
+          isLoading = false;
+        });
+    }
+
     function openViewer(index) {
-      showPhoto(index);
       viewer.classList.add('is-open');
       viewer.setAttribute('aria-hidden', 'false');
       document.body.classList.add('gallery-viewer-open');
+      loadPhoto(index);
     }
 
     function closeViewer() {
+      loadToken += 1;
       viewer.classList.remove('is-open');
       viewer.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('gallery-viewer-open');
+      setLoadingState(false);
     }
 
     function navigate(delta) {
-      const nextIndex = (currentIndex + delta + entries.length) % entries.length;
-      showPhoto(nextIndex);
+      if (isLoading) {
+        return;
+      }
+
+      const nextIndex = (targetIndex + delta + entries.length) % entries.length;
+      loadPhoto(nextIndex);
     }
 
     links.forEach((link, index) => {
