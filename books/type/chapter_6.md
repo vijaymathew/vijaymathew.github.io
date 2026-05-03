@@ -148,7 +148,7 @@ This is often the right approach for modest customisations. Custom templates (co
 
 ## PDF engines and when to use each
 
-When the output format is PDF, Pandoc converts the document to an intermediate format and then invokes an external tool to produce the final PDF. The choice of PDF engine is one of the most consequential decisions in a Pandoc workflow.
+When the output format is PDF, Pandoc converts the document to an intermediate format and then invokes an external tool to produce the final PDF. The choice of PDF engine is one of the most important decisions in a Pandoc workflow.
 
 **Typst** is the best default for PDF-only print-oriented work when you are not constrained by legacy infrastructure. It gives you a modern PDF composition engine, strong typography, fast compilation, and a cleaner template story than LaTeX. If your goal is a print-ready PDF and not a publisher-mandated `.tex` file, start here.
 
