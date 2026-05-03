@@ -7,7 +7,7 @@ The man's name, if he had one recorded anywhere, has not survived. What has surv
 
 The arithmetic is correct.
 
-This unnamed accountant, working in the city of Ur somewhere around 2000 BCE, had no paper, no ink, no abacus, no calculator, no concept of algebra, and no reason whatsoever to think that anyone four millennia in the future would care about his payroll records. He had a wet lump of clay, a cut reed, and a job to do. He did it carefully. And in doing it carefully — in pressing those little wedges into that clay with enough precision that the columns still balance today — he was participating in one of the most consequential intellectual projects in human history.
+This unnamed accountant, working in the city of Ur somewhere around 2000 BCE, had no paper, no ink, no abacus, no calculator, no concept of algebra, and no reason whatsoever to think that anyone four millennia in the future would care about his payroll records. He had a wet lump of clay, a cut reed, and a job to do. He did it carefully. And in doing it carefully — in pressing those little wedges into that clay with enough precision that the columns still balance today — he was participating in one of the most important intellectual projects in human history.
 
 He was doing mathematics.
 
@@ -55,7 +55,7 @@ This was mathematics as a craft, taught the way carpentry or pottery is taught: 
 
 ## The Number That Runs Your Clock
 
-Before we get to the mathematics itself, we need to address the number system, because the Babylonian approach to counting is one of history's stranger and more consequential choices.
+Before we get to the mathematics itself, we need to address the number system, because the Babylonian approach to counting is one of history's stranger and more significant choices.
 
 We count in base 10. This means we have ten distinct symbols (0 through 9), and when we reach ten, we start a new column: the tens column, then the hundreds, then the thousands, each one ten times larger than the last. The choice of base 10 is almost certainly anatomical — we have ten fingers, so ten became the natural regrouping point.
 

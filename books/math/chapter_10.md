@@ -15,7 +15,7 @@ No number, it seemed, could possibly have this property. A positive number squar
 
 And yet the impossible object would not go away. It kept appearing in correct calculations. It appeared where no one wanted it and disappeared only after the calculation was done, leaving behind a perfectly sensible real answer. Mathematicians could not ignore it, because ignoring it meant giving up real results. They could not comfortably accept it, because accepting it seemed to require admitting a kind of fiction into the heart of mathematics.
 
-The man who did more than anyone else to settle this standoff was Leonhard Euler. Euler did not invent the square root of minus one. He did something more consequential. He treated it as if it deserved to live.
+The man who did more than anyone else to settle this standoff was Leonhard Euler. Euler did not invent the square root of minus one. He did something more significant. He treated it as if it deserved to live.
 
 ---
 
