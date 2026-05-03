@@ -351,7 +351,7 @@ Pango-view's rendering will differ slightly from LaTeX's, but it is faster and d
 
 ## Font licensing basics
 
-A font is software, and like all software it is subject to copyright and licensing terms. Using a font in a document has licensing implications that are easy to overlook and sometimes consequential.
+A font is software, and like all software it is subject to copyright and licensing terms. Using a font in a document has licensing implications that are easy to overlook and sometimes significant.
 
 The licenses that matter most for CLI typographers fall into a small number of categories.
 
