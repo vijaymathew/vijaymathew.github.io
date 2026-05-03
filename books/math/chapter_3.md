@@ -199,7 +199,7 @@ The thread of proof — the idea that mathematics must demonstrate, not merely c
 
 But the idea — the dangerous, productive, permanent idea that a mathematical claim is not established until it has been *proved*, that knowing the answer is not enough and you must also know *why* — is one that the Greek tradition made central. Later Greek tradition traced its beginnings back to Thales. Pythagoras and his school developed it, and discovered the first result that made it genuinely necessary. Euclid systematised it into a form that would anchor mathematical practice for two thousand years.
 
-It is one of the most consequential methodological inventions in intellectual history.
+It is one of the most significant methodological inventions in intellectual history.
 
 ---
 

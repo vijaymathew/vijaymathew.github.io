@@ -169,6 +169,6 @@ That way of seeing — mathematical, indirect, astonishingly powerful — is the
 
 ---
 
-*In the next chapter, we leave the Mediterranean and travel east, to the Indian subcontinent, where a different tradition had been quietly building toward one of the most consequential mathematical discoveries of all time. The Greeks had a concept for every kind of number except one: the number that meant nothing. India was about to fill that gap — and in doing so, make the whole of modern mathematics possible.*
+*In the next chapter, we leave the Mediterranean and travel east, to the Indian subcontinent, where a different tradition had been quietly building toward one of the most important mathematical discoveries of all time. The Greeks had a concept for every kind of number except one: the number that meant nothing. India was about to fill that gap — and in doing so, make the whole of modern mathematics possible.*
 
 ---
