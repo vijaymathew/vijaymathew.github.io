@@ -934,10 +934,18 @@ blockquote .attr{font-size:12px;color:var(--ink3);font-style:normal;font-family:
 <div><span class="g-opt">[id]</span> &nbsp;&nbsp;&nbsp;&nbsp; optional identifier: date, query, filename, block name</div>
 <div><span class="g-opt">{k=v}</span> &nbsp;&nbsp;&nbsp; optional parameters: key=value pairs, space-separated</div>
 </div>
-<p>The sigil <code>::</code> was chosen because it does not appear in natural prose at the start of a line. A sentence will never begin with two colons in English or in any major natural language. This means the parser can unambiguously identify a directive: any line beginning with <code>::</code> is a directive; all other lines are prose. No ambiguity. No escape sequences. No edge cases.</p>
+<p>The sigil <code>::</code> was chosen because it almost never appears at the start of a line in natural prose. A sentence will never begin with two colons in English or in any major natural language. The parser can therefore identify a directive by a single rule: any line beginning with <code>::</code> is a directive; all other lines are prose. The rule has one carve-out — technical writing about CSS pseudo-elements (<code>::before</code>), C++ scope resolution, IPv6 addresses, and similar — and the carve-out is handled by an explicit escape mechanism described in §5.2. The grammar's normal case requires no escaping; the technical-writing case requires one extra character.</p>
 <p>The identifier in square brackets is optional but strongly encouraged. It serves two purposes: it gives the directive a name that the document context can reference (a <code>::py</code> block with <code>id=q3-analysis</code> makes its variables available to subsequent blocks), and it makes the raw text more legible to a human reader. <code>::cal[today]</code> is self-describing even without documentation. The parameters in curly braces are key-value pairs that configure the renderer — key=value, space-separated, double-quoted for values containing spaces.</p>
 <div class="section-break">· · ·</div>
-<h2>5.2 All eleven directives</h2>
+<h2>5.2 Escaping the sigil</h2>
+<p>The sigil rule fails on a small but real set of cases: technical writing about CSS pseudo-elements (<code>::before</code>, <code>::after</code>), C++ scope resolution (<code>std::vector</code> at the start of a quoted line), IPv6 addresses (<code>::1</code>, <code>2001:db8::</code>), and any quoted excerpt of source code that happens to begin with two colons. In these cases the writer needs to put <code>::</code> at the start of a line in prose and have it render as <code>::</code>, not as a directive. The architecture provides two escape mechanisms, and between them they cover every realistic case.</p>
+<p><strong>Backslash at line start.</strong> A line whose first three characters are <code>\::</code> is parsed as prose, with the leading backslash stripped at render time. So <code>\::before</code> in the raw text renders as the literal string <code>::before</code> in the document. To write a literal <code>\::</code> at line start — that is, to display the backslash itself — the writer types <code>\\::</code>, the same convention Markdown already uses for escaping any character that would otherwise be interpreted as syntax. The parser rule is two characters of lookahead: at line start, peek for <code>\::</code>; if present, drop the backslash and emit the rest as prose. No global escape mode, no per-line state, no character that means different things in different contexts.</p>
+<p><strong>Code blocks.</strong> Anything inside a fenced code block (delimited by triple backticks) or an indented code block (four-space leading indent) is never parsed for directives. CSS examples, C++ snippets, and quoted shell sessions belong in code blocks for legibility reasons anyway, and once they are in code blocks the escape problem does not arise. This rule is inherited from CommonMark and composes cleanly with the existing CommonMark surface the architecture already adopts.</p>
+<p>The combination is sufficient. The backslash handles inline cases where prose genuinely needs to begin with <code>::</code>; the code block handles every example, every quoted excerpt, every block of source. Two rules considered and rejected: a "smart" parser that whitelists known directive types would couple the grammar to the capability registry and cause typos in real directives to fail silently as prose, which is a worse failure mode than visible mis-render. An indentation-based exemption would break inside blockquotes and lists where prose is legitimately indented for layout reasons. Backslash at line start, code blocks for examples: the cheapest pair of rules that covers the full surface without introducing hidden state.</p>
+<div class="aside"><p>A reader may ask whether the backslash itself ever causes confusion. In practice it does not: a line beginning with <code>\</code> followed by anything other than <code>::</code> is parsed normally — the backslash is preserved and rendered as written. The escape rule is local to the line-start <code>\::</code> sequence. The full grammar update appears in Appendix A.</p></div>
+
+<div class="section-break">· · ·</div>
+<h2>5.3 All eleven directives</h2>
 </div>
 <div class="ex-grid">
 <div class="ex-row"><div class="ex-dir"><span class="ex-kw">::cal</span>[<span class="ex-id">today</span>]{<span class="ex-ep">view=agenda</span>}</div><div class="ex-desc">Calendar — renders events for the given date or range. view= selects agenda, week, month, or day. Inline RSVP writes back to the calendar backend and appends a line to the document.</div></div>
@@ -954,10 +962,10 @@ blockquote .attr{font-size:12px;color:var(--ink3);font-style:normal;font-family:
 </div>
 <div class="prose">
 <div class="section-break">· · ·</div>
-<h2>5.3 Graceful degradation is mandatory</h2>
+<h2>5.4 Graceful degradation is mandatory</h2>
 <p>Every directive must be meaningful as raw text. This is a hard requirement, for two reasons. First, durability: if the document is to outlast the renderer — and it must, because that is what text-nativity means — then the directives must be interpretable without the renderer. <code>::cal[2026-03-23]{view=agenda}</code> tells a human reader: this is a calendar embed, for 23 March 2026, in agenda view. The reader knows what was meant, even if they cannot see the rendered calendar. Second, interoperability: not every environment that reads a document will be a full renderer. Partial renderers should be able to operate on documents containing directives they do not handle, rendering what they can and displaying the others as text. The test for any directive syntax is: can a careful human reader, who has never seen this system before, understand what it means from the raw text alone?</p>
 <div class="section-break">· · ·</div>
-<h2>5.4 The directive is not HTML</h2>
+<h2>5.5 The directive is not HTML</h2>
 <p>A natural question arises: why not use HTML? The answer is legibility. HTML is not legible to a human reader without a renderer. A person who encounters <code>&lt;div class="cal-embed" data-view="agenda" data-date="2026-03-23"&gt;&lt;/div&gt;</code> in a text file needs to know HTML, they need to know the application's class naming conventions, and they need to know the data attribute schema to interpret it. This fails the graceful degradation test. <code>::cal[2026-03-23]{view=agenda}</code> passes. Any literate person can read it. The directive syntax is also intentionally minimal — one construct, with two optional extensions. The parser is trivial to implement. The writer does not need to remember a markup language. The syntax is a notation, not a language.</p>
 <div class="aside"><p>The closest prior art for this syntax is the CommonMark Generic Directives Proposal, a draft specification by John MacFarlane and others that would add a <code>::directive[argument]{key=value}</code> syntax to the CommonMark Markdown standard. The proposal has been discussed since 2017 and has not yet been formally adopted, primarily because the use cases it addresses — embedding application capabilities in prose — were not yet considered mainstream. The text-native document architecture makes those use cases central.</p></div>
 <div class="ch-end">Chapter 5 — The embed directive<br><em>Chapter 6: The computation layer →</em></div>
@@ -3224,11 +3232,34 @@ init();
 <div class="ch-subtitle">From email to terminal — every app as a renderer</div>
 <div class="ch-rule"></div>
 <div class="prose">
-<p class="drop-cap">Part III redesigns each of the eleven applications in the ecosystem by applying the four primitives developed in Part II. Each application is approached the same way: what does this app fundamentally do, what data does it own, how does that data become a directive, and what does bidirectional sync mean for this particular kind of interaction? The result, in each case, is an application that no longer requires you to leave the document — that renders where you need it, interacts in context, and writes every action back to the text layer. The chapters below cover each app in turn, with a design principle and worked directive examples for each.</p>
+<p class="drop-cap">Part III redesigns each of the eleven applications in the ecosystem by applying the four primitives developed in Part II. Each application is approached the same way: what does this app fundamentally do, what data does it own, how does that data become a directive, and what does bidirectional sync mean for this particular kind of interaction? The chapters below cover each app in turn, with a design principle and worked directive examples for each.</p>
+
+<p>Before the chapters begin, an honest framing is owed. The list of eleven — email, calendar, tasks, notes, worksheets, files, contacts, chat, browser, terminal, and the worksheet as a composition of two existing primitives — is not a first-principles taxonomy of personal computing. It is the set of categories that 2026 readers already know how to want, inherited from the application-silo era this book diagnoses. To take that list as the architectural frame would be to let the cage define the shape of the door. So before the chapters, a step back: the eleven directives reduce to <strong>five shapes</strong>, two of which Part II already named as primitives, and three of which the chapters below introduce.</p>
+
+<div class="section-break">· · ·</div>
+<h2 id="five-shapes">The five shapes behind the eleven directives</h2>
+<p>A shape is a semantic category — a description of how a directive's data behaves, what operations are meaningful on it, and what its bidirectional-sync contract looks like. Shape is not the same as type: <code>::email</code> and <code>::chat</code> are different directive types, but they share a shape, and they share most of the renderer machinery and all of the architectural commitments that follow from that shape. Naming shapes makes it possible to ask a question the architecture could not previously answer — <em>should this be a new directive?</em> — and answer it precisely: yes if it introduces a new shape, no if it is a specialisation of an existing one.</p>
+
+<div class="property-card"><div class="pc-label">Shape 1 — Stream</div><div class="pc-body">An ordered, append-mostly, attributed sequence: messages in time order, each with a sender, a timestamp, and a body. Mutations are predominantly appends; edits and deletions exist but are exceptional. Bidirectional sync is poll- or push-driven from a remote backend. <strong>Directives:</strong> <code>::email</code> (Ch. 11), <code>::chat</code> (Ch. 18).</div></div>
+
+<div class="property-card"><div class="pc-label">Shape 2 — Scheduled</div><div class="pc-body">A thing with a <em>when</em>, optionally a <em>who</em>, optionally a dependency on other scheduled things. Time is the primary organising axis; the directive carries time parameters that drive both rendering and downstream queries. <strong>Directives:</strong> <code>::cal</code> (Ch. 12), <code>::task</code> (Ch. 13).</div></div>
+
+<div class="property-card"><div class="pc-label">Shape 3 — Reference</div><div class="pc-body">A named, addressable thing whose canonical content lives somewhere else. The directive carries the address; the renderer fetches a derived view. The renderer never holds the truth — the source does. <strong>Directives:</strong> <code>::note</code> (Ch. 14, transclusion of another document section), <code>::file</code> (Ch. 16, a path on disk), <code>::contact</code> (Ch. 17, a record in the address book), <code>::web</code> (Ch. 19, a URL).</div></div>
+
+<div class="property-card"><div class="pc-label">Shape 4 — Compute</div><div class="pc-body">Code that runs and produces output. The output renders inline; the source renders on toggle. Reproducibility is a defining property: same code plus same inputs equals same output, every open. <strong>Directives:</strong> <code>::py</code> (Ch. 6, sandboxed in a WASM runtime), <code>::sh</code> (Ch. 20, privileged execution context with full host capabilities). The two compute directives share the shape but not the trust boundary — and that distinction is part of the shape's contract.</div></div>
+
+<div class="property-card"><div class="pc-label">Shape 5 — Structured</div><div class="pc-body">Rows and columns with named types, edited in a tabular view, serialised as text. Mutations are local cell edits. Sources may be inline data or the output of a compute block; the divergence protocol (§7.2) handles the case where both want to be authoritative. <strong>Directives:</strong> <code>::table</code> (Ch. 7).</div></div>
+
+<p>Shape 4 (compute) and Shape 5 (structured) are exactly the Part II primitives II and III. The architecture did not suddenly grow a new layer to accommodate the apps. It had two of the shapes already, and the chapters that follow introduce the three remaining ones — stream, scheduled, and reference — by working through the directive types that specialise each.</p>
+
+<div class="aside"><p>The architectural payoff is small but real. A future implementer who wants to add <code>::sms</code> is not extending the architecture; they are adding a third stream specialisation, and they inherit the stream contract for free — ordering, attribution, append-mostly mutations, sync cadence as a renderer parameter. A future implementer who wants to add <code>::poll</code> for a survey-response directive is, by contrast, introducing a sixth shape, and the architecture's job is to ask whether the new shape is genuinely orthogonal to the existing five before granting it directive status. The eleven of this book are the surface; the five shapes are the floor; the four Part II primitives are the foundation. Each layer says less and constrains more than the one above it.</p></div>
+
+<p>The chapter notes below tag each app with its shape and its siblings, so a reader who wants to skim Part III by shape rather than by app — reading the two stream chapters back to back, or the four reference chapters as a single arc — can do so. The eleven chapters that follow are not eleven independent designs. They are five designs and a composition.</p>
 
 <div class="ch-divider"></div>
 
 <h2 id="ch11-email">Chapter 11 — Email: threads as paragraphs</h2>
+<div class="aside"><p><strong>Shape:</strong> stream (ordered, append-mostly, attributed). <strong>Sibling:</strong> <code>::chat</code> (Ch. 18). The two share the stream contract; the renderers differ chiefly in cadence (email polls; chat pushes) and in the conventions of attribution and threading.</p></div>
 
 <p>Email is the oldest and most durable of personal computing's communication tools. It has survived the rise and fall of instant messaging, social networking, enterprise chat, and every other platform that promised to replace it. It survives because it is federated, asynchronous, and text. These are precisely the properties that make it natural in the text-native document. But describing the rendering experience — email appearing inline between paragraphs — is the easy part. The harder question is the mechanics: how do you reply to a thread, compose a new message, or file and delete mail without ever switching to a mail client?</p>
 
@@ -3414,6 +3445,7 @@ emUpdateSrc();
 
 
 <h2 id="ch12">Chapter 12 — Calendar: time as a view, not a destination</h2>
+<div class="aside"><p><strong>Shape:</strong> scheduled (a thing with a when, optionally with a who). <strong>Sibling:</strong> <code>::task</code> (Ch. 13). Both project time-anchored entities with optional dependencies; the calendar renders events with a duration, the task renderer renders deadlines and blockers — same shape, different specialisation.</p></div>
 
 <p>The calendar application commits the original sin of the WIMP paradigm more completely than any other: it is a destination. You go to the calendar to see your time. You leave the calendar to use your time. The calendar knows nothing about why you accepted the meeting, what you were working on before it, or what you need to do after it. In the text-native document, time is always in context. But again the reading experience is the easy part. The harder mechanics: how do you create an event, edit its recurrence, propose a new time, or decline from inside the document?</p>
 
@@ -3603,6 +3635,7 @@ calUpdateSrc();
 <div class="ch-divider"></div>
 
 <h2 id="ch13">Chapter 13 — Tasks: every checkbox is a line of text</h2>
+<div class="aside"><p><strong>Shape:</strong> scheduled (a thing with a when, optionally with a who). <strong>Sibling:</strong> <code>::cal</code> (Ch. 12). The shared trait is that the directive carries time and dependency parameters that drive both rendering and downstream queries; <code>blocked-by</code> on a task is the same shape of edge as a calendar event's relationship to its prerequisites.</p></div>
 
 <p>A task, reduced to its essential nature, is a line of text with a state. It is either done or not done. Every other attribute — due date, priority, project, assignee, recurrence — is metadata attached to that line. The <code>::task</code> directive makes this explicit. But the mechanics deserve elaboration: how do you create a task from prose, how do blocking chains actually work in the text, and how does querying tasks across documents function in practice?</p>
 
@@ -3785,6 +3818,7 @@ tkUpdateSrc();
 
 
 <h2 id="ch14">Chapter 14 — Notes and docs: transclusion, not copying</h2>
+<div class="aside"><p><strong>Shape:</strong> reference (a named addressable thing whose canonical content lives elsewhere). <strong>Siblings:</strong> <code>::file</code> (Ch. 16), <code>::contact</code> (Ch. 17), <code>::web</code> (Ch. 19). All four point at addressable content rather than carrying it; transclusion is the reference shape applied to a section of another document, and the carry-forward and roll-up mechanics in Chapter 10 are uses of the same primitive.</p></div>
 
 <p>The note-taking application has a fundamental design flaw that its users have learned to work around: it creates copies. When you want to include content from one note in another, you copy it. The copy immediately begins to diverge from the original. The text-native document resolves this with transclusion. But the mechanics deserve precision: what happens when you edit at the source versus at the reference? What does breaking a transclusion link look like in text? And how does the document graph stay coherent as it grows? (Transclusion is also the mechanism behind the carry-forward and roll-up operations described in Chapter 10 — the lifecycle chapter used transclusion before this chapter had a chance to define it formally.)</p>
 
@@ -3917,6 +3951,7 @@ window.trRestore=function(){
 <div class="ch-divider"></div>
 
 <h2 id="ch15">Chapter 15 — Worksheets: the spreadsheet dissolved</h2>
+<div class="aside"><p><strong>Shape:</strong> composition, not a fifth shape. The worksheet is what happens when <strong>compute</strong> (<code>::py</code>) and <strong>structured</strong> (<code>::table</code>) are placed adjacent in a document. There is no <code>::worksheet</code> directive — a worksheet is a pattern, not a primitive. This chapter exists in Part III not because the architecture grew a new shape, but because the composition of two existing shapes is consequential enough to deserve its own treatment.</p></div>
 
 <p>Chapter 15 is where the architecture earns its most ambitious claim: that the spreadsheet, as an application category, can be dissolved into the document. Not replaced by a better spreadsheet. Dissolved — because the functions a spreadsheet serves are better served, separately, by the text layer, the Python block, and the table renderer respectively. The interactive figures in Chapter 6 and 7 demonstrate the mechanics in full. This chapter explains what that dissolution means conceptually and why it is an improvement rather than a regression.</p>
 
@@ -3941,6 +3976,7 @@ window.trRestore=function(){
 <div class="ch-divider"></div>
 
 <h2 id="ch16">Chapter 16 — Files: the document as index</h2>
+<div class="aside"><p><strong>Shape:</strong> reference. <strong>Siblings:</strong> <code>::note</code> (Ch. 14), <code>::contact</code> (Ch. 17), <code>::web</code> (Ch. 19). The file path is the canonical reference; the rendered preview is a derived view. The file's bytes never live in the document — they live on disk, and the directive is the address.</p></div>
 
 <p>The <code>::file</code> directive does not replace the file system. It makes it navigable from the document — which is where the context for finding a file usually lives. But how are file references created? What happens when a file moves? How does the document handle broken references, and what does a directory view look like?</p>
 
@@ -4095,6 +4131,7 @@ window.flDropFile=function(){
 
 
 <h2 id="ch17">Chapter 17 — Contacts: people as named entities</h2>
+<div class="aside"><p><strong>Shape:</strong> reference. <strong>Siblings:</strong> <code>::file</code> (Ch. 16), <code>::note</code> (Ch. 14), <code>::web</code> (Ch. 19). A contact card is a view of a record whose canonical home is the address-book backend; the directive references it. <code>@</code>-mentions in prose are the reference shape's most natural surface — a name in text resolving to a record kept elsewhere.</p></div>
 
 <p>In the text-native document, a person is a named entity in the text. Typing <code>@sara.chen</code> anywhere in the document creates a live reference to Sara's contact record. The <code>::contact</code> directive renders her card inline when needed. This much is the easy part to describe. The harder question — the one this chapter actually needs to answer — is: how do you <em>create</em> a contact record, <em>edit</em> one, and <em>delete</em> one, without ever leaving the document? And what does the text layer look like for each of those operations?</p>
 
@@ -4418,6 +4455,7 @@ function ctLog(html) {
 <div class="ch-divider"></div>
 
 <h2 id="ch18">Chapter 18 — Chat: channels as embedded streams</h2>
+<div class="aside"><p><strong>Shape:</strong> stream. <strong>Sibling:</strong> <code>::email</code> (Ch. 11). The two share the stream contract — ordered, append-mostly, attributed — and most of the rendering machinery. The renderers differ chiefly in cadence (chat is push-oriented and expects sub-second rendering of new messages; email is poll-oriented) and in the conventions of attribution and threading.</p></div>
 
 <p>Chat is the most context-destroying of all communication formats. A Slack message is a fragment — a sentence or two, deprived of the thread that preceded it, disconnected from the document it was discussing, unlinked from the task it created or the decision it recorded. The <code>::chat</code> directive renders a slice of a channel or thread in the document, in context. But again, the easy part is describing the reading experience. The harder question is the writing one: <em>how do you post a message without leaving the document?</em> And what does the mutation look like when you do?</p>
 
@@ -4638,6 +4676,7 @@ chRenderMsgs();
 <div class="ch-divider"></div>
 
 <h2 id="ch19">Chapter 19 — The browser: the web, read-mode first</h2>
+<div class="aside"><p><strong>Shape:</strong> reference. <strong>Siblings:</strong> <code>::file</code> (Ch. 16), <code>::note</code> (Ch. 14), <code>::contact</code> (Ch. 17). The URL is the canonical reference; the reader-mode rendering is a derived view. The web is the largest body of referenceable content the architecture can address, but the architectural treatment is the same as for any other reference: the directive carries the address, the renderer fetches what it can present.</p></div>
 
 <p>The <code>::web</code> directive defaults to reader mode — the cleaned, text-extracted rendering of a web page that most users have never discovered. But the mechanics of how web content flows into the document deserve full treatment: how does clipping work, what does an annotation look like in text, and what happens when reader mode fails?</p>
 
@@ -4787,6 +4826,7 @@ window.wbClip=function(){
 <div class="ch-divider"></div>
 
 <h2 id="ch20">Chapter 20 — The terminal: the document as notebook</h2>
+<div class="aside"><p><strong>Shape:</strong> compute. <strong>Sibling:</strong> <code>::py</code> (Ch. 6). The two compute directives differ in privilege, not in shape: <code>::py</code> runs in a WASM-isolated runtime and cannot reach the host's filesystem or network without an explicit capability grant; <code>::sh</code> runs in the host's privileged execution context with full access to the user's environment. They share the architectural shape — code in, output captured to text — but the trust boundaries are deliberately different, and that distinction is part of the compute shape's contract.</p></div>
 
 <p>The <code>::sh</code> directive is the terminal's representative in the document — the one directive that can have external side effects, the one that runs in the user's actual shell rather than a sandbox. Its power requires careful design: how is output captured, how are errors rendered, and what does the runbook pattern look like in practice?</p>
 
@@ -5216,6 +5256,14 @@ document.addEventListener('keydown',function(e){
 <div class="appendix-section">
 <div class="app-head"><div class="app-head-title">Formal ABNF grammar</div></div>
 <div class="app-body">
+<code>document    = *( code-block / line )</code><br>
+<code>line        = directive-line / escaped-line / prose-line</code><br>
+<code>directive-line = "::" type [ "[" identifier "]" ] [ "{" params "}" ] *CHAR CRLF</code><br>
+<code>escaped-line   = "\" "::" *CHAR CRLF&nbsp;&nbsp;&nbsp;&nbsp;; rendered as "::" *CHAR (leading "\" stripped)</code><br>
+<code>prose-line     = *CHAR CRLF&nbsp;&nbsp;&nbsp;&nbsp;; any line not matching the two rules above</code><br>
+<code>code-block  = fenced-block / indented-block</code><br>
+<code>fenced-block = "```" *CHAR CRLF *( CHAR / CRLF ) "```" CRLF</code><br>
+<code>indented-block = 1*( 4SP *CHAR CRLF )</code><br>
 <code>directive   = "::" type [ "[" identifier "]" ] [ "{" params "}" ]</code><br>
 <code>block       = directive CRLF body CRLF "::" "end"</code><br>
 <code>type        = 1*( ALPHA / DIGIT / "-" )</code><br>
@@ -5226,6 +5274,15 @@ document.addEventListener('keydown',function(e){
 <code>value       = token / quoted-string</code><br>
 <code>token       = 1*( ALPHA / DIGIT / "-" / "." / "/" / ":" / "+" )</code><br>
 <code>quoted-str  = DQUOTE *( any char except DQUOTE ) DQUOTE</code>
+</div>
+</div>
+<div class="appendix-section">
+<div class="app-head"><div class="app-head-title">Escape and exemption rules (§5.2)</div></div>
+<div class="app-body">
+<strong>Backslash escape.</strong> A line beginning <code>\::</code> is prose, not a directive. The leading backslash is stripped at render time; the remainder of the line renders as written. To display a literal <code>\::</code> at line start, write <code>\\::</code>.<br><br>
+<strong>Code-block exemption.</strong> Lines inside a fenced code block (triple-backtick delimiters) or an indented code block (four leading spaces) are never parsed for directives, regardless of their content. CSS, C++, IPv6, and source-code excerpts belong in code blocks; the exemption is consistent with CommonMark.<br><br>
+<strong>Parser implementation.</strong> At line start, peek two characters. If <code>::</code>, attempt to parse a directive. If <code>\:</code> followed by <code>:</code>, drop the backslash and emit the rest as a prose line. Otherwise, emit a prose line. Code-block detection is a separate phase that runs first and marks contiguous spans as exempt before line-level parsing begins.<br><br>
+<strong>Rejected alternatives.</strong> A whitelist of known directive types was rejected because typos in real directives would fail silently as prose. An indentation-based exemption was rejected because prose is legitimately indented inside blockquotes and lists. The two rules above are sufficient and minimal.
 </div>
 </div>
 <div class="appendix-section">
