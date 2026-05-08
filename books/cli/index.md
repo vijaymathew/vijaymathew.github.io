@@ -7,31 +7,174 @@ title-block: false
 format:
   html:
     title: "Home"
+    toc: false
 ---
+::: {.cli-book-cover}
+::: {.cli-cover-eyebrow}
+A Practical Book for Developers
+:::
 
-# {-}
+::: {.cli-cover-title}
+Using Unix Command Line Tools to Supercharge Your Development Workflow
+:::
 
-::: {.content-visible when-format="html epub"}
-<h1>Using Unix Command Line Tools to Supercharge Your Development Workflow</h1>
-<p>This book shows how to move with confidence in unfamiliar codebases, compose fast searches, tame data and APIs, automate repetitive work, and keep the terminal experience sane so you can build reliable software without leaving the shell.</p>
-<p>Start reading:</p>
-<ul>
-  <li><a href="introduction.html">Introduction</a> — why the terminal still wins when you need reproducible, composable work.</li>
-</ul>
-<p>Chapter roadmap:</p>
-<ol start="2">
-  <li><a href="chapter_1.html">Navigating and Understanding a Codebase Quickly</a> — build an orientation instinct with <code>tree</code>, <code>ls</code>, <code>find</code>, <code>stat</code>, and <code>file</code>, so you always know where to look.</li>
-  <li><a href="chapter_2.html">Searching Code Like a Pro</a> — compare <code>grep</code> and <code>rg</code>, tailor ignores, combine <code>find</code> with search tools, and hunt down config values and call sites fast.</li>
-  <li><a href="chapter_3.html">Reading and Inspecting Files Without an Editor</a> — use <code>cat</code>, <code>head</code>, <code>tail</code>, <code>less</code>, and <code>wc</code> to peek into files and logs with speed and control.</li>
-  <li><a href="chapter_4.html">Editing Files from the Terminal</a> — master <code>sed</code>, <code>awk</code>, <code>tee</code>, and deliberate command-line edits vs. scripts.</li>
-  <li><a href="chapter_5.html">Git Workflows from the Command Line</a> — go beyond <code>git add/commit</code> with <code>git diff</code>, <code>git log</code>, <code>git blame</code>, <code>git grep</code>, and shell helpers.</li>
-  <li><a href="chapter_6.html">Working with Data and APIs from the Command Line</a> — chain <code>curl</code>, <code>jq</code>, <code>httpie</code>, and csv tools to interrogate APIs without Postman.</li>
-  <li><a href="chapter_7.html">Automating Repetitive Dev Tasks</a> — capture workflows in scripts, functions, and <code>make</code> targets so routine work is repeatable and safe.</li>
-  <li><a href="chapter_8.html">Terminal Quality of Life</a> — tune prompts, histories, fuzzy search tools (<code>fzf</code>), and editor integrations so the shell feels deliberate instead of noisy.</li>
-  <li><a href="chapter_9.html">Process Management and Debugging</a> — use <code>ps</code>, <code>kill</code>, <code>timeout</code>, <code>env</code>, and <code>which</code> to diagnose runaway processes and broken environments.</li>
-  <li><a href="chapter_10.html">Composing Tools with Pipes and Redirection</a> — practice Unix pipelines, <code>xargs</code>, and redirect tricks that turn chains of small commands into production-grade one-liners.</li>
-  <li><a href="chapter_11.html">Working on Remote Machines</a> — configure SSH keys, multiplex connections, transfer files, and keep work durable with <code>tmux</code> and tunnels.</li>
-  <li><a href="chapter_12.html">Conclusion — Building CLI Fluency Over Time</a> — deliberate practice advice for keeping the terminal fast, reliable, and central to your development craft.</li>
-</ol>
-<p>Back matter includes a bibliography for further reading.</p>
+::: {.cli-cover-subtitle}
+Move with confidence in unfamiliar codebases, compose fast searches, tame data and APIs, automate repetitive work, and make the terminal feel precise instead of hostile.
+:::
+
+::: {.cli-cover-rule}
+:::
+
+::: {.cli-cover-meta}
+Vijay Mathew  
+Command-line workflows, search, automation, and remote work
+:::
+
+::: {.cli-cover-start}
+[Start with the introduction](introduction.html)
+:::
+:::
+
+::: {.cli-book-roadmap}
+::: {.cli-roadmap-label}
+Chapter Roadmap
+:::
+
+::: {.cli-roadmap-list}
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+02
+:::
+::: {.cli-roadmap-body}
+[Navigating and Understanding a Codebase Quickly](chapter_1.html)
+
+Build an orientation instinct with `tree`, `ls`, `find`, `stat`, and `file`.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+03
+:::
+::: {.cli-roadmap-body}
+[Searching Code Like a Pro](chapter_2.html)
+
+Compare `grep` and `rg`, tailor ignores, and hunt down call sites fast.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+04
+:::
+::: {.cli-roadmap-body}
+[Reading and Inspecting Files Without an Editor](chapter_3.html)
+
+Use `cat`, `head`, `tail`, `less`, and `wc` to inspect files and logs with speed.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+05
+:::
+::: {.cli-roadmap-body}
+[Editing Files from the Terminal](chapter_4.html)
+
+Master `sed`, `awk`, `tee`, and deliberate command-line edits versus scripts.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+06
+:::
+::: {.cli-roadmap-body}
+[Git Workflows from the Command Line](chapter_5.html)
+
+Go beyond `git add` and `commit` with diffing, history spelunking, and shell helpers.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+07
+:::
+::: {.cli-roadmap-body}
+[Working with Data and APIs from the Command Line](chapter_6.html)
+
+Chain `curl`, `jq`, `httpie`, and CSV tools to interrogate APIs without GUI tooling.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+08
+:::
+::: {.cli-roadmap-body}
+[Automating Repetitive Dev Tasks](chapter_7.html)
+
+Capture repeatable workflows in scripts, functions, and `make` targets.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+09
+:::
+::: {.cli-roadmap-body}
+[Terminal Quality of Life](chapter_8.html)
+
+Tune prompts, history, fuzzy finders, and editor integrations so the shell feels deliberate.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+10
+:::
+::: {.cli-roadmap-body}
+[Process Management and Debugging](chapter_9.html)
+
+Use `ps`, `kill`, `timeout`, `env`, and `which` to diagnose broken environments.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+11
+:::
+::: {.cli-roadmap-body}
+[Composing Tools with Pipes and Redirection](chapter_10.html)
+
+Practice pipelines, `xargs`, and redirect tricks that turn one-liners into reliable workflows.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+12
+:::
+::: {.cli-roadmap-body}
+[Working on Remote Machines](chapter_11.html)
+
+Configure SSH, multiplex connections, transfer files, and keep work durable with `tmux`.
+:::
+:::
+
+::: {.cli-roadmap-entry}
+::: {.cli-roadmap-number}
+13
+:::
+::: {.cli-roadmap-body}
+[Conclusion - Building CLI Fluency Over Time](chapter_12.html)
+
+Finish with deliberate practice advice for keeping the terminal fast, reliable, and central to your craft.
+:::
+:::
+:::
+
+::: {.cli-roadmap-note}
+Back matter includes a bibliography for further reading.
+:::
 :::
