@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 10: OpenType and Advanced CSS Typography — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      padding: 1.1rem 2rem;
+    }
+
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .book-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-mid);
+    }
+
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .book-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .book-nav a:hover,
+    .book-nav a.active { color: var(--ink); }
+
+    .page {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    .opener {
+      margin-bottom: 4rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .opener-part {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.5rem;
+    }
+
+    .opener-label {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .opener-title {
+      font-family: var(--font-body);
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      max-width: 22ch;
+      margin-bottom: 1rem;
+    }
+
+    .opener-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      font-style: italic;
+      color: var(--ink-mid);
+      line-height: 1.45;
+      max-width: 44ch;
+      margin-top: 0.8rem;
+    }
+
+    .opener-topics {
+      margin-top: 2rem;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .opener-topics li {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: var(--ink-faint);
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .opener-topics li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--rule);
+    }
+
+    /* ── Prose ───────────────────────────────────────────────────── */
+    .prose { max-width: var(--col); }
+
+    .prose p { margin-bottom: 0; hyphens: auto; }
+    .prose p + p { text-indent: 1.6em; }
+
+    .prose h2 + p,
+    .prose .figure + p,
+    .prose .feature-grid + p,
+    .prose .callout + p,
+    .prose pre + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em;
+      font-weight: 500;
+      float: left;
+      line-height: 0.8;
+      margin-right: 0.07em;
+      margin-top: 0.12em;
+      color: var(--ink);
+    }
+
+    .sep {
+      display: block;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: var(--text-sm);
+      letter-spacing: 0.3em;
+      margin: 2.75rem 0;
+      user-select: none;
+    }
+
+    .prose h2 {
+      font-family: var(--font-body);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      font-style: italic;
+      line-height: var(--lh-tight);
+      color: var(--ink);
+      margin-top: 3.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose h2 .label {
+      display: block;
+      font-style: normal;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.4rem;
+    }
+
+    .prose blockquote {
+      margin: 2.25rem 0;
+      padding-left: 1.5rem;
+      border-left: 2px solid var(--rule);
+    }
+
+    .prose blockquote p {
+      font-style: italic;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+    }
+
+    .prose blockquote cite {
+      display: block;
+      margin-top: 0.6rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      letter-spacing: 0.06em;
+      font-style: normal;
+      color: var(--ink-faint);
+    }
+
+    .prose em { font-style: italic; }
+    .prose strong { font-weight: 500; }
+
+    .prose sup {
+      font-size: 0.64em;
+      vertical-align: super;
+      line-height: 0;
+      color: var(--accent);
+      margin-left: 0.05em;
+    }
+
+    .prose code {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82em;
+      background: rgba(0,0,0,0.055);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: var(--ink-mid);
+    }
+
+    .prose pre {
+      background: #1e1b17;
+      color: #f8f5f0;
+      padding: 1.25rem 1.5rem;
+      border-radius: 4px;
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 1.75rem 0;
+    }
+
+    .prose pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    .c-comment { color: #9c9389; }
+    .c-prop    { color: #a0c8a0; }
+    .c-val     { color: #f0c080; }
+    .c-sel     { color: #ddd7ce; }
+    .c-tag     { color: #a0c8a0; }
+    .c-str     { color: #f0c080; }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .figure-body {
+      background: #fff;
+      padding: 2rem;
+    }
+
+    .figure-caption {
+      background: var(--highlight);
+      border-top: 1px solid var(--rule);
+      padding: 0.9rem 1.25rem;
+    }
+
+    .figure-caption p {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-mid);
+      line-height: 1.55;
+      margin: 0;
+      text-indent: 0 !important;
+    }
+
+    .figure-caption strong { font-weight: 500; color: var(--ink); }
+
+    /* ── Feature grid ────────────────────────────────────────────── */
+    .feature-grid {
+      margin: 3rem 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--rule);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .feature-cell {
+      background: #fff;
+      padding: 1.5rem 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .feature-cell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+    }
+
+    .feature-name {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .feature-tag {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: var(--accent);
+      background: var(--highlight);
+      padding: 0.15em 0.5em;
+      border-radius: 3px;
+    }
+
+    .feature-specimen {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      align-items: baseline;
+    }
+
+    .feature-off {
+      font-family: var(--font-body);
+      font-size: 1.25rem;
+      color: var(--ink-faint);
+    }
+
+    .feature-on {
+      font-family: var(--font-body);
+      font-size: 1.25rem;
+      color: var(--ink);
+    }
+
+    .feature-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .feature-label {
+      font-family: var(--font-ui);
+      font-size: 8.5px;
+      color: var(--ink-faint);
+      letter-spacing: 0.05em;
+    }
+
+    .feature-label.on { color: var(--accent); }
+
+    .feature-desc {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: var(--ink-mid);
+      line-height: 1.6;
+    }
+
+    /* ── Variable font demo ──────────────────────────────────────── */
+    .vf-axis-demo {
+      margin: 2rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .vf-axis-header {
+      background: var(--highlight);
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .vf-axis-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .vf-axis-body {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .vf-row {
+      display: grid;
+      grid-template-columns: 5rem 1fr 4rem;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .vf-weight-label {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      letter-spacing: 0.06em;
+      text-align: right;
+    }
+
+    .vf-specimen {
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+
+    .vf-value {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 9px;
+      color: var(--accent);
+      text-align: right;
+    }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout {
+      margin: 2.5rem 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--highlight);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .callout p {
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+      margin-bottom: 0;
+    }
+
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes {
+      max-width: var(--col);
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .footnotes-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 1rem;
+    }
+
+    .footnotes ol { padding-left: 1.2rem; }
+
+    .footnotes li {
+      font-size: var(--text-sm);
+      line-height: 1.62;
+      color: var(--ink-mid);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav {
+      max-width: var(--col);
+      margin-top: 5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .chapter-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+    }
+
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+
+    .chapter-nav .next-title {
+      display: block;
+      font-family: var(--font-body);
+      font-style: italic;
+      font-size: var(--text-base);
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--ink-mid);
+      margin-top: 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .vf-row { grid-template-columns: 4rem 1fr 3rem; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#" class="active">Part II</a>
+      <a href="#">Part III</a>
+      <a href="#">Part IV</a>
+      <a href="#">Part V</a>
+      <a href="#">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Two — Typography</span>
+    <span class="opener-label">Chapter Ten</span>
+    <h1 class="opener-title">OpenType and Advanced CSS Typography</h1>
+    <p class="opener-subtitle">The difference between type that is merely correct and type that is genuinely refined lies mostly in details invisible at a glance — and accessible with a single line of CSS.</p>
+    <ul class="opener-topics">
+      <li>What OpenType features are and why they matter</li>
+      <li>Ligatures, kerning, stylistic sets, small caps</li>
+      <li><code>font-feature-settings</code> and <code>font-variant</code> in practice</li>
+      <li>Variable fonts: what they offer for print output</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">There is a moment in typographic education when you look at a piece of professionally typeset text and something feels different about it — more settled, more complete — without your being able to say exactly why. The words are the same words. The typeface is one you recognise. But the text has a quality that your own typesetting lacks, a kind of finish. This chapter is largely about that quality. It lives in the details: the ligatures that bind certain letter pairs into elegant single forms, the old-style numerals that sit in the text without towering above the lowercase, the small capitals that mark proper nouns and abbreviations without the brashness of full capitals. These are OpenType features, and they are available to you in CSS with almost no effort. Most designers never use them. You will.</p>
+
+    <p>OpenType is a font format, developed jointly by Adobe and Microsoft in the 1990s, that extended the capabilities of earlier formats by allowing a single font file to contain multiple alternate letterforms, contextual substitutions, and typographic refinements. Where older formats stored only one glyph per character, an OpenType font can store many — a standard form and a swash form, lining and old-style numerals, ligatures, small capitals, and dozens of other variants — and make them accessible through a standardised system of feature tags. CSS exposes this system through two properties: <code>font-feature-settings</code> and the higher-level <code>font-variant</code> shorthand.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Ligatures</span>
+      When two letters become one</h2>
+
+    <p>A ligature is a single glyph that replaces two or more adjacent characters whose shapes, when set separately, create an awkward collision or gap. The most common ligatures in Latin typography are fi and fl, where the dot of the i or the ascender of the l collides with the hook of the f. Without a ligature, this collision looks like a typographic accident. With one, the characters are joined into a single harmonious form that resolves the tension.</p>
+
+    <p>Ligatures come in two categories. <em>Standard ligatures</em> — principally fi, fl, ff, ffi, and ffl — are those where the typographic problem being solved is genuine: the characters genuinely collide or create an awkward space without the ligature, and their use improves the text's appearance in an objective and broadly agreed-upon way. These should be on by default for all body text. <em>Discretionary ligatures</em> are more elaborate forms — ct, st, Th, and various contextual swash connections — that are primarily decorative rather than corrective. They should be used with care and restraint, typically only at display sizes or in contexts where a period-appropriate elegance is the goal.</p>
+
+    <p>In CSS, standard ligatures are enabled with <code>font-feature-settings: "liga" 1, "clig" 1</code>, or more cleanly with <code>font-variant-ligatures: common-ligatures contextual</code>. Modern browsers enable common ligatures by default for most typefaces, but it is good practice to specify them explicitly to ensure consistent behavior across rendering environments — particularly important for a Paged.js document where the same HTML may be rendered in different browsers.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Numerals</span>
+      Old-style vs. lining, proportional vs. tabular</h2>
+
+    <p>Numerals come in two height variants and two spacing variants, and understanding when to use each is one of the most immediately visible improvements you can make to professionally typeset text.</p>
+
+    <p><em>Lining numerals</em> — also called titling or ranging numerals — are all the same height, roughly equal to the cap height. They are the default in most digital fonts, and they are appropriate when numerals appear in isolation, in headlines, or in tables where visual alignment with capital letters matters. In body text, however, lining numerals create a problem: they are taller than the surrounding lowercase letters, which makes each numeral lurch upward from the text like a capital letter in an otherwise lowercase word. The number 1492 set in lining numerals in a line of body text reads as four capitals in a row.</p>
+
+    <p><em>Old-style numerals</em> — also called text numerals or lowercase numerals — have varying heights, with some extending to the cap height (1, 2, 7), some sitting on the baseline (0, 1, 2, 3, 4), and some descending below it (3, 4, 5, 6, 7, 8, 9, depending on the typeface). They are designed to blend into running text the way lowercase letters do, without creating visual interruption. For any document where numerals appear within body text — dates, quantities, citations — old-style numerals are the correct choice and produce significantly more refined results.</p>
+
+    <p><em>Proportional numerals</em> have varying widths, like letters, and read naturally in text. <em>Tabular numerals</em> are all the same width, so columns of numbers align vertically regardless of which digits appear. Tabular numerals are essential for tables and any columnar arrangement; proportional numerals are better for text. Most OpenType fonts provide all four combinations: proportional lining (default in most fonts), proportional old-style, tabular lining, and tabular old-style.</p>
+
+    <p>In CSS: <code>font-variant-numeric: oldstyle-nums</code> for old-style proportional, <code>font-variant-numeric: lining-nums tabular-nums</code> for tabular lining in tables. The shorthand is cleaner and more legible than the equivalent <code>font-feature-settings</code> values (<code>"onum" 1</code>, <code>"tnum" 1</code>, <code>"lnum" 1</code>) and should be preferred.</p>
+
+    <!-- Figure 10.1: Numeral variants -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Labels -->
+          <text x="100" y="15" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">LINING NUMERALS — TOO TALL IN TEXT</text>
+          <text x="420" y="15" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">OLD-STYLE NUMERALS — BLEND WITH LOWERCASE</text>
+          <line x1="265" y1="10" x2="265" y2="195" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Left panel: lining numerals in text -->
+          <rect x="20" y="24" width="225" height="165" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Text with lining numerals (approximate) -->
+          <text x="36" y="58" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17">The garden, planted in</text>
+          <!-- Lining numeral: tall, disrupts text flow -->
+          <text x="36" y="78" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17" font-feature-settings="'lnum' 1, 'onum' 0">1893,</text>
+          <text x="88" y="78" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17"> yielded its</text>
+          <text x="36" y="98" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17">first harvest of</text>
+          <text x="36" y="118" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17" font-feature-settings="'lnum' 1, 'onum' 0">47</text>
+          <text x="60" y="118" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17"> varieties in its</text>
+          <text x="36" y="138" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17">3rd season.</text>
+          <!-- Annotation arrows pointing to tall numerals -->
+          <line x1="52" y1="62" x2="52" y2="80" stroke="#c05040" stroke-width="0.75" opacity="0.6"/>
+          <line x1="48" y1="62" x2="56" y2="62" stroke="#c05040" stroke-width="0.75" opacity="0.6"/>
+          <text x="220" y="72" font-family="Outfit,sans-serif" font-size="7.5" fill="#c05040" text-anchor="end" opacity="0.8">Numerals loom</text>
+          <text x="220" y="82" font-family="Outfit,sans-serif" font-size="7.5" fill="#c05040" text-anchor="end" opacity="0.8">above lowercase</text>
+
+          <text x="122" y="175" font-family="Outfit,sans-serif" font-size="8.5" fill="#9c9389" text-anchor="middle">font-feature-settings: "lnum" 1</text>
+
+          <!-- Right panel: old-style numerals -->
+          <rect x="285" y="24" width="270" height="165" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <text x="301" y="58" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17">The garden, planted in</text>
+          <text x="301" y="78" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17" font-feature-settings="'onum' 1">1893,</text>
+          <text x="353" y="78" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17"> yielded its</text>
+          <text x="301" y="98" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17">first harvest of</text>
+          <text x="301" y="118" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17" font-feature-settings="'onum' 1">47</text>
+          <text x="325" y="118" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17"> varieties in its</text>
+          <text x="301" y="138" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17" font-feature-settings="'onum' 1">3rd</text>
+          <text x="328" y="138" font-family="EB Garamond,Georgia,serif" font-size="15" fill="#1e1b17"> season.</text>
+
+          <text x="420" y="175" font-family="Outfit,sans-serif" font-size="8.5" fill="#9c9389" text-anchor="middle">font-feature-settings: "onum" 1</text>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 10.1 — Lining versus old-style numerals in body text.</strong> Left: lining numerals in a passage of body text — the numerals 1893, 47, and 3rd are as tall as capital letters, creating visual disruption in the flow of lowercase text. Right: old-style numerals in the same passage — the numerals have varying heights that integrate naturally with the surrounding lowercase letters. The text reads more smoothly, and the numerals no longer call attention to themselves.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Small capitals</span>
+      The correct tool for abbreviations and proper nouns</h2>
+
+    <p>Small capitals are capital letterforms drawn at approximately the x-height — the height of the lowercase letters — rather than at the full cap height. They exist to solve a problem that occurs frequently in professional typesetting: the need to set an abbreviation or proper noun in capitals without the visual disruption of full-height capitals in a line of lowercase text.</p>
+
+    <p>Consider the difference between a line reading "The <span style="font-variant-caps:all-small-caps;letter-spacing:0.05em;font-size:0.9em;">BBC</span> broadcast the announcement" and one reading "The BBC broadcast the announcement." In the first, the abbreviation is set in true small capitals — drawn to match the weight and texture of the lowercase letters around them. In the second, using regular capitals, BBC towers over the surrounding text, pulling the eye and interrupting the reading flow.</p>
+
+    <p>True small capitals are distinct from mechanically scaled capitals — a common fake that produces spindly, light forms because it simply reduces the full capitals rather than drawing new ones. Every properly made OpenType font includes true small capital glyphs. In CSS, they are accessed with <code>font-variant-caps: small-caps</code>, which applies to lowercase letters converted to small caps, or <code>font-variant-caps: all-small-caps</code>, which converts all letters including already-capitalised ones. The latter is what you want for abbreviations like BBC or NASA.</p>
+
+    <p>Small capitals are appropriate for: abbreviations within body text, running headers set in capitals, author names in bylines, labels and section markers, and the first line of a chapter opening — a classical typographic convention in which the first few words after a drop cap are set in small capitals to provide a graceful transition from the decorative initial into the body text.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Kerning and stylistic sets</span>
+      The invisible and the optional</h2>
+
+    <p>Kerning — the adjustment of space between specific pairs of letters whose natural spacing would otherwise produce awkward gaps — is handled automatically by most modern browsers when the typeface includes kerning tables, as all well-made OpenType fonts do. The CSS property <code>font-kerning: auto</code> is the default, and it enables the typeface's own kerning data. Explicitly setting <code>font-feature-settings: "kern" 1</code> ensures kerning is active even in environments where it might otherwise be suppressed. For a Paged.js document, this explicit declaration is a safeguard worth keeping.</p>
+
+    <p>Stylistic sets are collections of alternate letterforms bundled within a typeface and accessible through OpenType feature tags <code>ss01</code> through <code>ss20</code>. Each typeface defines its own stylistic sets — there is no universal standard for what <code>ss01</code> means. EB Garamond, for example, includes stylistic sets that affect the shape of specific letters, providing alternate forms for characters like the lowercase g, the ampersand, and certain ligatures. To discover what stylistic sets a typeface offers, you need to consult the typeface's documentation or specimen, or use a font inspection tool.<sup>1</sup></p>
+
+    <p>In CSS, a stylistic set is activated with <code>font-feature-settings: "ss01" 1</code> — or the higher-level <code>font-variant-alternates: stylistic(ss01)</code> if the font has registered the feature names. For most practical work, the <code>font-feature-settings</code> approach is more widely supported and requires no additional registration.</p>
+
+    <!-- Figure 10.2: Feature showcase grid -->
+    <div class="feature-grid">
+
+      <!-- Ligatures -->
+      <div class="feature-cell">
+        <div class="feature-cell-header">
+          <span class="feature-name">Standard Ligatures</span>
+          <span class="feature-tag">"liga" 1</span>
+        </div>
+        <div class="feature-specimen">
+          <span class="feature-off" style="font-feature-settings:'liga' 0, 'clig' 0;">fi fl ff</span>
+          <span class="feature-on" style="font-feature-settings:'liga' 1, 'clig' 1;">fi fl ff</span>
+        </div>
+        <div class="feature-labels">
+          <span class="feature-label">Off — letters collide</span>
+          <span class="feature-label on">On — joined harmoniously</span>
+        </div>
+        <p class="feature-desc">Resolves collisions between the hook of f and adjacent letters. Should be on for all body text.</p>
+      </div>
+
+      <!-- Old-style numerals -->
+      <div class="feature-cell">
+        <div class="feature-cell-header">
+          <span class="feature-name">Old-Style Numerals</span>
+          <span class="feature-tag">"onum" 1</span>
+        </div>
+        <div class="feature-specimen">
+          <span class="feature-off" style="font-feature-settings:'onum' 0, 'lnum' 1;">0123456789</span>
+          <span class="feature-on" style="font-feature-settings:'onum' 1;">0123456789</span>
+        </div>
+        <div class="feature-labels">
+          <span class="feature-label">Lining — all cap height</span>
+          <span class="feature-label on">Old-style — varying heights</span>
+        </div>
+        <p class="feature-desc">Numerals that integrate with lowercase text. Essential for body text containing numbers.</p>
+      </div>
+
+      <!-- Small caps -->
+      <div class="feature-cell">
+        <div class="feature-cell-header">
+          <span class="feature-name">Small Capitals</span>
+          <span class="feature-tag">"smcp" 1</span>
+        </div>
+        <div class="feature-specimen">
+          <span class="feature-off">The BBC</span>
+          <span class="feature-on" style="font-variant-caps:all-small-caps;letter-spacing:0.04em;">The BBC</span>
+        </div>
+        <div class="feature-labels">
+          <span class="feature-label">Regular caps — too tall</span>
+          <span class="feature-label on">Small caps — correct weight</span>
+        </div>
+        <p class="feature-desc">True small capitals drawn at x-height. Correct for abbreviations, labels, and chapter openings.</p>
+      </div>
+
+      <!-- Contextual alternates -->
+      <div class="feature-cell">
+        <div class="feature-cell-header">
+          <span class="feature-name">Contextual Alternates</span>
+          <span class="feature-tag">"calt" 1</span>
+        </div>
+        <div class="feature-specimen">
+          <span class="feature-off" style="font-feature-settings:'calt' 0;">ffi Th st</span>
+          <span class="feature-on" style="font-feature-settings:'calt' 1, 'liga' 1;">ffi Th st</span>
+        </div>
+        <div class="feature-labels">
+          <span class="feature-label">Off — separate letters</span>
+          <span class="feature-label on">On — contextual joins</span>
+        </div>
+        <p class="feature-desc">Automatic substitutions based on surrounding characters. Enables discretionary ligatures and contextual forms.</p>
+      </div>
+
+      <!-- Kerning -->
+      <div class="feature-cell">
+        <div class="feature-cell-header">
+          <span class="feature-name">Kerning</span>
+          <span class="feature-tag">"kern" 1</span>
+        </div>
+        <div class="feature-specimen">
+          <span class="feature-off" style="font-feature-settings:'kern' 0;font-size:1.5rem;">AV To</span>
+          <span class="feature-on" style="font-feature-settings:'kern' 1;font-size:1.5rem;">AV To</span>
+        </div>
+        <div class="feature-labels">
+          <span class="feature-label">Off — raw sidebearings</span>
+          <span class="feature-label on">On — pairs adjusted</span>
+        </div>
+        <p class="feature-desc">Adjusts spacing between specific letter pairs. Should always be on. Most visible at display sizes.</p>
+      </div>
+
+      <!-- Tabular numerals -->
+      <div class="feature-cell">
+        <div class="feature-cell-header">
+          <span class="feature-name">Tabular Numerals</span>
+          <span class="feature-tag">"tnum" 1</span>
+        </div>
+        <div class="feature-specimen">
+          <div style="font-family:var(--font-body);font-size:1.1rem;font-feature-settings:'onum' 1, 'pnum' 1;color:var(--ink-faint);line-height:1.5;">
+            1,234<br>87,609<br>4,100
+          </div>
+          <div style="font-family:var(--font-body);font-size:1.1rem;font-feature-settings:'tnum' 1, 'lnum' 1;color:var(--ink);line-height:1.5;">
+            1,234<br>87,609<br>4,100
+          </div>
+        </div>
+        <div class="feature-labels">
+          <span class="feature-label">Proportional — columns drift</span>
+          <span class="feature-label on">Tabular — columns align</span>
+        </div>
+        <p class="feature-desc">Fixed-width numerals for tables and financial data. Essential wherever numbers must align vertically.</p>
+      </div>
+
+    </div><!-- /.feature-grid -->
+
+    <div class="figure-caption" style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;margin-top:-3rem;margin-bottom:3rem;">
+      <p><strong>Figure 10.2 — OpenType features in EB Garamond.</strong> Six features demonstrated side by side, off and on. Each pair uses the same typeface and size; what changes is which glyphs are rendered. Standard ligatures, old-style numerals, small capitals, contextual alternates, kerning, and tabular numerals — these six features, applied consistently, account for most of the visible difference between workmanlike and refined typesetting.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">The font-variant shorthand</span>
+      Cleaner syntax for common features</h2>
+
+    <p>The CSS <code>font-feature-settings</code> property is powerful but low-level. Its syntax — a comma-separated list of four-character feature tags and on/off integers — is not readable at a glance, and it has an important limitation: because it applies all features as a single value, it is difficult to layer in a cascade. Setting <code>font-feature-settings: "kern" 1</code> on the body and then <code>font-feature-settings: "tnum" 1</code> on a table cell will disable kerning for that table cell, because the second declaration replaces the first entirely.</p>
+
+    <p>The higher-level <code>font-variant</code> properties — <code>font-variant-ligatures</code>, <code>font-variant-numeric</code>, <code>font-variant-caps</code>, <code>font-variant-alternates</code> — do not have this limitation. Each controls a specific aspect of font variation independently, so they compose cleanly in the cascade. Setting <code>font-variant-numeric: tabular-nums</code> on a table cell inherits all other font variant settings from the parent and adds tabular numerals, rather than resetting everything.</p>
+
+    <p>For a document stylesheet, the recommended approach is to use <code>font-feature-settings</code> for the base declaration — where you want explicit, low-level control over the foundational set of features — and <code>font-variant</code> properties for context-specific overrides. The base declaration on the body establishes the document-wide defaults; the overrides handle specific elements:</p>
+
+<pre><code><span class="c-comment">/* ── Base: document-wide OpenType features ── */</span>
+<span class="c-sel">body</span> {
+  <span class="c-comment">/* kern: kerning on, liga: ligatures on,
+     onum: old-style numerals, calt: contextual
+     alternates                                */</span>
+  <span class="c-prop">font-feature-settings</span>:
+    <span class="c-val">"kern" 1, "liga" 1, "onum" 1, "calt" 1</span>;
+}
+
+<span class="c-comment">/* ── Running headers: small caps + tracking ── */</span>
+<span class="c-sel">.running-header</span> {
+  <span class="c-prop">font-variant-caps</span>: <span class="c-val">all-small-caps</span>;
+  <span class="c-prop">letter-spacing</span>:    <span class="c-val">0.08em</span>;
+}
+
+<span class="c-comment">/* ── Tables: tabular lining numerals ──────── */</span>
+<span class="c-sel">table</span> {
+  <span class="c-prop">font-variant-numeric</span>: <span class="c-val">lining-nums tabular-nums</span>;
+}
+
+<span class="c-comment">/* ── Chapter opener: first line as small caps */</span>
+<span class="c-sel">.chapter-body > p:first-of-type::first-line</span> {
+  <span class="c-prop">font-variant-caps</span>: <span class="c-val">all-small-caps</span>;
+  <span class="c-prop">letter-spacing</span>:    <span class="c-val">0.06em</span>;
+}
+
+<span class="c-comment">/* ── Footnote markers: superior figures ───── */</span>
+<span class="c-sel">sup</span> {
+  <span class="c-prop">font-variant-position</span>: <span class="c-val">super</span>;
+  <span class="c-comment">/* Uses designed superiors rather than
+     scaled regular numerals                  */</span>
+}</code></pre>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Variable fonts</span>
+      A single file, an infinite range</h2>
+
+    <p>Variable fonts are a relatively recent addition to the OpenType specification — introduced in 2016 — that allow a single font file to contain not just one typeface but a continuous range of variations along one or more design axes. The most common axis is weight: a variable weight font contains every possible weight from hairline to ultra-black, not as separate files but as a single mathematical description that can be rendered at any point along the spectrum.</p>
+
+    <p>Other common axes include width (condensed to expanded), optical size (caption to display), italic (upright to italic or even slanted), and custom axes defined by individual type designers. Some variable fonts offer only one axis; others offer several, allowing extraordinary control over the typeface's appearance.</p>
+
+    <p>For document design, variable fonts offer several practical advantages. A single font file replaces what might previously have been four or six separate files — regular, italic, bold, bold italic, light, and so on — reducing load time and simplifying management. More interestingly, they allow intermediate weights that don't exist as named styles in a static font. You can set a subheading at weight 550 — heavier than regular but lighter than semibold — if the visual result is better than either named weight. This kind of fine-grained control is genuinely useful for producing hierarchy that feels exactly right rather than approximately right.</p>
+
+    <p>In CSS, variable font axes are controlled with <code>font-variation-settings</code>. For the weight axis, the higher-level <code>font-weight</code> property now accepts any numeric value when the font is variable — <code>font-weight: 550</code> works on a variable font, not just on one with a named 550 weight. Other axes use four-character tags: <code>font-variation-settings: "opsz" 14</code> for optical size at 14pt, for example.<sup>2</sup></p>
+
+    <!-- Figure 10.3: Variable font weight axis -->
+    <div class="vf-axis-demo">
+      <div class="vf-axis-header">
+        <span class="vf-axis-title">Weight axis — EB Garamond variable</span>
+        <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--ink-faint);">font-weight: 400 → 800</span>
+      </div>
+      <div class="vf-axis-body">
+
+        <div class="vf-row">
+          <span class="vf-weight-label">Extra light</span>
+          <span class="vf-specimen" style="font-weight:300;">The Compositor's Garden — On Spacing</span>
+          <span class="vf-value">300</span>
+        </div>
+
+        <div class="vf-row">
+          <span class="vf-weight-label">Regular</span>
+          <span class="vf-specimen" style="font-weight:400;">The Compositor's Garden — On Spacing</span>
+          <span class="vf-value">400</span>
+        </div>
+
+        <div class="vf-row" style="background:var(--highlight);">
+          <span class="vf-weight-label" style="color:var(--accent);">Text body ↓</span>
+          <span class="vf-specimen" style="font-weight:400;font-size:var(--text-base);line-height:1.72;">The first thing my teacher ever said to me about type was not about type at all. It was October, and I had arrived early.</span>
+          <span class="vf-value" style="color:var(--accent);">400</span>
+        </div>
+
+        <div class="vf-row">
+          <span class="vf-weight-label">Medium</span>
+          <span class="vf-specimen" style="font-weight:500;">The Compositor's Garden — On Spacing</span>
+          <span class="vf-value">500</span>
+        </div>
+
+        <div class="vf-row">
+          <span class="vf-weight-label">Semibold</span>
+          <span class="vf-specimen" style="font-weight:600;">The Compositor's Garden — On Spacing</span>
+          <span class="vf-value">600</span>
+        </div>
+
+        <div class="vf-row">
+          <span class="vf-weight-label">Bold</span>
+          <span class="vf-specimen" style="font-weight:700;">The Compositor's Garden — On Spacing</span>
+          <span class="vf-value">700</span>
+        </div>
+
+        <div class="vf-row">
+          <span class="vf-weight-label">Extra bold</span>
+          <span class="vf-specimen" style="font-weight:800;">The Compositor's Garden — On Spacing</span>
+          <span class="vf-value">800</span>
+        </div>
+
+      </div>
+    </div>
+
+    <p>For the project document, EB Garamond is available as a variable font from Google Fonts, requested with the <code>wght</code> axis range in the URL: <code>family=EB+Garamond:ital,wght@0,400..800;1,400..800</code>. This loads a single file covering the full weight range for both roman and italic, replacing what would otherwise be four separate files. The stylesheet references weights numerically, and the variable font renders each one precisely.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Applying features to the project</span>
+      The complete OpenType setup</h2>
+
+    <p>With the theory in place, here is the complete OpenType configuration for <em>The Compositor's Garden</em>. This block extends the base stylesheet from Chapter 9 with all the typographic refinements covered in this chapter:</p>
+
+<pre><code><span class="c-comment">/* ════════════════════════════════════════════
+   OpenType features — The Compositor's Garden
+   ════════════════════════════════════════════ */</span>
+
+<span class="c-sel">body</span> {
+  <span class="c-comment">/* Foundation: kerning, ligatures,
+     old-style numerals, contextual alts      */</span>
+  <span class="c-prop">font-feature-settings</span>:
+    <span class="c-val">"kern" 1,</span>
+    <span class="c-val">"liga" 1,</span>
+    <span class="c-val">"clig" 1,</span>
+    <span class="c-val">"onum" 1,</span>
+    <span class="c-val">"calt" 1</span>;
+  <span class="c-prop">font-kerning</span>:  <span class="c-val">auto</span>;
+}
+
+<span class="c-comment">/* Running headers and labels */</span>
+<span class="c-sel">.running-header,
+.chapter-label,
+.folio,
+.opener-label</span> {
+  <span class="c-prop">font-variant-caps</span>:    <span class="c-val">all-small-caps</span>;
+  <span class="c-prop">font-variant-numeric</span>: <span class="c-val">lining-nums</span>;
+  <span class="c-prop">letter-spacing</span>:       <span class="c-val">0.1em</span>;
+}
+
+<span class="c-comment">/* Chapter opener: first line in small caps */</span>
+<span class="c-sel">.chapter-body > p:first-of-type::first-line</span> {
+  <span class="c-prop">font-variant-caps</span>: <span class="c-val">all-small-caps</span>;
+  <span class="c-prop">letter-spacing</span>:    <span class="c-val">0.06em</span>;
+}
+
+<span class="c-comment">/* Footnote superscripts: designed superiors */</span>
+<span class="c-sel">sup.fn</span> {
+  <span class="c-prop">font-variant-position</span>: <span class="c-val">super</span>;
+  <span class="c-prop">font-size</span>:             <span class="c-val">inherit</span>;
+  <span class="c-prop">vertical-align</span>:        <span class="c-val">inherit</span>;
+  <span class="c-prop">color</span>:                 <span class="c-val">var(--accent)</span>;
+}
+
+<span class="c-comment">/* Tables: tabular lining for data alignment */</span>
+<span class="c-sel">table, .data-table</span> {
+  <span class="c-prop">font-variant-numeric</span>: <span class="c-val">lining-nums tabular-nums</span>;
+}
+
+<span class="c-comment">/* Variable font weight range              */</span>
+<span class="c-comment">/* Google Fonts URL loads wght@400..800    */</span>
+<span class="c-sel">.chapter-title</span>  { <span class="c-prop">font-weight</span>: <span class="c-val">400</span>; }
+<span class="c-sel">h2</span>              { <span class="c-prop">font-weight</span>: <span class="c-val">400</span>; }
+<span class="c-sel">strong</span>          { <span class="c-prop">font-weight</span>: <span class="c-val">500</span>; }
+<span class="c-sel">.chapter-label</span>  { <span class="c-prop">font-weight</span>: <span class="c-val">500</span>; }</code></pre>
+
+    <div class="callout">
+      <p class="callout-label">What this looks like</p>
+      <p>The chapter you are reading right now has all of these features applied. The numerals in the footnotes are designed superiors. The running header and chapter label use small capitals. The body text uses old-style numerals, ligatures, and kerning throughout. The difference from an unstyled version of the same text is not dramatic — these features do not call attention to themselves. They simply make the text feel complete.</p>
+      <p>That is the correct test for OpenType features: not "can I see them?" but "would I notice if they were missing?" For most readers, the answer to the first question is no, and to the second question yes — as a vague sense that something is slightly less refined. Invisibly present, visibly absent. That is the mark of features doing their job.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <p>With the OpenType layer in place, the typographic work of Part Two is complete. The project document now has its typefaces, its scale, its spacing system, and its full set of typographic refinements. What it does not yet have is a page — a spatial structure that gives the text its physical dimensions, its margins, and its position on a printed surface. That is the work of Part Three.</p>
+
+    <p>Part Three begins with Chapter 11 and the question that underlies all of grid and layout: why do grids exist, and what problem are they solving? The answer is more interesting than it first appears.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>The best tools for inspecting OpenType features in a specific font are Wakamai Fondue (wakamaifondue.com), which provides a complete feature inventory for any uploaded font file, and the Axis-Praxis site (axis-praxis.org) for variable font axis exploration. Both are browser-based and require no installation. The Font Gauntlet tool (fontgauntlet.com) provides a useful testing environment for variable font axes in particular, allowing real-time adjustment of axis values and immediate preview of the results.</li>
+      <li>The <code>font-variation-settings</code> property has the same cascading limitation as <code>font-feature-settings</code> — it replaces rather than merges with inherited values. For this reason, higher-level properties like <code>font-weight</code>, <code>font-style</code>, and <code>font-stretch</code> should be used wherever they map to standard axes (wght, ital, wdth respectively), reserving <code>font-variation-settings</code> for custom or less common axes that have no CSS property equivalent. This approach composes better in the cascade and is more readable in the stylesheet.</li>
+      <li>The OpenType specification is maintained by Microsoft and is publicly available. For practical reference, the most accessible guide to feature tags and their functions is the Microsoft Typography OpenType specification pages (docs.microsoft.com/typography/opentype), which document all registered feature tags with descriptions of their intended use. The specification is technical but navigable, and knowing where to look is more useful than memorising the tags.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Nine
+        <span class="next-title" style="text-align:left;">Spacing and Rhythm</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Part Three →
+        <span class="next-title">Why Grids Exist</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>
