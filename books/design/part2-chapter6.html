@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 6: Understanding Type — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      padding: 1.1rem 2rem;
+    }
+
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .book-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-mid);
+    }
+
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .book-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .book-nav a:hover,
+    .book-nav a.active { color: var(--ink); }
+
+    .page {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    .opener {
+      margin-bottom: 4rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .opener-part {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.5rem;
+    }
+
+    .opener-label {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .opener-title {
+      font-family: var(--font-body);
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      max-width: 22ch;
+      margin-bottom: 1rem;
+    }
+
+    .opener-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      font-style: italic;
+      color: var(--ink-mid);
+      line-height: 1.45;
+      max-width: 44ch;
+      margin-top: 0.8rem;
+    }
+
+    .opener-topics {
+      margin-top: 2rem;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .opener-topics li {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: var(--ink-faint);
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .opener-topics li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--rule);
+    }
+
+    .prose { max-width: var(--col); }
+
+    .prose p {
+      margin-bottom: 0;
+      hyphens: auto;
+    }
+
+    .prose p + p { text-indent: 1.6em; }
+
+    .prose h2 + p,
+    .prose .figure + p,
+    .prose .callout + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em;
+      font-weight: 500;
+      float: left;
+      line-height: 0.8;
+      margin-right: 0.07em;
+      margin-top: 0.12em;
+      color: var(--ink);
+    }
+
+    .sep {
+      display: block;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: var(--text-sm);
+      letter-spacing: 0.3em;
+      margin: 2.75rem 0;
+      user-select: none;
+    }
+
+    .prose h2 {
+      font-family: var(--font-body);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      font-style: italic;
+      line-height: var(--lh-tight);
+      color: var(--ink);
+      margin-top: 3.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose h2 .label {
+      display: block;
+      font-style: normal;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.4rem;
+    }
+
+    .prose blockquote {
+      margin: 2.25rem 0;
+      padding-left: 1.5rem;
+      border-left: 2px solid var(--rule);
+    }
+
+    .prose blockquote p {
+      font-style: italic;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+    }
+
+    .prose blockquote cite {
+      display: block;
+      margin-top: 0.6rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      letter-spacing: 0.06em;
+      font-style: normal;
+      color: var(--ink-faint);
+    }
+
+    .prose em { font-style: italic; }
+    .prose strong { font-weight: 500; }
+
+    .prose sup {
+      font-size: 0.64em;
+      vertical-align: super;
+      line-height: 0;
+      color: var(--accent);
+      margin-left: 0.05em;
+    }
+
+    .prose code {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82em;
+      background: rgba(0,0,0,0.055);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: var(--ink-mid);
+    }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .figure-body {
+      background: #fff;
+      padding: 2rem;
+    }
+
+    .figure-caption {
+      background: var(--highlight);
+      border-top: 1px solid var(--rule);
+      padding: 0.9rem 1.25rem;
+    }
+
+    .figure-caption p {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      color: var(--ink-mid);
+      line-height: 1.55;
+      margin: 0;
+      text-indent: 0 !important;
+    }
+
+    .figure-caption strong {
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout {
+      margin: 2.5rem 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--highlight);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .callout p {
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+      margin-bottom: 0;
+    }
+
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Anatomy specimen ────────────────────────────────────────── */
+    .anatomy-specimen {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 0 3.5rem;
+      user-select: none;
+    }
+
+    /* ── Classification grid ─────────────────────────────────────── */
+    .class-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--rule);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .class-cell {
+      background: #fff;
+      padding: 1.25rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .class-cell-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .class-cell-specimen {
+      font-size: 2.2rem;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .class-cell-note {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      line-height: 1.5;
+    }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes {
+      max-width: var(--col);
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .footnotes-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 1rem;
+    }
+
+    .footnotes ol { padding-left: 1.2rem; }
+
+    .footnotes li {
+      font-size: var(--text-sm);
+      line-height: 1.62;
+      color: var(--ink-mid);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav {
+      max-width: var(--col);
+      margin-top: 5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .chapter-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+    }
+
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+
+    .chapter-nav .next-title {
+      display: block;
+      font-family: var(--font-body);
+      font-style: italic;
+      font-size: var(--text-base);
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--ink-mid);
+      margin-top: 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+      .class-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#" class="active">Part II</a>
+      <a href="#">Part III</a>
+      <a href="#">Part IV</a>
+      <a href="#">Part V</a>
+      <a href="#">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Two — Typography</span>
+    <span class="opener-label">Chapter Six</span>
+    <h1 class="opener-title">Understanding Type</h1>
+    <p class="opener-subtitle">Before you can choose typefaces well, you need to be able to read them — to see what they are made of and what they are saying.</p>
+    <ul class="opener-topics">
+      <li>Anatomy of a letterform</li>
+      <li>Type classifications and what they signal</li>
+      <li>How typefaces carry personality and tone</li>
+      <li>Reading type critically</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">A typeface is not a neutral vessel for words. Before a single word is read, the typeface has already communicated something — about the register of the document, the era it belongs to, the institution or sensibility behind it. A legal brief set in a warm, humanist serif feels different from the same text set in a cold geometric sans-serif, even if not a word has changed. This is not subjective impression. It is the result of specific formal properties in the letterforms — the shape of the serifs, the angle of the stress, the contrast between thick and thin strokes — that carry cultural and historical associations accumulated over centuries of use.</p>
+
+    <p>Understanding type means learning to see these properties consciously. Not just knowing that a typeface "looks old" or "feels modern," but being able to identify the specific features that produce that impression and why. This knowledge makes you a better chooser of typefaces, a better setter of type, and a more confident critic of your own work. It is the foundation on which everything in Part Two rests.</p>
+
+    <p>We begin with anatomy — the names and shapes of the parts of a letterform — before moving to classification, personality, and finally to the practice of reading type critically.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Anatomy of a letterform</span>
+      The parts and what they do</h2>
+
+    <p>Every letterform is composed of named parts, and knowing those names matters — not because terminology is important for its own sake, but because it gives you the vocabulary to describe what you see and to compare typefaces precisely. When you can say that two typefaces differ in their treatment of the ball terminal, or that one has a much higher x-height than the other, you can have useful conversations about type and make more informed decisions.</p>
+
+    <p>The major structural elements of a typeface are organized around a set of invisible horizontal guidelines. The <em>baseline</em> is the line on which the letters sit — the foundation of the typographic system. The <em>cap height</em> is the height of capital letters, measured from the baseline to the top of a flat capital like H or I. The <em>x-height</em> is the height of lowercase letters without ascenders or descenders — the height of the letter x, hence the name. The <em>ascender line</em> marks the top of letters like h, d, and k that rise above the x-height. The <em>descender line</em> marks the bottom of letters like p, g, and y that fall below the baseline.</p>
+
+    <p>These proportions vary considerably between typefaces, and they have significant practical consequences. A typeface with a large x-height — where the lowercase letters are tall relative to the capitals — tends to be more legible at small sizes, because the interior spaces of the letters are more open and clearly defined. A typeface with a small x-height feels more elegant and classical, but may require a larger type size to be equally legible. When you are choosing a typeface for body text, the x-height is one of the first things to consider.</p>
+
+    <!-- Figure 6.1: Letterform anatomy -->
+    <div class="figure">
+      <div class="figure-body">
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/a/a3/Typographia.svg"
+          alt="Typeface anatomy diagram showing x-height, ascender line, apex, baseline, ascender, crossbar, stem, serif, leg, bowl, counter, collar, loop, ear, tie, horizontal bar, arm, vertical bar, cap height, and descender line."
+          style="display:block;width:100%;height:auto;"
+        >
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 6.1 — Anatomy of a letterform.</strong> A standard type anatomy diagram showing the principal guide lines and the named parts of several letterforms.</p>
+        <p>The numbered labels correspond to the following terms: 1 x-height, 2 ascender line, 3 apex, 4 baseline, 5 ascender, 6 crossbar, 7 stem, 8 serif, 9 leg, 10 bowl, 11 counter, 12 collar or link, 13 loop, 14 ear, 15 tie, 16 horizontal bar, 17 arm, 18 vertical bar, 19 cap height, 20 descender line.</p>
+        <p>Source: <a href="https://commons.wikimedia.org/wiki/File:Typographia.svg">Wikimedia Commons, File:Typographia.svg</a>, by F l a n k e r, released into the public domain.</p>
+      </div>
+    </div>
+
+    <p>Beyond the structural proportions, the individual stroke elements carry their own vocabulary. The <em>stem</em> is the main vertical stroke of a letter — the upright of an H or the vertical of a d. The <em>shoulder</em> is the arching curve of letters like h, n, and m. The <em>bowl</em> is a curved stroke that encloses a counter, the open space within letters like o, b, d, and the upper part of a double-storey g. The <em>counter</em> is that enclosed or partially enclosed space itself. In a double-storey g, the upper bowl is joined to the lower closed form by a <em>link</em>, and that lower closed form is the <em>loop</em>. The small projecting stroke at the top right is the <em>ear</em>. The <em>crossbar</em> is the horizontal stroke that joins or cuts across other strokes, as in A or H. The <em>terminal</em> is the end of a stroke that does not terminate in a serif — it may be cut flat (sheared), rounded into a ball, or tapered to a point, and the shape of the terminal is one of the most distinctive features of any typeface. The <em>spine</em> is the main curving stroke of the S.</p>
+
+    <p>Serifs are the small strokes or feet at the ends of the main strokes of a letter, and they come in many forms. A <em>bracketed serif</em> curves gracefully from the main stroke into the serif, producing a smooth transition. An <em>unbracketed</em> or <em>slab serif</em> joins the main stroke at a right angle, abruptly and emphatically. A <em>hairline serif</em> is extremely thin, almost a horizontal line. Each of these forms creates a very different typographic texture on the page, and each carries different associations.</p>
+
+    <p>Finally, there is <em>stroke contrast</em> — the degree to which the thick strokes of a letter differ in weight from the thin strokes. In a high-contrast typeface like Didot or Bodoni, the difference is dramatic: the thicks are very thick and the thins are very thin. In a low-contrast typeface, the strokes are more uniform. The <em>stress</em> of a typeface describes the angle at which the contrast is oriented — in most old-style faces, the stress is oblique, following the angle of a broad-nib pen; in most transitional and modern faces, the stress is vertical.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Type classifications</span>
+      A map of the territory</h2>
+
+    <p>Typefaces are conventionally grouped into classifications that reflect their historical origins, structural characteristics, and visual character. These classifications are not rigid taxonomies — there are typefaces that sit between categories, typefaces that deliberately blend influences, and designers who reject the whole system as reductive. But as a map of the territory, classifications are useful. They give you a way to orient yourself, to recognize broad families of similarity, and to understand why certain typefaces feel the way they feel.</p>
+
+    <p>The major classifications relevant to document design are Old Style, Transitional, Modern, Slab Serif, Sans-Serif (which breaks into several sub-groups), and Display. Understanding each one takes only a few well-chosen examples and an eye for the features that distinguish them.</p>
+
+    <p><em>Old Style</em> typefaces — also called Humanist Serifs — have their origins in the work of Italian printers of the fifteenth century. They are characterized by oblique stress, moderate stroke contrast, bracketed serifs, and an overall warmth and organicism that reflects their calligraphic origins. The broad-nib pen is the conceptual ancestor of the Old Style letter; its angle and pressure are encoded in the form. Garamond, Jenson, Bembo, and Palatino are the canonical examples. Old Style faces are the natural choice for long-form reading — their low contrast and diagonal stress make them comfortable at small sizes and over long passages.</p>
+
+    <p><em>Transitional</em> typefaces emerged in the eighteenth century as type designers began to rationalize the letterform, moving away from the calligraphic model toward something more geometrically precise. Stroke contrast increased, the stress became more vertical, and the serifs became more refined and regular. Times New Roman, Baskerville, and Georgia are Transitional faces. They are slightly more formal than Old Style faces and tend toward crispness rather than warmth.</p>
+
+    <p><em>Modern</em> typefaces — sometimes called Didone — pushed rationalization to an extreme. The contrast between thick and thin strokes became very high, the stress became perfectly vertical, and the serifs became hairlines with no bracketing. Bodoni and Didot are the archetypes. Modern faces are striking and elegant at display sizes, but the extreme contrast makes them difficult to read at text sizes — the hairline strokes can disappear, and the overall texture of a page set in a Modern face at body size is visually turbulent.</p>
+
+    <p><em>Slab Serifs</em> — also called Egyptian or Mechanistic — appeared in the nineteenth century, born out of the demands of commercial printing. They have the same structural basis as serif faces but with thick, unbracketed serifs that match the weight of the main strokes. Rockwell, Clarendon, and the modern revival Courier are slab serifs. They feel robust, assertive, and industrial. Well-chosen, they can give a document considerable character.</p>
+
+    <p><em>Sans-Serif</em> faces omit the serifs entirely. Within this broad category there are significant sub-groups. <em>Grotesque</em> sans-serifs — Helvetica, Akzidenz-Grotesk — are the nineteenth-century workhorses, somewhat irregular in their details, functional rather than refined. <em>Geometric</em> sans-serifs — Futura, Avenir — are built on circles and straight lines, giving them a precise, rational quality. <em>Humanist</em> sans-serifs — Gill Sans, Frutiger, Myriad — borrow structural qualities from the Old Style tradition, giving them more warmth and legibility than either Grotesque or Geometric faces. For body text, Humanist sans-serifs are the safest choice among the sans-serifs; their calligraphic underpinning makes them more comfortable at length than their more geometric cousins.<sup>1</sup></p>
+
+    <!-- Figure 6.2: Classification specimens -->
+    <div class="figure">
+      <div class="figure-body">
+        <div class="class-grid">
+
+          <div class="class-cell">
+            <span class="class-cell-label">Old Style</span>
+            <span class="class-cell-specimen" style="font-family:'EB Garamond',Georgia,serif;">Ag</span>
+            <span class="class-cell-note">Oblique stress, moderate contrast, bracketed serifs, calligraphic warmth. EB Garamond shown.</span>
+          </div>
+
+          <div class="class-cell">
+            <span class="class-cell-label">Transitional</span>
+            <span class="class-cell-specimen" style="font-family:'Source Serif 4',Georgia,serif;">Ag</span>
+            <span class="class-cell-note">More vertical stress, sharper serifs, higher contrast than Old Style. Georgia / Source Serif shown.</span>
+          </div>
+
+          <div class="class-cell">
+            <span class="class-cell-label">Modern / Didone</span>
+            <span class="class-cell-specimen" style="font-family:'Playfair Display',Georgia,serif;font-weight:400;">Ag</span>
+            <span class="class-cell-note">Extreme thick-thin contrast, perfectly vertical stress, hairline serifs. Playfair Display shown.</span>
+          </div>
+
+          <div class="class-cell">
+            <span class="class-cell-label">Slab Serif</span>
+            <span class="class-cell-specimen" style="font-family:'Courier New',Courier,monospace;letter-spacing:-0.02em;">Ag</span>
+            <span class="class-cell-note">Heavy, unbracketed serifs matching stroke weight. Robust, assertive, industrial in character.</span>
+          </div>
+
+          <div class="class-cell">
+            <span class="class-cell-label">Humanist Sans</span>
+            <span class="class-cell-specimen" style="font-family:'Outfit',system-ui,sans-serif;font-weight:300;">Ag</span>
+            <span class="class-cell-note">No serifs, but calligraphic proportions give warmth and legibility. Outfit (approx.) shown.</span>
+          </div>
+
+          <div class="class-cell">
+            <span class="class-cell-label">Geometric Sans</span>
+            <span class="class-cell-specimen" style="font-family:'Outfit',system-ui,sans-serif;font-weight:300;letter-spacing:-0.04em;font-variant-numeric:slashed-zero;">Og</span>
+            <span class="class-cell-note">Built on circles and straight lines. Rational, precise, less warm at text sizes than Humanist.</span>
+          </div>
+
+        </div>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 6.2 — Type classifications.</strong> Six major categories shown through specimen pairs. Reading across the serifs: Old Style warmth gives way to Transitional crispness, then to Modern extremity, then to Slab robustness. The right column shows the two most common sans-serif sub-groups. The specific features that distinguish each category — stress angle, contrast level, serif treatment — are legible in the specimen letters even at this small size.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">How typefaces carry personality and tone</span>
+      What the letterform communicates before a word is read</h2>
+
+    <p>The classification system describes what typefaces are made of. But designers also need to understand what typefaces communicate — the associations and impressions that specific formal properties produce in readers. This is not a fixed code. It is a set of probabilistic tendencies shaped by centuries of use, and like all cultural associations, it can be subverted, complicated, or played against. But knowing the tendencies gives you a starting point and a vocabulary for thinking about the relationship between a typeface's form and its effect.</p>
+
+    <p>Historical association is the strongest vector. A typeface that is recognizably old — that carries visible evidence of its era in its letterforms — will bring that era's associations with it. An Old Style typeface in the tradition of Garamond feels literary, humanistic, slightly antiquarian. A nineteenth-century slab serif feels industrial, emphatic, commercial. A mid-twentieth-century geometric sans-serif feels modern in the original sense — rational, optimistic, functional. These associations are not universal or inevitable; they are cultural, and they shift over time. But within a contemporary Western context, they are reliable enough to use.</p>
+
+    <p>Formal properties carry their own associations independent of history. High stroke contrast — dramatic thick-thin variation — reads as elegant, refined, and somewhat fragile. Low contrast — uniform strokes — reads as robust, democratic, and unpretentious. Sharp terminals and hairline serifs feel precise and cold. Rounded terminals and ball terminals feel friendly and approachable. Tall, narrow letterforms feel formal and compressed; wide, open letterforms feel relaxed and generous.</p>
+
+    <p>The x-height carries associations too, though more subtle ones. A high x-height feels contemporary and functional — it is a feature of most typefaces designed for screen legibility. A low x-height feels classical and literary — it is characteristic of typefaces designed in the tradition of the Renaissance punchcutters. When you choose between two otherwise similar typefaces and one feels slightly more modern than the other, it is often the x-height making the difference.</p>
+
+    <blockquote>
+      <p>Type is a beautiful group of letters, not a group of beautiful letters.</p>
+      <cite>— Matthew Carter, type designer</cite>
+    </blockquote>
+
+    <p>Carter's point is that typeface personality is not a property of individual letterforms but of the system they form together — the texture of a paragraph, the rhythm of a page, the overall color of the text block. A typeface that has beautiful individual letters but inconsistent spacing, or that produces an uneven texture in a paragraph, has failed at its primary job. Evaluating a typeface by looking at individual letters in large display size is misleading. The true test is a paragraph of body text at reading size, read at a comfortable distance.</p>
+
+    <!-- Figure 6.3: Personality and tone -->
+    <div class="figure">
+      <div class="figure-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border-radius:3px;overflow:hidden;">
+
+          <!-- Warm, literary -->
+          <div style="background:#fff;padding:1.5rem;">
+            <div style="font-family:var(--font-ui);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:0.75rem;">Warm — literary — historical</div>
+            <div style="font-family:'EB Garamond',Georgia,serif;font-size:15px;line-height:1.72;color:#1e1b17;">
+              <div style="font-size:22px;font-weight:400;margin-bottom:0.3rem;line-height:1.2;">The Compositor's Garden</div>
+              <div style="font-size:11px;letter-spacing:0.06em;color:#9c9389;margin-bottom:0.8rem;font-family:var(--font-ui);">ELEANOR VOSS</div>
+              The first thing my teacher ever said to me about type was not about type at all. It was October, and I had arrived early to show I was serious.
+            </div>
+            <div style="font-family:var(--font-ui);font-size:8.5px;color:var(--ink-faint);margin-top:1rem;line-height:1.5;">Old Style serif. Oblique stress, bracketed serifs. Reads as: literary, considered, grounded in tradition.</div>
+          </div>
+
+          <!-- Cold, rational -->
+          <div style="background:#fff;padding:1.5rem;">
+            <div style="font-family:var(--font-ui);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:0.75rem;">Precise — rational — contemporary</div>
+            <div style="font-family:'Outfit',system-ui,sans-serif;font-size:13.5px;line-height:1.62;color:#1e1b17;font-weight:300;">
+              <div style="font-size:19px;font-weight:500;margin-bottom:0.3rem;line-height:1.2;letter-spacing:-0.02em;">The Compositor's Garden</div>
+              <div style="font-size:10px;letter-spacing:0.12em;color:#9c9389;margin-bottom:0.8rem;">ELEANOR VOSS</div>
+              The first thing my teacher ever said to me about type was not about type at all. It was October, and I had arrived early to show I was serious.
+            </div>
+            <div style="font-family:var(--font-ui);font-size:8.5px;color:var(--ink-faint);margin-top:1rem;line-height:1.5;">Geometric sans-serif. Uniform strokes, no serifs. Reads as: modern, functional, direct, less warm.</div>
+          </div>
+
+          <!-- Dramatic, editorial -->
+          <div style="background:#fff;padding:1.5rem;">
+            <div style="font-family:var(--font-ui);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:0.75rem;">Elegant — editorial — high contrast</div>
+            <div style="font-family:'Playfair Display',Georgia,serif;font-size:14px;line-height:1.68;color:#1e1b17;">
+              <div style="font-size:21px;font-weight:400;margin-bottom:0.3rem;line-height:1.15;">The Compositor's Garden</div>
+              <div style="font-size:10px;letter-spacing:0.1em;color:#9c9389;margin-bottom:0.8rem;font-family:var(--font-ui);">ELEANOR VOSS</div>
+              The first thing my teacher ever said to me about type was not about type at all. It was October, and I had arrived early to show I was serious.
+            </div>
+            <div style="font-family:var(--font-ui);font-size:8.5px;color:var(--ink-faint);margin-top:1rem;line-height:1.5;">Modern / Didone serif. High contrast, vertical stress. Reads as: refined, editorial, somewhat fragile at text sizes.</div>
+          </div>
+
+          <!-- Robust, technical -->
+          <div style="background:#fff;padding:1.5rem;">
+            <div style="font-family:var(--font-ui);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:0.75rem;">Robust — assertive — monospaced</div>
+            <div style="font-family:'Courier New',Courier,monospace;font-size:12.5px;line-height:1.7;color:#1e1b17;">
+              <div style="font-size:17px;font-weight:700;margin-bottom:0.3rem;line-height:1.2;">The Compositor's Garden</div>
+              <div style="font-size:10px;letter-spacing:0.06em;color:#9c9389;margin-bottom:0.8rem;font-family:var(--font-ui);">ELEANOR VOSS</div>
+              The first thing my teacher ever said to me about type was not about type at all. It was October, and I had arrived early to show I was serious.
+            </div>
+            <div style="font-family:var(--font-ui);font-size:8.5px;color:var(--ink-faint);margin-top:1rem;line-height:1.5;">Slab serif, monospaced. Reads as: technical, functional, typewritten — a very specific set of associations.</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 6.3 — Typeface personality and tone.</strong> The same text set in four different typefaces. The words are identical; what changes is everything else — the era evoked, the emotional register, the formality, the texture of the paragraph. The Old Style serif reads as literary and warm; the geometric sans as rational and contemporary; the high-contrast Modern as editorial and refined; the slab serif monospace as technical and typewritten. These impressions arise from specific formal properties, not from vague aesthetic intuition.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Reading type critically</span>
+      How to evaluate a typeface before you use it</h2>
+
+    <p>Reading type critically is a skill developed through sustained exposure and deliberate looking. You cannot build it in a single chapter. But you can begin it, and the beginning is a set of specific questions to ask whenever you are evaluating a typeface — questions that focus your attention on the things that actually determine how a typeface will perform.</p>
+
+    <p>The first question is: how does it read at body size? Set a paragraph of running text in the typeface at the size you intend to use it — typically between 10 and 14 points for print, 16 to 20 pixels for screen — and read it. Not the individual letters, the paragraph. Does it read smoothly? Does the texture feel even, or are there darker and lighter patches where the spacing is inconsistent? Does the word-spacing feel natural? Are there specific letter combinations — certain pairs of adjacent letters — that create awkward gaps or collisions? These are the things that matter at body size, and they are only visible in a paragraph, not in a specimen of individual letters.</p>
+
+    <p>The second question is: how does it look at display size? Set the same typeface at a large size — 36 points or above — and look at the letterforms in detail. You are looking for the quality of the curves, the precision of the spacing, the refinement of the serifs or terminals. A typeface that looked acceptable at body size may reveal roughness or crudeness at display size; one that seemed ordinary at body size may reveal unexpected beauty at large scale. Both observations are useful — the former tells you it should not be used as a display face, the latter that it might work at both scales.</p>
+
+    <p>The third question is: does it have the characters you need? Not every typeface includes a full character set. Many decorative or display faces lack proper quotation marks, em dashes, or ligatures. Some lack diacritical characters for non-English languages. Some have old-style numerals but not lining numerals, or vice versa. Check the character set before committing to a typeface, especially for documents with specialist requirements — footnote markers, mathematical symbols, multiple languages.</p>
+
+    <p>The fourth question is: what does it look like in the context of your document? This sounds obvious, but it is surprising how many typeface choices are made by looking at the typeface in isolation rather than in situ. Set a sample page of your actual document — your headings, your body text, your captions — in the typeface you are considering, and look at it at the size you will print or display it. The typeface that looks beautiful in a type specimen may look wrong in your specific context; the one that seemed unremarkable may work perfectly.</p>
+
+    <p>Finally: does it have what you need in terms of weights and styles? A typeface family that includes only a single weight in roman and italic is limited for document design. You will want, at minimum, a regular weight and an italic for body text, and a bolder weight for headings and emphasis. Many high-quality typeface families offer a range of weights from light to black, along with matching italics — this range gives you the tools to build hierarchy within a single typeface family, which is often a more coherent approach than mixing multiple faces.<sup>2</sup></p>
+
+    <!-- Figure 6.4: Critical reading — the paragraph test -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <text x="145" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">EVEN TEXTURE — READS WELL</text>
+          <text x="435" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">UNEVEN TEXTURE — READS POORLY</text>
+          <line x1="290" y1="8" x2="290" y2="195" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Left: even texture paragraph -->
+          <rect x="20" y="22" width="250" height="168" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Simulate evenly spaced text lines of consistent density -->
+          <rect x="36" y="36" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="36" y="47" width="214" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <rect x="36" y="58" width="216" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="36" y="69" width="210" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <rect x="36" y="80" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="36" y="91" width="212" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <rect x="36" y="102" width="215" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="36" y="113" width="208" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <rect x="36" y="124" width="216" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="36" y="135" width="200" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <rect x="36" y="146" width="214" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="36" y="157" width="180" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <text x="145" y="200" font-family="Outfit,sans-serif" font-size="8.5" fill="#9c9389" text-anchor="middle">Consistent density line to line — comfortable to read</text>
+
+          <!-- Right: uneven texture — simulated spacing problems -->
+          <rect x="310" y="22" width="250" height="168" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Lines with varying density to simulate river / bad spacing -->
+          <rect x="326" y="36" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.22"/>
+          <rect x="326" y="47" width="130" height="5.5" rx="1" fill="#1e1b17" opacity="0.12"/>
+          <rect x="466" y="47" width="78" height="5.5" rx="1" fill="#1e1b17" opacity="0.12"/>
+          <rect x="326" y="58" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.20"/>
+          <rect x="326" y="69" width="90" height="5.5" rx="1" fill="#1e1b17" opacity="0.10"/>
+          <rect x="430" y="69" width="114" height="5.5" rx="1" fill="#1e1b17" opacity="0.10"/>
+          <rect x="326" y="80" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.22"/>
+          <rect x="326" y="91" width="110" height="5.5" rx="1" fill="#1e1b17" opacity="0.11"/>
+          <rect x="446" y="91" width="98" height="5.5" rx="1" fill="#1e1b17" opacity="0.11"/>
+          <rect x="326" y="102" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.21"/>
+          <rect x="326" y="113" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.20"/>
+          <rect x="326" y="124" width="80" height="5.5" rx="1" fill="#1e1b17" opacity="0.10"/>
+          <rect x="420" y="124" width="124" height="5.5" rx="1" fill="#1e1b17" opacity="0.10"/>
+          <rect x="326" y="135" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.22"/>
+          <rect x="326" y="146" width="218" height="5.5" rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="326" y="157" width="160" height="5.5" rx="1" fill="#1e1b17" opacity="0.17"/>
+          <text x="435" y="200" font-family="Outfit,sans-serif" font-size="8.5" fill="#9c9389" text-anchor="middle">Rivers of space — distracting, tiring to read</text>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 6.4 — The paragraph test.</strong> Two paragraphs at the same size, showing the difference between even and uneven typographic texture. Left: consistent line density — the eye moves smoothly from line to line, and the text reads as a unified gray mass. Right: uneven density produced by poorly spaced word-spacing or justification — rivers of white space run vertically through the text, creating visual paths that interrupt reading. The paragraph test reveals this immediately; isolated letterforms do not.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="callout-label">Practice</p>
+      <p>Go to Google Fonts, Fonts In Use, or any type foundry website and spend twenty minutes looking at typefaces — not browsing for one to use, but looking at them critically. For each typeface you examine, ask: what classification does this belong to? What is its x-height relative to the cap height? What is the stress angle? What do the terminals look like? What era does it evoke, and what associations does it carry?</p>
+      <p>Then set a paragraph of running text in three different typefaces at 12 or 13 pixels, print or screenshot it, and compare the texture at arm's length. Which reads most smoothly? Where do the others fall short? The answers will be specific and visible — a gap between certain letter pairs, a slightly uneven word-spacing, a texture that is darker in some lines than others. These are the things that separate type you merely recognize from type you genuinely understand.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <p>Type is the material of typesetting in the same way that stone is the material of sculpture. You can learn technique without understanding your material, but your work will always reflect that gap. The time spent here — learning anatomy, understanding classification, developing the habit of critical reading — pays compound interest. Every typeface decision you make from this point will be more informed, more considered, and more likely to be right.</p>
+
+    <p>In Chapter 7, we move from understanding individual typefaces to combining them: the logic and practice of typeface pairing, and how to choose a text typeface for a specific document. The project document gets its typefaces at the end of that chapter, and from that point forward, <em>The Compositor's Garden</em> begins to look like itself.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>The sub-classification of sans-serif faces into Grotesque, Geometric, and Humanist is not universally agreed upon — some classification systems add Neo-Grotesque as a fourth category (Helvetica and Univers sitting between the raw energy of Grotesque and the refinement of Humanist), and some treat the distinctions differently. For practical design purposes, the Humanist/Geometric distinction is the most useful: it predicts legibility at text sizes more reliably than any other feature of a sans-serif face.</li>
+      <li>A typeface family is a group of related typefaces that share a consistent design but vary in weight, width, or style. The distinction between a typeface (a single weight and style, such as Garamond Regular) and a font (historically, a specific size of a specific typeface, though the term is now used interchangeably with typeface in most contexts) is worth knowing, though the distinction matters less in the CSS era where fonts are scalable by definition. What matters practically is that you evaluate the full family — all its weights and styles — before committing to it for a document.</li>
+      <li>The Fonts In Use website (fontsinuse.com) is an invaluable resource for seeing how specific typefaces perform in real design contexts. Searching for a typeface by name shows you how it has been used in published work — books, magazines, signage, websites — which gives you a much more reliable sense of its character and range than any type specimen.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Five
+        <span class="next-title" style="text-align:left;">Color in Document Design</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Chapter Seven →
+        <span class="next-title">Choosing and Pairing Typefaces</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>
