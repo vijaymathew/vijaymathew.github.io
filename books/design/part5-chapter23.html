@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 23: Designing an Academic Document — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      padding: 1.1rem 2rem;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .book-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-mid);
+    }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover,
+    .book-nav a.active { color: var(--ink); }
+
+    .page {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    .opener { margin-bottom: 4rem; padding-bottom: 3rem; border-bottom: 1px solid var(--rule); }
+    .opener-part {
+      display: block; font-family: var(--font-ui); font-size: var(--text-xs);
+      font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--ink-faint); margin-bottom: 0.5rem;
+    }
+    .opener-label {
+      display: block; font-family: var(--font-ui); font-size: var(--text-xs);
+      font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 1.25rem;
+    }
+    .opener-title {
+      font-family: var(--font-body); font-size: var(--text-2xl); font-weight: 400;
+      line-height: 1.08; letter-spacing: -0.01em; color: var(--ink);
+      max-width: 22ch; margin-bottom: 1rem;
+    }
+    .opener-subtitle {
+      font-family: var(--font-body); font-size: var(--text-md); font-style: italic;
+      color: var(--ink-mid); line-height: 1.45; max-width: 44ch; margin-top: 0.8rem;
+    }
+    .opener-topics {
+      margin-top: 2rem; list-style: none;
+      display: flex; flex-direction: column; gap: 0.3rem;
+    }
+    .opener-topics li {
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400;
+      letter-spacing: 0.04em; color: var(--ink-faint); padding-left: 1rem; position: relative;
+    }
+    .opener-topics li::before { content: '—'; position: absolute; left: 0; color: var(--rule); }
+
+    /* ── Prose ───────────────────────────────────────────────────── */
+    .prose { max-width: var(--col); }
+    .prose p { margin-bottom: 0; hyphens: auto; }
+    .prose p + p { text-indent: 1.6em; }
+    .prose h2 + p,
+    .prose .figure + p,
+    .prose .live-acad + p,
+    .prose .compare-pair + p,
+    .prose .callout + p,
+    .prose pre + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em; font-weight: 500; float: left;
+      line-height: 0.8; margin-right: 0.07em; margin-top: 0.12em; color: var(--ink);
+    }
+    .sep {
+      display: block; text-align: center; color: var(--ink-faint);
+      font-size: var(--text-sm); letter-spacing: 0.3em; margin: 2.75rem 0; user-select: none;
+    }
+    .prose h2 {
+      font-family: var(--font-body); font-size: var(--text-lg); font-weight: 400;
+      font-style: italic; line-height: var(--lh-tight); color: var(--ink);
+      margin-top: 3.5rem; margin-bottom: 1rem;
+    }
+    .prose h2 .label {
+      display: block; font-style: normal; font-family: var(--font-ui);
+      font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.4rem;
+    }
+    .prose em { font-style: italic; }
+    .prose strong { font-weight: 500; }
+    .prose sup {
+      font-size: 0.64em; vertical-align: super; line-height: 0;
+      color: var(--accent); margin-left: 0.05em;
+    }
+    .prose code {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace; font-size: 0.82em;
+      background: rgba(0,0,0,0.055); padding: 0.1em 0.35em; border-radius: 3px; color: var(--ink-mid);
+    }
+    .prose pre {
+      background: #1e1b17; color: #f8f5f0; padding: 1.25rem 1.5rem; border-radius: 4px;
+      font-family: 'SFMono-Regular', 'Fira Code', monospace; font-size: 0.82rem;
+      line-height: 1.7; overflow-x: auto; margin: 1.75rem 0;
+    }
+    .prose pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+    .c-comment { color: #9c9389; } .c-prop { color: #a0c8a0; }
+    .c-val { color: #f0c080; } .c-sel { color: #ddd7ce; } .c-at { color: #c0a8e0; }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure { margin: 3rem 0; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+    .figure-body { background: #fff; padding: 2rem; }
+    .figure-caption { background: var(--highlight); border-top: 1px solid var(--rule); padding: 0.9rem 1.25rem; }
+    .figure-caption p {
+      font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-mid);
+      line-height: 1.55; margin: 0; text-indent: 0 !important;
+    }
+    .figure-caption strong { font-weight: 500; color: var(--ink); }
+
+    /* ── Compare pair ────────────────────────────────────────────── */
+    .compare-pair {
+      margin: 3rem 0;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1px; background: var(--rule);
+      border: 1px solid var(--rule); border-radius: 4px; overflow: hidden;
+    }
+    .compare-panel { background: #fff; padding: 1.5rem 1.75rem; }
+    .compare-label {
+      font-family: var(--font-ui); font-size: 9px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 1rem;
+    }
+    .compare-label.good { color: var(--accent); }
+
+    /* ── Live academic demos ─────────────────────────────────────── */
+    .live-acad {
+      margin: 3rem 0; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden;
+    }
+    .live-acad-header {
+      background: var(--highlight); padding: 0.7rem 1.5rem; border-bottom: 1px solid var(--rule);
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .live-acad-code {
+      font-family: 'SFMono-Regular', monospace; font-size: 0.75rem;
+      color: var(--accent); font-weight: 400; letter-spacing: 0; text-transform: none;
+    }
+    .live-acad-body { background: #fff; padding: 2rem; }
+
+    /* ── Academic paper elements ─────────────────────────────────── */
+    .paper-title-block {
+      text-align: center;
+      padding: 2rem 1rem 1.5rem;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 1.5rem;
+    }
+    .paper-title {
+      font-family: var(--font-body);
+      font-size: var(--text-xl);
+      font-weight: 400;
+      line-height: 1.2;
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+    .paper-authors {
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--ink-mid);
+      margin-bottom: 0.4rem;
+    }
+    .paper-affil {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-faint);
+      letter-spacing: 0.04em;
+      margin-bottom: 0.4rem;
+    }
+    .paper-journal {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-faint);
+      letter-spacing: 0.04em;
+      margin-top: 0.75rem;
+    }
+    .paper-doi {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 0.78rem;
+      color: var(--ink-faint);
+    }
+
+    .paper-abstract {
+      padding: 1.25rem 1.5rem;
+      background: var(--highlight);
+      margin-bottom: 1.5rem;
+      border-radius: 3px;
+    }
+    .paper-abstract-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.6rem;
+    }
+    .paper-abstract-body {
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      line-height: 1.7;
+      color: var(--ink-mid);
+    }
+    .paper-abstract-body p { margin: 0; }
+    .paper-abstract-body p + p { text-indent: 1.2em; }
+
+    .paper-keywords {
+      margin-top: 0.75rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-faint);
+    }
+    .paper-keywords strong {
+      font-weight: 500;
+      color: var(--ink-mid);
+    }
+
+    /* ── Citation styles ─────────────────────────────────────────── */
+    .citation-block {
+      padding-left: 2rem;
+      border-left: none;
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      line-height: 1.65;
+      color: var(--ink-mid);
+      margin: 0.5rem 0;
+    }
+    .citation-block + .citation-block { margin-top: 0.75rem; }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout {
+      margin: 2.5rem 0; padding: 1.25rem 1.5rem;
+      background: var(--highlight); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0;
+    }
+    .callout-label {
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem;
+    }
+    .callout p { font-size: 1.05rem; line-height: 1.65; color: var(--ink-mid); text-indent: 0 !important; margin-bottom: 0; }
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes { max-width: var(--col); margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); }
+    .footnotes-label {
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 1rem;
+    }
+    .footnotes ol { padding-left: 1.2rem; }
+    .footnotes li { font-size: var(--text-sm); line-height: 1.62; color: var(--ink-mid); margin-bottom: 0.5rem; }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav {
+      max-width: var(--col); margin-top: 5rem; padding-top: 2rem;
+      border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .chapter-nav a {
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400;
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-decoration: none;
+    }
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+    .chapter-nav .next-title {
+      display: block; font-family: var(--font-body); font-style: italic;
+      font-size: var(--text-base); letter-spacing: 0; text-transform: none;
+      color: var(--ink-mid); margin-top: 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+      .compare-pair { grid-template-columns: 1fr; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#">Part II</a>
+      <a href="#">Part III</a>
+      <a href="#">Part IV</a>
+      <a href="#" class="active">Part V</a>
+      <a href="#">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Five — Document Projects</span>
+    <span class="opener-label">Chapter Twenty-three</span>
+    <h1 class="opener-title">Designing an Academic Document</h1>
+    <p class="opener-subtitle">Academic documents have the most demanding readers and the most neglected typography. Working within strict conventions still leaves room for craft — and craft makes a measurable difference to how a paper is received.</p>
+    <ul class="opener-topics">
+      <li>Conventions and why they exist</li>
+      <li>Title block, abstract, and keywords</li>
+      <li>Citation styles and reference lists in CSS</li>
+      <li>Making a constrained document typographically excellent</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">Academic typography is the most constrained of all the document types in this part. A journal has a house style. A thesis has university regulations. A conference paper has a submission template. The designer — if the word even applies in most cases, since most academics typeset their own work — operates within a set of requirements that have been decided by editors, examiners, and committees who are thinking about consistency and archival standards, not about typographic quality. And yet, within these constraints, there is more latitude than most academics realise, and the decisions that fill that latitude make a genuine difference: not to whether the paper is published, but to whether it is read with the same trust and ease that a well-made text produces in any reader, in any medium.</p>
+
+    <p>This chapter takes a different approach from the previous two. Rather than building a layout from scratch, it asks a more practical question: given a set of constraints — a required format, a house typeface, specific margin requirements — how do you make the best possible typographic decisions within them? The answer involves the same principles that have run through this entire book. It also involves knowing which constraints are real and which are merely habitual.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Conventions and why they exist</span>
+      Understanding the rules before working within them</h2>
+
+    <p>The conventions of academic typography are not arbitrary, even when they feel that way. Most of them exist for good reasons — reasons related to the specific needs of academic reading, the requirements of archival reproduction, and the conventions of citation and cross-reference that make scholarship cumulative rather than isolated.</p>
+
+    <p>Double spacing, for instance — required by most journal submission guidelines and many thesis regulations — exists not because it looks good (it does not) but because it provides space for copyeditors and reviewers to write corrections between lines. It is a working document convention, not a reading convention. A submitted manuscript in double-space is expected to be typeset by the journal's own design team before publication. The typeset version you are likely producing with Paged.js is a different thing: a camera-ready submission, or a thesis in its final form, or a preprint. These are final documents, and they should be set with single spacing at an appropriate line-height — exactly as the chapters on typography specified.</p>
+
+    <p>Similarly, the requirement for large margins in thesis regulations often exists to accommodate institutional binding — a thick margin on the inner edge allows text to remain readable after the gutter is swallowed by the binding mechanism. This is a legitimate physical requirement. But the specification of 25mm or 30mm as the outer, head, and foot margins is typically an administrative choice, not a typographic one. If the regulations specify minimum margins rather than exact margins, you have room to apply the classical proportions from Chapter 14 while still meeting the requirement.</p>
+
+    <p>The general principle is: understand why each constraint exists before deciding how much it binds you. Constraints that exist for physical or functional reasons — binding margins, submission formats, citation conventions — should be respected. Constraints that exist purely by inertia — Times New Roman because it was the default font in 1995, double-spacing because that was the instruction before camera-ready became standard — can often be adapted within the spirit of the requirement without violating the letter of it.</p>
+
+    <!-- Figure 23.1: Conventions mapped to reasons -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Header row -->
+          <rect x="10" y="10" width="560" height="22" fill="var(--ink)" rx="2"/>
+          <text x="20"  y="25" font-family="Outfit,sans-serif" font-size="8.5" fill="rgba(248,245,240,0.7)" font-weight="500" letter-spacing="0.08em">CONVENTION</text>
+          <text x="210" y="25" font-family="Outfit,sans-serif" font-size="8.5" fill="rgba(248,245,240,0.7)" font-weight="500" letter-spacing="0.08em">REASON</text>
+          <text x="380" y="25" font-family="Outfit,sans-serif" font-size="8.5" fill="rgba(248,245,240,0.7)" font-weight="500" letter-spacing="0.08em">LATITUDE IN FINAL DOCUMENT</text>
+
+          <!-- Rows -->
+          <!-- Row 1 -->
+          <rect x="10" y="32" width="560" height="28" fill="#fafaf8" rx="0"/>
+          <text x="20"  y="50" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">Double spacing</text>
+          <text x="210" y="50" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#4a4640">Space for editorial corrections</text>
+          <text x="380" y="46" font-family="EB Garamond,Georgia,serif" font-size="10" fill="#3a7a3a">Single space at 1.6–1.8 lh</text>
+          <text x="380" y="56" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c">in camera-ready / final docs</text>
+
+          <!-- Row 2 -->
+          <rect x="10" y="60" width="560" height="28" fill="var(--highlight)" rx="0"/>
+          <text x="20"  y="78" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">Large inner margin</text>
+          <text x="210" y="78" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#4a4640">Binding allowance</text>
+          <text x="380" y="74" font-family="EB Garamond,Georgia,serif" font-size="10" fill="#3a7a3a">Must meet minimum; classical</text>
+          <text x="380" y="84" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c">proportions usually satisfy it</text>
+
+          <!-- Row 3 -->
+          <rect x="10" y="88" width="560" height="28" fill="#fafaf8" rx="0"/>
+          <text x="20"  y="106" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">Times New Roman 12pt</text>
+          <text x="210" y="106" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#4a4640">Inertia / default setting</text>
+          <text x="380" y="102" font-family="EB Garamond,Georgia,serif" font-size="10" fill="#3a7a3a">Any equivalent serif is usually</text>
+          <text x="380" y="112" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c">acceptable if not specified</text>
+
+          <!-- Row 4 -->
+          <rect x="10" y="116" width="560" height="28" fill="var(--highlight)" rx="0"/>
+          <text x="20"  y="134" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">Numbered references</text>
+          <text x="210" y="134" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#4a4640">Cross-reference efficiency</text>
+          <text x="380" y="130" font-family="EB Garamond,Georgia,serif" font-size="10" fill="#9c9389">Fixed — implement it well;</text>
+          <text x="380" y="140" font-family="Outfit,sans-serif" font-size="7.5" fill="#c05040">cannot change citation style</text>
+
+          <!-- Row 5 -->
+          <rect x="10" y="144" width="560" height="28" fill="#fafaf8" rx="0"/>
+          <text x="20"  y="162" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">Section numbering</text>
+          <text x="210" y="162" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#4a4640">Navigation in long documents</text>
+          <text x="380" y="158" font-family="EB Garamond,Georgia,serif" font-size="10" fill="#3a7a3a">Typography of the numbers is</text>
+          <text x="380" y="168" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c">your choice — make them clear</text>
+
+          <!-- Row 6 -->
+          <rect x="10" y="172" width="560" height="28" fill="var(--highlight)" rx="0"/>
+          <text x="20"  y="190" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">Abstract on title page</text>
+          <text x="210" y="190" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#4a4640">Discoverability / indexing</text>
+          <text x="380" y="186" font-family="EB Garamond,Georgia,serif" font-size="10" fill="#3a7a3a">Layout within the abstract</text>
+          <text x="380" y="196" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c">box is yours to determine</text>
+
+          <!-- Column dividers -->
+          <line x1="200" y1="10" x2="200" y2="200" stroke="#ddd7ce" stroke-width="0.5"/>
+          <line x1="370" y1="10" x2="370" y2="200" stroke="#ddd7ce" stroke-width="0.5"/>
+          <!-- Outer border -->
+          <rect x="10" y="10" width="560" height="190" fill="none" stroke="#ddd7ce" stroke-width="0.75" rx="2"/>
+
+          <!-- Legend -->
+          <rect x="10" y="208" width="10" height="10" fill="rgba(58,122,58,0.2)" rx="1"/>
+          <text x="24" y="217" font-family="Outfit,sans-serif" font-size="7.5" fill="#3a7a3a">Some latitude available</text>
+          <rect x="130" y="208" width="10" height="10" fill="rgba(192,80,64,0.15)" rx="1"/>
+          <text x="144" y="217" font-family="Outfit,sans-serif" font-size="7.5" fill="#c05040">Fixed — implement correctly</text>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 23.1 — Academic conventions mapped to their reasons.</strong> Six common academic typography conventions, the functional reason behind each, and the degree of latitude available when producing a final document. Double spacing and Times New Roman are largely habitual and carry significant latitude in camera-ready work. Large inner margins, section numbering, abstract placement, and numbered references are functionally motivated — but even within these constraints, the typographic execution remains the designer's responsibility.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Title block, abstract, and keywords</span>
+      The front page as first impression</h2>
+
+    <p>The title page of an academic paper is the first page a reader sees, and frequently the last they look at carefully before going directly to the abstract and the figures. Its job is to establish authorship, identify the paper's location in the scholarly conversation (journal, conference, volume, issue, DOI), and set the tone for what follows. It should do all of this without fuss — a well-made title page is not noticed, but a poorly made one (crowded, misaligned, typographically inconsistent) signals carelessness before the first word of the paper has been read.</p>
+
+    <p>The standard academic title page has three zones: the title itself (large, centred, given generous space), the author block (names, affiliations, contact information), and the paper metadata (journal name, submission date, DOI, keywords). These zones are separated by whitespace and occasional horizontal rules, and are typically centred horizontally to signal symmetry and formality. In a preprint or thesis, the date and institutional details replace the journal metadata.</p>
+
+    <p>The abstract is the most read section of any academic paper, and frequently the only section read by many researchers who are assessing relevance before committing to the full text. It should be typeset with slightly more care than the body text — often at a slightly smaller size in a shaded panel, to visually distinguish it from the paper's main argument. The visual distinction matters because it signals to the reader that this is a summary and not the beginning of the argument; reading the abstract is a different reading task from reading the paper.</p>
+
+    <p>Keywords follow the abstract in most citation standards. They serve a machine-readable function — facilitating indexing and search — but their visual presentation matters to the human reader too. A keyword list that is set identically to body text is easy to overlook; a keyword list with a clear label and slightly differentiated type (smaller, in the UI typeface) is easy to locate and easy to skip when the reader decides it does not apply to them.</p>
+
+    <!-- Live title block demo -->
+    <div class="live-acad">
+      <div class="live-acad-header">
+        <span>Academic paper title block</span>
+        <span class="live-acad-code">text-align: center · abstract tint</span>
+      </div>
+      <div class="live-acad-body">
+
+        <div class="paper-title-block">
+          <h1 class="paper-title">Urban Canopy Loss and Heat Island Amplification in Mid-Sized European Cities, 2005–2023</h1>
+          <p class="paper-authors">Marta Jelínková<sup>1</sup>, Pieter Van den Berg<sup>2</sup>, Sigrid Halvorsen<sup>1</sup></p>
+          <p class="paper-affil"><sup>1</sup> Urban Ecology Institute, Masaryk University, Brno, Czech Republic</p>
+          <p class="paper-affil"><sup>2</sup> Department of Environmental Planning, KU Leuven, Belgium</p>
+          <p class="paper-journal"><em>Journal of Urban Ecology</em> · Submitted 14 March 2024 · Accepted 28 April 2024</p>
+          <p class="paper-doi">doi: 10.1093/jue/2024.0312</p>
+        </div>
+
+        <div class="paper-abstract">
+          <div class="paper-abstract-label">Abstract</div>
+          <div class="paper-abstract-body">
+            <p>We analyse satellite-derived tree cover data for 47 mid-sized European cities between 2005 and 2023, finding a median decline of 3.3 percentage points in urban canopy cover across the study sample. Losses are concentrated in rapidly developing peripheral districts and correlate strongly with increased land surface temperatures during summer months. Cities with tree-protection ordinances requiring canopy replacement at a 3:1 ratio experienced significantly smaller losses, with a median decline of 0.8 percentage points compared to 4.7 points for cities without such regulations.</p>
+            <p>We estimate that the observed canopy loss is associated with additional peak summer temperatures of approximately 2.1°C in affected districts, with disproportionate impacts on elderly populations and residents of affordable housing stock. Three intervention scenarios — conservative, moderate, and ambitious — are modelled for projected cost and benefit over a 20-year horizon. The moderate scenario, requiring initial investment of approximately €340 million across the study cities, is projected to generate net economic benefits of €1.2 billion through energy savings, reduced hospitalisation, and increased property values.</p>
+          </div>
+          <div class="paper-keywords">
+            <strong>Keywords:</strong> urban forestry · heat island · canopy cover · tree protection ordinances · urban planning · climate adaptation
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="figure-caption" style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;margin-top:-3rem;margin-bottom:3rem;">
+      <p><strong>Figure 23.2 — Academic paper title block and abstract.</strong> Centred title in body typeface at display size; author names with affiliation superscripts; affiliations and journal metadata in the UI typeface at secondary size; DOI in monospace. Abstract in a tinted panel at slightly smaller size, visually distinguished from the paper body to signal its function as a summary. Keywords follow in the UI typeface with a bold label, clearly separated from the abstract prose.</p>
+    </div>
+
+<pre><code><span class="c-comment">/* ── Academic title block ───────────────────────── */</span>
+<span class="c-sel">.paper-title-block</span> {
+  <span class="c-prop">text-align</span>:     <span class="c-val">center</span>;
+  <span class="c-prop">padding-bottom</span>: <span class="c-val">var(--space-lg)</span>;
+  <span class="c-prop">border-bottom</span>:  <span class="c-val">1px solid var(--rule)</span>;
+  <span class="c-prop">margin-bottom</span>:  <span class="c-val">var(--space-lg)</span>;
+}
+
+<span class="c-sel">.paper-title</span> {
+  <span class="c-prop">font-family</span>:    <span class="c-val">var(--font-body)</span>;
+  <span class="c-prop">font-size</span>:      <span class="c-val">var(--text-xl)</span>;
+  <span class="c-prop">font-weight</span>:    <span class="c-val">400</span>;
+  <span class="c-prop">line-height</span>:    <span class="c-val">1.2</span>;
+  <span class="c-prop">margin-bottom</span>:  <span class="c-val">var(--space-md)</span>;
+}
+
+<span class="c-comment">/* ── Abstract panel ──────────────────────────────── */</span>
+<span class="c-sel">.paper-abstract</span> {
+  <span class="c-prop">background</span>:     <span class="c-val">var(--highlight)</span>;
+  <span class="c-prop">padding</span>:        <span class="c-val">1.25rem 1.5rem</span>;
+  <span class="c-prop">break-inside</span>:   <span class="c-val">avoid</span>;
+  <span class="c-prop">break-after</span>:    <span class="c-val">page</span>; <span class="c-comment">/* body text begins fresh page */</span>
+}
+
+<span class="c-sel">.paper-abstract-body</span> {
+  <span class="c-prop">font-size</span>:      <span class="c-val">var(--text-sm)</span>;
+  <span class="c-prop">line-height</span>:    <span class="c-val">1.7</span>;
+  <span class="c-prop">color</span>:          <span class="c-val">var(--ink-mid)</span>;
+}
+
+<span class="c-sel">.paper-keywords</span> {
+  <span class="c-prop">margin-top</span>:     <span class="c-val">var(--space-sm)</span>;
+  <span class="c-prop">font-family</span>:    <span class="c-val">var(--font-ui)</span>;
+  <span class="c-prop">font-size</span>:      <span class="c-val">var(--text-xs)</span>;
+  <span class="c-prop">color</span>:          <span class="c-val">var(--ink-faint)</span>;
+}</code></pre>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Citation styles and reference lists</span>
+      The typography of scholarly apparatus</h2>
+
+    <p>Citations and references are where most academic documents fail typographically, and not because the formatting is wrong. The content is usually formatted correctly according to the citation style. The failure is in the visual presentation: reference lists rendered as undifferentiated walls of text, in-text citations in a typeface and size identical to the surrounding prose, footnote references that are too small to read without squinting. The scholarly apparatus is as much a part of the document as the argument — in a literature-heavy field, the references may occupy a third of the page count — and it deserves the same typographic attention.</p>
+
+    <p>The three most common citation systems in academic publishing — author-date (Chicago/APA), numbered (Vancouver/IEEE), and footnote/endnote (classical humanities) — each have specific typographic implications. Author-date citations in the text (<em>Jelínková et al., 2024</em>) are minimally disruptive to reading because they are brief. Numbered citations ([14]) are the least disruptive of all: a single character that the reader can ignore or follow at will. Footnote citations interrupt the reading flow most significantly — the reader's eye must travel to the bottom of the page and back — and therefore benefit most from the visual refinements possible with Paged.js's footnote support.</p>
+
+    <p>For the reference list itself, three typographic decisions have the greatest impact on legibility. First, hanging indent: each reference is set with the first line at the full column width and subsequent lines indented, so that the author names — the primary navigation point in an alphabetical reference list — are always at the left margin and easily scanned. Second, author names in small capitals: this distinguishes author names from titles at a glance without the visual disruption of bold weight. Third, consistent separation between entries: a half-line of space between entries, and a clear visual separation between the entry number or author and the reference text.</p>
+
+    <!-- Figure 23.3: Reference list before / after -->
+    <div class="compare-pair">
+
+      <!-- Before: undifferentiated wall -->
+      <div class="compare-panel">
+        <div class="compare-label">Default — undifferentiated</div>
+        <div style="font-family:var(--font-body);font-size:0.9rem;line-height:1.65;color:var(--ink-mid);">
+          <p style="margin:0;">1. Jelínková M, Van den Berg P, Halvorsen S. Urban canopy loss and heat island amplification in mid-sized European cities, 2005–2023. <em>J Urban Ecol.</em> 2024;12(3):45–68. doi:10.1093/jue/2024.0312</p>
+          <p style="margin:0.6rem 0 0;">2. Nowak D, Crane D. Carbon storage and sequestration by urban trees in the USA. <em>Environ Pollut.</em> 2002;116(3):381–389.</p>
+          <p style="margin:0.6rem 0 0;">3. Kovats RS, Hajat S. Heat stress and public health: a critical review. <em>Annu Rev Public Health.</em> 2008;29:41–55.</p>
+          <p style="margin:0.6rem 0 0;">4. European Environment Agency. Urban green infrastructure: linking concepts, practices and people. Copenhagen: EEA; 2020. Report No.: 6/2020.</p>
+        </div>
+        <div style="font-family:var(--font-ui);font-size:8.5px;color:var(--ink-faint);margin-top:1rem;line-height:1.5;">Author names, titles, and journal names visually indistinct. Numbers crowd against text. Entries run together.</div>
+      </div>
+
+      <!-- After: typographic differentiation -->
+      <div class="compare-panel">
+        <div class="compare-label good">Typographically considered</div>
+        <div style="font-family:var(--font-body);font-size:0.9rem;line-height:1.65;color:var(--ink-mid);">
+
+          <div style="display:grid;grid-template-columns:1.5rem 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+            <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--accent);padding-top:0.1rem;">1.</span>
+            <div>
+              <span style="font-variant-caps:all-small-caps;letter-spacing:0.04em;color:var(--ink);">Jelínková M, Van den Berg P, Halvorsen S.</span> Urban canopy loss and heat island amplification in mid-sized European cities, 2005–2023. <em>J Urban Ecol.</em> 2024;<span style="font-feature-settings:'lnum' 1,'tnum' 1;">12</span>(3):<span style="font-feature-settings:'lnum' 1,'tnum' 1;">45–68</span>. <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--ink-faint);">doi:10.1093/jue/2024.0312</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.5rem 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+            <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--accent);padding-top:0.1rem;">2.</span>
+            <div>
+              <span style="font-variant-caps:all-small-caps;letter-spacing:0.04em;color:var(--ink);">Nowak D, Crane D.</span> Carbon storage and sequestration by urban trees in the USA. <em>Environ Pollut.</em> 2002;<span style="font-feature-settings:'lnum' 1,'tnum' 1;">116</span>(3):<span style="font-feature-settings:'lnum' 1,'tnum' 1;">381–389</span>.
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.5rem 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+            <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--accent);padding-top:0.1rem;">3.</span>
+            <div>
+              <span style="font-variant-caps:all-small-caps;letter-spacing:0.04em;color:var(--ink);">Kovats RS, Hajat S.</span> Heat stress and public health: a critical review. <em>Annu Rev Public Health.</em> 2008;<span style="font-feature-settings:'lnum' 1,'tnum' 1;">29</span>:<span style="font-feature-settings:'lnum' 1,'tnum' 1;">41–55</span>.
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.5rem 1fr;gap:0.5rem;">
+            <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--accent);padding-top:0.1rem;">4.</span>
+            <div>
+              <span style="font-variant-caps:all-small-caps;letter-spacing:0.04em;color:var(--ink);">European Environment Agency.</span> Urban green infrastructure: linking concepts, practices and people. Copenhagen: EEA; 2020. Report No.&nbsp;6/2020. <span style="font-family:var(--font-ui);font-size:var(--text-xs);color:var(--ink-faint);">doi:10.2800/123456</span>
+            </div>
+          </div>
+
+        </div>
+        <div style="font-family:var(--font-ui);font-size:8.5px;color:var(--ink-faint);margin-top:1rem;line-height:1.5;">Numbers in accent color with CSS Grid alignment. Author names in small caps — scannable at a glance. DOIs in secondary typeface. Tabular lining numerals for volume and page numbers.</div>
+      </div>
+
+    </div>
+
+    <div class="figure-caption" style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;margin-top:-3rem;margin-bottom:3rem;">
+      <p><strong>Figure 23.3 — Reference list, before and after typographic treatment.</strong> Left: the default presentation — every element at the same weight and size, entries not visually separated, reference numbers crowding the text. Right: typographically considered — CSS Grid places numbers cleanly in a fixed-width column; author names are in small capitals for quick scanning; DOIs are set in the secondary typeface at a smaller size; tabular lining numerals are used for volume and page numbers. The content is identical; the legibility difference is significant.</p>
+    </div>
+
+<pre><code><span class="c-comment">/* ── Reference list entries ────────────────────── */</span>
+<span class="c-sel">.ref-list</span> {
+  <span class="c-prop">font-size</span>:    <span class="c-val">var(--text-sm)</span>;
+  <span class="c-prop">line-height</span>:  <span class="c-val">1.65</span>;
+  <span class="c-prop">counter-reset</span>: <span class="c-val">ref</span>;
+}
+
+<span class="c-sel">.ref-entry</span> {
+  <span class="c-prop">display</span>:              <span class="c-val">grid</span>;
+  <span class="c-prop">grid-template-columns</span>: <span class="c-val">1.5rem 1fr</span>;
+  <span class="c-prop">gap</span>:                  <span class="c-val">0.5rem</span>;
+  <span class="c-prop">margin-bottom</span>:        <span class="c-val">0.75rem</span>;
+  <span class="c-prop">counter-increment</span>:    <span class="c-val">ref</span>;
+  <span class="c-prop">break-inside</span>:         <span class="c-val">avoid</span>;
+}
+
+<span class="c-sel">.ref-entry::before</span> {
+  <span class="c-prop">content</span>:    <span class="c-val">counter(ref) "."</span>;
+  <span class="c-prop">font-family</span>: <span class="c-val">var(--font-ui)</span>;
+  <span class="c-prop">font-size</span>:   <span class="c-val">var(--text-xs)</span>;
+  <span class="c-prop">color</span>:       <span class="c-val">var(--accent)</span>;
+  <span class="c-prop">padding-top</span>: <span class="c-val">0.1rem</span>;
+}
+
+<span class="c-comment">/* Author names in small caps for scannability   */</span>
+<span class="c-sel">.ref-author</span> {
+  <span class="c-prop">font-variant-caps</span>:  <span class="c-val">all-small-caps</span>;
+  <span class="c-prop">letter-spacing</span>:     <span class="c-val">0.04em</span>;
+  <span class="c-prop">color</span>:              <span class="c-val">var(--ink)</span>;
+}
+
+<span class="c-comment">/* DOI: monospace or secondary typeface           */</span>
+<span class="c-sel">.ref-doi</span> {
+  <span class="c-prop">font-family</span>:   <span class="c-val">var(--font-ui)</span>;
+  <span class="c-prop">font-size</span>:     <span class="c-val">var(--text-xs)</span>;
+  <span class="c-prop">color</span>:         <span class="c-val">var(--ink-faint)</span>;
+}
+
+<span class="c-comment">/* Volume and page numbers: tabular lining       */</span>
+<span class="c-sel">.ref-nums</span> {
+  <span class="c-prop">font-variant-numeric</span>: <span class="c-val">lining-nums tabular-nums</span>;
+}</code></pre>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Making a constrained document excellent</span>
+      The choices that remain when the rules are fixed</h2>
+
+    <p>Once the mandatory elements are settled — the citation style, the heading structure, the margin requirements — the latitude remaining is concentrated in a handful of decisions that have disproportionate impact on how the document reads. These are the decisions that most academics, working in Word or LaTeX with default settings, never make at all. Making them deliberately, within the constraints of the required format, is what the craft of academic typography consists of.</p>
+
+    <p><strong>Line-height.</strong> Most academic documents are set at double spacing (manuscript format) or at a word-processor default of 1.15 or 1.0 — all of which are either too open or too tight for comfortable sustained reading. A line-height of 1.6 to 1.8 for body text at 11–12pt is correct and satisfies most "appropriate spacing" requirements. If the requirement is specifically for double spacing (2.0), this is almost always a manuscript submission requirement, not a final document requirement.</p>
+
+    <p><strong>Paragraph treatment.</strong> Academic word processors default to paragraph spacing (a blank line between paragraphs). For a literary or humanities paper, paragraph indentation produces a more professional result. For a scientific paper with many short sections, paragraph spacing is more conventional and appropriate. Either way, the choice should be made deliberately rather than accepted as the default.</p>
+
+    <p><strong>Heading hierarchy.</strong> The heading system in most academic documents is underdesigned. Levels are distinguished by bold and italic in the same typeface at the same size, which produces a visual hierarchy that is technically present but perceptually weak. Using size differences from the type scale — even modest ones — in combination with weight and style creates a more legible hierarchy without departing from academic convention.</p>
+
+    <p><strong>Figure captions and table titles.</strong> These are among the most-read elements in a scientific paper, after the abstract and the headings. They should be typeset clearly, in a slightly smaller size than the body text, with the figure number or table number in a visually distinct treatment (the accent color, or the UI typeface) so that cross-references within the text can be resolved at a glance.</p>
+
+    <div class="callout">
+      <p class="callout-label">On the expectations of academic readers</p>
+      <p>Academic readers are among the most demanding of any audience. They read critically, they notice inconsistency, and they have spent years reading documents in the same format, which means any departure from convention is immediately visible. This is not a reason to accept poor typography — it is a reason to be precise about which conventions you follow and which you improve upon.</p>
+      <p>The most useful question to ask of any academic typography decision is: does this make the argument easier to follow? A clear heading hierarchy that reflects the logical structure of the paper makes it easier to follow. A reference list in which author names can be scanned quickly makes it easier to assess the depth of the literature review. Paragraph indentation that keeps the text flowing as continuous prose makes a theoretical argument easier to sustain. None of these improvements violates academic convention. All of them make the paper more likely to be read with the attention it deserves.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <p>Academic typography is, in the end, an argument that the work has been taken seriously — that the author cared enough about the reader's experience to do more than apply default settings. This care does not guarantee a good paper. But it produces a document in which a good paper is easier to find, easier to read, and easier to trust. And that, at the level of craft, is what typography has always been for.</p>
+
+    <p>With Chapter 23, Part Five — and the document projects section of the book — is complete. Part Six turns to the question of workflow: how to maintain, update, and distribute documents produced with Paged.js, how to integrate the work into larger toolchains, and how to think about versioning, collaboration, and the long-term sustainability of HTML-based document production.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>The argument that typographic quality influences the reception of academic work is supported by empirical research. Several studies in the cognitive science literature have found that documents set in easier-to-read typefaces and layouts are rated as more credible and more expert by readers, even when the content is identical. The effect size is modest but consistent. The most widely cited is the study by Oppenheimer and Frank (2008) on "incomprehensibility," which found that cognitively difficult presentation reduces perceived competence — the reverse of which implies that clear, well-typeset work is associated with perceived competence. This is perhaps the most instrumentally persuasive argument for academic typography that does not rely on any intrinsic value of good design.</li>
+      <li>The convention of setting author names in small capitals in reference lists has a practical origin: in the era of letterpress and early phototypesetting, names were often set in small caps to distinguish them from regular text and to allow the reader to scan names quickly in a column of dense reference text. The convention persisted into digital typography because it remains functionally useful — a reference list with names in small capitals genuinely is easier to scan than one without. This is one of the cases where a historical typographic convention survives into the present because it is good, not merely because it is old.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Twenty-two
+        <span class="next-title" style="text-align:left;">Designing an Editorial Layout</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Part Six →
+        <span class="next-title">Toolchain Options</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>

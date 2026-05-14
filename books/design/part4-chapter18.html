@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 18: Controlling Page Breaks — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      padding: 1.1rem 2rem;
+    }
+
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .book-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-mid);
+    }
+
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .book-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .book-nav a:hover,
+    .book-nav a.active { color: var(--ink); }
+
+    .page {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    .opener {
+      margin-bottom: 4rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .opener-part {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.5rem;
+    }
+
+    .opener-label {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .opener-title {
+      font-family: var(--font-body);
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      max-width: 22ch;
+      margin-bottom: 1rem;
+    }
+
+    .opener-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      font-style: italic;
+      color: var(--ink-mid);
+      line-height: 1.45;
+      max-width: 44ch;
+      margin-top: 0.8rem;
+    }
+
+    .opener-topics {
+      margin-top: 2rem;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .opener-topics li {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: var(--ink-faint);
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .opener-topics li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--rule);
+    }
+
+    /* ── Prose ───────────────────────────────────────────────────── */
+    .prose { max-width: var(--col); }
+    .prose p { margin-bottom: 0; hyphens: auto; }
+    .prose p + p { text-indent: 1.6em; }
+
+    .prose h2 + p,
+    .prose .figure + p,
+    .prose .break-demo + p,
+    .prose .callout + p,
+    .prose pre + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em;
+      font-weight: 500;
+      float: left;
+      line-height: 0.8;
+      margin-right: 0.07em;
+      margin-top: 0.12em;
+      color: var(--ink);
+    }
+
+    .sep {
+      display: block;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: var(--text-sm);
+      letter-spacing: 0.3em;
+      margin: 2.75rem 0;
+      user-select: none;
+    }
+
+    .prose h2 {
+      font-family: var(--font-body);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      font-style: italic;
+      line-height: var(--lh-tight);
+      color: var(--ink);
+      margin-top: 3.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose h2 .label {
+      display: block;
+      font-style: normal;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.4rem;
+    }
+
+    .prose blockquote {
+      margin: 2.25rem 0;
+      padding-left: 1.5rem;
+      border-left: 2px solid var(--rule);
+    }
+
+    .prose blockquote p {
+      font-style: italic;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+    }
+
+    .prose blockquote cite {
+      display: block;
+      margin-top: 0.6rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      letter-spacing: 0.06em;
+      font-style: normal;
+      color: var(--ink-faint);
+    }
+
+    .prose em  { font-style: italic; }
+    .prose strong { font-weight: 500; }
+
+    .prose sup {
+      font-size: 0.64em;
+      vertical-align: super;
+      line-height: 0;
+      color: var(--accent);
+      margin-left: 0.05em;
+    }
+
+    .prose code {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82em;
+      background: rgba(0,0,0,0.055);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: var(--ink-mid);
+    }
+
+    .prose pre {
+      background: #1e1b17;
+      color: #f8f5f0;
+      padding: 1.25rem 1.5rem;
+      border-radius: 4px;
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 1.75rem 0;
+    }
+
+    .prose pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+    .c-comment { color: #9c9389; }
+    .c-prop    { color: #a0c8a0; }
+    .c-val     { color: #f0c080; }
+    .c-sel     { color: #ddd7ce; }
+    .c-at      { color: #c0a8e0; }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .figure-body {
+      background: #fff;
+      padding: 2rem;
+    }
+
+    .figure-caption {
+      background: var(--highlight);
+      border-top: 1px solid var(--rule);
+      padding: 0.9rem 1.25rem;
+    }
+
+    .figure-caption p {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-mid);
+      line-height: 1.55;
+      margin: 0;
+      text-indent: 0 !important;
+    }
+
+    .figure-caption strong { font-weight: 500; color: var(--ink); }
+
+    /* ── Break demo panels ───────────────────────────────────────── */
+    .break-demo {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .break-demo-header {
+      background: var(--highlight);
+      padding: 0.7rem 1.5rem;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .break-demo-code {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .break-demo-body {
+      background: #fff;
+      padding: 2rem;
+    }
+
+    /* ── Reference table ─────────────────────────────────────────── */
+    .ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: var(--text-sm);
+    }
+
+    .ref-table th {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-align: left;
+      padding: 0.5rem 1rem 0.5rem 0;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .ref-table td {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      color: var(--ink-mid);
+      line-height: 1.55;
+      padding: 0.6rem 1rem 0.6rem 0;
+      border-bottom: 1px solid var(--highlight);
+      vertical-align: top;
+    }
+
+    .ref-table td:first-child {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 0.8rem;
+      color: var(--accent);
+      white-space: nowrap;
+      padding-right: 1.25rem;
+    }
+
+    .ref-table tr:last-child td { border-bottom: none; }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout {
+      margin: 2.5rem 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--highlight);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .callout p {
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+      margin-bottom: 0;
+    }
+
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes {
+      max-width: var(--col);
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .footnotes-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 1rem;
+    }
+
+    .footnotes ol { padding-left: 1.2rem; }
+
+    .footnotes li {
+      font-size: var(--text-sm);
+      line-height: 1.62;
+      color: var(--ink-mid);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav {
+      max-width: var(--col);
+      margin-top: 5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .chapter-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+    }
+
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+
+    .chapter-nav .next-title {
+      display: block;
+      font-family: var(--font-body);
+      font-style: italic;
+      font-size: var(--text-base);
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--ink-mid);
+      margin-top: 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#">Part II</a>
+      <a href="#">Part III</a>
+      <a href="#" class="active">Part IV</a>
+      <a href="#">Part V</a>
+      <a href="#">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Four — Paged Media</span>
+    <span class="opener-label">Chapter Eighteen</span>
+    <h1 class="opener-title">Controlling Page Breaks</h1>
+    <p class="opener-subtitle">Pagination is not something that happens to a document. It is something you design — through properties that control where breaks are forced, where they are avoided, and how the text falls across pages.</p>
+    <ul class="opener-topics">
+      <li><code>break-before</code>, <code>break-after</code>, <code>break-inside</code></li>
+      <li>Widows and orphans: what they are and how to control them</li>
+      <li>Keeping elements together: figures, captions, callouts</li>
+      <li>Debugging pagination in Paged.js</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">Paged.js paginate your document. You do not. This is the correct division of labor — asking a designer to manually place page breaks through a hundred-page document would be neither efficient nor reliable — but it does not mean the designer is passive. The CSS Paged Media specification provides a rich set of properties for controlling where breaks happen: forcing them before certain elements, preventing them within others, ensuring that specific elements stay together on the same page, and controlling the minimum number of lines that must appear above or below a page break within a paragraph. Used well, these properties produce a document that feels as though its pagination was designed. Used carelessly or not at all, you get a document that feels as though the text fell onto pages at random, with headings at the bottom of pages and orphaned lines at the top.</p>
+
+    <p>This chapter covers the break properties in full, explains widows and orphans in precise terms, shows how to keep related elements together, and ends with a practical guide to debugging the pagination problems that appear when a real document is paginated for the first time.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">The break properties</span>
+      Forcing and preventing breaks</h2>
+
+    <p>CSS provides three break properties that control how content interacts with page boundaries: <code>break-before</code>, <code>break-after</code>, and <code>break-inside</code>. Each accepts a set of keyword values that determine what the browser should do at that boundary.</p>
+
+    <p><code>break-before</code> controls what happens immediately before an element. The most commonly used values are <code>page</code> (force a page break before this element), <code>right</code> (force a page break before, and ensure the new page is a recto), <code>left</code> (same, but verso), and <code>avoid</code> (avoid a page break immediately before this element if possible). The <code>right</code> and <code>left</code> values are essential for chapter management — every chapter opener in a well-produced book starts on a recto page, and <code>break-before: right</code> guarantees this without manual intervention.</p>
+
+    <p><code>break-after</code> works identically to <code>break-before</code> but controls what happens immediately after the element. It is less commonly needed — most forced breaks are more naturally expressed as <code>break-before</code> on the following element — but it is useful when you want to ensure a specific element (a chapter summary, for instance) always ends on a page by itself.</p>
+
+    <p><code>break-inside</code> controls what happens within an element, at any potential break point inside it. The most important value is <code>avoid</code>, which prevents the browser from placing a page break inside the element. This is the property you apply to figure-caption pairs, callout boxes, table rows, short reference entries, and any other element that must remain intact on a single page. The value <code>avoid-page</code> is more specific — it prevents page breaks but allows column breaks — useful in multi-column layouts where the same element should be able to break across columns but not across pages.</p>
+
+    <table class="ref-table" aria-label="Break property reference">
+      <thead>
+        <tr>
+          <th>Property and value</th>
+          <th>What it does</th>
+          <th>When to use it</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>break-before: page</td>
+          <td>Forces a page break immediately before the element</td>
+          <td>New sections, parts, appendices that must begin on a new page but can be either recto or verso</td>
+        </tr>
+        <tr>
+          <td>break-before: right</td>
+          <td>Forces a break and ensures the new page is a recto (odd-numbered)</td>
+          <td>Chapter openers — always start on a right-hand page</td>
+        </tr>
+        <tr>
+          <td>break-before: left</td>
+          <td>Forces a break and ensures the new page is a verso (even-numbered)</td>
+          <td>Occasionally used for sections that conventionally open on a left page</td>
+        </tr>
+        <tr>
+          <td>break-before: avoid</td>
+          <td>Asks the browser to avoid a page break immediately before this element</td>
+          <td>Headings — avoid a heading at the bottom of a page without following text</td>
+        </tr>
+        <tr>
+          <td>break-after: page</td>
+          <td>Forces a page break immediately after the element</td>
+          <td>Prefaces, dedications, or sections that should occupy their own page</td>
+        </tr>
+        <tr>
+          <td>break-inside: avoid</td>
+          <td>Prevents any page break from occurring within the element</td>
+          <td>Figures with captions, callout boxes, table rows, short reference entries</td>
+        </tr>
+        <tr>
+          <td>break-inside: avoid-page</td>
+          <td>Prevents page breaks within the element but allows column breaks</td>
+          <td>Elements within multi-column layouts that should stay on one page but can span columns</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Figure 18.1: Break properties visualised -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Three scenarios -->
+          <text x="97"  y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="0.8" text-anchor="middle">BREAK-BEFORE: RIGHT</text>
+          <text x="290" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="0.8" text-anchor="middle">BREAK-BEFORE: AVOID on h2</text>
+          <text x="484" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="0.8" text-anchor="middle">BREAK-INSIDE: AVOID on figure</text>
+
+          <line x1="194" y1="10" x2="194" y2="235" stroke="#ddd7ce" stroke-width="0.5"/>
+          <line x1="388" y1="10" x2="388" y2="235" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Panel 1: break-before: right — chapter always starts recto -->
+          <!-- Verso (left) page — blank because break-before: right -->
+          <rect x="18"  y="22" width="72"  height="100" rx="2" fill="#f5f2ed" stroke="#ddd7ce" stroke-width="0.75"/>
+          <text x="54"  y="77"  font-family="Outfit,sans-serif" font-size="7.5" fill="#ddd7ce" text-anchor="middle">[blank verso]</text>
+          <text x="28"  y="115" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="start">page 10</text>
+
+          <!-- Recto page — chapter opener -->
+          <rect x="100" y="22" width="72" height="100" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Large head margin / drop -->
+          <text x="110" y="60" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" letter-spacing="0.08em">CHAPTER TWO</text>
+          <text x="110" y="73" font-family="EB Garamond,Georgia,serif" font-size="11" fill="#1e1b17">On Spacing</text>
+          <line x1="110" y1="79" x2="124" y2="79" stroke="#6b4f2c" stroke-width="0.6" opacity="0.5"/>
+          <rect x="110" y="84" width="54" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="110" y="89" width="50" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="110" y="94" width="54" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <text x="136" y="115" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">page 11</text>
+
+          <!-- Arrow indicating forced to recto -->
+          <path d="M 94 72 C 97 72 97 72 100 72" fill="none" stroke="#6b4f2c" stroke-width="1"
+                marker-end="url(#ba-arr)" opacity="0.6"/>
+          <defs>
+            <marker id="ba-arr" viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="#6b4f2c"
+                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+
+          <text x="97" y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">Chapter starts on recto.</text>
+          <text x="97" y="210" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">Verso left blank if needed.</text>
+
+          <!-- Panel 2: break-before: avoid — heading stays with text -->
+          <!-- Page ending: heading is too close to bottom -->
+          <rect x="208" y="22" width="72" height="100" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="218" y="30" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="35" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="40" width="48" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="45" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="50" width="50" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="55" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="60" width="46" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="218" y="65" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <!-- heading pushed to top of NEXT page because break-before: avoid -->
+          <text x="218" y="80" font-family="EB Garamond,Georgia,serif" font-size="9" fill="#9c9389" font-style="italic">[heading moved →]</text>
+          <!-- Cross out heading at bottom -->
+          <line x1="218" y1="78" x2="270" y2="78" stroke="#c05040" stroke-width="0.5" opacity="0.5" stroke-dasharray="2,2"/>
+          <text x="244" y="115" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">page 22</text>
+
+          <!-- Next page: heading at top, followed by body -->
+          <rect x="294" y="22" width="72" height="100" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="304" y="30" width="52" height="4" rx="1" fill="#1e1b17" opacity="0.5"/>
+          <rect x="304" y="38" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="43" width="48" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="48" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="53" width="46" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="58" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="63" width="50" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="68" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="304" y="73" width="46" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <text x="330" y="115" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">page 23</text>
+
+          <text x="290" y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">Heading moves to next page with</text>
+          <text x="290" y="210" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">its following text. Never stranded.</text>
+
+          <!-- Panel 3: break-inside: avoid — figure stays together -->
+          <!-- Page without avoid: figure splits -->
+          <rect x="402" y="22" width="72" height="100" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="412" y="28" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="412" y="33" width="48" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="412" y="38" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="412" y="43" width="46" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <!-- Partial image at bottom of page — split! -->
+          <rect x="412" y="52" width="52" height="32" rx="1" fill="#e8e2d9"/>
+          <text x="438" y="72" font-family="Outfit,sans-serif" font-size="7" fill="#9c9389" text-anchor="middle">figure...</text>
+          <!-- Page break indicated -->
+          <line x1="402" y1="86" x2="474" y2="86" stroke="#c05040" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+          <text x="438" y="83" font-family="Outfit,sans-serif" font-size="6.5" fill="#c05040" text-anchor="middle">page break</text>
+          <!-- Caption continues on next page label -->
+          <text x="438" y="96" font-family="Outfit,sans-serif" font-size="7" fill="#9c9389" text-anchor="middle">...caption</text>
+
+          <!-- Page with avoid: figure intact on next page -->
+          <rect x="490" y="22" width="72" height="100" rx="2" fill="#f8f5f0" stroke="#6b4f2c" stroke-width="0.75" opacity="0.7"/>
+          <rect x="500" y="28" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="500" y="33" width="48" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="500" y="38" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <!-- Figure intact: image + caption together -->
+          <rect x="500" y="46" width="52" height="30" rx="1" fill="#e8e2d9"/>
+          <rect x="500" y="80" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.18"/>
+          <rect x="500" y="85" width="44" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.15"/>
+          <rect x="500" y="90" width="52" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+          <rect x="500" y="95" width="48" height="2.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+
+          <text x="484" y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">Without avoid: figure splits (left).</text>
+          <text x="484" y="210" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">With avoid: figure intact (right).</text>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 18.1 — Break properties in action.</strong> Left: <code>break-before: right</code> on a chapter opener forces the chapter to begin on a recto page, inserting a blank verso if the preceding chapter ended on a recto. Centre: <code>break-before: avoid</code> on a heading prevents the heading from being stranded at the bottom of a page without at least its first paragraph following it — the heading moves to the next page instead. Right: <code>break-inside: avoid</code> on a figure element keeps the image and its caption together on the same page rather than splitting across a break.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Widows and orphans</span>
+      The lines that should not be left alone</h2>
+
+    <p>Widows and orphans are specific kinds of typographic accidents that occur when paragraphs are divided by page breaks in ways that leave very short remnants isolated on a page. The definitions are precise, and the terms are sometimes confused: an <em>orphan</em> is a single line at the bottom of a page — the opening line of a paragraph that has been separated from the rest of the paragraph, which continues on the next page. A <em>widow</em> is a single line at the top of a page — the final line of a paragraph that has been separated from the body of the paragraph, which ended on the previous page.</p>
+
+    <p>Both are undesirable, for slightly different reasons. An orphan at the bottom of a page is visually abrupt — the paragraph begins and is immediately cut off, leaving the reader with a sense of incompleteness at the point of turning the page. A widow at the top of a page looks stranded and lonely — a single short line, often very short if it contains the last few words of a sentence, floating in the upper portion of the page with no context. Both disrupt reading and both signal careless typography.</p>
+
+    <p>CSS controls widows and orphans with two properties of the same names. <code>orphans</code> specifies the minimum number of lines of a paragraph that must remain at the bottom of a page (i.e., the minimum number of lines that can be orphaned). <code>widows</code> specifies the minimum number of lines that must appear at the top of the next page (i.e., the minimum number that can be widowed). The values are integers.</p>
+
+    <p>The typographic standard is a minimum of two for both — no single orphaned or widowed line is acceptable. A more refined standard, used in fine book printing, is three: at least three lines must appear at both the bottom and top of any page break within a paragraph. For most document work, two is appropriate and three is a luxury. Setting both to two prevents the most visible problems without making the browser's pagination task so constrained that it struggles to satisfy all the requirements simultaneously:<sup>1</sup></p>
+
+<pre><code><span class="c-comment">/* ── Widow and orphan control ─────────────────── */</span>
+<span class="c-sel">p</span> {
+  <span class="c-prop">orphans</span>: <span class="c-val">2</span>; <span class="c-comment">/* min 2 lines at bottom of page */</span>
+  <span class="c-prop">widows</span>:  <span class="c-val">2</span>; <span class="c-comment">/* min 2 lines at top of page   */</span>
+}
+
+<span class="c-comment">/* More conservative for fine printing            */</span>
+<span class="c-sel">p</span> {
+  <span class="c-prop">orphans</span>: <span class="c-val">3</span>;
+  <span class="c-prop">widows</span>:  <span class="c-val">3</span>;
+}</code></pre>
+
+    <!-- Figure 18.2: Widows and orphans illustrated -->
+    <div class="break-demo">
+      <div class="break-demo-header">
+        <span>Widows and orphans</span>
+        <span class="break-demo-code">orphans: 2; widows: 2</span>
+      </div>
+      <div class="break-demo-body">
+        <svg viewBox="0 0 580 210" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Labels -->
+          <text x="75"  y="12" font-family="Outfit,sans-serif" font-size="8" fill="#c05040" letter-spacing="0.8" text-anchor="middle">ORPHAN — AVOID</text>
+          <text x="250" y="12" font-family="Outfit,sans-serif" font-size="8" fill="#c05040" letter-spacing="0.8" text-anchor="middle">WIDOW — AVOID</text>
+          <text x="450" y="12" font-family="Outfit,sans-serif" font-size="8" fill="#6b4f2c" letter-spacing="0.8" text-anchor="middle">CORRECT — NO WIDOW/ORPHAN</text>
+
+          <line x1="160" y1="8" x2="160" y2="205" stroke="#ddd7ce" stroke-width="0.5"/>
+          <line x1="338" y1="8" x2="338" y2="205" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Orphan: single line at bottom -->
+          <rect x="18"  y="18"  width="120" height="98" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="28"  y="26"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="32"  width="96"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="38"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="44"  width="92"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="50"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="56"  width="96"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="62"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="68"  width="94"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28"  y="74"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Orphan line: single line of new paragraph, red -->
+          <rect x="28"  y="85"  width="76"  height="3"   rx="0.5" fill="#c05040" opacity="0.45"/>
+          <!-- Page break line -->
+          <line x1="18" y1="96" x2="138" y2="96" stroke="#c05040" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+          <!-- Next page: orphan's paragraph continues -->
+          <rect x="18" y="107" width="120" height="86" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="28" y="115" width="96"  height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28" y="121" width="100" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28" y="127" width="92"  height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28" y="133" width="100" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="28" y="139" width="88"  height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Orphan label -->
+          <text x="140" y="89" font-family="Outfit,sans-serif" font-size="7.5" fill="#c05040" opacity="0.8">← orphan</text>
+          <text x="75"  y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">Single line at page bottom</text>
+
+          <!-- Widow: single line at top of next page -->
+          <rect x="176" y="18"  width="120" height="98" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="186" y="26"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="32"  width="96"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="38"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="44"  width="94"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="50"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="56"  width="90"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="62"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="68"  width="96"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="74"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="80"  width="92"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Page break -->
+          <line x1="176" y1="92" x2="296" y2="92" stroke="#c05040" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+          <!-- Next page: widow at top -->
+          <rect x="176" y="107" width="120" height="86" rx="2" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Widow line: single short line, red -->
+          <rect x="186" y="115" width="56"  height="3"   rx="0.5" fill="#c05040" opacity="0.45"/>
+          <!-- New paragraph after -->
+          <rect x="186" y="128" width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="134" width="96"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="140" width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="146" width="90"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="186" y="152" width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Widow label -->
+          <text x="247" y="117" font-family="Outfit,sans-serif" font-size="7.5" fill="#c05040" opacity="0.8">widow →</text>
+          <text x="236" y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">Single line at page top</text>
+
+          <!-- Correct: two lines minimum both sides -->
+          <rect x="356" y="18"  width="120" height="98" rx="2" fill="#f8f5f0" stroke="#6b4f2c" stroke-width="0.75" opacity="0.7"/>
+          <rect x="366" y="26"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="32"  width="94"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="38"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="44"  width="96"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="50"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="56"  width="90"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="62"  width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Two lines of new paragraph — minimum 2 (orphans: 2) -->
+          <rect x="366" y="74"  width="100" height="3"   rx="0.5" fill="#3a7a3a" opacity="0.4"/>
+          <rect x="366" y="80"  width="96"  height="3"   rx="0.5" fill="#3a7a3a" opacity="0.4"/>
+          <!-- Page break -->
+          <line x1="356" y1="91" x2="476" y2="91" stroke="#6b4f2c" stroke-width="0.75" stroke-dasharray="3,2" opacity="0.4"/>
+          <!-- Next page: two lines min at top (widows: 2) -->
+          <rect x="356" y="107" width="120" height="86" rx="2" fill="#f8f5f0" stroke="#6b4f2c" stroke-width="0.75" opacity="0.7"/>
+          <rect x="366" y="115" width="100" height="3"   rx="0.5" fill="#3a7a3a" opacity="0.4"/>
+          <rect x="366" y="121" width="88"  height="3"   rx="0.5" fill="#3a7a3a" opacity="0.4"/>
+          <rect x="366" y="132" width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="138" width="94"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="144" width="100" height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="366" y="150" width="88"  height="3"   rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Labels -->
+          <text x="479" y="79" font-family="Outfit,sans-serif" font-size="7.5" fill="#3a7a3a" opacity="0.8">≥2 lines</text>
+          <text x="479" y="119" font-family="Outfit,sans-serif" font-size="7.5" fill="#3a7a3a" opacity="0.8">≥2 lines</text>
+          <text x="416" y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">orphans: 2; widows: 2</text>
+
+        </svg>
+      </div>
+    </div>
+
+    <div class="figure-caption" style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;margin-top:-3rem;margin-bottom:3rem;">
+      <p><strong>Figure 18.2 — Widows and orphans.</strong> Left: an orphan — a single line of a new paragraph at the bottom of a page, separated from the paragraph that follows on the next page. Centre: a widow — a single short line at the top of a page, the last line of a paragraph that ended on the previous page. Right: correct pagination with <code>orphans: 2; widows: 2</code> — at least two lines appear at both the bottom and top of the break. The green lines indicate the minimum-two constraint being satisfied.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Keeping elements together</span>
+      Figures, captions, callouts, and headings</h2>
+
+    <p>Beyond widow and orphan control — which applies to individual lines within paragraphs — there are whole elements that must stay together on a single page. The most common are figure-caption pairs, callout boxes, and headings with their following paragraphs. Each requires a slightly different approach.</p>
+
+    <p>A <em>figure with its caption</em> should almost always stay together. A figure at the bottom of one page and its caption at the top of the next is confusing and unprofessional. The correct solution is to wrap the figure and caption in a single container element — a <code>&lt;figure&gt;</code> element, typically — and apply <code>break-inside: avoid</code> to it. If the figure-caption pair is too tall to fit on the remaining space of the current page, Paged.js will move the entire unit to the next page, leaving a gap at the bottom of the current page. This gap is preferable to a split figure-caption pair. If the gap is large and visually awkward, it may be worth restructuring the content so the figure appears at a more natural break point, or redesigning the figure to be shorter.</p>
+
+    <p>A <em>callout or sidebar box</em> should similarly never split across a page. The visual enclosure of a box — its border, its background tint — loses its meaning if it appears at the top of one page and the bottom of the next. Apply <code>break-inside: avoid</code> to the callout container. If the callout is very tall, the gap it creates may be visible, but this is still preferable to the alternative.</p>
+
+    <p>A <em>heading and its following paragraph</em> present a subtler problem. The heading itself should not be at the bottom of a page — that is the job of <code>break-before: avoid</code>. But even with <code>break-before: avoid</code> in place, the heading could appear at the top of a page followed immediately by a page break, leaving only the heading and one orphaned line. A more robust solution is to use a combination of <code>break-before: avoid</code> on the heading and <code>orphans: 3</code> on the paragraph — ensuring the heading is always followed by at least three lines before any break. Alternatively, the heading and its first paragraph can be wrapped in a container with <code>break-inside: avoid</code>, though this requires additional markup.</p>
+
+<pre><code><span class="c-comment">/* ── Keeping elements together ─────────────────── */</span>
+
+<span class="c-comment">/* Figure + caption always on same page            */</span>
+<span class="c-sel">figure</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+  <span class="c-prop">margin</span>:       <span class="c-val">var(--space-lg) 0</span>;
+}
+
+<span class="c-comment">/* Callout box never splits                        */</span>
+<span class="c-sel">.callout</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Headings never strand at page bottom            */</span>
+<span class="c-sel">h2, h3</span> {
+  <span class="c-prop">break-before</span>: <span class="c-val">avoid</span>;
+  <span class="c-prop">break-after</span>:  <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Tables: rows never split                        */</span>
+<span class="c-sel">tr</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Reference entries (bibliography, index)         */</span>
+<span class="c-sel">.bib-entry, .index-entry</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Chapter openers: always start on recto          */</span>
+<span class="c-sel">.chapter-opener</span> {
+  <span class="c-prop">break-before</span>: <span class="c-val">right</span>;
+}
+
+<span class="c-comment">/* Widow and orphan minimum for all paragraphs     */</span>
+<span class="c-sel">p</span> {
+  <span class="c-prop">widows</span>:  <span class="c-val">2</span>;
+  <span class="c-prop">orphans</span>: <span class="c-val">2</span>;
+}</code></pre>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Debugging pagination</span>
+      Finding and fixing break problems</h2>
+
+    <p>When a Paged.js document is first paginated, it almost always has at least a few break problems — headings at the bottom of pages, awkward gaps left by large <code>break-inside: avoid</code> elements, orphaned lines that the widow/orphan settings did not catch, or chapter openers that landed on verso pages despite <code>break-before: right</code>. Debugging these problems is part of the workflow, and there are reliable strategies for approaching it.</p>
+
+    <p>The first tool is the Paged.js browser preview itself. Open the document in Chrome or Chromium (Paged.js produces the most consistent output in Chromium-based browsers) and zoom to a comfortable reading scale. Read through the pages looking for the following specific problems in order of severity: chapter openers on wrong-hand pages; headings at the bottom of pages; figures or callouts split across pages; isolated lines at the top or bottom of pages; large unexplained gaps.</p>
+
+    <p>When you find a problem, identify its cause before applying a fix. A heading at the bottom of a page is likely a missing <code>break-before: avoid</code> on that heading level. A split figure is likely a missing <code>break-inside: avoid</code> on the figure container. A large gap is likely a <code>break-inside: avoid</code> element that was too large to fit on the remaining space of its page — the fix may require either reducing the element's height or accepting the gap.</p>
+
+    <p>One class of problem deserves special attention: the case where the browser satisfies <code>break-inside: avoid</code> on a large element by pushing the entire element to the next page, leaving a very large gap on the current page. This often happens with tall callout boxes or large figures. The gap is formally correct — the break-inside constraint is satisfied — but visually it looks like a mistake. The practical remedies are: reduce the element's height, move it earlier in the text so it falls higher on the page, or split it into two smaller elements. In a pinch, adding a targeted <code>break-inside: auto</code> override for that specific element allows it to split across the page, which may look better than a large gap.<sup>2</sup></p>
+
+    <p>A useful debugging technique is to add a temporary CSS rule that highlights all page break points:</p>
+
+<pre><code><span class="c-comment">/* ── Debug: show page boundaries ────────────────
+   Add temporarily, remove before final output   */</span>
+<span class="c-sel">.pagedjs_page</span> {
+  <span class="c-prop">outline</span>: <span class="c-val">2px solid rgba(255, 0, 0, 0.15)</span>;
+}
+
+<span class="c-comment">/* Show content areas within pages               */</span>
+<span class="c-sel">.pagedjs_page_content</span> {
+  <span class="c-prop">outline</span>: <span class="c-val">1px solid rgba(0, 100, 200, 0.15)</span>;
+}
+
+<span class="c-comment">/* Highlight margin boxes                        */</span>
+<span class="c-sel">.pagedjs_margin</span> {
+  <span class="c-prop">background</span>: <span class="c-val">rgba(107, 79, 44, 0.04)</span>;
+}</code></pre>
+
+    <p>Paged.js adds these classes to its generated DOM — each page is a <code>.pagedjs_page</code> element containing a <code>.pagedjs_page_content</code> div and margin box divs — so these selectors work reliably for visualising the page structure during development. Remove the debug rules before generating the final PDF.</p>
+
+    <div class="callout">
+      <p class="callout-label">The complete break CSS for the project</p>
+      <p>The CSS below is the complete break-control layer for <em>The Compositor's Garden</em>. Added to the project stylesheet alongside the page geometry from Chapter 14 and the furniture from Chapter 17, it completes the Paged.js layer of the document. After applying this CSS and the font-loading guard from Chapter 11, opening the project HTML in a Paged.js-enabled browser will show a complete, well-paginated book ready for PDF export.</p>
+      <p>The next chapter — Chapter 19 — covers the final step: generating the print-ready PDF from the Paged.js preview, checking the output, and preparing it for professional printing or digital distribution.</p>
+    </div>
+
+<pre><code><span class="c-comment">/* ════════════════════════════════════════════
+   Break controls — The Compositor's Garden
+   ════════════════════════════════════════════ */</span>
+
+<span class="c-comment">/* Widow and orphan minimum                     */</span>
+<span class="c-sel">p</span> {
+  <span class="c-prop">widows</span>:  <span class="c-val">2</span>;
+  <span class="c-prop">orphans</span>: <span class="c-val">2</span>;
+}
+
+<span class="c-comment">/* Headings: never at page bottom               */</span>
+<span class="c-sel">h2</span> {
+  <span class="c-prop">break-before</span>: <span class="c-val">avoid</span>;
+  <span class="c-prop">break-after</span>:  <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Chapter openers: always recto                */</span>
+<span class="c-sel">.chapter-opener</span> {
+  <span class="c-prop">break-before</span>: <span class="c-val">right</span>;
+}
+
+<span class="c-comment">/* Figures: image + caption together            */</span>
+<span class="c-sel">figure</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Callout boxes: never split                   */</span>
+<span class="c-sel">.callout</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Planting calendar entries (Ch. 3 two-column) */</span>
+<span class="c-sel">.plant-entry</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Blockquotes: avoid splitting mid-quote       */</span>
+<span class="c-sel">blockquote</span> {
+  <span class="c-prop">break-inside</span>: <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Section separators (· · ·): never orphaned  */</span>
+<span class="c-sel">.sep</span> {
+  <span class="c-prop">break-before</span>: <span class="c-val">avoid</span>;
+  <span class="c-prop">break-after</span>:  <span class="c-val">avoid</span>;
+}
+
+<span class="c-comment">/* Back matter sections start on new page       */</span>
+<span class="c-sel">.notes-section,
+.bibliography,
+.colophon</span> {
+  <span class="c-prop">break-before</span>: <span class="c-val">page</span>;
+}</code></pre>
+
+    <span class="sep">· · ·</span>
+
+    <p>Break control is where the mechanical process of pagination meets the craft of typography. The CSS properties exist to make the browser's pagination agree with what an experienced typographer would have done by hand — moving a heading to the next page here, holding a figure together there, ensuring that no line is left to stand alone at the top or bottom of a page. The goal, as always, is a document that reads without friction, where the reader is never jarred by a structural accident that the designer could have prevented.</p>
+
+    <p>With the break controls in place, the pagination layer of the project is complete. Chapter 19 covers what comes next: generating the final PDF, understanding what Paged.js produces versus what professional pre-press requires, and making the output ready for print or for distribution.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>When <code>widows</code> and <code>orphans</code> are set to high values — three or more — in combination with many <code>break-inside: avoid</code> constraints on large elements, the browser may find it impossible to satisfy all constraints simultaneously. In this case, Paged.js will typically relax the widow/orphan constraints first (allowing single-line widows or orphans) rather than breaking the <code>break-inside: avoid</code> constraints. If you observe persistent widow/orphan violations in a heavily constrained document, consider reducing the values to 2, or selectively applying higher values only to sections where the content naturally produces clean breaks.</li>
+      <li>The <code>break-inside: auto</code> value restores the default behavior — the browser may or may not break inside the element, depending on what else is happening around it. It is most useful as a targeted override when a global <code>break-inside: avoid</code> rule is causing large gaps that look worse than a controlled split would. Target it with a more specific selector than the rule it is overriding: if all <code>.callout</code> elements have <code>break-inside: avoid</code>, a specific callout that is too tall can be given a class like <code>.callout-splittable</code> and overridden with <code>.callout-splittable { break-inside: auto; }</code>.</li>
+      <li>Paged.js adds its own class structure to the DOM during pagination — each page becomes a <code>.pagedjs_page</code> element, each content area a <code>.pagedjs_page_content</code>, and each margin box a <code>.pagedjs_margin_*</code> element. These classes are useful for debugging but should not be used for production styling — they are implementation details of the Paged.js polyfill and may change between versions. All production styles should use standard CSS Paged Media selectors (<code>@page</code>, <code>:left</code>, <code>:right</code>) which Paged.js interprets and converts into its own class structure.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Seventeen
+        <span class="next-title" style="text-align:left;">Page Furniture</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Chapter Nineteen →
+        <span class="next-title">Print-Ready Output</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>
