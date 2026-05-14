@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 11: Web Fonts in a Print Context — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    /* ── Site header ─────────────────────────────────────────────── */
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      padding: 1.1rem 2rem;
+    }
+
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .book-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-mid);
+    }
+
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .book-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .book-nav a:hover,
+    .book-nav a.active { color: var(--ink); }
+
+    /* ── Page ────────────────────────────────────────────────────── */
+    .page {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    /* ── Opener ──────────────────────────────────────────────────── */
+    .opener {
+      margin-bottom: 4rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .opener-part {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.5rem;
+    }
+
+    .opener-label {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .opener-title {
+      font-family: var(--font-body);
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      max-width: 22ch;
+      margin-bottom: 1rem;
+    }
+
+    .opener-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      font-style: italic;
+      color: var(--ink-mid);
+      line-height: 1.45;
+      max-width: 44ch;
+      margin-top: 0.8rem;
+    }
+
+    .opener-topics {
+      margin-top: 2rem;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .opener-topics li {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: var(--ink-faint);
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .opener-topics li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--rule);
+    }
+
+    /* ── Prose ───────────────────────────────────────────────────── */
+    .prose { max-width: var(--col); }
+
+    .prose p { margin-bottom: 0; hyphens: auto; }
+    .prose p + p { text-indent: 1.6em; }
+
+    .prose h2 + p,
+    .prose .figure + p,
+    .prose .decision-table + p,
+    .prose .strategy-cards + p,
+    .prose .callout + p,
+    .prose pre + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em;
+      font-weight: 500;
+      float: left;
+      line-height: 0.8;
+      margin-right: 0.07em;
+      margin-top: 0.12em;
+      color: var(--ink);
+    }
+
+    .sep {
+      display: block;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: var(--text-sm);
+      letter-spacing: 0.3em;
+      margin: 2.75rem 0;
+      user-select: none;
+    }
+
+    .prose h2 {
+      font-family: var(--font-body);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      font-style: italic;
+      line-height: var(--lh-tight);
+      color: var(--ink);
+      margin-top: 3.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose h2 .label {
+      display: block;
+      font-style: normal;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.4rem;
+    }
+
+    .prose blockquote {
+      margin: 2.25rem 0;
+      padding-left: 1.5rem;
+      border-left: 2px solid var(--rule);
+    }
+
+    .prose blockquote p {
+      font-style: italic;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+    }
+
+    .prose blockquote cite {
+      display: block;
+      margin-top: 0.6rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      letter-spacing: 0.06em;
+      font-style: normal;
+      color: var(--ink-faint);
+    }
+
+    .prose em { font-style: italic; }
+    .prose strong { font-weight: 500; }
+
+    .prose sup {
+      font-size: 0.64em;
+      vertical-align: super;
+      line-height: 0;
+      color: var(--accent);
+      margin-left: 0.05em;
+    }
+
+    .prose code {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82em;
+      background: rgba(0,0,0,0.055);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: var(--ink-mid);
+    }
+
+    .prose pre {
+      background: #1e1b17;
+      color: #f8f5f0;
+      padding: 1.25rem 1.5rem;
+      border-radius: 4px;
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 1.75rem 0;
+    }
+
+    .prose pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    .c-comment { color: #9c9389; }
+    .c-prop    { color: #a0c8a0; }
+    .c-val     { color: #f0c080; }
+    .c-sel     { color: #ddd7ce; }
+    .c-tag     { color: #a0c8a0; }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .figure-body {
+      background: #fff;
+      padding: 2rem;
+    }
+
+    .figure-caption {
+      background: var(--highlight);
+      border-top: 1px solid var(--rule);
+      padding: 0.9rem 1.25rem;
+    }
+
+    .figure-caption p {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-mid);
+      line-height: 1.55;
+      margin: 0;
+      text-indent: 0 !important;
+    }
+
+    .figure-caption strong { font-weight: 500; color: var(--ink); }
+
+    /* ── Strategy cards ──────────────────────────────────────────── */
+    .strategy-cards {
+      margin: 3rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--rule);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .strategy-card {
+      background: #fff;
+      padding: 1.5rem 1.75rem;
+      display: grid;
+      grid-template-columns: 14rem 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .strategy-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding-top: 0.1rem;
+    }
+
+    .strategy-badge {
+      display: inline-block;
+      font-family: var(--font-ui);
+      font-size: 8.5px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.2em 0.55em;
+      border-radius: 2px;
+      width: fit-content;
+      margin-bottom: 0.3rem;
+    }
+
+    .badge-best     { background: #e8edf8; color: #2c3f7a; }
+    .badge-good     { background: #e8f2e8; color: #3a6e3a; }
+    .badge-consider { background: #f5f0e8; color: #7a5c2c; }
+
+    .strategy-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.3;
+    }
+
+    .strategy-when {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      line-height: 1.5;
+      margin-top: 0.2rem;
+    }
+
+    .strategy-body {
+      border-left: 1px solid var(--highlight);
+      padding-left: 1.5rem;
+    }
+
+    .strategy-desc {
+      font-family: var(--font-body);
+      font-size: 1.05rem;
+      color: var(--ink-mid);
+      line-height: 1.65;
+      margin-bottom: 0.85rem;
+    }
+
+    /* ── Decision table ──────────────────────────────────────────── */
+    .decision-table {
+      margin: 2.5rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .decision-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .decision-table th {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-align: left;
+      padding: 0.7rem 1rem;
+      background: var(--highlight);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .decision-table td {
+      font-family: var(--font-body);
+      font-size: 1rem;
+      color: var(--ink-mid);
+      line-height: 1.55;
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--highlight);
+      vertical-align: top;
+    }
+
+    .decision-table tr:last-child td { border-bottom: none; }
+
+    .decision-table td:first-child {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .tick  { color: #3a6e3a; font-weight: 500; }
+    .cross { color: #7a3030; font-weight: 500; }
+    .mid   { color: var(--ink-faint); }
+
+    /* ── Font stack demo ─────────────────────────────────────────── */
+    .font-stack-demo {
+      margin: 2rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .font-stack-header {
+      background: var(--highlight);
+      padding: 0.7rem 1.25rem;
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .font-stack-body {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .font-stack-row {
+      display: grid;
+      grid-template-columns: 2rem 12rem 1fr;
+      gap: 1rem;
+      align-items: baseline;
+    }
+
+    .font-stack-num {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      text-align: right;
+    }
+
+    .font-stack-name {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 0.78rem;
+      color: var(--accent);
+    }
+
+    .font-stack-note {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      line-height: 1.5;
+    }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout {
+      margin: 2.5rem 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--highlight);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .callout p {
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+      margin-bottom: 0;
+    }
+
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes {
+      max-width: var(--col);
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .footnotes-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 1rem;
+    }
+
+    .footnotes ol { padding-left: 1.2rem; }
+
+    .footnotes li {
+      font-size: var(--text-sm);
+      line-height: 1.62;
+      color: var(--ink-mid);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav {
+      max-width: var(--col);
+      margin-top: 5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .chapter-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+    }
+
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+
+    .chapter-nav .next-title {
+      display: block;
+      font-family: var(--font-body);
+      font-style: italic;
+      font-size: var(--text-base);
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--ink-mid);
+      margin-top: 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+      .strategy-card { grid-template-columns: 1fr; gap: 1rem; }
+      .strategy-body { border-left: none; padding-left: 0; border-top: 1px solid var(--highlight); padding-top: 1rem; }
+      .font-stack-row { grid-template-columns: 1.5rem 10rem 1fr; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#" class="active">Part II</a>
+      <a href="#">Part III</a>
+      <a href="#">Part IV</a>
+      <a href="#">Part V</a>
+      <a href="#">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Two — Typography</span>
+    <span class="opener-label">Chapter Eleven</span>
+    <h1 class="opener-title">Web Fonts in a Print Context</h1>
+    <p class="opener-subtitle">A typeface that loads beautifully in a browser may behave differently on its way to a PDF. Understanding the pipeline prevents surprises.</p>
+    <ul class="opener-topics">
+      <li>Loading strategies for Paged.js documents</li>
+      <li>System fonts as a deliberate choice</li>
+      <li>Font licensing for PDF distribution</li>
+      <li>Performance vs. typographic richness</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">Typography in a browser and typography in a PDF share the same CSS, the same HTML, and the same fonts — but the path from source to output is different enough that it warrants its own chapter. When you design for screen, the font loads once, the browser renders it continuously, and any loading failures are visible and correctable in real time. When you design for print via Paged.js, the font must be present and fully loaded before pagination begins, must embed correctly in the PDF output, and must survive any licensing restrictions that govern its redistribution. Each of these requirements has a specific technical response, and knowing them in advance saves considerable frustration.</p>
+
+    <p>This chapter covers the full lifecycle of a web font in a Paged.js document — from the loading strategy that prevents pagination errors, through the question of when system fonts are actually the better choice, to the licensing considerations that govern what you can and cannot do with a font file once it is embedded in a distributed PDF.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">The font loading problem</span>
+      Why timing matters for pagination</h2>
+
+    <p>Paged.js works by running a JavaScript polyfill that reads your HTML and CSS, applies the CSS Paged Media specification, and renders the content as a sequence of fixed-size pages in the browser. This pagination process — calculating where lines break, where pages break, how much content fits on each page — depends on the font metrics of the typefaces being used. The width of each character, the height of each line, the space occupied by each word — all of this is determined by the font. If the font is not loaded when Paged.js runs, it uses the browser's fallback font metrics instead, and the pagination is calculated against a typeface that may be significantly different from the one you intended.</p>
+
+    <p>The consequences are visible and consistent: text that overflows pages, page breaks in the wrong places, line counts that differ from the final rendered version, and a document that looks correct in the Paged.js preview but produces a different layout when the fonts eventually load. This is the font loading problem in Paged.js, and it has a reliable solution: ensure the fonts are fully loaded before Paged.js begins its work.</p>
+
+    <p>The most robust approach is the <code>document.fonts.ready</code> promise, which resolves when all font faces referenced in the document's CSS have finished loading. Paged.js provides a mechanism to delay its automatic preview until this promise resolves. In the simplest setup, where Paged.js runs automatically on page load, you can use the <code>previewer</code> API to trigger pagination manually after fonts are ready:</p>
+
+<pre><code><span class="c-comment">/* In your HTML, include Paged.js but prevent
+   auto-run by adding the data attribute       */</span>
+<span class="c-tag">&lt;script</span>
+  <span class="c-prop">src</span>=<span class="c-str">"paged.js"</span>
+  <span class="c-prop">data-paged-preview</span>=<span class="c-str">"false"</span>
+<span class="c-tag">&gt;&lt;/script&gt;</span>
+
+<span class="c-comment">/* Then in a separate script block           */</span>
+<span class="c-tag">&lt;script&gt;</span>
+  document.fonts.ready.then(() => {
+    <span class="c-comment">// All fonts loaded — safe to paginate</span>
+    window.PagedPolyfill.preview();
+  });
+<span class="c-tag">&lt;/script&gt;</span></code></pre>
+
+    <p>An alternative, and often simpler, approach is to use the <code>font-display: block</code> descriptor in your <code>@font-face</code> declarations. This instructs the browser to block rendering entirely until the font loads, rather than falling back to a system font. While <code>font-display: block</code> is generally discouraged for performance-sensitive web pages — it can cause a visible flash of invisible text — it is entirely appropriate for a print document where visual correctness matters more than loading speed. When Paged.js runs, the fonts will already be in place, because the browser has been waiting for them.</p>
+
+<pre><code><span class="c-comment">/* Self-hosted font with font-display: block  */</span>
+<span class="c-sel">@font-face</span> {
+  <span class="c-prop">font-family</span>:   <span class="c-val">'EB Garamond'</span>;
+  <span class="c-prop">font-style</span>:    <span class="c-val">normal</span>;
+  <span class="c-prop">font-weight</span>:   <span class="c-val">400</span>;
+  <span class="c-prop">font-display</span>:  <span class="c-val">block</span>; <span class="c-comment">/* Wait — don't fall back */</span>
+  <span class="c-prop">src</span>: <span class="c-val">url('fonts/eb-garamond-400.woff2')</span>
+       <span class="c-val">format('woff2')</span>;
+}</code></pre>
+
+    <p>When using Google Fonts rather than self-hosted files, you cannot control the <code>font-display</code> descriptor directly — it is set by Google's servers, typically to <code>swap</code>. In this case, the <code>document.fonts.ready</code> approach is the more reliable option for ensuring fonts are loaded before Paged.js paginates.</p>
+
+    <!-- Figure 11.1: Font loading strategies compared -->
+    <div class="strategy-cards">
+
+      <div class="strategy-card">
+        <div class="strategy-meta">
+          <span class="strategy-badge badge-best">Best for most projects</span>
+          <span class="strategy-title">Self-hosted + font-display: block</span>
+          <span class="strategy-when">Use when: offline capability needed, CI/CD pipeline, production documents</span>
+        </div>
+        <div class="strategy-body">
+          <p class="strategy-desc">Font files live alongside the HTML document. No network dependency. <code>font-display: block</code> guarantees the browser waits for the correct font before rendering, so Paged.js always paginates against the right metrics. Requires downloading font files and managing them in the project folder.</p>
+          <pre style="background:#1e1b17;color:#f8f5f0;padding:0.75rem 1rem;border-radius:3px;font-size:10.5px;line-height:1.6;overflow-x:auto;"><code><span class="c-sel">@font-face</span> {
+  <span class="c-prop">font-family</span>: <span class="c-val">'EB Garamond'</span>;
+  <span class="c-prop">font-display</span>: <span class="c-val">block</span>;
+  <span class="c-prop">src</span>: <span class="c-val">url('fonts/eb-garamond.woff2')</span>;
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="strategy-card">
+        <div class="strategy-meta">
+          <span class="strategy-badge badge-good">Good for development</span>
+          <span class="strategy-title">Google Fonts + fonts.ready promise</span>
+          <span class="strategy-when">Use when: iterating quickly, network access reliable, license is SIL OFL</span>
+        </div>
+        <div class="strategy-body">
+          <p class="strategy-desc">Fast to set up and covers a wide range of quality typefaces under open licenses. Requires the <code>document.fonts.ready</code> guard to prevent premature pagination. Requires an internet connection when the document is opened for preview.</p>
+          <pre style="background:#1e1b17;color:#f8f5f0;padding:0.75rem 1rem;border-radius:3px;font-size:10.5px;line-height:1.6;overflow-x:auto;"><code>document.fonts.ready.then(() => {
+  window.PagedPolyfill.preview();
+});</code></pre>
+        </div>
+      </div>
+
+      <div class="strategy-card">
+        <div class="strategy-meta">
+          <span class="strategy-badge badge-consider">Consider carefully</span>
+          <span class="strategy-title">Commercial CDN (Adobe Fonts, etc.)</span>
+          <span class="strategy-when">Use when: specific commercial typeface required, subscription active</span>
+        </div>
+        <div class="strategy-body">
+          <p class="strategy-desc">Gives access to professional typefaces not available on Google Fonts. Requires an active subscription, network access, and the <code>fonts.ready</code> guard. Check the license carefully — many commercial web font licenses do not permit PDF embedding, which is what Paged.js does when generating a downloadable document.</p>
+        </div>
+      </div>
+
+    </div><!-- /.strategy-cards -->
+
+    <div class="figure-caption" style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;margin-top:-3rem;margin-bottom:3rem;">
+      <p><strong>Figure 11.1 — Font loading strategies for Paged.js.</strong> Three approaches in order of reliability for print output. Self-hosting with <code>font-display: block</code> is the most robust for production documents. Google Fonts with the <code>fonts.ready</code> guard is the fastest to set up for development. Commercial CDN fonts require careful license checking before use in distributed PDFs.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">System fonts as a deliberate choice</span>
+      When the best font is already on the machine</h2>
+
+    <p>There is a reflexive assumption in web typography that web fonts are always preferable to system fonts — that loading a font from a server is inherently better than using what is already installed on the device. For screen work, this assumption is broadly defensible: web fonts give you control over the typeface regardless of what the reader has installed, and that consistency is valuable. For print work via Paged.js, the assumption deserves more scrutiny.</p>
+
+    <p>When a document is intended to be generated locally — by you, on your own machine, in a controlled environment — the system fonts available on that machine are fully available to the CSS without any loading consideration. There are no network requests, no loading delays, no <code>fonts.ready</code> timing issues, and no PDF embedding questions. The font renders in the browser, Paged.js paginates against its metrics, and the PDF is generated with the font embedded from the local font cache. This is, in some respects, the cleanest possible setup.</p>
+
+    <p>The practical limitation is that system font availability varies between operating systems and even between machines running the same operating system. A font that ships with macOS — Georgia, for instance, or Charter — may not be available on Windows or Linux. This matters if the document will be generated on multiple machines, by multiple people, or in a CI/CD environment where the operating system is unpredictable.</p>
+
+    <p>The solution is the system font stack — a fallback chain that specifies multiple fonts in order of preference, so that whichever is available on the current system is used. For a document that needs to work well on any machine without network access, a carefully constructed system font stack can produce surprisingly good results:</p>
+
+    <!-- Figure 11.2: System font stacks -->
+    <div class="font-stack-demo">
+      <div class="font-stack-header">Serif system font stack — for body text</div>
+      <div class="font-stack-body">
+        <div class="font-stack-row">
+          <span class="font-stack-num">1</span>
+          <span class="font-stack-name">'Charter'</span>
+          <span class="font-stack-note">macOS / iOS — excellent text face, generous x-height, clean at small sizes</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">2</span>
+          <span class="font-stack-name">'Bitstream Charter'</span>
+          <span class="font-stack-note">Linux (some distributions) — the open-source ancestor of Charter</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">3</span>
+          <span class="font-stack-name">'Georgia'</span>
+          <span class="font-stack-note">Windows, macOS, most systems — designed for screens, reads well at text sizes</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">4</span>
+          <span class="font-stack-name">'Cambria'</span>
+          <span class="font-stack-note">Windows — a well-made transitional serif with good screen and print performance</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">5</span>
+          <span class="font-stack-name">serif</span>
+          <span class="font-stack-note">Browser default — Times New Roman on most systems; last resort only</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="font-stack-demo" style="margin-top:1rem;">
+      <div class="font-stack-header">Sans-serif system font stack — for UI elements and labels</div>
+      <div class="font-stack-body">
+        <div class="font-stack-row">
+          <span class="font-stack-num">1</span>
+          <span class="font-stack-name">-apple-system</span>
+          <span class="font-stack-note">macOS / iOS — San Francisco; the system UI font, well-hinted, clean at any size</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">2</span>
+          <span class="font-stack-name">BlinkMacSystemFont</span>
+          <span class="font-stack-note">Chrome on macOS — same San Francisco, different identifier</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">3</span>
+          <span class="font-stack-name">'Segoe UI'</span>
+          <span class="font-stack-note">Windows — the Windows system UI font; readable, professional</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">4</span>
+          <span class="font-stack-name">'Helvetica Neue'</span>
+          <span class="font-stack-note">macOS (older) — reliable neutral sans, well-spaced</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">5</span>
+          <span class="font-stack-name">Arial</span>
+          <span class="font-stack-note">Universal — ubiquitous if not distinguished; better than system default</span>
+        </div>
+        <div class="font-stack-row">
+          <span class="font-stack-num">6</span>
+          <span class="font-stack-name">sans-serif</span>
+          <span class="font-stack-note">Browser default — last resort</span>
+        </div>
+      </div>
+    </div>
+
+    <p>For the project document, we use web fonts — EB Garamond and Outfit — because the document is intended to be used by readers on any machine, including those without access to the best system serif fonts. But for a document you are producing yourself, on your own machine, for your own use or for a small number of specific recipients, a system font stack is a perfectly legitimate and technically simpler choice.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Font licensing for PDF distribution</span>
+      What the licence actually permits</h2>
+
+    <p>Font licensing is one of the least understood and most important aspects of professional typography. Every font file is software, and every font file is distributed under a licence that governs what you can and cannot do with it. The licence applies whether you paid for the font or downloaded it for free, and "I didn't know" is not a defence that holds in any professional context.</p>
+
+    <p>For a document produced with Paged.js, there are two distinct uses of the font that must be permitted by the licence. The first is <em>web use</em>: serving the font from a server (or a CDN like Google Fonts) and rendering it in a browser. The second is <em>PDF embedding</em>: including the font data inside the PDF file so that readers who do not have the font installed can still see the correct typeface. Both uses must be permitted. A licence that permits only web use — common in some commercial web font licences — does not permit the PDF embedding that Paged.js performs.<sup>1</sup></p>
+
+    <p>The simplest and most reliable approach is to use typefaces licensed under the SIL Open Font License, which explicitly permits both web use and embedding in documents. All Google Fonts are SIL OFL licensed. Many high-quality typefaces from independent designers are also SIL OFL — Source Serif, EB Garamond, Lora, Libre Baskerville, and many others that are entirely suitable for professional document work.</p>
+
+    <p>For commercial typefaces — those requiring a purchase or subscription — the licence must be read carefully. The terms vary considerably between foundries. Some commercial licences permit PDF embedding as part of their standard web font licence; others require a separate desktop or embedding licence; others prohibit embedding entirely for files intended for wide distribution. When in doubt, contact the foundry directly. Most are willing to clarify what their licence permits, and many offer specific embedding licences at reasonable cost.</p>
+
+    <!-- Figure 11.2: Licence comparison table -->
+    <div class="decision-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Licence type</th>
+            <th>Web use</th>
+            <th>PDF embedding</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>SIL Open Font License</td>
+            <td class="tick">✓ Yes</td>
+            <td class="tick">✓ Yes</td>
+            <td>All Google Fonts. Explicitly permits both uses. Redistribution of the font file itself in modified form requires the same licence.</td>
+          </tr>
+          <tr>
+            <td>Web font licence (commercial)</td>
+            <td class="tick">✓ Yes</td>
+            <td class="mid">⚠ Check terms</td>
+            <td>Varies by foundry. Many commercial web font licences permit embedding for documents not primarily intended to distribute the font itself — but read the specific terms.</td>
+          </tr>
+          <tr>
+            <td>Desktop licence (commercial)</td>
+            <td class="cross">✗ No</td>
+            <td class="tick">✓ Yes</td>
+            <td>Desktop licences permit installation and embedding in static documents but not web serving. Cannot be used with Google Fonts or any CDN delivery.</td>
+          </tr>
+          <tr>
+            <td>Adobe Fonts (subscription)</td>
+            <td class="tick">✓ Yes</td>
+            <td class="mid">⚠ Limited</td>
+            <td>Adobe Fonts permits embedding in PDFs for personal and internal use. Distribution of PDFs containing Adobe Fonts to external parties may require additional licensing — check the current terms.</td>
+          </tr>
+          <tr>
+            <td>System fonts (pre-installed)</td>
+            <td class="cross">✗ No</td>
+            <td class="tick">✓ Usually yes</td>
+            <td>System fonts like Georgia and Charter are licensed for use on the system they are installed on, which includes embedding in documents created on that system. Not for web serving.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>One practical point worth emphasising: when Paged.js generates a PDF via the browser's print function, font embedding is handled by the browser's PDF engine, not by Paged.js itself. The browser will attempt to embed font data in the PDF according to the font's embedding permissions flags — a field set in the font file itself by the foundry. Fonts with the embedding permissions set to "no embedding" will not be embedded, and the PDF will fall back to a substitute font for readers who do not have the typeface installed. Fonts with the SIL Open Font License, and most web fonts, have their embedding permissions set to allow embedding.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Performance vs. typographic richness</span>
+      Making the trade-off consciously</h2>
+
+    <p>For a document that will be opened in a browser, paginated by Paged.js, and exported as a PDF, loading performance is a consideration — but it is a different consideration than for a public-facing website. A website visited by thousands of users must load in under two seconds or risk losing them. A document opened by one person, or a handful of people, on a machine with a reliable internet connection, can afford to take five or ten seconds to load its fonts without any meaningful consequence.</p>
+
+    <p>This shifts the performance calculation considerably. For a web page, you might choose a system font stack or a single-weight web font to minimise load time. For a Paged.js document, you can afford to load four or five font files — roman and italic in two weights, plus a companion sans-serif — without causing problems for any realistic use case. The trade-off is real but the stakes are lower than they first appear.</p>
+
+    <p>Where performance does matter in this context is in automated pipelines — situations where the document is generated programmatically, perhaps hundreds of times, in a headless browser environment. In this case, network requests add up, and self-hosted fonts become essential. They also improve consistency: a headless browser with access to local font files will produce identical output every time, regardless of network conditions or CDN availability.</p>
+
+    <p>The guiding principle is: load what you need, no more. For the project document, this means loading EB Garamond in two weights (400 and 500), both roman and italic, plus Outfit in two weights (400 and 500). That is five font files — or fewer, if using a variable font — which is a comfortable load for the browser and a complete typographic toolkit for the document. Request only the weights and styles you actually use in the CSS; loading a full font family "just in case" adds weight without adding benefit.</p>
+
+<pre><code><span class="c-comment">/* ── Optimised Google Fonts request ─────────
+   Only the weights and styles actually used
+   in the project stylesheet                  */</span>
+
+<span class="c-comment">&lt;!-- Preconnect for performance --&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"preconnect"</span>
+      href=<span class="c-str">"https://fonts.googleapis.com"</span><span class="c-tag">&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"preconnect"</span>
+      href=<span class="c-str">"https://fonts.gstatic.com"</span>
+      crossorigin<span class="c-tag">&gt;</span>
+
+<span class="c-comment">&lt;!-- EB Garamond: 400 and 500, roman + italic
+     Outfit: 400 and 500, roman only
+     Variable font syntax for EB Garamond      --&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"stylesheet"</span>
+      href=<span class="c-str">"https://fonts.googleapis.com/css2?
+  family=EB+Garamond:ital,wght@
+    0,400..500;1,400..500
+  &amp;family=Outfit:wght@400;500
+  &amp;display=block"</span><span class="c-tag">&gt;</span></code></pre>
+
+    <p>Note the <code>display=block</code> parameter appended to the Google Fonts URL. This applies <code>font-display: block</code> to all the fonts in the request — instructing the browser to wait for the fonts rather than rendering with a fallback. As discussed earlier, this is the correct behavior for a Paged.js document and is now supported in Google Fonts URL parameters.<sup>2</sup></p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Putting it all together</span>
+      The complete font setup for the project</h2>
+
+    <p>The following is the complete, production-ready font loading setup for <em>The Compositor's Garden</em>, combining everything from this chapter: the optimised Google Fonts request, the <code>fonts.ready</code> guard for Paged.js, and a graceful fallback for offline or restricted environments.</p>
+
+<pre><code><span class="c-comment">&lt;!-- ════════════════════════════════════════
+     Font loading — The Compositor's Garden
+     ════════════════════════════════════════ --&gt;</span>
+
+<span class="c-comment">&lt;!-- 1. Preconnect hints --&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"preconnect"</span>
+      href=<span class="c-str">"https://fonts.googleapis.com"</span><span class="c-tag">&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"preconnect"</span>
+      href=<span class="c-str">"https://fonts.gstatic.com"</span>
+      crossorigin<span class="c-tag">&gt;</span>
+
+<span class="c-comment">&lt;!-- 2. Font request — only used weights
+     Variable weight range: 400–500         --&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"stylesheet"</span>
+      href=<span class="c-str">"https://fonts.googleapis.com/css2?
+  family=EB+Garamond:ital,wght@
+    0,400..500;1,400..500
+  &amp;family=Outfit:wght@400;500
+  &amp;display=block"</span><span class="c-tag">&gt;</span>
+
+<span class="c-comment">&lt;!-- 3. Paged.js — disable auto-preview --&gt;</span>
+<span class="c-tag">&lt;script</span>
+  src=<span class="c-str">"paged.polyfill.js"</span>
+  data-paged-preview=<span class="c-str">"false"</span>
+<span class="c-tag">&gt;&lt;/script&gt;</span>
+
+<span class="c-comment">&lt;!-- 4. Font-ready guard --&gt;</span>
+<span class="c-tag">&lt;script&gt;</span>
+  document.fonts.ready.then(function () {
+    window.PagedPolyfill.preview();
+  });
+<span class="c-tag">&lt;/script&gt;</span>
+
+<span class="c-comment">/* 5. CSS fallback stack — in stylesheet     */</span>
+<span class="c-sel">:root</span> {
+  <span class="c-comment">/* Web font first, quality system fonts as
+     fallback for offline/restricted envs    */</span>
+  <span class="c-prop">--font-body</span>: <span class="c-val">'EB Garamond'</span>,
+               <span class="c-val">Charter</span>,
+               <span class="c-val">'Bitstream Charter'</span>,
+               <span class="c-val">Georgia</span>,
+               <span class="c-val">serif</span>;
+
+  <span class="c-prop">--font-ui</span>:   <span class="c-val">'Outfit'</span>,
+               <span class="c-val">-apple-system</span>,
+               <span class="c-val">BlinkMacSystemFont</span>,
+               <span class="c-val">'Segoe UI'</span>,
+               <span class="c-val">sans-serif</span>;
+}</code></pre>
+
+    <div class="callout">
+      <p class="callout-label">A note on offline use</p>
+      <p>If you will be working on the project document in environments without reliable internet access — on a plane, in a location with poor connectivity, or in a build environment without outbound network access — download the font files from Google Fonts using the google-webfonts-helper tool and switch to the self-hosted <code>@font-face</code> approach from earlier in this chapter. Change <code>font-display: block</code> in the <code>@font-face</code> declarations, remove the Google Fonts <code>&lt;link&gt;</code> elements, and remove the <code>fonts.ready</code> guard — it is no longer needed, because the fonts load from local files before the page script runs.</p>
+      <p>The companion project files for this book include both versions of the font setup — online and offline — with comments indicating which lines to switch between them. For most development work, the Google Fonts version is more convenient. For production output, self-hosting is more reliable.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <p>Font loading, licensing, and performance are not the most glamorous topics in typography, but they are the ones most likely to cause real problems in a real project. Getting them right is invisible — the document simply works, the PDF is correct, the typefaces render as intended. Getting them wrong produces a document that breaks in ways that are difficult to diagnose if you do not know where to look.</p>
+
+    <p>With this chapter, Part Two is complete. The typographic foundation of <em>The Compositor's Garden</em> is fully in place: typefaces chosen and loaded, scale defined, spacing system established, OpenType features configured, and the font pipeline understood. In Part Three, we build the spatial structure on top of this foundation — the grid, the margins, and the column system that give the type a physical home on the page.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>The distinction between web font embedding and PDF embedding is the source of considerable confusion in font licensing. A web font licence permits the font to be served from a web server and rendered in a browser — this is what Google Fonts and CDN delivery services do. PDF embedding means the font data is included inside the PDF file itself, so that any reader can view the correct typeface regardless of whether it is installed on their machine. These are legally distinct uses, and a licence that explicitly covers web use may not cover PDF embedding. The SIL Open Font License covers both explicitly and unambiguously, which is one reason it has become the dominant licence for open-source typefaces used in document work.</li>
+      <li>The <code>display=block</code> parameter in Google Fonts URLs was added to support use cases, like Paged.js documents, where rendering correctness is more important than first-paint performance. It applies <code>font-display: block</code> to all fonts in the request, instructing the browser to hold rendering until all fonts are loaded. Not all font CDNs support this parameter; it is specific to Google Fonts and should be verified against current Google Fonts documentation, as the API evolves.</li>
+      <li>For automated document generation — producing PDFs from HTML programmatically at scale — Puppeteer and Playwright are the most common tools. Both headless Chromium-based browsers can run Paged.js, navigate to the document URL, and export the Paged.js-rendered view as a PDF. In this pipeline, fonts must be self-hosted or loaded before the PDF export command is issued. The Paged.js documentation includes a section on CLI and automated workflows covering the specifics of font loading in headless environments.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Ten
+        <span class="next-title" style="text-align:left;">OpenType and Advanced CSS Typography</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Part Three →
+        <span class="next-title">Why Grids Exist</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>

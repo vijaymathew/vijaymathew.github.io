@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 13: Building a Grid in CSS — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+      --grid-tint:   rgba(107, 79, 44, 0.08);
+      --grid-line:   rgba(107, 79, 44, 0.22);
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      padding: 1.1rem 2rem;
+    }
+
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .book-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-mid);
+    }
+
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .book-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .book-nav a:hover,
+    .book-nav a.active { color: var(--ink); }
+
+    .page {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    .opener {
+      margin-bottom: 4rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .opener-part {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.5rem;
+    }
+
+    .opener-label {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .opener-title {
+      font-family: var(--font-body);
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      max-width: 22ch;
+      margin-bottom: 1rem;
+    }
+
+    .opener-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      font-style: italic;
+      color: var(--ink-mid);
+      line-height: 1.45;
+      max-width: 44ch;
+      margin-top: 0.8rem;
+    }
+
+    .opener-topics {
+      margin-top: 2rem;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .opener-topics li {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: var(--ink-faint);
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .opener-topics li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--rule);
+    }
+
+    .prose { max-width: var(--col); }
+
+    .prose p { margin-bottom: 0; hyphens: auto; }
+    .prose p + p { text-indent: 1.6em; }
+
+    .prose h2 + p,
+    .prose .figure + p,
+    .prose .live-grid + p,
+    .prose .callout + p,
+    .prose pre + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em;
+      font-weight: 500;
+      float: left;
+      line-height: 0.8;
+      margin-right: 0.07em;
+      margin-top: 0.12em;
+      color: var(--ink);
+    }
+
+    .sep {
+      display: block;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: var(--text-sm);
+      letter-spacing: 0.3em;
+      margin: 2.75rem 0;
+      user-select: none;
+    }
+
+    .prose h2 {
+      font-family: var(--font-body);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      font-style: italic;
+      line-height: var(--lh-tight);
+      color: var(--ink);
+      margin-top: 3.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose h2 .label {
+      display: block;
+      font-style: normal;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 0.4rem;
+    }
+
+    .prose blockquote {
+      margin: 2.25rem 0;
+      padding-left: 1.5rem;
+      border-left: 2px solid var(--rule);
+    }
+
+    .prose blockquote p {
+      font-style: italic;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+    }
+
+    .prose blockquote cite {
+      display: block;
+      margin-top: 0.6rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      letter-spacing: 0.06em;
+      font-style: normal;
+      color: var(--ink-faint);
+    }
+
+    .prose em { font-style: italic; }
+    .prose strong { font-weight: 500; }
+
+    .prose sup {
+      font-size: 0.64em;
+      vertical-align: super;
+      line-height: 0;
+      color: var(--accent);
+      margin-left: 0.05em;
+    }
+
+    .prose code {
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82em;
+      background: rgba(0,0,0,0.055);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: var(--ink-mid);
+    }
+
+    .prose pre {
+      background: #1e1b17;
+      color: #f8f5f0;
+      padding: 1.25rem 1.5rem;
+      border-radius: 4px;
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 1.75rem 0;
+    }
+
+    .prose pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    .c-comment { color: #9c9389; }
+    .c-prop    { color: #a0c8a0; }
+    .c-val     { color: #f0c080; }
+    .c-sel     { color: #ddd7ce; }
+    .c-num     { color: #c0a8e0; }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .figure-body {
+      background: #fff;
+      padding: 2rem;
+    }
+
+    .figure-caption {
+      background: var(--highlight);
+      border-top: 1px solid var(--rule);
+      padding: 0.9rem 1.25rem;
+    }
+
+    .figure-caption p {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      color: var(--ink-mid);
+      line-height: 1.55;
+      margin: 0;
+      text-indent: 0 !important;
+    }
+
+    .figure-caption strong { font-weight: 500; color: var(--ink); }
+
+    /* ── Live grid demos ─────────────────────────────────────────── */
+    .live-grid {
+      margin: 3rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .live-grid-header {
+      background: var(--highlight);
+      padding: 0.7rem 1.5rem;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .live-grid-title {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .live-grid-subtitle {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+
+    .live-grid-body {
+      background: #fff;
+      padding: 1.75rem 2rem;
+    }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout {
+      margin: 2.5rem 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--highlight);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .callout p {
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--ink-mid);
+      text-indent: 0 !important;
+      margin-bottom: 0;
+    }
+
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes {
+      max-width: var(--col);
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .footnotes-label {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 1rem;
+    }
+
+    .footnotes ol { padding-left: 1.2rem; }
+
+    .footnotes li {
+      font-size: var(--text-sm);
+      line-height: 1.62;
+      color: var(--ink-mid);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav {
+      max-width: var(--col);
+      margin-top: 5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .chapter-nav a {
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      text-decoration: none;
+    }
+
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+
+    .chapter-nav .next-title {
+      display: block;
+      font-family: var(--font-body);
+      font-style: italic;
+      font-size: var(--text-base);
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--ink-mid);
+      margin-top: 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#">Part II</a>
+      <a href="#" class="active">Part III</a>
+      <a href="#">Part IV</a>
+      <a href="#">Part V</a>
+      <a href="#">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Three — Grid and Layout</span>
+    <span class="opener-label">Chapter Thirteen</span>
+    <h1 class="opener-title">Building a Grid in CSS</h1>
+    <p class="opener-subtitle">CSS Grid gives you the most precise spatial control available in any document medium. Learning to use it deliberately — not just conveniently — is the difference between a layout that holds and one that drifts.</p>
+    <ul class="opener-topics">
+      <li>CSS Grid for page layout</li>
+      <li>Defining columns, gutters, and margins</li>
+      <li>Aligning type to a baseline grid</li>
+      <li>Practical grid templates for common document types</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">There is a moment when you write <code>display: grid</code> for the first time and realise that the browser is doing something fundamentally different from what CSS has ever done before. You are not positioning elements relative to each other, or floating them into columns, or using flexbox to arrange them in a single axis. You are defining a spatial system first — a grid of columns and rows — and then placing elements into it. The layout exists before the content. The structure precedes the material. This is how print designers have always worked, and CSS Grid is the first CSS layout system that reflects that sequence correctly.</p>
+
+    <p>This chapter translates the grid decisions made in Chapter 12 into working CSS. We build the project grid from first principles, explaining each property as we introduce it. We then develop grid templates for the three most common document structures — single column with margin column, symmetric two-column, and asymmetric text-plus-notes — so that the code becomes a reusable toolkit rather than a one-off solution.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">CSS Grid fundamentals</span>
+      Tracks, cells, and the explicit grid</h2>
+
+    <p>CSS Grid introduces a vocabulary that is worth knowing precisely, because it makes the documentation and the error messages legible. A <em>grid container</em> is any element with <code>display: grid</code>. Its direct children become <em>grid items</em>. The container defines <em>tracks</em> — columns and rows — using <code>grid-template-columns</code> and <code>grid-template-rows</code>. The intersection of a column track and a row track is a <em>cell</em>. A grid item can occupy one cell or span multiple cells using <code>grid-column</code> and <code>grid-row</code>.</p>
+
+    <p>The <em>explicit grid</em> is what you define with <code>grid-template-columns</code> and <code>grid-template-rows</code>. If grid items are placed beyond its boundaries, CSS Grid creates an <em>implicit grid</em> to contain them, using default track sizes unless you specify otherwise with <code>grid-auto-rows</code> or <code>grid-auto-columns</code>. For document layout, you almost always want to work in the explicit grid — defining all the tracks you need in advance rather than relying on implicit creation.</p>
+
+    <p>The unit that makes CSS Grid uniquely powerful for layout is <code>fr</code> — the fractional unit. One <code>fr</code> represents one fraction of the available space in the grid container after fixed-size tracks and gaps are subtracted. <code>grid-template-columns: 1fr 2fr</code> creates two columns, the second twice as wide as the first, filling the full container width. <code>grid-template-columns: 200px 1fr</code> creates a fixed 200px column and a flexible column that takes whatever remains. This is the unit you use for content tracks whose width should adapt to the container while maintaining their proportional relationship to each other.<sup>1</sup></p>
+
+    <p>Gaps between tracks are specified with <code>gap</code>, <code>column-gap</code>, and <code>row-gap</code>. Unlike margins, gaps do not collapse and do not appear at the outer edges of the grid — only between tracks. For a document with two text columns and a gutter between them, <code>column-gap</code> is the correct tool. For vertical spacing between major block elements in a grid layout, <code>row-gap</code> can supplement or replace margin-based spacing.</p>
+
+    <!-- Figure 13.1: CSS Grid anatomy -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <defs>
+            <marker id="dim-arr" viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="#6b4f2c"
+                    stroke-width="1.5" stroke-linecap="round"
+                    stroke-linejoin="round" opacity="0.7"/>
+            </marker>
+            <marker id="dim-arr-r" viewBox="0 0 10 10" refX="2" refY="5"
+                    markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M8 1L2 5L8 9" fill="none" stroke="#6b4f2c"
+                    stroke-width="1.5" stroke-linecap="round"
+                    stroke-linejoin="round" opacity="0.7"/>
+            </marker>
+          </defs>
+
+          <!-- Grid container boundary -->
+          <rect x="60" y="20" width="460" height="260" rx="3"
+                fill="#fafaf8" stroke="#ddd7ce" stroke-width="1"/>
+
+          <!-- Grid columns: 3 columns, 2 gaps -->
+          <!-- col widths: 130, gap 20, 130, gap 20, 140 (total 440) with 20px padding each side -->
+          <!-- columns start at x=80, total width=440 -->
+          <!-- col1: 80–210, gap: 210–230, col2: 230–360, gap: 360–380, col3: 380–520 -->
+
+          <!-- Column tracks (filled) -->
+          <rect x="80"  y="40" width="130" height="220" fill="rgba(107,79,44,0.06)" stroke="rgba(107,79,44,0.2)" stroke-width="0.75" rx="1"/>
+          <rect x="230" y="40" width="130" height="220" fill="rgba(107,79,44,0.06)" stroke="rgba(107,79,44,0.2)" stroke-width="0.75" rx="1"/>
+          <rect x="380" y="40" width="140" height="220" fill="rgba(107,79,44,0.06)" stroke="rgba(107,79,44,0.2)" stroke-width="0.75" rx="1"/>
+
+          <!-- Gap regions -->
+          <rect x="210" y="40" width="20" height="220" fill="rgba(200,180,160,0.12)"/>
+          <rect x="360" y="40" width="20" height="220" fill="rgba(200,180,160,0.12)"/>
+
+          <!-- Row divisions (implicit) -->
+          <line x1="80" y1="140" x2="520" y2="140" stroke="#ddd7ce" stroke-width="0.75" stroke-dasharray="4,3"/>
+
+          <!-- Grid items -->
+          <!-- Item A: col 1, row 1 -->
+          <rect x="82"  y="42"  width="126" height="94"  rx="2" fill="#e8e2d9" stroke="rgba(107,79,44,0.3)" stroke-width="0.75"/>
+          <text x="145" y="94" font-family="Outfit,sans-serif" font-size="9" fill="#6b4f2c" text-anchor="middle" font-weight="500">Item A</text>
+          <text x="145" y="106" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">col 1 / row 1</text>
+
+          <!-- Item B: col 2–3 span, row 1 -->
+          <rect x="232" y="42"  width="286" height="94"  rx="2" fill="#d8e8d8" stroke="rgba(60,100,60,0.3)" stroke-width="0.75"/>
+          <text x="375" y="94" font-family="Outfit,sans-serif" font-size="9" fill="#3a6a3a" text-anchor="middle" font-weight="500">Item B — spanning columns 2–3</text>
+          <text x="375" y="106" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">grid-column: 2 / 4</text>
+
+          <!-- Item C: col 1, row 2 -->
+          <rect x="82"  y="142" width="126" height="116" rx="2" fill="#e8e2d9" stroke="rgba(107,79,44,0.3)" stroke-width="0.75"/>
+          <text x="145" y="205" font-family="Outfit,sans-serif" font-size="9" fill="#6b4f2c" text-anchor="middle" font-weight="500">Item C</text>
+          <text x="145" y="217" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">col 1 / row 2</text>
+
+          <!-- Item D: col 2, row 2 -->
+          <rect x="232" y="142" width="126" height="116" rx="2" fill="#e8e2d9" stroke="rgba(107,79,44,0.3)" stroke-width="0.75"/>
+          <text x="295" y="205" font-family="Outfit,sans-serif" font-size="9" fill="#6b4f2c" text-anchor="middle" font-weight="500">Item D</text>
+          <text x="295" y="217" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">col 2 / row 2</text>
+
+          <!-- Item E: col 3, row 2 -->
+          <rect x="382" y="142" width="136" height="116" rx="2" fill="#e8e2d9" stroke="rgba(107,79,44,0.3)" stroke-width="0.75"/>
+          <text x="450" y="205" font-family="Outfit,sans-serif" font-size="9" fill="#6b4f2c" text-anchor="middle" font-weight="500">Item E</text>
+          <text x="450" y="217" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">col 3 / row 2</text>
+
+          <!-- Dimension: column width -->
+          <line x1="80" y1="272" x2="210" y2="272" stroke="#6b4f2c" stroke-width="0.75" opacity="0.6"
+                marker-start="url(#dim-arr-r)" marker-end="url(#dim-arr)"/>
+          <text x="145" y="286" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c" text-anchor="middle" opacity="0.8">column track</text>
+
+          <!-- Dimension: gap -->
+          <line x1="212" y1="272" x2="228" y2="272" stroke="#6b4f2c" stroke-width="0.75" opacity="0.6"
+                marker-start="url(#dim-arr-r)" marker-end="url(#dim-arr)"/>
+          <text x="220" y="286" font-family="Outfit,sans-serif" font-size="7.5" fill="#6b4f2c" text-anchor="middle" opacity="0.8">gap</text>
+
+          <!-- Label: grid lines -->
+          <text x="80"  y="15" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">1</text>
+          <text x="210" y="15" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">2</text>
+          <text x="230" y="15" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">3</text>
+          <text x="360" y="15" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">4</text>
+          <text x="380" y="15" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">5</text>
+          <text x="520" y="15" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">6</text>
+          <text x="548" y="94"  font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389">row 1</text>
+          <text x="548" y="200" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389">row 2</text>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 13.1 — CSS Grid anatomy.</strong> A three-column grid with two row tracks. Column line numbers (1–6) appear above; the gap regions are shown in a lighter tint between column tracks. Item B spans columns 2 through 4 using <code>grid-column: 2 / 4</code>, demonstrating how elements can occupy multiple tracks. Item C occupies a single cell. The gap appears between items but not at the outer edges of the grid container.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">The project grid</span>
+      Building the Compositor's Garden layout in CSS</h2>
+
+    <p>The grid for <em>The Compositor's Garden</em>, decided in Chapter 12, is a single text column with a narrower margin column on the outer edge — the side furthest from the spine. The inner margin is narrower, the outer wider, and the margin column sits within the outer margin space for marginal notes. In CSS Grid, this is expressed as a three-track column definition: a fixed inner margin, a flexible text column, and a fixed outer margin column.</p>
+
+    <p>We define the grid on the page body — the content area inside the Paged.js page box — and use named grid areas to make placement readable. Named areas are more maintainable than numeric line references, especially as the document grows more complex:</p>
+
+<pre><code><span class="c-comment">/* ── Page body grid — The Compositor's Garden ── */</span>
+<span class="c-sel">.page-body</span> {
+  <span class="c-prop">display</span>:               <span class="c-val">grid</span>;
+
+  <span class="c-comment">/* Three columns:
+     - inner margin (fixed, narrow)
+     - text column  (flexible, fills space)
+     - outer margin (fixed, wider — for notes) */</span>
+  <span class="c-prop">grid-template-columns</span>: <span class="c-val">2rem 1fr 6rem</span>;
+
+  <span class="c-comment">/* Named areas for readable placement       */</span>
+  <span class="c-prop">grid-template-areas</span>:
+    <span class="c-val">"margin  text  notes"</span>;
+
+  <span class="c-comment">/* Gutter between text and notes column      */</span>
+  <span class="c-prop">column-gap</span>:            <span class="c-val">1.5rem</span>;
+}
+
+<span class="c-comment">/* ── Place elements in named areas ─────────── */</span>
+<span class="c-sel">.chapter-title,
+.chapter-intro,
+p, h2, h3,
+blockquote, figure,
+.footnotes</span> {
+  <span class="c-prop">grid-area</span>: <span class="c-val">text</span>;
+}
+
+<span class="c-comment">/* Full-width elements span all three columns  */</span>
+<span class="c-sel">.full-width</span> {
+  <span class="c-prop">grid-column</span>: <span class="c-val">1 / -1</span>;
+}
+
+<span class="c-comment">/* Marginal notes sit in the notes column      */</span>
+<span class="c-sel">.marginal-note</span> {
+  <span class="c-prop">grid-area</span>:   <span class="c-val">notes</span>;
+  <span class="c-prop">font-size</span>:   <span class="c-val">var(--text-xs)</span>;
+  <span class="c-prop">font-style</span>:  <span class="c-val">italic</span>;
+  <span class="c-prop">color</span>:       <span class="c-val">var(--ink-faint)</span>;
+  <span class="c-prop">line-height</span>: <span class="c-val">1.5</span>;
+  <span class="c-prop">padding-top</span>: <span class="c-val">0.2rem</span>;
+}
+</code></pre>
+
+    <!-- Figure 13.2: The project grid visualised -->
+    <div class="live-grid">
+      <div class="live-grid-header">
+        <span class="live-grid-title">The Compositor's Garden — page grid</span>
+        <span class="live-grid-subtitle">grid-template-columns: 2rem 1fr 6rem</span>
+      </div>
+      <div class="live-grid-body">
+        <svg viewBox="0 0 580 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Page boundary -->
+          <rect x="60" y="10" width="340" height="310" rx="3" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="1"/>
+
+          <!-- Grid columns visualised with tint -->
+          <!-- inner margin: 60–92 (2rem~32px) -->
+          <rect x="62" y="12" width="28" height="306" fill="rgba(107,79,44,0.07)" rx="1"/>
+          <!-- text column: 92–332 (1fr) -->
+          <rect x="94" y="12" width="240" height="306" fill="rgba(107,79,44,0.05)" rx="1"/>
+          <!-- gap: 332–356 (1.5rem~24px) -->
+          <!-- notes column: 356–452 (6rem~96px) -->
+          <rect x="358" y="12" width="38" height="306" fill="rgba(107,79,44,0.09)" rx="1"/>
+
+          <!-- Column labels -->
+          <text x="76"  y="9" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">inner</text>
+          <text x="214" y="9" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">text column (1fr)</text>
+          <text x="377" y="9" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">notes</text>
+
+          <!-- Running header — spans all columns -->
+          <rect x="62"  y="18" width="334" height="12" rx="1" fill="rgba(107,79,44,0.04)" stroke="rgba(107,79,44,0.15)" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <rect x="96"  y="21" width="90"  height="4"  rx="1" fill="#1e1b17" opacity="0.18"/>
+          <rect x="354" y="21" width="16"  height="4"  rx="1" fill="#1e1b17" opacity="0.18"/>
+
+          <!-- Chapter number label — text column -->
+          <rect x="96" y="40" width="60" height="4" rx="1" fill="#1e1b17" opacity="0.22"/>
+
+          <!-- Chapter title — text column -->
+          <text x="96" y="74" font-family="EB Garamond,Georgia,serif" font-size="22" fill="#1e1b17" font-weight="400">On Spacing</text>
+
+          <!-- Rule -->
+          <line x1="96" y1="84" x2="124" y2="84" stroke="#6b4f2c" stroke-width="0.8" opacity="0.5"/>
+
+          <!-- Chapter intro — text column -->
+          <rect x="96" y="92"  width="220" height="4"  rx="1" fill="#1e1b17" opacity="0.22" font-style="italic"/>
+          <rect x="96" y="99"  width="200" height="4"  rx="1" fill="#1e1b17" opacity="0.20"/>
+
+          <!-- Body text — text column -->
+          <rect x="96" y="116" width="236" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="123" width="230" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="130" width="234" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="137" width="228" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="144" width="236" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="151" width="220" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+
+          <!-- Marginal note — notes column, aligned with body text -->
+          <rect x="358" y="116" width="36" height="3.5" rx="0.5" fill="#1e1b17" opacity="0.18"/>
+          <rect x="358" y="122" width="36" height="3.5" rx="0.5" fill="#1e1b17" opacity="0.16"/>
+          <rect x="358" y="128" width="30" height="3.5" rx="0.5" fill="#1e1b17" opacity="0.16"/>
+          <rect x="358" y="134" width="36" height="3.5" rx="0.5" fill="#1e1b17" opacity="0.14"/>
+
+          <!-- Connector: body text to marginal note -->
+          <line x1="334" y1="118" x2="356" y2="118" stroke="#6b4f2c" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.4"/>
+
+          <!-- Subheading — text column -->
+          <text x="96" y="184" font-family="EB Garamond,Georgia,serif" font-size="14" fill="#1e1b17" font-style="italic">The space between letters</text>
+
+          <!-- More body -->
+          <rect x="96" y="194" width="236" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="201" width="228" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="208" width="234" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="215" width="220" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="222" width="236" height="4"  rx="1" fill="#1e1b17" opacity="0.14"/>
+
+          <!-- Footnote rule and text -->
+          <line x1="96" y1="268" x2="156" y2="268" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="96" y="274" width="236" height="3.5" rx="0.5" fill="#1e1b17" opacity="0.14"/>
+          <rect x="96" y="280" width="220" height="3.5" rx="0.5" fill="#1e1b17" opacity="0.12"/>
+
+          <!-- Folio -->
+          <rect x="220" y="298" width="16" height="4" rx="1" fill="#1e1b17" opacity="0.2"/>
+
+          <!-- Annotation arrows + labels on right side -->
+          <line x1="400" y1="70"  x2="430" y2="70"  stroke="#6b4f2c" stroke-width="0.75" opacity="0.5"/>
+          <text x="434" y="69"  font-family="Outfit,sans-serif" font-size="8" fill="#6b4f2c" opacity="0.85">grid-area: text</text>
+          <text x="434" y="78"  font-family="Outfit,sans-serif" font-size="7" fill="#9c9389">chapter title</text>
+
+          <line x1="400" y1="134" x2="430" y2="134" stroke="#6b4f2c" stroke-width="0.75" opacity="0.5"/>
+          <text x="434" y="133" font-family="Outfit,sans-serif" font-size="8" fill="#6b4f2c" opacity="0.85">grid-area: notes</text>
+          <text x="434" y="142" font-family="Outfit,sans-serif" font-size="7" fill="#9c9389">marginal note</text>
+
+          <line x1="400" y1="276" x2="430" y2="276" stroke="#6b4f2c" stroke-width="0.75" opacity="0.5"/>
+          <text x="434" y="275" font-family="Outfit,sans-serif" font-size="8" fill="#6b4f2c" opacity="0.85">grid-area: text</text>
+          <text x="434" y="284" font-family="Outfit,sans-serif" font-size="7" fill="#9c9389">footnotes</text>
+
+          <line x1="62" y1="24"  x2="430" y2="24"  stroke="#6b4f2c" stroke-width="0.75" opacity="0.3" stroke-dasharray="3,3"/>
+          <text x="434" y="23"  font-family="Outfit,sans-serif" font-size="8" fill="#6b4f2c" opacity="0.85">grid-column: 1 / -1</text>
+          <text x="434" y="32"  font-family="Outfit,sans-serif" font-size="7" fill="#9c9389">running header</text>
+
+        </svg>
+      </div>
+    </div>
+
+    <div class="figure-caption" style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;margin-top:-3rem;margin-bottom:3rem;">
+      <p><strong>Figure 13.2 — The Compositor's Garden page grid.</strong> Three column tracks: a narrow inner margin (2rem), the main text column (1fr), and a notes column (6rem) in the outer margin. The running header spans all three columns with <code>grid-column: 1 / -1</code>. All body elements — headings, body text, subheadings, footnotes — are placed in the text column. Marginal notes are placed in the notes column, positioned to align with the relevant passage in the main text.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Aligning to a baseline grid</span>
+      Making vertical rhythm visible in CSS</h2>
+
+    <p>A baseline grid is an invisible horizontal grid — a series of evenly spaced lines at the interval of the body text's line-height — against which every element on the page is positioned. When elements align to the baseline grid, the vertical rhythm is consistent: the eye follows a regular beat from line to line, from element to element, across the full page. When elements do not align, the rhythm is broken: the page has a slightly turbulent quality that readers feel as discomfort even when they cannot name it.</p>
+
+    <p>Achieving strict baseline grid alignment in CSS is technically possible but requires care. The key insight is that every element's top edge and bottom edge must fall on a grid line. Since grid lines are spaced at the body line-height interval, this means every vertical distance — every margin, padding, and element height — must be a multiple of the line-height unit.</p>
+
+    <p>For the project, the body line-height is <code>1.76</code> applied to a <code>1.175rem</code> font size, giving a line-height in absolute terms of approximately <code>2.07rem</code>. We define this as a custom property and derive all vertical spacing from it:</p>
+
+<pre><code><span class="c-comment">/* ── Baseline grid unit ─────────────────────── */</span>
+<span class="c-sel">:root</span> {
+  <span class="c-comment">/* Body: 1.175rem × 1.76 ≈ 2.07rem per line   */</span>
+  <span class="c-prop">--lh</span>: <span class="c-val">2.07rem</span>; <span class="c-comment">/* one baseline unit            */</span>
+}
+
+<span class="c-comment">/* ── Heading: margin must land on grid ────────
+   h2 is font-size 1.65rem × line-height 1.25
+   = 2.0625rem per line ≈ one baseline unit
+   Use margin-top: calc(3 × var(--lh))
+   and margin-bottom: calc(1 × var(--lh))       */</span>
+<span class="c-sel">h2</span> {
+  <span class="c-prop">font-size</span>:     <span class="c-val">var(--text-lg)</span>;   <span class="c-comment">/* 1.65rem */</span>
+  <span class="c-prop">line-height</span>:   <span class="c-val">1.25</span>;
+  <span class="c-prop">margin-top</span>:    <span class="c-val">calc(3 * var(--lh))</span>;
+  <span class="c-prop">margin-bottom</span>: <span class="c-val">calc(1 * var(--lh))</span>;
+}
+
+<span class="c-comment">/* ── Figure: total height must be grid multiple */</span>
+<span class="c-sel">figure</span> {
+  <span class="c-prop">margin-top</span>:    <span class="c-val">calc(2 * var(--lh))</span>;
+  <span class="c-prop">margin-bottom</span>: <span class="c-val">calc(2 * var(--lh))</span>;
+}
+</code></pre>
+
+    <p>In practice, strict baseline alignment breaks down whenever an element has an unpredictable height — an image at an arbitrary size, a block quotation that wraps to an odd number of lines, a code block. The pragmatic approach is to apply baseline-grid mathematics to headings, section breaks, and major structural elements, and to accept that flowing text may drift slightly from strict alignment without visible consequence.<sup>2</sup></p>
+
+    <!-- Figure 13.3: Baseline grid overlay -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Left: without baseline grid (drifting) -->
+          <text x="130" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">WITHOUT BASELINE GRID</text>
+          <text x="430" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">WITH BASELINE GRID</text>
+          <line x1="290" y1="10" x2="290" y2="275" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Left panel -->
+          <rect x="20" y="20" width="250" height="250" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+
+          <!-- Baseline grid lines (faint, left) -->
+          <line x1="22" y1="52"  x2="268" y2="52"  stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="70"  x2="268" y2="70"  stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="88"  x2="268" y2="88"  stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="106" x2="268" y2="106" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="124" x2="268" y2="124" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="142" x2="268" y2="142" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="160" x2="268" y2="160" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="178" x2="268" y2="178" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="196" x2="268" y2="196" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="214" x2="268" y2="214" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="232" x2="268" y2="232" stroke="#ddd7ce" stroke-width="0.4"/>
+          <line x1="22" y1="250" x2="268" y2="250" stroke="#ddd7ce" stroke-width="0.4"/>
+
+          <!-- Heading — sits off grid (arbitrary margin) -->
+          <text x="36" y="48" font-family="EB Garamond,Georgia,serif" font-size="17" fill="#1e1b17">Chapter heading</text>
+          <!-- body text lines — drifted from grid -->
+          <rect x="36" y="58"  width="210" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="67"  width="205" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="76"  width="208" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="85"  width="200" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <!-- Subheading — arbitrary margin, off grid -->
+          <text x="36" y="105" font-family="EB Garamond,Georgia,serif" font-size="13" fill="#1e1b17" font-style="italic">Section heading</text>
+          <!-- More body — now clearly off the grid -->
+          <rect x="36" y="115" width="210" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="124" width="205" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="133" width="208" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="142" width="198" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="36" y="151" width="210" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <!-- Off-grid indicators -->
+          <circle cx="14" cy="67"  r="3" fill="#c05040" opacity="0.5"/>
+          <circle cx="14" cy="115" r="3" fill="#c05040" opacity="0.5"/>
+          <circle cx="14" cy="133" r="3" fill="#c05040" opacity="0.5"/>
+          <circle cx="14" cy="151" r="3" fill="#c05040" opacity="0.5"/>
+
+          <!-- Right panel -->
+          <rect x="308" y="20" width="252" height="250" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+
+          <!-- Baseline grid lines (visible, right) -->
+          <line x1="310" y1="52"  x2="558" y2="52"  stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="70"  x2="558" y2="70"  stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="88"  x2="558" y2="88"  stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="106" x2="558" y2="106" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="124" x2="558" y2="124" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="142" x2="558" y2="142" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="160" x2="558" y2="160" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="178" x2="558" y2="178" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="196" x2="558" y2="196" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="214" x2="558" y2="214" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="232" x2="558" y2="232" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+          <line x1="310" y1="250" x2="558" y2="250" stroke="rgba(107,79,44,0.18)" stroke-width="0.5"/>
+
+          <!-- Heading — lands precisely on grid line -->
+          <text x="324" y="52" font-family="EB Garamond,Georgia,serif" font-size="17" fill="#1e1b17">Chapter heading</text>
+          <!-- Body text — each line on a grid line -->
+          <rect x="324" y="56"  width="210" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="324" y="74"  width="205" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="324" y="92"  width="208" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <!-- Subheading — margin calculated to land on grid -->
+          <text x="324" y="106" font-family="EB Garamond,Georgia,serif" font-size="13" fill="#1e1b17" font-style="italic">Section heading</text>
+          <!-- More body — stays on grid -->
+          <rect x="324" y="110" width="210" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="324" y="128" width="205" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="324" y="146" width="208" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="324" y="164" width="198" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <rect x="324" y="182" width="210" height="5" rx="1" fill="#1e1b17" opacity="0.14"/>
+          <!-- On-grid indicators -->
+          <circle cx="302" cy="52"  r="3" fill="#3a7a3a" opacity="0.5"/>
+          <circle cx="302" cy="106" r="3" fill="#3a7a3a" opacity="0.5"/>
+          <circle cx="302" cy="128" r="3" fill="#3a7a3a" opacity="0.5"/>
+          <circle cx="302" cy="164" r="3" fill="#3a7a3a" opacity="0.5"/>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 13.3 — Baseline grid alignment.</strong> Left: heading and subheading margins set arbitrarily — text baselines drift from the grid lines (shown as faint horizontal rules), producing inconsistent vertical rhythm. The red circles mark misaligned baselines. Right: margins calculated as multiples of the baseline unit — every text baseline lands on a grid line, producing even vertical rhythm across the full column. The green circles confirm alignment.</p>
+      </div>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Grid templates for common document types</span>
+      Reusable layouts beyond the project</h2>
+
+    <p>The single-column-with-notes grid built above is specific to <em>The Compositor's Garden</em>. Part Five of this book covers different document types — reports, academic papers, editorial layouts — each of which may need a different grid. The following are ready-to-use CSS Grid templates for three common structures.</p>
+
+    <p><strong>Template A: Symmetric two-column</strong> — appropriate for academic journals, reference documents, and technical manuals where parallel text streams are needed or where a wide page format makes a single column impractical:</p>
+
+<pre><code><span class="c-comment">/* ── Two-column symmetric grid ──────────────── */</span>
+<span class="c-sel">.page-body-2col</span> {
+  <span class="c-prop">display</span>:               <span class="c-val">grid</span>;
+  <span class="c-comment">/* Outer margins + two equal columns + gutter */</span>
+  <span class="c-prop">grid-template-columns</span>: <span class="c-val">2rem 1fr 1fr 2rem</span>;
+  <span class="c-prop">grid-template-areas</span>:
+    <span class="c-val">"margin-l  col-a  col-b  margin-r"</span>;
+  <span class="c-prop">column-gap</span>:            <span class="c-val">2rem</span>;
+}
+
+<span class="c-comment">/* Full-width elements: headings, rules, notes */</span>
+<span class="c-sel">.full-width</span>   { <span class="c-prop">grid-column</span>: <span class="c-val">1 / -1</span>; }
+<span class="c-sel">.col-a</span>        { <span class="c-prop">grid-area</span>:   <span class="c-val">col-a</span>; }
+<span class="c-sel">.col-b</span>        { <span class="c-prop">grid-area</span>:   <span class="c-val">col-b</span>; }
+</code></pre>
+
+    <p><strong>Template B: Asymmetric text-plus-sidebar</strong> — appropriate for reports and documentation where a narrow sidebar carries navigation, labels, or supplementary data alongside the main text:</p>
+
+<pre><code><span class="c-comment">/* ── Asymmetric: main text + sidebar ────────── */</span>
+<span class="c-sel">.page-body-sidebar</span> {
+  <span class="c-prop">display</span>:               <span class="c-val">grid</span>;
+  <span class="c-comment">/* Sidebar (fixed) + gutter + main text (flex) */</span>
+  <span class="c-prop">grid-template-columns</span>: <span class="c-val">10rem 2rem 1fr</span>;
+  <span class="c-prop">grid-template-areas</span>:
+    <span class="c-val">"sidebar  .  main"</span>;
+}
+
+<span class="c-sel">.sidebar</span>      { <span class="c-prop">grid-area</span>: <span class="c-val">sidebar</span>; }
+<span class="c-sel">.main-content</span> { <span class="c-prop">grid-area</span>: <span class="c-val">main</span>; }
+</code></pre>
+
+    <p><strong>Template C: Full-bleed with centred measure</strong> — appropriate for long-form articles and essays on wide screens or large-format pages where the text block should be centred with very wide margins:</p>
+
+<pre><code><span class="c-comment">/* ── Full-bleed with centred text measure ────── */</span>
+<span class="c-sel">.page-body-centred</span> {
+  <span class="c-prop">display</span>:               <span class="c-val">grid</span>;
+  <span class="c-comment">/* Flexible outer margins keep text centred    */</span>
+  <span class="c-prop">grid-template-columns</span>: <span class="c-val">1fr minmax(0, 38rem) 1fr</span>;
+  <span class="c-prop">grid-template-areas</span>:
+    <span class="c-val">".  content  ."</span>;
+}
+
+<span class="c-sel">.content</span>      { <span class="c-prop">grid-area</span>: <span class="c-val">content</span>; }
+</code></pre>
+
+    <!-- Figure 13.4: Three grid templates visualised -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <!-- Template A: 2-col symmetric -->
+          <text x="96" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">TEMPLATE A — SYMMETRIC 2-COL</text>
+          <rect x="20" y="22" width="152" height="190" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="24" y="26" width="60" height="182" fill="rgba(107,79,44,0.07)" rx="1"/>
+          <rect x="108" y="26" width="60" height="182" fill="rgba(107,79,44,0.07)" rx="1"/>
+          <rect x="86"  y="26" width="20" height="182" fill="rgba(200,180,160,0.12)"/>
+          <!-- Content -->
+          <rect x="26" y="34" width="56" height="4" rx="1" fill="#1e1b17" opacity="0.5"/>
+          <rect x="26" y="42" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="26" y="48" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="26" y="54" width="50" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="26" y="60" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="34" width="56" height="4" rx="1" fill="#1e1b17" opacity="0.5"/>
+          <rect x="110" y="42" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="48" width="50" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="54" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="60" width="52" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <!-- Full-width heading -->
+          <rect x="24" y="72" width="144" height="6" rx="1" fill="#1e1b17" opacity="0.4"/>
+          <rect x="26" y="84" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="26" y="90" width="52" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="26" y="96" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="84" width="56" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="90" width="52" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="110" y="96" width="54" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+
+          <!-- Divider -->
+          <line x1="200" y1="10" x2="200" y2="215" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Template B: sidebar -->
+          <text x="310" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">TEMPLATE B — SIDEBAR</text>
+          <rect x="214" y="22" width="192" height="190" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Sidebar column -->
+          <rect x="218" y="26" width="52" height="182" fill="rgba(107,79,44,0.1)" rx="1"/>
+          <!-- Main text column -->
+          <rect x="286" y="26" width="116" height="182" fill="rgba(107,79,44,0.05)" rx="1"/>
+          <!-- Sidebar content -->
+          <rect x="222" y="34" width="44" height="4" rx="1" fill="#1e1b17" opacity="0.4"/>
+          <rect x="222" y="42" width="44" height="3" rx="0.5" fill="#1e1b17" opacity="0.2"/>
+          <rect x="222" y="48" width="38" height="3" rx="0.5" fill="#1e1b17" opacity="0.2"/>
+          <rect x="222" y="60" width="44" height="3" rx="0.5" fill="#6b4f2c" opacity="0.3"/>
+          <rect x="222" y="66" width="38" height="3" rx="0.5" fill="#6b4f2c" opacity="0.3"/>
+          <rect x="222" y="72" width="44" height="3" rx="0.5" fill="#6b4f2c" opacity="0.3"/>
+          <rect x="222" y="84" width="44" height="3" rx="0.5" fill="#1e1b17" opacity="0.2"/>
+          <rect x="222" y="90" width="38" height="3" rx="0.5" fill="#1e1b17" opacity="0.2"/>
+          <!-- Main text content -->
+          <rect x="288" y="34" width="112" height="5" rx="1" fill="#1e1b17" opacity="0.5"/>
+          <rect x="288" y="44" width="112" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="50" width="108" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="56" width="112" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="62" width="104" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="74" width="112" height="4" rx="1" fill="#1e1b17" opacity="0.35"/>
+          <rect x="288" y="84" width="112" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="90" width="108" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="96" width="112" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="288" y="102" width="100" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+
+          <!-- Divider -->
+          <line x1="424" y1="10" x2="424" y2="215" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Template C: centred measure -->
+          <text x="506" y="14" font-family="Outfit,sans-serif" font-size="8" fill="#9c9389" letter-spacing="1" text-anchor="middle">TEMPLATE C — CENTRED</text>
+          <rect x="434" y="22" width="142" height="190" rx="3" fill="#fafaf8" stroke="#ddd7ce" stroke-width="0.75"/>
+          <!-- Flexible margins -->
+          <rect x="436" y="26" width="20" height="182" fill="rgba(200,180,160,0.10)" rx="1"/>
+          <rect x="554" y="26" width="20" height="182" fill="rgba(200,180,160,0.10)" rx="1"/>
+          <!-- Centred text column -->
+          <rect x="458" y="26" width="94" height="182" fill="rgba(107,79,44,0.06)" rx="1"/>
+          <!-- Content -->
+          <rect x="460" y="40" width="90" height="6" rx="1" fill="#1e1b17" opacity="0.5"/>
+          <rect x="460" y="56" width="90" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="62" width="86" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="68" width="90" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="74" width="82" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="80" width="90" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="92" width="90" height="4" rx="1" fill="#1e1b17" opacity="0.35"/>
+          <rect x="460" y="102" width="90" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="108" width="86" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+          <rect x="460" y="114" width="90" height="3" rx="0.5" fill="#1e1b17" opacity="0.13"/>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 13.4 — Three reusable grid templates.</strong> Left: symmetric two-column — equal columns with a gutter, full-width headings spanning both. Centre: asymmetric sidebar — a fixed-width sidebar for navigation or labels beside a flexible main text column. Right: centred measure — flexible outer margins keep the text column centred at a fixed maximum width, appropriate for wide pages or large-format documents. Each template is built from the same CSS Grid properties; only the column track definitions differ.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="callout-label">Project checkpoint</p>
+      <p>The CSS grid for <em>The Compositor's Garden</em> is now defined. The three-column template — inner margin, text column, notes column — is in the project stylesheet, grid areas are named, and element placement is specified. The spacing system from Chapter 9 provides the vertical rhythm, and the baseline grid mathematics are applied to headings and major structural elements.</p>
+      <p>At this point, the project document has its typography (Part Two) and its spatial structure (the grid from this chapter). What it lacks is the specific spatial values that turn the grid into a page: the margins from the edge of the physical page to the grid container, the page dimensions themselves, and the CSS Paged Media declarations that tell Paged.js how to paginate the document. That is the work of Chapter 14.</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <p>CSS Grid and document layout are a natural pair — the grid's explicit, named structure matches the way print designers have always thought about pages. The translation from design intention to CSS is direct, the code is readable, and the result is a spatial system that can be applied consistently across an entire document without drift or approximation.</p>
+
+    <p>Chapter 14 moves outward from the content grid to the page itself — the <code>@page</code> rule, margin boxes, and the physical dimensions that turn a styled HTML document into a paginated book.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>The <code>fr</code> unit is specific to CSS Grid and has no equivalent in any prior CSS layout system. Its behavior — distributing available space proportionally after fixed sizes and gaps are accounted for — is precisely what grid designers have always wanted from a layout tool. The full specification for how <code>fr</code> units are calculated, including edge cases with minimum content sizes, is in the CSS Grid Layout specification at the W3C.</li>
+      <li>The CSS Working Group has discussed a <code>leading-trim</code> property (now specified as <code>text-box-trim</code> and <code>text-box-edge</code> in the CSS Inline Layout specification) that would allow precise control over the space above and below a text element's cap height and baseline, making baseline grid alignment considerably easier to implement in CSS. Browser support is limited at the time of writing, but the property is worth watching — it would eliminate the need for much of the manual margin calculation that baseline grid alignment currently requires.</li>
+      <li>Named grid areas with <code>grid-template-areas</code> are one of the most readable features of CSS Grid, but they have a limitation: every row of the template string must have the same number of named areas or dots (representing empty cells). A cell cannot span rows in the <code>grid-template-areas</code> syntax — row spanning must be specified on the item itself with <code>grid-row: span 2</code> or equivalent. For complex multi-row layouts, it is often more practical to use line numbers or named grid lines for placement rather than named areas.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Twelve
+        <span class="next-title" style="text-align:left;">Why Grids Exist</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Chapter Fourteen →
+        <span class="next-title">The Page as a Spatial System</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>

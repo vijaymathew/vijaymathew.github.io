@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter 25: Structuring Your Project — Type & Layout on the Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:       #f8f5f0;
+      --ink:         #1e1b17;
+      --ink-mid:     #4a4640;
+      --ink-faint:   #9c9389;
+      --rule:        #ddd7ce;
+      --accent:      #6b4f2c;
+      --highlight:   #f0ebe2;
+
+      --font-body:   'EB Garamond', Georgia, serif;
+      --font-ui:     'Outfit', system-ui, sans-serif;
+
+      --text-xs:     0.72rem;
+      --text-sm:     0.85rem;
+      --text-base:   1.175rem;
+      --text-md:     1.32rem;
+      --text-lg:     1.65rem;
+      --text-xl:     2rem;
+      --text-2xl:    2.8rem;
+
+      --lh-body:     1.76;
+      --lh-tight:    1.22;
+      --col:         66ch;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    .site-header { border-bottom: 1px solid var(--rule); padding: 1.1rem 2rem; }
+    .site-header-inner {
+      max-width: 52rem; margin: 0 auto;
+      display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap;
+    }
+    .book-title { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; letter-spacing: 0.01em; color: var(--ink-mid); }
+    .book-nav { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-left: auto; }
+    .book-nav a {
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400;
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint);
+      text-decoration: none; transition: color 0.15s;
+    }
+    .book-nav a:hover, .book-nav a.active { color: var(--ink); }
+
+    .page { max-width: 52rem; margin: 0 auto; padding: 5rem 2rem 8rem; }
+
+    .opener { margin-bottom: 4rem; padding-bottom: 3rem; border-bottom: 1px solid var(--rule); }
+    .opener-part { display: block; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.5rem; }
+    .opener-label { display: block; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.25rem; }
+    .opener-title { font-family: var(--font-body); font-size: var(--text-2xl); font-weight: 400; line-height: 1.08; letter-spacing: -0.01em; color: var(--ink); max-width: 22ch; margin-bottom: 1rem; }
+    .opener-subtitle { font-family: var(--font-body); font-size: var(--text-md); font-style: italic; color: var(--ink-mid); line-height: 1.45; max-width: 44ch; margin-top: 0.8rem; }
+    .opener-topics { margin-top: 2rem; list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+    .opener-topics li { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400; letter-spacing: 0.04em; color: var(--ink-faint); padding-left: 1rem; position: relative; }
+    .opener-topics li::before { content: '—'; position: absolute; left: 0; color: var(--rule); }
+
+    /* ── Prose ───────────────────────────────────────────────────── */
+    .prose { max-width: var(--col); }
+    .prose p { margin-bottom: 0; hyphens: auto; }
+    .prose p + p { text-indent: 1.6em; }
+    .prose h2 + p, .prose .figure + p, .prose .file-tree + p,
+    .prose .callout + p, .prose pre + p { text-indent: 0; }
+
+    .prose .lead::first-letter {
+      font-size: 3.8em; font-weight: 500; float: left;
+      line-height: 0.8; margin-right: 0.07em; margin-top: 0.12em; color: var(--ink);
+    }
+    .sep { display: block; text-align: center; color: var(--ink-faint); font-size: var(--text-sm); letter-spacing: 0.3em; margin: 2.75rem 0; user-select: none; }
+
+    .prose h2 { font-family: var(--font-body); font-size: var(--text-lg); font-weight: 400; font-style: italic; line-height: var(--lh-tight); color: var(--ink); margin-top: 3.5rem; margin-bottom: 1rem; }
+    .prose h2 .label { display: block; font-style: normal; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.4rem; }
+
+    .prose em { font-style: italic; }
+    .prose strong { font-weight: 500; }
+    .prose sup { font-size: 0.64em; vertical-align: super; line-height: 0; color: var(--accent); margin-left: 0.05em; }
+    .prose code { font-family: 'SFMono-Regular', 'Fira Code', monospace; font-size: 0.82em; background: rgba(0,0,0,0.055); padding: 0.1em 0.35em; border-radius: 3px; color: var(--ink-mid); }
+    .prose pre { background: #1e1b17; color: #f8f5f0; padding: 1.25rem 1.5rem; border-radius: 4px; font-family: 'SFMono-Regular', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; margin: 1.75rem 0; }
+    .prose pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+    .c-comment { color: #9c9389; } .c-prop { color: #a0c8a0; } .c-val { color: #f0c080; }
+    .c-sel { color: #ddd7ce; } .c-sh-cmd { color: #a0c8a0; } .c-sh-arg { color: #f0c080; }
+    .c-sh-comment { color: #9c9389; } .c-sh-str { color: #f0c080; }
+
+    /* ── Figures ─────────────────────────────────────────────────── */
+    .figure { margin: 3rem 0; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+    .figure-body { background: #fff; padding: 2rem; }
+    .figure-caption { background: var(--highlight); border-top: 1px solid var(--rule); padding: 0.9rem 1.25rem; }
+    .figure-caption p { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-mid); line-height: 1.55; margin: 0; text-indent: 0 !important; }
+    .figure-caption strong { font-weight: 500; color: var(--ink); }
+
+    /* ── File tree ───────────────────────────────────────────────── */
+    .file-tree {
+      margin: 2.5rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .file-tree-header {
+      background: var(--ink);
+      padding: 0.6rem 1.25rem;
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(248,245,240,0.55);
+    }
+    .file-tree-body {
+      background: #1a1714;
+      padding: 1.25rem 1.5rem;
+      font-family: 'SFMono-Regular', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 2;
+      color: rgba(248,245,240,0.75);
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .ft-dir   { color: #a0c8a0; }
+    .ft-file  { color: rgba(248,245,240,0.75); }
+    .ft-css   { color: #f0c080; }
+    .ft-html  { color: #c0a8e0; }
+    .ft-font  { color: #a0c8e0; }
+    .ft-img   { color: #c8a870; }
+    .ft-note  { color: #6a6460; font-style: italic; }
+
+    /* ── CSS layer diagram ───────────────────────────────────────── */
+    .layer-stack {
+      margin: 2.5rem 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .layer-stack-header {
+      background: var(--highlight);
+      padding: 0.7rem 1.5rem;
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--font-ui);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+    .layer-stack-body { background: #fff; padding: 1rem; }
+    .layer {
+      display: grid;
+      grid-template-columns: 1.5rem 9rem 1fr;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.6rem 0.75rem;
+      border-radius: 3px;
+      margin-bottom: 2px;
+    }
+    .layer:hover { background: var(--highlight); }
+    .layer-num {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      text-align: right;
+    }
+    .layer-file {
+      font-family: 'SFMono-Regular', monospace;
+      font-size: 0.78rem;
+      color: var(--accent);
+    }
+    .layer-desc {
+      font-family: var(--font-ui);
+      font-size: 9px;
+      color: var(--ink-faint);
+      line-height: 1.55;
+    }
+    .layer-bar {
+      height: 4px;
+      border-radius: 2px;
+      margin-top: 3px;
+    }
+
+    /* ── Callout ─────────────────────────────────────────────────── */
+    .callout { margin: 2.5rem 0; padding: 1.25rem 1.5rem; background: var(--highlight); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
+    .callout-label { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
+    .callout p { font-size: 1.05rem; line-height: 1.65; color: var(--ink-mid); text-indent: 0 !important; margin-bottom: 0; }
+    .callout p + p { margin-top: 0.6rem; }
+
+    /* ── Footnotes ───────────────────────────────────────────────── */
+    .footnotes { max-width: var(--col); margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); }
+    .footnotes-label { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 1rem; }
+    .footnotes ol { padding-left: 1.2rem; }
+    .footnotes li { font-size: var(--text-sm); line-height: 1.62; color: var(--ink-mid); margin-bottom: 0.5rem; }
+
+    /* ── Chapter nav ─────────────────────────────────────────────── */
+    .chapter-nav { max-width: var(--col); margin-top: 5rem; padding-top: 2rem; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: flex-start; }
+    .chapter-nav a { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-decoration: none; }
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav .next { text-align: right; }
+    .chapter-nav .next-title { display: block; font-family: var(--font-body); font-style: italic; font-size: var(--text-base); letter-spacing: 0; text-transform: none; color: var(--ink-mid); margin-top: 0.3rem; }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .opener-title { font-size: var(--text-xl); }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+      .layer { grid-template-columns: 1.5rem 8rem 1fr; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <span class="book-title">Type &amp; Layout on the Web</span>
+    <nav class="book-nav" aria-label="Book navigation">
+      <a href="#">Contents</a>
+      <a href="#">Introduction</a>
+      <a href="#">Part I</a>
+      <a href="#">Part II</a>
+      <a href="#">Part III</a>
+      <a href="#">Part IV</a>
+      <a href="#">Part V</a>
+      <a href="#" class="active">Part VI</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="opener">
+    <span class="opener-part">Part Six — Workflow and Publishing</span>
+    <span class="opener-label">Chapter Twenty-five</span>
+    <h1 class="opener-title">Structuring Your Project</h1>
+    <p class="opener-subtitle">A document project that starts in one file and grows without structure becomes unworkable before it is finished. The decisions made at the start — about folders, about CSS layers, about what goes where — determine whether the project is maintainable or merely functional.</p>
+    <ul class="opener-topics">
+      <li>Folder structure and file naming conventions</li>
+      <li>Layering CSS: base, theme, layout, print</li>
+      <li>Separating content from presentation</li>
+      <li>Git for document version control</li>
+    </ul>
+  </div>
+
+  <div class="prose">
+
+    <p class="lead">Every document project starts small and legible. One HTML file, one CSS file, a handful of images, maybe a fonts folder. Everything is visible, everything is findable, everything is a single step from anything else. Then the project grows. The HTML file is split into multiple chapters. The CSS accumulates layers of rules, overrides, and print-specific declarations. The images folder fills with figures in various states of revision. The font situation becomes complicated when a second typeface is introduced. A year later, or six months, or even six weeks, the person opening the project for the first time — which may be you — cannot easily see what connects to what, which CSS file to edit for which kind of change, or which version of the document is the final one. This chapter is about making the decisions at the start that prevent that experience.</p>
+
+    <p>Good project structure is not a bureaucratic imposition. It is a form of respect for future work — your own or someone else's — on the same files. It makes changes faster to make, errors easier to spot, and collaboration possible without the overhead of explaining the project's hidden logic to every new person who touches it. The patterns described here are not the only correct ones, but they are the result of thinking through the specific requirements of HTML-based document projects and arriving at something coherent.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Folder structure</span>
+      A place for everything before anything needs a place</h2>
+
+    <p>The guiding principle for folder structure in a document project is: the type of file determines its location, not its function. A CSS file that controls the print layout goes in the <code>css/</code> folder alongside all other CSS files. A font file goes in <code>fonts/</code> regardless of which page it appears on. This type-based organisation is more maintainable than function-based organisation (where, for instance, all assets for Chapter 3 live in a <code>chapter-3/</code> folder) because it keeps the same kind of file in the same place, so you always know where to look for a given file type without knowing the project structure in advance.</p>
+
+    <p>The following is the reference folder structure for a single-document project — a book, report, or paper — produced with Paged.js. It accommodates everything needed for the document types covered in this book, scales to multi-chapter documents, and separates production concerns (the <code>dist/</code> folder) from source concerns cleanly:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-header">Project folder structure</div>
+      <div class="file-tree-body">
+<span class="ft-dir">compositor-garden/</span>
+├── <span class="ft-html">index.html</span>               <span class="ft-note">← entry point; links all CSS, loads Paged.js</span>
+│
+├── <span class="ft-dir">content/</span>                   <span class="ft-note">← HTML fragments; one file per chapter/section</span>
+│   ├── <span class="ft-html">00-front-matter.html</span>
+│   ├── <span class="ft-html">01-introduction.html</span>
+│   ├── <span class="ft-html">02-on-spacing.html</span>
+│   ├── <span class="ft-html">03-the-garden.html</span>
+│   └── <span class="ft-html">99-back-matter.html</span>
+│
+├── <span class="ft-dir">css/</span>
+│   ├── <span class="ft-css">01-tokens.css</span>           <span class="ft-note">← custom properties only: scale, spacing, colors</span>
+│   ├── <span class="ft-css">02-base.css</span>             <span class="ft-note">← reset, body, prose defaults</span>
+│   ├── <span class="ft-css">03-typography.css</span>       <span class="ft-note">← headings, body text, OpenType features</span>
+│   ├── <span class="ft-css">04-layout.css</span>           <span class="ft-note">← CSS Grid, page grid, column structure</span>
+│   ├── <span class="ft-css">05-components.css</span>       <span class="ft-note">← figures, callouts, tables, pull quotes</span>
+│   ├── <span class="ft-css">06-page.css</span>             <span class="ft-note">← @page rules, margin boxes, named pages</span>
+│   └── <span class="ft-css">07-print.css</span>            <span class="ft-note">← production overrides, bleeds, crop marks</span>
+│
+├── <span class="ft-dir">fonts/</span>
+│   ├── <span class="ft-font">eb-garamond-400.woff2</span>
+│   ├── <span class="ft-font">eb-garamond-400-italic.woff2</span>
+│   ├── <span class="ft-font">eb-garamond-500.woff2</span>
+│   ├── <span class="ft-font">eb-garamond-500-italic.woff2</span>
+│   └── <span class="ft-font">outfit-variable.woff2</span>
+│
+├── <span class="ft-dir">images/</span>
+│   ├── <span class="ft-img">fig-01-margins.svg</span>      <span class="ft-note">← named by figure number, not by chapter</span>
+│   ├── <span class="ft-img">fig-02-grid.svg</span>
+│   └── <span class="ft-img">fig-03-type-scale.svg</span>
+│
+├── <span class="ft-dir">dist/</span>                      <span class="ft-note">← generated output; never edit by hand</span>
+│   ├── <span class="ft-file">compositor-garden-v1.2.pdf</span>
+│   └── <span class="ft-file">compositor-garden-v1.2-PRINT.pdf</span>
+│
+├── <span class="ft-file">.gitignore</span>
+├── <span class="ft-file">package.json</span>             <span class="ft-note">← pagedjs-cli dev dependency</span>
+└── <span class="ft-file">README.md</span>               <span class="ft-note">← how to build, what goes where</span>
+      </div>
+    </div>
+
+    <p>A few decisions in this structure deserve explanation. The <code>content/</code> folder holds HTML fragments — not complete HTML documents, but the body content of each chapter or section, without the <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code>, or <code>&lt;body&gt;</code> tags. These fragments are included into the main <code>index.html</code> using either server-side includes, a build step, or — for simpler projects — the HTML <code>&lt;template&gt;</code> element loaded with a small JavaScript utility. This separation keeps each chapter's content authoring context clean while allowing the single <code>index.html</code> to assemble everything into a coherent paginated document.</p>
+
+    <p>The numbered CSS files — <code>01-tokens.css</code> through <code>07-print.css</code> — are loaded in order by <code>index.html</code>. The numbering ensures the loading order is always clear without depending on the order of <code>&lt;link&gt;</code> tags in the HTML. Each file's scope is strictly defined: <code>01-tokens.css</code> contains nothing but custom property definitions; it never declares any selectors beyond <code>:root</code> and <code>*</code>. <code>06-page.css</code> contains nothing but <code>@page</code> rules and the CSS that assigns elements to named pages. This strict file-by-file scope means you always know which file to open for a given kind of change, and changes in one layer do not accidentally affect another.</p>
+
+    <p>The <code>dist/</code> folder contains generated output only — files that are produced by the build process, not files that are edited by hand. Including it in version control is a deliberate choice: it allows collaborators to access the latest built PDF without needing to run the build themselves, and it preserves a record of exactly what was distributed at each version. The trade-off is increased repository size; for documents with large embedded images, the alternative is to exclude <code>dist/</code> from version control and distribute PDFs separately.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Layering CSS</span>
+      Seven files, seven concerns, zero confusion</h2>
+
+    <p>The CSS layer structure above reflects a specific mental model: each layer has one concern, and each concern has one layer. This is a stronger separation than is common in web development, where CSS files are often organised by component or page rather than by concern. For a document project, concern-based organisation is more appropriate because the concerns — tokens, base styles, typography, layout, components, page media, production — are genuinely orthogonal. A change to the type scale should not require touching the layout file. A change to the <code>@page</code> rule should not require touching the typography file. Keeping these concerns separate in different files makes both the intention and the effect of each change easier to understand.</p>
+
+    <div class="layer-stack">
+      <div class="layer-stack-header">CSS layer structure — seven files, seven concerns</div>
+      <div class="layer-stack-body">
+
+        <div class="layer">
+          <span class="layer-num">1</span>
+          <span class="layer-file">01-tokens.css</span>
+          <div>
+            <div class="layer-desc">Custom properties only. Type scale, spacing scale, color palette, font stacks. No selectors except <code>:root</code>. Never references other layers. Everything else references this.</div>
+            <div class="layer-bar" style="background: var(--accent); width: 100%; opacity: 0.7;"></div>
+          </div>
+        </div>
+
+        <div class="layer">
+          <span class="layer-num">2</span>
+          <span class="layer-file">02-base.css</span>
+          <div>
+            <div class="layer-desc">Box-model reset, <code>html</code> and <code>body</code> declarations, <code>font-size</code>, background, color. Establishes the document ground. Minimal — if a rule here is not needed by every element, it belongs elsewhere.</div>
+            <div class="layer-bar" style="background: var(--ink-mid); width: 80%; opacity: 0.5;"></div>
+          </div>
+        </div>
+
+        <div class="layer">
+          <span class="layer-num">3</span>
+          <span class="layer-file">03-typography.css</span>
+          <div>
+            <div class="layer-desc">All font-related rules: headings, paragraph indent, line-height, OpenType features, drop caps, small caps, section breaks. No layout. No page media. If it affects how text looks, it belongs here.</div>
+            <div class="layer-bar" style="background: var(--accent); width: 90%; opacity: 0.6;"></div>
+          </div>
+        </div>
+
+        <div class="layer">
+          <span class="layer-num">4</span>
+          <span class="layer-file">04-layout.css</span>
+          <div>
+            <div class="layer-desc">CSS Grid definitions for the page body. Column structure, named areas, baseline grid mathematics. No typography — a heading's font is in 03, its grid placement is here.</div>
+            <div class="layer-bar" style="background: hsl(210,40%,50%); width: 70%; opacity: 0.5;"></div>
+          </div>
+        </div>
+
+        <div class="layer">
+          <span class="layer-num">5</span>
+          <span class="layer-file">05-components.css</span>
+          <div>
+            <div class="layer-desc">Self-contained document elements: figures, callouts, pull quotes, data tables, sidebars, stat blocks. Each component is independent — adding or removing a component type should only touch this file.</div>
+            <div class="layer-bar" style="background: hsl(150,30%,45%); width: 85%; opacity: 0.5;"></div>
+          </div>
+        </div>
+
+        <div class="layer">
+          <span class="layer-num">6</span>
+          <span class="layer-file">06-page.css</span>
+          <div>
+            <div class="layer-desc">All <code>@page</code> rules, named pages, <code>string-set</code> declarations, margin box content, break properties, widows and orphans. The Paged.js layer. Nothing here affects screen rendering.</div>
+            <div class="layer-bar" style="background: hsl(25,55%,45%); width: 60%; opacity: 0.6;"></div>
+          </div>
+        </div>
+
+        <div class="layer">
+          <span class="layer-num">7</span>
+          <span class="layer-file">07-print.css</span>
+          <div>
+            <div class="layer-desc">Production overrides injected at build time via <code>--style</code>. Enables bleeds and crop marks, removes debug classes, sets <code>print-color-adjust: exact</code> for background colors. Never loaded during design or preview.</div>
+            <div class="layer-bar" style="background: var(--ink); width: 50%; opacity: 0.4;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p>The strict separation at layer 6 — everything Paged.js-specific goes in <code>06-page.css</code>, nothing else goes there — makes it straightforward to test the document in a non-Paged.js context. If you need to render the HTML as a screen document (for a web preview, for example), you simply omit <code>06-page.css</code> and <code>07-print.css</code> from the <code>&lt;link&gt;</code> tags. Layers 1 through 5 remain fully functional without any paged-media-specific CSS. This separation also makes it easy to port the document's visual design to a different rendering tool — WeasyPrint, Prince — by swapping the <code>@page</code> rules in <code>06-page.css</code> for that tool's specific syntax, while leaving all the typography and layout CSS untouched.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Separating content from presentation</span>
+      The HTML that will outlast the CSS</h2>
+
+    <p>The principle of separating content from presentation — keeping what the document says in the HTML and how it looks in the CSS — is one of the oldest and most consistently violated principles in web development. In document design, the stakes of violating it are higher than in web development, because documents are often long-lived. A report produced in 2024 may need to be restyled for a new brand identity in 2027. A book that was typeset for one trim size may need to be reformatted for a different one. If the visual design is tangled into the HTML — through inline styles, through class names that describe appearance rather than content type, through structural choices made for visual rather than semantic reasons — these changes require editing the content files, which is slow, error-prone, and risks introducing errors into the text.</p>
+
+    <p>In practice, this means class names in the HTML should describe what an element <em>is</em>, not how it <em>looks</em>. A callout box should be <code>class="callout"</code>, not <code>class="tinted-box"</code>. A pull quote should be <code>class="pull-quote"</code>, not <code>class="large-italic-centered"</code>. The visual treatment of a callout or pull quote can change entirely — background color, border, size, position — without any change to the HTML, because the class name refers to the element's semantic function rather than its current visual state.</p>
+
+    <p>This discipline also applies to the HTML structure itself. A document element that uses a <code>&lt;div&gt;</code> with a class when a semantic HTML element exists and applies should use the semantic element: <code>&lt;figure&gt;</code> and <code>&lt;figcaption&gt;</code> for figures and their captions, <code>&lt;blockquote&gt;</code> for extended quotations, <code>&lt;aside&gt;</code> for sidebars and marginal material, <code>&lt;table&gt;</code> (with appropriate <code>&lt;thead&gt;</code>, <code>&lt;tbody&gt;</code>, <code>&lt;th&gt;</code>) for tabular data. Semantic HTML does not merely satisfy a theoretical purity; it makes the document more legible to other tools — screen readers, search indexers, other CSS stylesheets — and makes the CSS selectors more meaningful.</p>
+
+    <sep class="sep">· · ·</sep>
+
+    <h2><span class="label">Version control with Git</span>
+      Tracking what changed, when, and why</h2>
+
+    <p>A document produced with HTML and CSS is software, and like any software project it benefits enormously from version control. Git — the distributed version control system used by virtually every software project of any scale — is fully appropriate for document projects, and the skills needed to use it for documents are a small subset of what developers use for code. You need: <code>git init</code> to start, <code>git add</code> and <code>git commit</code> to record changes, <code>git log</code> to see history, and <code>git diff</code> to see what changed between versions.</p>
+
+    <p>The document-specific Git workflow differs from a software workflow in a few ways worth knowing. Commit messages for documents benefit from a different vocabulary — "Revise Chapter 3 opening paragraph," "Adjust outer margin to 0.875in," "Fix widow in §4.2" — rather than the feature-branch vocabulary of software development. Branches are useful for major structural alternatives (a landscape version of a portrait document, for instance) but less useful for incremental content editing, which can proceed directly on the main branch without ceremony. And the <code>.gitignore</code> file should be set up carefully to avoid committing files that are regenerated automatically — Paged.js cache files, operating system metadata files, and typically the <code>dist/</code> folder unless you have specifically decided to track generated PDFs.</p>
+
+<pre><code><span class="c-sh-comment"># Recommended .gitignore for a Paged.js document project</span>
+
+<span class="c-sh-comment"># OS metadata</span>
+<span class="c-sh-str">.DS_Store
+Thumbs.db</span>
+
+<span class="c-sh-comment"># Node / npm</span>
+<span class="c-sh-str">node_modules/
+npm-debug.log</span>
+
+<span class="c-sh-comment"># Editor temp files</span>
+<span class="c-sh-str">*.swp
+*.swo
+.vscode/
+.idea/</span>
+
+<span class="c-sh-comment"># Generated output (optional — remove these lines
+# if you want to track PDFs in the repository)</span>
+<span class="c-sh-str">dist/*.pdf</span></code></pre>
+
+    <p>For documents where content is edited collaboratively — multiple authors contributing to different chapters, a designer and an editor working in parallel — Git branches work well for separating authoring and design work. The author works on a <code>content</code> branch, the designer on a <code>design</code> branch, and the two branches are merged periodically. Merge conflicts in HTML and CSS are less common and less catastrophic than merge conflicts in compiled code, and Git's three-way merge handles most document editing scenarios correctly.</p>
+
+    <p>Tagging releases — <code>git tag v1.0</code>, <code>git tag v1.1-review-draft</code> — creates permanent anchors in the history corresponding to specific versions of the document. This is invaluable for documents that go through review cycles, where the specific version sent to a reviewer must be recoverable months later when their comments arrive. The <code>dist/</code> folder PDF name should echo the tag: <code>compositor-garden-v1.0.pdf</code>, <code>compositor-garden-v1.1-review.pdf</code>.</p>
+
+<pre><code><span class="c-sh-comment"># Tag a release and generate the corresponding PDF</span>
+<span class="c-sh-cmd">git add</span> <span class="c-sh-arg">-A</span>
+<span class="c-sh-cmd">git commit</span> <span class="c-sh-arg">-m "Finalise layout for v1.0 submission"</span>
+<span class="c-sh-cmd">git tag</span> <span class="c-sh-arg">v1.0</span>
+
+<span class="c-sh-comment"># Generate the PDF at this tagged version</span>
+<span class="c-sh-cmd">pagedjs-cli</span> <span class="c-sh-arg">index.html \
+  --style css/07-print.css \
+  --timeout 20000 \
+  -o dist/compositor-garden-v1.0.pdf</span>
+
+<span class="c-sh-comment"># Push tags to remote repository</span>
+<span class="c-sh-cmd">git push</span> <span class="c-sh-arg">origin main --tags</span></code></pre>
+
+    <!-- Figure 25.1: Full project setup in one diagram -->
+    <div class="figure">
+      <div class="figure-body">
+        <svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+
+          <defs>
+            <marker id="flow-arr" viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="#9c9389"
+                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+
+          <!-- Project folder -->
+          <rect x="10"  y="10" width="130" height="160" rx="3" fill="rgba(107,79,44,0.06)" stroke="rgba(107,79,44,0.2)" stroke-width="0.75"/>
+          <text x="75"  y="26" font-family="Outfit,sans-serif" font-size="8.5" fill="#6b4f2c" text-anchor="middle" font-weight="500" letter-spacing="0.06em">PROJECT FILES</text>
+
+          <!-- File list inside folder -->
+          <text x="22"  y="44" font-family="SFMono-Regular,monospace" font-size="8" fill="#c0a8e0">index.html</text>
+          <text x="22"  y="57" font-family="SFMono-Regular,monospace" font-size="8" fill="#c0a8e0">content/*.html</text>
+          <text x="22"  y="70" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">css/01-tokens.css</text>
+          <text x="22"  y="83" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">css/02-base.css</text>
+          <text x="22"  y="96" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">css/03-typography.css</text>
+          <text x="22"  y="109" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">css/04-layout.css</text>
+          <text x="22"  y="122" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">css/05-components.css</text>
+          <text x="22"  y="135" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">css/06-page.css</text>
+          <text x="22"  y="148" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">fonts/  images/</text>
+
+          <!-- Arrow: project → browser -->
+          <line x1="140" y1="70" x2="200" y2="70" stroke="#9c9389" stroke-width="1" marker-end="url(#flow-arr)"/>
+          <text x="170" y="65" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">open in</text>
+          <text x="170" y="76" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">browser</text>
+
+          <!-- Browser / preview box -->
+          <rect x="202" y="38" width="140" height="64" rx="3" fill="#f8f5f0" stroke="#ddd7ce" stroke-width="0.75"/>
+          <rect x="202" y="38" width="140" height="16" fill="#e8e4de" rx="3"/>
+          <circle cx="214" cy="46" r="3" fill="#c05040" opacity="0.5"/>
+          <circle cx="224" cy="46" r="3" fill="#c8a830" opacity="0.5"/>
+          <circle cx="234" cy="46" r="3" fill="#3a8030" opacity="0.5"/>
+          <text x="272" y="47" font-family="Outfit,sans-serif" font-size="7" fill="#9c9389" text-anchor="middle">Paged.js preview</text>
+          <!-- Page thumbnails in browser -->
+          <rect x="212" y="60" width="22" height="30" rx="1.5" fill="#f0ebe2" stroke="#ddd7ce" stroke-width="0.5"/>
+          <rect x="237" y="60" width="22" height="30" rx="1.5" fill="#f0ebe2" stroke="#ddd7ce" stroke-width="0.5"/>
+          <rect x="262" y="60" width="22" height="30" rx="1.5" fill="#f0ebe2" stroke="#ddd7ce" stroke-width="0.5"/>
+          <rect x="287" y="60" width="22" height="30" rx="1.5" fill="#f0ebe2" stroke="#ddd7ce" stroke-width="0.5"/>
+          <rect x="312" y="60" width="22" height="30" rx="1.5" fill="#f0ebe2" stroke="#ddd7ce" stroke-width="0.5"/>
+
+          <!-- Arrow: browser → edit CSS -->
+          <path d="M 272 102 C 272 120 200 130 150 115" fill="none" stroke="#9c9389" stroke-width="0.75" stroke-dasharray="3,2" marker-end="url(#flow-arr)"/>
+          <text x="210" y="126" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">edit CSS · iterate</text>
+
+          <!-- Arrow: project → CLI -->
+          <line x1="140" y1="130" x2="200" y2="160" stroke="#9c9389" stroke-width="1" marker-end="url(#flow-arr)"/>
+          <text x="164" y="152" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">build</text>
+
+          <!-- CLI / build box -->
+          <rect x="202" y="148" width="140" height="50" rx="3" fill="#1a1714" stroke="#3a3530" stroke-width="0.75"/>
+          <text x="215" y="166" font-family="SFMono-Regular,monospace" font-size="8" fill="#a0c8a0">$ pagedjs-cli</text>
+          <text x="215" y="178" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">  index.html</text>
+          <text x="215" y="190" font-family="SFMono-Regular,monospace" font-size="8" fill="#f0c080">  -o dist/v1.0.pdf</text>
+
+          <!-- Arrow: CLI → dist -->
+          <line x1="342" y1="173" x2="400" y2="173" stroke="#9c9389" stroke-width="1" marker-end="url(#flow-arr)"/>
+
+          <!-- dist/ folder -->
+          <rect x="402" y="148" width="140" height="50" rx="3" fill="rgba(30,27,23,0.06)" stroke="#ddd7ce" stroke-width="0.75"/>
+          <text x="472" y="166" font-family="Outfit,sans-serif" font-size="8.5" fill="#9c9389" text-anchor="middle" letter-spacing="0.06em">dist/</text>
+          <text x="415" y="180" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">document-v1.0.pdf</text>
+          <text x="415" y="191" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">document-v1.1.pdf</text>
+
+          <!-- Git box -->
+          <rect x="10"  y="190" width="130" height="72" rx="3" fill="rgba(30,27,23,0.05)" stroke="#ddd7ce" stroke-width="0.75"/>
+          <text x="75"  y="207" font-family="Outfit,sans-serif" font-size="8.5" fill="#9c9389" text-anchor="middle" font-weight="500" letter-spacing="0.06em">GIT HISTORY</text>
+          <text x="22"  y="222" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">v1.0 — final layout</text>
+          <text x="22"  y="234" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">v0.9 — review draft</text>
+          <text x="22"  y="246" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">v0.8 — first complete</text>
+          <text x="22"  y="255" font-family="SFMono-Regular,monospace" font-size="8" fill="#9c9389">...</text>
+
+          <!-- Arrow: project → git -->
+          <line x1="75"  y1="170" x2="75" y2="188" stroke="#9c9389" stroke-width="1" marker-end="url(#flow-arr)"/>
+          <text x="83"  y="184" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389">git commit</text>
+
+          <!-- Arrow: dist → git -->
+          <path d="M 472 198 C 472 220 200 250 142 240" fill="none" stroke="#9c9389" stroke-width="0.75" stroke-dasharray="3,2" marker-end="url(#flow-arr)"/>
+          <text x="340" y="252" font-family="Outfit,sans-serif" font-size="7.5" fill="#9c9389" text-anchor="middle">optional: track PDFs in git</text>
+
+        </svg>
+      </div>
+      <div class="figure-caption">
+        <p><strong>Figure 25.1 — Complete project workflow.</strong> Source files (HTML, CSS, fonts, images) in a structured project folder. Design iteration happens in the browser via Paged.js live preview — edit CSS, observe result, repeat. Production PDF generation uses Paged.js CLI with the print production CSS injected at build time. Generated PDFs go to <code>dist/</code>, named with version numbers. Git tracks the full history of source changes and tags specific versions. The browser never changes; the content and CSS are the only moving parts.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="callout-label">The README is not optional</p>
+      <p>Every document project should have a <code>README.md</code> at the root that answers three questions for someone encountering the project for the first time: how do I view the document in preview mode, how do I generate the production PDF, and what goes where. This does not need to be long — four or five paragraphs is sufficient. But its absence means that anyone returning to the project after a gap — including you, in six months — will spend time reconstructing knowledge that should have been written down when it was fresh.</p>
+      <p>A minimal README for the project document:</p>
+      <p><strong>Prerequisites:</strong> Node.js ≥ 18. Run <code>npm install</code> once to install Paged.js CLI. <strong>Preview:</strong> Open <code>index.html</code> in Chrome. Fonts load from Google Fonts; ensure internet access. <strong>Build:</strong> Run <code>npm run build</code> (defined in <code>package.json</code>) to generate <code>dist/compositor-garden.pdf</code>. <strong>Structure:</strong> Content in <code>content/</code>, one HTML fragment per chapter. CSS in <code>css/</code>, layered by concern. Fonts in <code>fonts/</code> (local copies; the Google Fonts URL in <code>index.html</code> is for preview only).</p>
+    </div>
+
+    <span class="sep">· · ·</span>
+
+    <p>Good project structure is invisible when it is working — you simply open the right file, make the change, see the result, and commit. It becomes visible when it is absent: the moment you cannot remember which CSS file controls the heading spacing, or which version of the document was sent to the printer, or why the chapter opener looks different in the PDF than it did in the browser. The patterns in this chapter do not prevent that moment from ever occurring. They make it occur far less often, and make it much faster to resolve when it does.</p>
+
+    <p>Chapter 26 closes the book with the long-term picture: how HTML-based documents are maintained and updated over time, how to handle content changes without disturbing the layout, and how to think about the life of a document project that will outlast the circumstances of its first production.</p>
+
+  </div><!-- /.prose -->
+
+  <aside class="footnotes">
+    <p class="footnotes-label">Notes</p>
+    <ol>
+      <li>The principle of CSS cascade layers — the <code>@layer</code> at-rule introduced in the CSS Cascade Level 5 specification — provides a formal mechanism for the concern-based layering described in this chapter. Rather than relying on file loading order and specificity, <code>@layer</code> lets you explicitly declare the priority order of CSS layers: <code>@layer tokens, base, typography, layout, components, page;</code> — and all styles in <code>tokens</code> will be lower priority than <code>base</code>, regardless of specificity or loading order. This is a stronger isolation than the file-naming convention described here and is worth adopting in new projects. Browser support is now excellent. The interaction between <code>@layer</code> and Paged.js's own CSS processing is well-behaved in current Paged.js versions.</li>
+      <li>For multi-author document projects where Git's text-based merging is insufficient — for instance, where content is managed in a headless CMS or generated from a database — a build system (Eleventy, Astro, or a custom script) that assembles HTML from data sources and templates may be more appropriate than hand-authored HTML files. The CSS layer structure and Paged.js configuration remain the same; only the content authoring layer changes. The companion online resources cover this pattern for teams with more complex content management needs.</li>
+    </ol>
+  </aside>
+
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev">
+      <a href="#">← Chapter Twenty-four
+        <span class="next-title" style="text-align:left;">Toolchain Options</span>
+      </a>
+    </div>
+    <div class="next">
+      <a href="#">Chapter Twenty-six →
+        <span class="next-title">Maintaining and Updating Documents</span>
+      </a>
+    </div>
+  </nav>
+
+</main>
+</body>
+</html>
