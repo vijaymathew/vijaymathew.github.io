@@ -1,0 +1,171 @@
+# The Compositor's Garden
+
+*Essays on Typography and Cultivation* — Eleanor Voss
+
+A complete book typeset in HTML, CSS, and [Paged.js](https://pagedjs.org). The project document from *Type & Layout on the Web* (Chapters 1–26).
+
+---
+
+## What this is
+
+This is a production-ready HTML+Paged.js book project. The document demonstrates the full CSS Paged Media technique set described in the companion textbook: named pages, running headers with `string-set`, chapter openers with a 2-inch drop, classical margin proportions, a seven-layer CSS architecture, and a complete front-matter / body / back-matter structure.
+
+The book contains six chapters in two parts, front matter (half-title, title page, copyright, dedication, table of contents, preface), and back matter (notes on the text, acknowledgements, colophon).
+
+---
+
+## Prerequisites
+
+- **Node.js** ≥ 18 (for the CLI build)
+- **Chrome or Chromium** (for the browser preview)
+- An internet connection the first time (for Google Fonts)
+
+---
+
+## Quick start
+
+### 1 — Preview in the browser
+
+Open `index.html` directly in Chrome or Chromium. Paged.js must be loaded for the paginated preview to appear.
+
+**Option A — CDN (easiest for preview):**  
+Uncomment the CDN `<script>` tag in `index.html`:
+```html
+<script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
+```
+
+**Option B — Local copy (for offline use):**  
+Download `paged.polyfill.js` from [pagedjs.org](https://pagedjs.org) and place it in the project root, then update the script tag:
+```html
+<script src="paged.polyfill.js"></script>
+```
+
+Once Paged.js is loaded, open `index.html` in Chrome. The document will paginate automatically. Fonts load from Google Fonts — allow 2–3 seconds for them to appear.
+
+### 2 — Install CLI tools
+
+```bash
+npm install
+```
+
+This installs `pagedjs-cli` at the pinned version (0.4.3). Paged.js CLI bundles its own headless Chromium — no separate browser installation needed for the build.
+
+### 3 — Build the PDF
+
+```bash
+npm run build
+```
+
+Generates `dist/compositor-garden.pdf` with print production CSS applied (crop marks, bleed, background colour enforcement).
+
+```bash
+npm run build:version
+```
+
+Generates a version-stamped PDF using the current Git tag (e.g. `dist/compositor-garden-v1.0.pdf`). Requires at least one Git tag to exist.
+
+```bash
+npm run build:screen
+```
+
+Generates a screen-optimised PDF without crop marks or bleed.
+
+---
+
+## Project structure
+
+```
+compositor-garden/
+├── index.html              ← Complete book HTML
+│
+├── css/
+│   ├── 01-tokens.css       ← Custom properties: scale, spacing, colours
+│   ├── 02-base.css         ← Reset, html/body, print base size
+│   ├── 03-typography.css   ← Headings, body text, drop caps, OpenType
+│   ├── 04-layout.css       ← CSS Grid, display pages, TOC, planting calendar
+│   ├── 05-components.css   ← Figures, callouts, blockquotes
+│   ├── 06-page.css         ← @page rules, margin boxes, string-set, breaks
+│   └── 07-print.css        ← Production overrides (CLI only)
+│
+├── fonts/                  ← Place self-hosted font files here (optional)
+├── images/                 ← SVG figures and illustrations
+├── dist/                   ← Generated PDFs (do not edit by hand)
+│
+├── .gitignore
+├── package.json
+└── README.md
+```
+
+### The CSS layers
+
+Each layer has one concern. If you need to change something, this tells you which file to open:
+
+| What you want to change | File |
+|---|---|
+| Colours, type sizes, spacing values | `01-tokens.css` |
+| Body font size, background colour | `02-base.css` |
+| Heading sizes, line-height, drop cap, kerning | `03-typography.css` |
+| Page grid columns, TOC layout, multicol calendar | `04-layout.css` |
+| Callout box, figure treatment, blockquote | `05-components.css` |
+| Margin size, running headers, folios, page breaks | `06-page.css` |
+| Bleed, crop marks, print colour | `07-print.css` |
+
+---
+
+## Making a design change
+
+**Change the accent colour everywhere:**  
+Edit the single line in `01-tokens.css`:
+```css
+--accent: hsl(25, 42%, 30%);  /* change this value */
+```
+
+**Change the page trim size:**  
+Edit the `size` property in `06-page.css`:
+```css
+@page { size: 5.5in 8.5in; }  /* change to A5, A4, etc. */
+```
+
+**Change the body type size:**  
+Edit `--text-base` in `01-tokens.css`.
+
+---
+
+## Self-hosting fonts
+
+The project currently loads EB Garamond and Outfit from Google Fonts via the `<link>` tag in `index.html`. For fully offline or production use:
+
+1. Download the font files (woff2 format) from [Google Fonts](https://fonts.google.com) or [fontsource.org](https://fontsource.org)
+2. Place them in the `fonts/` directory
+3. Add `@font-face` declarations to `02-base.css`
+4. Remove the Google Fonts `<link>` tag from `index.html`
+
+Self-hosted fonts with `font-display: block` eliminate the need for the fonts-ready guard entirely.
+
+---
+
+## Printing
+
+The PDF generated by `npm run build` is suitable for:
+
+- **Digital distribution** — standard PDF, RGB colour, no crop marks (use `build:screen`)
+- **Print-on-demand** (IngramSpark, Lulu, Amazon KDP Print) — the build output is a standard PDF with crop marks; check your service's PDF/X requirements and convert if needed using Ghostscript or Acrobat Pro
+- **Office printing** — open in any PDF reader and print at 100% scale
+
+The trim size is 5.5 × 8.5 inches (US trade paperback). To change this, edit `@page { size: … }` in `06-page.css` and adjust the margin values accordingly.
+
+---
+
+## Further reading
+
+This project is the practical document developed across Parts Two–Four of *Type & Layout on the Web*. The typographic and CSS decisions made here are explained in full in that book, particularly:
+
+- **Chapter 14** — The page as a spatial system (margin proportions)
+- **Chapter 17** — Page furniture (running headers, folios, string-set)
+- **Chapter 18** — Controlling page breaks
+- **Chapter 19** — Print-ready output (PDF generation, preflight)
+- **Chapter 25** — Structuring your project (this file structure)
+
+---
+
+*Typeset with Paged.js · Set in EB Garamond and Outfit · 5.5 × 8.5in*

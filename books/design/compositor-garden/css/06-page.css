@@ -1,0 +1,469 @@
+/* ════════════════════════════════════════════════════════════
+   06-page.css — The Compositor's Garden
+   All @page rules, named pages, string-set declarations,
+   margin box content, break properties, widows and orphans.
+   This is the Paged.js layer. Nothing here affects screen
+   rendering — it is interpreted only by the paged polyfill
+   and by CSS Paged Media renderers (Prince, WeasyPrint).
+   ════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════
+   STRING CAPTURE — runs in the document flow, not in @page.
+   Captures chapter titles and book title for margin boxes.
+   ════════════════════════════════════════════════════════════ */
+
+/* Book title: captured from the <title> element equivalent.
+   We capture it from the .book-title-display element.         */
+.book-title-display {
+  string-set: book-title content(text);
+}
+
+/* Chapter title: captured from each .chapter-title element.   */
+.chapter-title {
+  string-set: chapter-title content(text);
+}
+
+/* Part title: captured from each .part-title element.         */
+.part-title {
+  string-set: part-title content(text);
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   @page — DEFAULT (body pages, double-sided)
+   Trim: 5.5in × 8.5in
+   ════════════════════════════════════════════════════════════ */
+@page {
+  size:           5.5in 8.5in;
+  margin-top:     0.75in;
+  margin-bottom:  1in;
+  margin-inside:  0.625in;    /* gutter — tighter for binding  */
+  margin-outside: 0.875in;    /* open edge — wider for reading */
+}
+
+/* ── Verso pages (:left) — book title in header ─────────────── */
+@page :left {
+  @top-left {
+    content:     string(book-title);
+    font-family: 'Outfit', sans-serif;
+    font-size:   8pt;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-left {
+    content:     counter(page, lower-roman);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+/* ── Recto pages (:right) — chapter title in header ─────────── */
+@page :right {
+  @top-right {
+    content:     string(chapter-title);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-style:  italic;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-right {
+    content:     counter(page, lower-roman);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+/* ── First page of the document ─────────────────────────────── */
+@page :first {
+  margin-top: 1.5in;
+
+  @top-left   { content: none; }
+  @top-center { content: none; }
+  @top-right  { content: none; }
+  @bottom-left  { content: none; }
+  @bottom-right { content: none; }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   @page front-matter — roman numerals for front matter
+   The .front-matter wrapper is assigned this named page.
+   ════════════════════════════════════════════════════════════ */
+@page front-matter {
+  size:           5.5in 8.5in;
+  margin-top:     0.75in;
+  margin-bottom:  1in;
+  margin-inside:  0.625in;
+  margin-outside: 0.875in;
+}
+
+@page front-matter:left {
+  @top-left {
+    content:     string(book-title);
+    font-family: 'Outfit', sans-serif;
+    font-size:   8pt;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-left {
+    content:     counter(page, lower-roman);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+@page front-matter:right {
+  @top-right {
+    content:     "Contents";
+    font-family: 'Outfit', sans-serif;
+    font-size:   8pt;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-right {
+    content:     counter(page, lower-roman);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+/* Display pages within front matter suppress running headers   */
+@page front-matter-display {
+  size:           5.5in 8.5in;
+  margin-top:     0.75in;
+  margin-bottom:  1in;
+  margin-inside:  0.625in;
+  margin-outside: 0.875in;
+
+  @top-left   { content: none; }
+  @top-center { content: none; }
+  @top-right  { content: none; }
+  @bottom-left  { content: none; }
+  @bottom-right { content: none; }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   @page body — arabic numerals, main text
+   Resets the page counter to 1 at the start of the body.
+   ════════════════════════════════════════════════════════════ */
+@page body {
+  size:           5.5in 8.5in;
+  margin-top:     0.75in;
+  margin-bottom:  1in;
+  margin-inside:  0.625in;
+  margin-outside: 0.875in;
+}
+
+@page body:left {
+  @top-left {
+    content:     "The Compositor's Garden";
+    font-family: 'Outfit', sans-serif;
+    font-size:   8pt;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-left {
+    content:     counter(page);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-feature-settings: "onum" 1;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+@page body:right {
+  @top-right {
+    content:     string(chapter-title);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-style:  italic;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-right {
+    content:     counter(page);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-feature-settings: "onum" 1;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   @page chapter-opener — large drop margin (2in head)
+   No running header on opener pages.
+   ════════════════════════════════════════════════════════════ */
+@page chapter-opener {
+  size:           5.5in 8.5in;
+  margin-top:     2in;          /* the chapter drop             */
+  margin-bottom:  1in;
+  margin-inside:  0.625in;
+  margin-outside: 0.875in;
+
+  @top-left   { content: none; }
+  @top-center { content: none; }
+  @top-right  { content: none; }
+
+  /* Folio present on opener, at the foot                      */
+  @bottom-right {
+    content:     counter(page);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-feature-settings: "onum" 1;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   @page part-opener — full-page display, no furniture
+   ════════════════════════════════════════════════════════════ */
+@page part-opener {
+  size:           5.5in 8.5in;
+  margin-top:     0.75in;
+  margin-bottom:  1in;
+  margin-inside:  0.625in;
+  margin-outside: 0.875in;
+
+  @top-left   { content: none; }
+  @top-center { content: none; }
+  @top-right  { content: none; }
+  @bottom-left  { content: none; }
+  @bottom-right { content: none; }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   @page back-matter — continuous arabic folios, own header
+   ════════════════════════════════════════════════════════════ */
+@page back-matter:left {
+  @top-left {
+    content:     "The Compositor's Garden";
+    font-family: 'Outfit', sans-serif;
+    font-size:   8pt;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-left {
+    content:     counter(page);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-feature-settings: "onum" 1;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+@page back-matter:right {
+  @top-right {
+    content:     string(section-title, first);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-style:  italic;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+  }
+
+  @bottom-right {
+    content:     counter(page);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size:   9pt;
+    font-feature-settings: "onum" 1;
+    color:       hsl(25, 5%, 58%);
+    vertical-align: top;
+    padding-top: 8pt;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   PAGE ASSIGNMENTS — map HTML elements to named @page rules
+   ════════════════════════════════════════════════════════════ */
+
+/* Front matter zone: roman numeral folios                      */
+.front-matter {
+  page: front-matter;
+}
+
+/* Individual display pages within front matter                 */
+.display-page {
+  page:         front-matter-display;
+  break-before: right;    /* always start on recto              */
+}
+
+/* TOC and preface: part of front matter, no special page       */
+.toc-page,
+.preface-page {
+  page: front-matter;
+}
+
+/* Main body: resets counter, uses arabic numerals              */
+.main-body {
+  page:          body;
+  counter-reset: page 1;  /* body starts at page 1             */
+}
+
+/* Part openers: their own named page                           */
+.part-opener {
+  page:         part-opener;
+  break-before: right;
+}
+
+/* Chapter openers: large drop margin, recto always             */
+.chapter-opener {
+  page:         chapter-opener;
+  break-before: right;
+}
+
+/* Back matter: continues arabic sequence                       */
+.back-matter {
+  page: back-matter;
+}
+
+/* Back matter sections begin fresh pages                       */
+.notes-section,
+.acknowledgements-section {
+  break-before: page;
+}
+
+/* Colophon: display page, no furniture                         */
+.colophon-page {
+  page:         part-opener;   /* reuse the no-furniture page   */
+  break-before: page;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   WIDOW AND ORPHAN CONTROL
+   ════════════════════════════════════════════════════════════ */
+
+p {
+  widows:  2;
+  orphans: 2;
+}
+
+/* ════════════════════════════════════════════════════════════
+   ELEMENT BREAK CONTROLS
+   ════════════════════════════════════════════════════════════ */
+
+/* Headings: never at page bottom                               */
+h2 {
+  break-before: avoid;
+  break-after:  avoid;
+}
+
+/* Figures: image + caption always together                     */
+figure {
+  break-inside: avoid;
+}
+
+/* Callout boxes: never split                                   */
+.callout {
+  break-inside: avoid;
+}
+
+/* Teacher's sayings: each saying intact                        */
+.saying {
+  break-inside: avoid;
+}
+
+/* Planting calendar entries: never split across columns        */
+.plant-entry {
+  break-inside: avoid;
+}
+
+/* Blockquotes: avoid splitting mid-quote                       */
+blockquote {
+  break-inside: avoid;
+}
+
+/* Section separators: never orphaned                           */
+.sep {
+  break-before: avoid;
+  break-after:  avoid;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   FOOTNOTE AREA (if footnotes are used)
+   ════════════════════════════════════════════════════════════ */
+@page {
+  @footnote {
+    border-top:  1px solid hsl(30, 12%, 86%);
+    padding-top: 0.5rem;
+    margin-top:  1.5rem;
+  }
+}
+
+.fn-body {
+  float:       footnote;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size:   8pt;
+  line-height: 1.6;
+  color:       hsl(28, 6%, 28%);
+}
+
+::footnote-call {
+  content:        counter(footnote, decimal);
+  font-size:      0.62em;
+  vertical-align: super;
+  color:          hsl(25, 42%, 30%);
+}
+
+::footnote-marker {
+  content:     counter(footnote, decimal) ". ";
+  font-size:   8pt;
+  color:       hsl(25, 42%, 30%);
+}
