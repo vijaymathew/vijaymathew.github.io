@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Sorting Bigger Than RAM - External Mergesort</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -111,183 +112,214 @@ a{color:var(--blue)}
   .grid-two,.stat-grid,.run-pipeline,.merge-structure{grid-template-columns:1fr}
   .hero h1{max-width:none}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Explainers</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Disk Algorithms</div>
-    <h1>Sorting Bigger Than RAM - <em>External Mergesort</em></h1>
-    <p>If the file is 500GB and memory is 8GB, the main algorithmic question is no longer comparison count. It is I/O shape. External mergesort wins because it touches disk in long sequential passes, first creating sorted runs that fit in memory and then merging those runs with a heap.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Run generation</b> in RAM-sized chunks</span>
-      <span class="pill"><b>K-way merge</b> with a heap</span>
-      <span class="pill"><b>Sequential I/O</b> over seeks</span>
-      <span class="pill">Simulated <code>BinaryFile</code> with <code>seek</code></span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>Why quicksort fails on disk</a>
-    <a href="#s2"><span class="toc-n">02</span>Run generation</a>
-    <a href="#s3"><span class="toc-n">03</span>K-way merge</a>
-    <a href="#s4"><span class="toc-n">04</span>I/O patterns</a>
-    <a href="#s5"><span class="toc-n">05</span>A simulated external sort in JS</a>
-    <a href="#s6"><span class="toc-n">06</span>The B-tree connection</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>Why quicksort fails on disk</h2></div>
-    <p>Quicksort assumes cheap random access. Its partition pass reaches back and forth across the array, which is fine when the array lives in RAM. But on disk, that pattern becomes a seek-heavy disaster. What looks like a few arithmetic operations in memory turns into repeated repositioning of the read head.</p>
-    <p>External mergesort changes the goal. Instead of trying to sort the whole file in place, it makes a small number of long sequential passes. That single design choice is why a 500GB file is a practical job instead of an absurd one.</p>
-    <div class="callout warn">For disk-resident data, the right question is not “what has the nicest in-memory constants?” It is “what minimises seeks and maximises sequential throughput?”</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Cost model</div>
-      <div class="grid-two">
-        <div class="card">
-          <h4>Random-access mindset</h4>
-          <div class="big">Seek all over the file</div>
-          <p>Quicksort’s partitioning pattern is a cache story in RAM and a seek story on disk.</p>
-        </div>
-        <div class="card">
-          <h4>External mergesort mindset</h4>
-          <div class="big">Sequential passes</div>
-          <p>Read a chunk, sort in memory, write a run. Then merge runs in order using buffered reads.</p>
-        </div>
-      </div>
-      <div class="preview" id="cost-preview"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">File size</div><div class="stat-v">500GB</div></div>
-        <div class="stat"><div class="stat-k">RAM</div><div class="stat-v">8GB</div></div>
-        <div class="stat"><div class="stat-k">Initial runs</div><div class="stat-v">63</div></div>
-        <div class="stat"><div class="stat-k">Right pattern</div><div class="stat-v">sequential</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>Run generation</h2></div>
-    <p>The first phase is simple: read as many records as fit in memory, sort that chunk in RAM, and write the result out as a sorted run. Repeat until the whole file has been turned into runs.</p>
-    <p>This phase is where your in-memory sorter still matters. If the chunk fits in RAM, use the fast in-memory algorithm there. External mergesort is not replacing introsort inside RAM; it is orchestrating introsort across many disk-sized chunks.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Run generation pipeline</div>
-      <div class="btn-row">
-        <button class="btn" onclick="stepRuns(1)">Generate one run</button>
-        <button class="btn" onclick="stepRuns(3)">Generate three runs</button>
-        <button class="btn" onclick="resetRuns()">Reset</button>
-      </div>
-      <div class="preview" id="run-preview"></div>
-      <div class="run-pipeline">
-        <div class="stage-card">
-          <div class="stage-head"><span>1. Read input chunk</span><span class="stage-arrow">→</span></div>
-          <div class="chips" id="run-read"></div>
-          <div class="stage-note" id="run-read-note"></div>
-        </div>
-        <div class="stage-card">
-          <div class="stage-head"><span>2. Sort in RAM</span><span class="stage-arrow">→</span></div>
-          <div class="chips" id="run-sort"></div>
-          <div class="stage-note" id="run-sort-note"></div>
-        </div>
-        <div class="stage-card">
-          <div class="stage-head"><span>3. Write sorted run</span></div>
-          <div class="chips" id="run-write"></div>
-          <div class="stage-note" id="run-write-note"></div>
-        </div>
-      </div>
-      <div class="disk-stack" id="run-stack"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Records processed</div><div class="stat-v" id="run-records">0</div></div>
-        <div class="stat"><div class="stat-k">Runs generated</div><div class="stat-v" id="run-count">0</div></div>
-        <div class="stat"><div class="stat-k">Chunk size</div><div class="stat-v" id="run-chunk">0</div></div>
-        <div class="stat"><div class="stat-k">Pass type</div><div class="stat-v">sequential read/write</div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>run_generation.js - sorting memory-sized chunks into runs</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
-      <pre class="code" id="c1"></pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>K-way merge</h2></div>
-    <p>Once you have sorted runs, the merge phase is conceptually straightforward: keep one current record from each run, repeatedly emit the smallest one, and then replace it with the next record from the same run. The right data structure for that is a min-heap of size <code>k</code>.</p>
-    <p>Each output record costs one heap pop and, unless a run is exhausted, one heap push. That gives <code>O(n log k)</code> merge work, where <code>k</code> is the number of runs being merged in the current pass.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Three-way merge</div>
-      <div class="btn-row">
-        <button class="btn" onclick="stepMerge(1)">Next output</button>
-        <button class="btn" onclick="stepMerge(5)">Next five</button>
-        <button class="btn" onclick="resetMerge()">Reset</button>
-      </div>
-      <div class="preview" id="merge-preview"></div>
-      <div class="merge-structure">
-        <div class="stage-card">
-          <div class="stage-head"><span>Run readers</span><span class="stage-arrow">→</span></div>
-          <div class="merge-run-list" id="merge-readers"></div>
-          <div class="stage-note">Each run is still a full sorted file. The highlighted chip marks the record from that run currently represented in the heap.</div>
-        </div>
-        <div class="stage-card">
-          <div class="stage-head"><span>Heap backing array</span><span class="stage-arrow">→</span></div>
-          <div class="chips" id="merge-heap"></div>
-          <div class="stage-note">The heap holds only one live candidate per run, stored in its usual array representation.</div>
-        </div>
-        <div class="stage-card">
-          <div class="stage-head"><span>Output file</span></div>
-          <div id="merge-output-file"></div>
-          <div class="stage-note">Each step appends one new global minimum to the merged output stream.</div>
-        </div>
-      </div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Heap size</div><div class="stat-v" id="merge-heap-size">0</div></div>
-        <div class="stat"><div class="stat-k">Output records</div><div class="stat-v" id="merge-out-count">0</div></div>
-        <div class="stat"><div class="stat-k">Run readers</div><div class="stat-v" id="merge-runs">0</div></div>
-        <div class="stat"><div class="stat-k">Comparison pattern</div><div class="stat-v">log k</div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>k_way_merge.js - merging sorted runs with a min-heap</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
-      <pre class="code" id="c2"></pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>I/O patterns</h2></div>
-    <p>External sorting lives or dies by buffering and access order. Reads should be sequential within each run. Writes should be sequential into the output file. Random seeks should happen only when opening a run, switching buffers, or repositioning within a simulated file abstraction.</p>
-    <p>This is also why multi-pass merging exists. If you cannot afford one input buffer per run, do not force it. Merge a manageable number of runs into larger runs, then merge those larger runs in the next pass.</p>
-    <div class="callout info">The unit of thought is the same as in B-trees: a page or buffer is valuable because one I/O should move a useful amount of ordered information.</div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>A simulated external sort in JavaScript</h2></div>
-    <p>The implementation below uses a browser-side <code>BinaryFile</code>-style class with <code>seek</code>, <code>readInt32</code>, and <code>writeInt32</code>. It is not real disk I/O, but it preserves the important part for an explainer: a file cursor, run files, and a merge phase that treats files as streams rather than plain arrays.</p>
-    <div class="callout">This is the right compromise for the page: faithful file semantics and cursor-based access, without pretending the browser is a storage engine or a full buffered I/O stack.</div>
-
-    <div class="cb">
-      <div class="cb-head"><span>external_sort.js - simulated BinaryFile + run generation + k-way merge</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
-      <pre class="code" id="c3"></pre>
-      <div class="out" id="o3"></div>
-    </div>
-  </section>
-
-  <section class="section footer" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>The B-tree connection</h2></div>
-    <p>External mergesort and B-trees are solving neighboring problems with the same physical intuition. Both assume that disk I/O dominates CPU time, both organize work around page-sized transfers, and both try to get as much value as possible out of each seek.</p>
-    <p>The difference is the access pattern. A B-tree is optimized for <strong>random lookup</strong>: a few page reads to find one key. External mergesort is optimized for <strong>sequential processing</strong>: a small number of full passes to reorder an entire file. Same page-size thinking, different job.</p>
-  </section>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
 </div>
-
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Disk Algorithms</div>
+<h1>Sorting Bigger Than RAM - <em>External Mergesort</em></h1>
+<p>If the file is 500GB and memory is 8GB, the main algorithmic question is no longer comparison count. It is I/O shape. External mergesort wins because it touches disk in long sequential passes, first creating sorted runs that fit in memory and then merging those runs with a heap.</p>
+<div class="pill-row">
+<span class="pill"><b>Run generation</b> in RAM-sized chunks</span>
+<span class="pill"><b>K-way merge</b> with a heap</span>
+<span class="pill"><b>Sequential I/O</b> over seeks</span>
+<span class="pill">Simulated <code>BinaryFile</code> with <code>seek</code></span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>Why quicksort fails on disk</a>
+<a href="#s2"><span class="toc-n">02</span>Run generation</a>
+<a href="#s3"><span class="toc-n">03</span>K-way merge</a>
+<a href="#s4"><span class="toc-n">04</span>I/O patterns</a>
+<a href="#s5"><span class="toc-n">05</span>A simulated external sort in JS</a>
+<a href="#s6"><span class="toc-n">06</span>The B-tree connection</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>Why quicksort fails on disk</h2></div>
+<p>Quicksort assumes cheap random access. Its partition pass reaches back and forth across the array, which is fine when the array lives in RAM. But on disk, that pattern becomes a seek-heavy disaster. What looks like a few arithmetic operations in memory turns into repeated repositioning of the read head.</p>
+<p>External mergesort changes the goal. Instead of trying to sort the whole file in place, it makes a small number of long sequential passes. That single design choice is why a 500GB file is a practical job instead of an absurd one.</p>
+<div class="callout warn">For disk-resident data, the right question is not “what has the nicest in-memory constants?” It is “what minimises seeks and maximises sequential throughput?”</div>
+<div class="demo">
+<div class="demo-lbl">Cost model</div>
+<div class="grid-two">
+<div class="card">
+<h4>Random-access mindset</h4>
+<div class="big">Seek all over the file</div>
+<p>Quicksort’s partitioning pattern is a cache story in RAM and a seek story on disk.</p>
+</div>
+<div class="card">
+<h4>External mergesort mindset</h4>
+<div class="big">Sequential passes</div>
+<p>Read a chunk, sort in memory, write a run. Then merge runs in order using buffered reads.</p>
+</div>
+</div>
+<div class="preview" id="cost-preview"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">File size</div><div class="stat-v">500GB</div></div>
+<div class="stat"><div class="stat-k">RAM</div><div class="stat-v">8GB</div></div>
+<div class="stat"><div class="stat-k">Initial runs</div><div class="stat-v">63</div></div>
+<div class="stat"><div class="stat-k">Right pattern</div><div class="stat-v">sequential</div></div>
+</div>
+</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>Run generation</h2></div>
+<p>The first phase is simple: read as many records as fit in memory, sort that chunk in RAM, and write the result out as a sorted run. Repeat until the whole file has been turned into runs.</p>
+<p>This phase is where your in-memory sorter still matters. If the chunk fits in RAM, use the fast in-memory algorithm there. External mergesort is not replacing introsort inside RAM; it is orchestrating introsort across many disk-sized chunks.</p>
+<div class="demo">
+<div class="demo-lbl">Run generation pipeline</div>
+<div class="btn-row">
+<button class="btn" onclick="stepRuns(1)">Generate one run</button>
+<button class="btn" onclick="stepRuns(3)">Generate three runs</button>
+<button class="btn" onclick="resetRuns()">Reset</button>
+</div>
+<div class="preview" id="run-preview"></div>
+<div class="run-pipeline">
+<div class="stage-card">
+<div class="stage-head"><span>1. Read input chunk</span><span class="stage-arrow">→</span></div>
+<div class="chips" id="run-read"></div>
+<div class="stage-note" id="run-read-note"></div>
+</div>
+<div class="stage-card">
+<div class="stage-head"><span>2. Sort in RAM</span><span class="stage-arrow">→</span></div>
+<div class="chips" id="run-sort"></div>
+<div class="stage-note" id="run-sort-note"></div>
+</div>
+<div class="stage-card">
+<div class="stage-head"><span>3. Write sorted run</span></div>
+<div class="chips" id="run-write"></div>
+<div class="stage-note" id="run-write-note"></div>
+</div>
+</div>
+<div class="disk-stack" id="run-stack"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Records processed</div><div class="stat-v" id="run-records">0</div></div>
+<div class="stat"><div class="stat-k">Runs generated</div><div class="stat-v" id="run-count">0</div></div>
+<div class="stat"><div class="stat-k">Chunk size</div><div class="stat-v" id="run-chunk">0</div></div>
+<div class="stat"><div class="stat-k">Pass type</div><div class="stat-v">sequential read/write</div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>run_generation.js - sorting memory-sized chunks into runs</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+<pre class="code" id="c1"></pre>
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>K-way merge</h2></div>
+<p>Once you have sorted runs, the merge phase is conceptually straightforward: keep one current record from each run, repeatedly emit the smallest one, and then replace it with the next record from the same run. The right data structure for that is a min-heap of size <code>k</code>.</p>
+<p>Each output record costs one heap pop and, unless a run is exhausted, one heap push. That gives <code>O(n log k)</code> merge work, where <code>k</code> is the number of runs being merged in the current pass.</p>
+<div class="demo">
+<div class="demo-lbl">Three-way merge</div>
+<div class="btn-row">
+<button class="btn" onclick="stepMerge(1)">Next output</button>
+<button class="btn" onclick="stepMerge(5)">Next five</button>
+<button class="btn" onclick="resetMerge()">Reset</button>
+</div>
+<div class="preview" id="merge-preview"></div>
+<div class="merge-structure">
+<div class="stage-card">
+<div class="stage-head"><span>Run readers</span><span class="stage-arrow">→</span></div>
+<div class="merge-run-list" id="merge-readers"></div>
+<div class="stage-note">Each run is still a full sorted file. The highlighted chip marks the record from that run currently represented in the heap.</div>
+</div>
+<div class="stage-card">
+<div class="stage-head"><span>Heap backing array</span><span class="stage-arrow">→</span></div>
+<div class="chips" id="merge-heap"></div>
+<div class="stage-note">The heap holds only one live candidate per run, stored in its usual array representation.</div>
+</div>
+<div class="stage-card">
+<div class="stage-head"><span>Output file</span></div>
+<div id="merge-output-file"></div>
+<div class="stage-note">Each step appends one new global minimum to the merged output stream.</div>
+</div>
+</div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Heap size</div><div class="stat-v" id="merge-heap-size">0</div></div>
+<div class="stat"><div class="stat-k">Output records</div><div class="stat-v" id="merge-out-count">0</div></div>
+<div class="stat"><div class="stat-k">Run readers</div><div class="stat-v" id="merge-runs">0</div></div>
+<div class="stat"><div class="stat-k">Comparison pattern</div><div class="stat-v">log k</div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>k_way_merge.js - merging sorted runs with a min-heap</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+<pre class="code" id="c2"></pre>
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>I/O patterns</h2></div>
+<p>External sorting lives or dies by buffering and access order. Reads should be sequential within each run. Writes should be sequential into the output file. Random seeks should happen only when opening a run, switching buffers, or repositioning within a simulated file abstraction.</p>
+<p>This is also why multi-pass merging exists. If you cannot afford one input buffer per run, do not force it. Merge a manageable number of runs into larger runs, then merge those larger runs in the next pass.</p>
+<div class="callout info">The unit of thought is the same as in B-trees: a page or buffer is valuable because one I/O should move a useful amount of ordered information.</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>A simulated external sort in JavaScript</h2></div>
+<p>The implementation below uses a browser-side <code>BinaryFile</code>-style class with <code>seek</code>, <code>readInt32</code>, and <code>writeInt32</code>. It is not real disk I/O, but it preserves the important part for an explainer: a file cursor, run files, and a merge phase that treats files as streams rather than plain arrays.</p>
+<div class="callout">This is the right compromise for the page: faithful file semantics and cursor-based access, without pretending the browser is a storage engine or a full buffered I/O stack.</div>
+<div class="cb">
+<div class="cb-head"><span>external_sort.js - simulated BinaryFile + run generation + k-way merge</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+<pre class="code" id="c3"></pre>
+<div class="out" id="o3"></div>
+</div>
+</section>
+<section class="section footer" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>The B-tree connection</h2></div>
+<p>External mergesort and B-trees are solving neighboring problems with the same physical intuition. Both assume that disk I/O dominates CPU time, both organize work around page-sized transfers, and both try to get as much value as possible out of each seek.</p>
+<p>The difference is the access pattern. A B-tree is optimized for <strong>random lookup</strong>: a few page reads to find one key. External mergesort is optimized for <strong>sequential processing</strong>: a small number of full passes to reorder an entire file. Same page-size thinking, different job.</p>
+</section>
+</div>
 <script>
 const CODE_SNIPPETS = {
   c1: String.raw`function generateRuns(data, chunkSize) {

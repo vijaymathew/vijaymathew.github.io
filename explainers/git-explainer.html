@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>How Git Stores History</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -123,85 +124,125 @@ footer .links{display:flex;flex-direction:column;gap:4px}
 @media (max-width:780px){
   .viz-grid,.index-grid{grid-template-columns:1fr}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Hub</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Developer Tools · Storage · History</div>
-    <h1>How Git Stores <em>History</em></h1>
-    <p>Git feels like a source-control tool, but its core implementation is closer to a content-addressed object store with a few carefully chosen pointer types. Files become blobs, directories become trees, commits point to snapshots and parents, and branches are just movable references. That design is why commits are cheap, branching is cheap, and history becomes a graph instead of a mutable folder full of versions.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Problem</b> track versions without copying whole repos</span>
-      <span class="pill"><b>Idea</b> immutable objects plus movable refs</span>
-      <span class="pill"><b>Implementation</b> tiny Git-like repo in JavaScript</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>The model</a>
-    <a href="#s2"><span class="toc-n">02</span>Blobs, trees, commits</a>
-    <a href="#s3"><span class="toc-n">03</span>Why branches are cheap</a>
-    <a href="#s4"><span class="toc-n">04</span>The index</a>
-    <a href="#s5"><span class="toc-n">05</span>Packfiles and real Git</a>
-    <a href="#s6"><span class="toc-n">06</span>Runnable code</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>The model: snapshots, not mutable folder copies</h2></div>
-    <p>A naive version-control system could copy every file into a new directory for every revision. That works for a while, but it wastes space and makes branching expensive. Git takes a different approach: each version is represented by a graph of immutable objects, and those objects are reused whenever content has not changed.</p>
-    <p>The key mental shift is this: a commit is not “a diff file.” It is a pointer to a tree object that describes the project snapshot, plus metadata and parent commit IDs. Diffs are computed later by comparing snapshots; they are not the primary storage format for ordinary history.</p>
-    <div class="callout good">Git version control is built on three ideas working together: immutable content-addressed objects, a staging area that prepares the next tree, and lightweight references that name commits.</div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>Blobs, trees, and commits</h2></div>
-    <p>A file’s contents become a <strong>blob</strong>. A directory becomes a <strong>tree</strong> listing filenames and the object IDs they point to. A <strong>commit</strong> points to a root tree and to one or more parent commits. Because objects are immutable and keyed by their content hash, unchanged files and unchanged subtrees can be reused across commits.</p>
-    <p>The commit process is a small pipeline. First, <code>git add</code> turns the file contents you staged into blob objects and records, in the index, which paths should point to which blobs. Then <code>git commit</code> walks that staged path table, writes tree objects for directories from the bottom up, and finally writes one commit object containing the root tree ID, parent commit ID(s), author/message metadata, and timestamps.</p>
-    <p>Nothing inside the old commit is edited. Git just creates a <em>new</em> commit object and then moves the current branch reference to point at it. That is why history is tracked as an object graph rather than as mutable folders: each commit is a frozen snapshot, and “the latest version” is simply whichever commit your branch name points to now.</p>
-    <p>This also explains reuse. If <code>README.md</code> did not change, its blob hash is the same, so the next tree can point at the exact same blob object as the previous commit. If an entire directory is unchanged, Git can reuse that subtree too. Only the changed paths need new objects.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Object graph for three snapshots</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="showGitState('c1', this)">Commit 1</button>
-        <button class="btn" onclick="showGitState('c2', this)">Commit 2</button>
-        <button class="btn" onclick="showGitState('c3', this)">Commit 3</button>
-      </div>
-      <div class="viz-grid">
-        <div class="stage">
-          <svg id="git-objects-svg" class="viz-svg" viewBox="0 0 620 310"></svg>
-          <div class="mini-note spaced" id="git-objects-caption"></div>
-          <div class="legend">
-            <span><i class="swatch commit"></i> commit</span>
-            <span><i class="swatch tree"></i> tree</span>
-            <span><i class="swatch blob"></i> blob</span>
-            <span><i class="swatch reused"></i> reused object</span>
-          </div>
-        </div>
-        <div class="side">
-          <h3>What This Commit Does</h3>
-          <div class="object-summary" id="git-objects-summary"></div>
-          <div class="object-list" id="git-objects-list"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>objects.js — blobs, trees, commits, and deduplication</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
-      <pre class="code" id="c1">function fakeHash(type, payload) {
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
+</div>
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Developer Tools · Storage · History</div>
+<h1>How Git Stores <em>History</em></h1>
+<p>Git feels like a source-control tool, but its core implementation is closer to a content-addressed object store with a few carefully chosen pointer types. Files become blobs, directories become trees, commits point to snapshots and parents, and branches are just movable references. That design is why commits are cheap, branching is cheap, and history becomes a graph instead of a mutable folder full of versions.</p>
+<div class="pill-row">
+<span class="pill"><b>Problem</b> track versions without copying whole repos</span>
+<span class="pill"><b>Idea</b> immutable objects plus movable refs</span>
+<span class="pill"><b>Implementation</b> tiny Git-like repo in JavaScript</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>The model</a>
+<a href="#s2"><span class="toc-n">02</span>Blobs, trees, commits</a>
+<a href="#s3"><span class="toc-n">03</span>Why branches are cheap</a>
+<a href="#s4"><span class="toc-n">04</span>The index</a>
+<a href="#s5"><span class="toc-n">05</span>Packfiles and real Git</a>
+<a href="#s6"><span class="toc-n">06</span>Runnable code</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>The model: snapshots, not mutable folder copies</h2></div>
+<p>A naive version-control system could copy every file into a new directory for every revision. That works for a while, but it wastes space and makes branching expensive. Git takes a different approach: each version is represented by a graph of immutable objects, and those objects are reused whenever content has not changed.</p>
+<p>The key mental shift is this: a commit is not “a diff file.” It is a pointer to a tree object that describes the project snapshot, plus metadata and parent commit IDs. Diffs are computed later by comparing snapshots; they are not the primary storage format for ordinary history.</p>
+<div class="callout good">Git version control is built on three ideas working together: immutable content-addressed objects, a staging area that prepares the next tree, and lightweight references that name commits.</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>Blobs, trees, and commits</h2></div>
+<p>A file’s contents become a <strong>blob</strong>. A directory becomes a <strong>tree</strong> listing filenames and the object IDs they point to. A <strong>commit</strong> points to a root tree and to one or more parent commits. Because objects are immutable and keyed by their content hash, unchanged files and unchanged subtrees can be reused across commits.</p>
+<p>The commit process is a small pipeline. First, <code>git add</code> turns the file contents you staged into blob objects and records, in the index, which paths should point to which blobs. Then <code>git commit</code> walks that staged path table, writes tree objects for directories from the bottom up, and finally writes one commit object containing the root tree ID, parent commit ID(s), author/message metadata, and timestamps.</p>
+<p>Nothing inside the old commit is edited. Git just creates a <em>new</em> commit object and then moves the current branch reference to point at it. That is why history is tracked as an object graph rather than as mutable folders: each commit is a frozen snapshot, and “the latest version” is simply whichever commit your branch name points to now.</p>
+<p>This also explains reuse. If <code>README.md</code> did not change, its blob hash is the same, so the next tree can point at the exact same blob object as the previous commit. If an entire directory is unchanged, Git can reuse that subtree too. Only the changed paths need new objects.</p>
+<div class="demo">
+<div class="demo-lbl">Object graph for three snapshots</div>
+<div class="btn-row">
+<button class="btn act" onclick="showGitState('c1', this)">Commit 1</button>
+<button class="btn" onclick="showGitState('c2', this)">Commit 2</button>
+<button class="btn" onclick="showGitState('c3', this)">Commit 3</button>
+</div>
+<div class="viz-grid">
+<div class="stage">
+<svg class="viz-svg" id="git-objects-svg" viewbox="0 0 620 310"></svg>
+<div class="mini-note spaced" id="git-objects-caption"></div>
+<div class="legend">
+<span><i class="swatch commit"></i> commit</span>
+<span><i class="swatch tree"></i> tree</span>
+<span><i class="swatch blob"></i> blob</span>
+<span><i class="swatch reused"></i> reused object</span>
+</div>
+</div>
+<div class="side">
+<h3>What This Commit Does</h3>
+<div class="object-summary" id="git-objects-summary"></div>
+<div class="object-list" id="git-objects-list"></div>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>objects.js — blobs, trees, commits, and deduplication</span><button class="run-btn" onclick="runCode('c1','o1')">▶ Run</button></div>
+<pre class="code" id="c1">function fakeHash(type, payload) {
   const text = type + "\0" + payload;
   let h = 2166136261;
   for (let i = 0; i &lt; text.length; i++) {
     h ^= text.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  return (h >>> 0).toString(16).padStart(8, "0");
+  return (h &gt;&gt;&gt; 0).toString(16).padStart(8, "0");
 }
 
 class ObjectStore {
@@ -244,38 +285,35 @@ console.log("commit 1:", c1);
 console.log("commit 2:", c2);
 console.log("README reused:", readme1 === readme2);
 console.log("total objects:", store.objects.size);</pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Why branches are cheap</h2></div>
-    <p>Git branches feel substantial in the UI, but internally a branch is just a name pointing at one commit. Creating a branch does not copy history. It only adds another reference. As new commits are made on that branch, the reference moves to the new tip commit, while the old commits remain in place.</p>
-    <p>This is why branching is so cheap compared with centralized systems that historically treated branches as heavyweight server-side structures.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Refs moving across the same commit graph</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="showBranchStep(0, this)">Start on main</button>
-        <button class="btn" onclick="showBranchStep(1, this)">Create feature</button>
-        <button class="btn" onclick="showBranchStep(2, this)">Commit on feature</button>
-        <button class="btn" onclick="showBranchStep(3, this)">Commit on main</button>
-      </div>
-      <div class="viz-grid">
-        <div class="stage">
-          <svg id="git-refs-svg" class="viz-svg" viewBox="0 0 620 230"></svg>
-        </div>
-        <div class="side">
-          <h3>Refs</h3>
-          <div id="git-ref-list"></div>
-          <div class="callout tight">A branch is just a ref. <code>HEAD</code> is another ref-like pointer telling Git which branch or commit is currently checked out.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>refs.js — branch creation and ref movement</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
-      <pre class="code" id="c2">const commits = {
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Why branches are cheap</h2></div>
+<p>Git branches feel substantial in the UI, but internally a branch is just a name pointing at one commit. Creating a branch does not copy history. It only adds another reference. As new commits are made on that branch, the reference moves to the new tip commit, while the old commits remain in place.</p>
+<p>This is why branching is so cheap compared with centralized systems that historically treated branches as heavyweight server-side structures.</p>
+<div class="demo">
+<div class="demo-lbl">Refs moving across the same commit graph</div>
+<div class="btn-row">
+<button class="btn act" onclick="showBranchStep(0, this)">Start on main</button>
+<button class="btn" onclick="showBranchStep(1, this)">Create feature</button>
+<button class="btn" onclick="showBranchStep(2, this)">Commit on feature</button>
+<button class="btn" onclick="showBranchStep(3, this)">Commit on main</button>
+</div>
+<div class="viz-grid">
+<div class="stage">
+<svg class="viz-svg" id="git-refs-svg" viewbox="0 0 620 230"></svg>
+</div>
+<div class="side">
+<h3>Refs</h3>
+<div id="git-ref-list"></div>
+<div class="callout tight">A branch is just a ref. <code>HEAD</code> is another ref-like pointer telling Git which branch or commit is currently checked out.</div>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>refs.js — branch creation and ref movement</span><button class="run-btn" onclick="runCode('c2','o2')">▶ Run</button></div>
+<pre class="code" id="c2">const commits = {
   a1: { parents: [], msg: "initial" },
   b2: { parents: ["a1"], msg: "main work" },
   c3: { parents: ["b2"], msg: "feature work" },
@@ -302,49 +340,43 @@ commitOnBranch("feature", "c3");
 console.log("feature moved:", JSON.stringify(refs));
 commitOnBranch("main", "d4");
 console.log("main moved independently:", JSON.stringify(refs));</pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>The index: why <code>git add</code> exists</h2></div>
-    <p>The index, or staging area, is the missing piece for many people learning Git. It is not the same as the working tree, and it is not yet the next commit. It is a separate table describing what tree Git should write when you commit.</p>
-    <p>That design lets Git stage part of your changes, leave other edits unstaged, and build the next snapshot deliberately instead of automatically committing the entire working directory.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Working tree vs index vs commit</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="showIndexState('edit', this)">Edit files</button>
-        <button class="btn" onclick="showIndexState('stage', this)">Run git add</button>
-        <button class="btn" onclick="showIndexState('commit', this)">Commit</button>
-      </div>
-      <div class="index-grid" id="git-index-grid"></div>
-    </div>
-
-    <div class="callout.warn">The index is why Git can say “changes not staged for commit” and “changes to be committed” at the same time. That is not UI fluff. It reflects a real internal structure.</div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>Real Git goes further: packfiles, delta compression, reachability</h2></div>
-    <p>The simplified model above is enough to explain normal version control behavior, but real Git does more. Loose objects are often repacked into <strong>packfiles</strong> for space and transfer efficiency. Within a pack, Git may delta-compress similar objects to save disk and network bandwidth.</p>
-    <p>Git also relies on reachability. Objects remain in the repository as long as some ref, reflog entry, or other reachable object graph can still get to them. Garbage collection later prunes unreachable objects that are no longer needed.</p>
-    <div class="callout good">The everyday Git experience comes from a small, elegant model. The performance comes from layers built around that model, not from changing the model itself.</div>
-  </section>
-
-  <section class="section" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a tiny Git-like repository</h2></div>
-    <p>This final snippet combines the pieces: a content-addressed object store, an index, branches as refs, and commits as immutable snapshots. It is not Git, but it is close enough to show why commands like <code>add</code>, <code>commit</code>, <code>branch</code>, and <code>checkout</code> fit together the way they do. The simplified <code>checkout</code> below also reloads the working tree and index from the checked-out commit so branch state does not leak across checkouts.</p>
-
-    <div class="cb">
-      <div class="cb-head"><span>mini_git.js — add, commit, branch, checkout, log</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
-      <pre class="code" id="c3">function fakeHash(type, payload) {
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>The index: why <code>git add</code> exists</h2></div>
+<p>The index, or staging area, is the missing piece for many people learning Git. It is not the same as the working tree, and it is not yet the next commit. It is a separate table describing what tree Git should write when you commit.</p>
+<p>That design lets Git stage part of your changes, leave other edits unstaged, and build the next snapshot deliberately instead of automatically committing the entire working directory.</p>
+<div class="demo">
+<div class="demo-lbl">Working tree vs index vs commit</div>
+<div class="btn-row">
+<button class="btn act" onclick="showIndexState('edit', this)">Edit files</button>
+<button class="btn" onclick="showIndexState('stage', this)">Run git add</button>
+<button class="btn" onclick="showIndexState('commit', this)">Commit</button>
+</div>
+<div class="index-grid" id="git-index-grid"></div>
+</div>
+<div class="callout.warn">The index is why Git can say “changes not staged for commit” and “changes to be committed” at the same time. That is not UI fluff. It reflects a real internal structure.</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>Real Git goes further: packfiles, delta compression, reachability</h2></div>
+<p>The simplified model above is enough to explain normal version control behavior, but real Git does more. Loose objects are often repacked into <strong>packfiles</strong> for space and transfer efficiency. Within a pack, Git may delta-compress similar objects to save disk and network bandwidth.</p>
+<p>Git also relies on reachability. Objects remain in the repository as long as some ref, reflog entry, or other reachable object graph can still get to them. Garbage collection later prunes unreachable objects that are no longer needed.</p>
+<div class="callout good">The everyday Git experience comes from a small, elegant model. The performance comes from layers built around that model, not from changing the model itself.</div>
+</section>
+<section class="section" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a tiny Git-like repository</h2></div>
+<p>This final snippet combines the pieces: a content-addressed object store, an index, branches as refs, and commits as immutable snapshots. It is not Git, but it is close enough to show why commands like <code>add</code>, <code>commit</code>, <code>branch</code>, and <code>checkout</code> fit together the way they do. The simplified <code>checkout</code> below also reloads the working tree and index from the checked-out commit so branch state does not leak across checkouts.</p>
+<div class="cb">
+<div class="cb-head"><span>mini_git.js — add, commit, branch, checkout, log</span><button class="run-btn" onclick="runCode('c3','o3')">▶ Run</button></div>
+<pre class="code" id="c3">function fakeHash(type, payload) {
   const text = type + "\0" + payload;
   let h = 2166136261;
   for (let i = 0; i &lt; text.length; i++) {
     h ^= text.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  return (h >>> 0).toString(16).padStart(8, "0");
+  return (h &gt;&gt;&gt; 0).toString(16).padStart(8, "0");
 }
 
 class MiniGit {
@@ -383,7 +415,7 @@ class MiniGit {
   }
 
   commit(message) {
-    const entries = Object.keys(this.index).sort().map(path => ({
+    const entries = Object.keys(this.index).sort().map(path =&gt; ({
       path, type: "blob", id: this.index[path]
     }));
     const treeId = this.put("tree", entries);
@@ -439,22 +471,20 @@ console.log("main tip:", repo.refs["refs/heads/main"]);
 console.log("feature tip:", repo.refs["refs/heads/feature"]);
 console.log("feature log:");
 repo.checkout("feature");
-repo.log().forEach(line => console.log(" ", line));</pre>
-      <div class="out" id="o3"></div>
-    </div>
-
-    <footer>
-      <div class="label">Further reading</div>
-      <div class="links">
-        <a href="https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain">Pro Git — Plumbing and Porcelain</a>
-        <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Pro Git — Git Objects</a>
-        <a href="https://git-scm.com/book/en/v2/Git-Internals-Packfiles">Pro Git — Packfiles</a>
-      </div>
-      <div class="footer-note">The demos use a small fake hash and a flattened tree format so the object model stays visible. Real Git uses stronger object IDs, nested trees, an index file format, packfiles, and more metadata.</div>
-    </footer>
-  </section>
+repo.log().forEach(line =&gt; console.log(" ", line));</pre>
+<div class="out" id="o3"></div>
 </div>
-
+<footer>
+<div class="label">Further reading</div>
+<div class="links">
+<a href="https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain">Pro Git — Plumbing and Porcelain</a>
+<a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Pro Git — Git Objects</a>
+<a href="https://git-scm.com/book/en/v2/Git-Internals-Packfiles">Pro Git — Packfiles</a>
+</div>
+<div class="footer-note">The demos use a small fake hash and a flattened tree format so the object model stays visible. Real Git uses stronger object IDs, nested trees, an index file format, packfiles, and more metadata.</div>
+</footer>
+</section>
+</div>
 <script>
 function runCode(cid, oid){
   const raw = document.getElementById(cid).innerText;

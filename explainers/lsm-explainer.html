@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Write-Heavy Problem - LSM Trees</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -368,212 +369,242 @@ a{color:var(--steel)}
   .toc,.compare-grid,.log-grid,.stat-grid{grid-template-columns:1fr}
   .hero h1{max-width:none}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Explainers</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Storage Engines</div>
-    <h1>The <em>Write-Heavy Problem</em> - LSM Trees</h1>
-    <p>Once a key-value store gets serious write traffic, the bottleneck is often no longer hashing or indexing. It is the physical act of rewriting scattered pages on disk. LSM trees change the game by making the write path almost entirely sequential, then paying the cleanup bill later through compaction.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Sequential</b> write path</span>
-      <span class="pill"><b>MemTable</b> and SSTables</span>
-      <span class="pill"><b>Bloom filters</b> as a common file feature</span>
-      <span class="pill">LevelDB, RocksDB, Cassandra</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>Why in-place updates hurt</a>
-    <a href="#s2"><span class="toc-n">02</span>The LSM insight</a>
-    <a href="#s3"><span class="toc-n">03</span>Compaction as a cascade</a>
-    <a href="#s4"><span class="toc-n">04</span>Bloom filters as a common SSTable feature</a>
-    <a href="#s5"><span class="toc-n">05</span>A simplified LSM store in JavaScript</a>
-    <a href="#s6"><span class="toc-n">06</span>LevelDB, RocksDB, and Cassandra</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>Why in-place updates hurt</h2></div>
-    <p>A B-tree is excellent when the storage medium tolerates random page updates cheaply. But a busy write workload turns every tiny logical change into a small storm of physical work: append to the write-ahead log, rewrite the leaf page, maybe rewrite an internal page, maybe split, and eventually flush all of that through the filesystem and device.</p>
-    <p>The pain is not that B-trees are bad. The pain is that <strong>updating in place creates write amplification</strong>. A 40-byte value update can force kilobytes of page traffic, plus random I/O that is much harder for storage hardware to batch efficiently than a single append stream.</p>
-    <div class="callout warn">The core LSM argument is physical, not abstract: if random page rewrites are your bottleneck, stop rewriting pages on every write.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Same logical writes, different physical behavior</div>
-      <div class="btn-row">
-        <button class="btn" onclick="stepWriteModel(1)">One write</button>
-        <button class="btn" onclick="stepWriteModel(4)">Four writes</button>
-        <button class="btn" onclick="resetWriteModel()">Reset</button>
-      </div>
-      <div class="compare-grid">
-        <div class="card">
-          <h4>B-tree style update</h4>
-          <div class="big">Rewrite pages now</div>
-          <p>Each overwrite reaches into existing structure. The fast path is still several writes, and unlucky writes trigger page splits.</p>
-        </div>
-        <div class="card">
-          <h4>LSM style update</h4>
-          <div class="big">Append now, sort later</div>
-          <p>Durability comes from an append-only log, while the in-memory table absorbs updates until it is flushed as a new sorted run.</p>
-        </div>
-      </div>
-      <div class="preview" id="write-preview"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Logical writes</div><div class="stat-v" id="write-count">0</div></div>
-        <div class="stat"><div class="stat-k">B-tree page rewrites</div><div class="stat-v" id="write-btree">0</div></div>
-        <div class="stat"><div class="stat-k">B-tree splits</div><div class="stat-v" id="write-splits">0</div></div>
-        <div class="stat"><div class="stat-k">LSM sequential appends</div><div class="stat-v" id="write-lsm">0</div></div>
-      </div>
-      <div class="log-grid">
-        <div class="event-log">
-          <h4>Recent B-tree touches</h4>
-          <ul id="write-btree-log"></ul>
-        </div>
-        <div class="event-log">
-          <h4>Recent LSM touches</h4>
-          <ul id="write-lsm-log"></ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>random_vs_sequential.js - immediate write-path work</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
-      <pre class="code" id="c1"></pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>The LSM insight</h2></div>
-    <p>The log-structured merge tree flips the write path on purpose. New writes go to two places: an append-only log for durability, and an in-memory sorted structure usually called the <strong>MemTable</strong>. When the MemTable fills, it is frozen and flushed out as a new immutable sorted file: an <strong>SSTable</strong>.</p>
-    <p>That means writes are cheap right now, but reads now have to consult multiple places: the MemTable, maybe a recently frozen MemTable, and several SSTables on disk. The system accepts that temporary disorder because compaction will later merge those files into larger, cleaner levels.</p>
-    <div class="callout">An LSM tree is really a promise: "I will not overwrite old data in place. I will accumulate sorted runs, then reconcile them in the background."</div>
-
-    <div class="demo">
-      <div class="demo-lbl">MemTable flush pipeline</div>
-      <div class="btn-row">
-        <button class="btn" onclick="appendPipelineWrites(1)">Add one write</button>
-        <button class="btn" onclick="appendPipelineWrites(3)">Add three writes</button>
-        <button class="btn" onclick="flushPipeline()">Flush to SSTable</button>
-        <button class="btn" onclick="resetPipeline()">Reset</button>
-      </div>
-      <div class="preview" id="pipeline-preview"></div>
-      <div class="lsm-shell">
-        <div class="kv-strip">
-          <h4>Active MemTable</h4>
-          <div class="tokens" id="pipeline-memtable"></div>
-        </div>
-        <div class="kv-strip">
-          <h4>SSTables on disk (newest first)</h4>
-          <div class="tokens" id="pipeline-sstables"></div>
-        </div>
-      </div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">WAL appends</div><div class="stat-v" id="pipeline-wal">0</div></div>
-        <div class="stat"><div class="stat-k">MemTable entries</div><div class="stat-v" id="pipeline-size">0</div></div>
-        <div class="stat"><div class="stat-k">Flushes</div><div class="stat-v" id="pipeline-flushes">0</div></div>
-        <div class="stat"><div class="stat-k">SSTables</div><div class="stat-v" id="pipeline-files">0</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Compaction as a cascade</h2></div>
-    <p>Immutable SSTables make the write path fast, but they create a new problem: multiple versions of the same key accumulate across files. Deletes become tombstones. Reads may have to search several runs. So the system keeps merging files down the tree.</p>
-    <p>This is why compaction is not an incidental optimization. It is the <strong>second half of the data structure</strong>. The write path borrows time from the future, and compaction is how that debt gets paid.</p>
-    <p>When compaction merges files, it walks their entries in sorted-key order and resolves conflicts by <strong>recency</strong>: if the same key appears in several input files, the newest version wins and older versions are discarded. So compaction is not just concatenation. It is a cleanup pass that collapses several historical fragments into one cleaner view of the keyspace.</p>
-    <p>Deletion works the same way. Because old SSTables are immutable, the system cannot erase a key in place. Instead it writes a <strong>tombstone</strong>, which is a special record meaning “this key was deleted.” Reads treat a tombstone as stronger than any older value they may still find deeper in the tree. Later, once compaction has merged through the relevant older files and knows there is no older live version left to hide, it can drop both the tombstone and the obsolete value entirely.</p>
-    <div class="callout good">The LSM trade is explicit: lower write latency and higher write throughput now, background rewrite work later.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Compaction cascade</div>
-      <div class="btn-row">
-        <button class="btn" onclick="addCompactionBatch()">Write batch</button>
-        <button class="btn" onclick="compactCascade()">Compact</button>
-        <button class="btn" onclick="resetCascade()">Reset</button>
-      </div>
-      <div class="btn-row" id="cascade-query-buttons">
-        <button class="btn act" data-cascade-key="banana" onclick="setCascadeKey('banana')">banana</button>
-        <button class="btn" data-cascade-key="mango" onclick="setCascadeKey('mango')">mango</button>
-        <button class="btn" data-cascade-key="pear" onclick="setCascadeKey('pear')">pear</button>
-      </div>
-      <p class="explain-note">How to read this: <strong>Write batch</strong> adds one new immutable SSTable to <code>L0</code>. Those files can overlap in key range, so point reads may have to check several of them. <strong>Compact</strong> merges the files in the first crowded level into one larger file in the next level down, keeping only the newest value per key. Files highlighted below are the ones whose key range still covers the selected lookup key.</p>
-      <div class="preview" id="cascade-preview"></div>
-      <div class="level-stack" id="cascade-levels"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">L0 files</div><div class="stat-v" id="cascade-l0">0</div></div>
-        <div class="stat"><div class="stat-k">L1 files</div><div class="stat-v" id="cascade-l1">0</div></div>
-        <div class="stat"><div class="stat-k">L2 files</div><div class="stat-v" id="cascade-l2">0</div></div>
-        <div class="stat"><div class="stat-k">Files checked for key</div><div class="stat-v" id="cascade-reads">0</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>Bloom filters as a common SSTable feature</h2></div>
-    <p>Point lookups are where a naive LSM can feel painful. If the key is absent, the system may have to ask file after file, "Do you have this key?" and pay disk work for repeated "no" answers. A Bloom filter changes the economics of that question.</p>
-    <p>Many LSM systems attach a compact probabilistic summary to each SSTable or data block. On lookup, the filter can say either <strong>definitely not here</strong> or <strong>maybe here</strong>. That means many negative lookups can skip opening the data file entirely. The only tolerated mistake is a false positive, never a false negative.</p>
-    <div class="callout">Bloom filters are a very common SSTable feature, but not a universal law of the data structure. LevelDB, for example, exposes them through an optional filter policy. This explainer treats them as first-class because they matter so much for point reads.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">One query across several SSTables</div>
-      <div class="btn-row" id="bloom-query-buttons">
-        <button class="btn act" data-bloom-key="mango" onclick="setBloomKey('mango')">mango</button>
-        <button class="btn" data-bloom-key="papaya" onclick="setBloomKey('papaya')">papaya</button>
-        <button class="btn" data-bloom-key="yak" onclick="setBloomKey('yak')">yak</button>
-      </div>
-      <div class="preview" id="bloom-preview"></div>
-      <table class="table" id="bloom-table"></table>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Bloom rejections</div><div class="stat-v" id="bloom-rejects">0</div></div>
-        <div class="stat"><div class="stat-k">Disk probes</div><div class="stat-v" id="bloom-probes">0</div></div>
-        <div class="stat"><div class="stat-k">Actual hits</div><div class="stat-v" id="bloom-hits">0</div></div>
-        <div class="stat"><div class="stat-k">False positives</div><div class="stat-v" id="bloom-false">0</div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>bloom_guard.js - Bloom filters ruling SSTables out</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
-      <pre class="code" id="c2"></pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>A simplified LSM store in JavaScript</h2></div>
-    <p>The implementation below is deliberately small, but it includes the essential pieces: a MemTable, immutable SSTables, tombstones for deletes, per-SSTable Bloom filters, point lookups from newest to oldest, and a compacting merge that rewrites several files into one cleaner run.</p>
-    <div class="callout">This is not a production storage engine. It is the minimum shape that still feels like an LSM tree instead of just a sorted map with extra steps.</div>
-
-    <div class="cb">
-      <div class="cb-head"><span>lsm_store.js - simplified MemTable + SSTables + compaction</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
-      <pre class="code" id="c3"></pre>
-      <div class="out" id="o3"></div>
-    </div>
-  </section>
-
-  <section class="section footer" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>LevelDB, RocksDB, and Cassandra</h2></div>
-    <p><strong>LevelDB</strong> is the compact embedded expression of the idea: log, MemTable, SSTables, compaction, optional Bloom filters. It established the basic shape many programmers now picture when they hear "LSM tree."</p>
-    <p><strong>RocksDB</strong> keeps the same overall structure but turns the compaction policy into a large design space. Its default leveled style focuses on controlling space amplification, while other modes such as universal compaction trade toward lower write amplification at the cost of more read and space amplification. It also treats Bloom filters as a standard SST-file feature for point lookups.</p>
-    <p><strong>Cassandra</strong> stretches the idea into a distributed database. Data still lands in memtables and immutable SSTables, but the compaction strategy becomes a workload-level decision because it directly shapes read amplification, write amplification, tombstone handling, and operational behavior across the cluster.</p>
-    <div class="callout good">Same family, different priorities: LevelDB is small and crisp, RocksDB is highly tunable, Cassandra is LSM at distributed-system scale.</div>
-    <div class="footer-links">
-      <a href="https://chromium.googlesource.com/external/leveldb/%2B/HEAD/doc/index.md">LevelDB docs</a>
-      <a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Overview">RocksDB overview</a>
-      <a href="https://github.com/facebook/rocksdb/wiki/Leveled-Compaction">RocksDB leveled compaction</a>
-      <a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Bloom-Filter/343f24d064bcb48deb8140305e7329d380dd8741">RocksDB Bloom filters</a>
-      <a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/overview.html">Cassandra compaction overview</a>
-      <a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/lcs.html">Cassandra leveled compaction</a>
-    </div>
-  </section>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
 </div>
-
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Storage Engines</div>
+<h1>The <em>Write-Heavy Problem</em> - LSM Trees</h1>
+<p>Once a key-value store gets serious write traffic, the bottleneck is often no longer hashing or indexing. It is the physical act of rewriting scattered pages on disk. LSM trees change the game by making the write path almost entirely sequential, then paying the cleanup bill later through compaction.</p>
+<div class="pill-row">
+<span class="pill"><b>Sequential</b> write path</span>
+<span class="pill"><b>MemTable</b> and SSTables</span>
+<span class="pill"><b>Bloom filters</b> as a common file feature</span>
+<span class="pill">LevelDB, RocksDB, Cassandra</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>Why in-place updates hurt</a>
+<a href="#s2"><span class="toc-n">02</span>The LSM insight</a>
+<a href="#s3"><span class="toc-n">03</span>Compaction as a cascade</a>
+<a href="#s4"><span class="toc-n">04</span>Bloom filters as a common SSTable feature</a>
+<a href="#s5"><span class="toc-n">05</span>A simplified LSM store in JavaScript</a>
+<a href="#s6"><span class="toc-n">06</span>LevelDB, RocksDB, and Cassandra</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>Why in-place updates hurt</h2></div>
+<p>A B-tree is excellent when the storage medium tolerates random page updates cheaply. But a busy write workload turns every tiny logical change into a small storm of physical work: append to the write-ahead log, rewrite the leaf page, maybe rewrite an internal page, maybe split, and eventually flush all of that through the filesystem and device.</p>
+<p>The pain is not that B-trees are bad. The pain is that <strong>updating in place creates write amplification</strong>. A 40-byte value update can force kilobytes of page traffic, plus random I/O that is much harder for storage hardware to batch efficiently than a single append stream.</p>
+<div class="callout warn">The core LSM argument is physical, not abstract: if random page rewrites are your bottleneck, stop rewriting pages on every write.</div>
+<div class="demo">
+<div class="demo-lbl">Same logical writes, different physical behavior</div>
+<div class="btn-row">
+<button class="btn" onclick="stepWriteModel(1)">One write</button>
+<button class="btn" onclick="stepWriteModel(4)">Four writes</button>
+<button class="btn" onclick="resetWriteModel()">Reset</button>
+</div>
+<div class="compare-grid">
+<div class="card">
+<h4>B-tree style update</h4>
+<div class="big">Rewrite pages now</div>
+<p>Each overwrite reaches into existing structure. The fast path is still several writes, and unlucky writes trigger page splits.</p>
+</div>
+<div class="card">
+<h4>LSM style update</h4>
+<div class="big">Append now, sort later</div>
+<p>Durability comes from an append-only log, while the in-memory table absorbs updates until it is flushed as a new sorted run.</p>
+</div>
+</div>
+<div class="preview" id="write-preview"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Logical writes</div><div class="stat-v" id="write-count">0</div></div>
+<div class="stat"><div class="stat-k">B-tree page rewrites</div><div class="stat-v" id="write-btree">0</div></div>
+<div class="stat"><div class="stat-k">B-tree splits</div><div class="stat-v" id="write-splits">0</div></div>
+<div class="stat"><div class="stat-k">LSM sequential appends</div><div class="stat-v" id="write-lsm">0</div></div>
+</div>
+<div class="log-grid">
+<div class="event-log">
+<h4>Recent B-tree touches</h4>
+<ul id="write-btree-log"></ul>
+</div>
+<div class="event-log">
+<h4>Recent LSM touches</h4>
+<ul id="write-lsm-log"></ul>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>random_vs_sequential.js - immediate write-path work</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+<pre class="code" id="c1"></pre>
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>The LSM insight</h2></div>
+<p>The log-structured merge tree flips the write path on purpose. New writes go to two places: an append-only log for durability, and an in-memory sorted structure usually called the <strong>MemTable</strong>. When the MemTable fills, it is frozen and flushed out as a new immutable sorted file: an <strong>SSTable</strong>.</p>
+<p>That means writes are cheap right now, but reads now have to consult multiple places: the MemTable, maybe a recently frozen MemTable, and several SSTables on disk. The system accepts that temporary disorder because compaction will later merge those files into larger, cleaner levels.</p>
+<div class="callout">An LSM tree is really a promise: "I will not overwrite old data in place. I will accumulate sorted runs, then reconcile them in the background."</div>
+<div class="demo">
+<div class="demo-lbl">MemTable flush pipeline</div>
+<div class="btn-row">
+<button class="btn" onclick="appendPipelineWrites(1)">Add one write</button>
+<button class="btn" onclick="appendPipelineWrites(3)">Add three writes</button>
+<button class="btn" onclick="flushPipeline()">Flush to SSTable</button>
+<button class="btn" onclick="resetPipeline()">Reset</button>
+</div>
+<div class="preview" id="pipeline-preview"></div>
+<div class="lsm-shell">
+<div class="kv-strip">
+<h4>Active MemTable</h4>
+<div class="tokens" id="pipeline-memtable"></div>
+</div>
+<div class="kv-strip">
+<h4>SSTables on disk (newest first)</h4>
+<div class="tokens" id="pipeline-sstables"></div>
+</div>
+</div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">WAL appends</div><div class="stat-v" id="pipeline-wal">0</div></div>
+<div class="stat"><div class="stat-k">MemTable entries</div><div class="stat-v" id="pipeline-size">0</div></div>
+<div class="stat"><div class="stat-k">Flushes</div><div class="stat-v" id="pipeline-flushes">0</div></div>
+<div class="stat"><div class="stat-k">SSTables</div><div class="stat-v" id="pipeline-files">0</div></div>
+</div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Compaction as a cascade</h2></div>
+<p>Immutable SSTables make the write path fast, but they create a new problem: multiple versions of the same key accumulate across files. Deletes become tombstones. Reads may have to search several runs. So the system keeps merging files down the tree.</p>
+<p>This is why compaction is not an incidental optimization. It is the <strong>second half of the data structure</strong>. The write path borrows time from the future, and compaction is how that debt gets paid.</p>
+<p>When compaction merges files, it walks their entries in sorted-key order and resolves conflicts by <strong>recency</strong>: if the same key appears in several input files, the newest version wins and older versions are discarded. So compaction is not just concatenation. It is a cleanup pass that collapses several historical fragments into one cleaner view of the keyspace.</p>
+<p>Deletion works the same way. Because old SSTables are immutable, the system cannot erase a key in place. Instead it writes a <strong>tombstone</strong>, which is a special record meaning “this key was deleted.” Reads treat a tombstone as stronger than any older value they may still find deeper in the tree. Later, once compaction has merged through the relevant older files and knows there is no older live version left to hide, it can drop both the tombstone and the obsolete value entirely.</p>
+<div class="callout good">The LSM trade is explicit: lower write latency and higher write throughput now, background rewrite work later.</div>
+<div class="demo">
+<div class="demo-lbl">Compaction cascade</div>
+<div class="btn-row">
+<button class="btn" onclick="addCompactionBatch()">Write batch</button>
+<button class="btn" onclick="compactCascade()">Compact</button>
+<button class="btn" onclick="resetCascade()">Reset</button>
+</div>
+<div class="btn-row" id="cascade-query-buttons">
+<button class="btn act" data-cascade-key="banana" onclick="setCascadeKey('banana')">banana</button>
+<button class="btn" data-cascade-key="mango" onclick="setCascadeKey('mango')">mango</button>
+<button class="btn" data-cascade-key="pear" onclick="setCascadeKey('pear')">pear</button>
+</div>
+<p class="explain-note">How to read this: <strong>Write batch</strong> adds one new immutable SSTable to <code>L0</code>. Those files can overlap in key range, so point reads may have to check several of them. <strong>Compact</strong> merges the files in the first crowded level into one larger file in the next level down, keeping only the newest value per key. Files highlighted below are the ones whose key range still covers the selected lookup key.</p>
+<div class="preview" id="cascade-preview"></div>
+<div class="level-stack" id="cascade-levels"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">L0 files</div><div class="stat-v" id="cascade-l0">0</div></div>
+<div class="stat"><div class="stat-k">L1 files</div><div class="stat-v" id="cascade-l1">0</div></div>
+<div class="stat"><div class="stat-k">L2 files</div><div class="stat-v" id="cascade-l2">0</div></div>
+<div class="stat"><div class="stat-k">Files checked for key</div><div class="stat-v" id="cascade-reads">0</div></div>
+</div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>Bloom filters as a common SSTable feature</h2></div>
+<p>Point lookups are where a naive LSM can feel painful. If the key is absent, the system may have to ask file after file, "Do you have this key?" and pay disk work for repeated "no" answers. A Bloom filter changes the economics of that question.</p>
+<p>Many LSM systems attach a compact probabilistic summary to each SSTable or data block. On lookup, the filter can say either <strong>definitely not here</strong> or <strong>maybe here</strong>. That means many negative lookups can skip opening the data file entirely. The only tolerated mistake is a false positive, never a false negative.</p>
+<div class="callout">Bloom filters are a very common SSTable feature, but not a universal law of the data structure. LevelDB, for example, exposes them through an optional filter policy. This explainer treats them as first-class because they matter so much for point reads.</div>
+<div class="demo">
+<div class="demo-lbl">One query across several SSTables</div>
+<div class="btn-row" id="bloom-query-buttons">
+<button class="btn act" data-bloom-key="mango" onclick="setBloomKey('mango')">mango</button>
+<button class="btn" data-bloom-key="papaya" onclick="setBloomKey('papaya')">papaya</button>
+<button class="btn" data-bloom-key="yak" onclick="setBloomKey('yak')">yak</button>
+</div>
+<div class="preview" id="bloom-preview"></div>
+<table class="table" id="bloom-table"></table>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Bloom rejections</div><div class="stat-v" id="bloom-rejects">0</div></div>
+<div class="stat"><div class="stat-k">Disk probes</div><div class="stat-v" id="bloom-probes">0</div></div>
+<div class="stat"><div class="stat-k">Actual hits</div><div class="stat-v" id="bloom-hits">0</div></div>
+<div class="stat"><div class="stat-k">False positives</div><div class="stat-v" id="bloom-false">0</div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>bloom_guard.js - Bloom filters ruling SSTables out</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+<pre class="code" id="c2"></pre>
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>A simplified LSM store in JavaScript</h2></div>
+<p>The implementation below is deliberately small, but it includes the essential pieces: a MemTable, immutable SSTables, tombstones for deletes, per-SSTable Bloom filters, point lookups from newest to oldest, and a compacting merge that rewrites several files into one cleaner run.</p>
+<div class="callout">This is not a production storage engine. It is the minimum shape that still feels like an LSM tree instead of just a sorted map with extra steps.</div>
+<div class="cb">
+<div class="cb-head"><span>lsm_store.js - simplified MemTable + SSTables + compaction</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+<pre class="code" id="c3"></pre>
+<div class="out" id="o3"></div>
+</div>
+</section>
+<section class="section footer" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>LevelDB, RocksDB, and Cassandra</h2></div>
+<p><strong>LevelDB</strong> is the compact embedded expression of the idea: log, MemTable, SSTables, compaction, optional Bloom filters. It established the basic shape many programmers now picture when they hear "LSM tree."</p>
+<p><strong>RocksDB</strong> keeps the same overall structure but turns the compaction policy into a large design space. Its default leveled style focuses on controlling space amplification, while other modes such as universal compaction trade toward lower write amplification at the cost of more read and space amplification. It also treats Bloom filters as a standard SST-file feature for point lookups.</p>
+<p><strong>Cassandra</strong> stretches the idea into a distributed database. Data still lands in memtables and immutable SSTables, but the compaction strategy becomes a workload-level decision because it directly shapes read amplification, write amplification, tombstone handling, and operational behavior across the cluster.</p>
+<div class="callout good">Same family, different priorities: LevelDB is small and crisp, RocksDB is highly tunable, Cassandra is LSM at distributed-system scale.</div>
+<div class="footer-links">
+<a href="https://chromium.googlesource.com/external/leveldb/%2B/HEAD/doc/index.md">LevelDB docs</a>
+<a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Overview">RocksDB overview</a>
+<a href="https://github.com/facebook/rocksdb/wiki/Leveled-Compaction">RocksDB leveled compaction</a>
+<a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Bloom-Filter/343f24d064bcb48deb8140305e7329d380dd8741">RocksDB Bloom filters</a>
+<a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/overview.html">Cassandra compaction overview</a>
+<a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/lcs.html">Cassandra leveled compaction</a>
+</div>
+</section>
+</div>
 <script>
 const CODE_SNIPPETS = {
   c1: String.raw`const writes = [

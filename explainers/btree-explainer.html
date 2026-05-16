@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>How Filesystems Use B-Trees</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root {
   --bg:#fbfbfc;
@@ -160,59 +161,101 @@ button.btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--r
 .footer-links{display:flex;flex-wrap:wrap;gap:1.5rem}
 .footer-links a{font-size:14px;color:var(--text2);text-decoration:none}
 .footer-links a:hover{color:var(--accent)}
-</style>
-</head>
-<body>
-<div class="page">
 
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
+</style>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
+<body>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
+</div>
+</header><div class="page">
 <!-- HERO -->
 <header class="hero">
-  <div class="hero-kicker">Interactive explainer</div>
-  <h1>Filesystems and<br><em>B-Trees</em></h1>
-  <p class="hero-sub">How your OS finds a file among millions in microseconds — and why a 50-year-old data structure is still the right tool for the job.</p>
-  <div class="pill-row">
-    <span class="pill"><b>ext4</b> · Linux</span>
-    <span class="pill"><b>HFS+</b> · macOS</span>
-    <span class="pill"><b>NTFS</b> · Windows</span>
-    <span class="pill"><b>SQLite</b> · database indexes</span>
-  </div>
+<div class="hero-kicker">Interactive explainer</div>
+<h1>Filesystems and<br/><em>B-Trees</em></h1>
+<p class="hero-sub">How your OS finds a file among millions in microseconds — and why a 50-year-old data structure is still the right tool for the job.</p>
+<div class="pill-row">
+<span class="pill"><b>ext4</b> · Linux</span>
+<span class="pill"><b>HFS+</b> · macOS</span>
+<span class="pill"><b>NTFS</b> · Windows</span>
+<span class="pill"><b>SQLite</b> · database indexes</span>
+</div>
 </header>
-
 <!-- TOC -->
 <nav class="toc">
-  <a href="#s1"><span class="toc-n">01</span>The disk access problem</a>
-  <a href="#s2"><span class="toc-n">02</span>What is a B-Tree?</a>
-  <a href="#s3"><span class="toc-n">03</span>Search</a>
-  <a href="#s4"><span class="toc-n">04</span>Insertion and splitting</a>
-  <a href="#s5"><span class="toc-n">05</span>Deletion and rebalancing</a>
-  <a href="#s6"><span class="toc-n">06</span>The filesystem layer</a>
-  <a href="#s7"><span class="toc-n">07</span>A mini-filesystem in JS</a>
-  <a href="#s8"><span class="toc-n">08</span>Further reading</a>
+<a href="#s1"><span class="toc-n">01</span>The disk access problem</a>
+<a href="#s2"><span class="toc-n">02</span>What is a B-Tree?</a>
+<a href="#s3"><span class="toc-n">03</span>Search</a>
+<a href="#s4"><span class="toc-n">04</span>Insertion and splitting</a>
+<a href="#s5"><span class="toc-n">05</span>Deletion and rebalancing</a>
+<a href="#s6"><span class="toc-n">06</span>The filesystem layer</a>
+<a href="#s7"><span class="toc-n">07</span>A mini-filesystem in JS</a>
+<a href="#s8"><span class="toc-n">08</span>Further reading</a>
 </nav>
-
 <!-- ===== S1: DISK ACCESS PROBLEM ===== -->
 <section class="section" id="s1">
-  <div class="sec-head"><span class="sec-n">01</span><h2>The disk access problem</h2></div>
-
-  <p>Imagine you have a directory with 10 million files. When you run <code>open("report.pdf")</code>, the OS needs to find the inode number for that filename. How?</p>
-
-  <p>The naive approach — a flat list you scan linearly — is <strong>O(n)</strong>. With 10 million files and a disk seek costing ~10ms, that's potentially minutes. Even a sorted array with binary search does O(log n) comparisons, but each comparison might require a separate disk read if the array doesn't fit in RAM. That's still thousands of seeks.</p>
-
-  <p>A B-Tree solves this by packing many keys into a single node (one disk page), so each disk read eliminates a huge number of candidates at once. A B-Tree of order 100 over 10 million files needs at most <strong>log₁₀₀(10,000,000) ≈ 3.5 → 4 disk reads</strong> to find any file.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Cost comparison — finding 1 file among N files</div>
-    <div class="btn-row">
-      <button class="btn act" onclick="showCostCompare(1000,this)">1K files</button>
-      <button class="btn" onclick="showCostCompare(100000,this)">100K files</button>
-      <button class="btn" onclick="showCostCompare(10000000,this)">10M files</button>
-    </div>
-    <div id="cost-compare"></div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>disk_cost.js — why disk seeks dominate</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
-    <pre class="code" id="c1"><span class="cmt">// Why B-Trees exist: the cost model for disk-based lookups</span>
+<div class="sec-head"><span class="sec-n">01</span><h2>The disk access problem</h2></div>
+<p>Imagine you have a directory with 10 million files. When you run <code>open("report.pdf")</code>, the OS needs to find the inode number for that filename. How?</p>
+<p>The naive approach — a flat list you scan linearly — is <strong>O(n)</strong>. With 10 million files and a disk seek costing ~10ms, that's potentially minutes. Even a sorted array with binary search does O(log n) comparisons, but each comparison might require a separate disk read if the array doesn't fit in RAM. That's still thousands of seeks.</p>
+<p>A B-Tree solves this by packing many keys into a single node (one disk page), so each disk read eliminates a huge number of candidates at once. A B-Tree of order 100 over 10 million files needs at most <strong>log₁₀₀(10,000,000) ≈ 3.5 → 4 disk reads</strong> to find any file.</p>
+<div class="demo">
+<div class="demo-lbl">Cost comparison — finding 1 file among N files</div>
+<div class="btn-row">
+<button class="btn act" onclick="showCostCompare(1000,this)">1K files</button>
+<button class="btn" onclick="showCostCompare(100000,this)">100K files</button>
+<button class="btn" onclick="showCostCompare(10000000,this)">10M files</button>
+</div>
+<div id="cost-compare"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>disk_cost.js — why disk seeks dominate</span><button class="run-btn" onclick="runCode('c1','o1')">▶ Run</button></div>
+<pre class="code" id="c1"><span class="cmt">// Why B-Trees exist: the cost model for disk-based lookups</span>
 
 <span class="kw">const</span> DISK_SEEK_MS  = <span class="num">10</span>;     <span class="cmt">// ~10ms per random disk seek (HDD)</span>
 <span class="kw">const</span> RAM_LOOKUP_NS = <span class="num">100</span>;    <span class="cmt">// ~100ns per random RAM access</span>
@@ -237,37 +280,31 @@ button.btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--r
 
 console.log(<span class="str">`\nDisk is ${DISK_RATIO.toLocaleString()}× slower than RAM per access.`</span>);
 console.log(<span class="str">"B-Tree packs ~100+ keys per node → each seek eliminates 100× more candidates."</span>);</pre>
-    <div class="out" id="o1"></div>
-  </div>
-
-  <div class="callout info">The key insight: disk I/O dominates everything else. A disk seek costs roughly 100,000× more than a RAM lookup in this toy cost model. The goal isn't to minimize <em>comparisons</em> — it's to minimize <em>disk reads</em>.</div>
+<div class="out" id="o1"></div>
+</div>
+<div class="callout info">The key insight: disk I/O dominates everything else. A disk seek costs roughly 100,000× more than a RAM lookup in this toy cost model. The goal isn't to minimize <em>comparisons</em> — it's to minimize <em>disk reads</em>.</div>
 </section>
-
 <!-- ===== S2: WHAT IS A B-TREE ===== -->
 <section class="section" id="s2">
-  <div class="sec-head"><span class="sec-n">02</span><h2>What is a B-Tree?</h2></div>
-
-  <p>A B-Tree of order <strong>t</strong> (minimum degree) is a self-balancing tree where every node holds between <strong>t−1</strong> and <strong>2t−1</strong> keys, and every leaf is at the same depth. Each key in an internal node acts as a separator: everything in the left subtree is smaller, everything in the right is larger.</p>
-
-  <p>Each node maps directly onto one <strong>disk page</strong> (typically 4KB or 16KB). When the OS reads a node, it gets all its keys in one I/O operation. A filesystem with 4KB pages and 8-byte keys can fit ~500 keys per node — meaning each disk read eliminates 500 candidates from the search space.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Live B-Tree — insert keys to build the tree (order t=2, max 3 keys/node)</div>
-    <div class="btn-row" id="btree-preset-btns">
-      <button class="btn primary" onclick="btreePreset()">Build example tree</button>
-      <button class="btn" onclick="btreeClear()">Clear</button>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
-      <input type="number" id="btree-insert-val" placeholder="key (number)" min="1" max="999" style="width:160px;font-family:var(--mono);font-size:13px;padding:5px 9px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)">
-      <button class="btn primary" onclick="btreeInsertUI()">Insert</button>
-    </div>
-    <div class="tree-canvas" id="btree-canvas"></div>
-    <div style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-top:.5rem" id="btree-msg">Purple = internal nodes (separators). Blue = leaf nodes (data lives here).</div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>btree_node.js — node structure and invariants</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
-    <pre class="code" id="c2"><span class="cmt">// A B-Tree node — the unit that maps to one disk page</span>
+<div class="sec-head"><span class="sec-n">02</span><h2>What is a B-Tree?</h2></div>
+<p>A B-Tree of order <strong>t</strong> (minimum degree) is a self-balancing tree where every node holds between <strong>t−1</strong> and <strong>2t−1</strong> keys, and every leaf is at the same depth. Each key in an internal node acts as a separator: everything in the left subtree is smaller, everything in the right is larger.</p>
+<p>Each node maps directly onto one <strong>disk page</strong> (typically 4KB or 16KB). When the OS reads a node, it gets all its keys in one I/O operation. A filesystem with 4KB pages and 8-byte keys can fit ~500 keys per node — meaning each disk read eliminates 500 candidates from the search space.</p>
+<div class="demo">
+<div class="demo-lbl">Live B-Tree — insert keys to build the tree (order t=2, max 3 keys/node)</div>
+<div class="btn-row" id="btree-preset-btns">
+<button class="btn primary" onclick="btreePreset()">Build example tree</button>
+<button class="btn" onclick="btreeClear()">Clear</button>
+</div>
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
+<input id="btree-insert-val" max="999" min="1" placeholder="key (number)" style="width:160px;font-family:var(--mono);font-size:13px;padding:5px 9px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)" type="number"/>
+<button class="btn primary" onclick="btreeInsertUI()">Insert</button>
+</div>
+<div class="tree-canvas" id="btree-canvas"></div>
+<div id="btree-msg" style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-top:.5rem">Purple = internal nodes (separators). Blue = leaf nodes (data lives here).</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>btree_node.js — node structure and invariants</span><button class="run-btn" onclick="runCode('c2','o2')">▶ Run</button></div>
+<pre class="code" id="c2"><span class="cmt">// A B-Tree node — the unit that maps to one disk page</span>
 
 <span class="kw">class</span> <span class="cls">BTreeNode</span> {
   <span class="fn">constructor</span>(isLeaf = <span class="kw">true</span>) {
@@ -296,12 +333,12 @@ console.log(<span class="str">"B-Tree packs ~100+ keys per node → each seek el
   <span class="kw">const</span> max = <span class="num">2</span> * t - <span class="num">1</span>;
 
   console.log(<span class="str">`Depth ${depth}: ${node.keys.length} keys [${node.keys.join(",")}] leaf=${node.isLeaf}`</span>);
-  console.assert(node.keys.length >= min, <span class="str">`Too few keys at depth ${depth}`</span>);
+  console.assert(node.keys.length &gt;= min, <span class="str">`Too few keys at depth ${depth}`</span>);
   console.assert(node.keys.length &lt;= max, <span class="str">`Too many keys at depth ${depth}`</span>);
 
   <span class="cmt">// Keys must be sorted</span>
   <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">1</span>; i &lt; node.keys.length; i++)
-    console.assert(node.keys[i] > node.keys[i-<span class="num">1</span>], <span class="str">"Keys not sorted"</span>);
+    console.assert(node.keys[i] &gt; node.keys[i-<span class="num">1</span>], <span class="str">"Keys not sorted"</span>);
 
   <span class="kw">if</span> (!node.isLeaf) {
     console.assert(node.children.length === node.keys.length + <span class="num">1</span>,
@@ -325,35 +362,30 @@ console.log(<span class="str">"=== Checking invariants ==="</span>);
 console.log(<span class="str">"All invariants satisfied."</span>);
 console.log(<span class="str">`\nRoot disk size: ${root.diskSize()} bytes`</span>);
 console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);</pre>
-    <div class="out" id="o2"></div>
-  </div>
+<div class="out" id="o2"></div>
+</div>
 </section>
-
 <!-- ===== S3: SEARCH ===== -->
 <section class="section" id="s3">
-  <div class="sec-head"><span class="sec-n">03</span><h2>Search</h2></div>
-
-  <p>To find a key, start at the root and at each node binary-search the key array. If found, return the value. Otherwise, follow the appropriate child pointer — the subtree between the two nearest separator keys — and repeat. Stop at a leaf: if the key isn't there, it doesn't exist.</p>
-
-  <p>Each level requires exactly one disk read. The height of a B-Tree with n keys and minimum degree t is at most <strong>log_t((n+1)/2)</strong>. For t=100 and n=10 million, that's ≤4 levels.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Interactive search — enter a key and watch the traversal path</div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
-      <input type="number" id="search-key" placeholder="search for key..." style="width:180px;font-family:var(--mono);font-size:13px;padding:5px 9px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)">
-      <button class="btn primary" onclick="btreeSearchUI()">Search</button>
-    </div>
-    <div class="tree-canvas" id="search-canvas"></div>
-    <div style="margin-top:.7rem">
-      <div style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-bottom:.4rem">Traversal path:</div>
-      <div class="search-path" id="search-path"></div>
-    </div>
-    <div style="font-size:13px;font-family:var(--mono);color:var(--text2);margin-top:.5rem" id="search-result"></div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>btree_search.js — search returning disk read count</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
-    <pre class="code" id="c3"><span class="cmt">// B-Tree search — returns value AND number of disk reads</span>
+<div class="sec-head"><span class="sec-n">03</span><h2>Search</h2></div>
+<p>To find a key, start at the root and at each node binary-search the key array. If found, return the value. Otherwise, follow the appropriate child pointer — the subtree between the two nearest separator keys — and repeat. Stop at a leaf: if the key isn't there, it doesn't exist.</p>
+<p>Each level requires exactly one disk read. The height of a B-Tree with n keys and minimum degree t is at most <strong>log_t((n+1)/2)</strong>. For t=100 and n=10 million, that's ≤4 levels.</p>
+<div class="demo">
+<div class="demo-lbl">Interactive search — enter a key and watch the traversal path</div>
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
+<input id="search-key" placeholder="search for key..." style="width:180px;font-family:var(--mono);font-size:13px;padding:5px 9px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)" type="number"/>
+<button class="btn primary" onclick="btreeSearchUI()">Search</button>
+</div>
+<div class="tree-canvas" id="search-canvas"></div>
+<div style="margin-top:.7rem">
+<div style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-bottom:.4rem">Traversal path:</div>
+<div class="search-path" id="search-path"></div>
+</div>
+<div id="search-result" style="font-size:13px;font-family:var(--mono);color:var(--text2);margin-top:.5rem"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>btree_search.js — search returning disk read count</span><button class="run-btn" onclick="runCode('c3','o3')">▶ Run</button></div>
+<pre class="code" id="c3"><span class="cmt">// B-Tree search — returns value AND number of disk reads</span>
 
 <span class="kw">function</span> <span class="fn">search</span>(node, key, reads = <span class="num">0</span>) {
   reads++; <span class="cmt">// each node access = one disk page read</span>
@@ -361,9 +393,9 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
   <span class="cmt">// Binary search within this node's keys</span>
   <span class="kw">let</span> lo = <span class="num">0</span>, hi = node.keys.length - <span class="num">1</span>;
   <span class="kw">while</span> (lo &lt;= hi) {
-    <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
+    <span class="kw">const</span> mid = (lo + hi) &gt;&gt; <span class="num">1</span>;
     <span class="kw">if</span>      (key &lt; node.keys[mid]) hi = mid - <span class="num">1</span>;
-    <span class="kw">else if</span> (key > node.keys[mid]) lo = mid + <span class="num">1</span>;
+    <span class="kw">else if</span> (key &gt; node.keys[mid]) lo = mid + <span class="num">1</span>;
     <span class="kw">else</span>    <span class="kw">return</span> { found: <span class="kw">true</span>, value: node.values?.[mid], reads };
   }
 
@@ -404,33 +436,28 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
     : <span class="str">"not found"</span>;
   console.log(<span class="str">`search(${String(q).padStart(3)}): ${status}  [${r.reads} disk reads]`</span>);
 }</pre>
-    <div class="out" id="o3"></div>
-  </div>
+<div class="out" id="o3"></div>
+</div>
 </section>
-
 <!-- ===== S4: INSERTION AND SPLITTING ===== -->
 <section class="section" id="s4">
-  <div class="sec-head"><span class="sec-n">04</span><h2>Insertion and splitting</h2></div>
-
-  <p>Inserting always starts at the correct leaf. If the leaf has room (<code>keys.length &lt; 2t−1</code>), insert there and done. If the leaf is full, it must be <strong>split</strong>: divide its keys in half, promote the median key up to the parent, and create two new nodes from the halves.</p>
-
-  <p>This split can cascade upward — if the parent is also full, it splits too, and so on. If the root splits, a new root is created and the tree grows taller. This is the <em>only</em> way a B-Tree grows in height — always at the top, keeping all leaves at the same depth.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Splitting a full node (t=2, max 3 keys) — step through the operation</div>
-    <div class="step-nav">
-      <button class="step-btn act" onclick="showSplit(0,this)">Before insert</button>
-      <button class="step-btn" onclick="showSplit(1,this)">Node full</button>
-      <button class="step-btn" onclick="showSplit(2,this)">Split node</button>
-      <button class="step-btn" onclick="showSplit(3,this)">Promote median</button>
-      <button class="step-btn" onclick="showSplit(4,this)">After insert</button>
-    </div>
-    <div id="split-panels"></div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>btree_insert.js — insertion with node splitting</span><button class="run-btn" onclick="runCode('c4','o4')">&#9654; Run</button></div>
-    <pre class="code" id="c4"><span class="cmt">// B-Tree insertion — the real algorithm with splitting</span>
+<div class="sec-head"><span class="sec-n">04</span><h2>Insertion and splitting</h2></div>
+<p>Inserting always starts at the correct leaf. If the leaf has room (<code>keys.length &lt; 2t−1</code>), insert there and done. If the leaf is full, it must be <strong>split</strong>: divide its keys in half, promote the median key up to the parent, and create two new nodes from the halves.</p>
+<p>This split can cascade upward — if the parent is also full, it splits too, and so on. If the root splits, a new root is created and the tree grows taller. This is the <em>only</em> way a B-Tree grows in height — always at the top, keeping all leaves at the same depth.</p>
+<div class="demo">
+<div class="demo-lbl">Splitting a full node (t=2, max 3 keys) — step through the operation</div>
+<div class="step-nav">
+<button class="step-btn act" onclick="showSplit(0,this)">Before insert</button>
+<button class="step-btn" onclick="showSplit(1,this)">Node full</button>
+<button class="step-btn" onclick="showSplit(2,this)">Split node</button>
+<button class="step-btn" onclick="showSplit(3,this)">Promote median</button>
+<button class="step-btn" onclick="showSplit(4,this)">After insert</button>
+</div>
+<div id="split-panels"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>btree_insert.js — insertion with node splitting</span><button class="run-btn" onclick="runCode('c4','o4')">▶ Run</button></div>
+<pre class="code" id="c4"><span class="cmt">// B-Tree insertion — the real algorithm with splitting</span>
 
 <span class="kw">const</span> t = <span class="num">2</span>; <span class="cmt">// minimum degree: nodes hold 1-3 keys, root holds 1-3 keys</span>
 
@@ -469,7 +496,7 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
   <span class="kw">if</span> (node.isLeaf) {
     <span class="cmt">// Shift keys right and insert in sorted position</span>
     node.keys.push(<span class="num">0</span>); node.values.push(<span class="kw">null</span>);
-    <span class="kw">while</span> (i >= <span class="num">0</span> && key &lt; node.keys[i]) {
+    <span class="kw">while</span> (i &gt;= <span class="num">0</span> &amp;&amp; key &lt; node.keys[i]) {
       node.keys[i+<span class="num">1</span>]   = node.keys[i];
       node.values[i+<span class="num">1</span>] = node.values[i];
       i--;
@@ -478,11 +505,11 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
     node.values[i+<span class="num">1</span>] = value;
   } <span class="kw">else</span> {
     <span class="cmt">// Find correct child, split it if full, recurse</span>
-    <span class="kw">while</span> (i >= <span class="num">0</span> && key &lt; node.keys[i]) i--;
+    <span class="kw">while</span> (i &gt;= <span class="num">0</span> &amp;&amp; key &lt; node.keys[i]) i--;
     i++;
     <span class="kw">if</span> (node.children[i].keys.length === <span class="num">2</span> * t - <span class="num">1</span>) {
       <span class="fn">splitChild</span>(node, i);
-      <span class="kw">if</span> (key > node.keys[i]) i++;
+      <span class="kw">if</span> (key &gt; node.keys[i]) i++;
     }
     <span class="fn">insertNonFull</span>(node.children[i], key, value);
   }
@@ -502,7 +529,7 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
 
 <span class="kw">function</span> <span class="fn">printTree</span>(node, depth = <span class="num">0</span>) {
   console.log(<span class="str">"  "</span>.repeat(depth) + <span class="str">`[${node.keys.join(",")}]`</span> + (node.isLeaf ? <span class="str">" ←leaf"</span> : <span class="str">""</span>));
-  <span class="kw">if</span> (!node.isLeaf) node.children.forEach(c => <span class="fn">printTree</span>(c, depth+<span class="num">1</span>));
+  <span class="kw">if</span> (!node.isLeaf) node.children.forEach(c =&gt; <span class="fn">printTree</span>(c, depth+<span class="num">1</span>));
 }
 
 <span class="kw">const</span> tree = { root: <span class="fn">makeNode</span>(<span class="kw">true</span>) };
@@ -514,30 +541,26 @@ console.log(<span class="str">`Leaf disk size: ${l1.diskSize()} bytes`</span>);<
 
 console.log(<span class="str">"\nFinal tree:"</span>);
 <span class="fn">printTree</span>(tree.root);</pre>
-    <div class="out" id="o4"></div>
-  </div>
+<div class="out" id="o4"></div>
+</div>
 </section>
-
 <!-- ===== S5: DELETION ===== -->
 <section class="section" id="s5">
-  <div class="sec-head"><span class="sec-n">05</span><h2>Deletion and rebalancing</h2></div>
-
-  <p>Deletion is the most complex operation. After removing a key from a leaf, the leaf might underflow — have fewer than t−1 keys. To fix this, the node tries to <strong>borrow</strong> a key from an adjacent sibling (rotating through the parent). If the sibling has no spare keys, the node and its sibling <strong>merge</strong> into one node, pulling down the separator key from the parent. This can cascade up to the root.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Deletion strategies — step through underflow handling</div>
-    <div class="step-nav">
-      <button class="step-btn act" onclick="showDelete(0,this)">Initial state</button>
-      <button class="step-btn" onclick="showDelete(1,this)">Delete → underflow</button>
-      <button class="step-btn" onclick="showDelete(2,this)">Borrow from sibling</button>
-      <button class="step-btn" onclick="showDelete(3,this)">Or: merge nodes</button>
-    </div>
-    <div id="delete-panels"></div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>btree_delete.js — deletion with merge and borrow</span><button class="run-btn" onclick="runCode('c5','o5')">&#9654; Run</button></div>
-    <pre class="code" id="c5"><span class="cmt">// B-Tree deletion — handles underflow via borrow or merge</span>
+<div class="sec-head"><span class="sec-n">05</span><h2>Deletion and rebalancing</h2></div>
+<p>Deletion is the most complex operation. After removing a key from a leaf, the leaf might underflow — have fewer than t−1 keys. To fix this, the node tries to <strong>borrow</strong> a key from an adjacent sibling (rotating through the parent). If the sibling has no spare keys, the node and its sibling <strong>merge</strong> into one node, pulling down the separator key from the parent. This can cascade up to the root.</p>
+<div class="demo">
+<div class="demo-lbl">Deletion strategies — step through underflow handling</div>
+<div class="step-nav">
+<button class="step-btn act" onclick="showDelete(0,this)">Initial state</button>
+<button class="step-btn" onclick="showDelete(1,this)">Delete → underflow</button>
+<button class="step-btn" onclick="showDelete(2,this)">Borrow from sibling</button>
+<button class="step-btn" onclick="showDelete(3,this)">Or: merge nodes</button>
+</div>
+<div id="delete-panels"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>btree_delete.js — deletion with merge and borrow</span><button class="run-btn" onclick="runCode('c5','o5')">▶ Run</button></div>
+<pre class="code" id="c5"><span class="cmt">// B-Tree deletion — handles underflow via borrow or merge</span>
 
 <span class="kw">const</span> t = <span class="num">2</span>; <span class="cmt">// minimum degree</span>
 
@@ -574,7 +597,7 @@ console.log(<span class="str">"\nFinal tree:"</span>);
 }
 
 <span class="kw">function</span> <span class="fn">deleteKey</span>(node, key, isRoot = <span class="kw">true</span>) {
-  <span class="kw">const</span> idx = node.keys.findIndex(k => k >= key);
+  <span class="kw">const</span> idx = node.keys.findIndex(k =&gt; k &gt;= key);
 
   <span class="kw">if</span> (node.isLeaf) {
     <span class="kw">if</span> (node.keys[idx] === key) {
@@ -586,7 +609,7 @@ console.log(<span class="str">"\nFinal tree:"</span>);
     <span class="kw">return</span>;
   }
 
-  <span class="kw">if</span> (idx &lt; node.keys.length && node.keys[idx] === key) {
+  <span class="kw">if</span> (idx &lt; node.keys.length &amp;&amp; node.keys[idx] === key) {
     <span class="cmt">// Key is in this internal node — replace with in-order predecessor</span>
     <span class="kw">let</span> pred = node.children[idx];
     <span class="kw">while</span> (!pred.isLeaf) pred = pred.children[pred.children.length - <span class="num">1</span>];
@@ -603,20 +626,20 @@ console.log(<span class="str">"\nFinal tree:"</span>);
 
   <span class="kw">if</span> (child.keys.length &lt; t) {
     <span class="cmt">// Child has minimum keys — fix it before descending</span>
-    <span class="kw">if</span> (childIdx > <span class="num">0</span> && node.children[childIdx-<span class="num">1</span>].keys.length >= t)
+    <span class="kw">if</span> (childIdx &gt; <span class="num">0</span> &amp;&amp; node.children[childIdx-<span class="num">1</span>].keys.length &gt;= t)
       <span class="fn">borrowFromLeft</span>(node, childIdx);
-    <span class="kw">else if</span> (childIdx &lt; node.children.length-<span class="num">1</span> && node.children[childIdx+<span class="num">1</span>].keys.length >= t)
+    <span class="kw">else if</span> (childIdx &lt; node.children.length-<span class="num">1</span> &amp;&amp; node.children[childIdx+<span class="num">1</span>].keys.length &gt;= t)
       <span class="fn">borrowFromRight</span>(node, childIdx);
     <span class="kw">else</span>
-      <span class="fn">merge</span>(node, childIdx > <span class="num">0</span> ? childIdx - <span class="num">1</span> : <span class="num">0</span>);
+      <span class="fn">merge</span>(node, childIdx &gt; <span class="num">0</span> ? childIdx - <span class="num">1</span> : <span class="num">0</span>);
   }
 
-  <span class="fn">deleteKey</span>(node.children[childIdx > <span class="num">0</span> && child.keys.length &lt; t ? childIdx-<span class="num">1</span> : childIdx], key, <span class="kw">false</span>);
+  <span class="fn">deleteKey</span>(node.children[childIdx &gt; <span class="num">0</span> &amp;&amp; child.keys.length &lt; t ? childIdx-<span class="num">1</span> : childIdx], key, <span class="kw">false</span>);
 }
 
 <span class="kw">function</span> <span class="fn">printTree</span>(node, d=<span class="num">0</span>) {
   console.log(<span class="str">"  "</span>.repeat(d)+<span class="str">`[${node.keys}]`</span>+(node.isLeaf?<span class="str">" ←leaf"</span>:<span class="str">""</span>));
-  <span class="kw">if</span>(!node.isLeaf) node.children.forEach(c=><span class="fn">printTree</span>(c,d+<span class="num">1</span>));
+  <span class="kw">if</span>(!node.isLeaf) node.children.forEach(c=&gt;<span class="fn">printTree</span>(c,d+<span class="num">1</span>));
 }
 
 <span class="cmt">// Build a tree, then delete from it</span>
@@ -631,54 +654,47 @@ console.log(<span class="str">"Before:"</span>); <span class="fn">printTree</spa
 console.log(<span class="str">"\nDeleting 10:"</span>); <span class="fn">deleteKey</span>(root, <span class="num">10</span>);
 console.log(<span class="str">"\nDeleting 25:"</span>); <span class="fn">deleteKey</span>(root, <span class="num">25</span>);
 console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</span>(root);</pre>
-    <div class="out" id="o5"></div>
-  </div>
+<div class="out" id="o5"></div>
+</div>
 </section>
-
 <!-- ===== S6: FILESYSTEM LAYER ===== -->
 <section class="section" id="s6">
-  <div class="sec-head"><span class="sec-n">06</span><h2>The filesystem layer</h2></div>
-
-  <p>Real filesystems often use B-Trees or close relatives, but not all in exactly the same place or with exactly the same key/value layout. Here's a rough map for three major filesystems:</p>
-
-  <div class="demo" style="padding:0;overflow:hidden">
-    <table style="width:100%;border-collapse:collapse;font-size:14px">
-      <thead>
-        <tr style="background:var(--bg2)">
-          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Filesystem</th>
-          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Structure</th>
-          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">B-Tree usage</th>
-          <th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Key type</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">ext4</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Linux</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">HTree (hashed directory index) for large indexed directories; extent tree in each inode for file block mapping</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">dir: filename hash; extents: logical block</td></tr>
-        <tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">HFS+</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">macOS</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Global catalog B-tree for file/folder records; extents overflow B-tree for extra extents beyond the first eight</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">parent CNID + Unicode name</td></tr>
-        <tr><td style="padding:9px 14px;font-weight:500">NTFS</td><td style="padding:9px 14px;color:var(--text2)">Windows</td><td style="padding:9px 14px;color:var(--text2)">Per-directory index structure ($INDEX_ROOT / $INDEX_ALLOCATION); MFT stores the main file records</td><td style="padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--accent)">filename within a directory</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>Across these systems, the <strong>key</strong> is whatever that particular structure is indexing: a filename, a filename hash, a catalog key, or a logical block offset. The associated value is metadata directly, or a pointer to metadata or data extents. The common idea is still logarithmic lookup with high fan-out nodes.</p>
-
-  <h3>The inode and the two-tree problem</h3>
-  <p>A common pattern is a two-stage lookup. First, a directory index or catalog structure maps a human-facing name to file metadata. Then, the file's block-mapping metadata resolves <code>logical block offset → physical disk block</code>. The exact structures differ across ext4, HFS+, and NTFS, but this indirection is what lets files be sparse, fragmented, and still efficiently addressable.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Simulated disk — visualising inode and B-Tree blocks</div>
-    <div class="disk-row" id="disk-blocks"></div>
-    <div style="display:flex;gap:8px;margin-top:.7rem;flex-wrap:wrap">
-      <span style="font-size:12px;font-family:var(--mono);color:var(--blue);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:2px;display:inline-block"></span> superblock/metadata</span>
-      <span style="font-size:12px;font-family:var(--mono);color:var(--purple);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:2px;display:inline-block"></span> B-Tree nodes</span>
-      <span style="font-size:12px;font-family:var(--mono);color:var(--amber);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:2px;display:inline-block"></span> file data</span>
-      <span style="font-size:12px;font-family:var(--mono);color:var(--text3);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:2px;display:inline-block"></span> free</span>
-    </div>
-    <div style="margin-top:.7rem;font-size:13px;font-family:var(--mono);color:var(--text3)" id="disk-msg">Click a block to inspect it.</div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>inode.js — the two-level lookup: filename → inode → disk blocks</span><button class="run-btn" onclick="runCode('c6','o6')">&#9654; Run</button></div>
-    <pre class="code" id="c6"><span class="cmt">// Simplified two-level filesystem lookup: directory index + extent lookup</span>
+<div class="sec-head"><span class="sec-n">06</span><h2>The filesystem layer</h2></div>
+<p>Real filesystems often use B-Trees or close relatives, but not all in exactly the same place or with exactly the same key/value layout. Here's a rough map for three major filesystems:</p>
+<div class="demo" style="padding:0;overflow:hidden">
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+<thead>
+<tr style="background:var(--bg2)">
+<th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Filesystem</th>
+<th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Structure</th>
+<th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">B-Tree usage</th>
+<th style="padding:10px 14px;text-align:left;font-weight:500;font-size:12px;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">Key type</th>
+</tr>
+</thead>
+<tbody>
+<tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">ext4</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Linux</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">HTree (hashed directory index) for large indexed directories; extent tree in each inode for file block mapping</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">dir: filename hash; extents: logical block</td></tr>
+<tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500">HFS+</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">macOS</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2)">Global catalog B-tree for file/folder records; extents overflow B-tree for extra extents beyond the first eight</td><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--accent)">parent CNID + Unicode name</td></tr>
+<tr><td style="padding:9px 14px;font-weight:500">NTFS</td><td style="padding:9px 14px;color:var(--text2)">Windows</td><td style="padding:9px 14px;color:var(--text2)">Per-directory index structure ($INDEX_ROOT / $INDEX_ALLOCATION); MFT stores the main file records</td><td style="padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--accent)">filename within a directory</td></tr>
+</tbody>
+</table>
+</div>
+<p>Across these systems, the <strong>key</strong> is whatever that particular structure is indexing: a filename, a filename hash, a catalog key, or a logical block offset. The associated value is metadata directly, or a pointer to metadata or data extents. The common idea is still logarithmic lookup with high fan-out nodes.</p>
+<h3>The inode and the two-tree problem</h3>
+<p>A common pattern is a two-stage lookup. First, a directory index or catalog structure maps a human-facing name to file metadata. Then, the file's block-mapping metadata resolves <code>logical block offset → physical disk block</code>. The exact structures differ across ext4, HFS+, and NTFS, but this indirection is what lets files be sparse, fragmented, and still efficiently addressable.</p>
+<div class="demo">
+<div class="demo-lbl">Simulated disk — visualising inode and B-Tree blocks</div>
+<div class="disk-row" id="disk-blocks"></div>
+<div style="display:flex;gap:8px;margin-top:.7rem;flex-wrap:wrap">
+<span style="font-size:12px;font-family:var(--mono);color:var(--blue);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:2px;display:inline-block"></span> superblock/metadata</span>
+<span style="font-size:12px;font-family:var(--mono);color:var(--purple);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:2px;display:inline-block"></span> B-Tree nodes</span>
+<span style="font-size:12px;font-family:var(--mono);color:var(--amber);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:2px;display:inline-block"></span> file data</span>
+<span style="font-size:12px;font-family:var(--mono);color:var(--text3);display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:2px;display:inline-block"></span> free</span>
+</div>
+<div id="disk-msg" style="margin-top:.7rem;font-size:13px;font-family:var(--mono);color:var(--text3)">Click a block to inspect it.</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>inode.js — the two-level lookup: filename → inode → disk blocks</span><button class="run-btn" onclick="runCode('c6','o6')">▶ Run</button></div>
+<pre class="code" id="c6"><span class="cmt">// Simplified two-level filesystem lookup: directory index + extent lookup</span>
 <span class="cmt">// Representative of real filesystems, not a byte-for-byte model of ext4/HFS+/NTFS</span>
 
 <span class="kw">class</span> <span class="cls">Inode</span> {
@@ -695,17 +711,17 @@ console.log(<span class="str">"\nAfter:"</span>); <span class="fn">printTree</sp
 
   <span class="fn">addExtent</span>(logStart, length, physStart) {
     <span class="kw">this</span>.extents.push({ logStart, logEnd: logStart + length, physStart });
-    <span class="kw">this</span>.extents.sort((a,b) => a.logStart - b.logStart);
+    <span class="kw">this</span>.extents.sort((a,b) =&gt; a.logStart - b.logStart);
   }
 
   <span class="fn">logicalToPhysical</span>(logBlock) {
     <span class="cmt">// Binary search the extent tree — O(log e) where e = number of extents</span>
     <span class="kw">let</span> lo = <span class="num">0</span>, hi = <span class="kw">this</span>.extents.length - <span class="num">1</span>;
     <span class="kw">while</span> (lo &lt;= hi) {
-      <span class="kw">const</span> mid = (lo + hi) >> <span class="num">1</span>;
+      <span class="kw">const</span> mid = (lo + hi) &gt;&gt; <span class="num">1</span>;
       <span class="kw">const</span> e = <span class="kw">this</span>.extents[mid];
       <span class="kw">if</span>      (logBlock &lt; e.logStart) hi = mid - <span class="num">1</span>;
-      <span class="kw">else if</span> (logBlock >= e.logEnd)  lo = mid + <span class="num">1</span>;
+      <span class="kw">else if</span> (logBlock &gt;= e.logEnd)  lo = mid + <span class="num">1</span>;
       <span class="kw">else    return</span> e.physStart + (logBlock - e.logStart);
     }
     <span class="kw">return null</span>; <span class="cmt">// sparse file: block not allocated (reads as zeros)</span>
@@ -765,33 +781,29 @@ fs.<span class="fn">read</span>(f, <span class="num">0</span>);   <span class="c
 fs.<span class="fn">read</span>(f, <span class="num">63</span>);  <span class="cmt">// last block of 512KB file</span>
 fs.<span class="fn">read</span>(f, <span class="num">200</span>); <span class="cmt">// beyond EOF (sparse)</span>
 
-console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } ->"</span>);
+console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } -&gt;"</span>);
 <span class="kw">try</span> { fs.<span class="fn">open</span>(<span class="str">"missing.txt"</span>) } <span class="kw">catch</span>(e) { console.log(<span class="str">`  ${e.message}`</span>) };</pre>
-    <div class="out" id="o6"></div>
-  </div>
+<div class="out" id="o6"></div>
+</div>
 </section>
-
 <!-- ===== S7: MINI-FILESYSTEM ===== -->
 <section class="section" id="s7">
-  <div class="sec-head"><span class="sec-n">07</span><h2>A mini-filesystem in JS</h2></div>
-
-  <p>Putting it all together: a structurally complete in-memory filesystem backed by a real B-Tree. It supports <code>mkdir</code>, <code>create</code>, <code>cat</code>, <code>ls</code>, <code>stat</code>, <code>find</code>, <code>rm</code>, <code>mv</code>, <code>cd</code>, <code>pwd</code>, and <code>tree</code>. Each directory is a B-Tree keyed by filename. Files store their data as byte arrays.</p>
-
-  <div class="demo">
-    <div class="demo-lbl">Interactive filesystem terminal</div>
-    <div class="terminal" id="terminal">
-      <div class="term-line"><span class="term-prompt">$</span> <span class="term-cmd">help</span></div>
-      <div id="term-output"></div>
-      <div class="term-input-row">
-        <span class="term-prompt">$</span>
-        <input class="term-input" id="term-input" type="text" placeholder="type a command..." autocomplete="off" spellcheck="false">
-      </div>
-    </div>
-  </div>
-
-  <div class="cb">
-    <div class="cb-head"><span>mini_fs.js — complete B-Tree backed filesystem</span><button class="run-btn" onclick="runCode('c7','o7')">&#9654; Run</button></div>
-    <pre class="code" id="c7"><span class="cmt">// A complete in-memory filesystem backed by a B-Tree</span>
+<div class="sec-head"><span class="sec-n">07</span><h2>A mini-filesystem in JS</h2></div>
+<p>Putting it all together: a structurally complete in-memory filesystem backed by a real B-Tree. It supports <code>mkdir</code>, <code>create</code>, <code>cat</code>, <code>ls</code>, <code>stat</code>, <code>find</code>, <code>rm</code>, <code>mv</code>, <code>cd</code>, <code>pwd</code>, and <code>tree</code>. Each directory is a B-Tree keyed by filename. Files store their data as byte arrays.</p>
+<div class="demo">
+<div class="demo-lbl">Interactive filesystem terminal</div>
+<div class="terminal" id="terminal">
+<div class="term-line"><span class="term-prompt">$</span> <span class="term-cmd">help</span></div>
+<div id="term-output"></div>
+<div class="term-input-row">
+<span class="term-prompt">$</span>
+<input autocomplete="off" class="term-input" id="term-input" placeholder="type a command..." spellcheck="false" type="text"/>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>mini_fs.js — complete B-Tree backed filesystem</span><button class="run-btn" onclick="runCode('c7','o7')">▶ Run</button></div>
+<pre class="code" id="c7"><span class="cmt">// A complete in-memory filesystem backed by a B-Tree</span>
 <span class="cmt">// Every directory is a BTree; files store Buffer (Uint8Array) data</span>
 
 <span class="kw">const</span> T = <span class="num">2</span>; <span class="cmt">// B-Tree minimum degree</span>
@@ -800,7 +812,7 @@ console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } ->"</span>);
   <span class="fn">constructor</span>() { <span class="kw">this</span>.root = { isLeaf:<span class="kw">true</span>, keys:[], vals:[], children:[] }; }
 
   <span class="fn">_search</span>(node, key) {
-    <span class="kw">let</span> i = node.keys.findIndex(k => k >= key);
+    <span class="kw">let</span> i = node.keys.findIndex(k =&gt; k &gt;= key);
     <span class="kw">if</span> (i === -<span class="num">1</span>) i = node.keys.length;
     <span class="kw">if</span> (node.keys[i] === key) <span class="kw">return</span> { node, i };
     <span class="kw">if</span> (node.isLeaf) <span class="kw">return null</span>;
@@ -821,11 +833,11 @@ console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } ->"</span>);
     <span class="kw">let</span> i = node.keys.length-<span class="num">1</span>;
     <span class="kw">if</span> (node.isLeaf) {
       node.keys.push(<span class="kw">null</span>); node.vals.push(<span class="kw">null</span>);
-      <span class="kw">while</span> (i>=<span class="num">0</span> && key&lt;node.keys[i]) { node.keys[i+<span class="num">1</span>]=node.keys[i]; node.vals[i+<span class="num">1</span>]=node.vals[i]; i--; }
+      <span class="kw">while</span> (i&gt;=<span class="num">0</span> &amp;&amp; key&lt;node.keys[i]) { node.keys[i+<span class="num">1</span>]=node.keys[i]; node.vals[i+<span class="num">1</span>]=node.vals[i]; i--; }
       node.keys[i+<span class="num">1</span>]=key; node.vals[i+<span class="num">1</span>]=val;
     } <span class="kw">else</span> {
-      <span class="kw">while</span> (i>=<span class="num">0</span> && key&lt;node.keys[i]) i--; i++;
-      <span class="kw">if</span> (node.children[i].keys.length===<span class="num">2</span>*T-<span class="num">1</span>) { <span class="kw">this</span>.<span class="fn">_splitChild</span>(node,i); <span class="kw">if</span> (key>node.keys[i]) i++; }
+      <span class="kw">while</span> (i&gt;=<span class="num">0</span> &amp;&amp; key&lt;node.keys[i]) i--; i++;
+      <span class="kw">if</span> (node.children[i].keys.length===<span class="num">2</span>*T-<span class="num">1</span>) { <span class="kw">this</span>.<span class="fn">_splitChild</span>(node,i); <span class="kw">if</span> (key&gt;node.keys[i]) i++; }
       <span class="kw">this</span>.<span class="fn">_insertNF</span>(node.children[i],key,val);
     }
   }
@@ -841,7 +853,7 @@ console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } ->"</span>);
   }
 
   <span class="fn">keys</span>() {
-    <span class="kw">const</span> res = [], <span class="fn">walk</span> = n => { <span class="kw">if</span> (n.isLeaf) { res.push(...n.keys); <span class="kw">return</span>; } n.children.forEach((c,i)=>{ <span class="fn">walk</span>(c); <span class="kw">if</span>(i&lt;n.keys.length) res.push(n.keys[i]); }); };
+    <span class="kw">const</span> res = [], <span class="fn">walk</span> = n =&gt; { <span class="kw">if</span> (n.isLeaf) { res.push(...n.keys); <span class="kw">return</span>; } n.children.forEach((c,i)=&gt;{ <span class="fn">walk</span>(c); <span class="kw">if</span>(i&lt;n.keys.length) res.push(n.keys[i]); }); };
     <span class="fn">walk</span>(<span class="kw">this</span>.root); <span class="kw">return</span> res;
   }
 }
@@ -902,7 +914,7 @@ console.log(<span class="str">"\ntry { fs.open(\"missing.txt\") } ->"</span>);
   <span class="fn">ls</span>(path = <span class="str">"/"</span>) {
     <span class="kw">const</span> dir = <span class="kw">this</span>.inodes.get(<span class="kw">this</span>.<span class="fn">_resolve</span>(path));
     <span class="kw">if</span> (dir.type !== <span class="str">"dir"</span>) <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">`Not a directory`</span>);
-    <span class="kw">return</span> dir.tree.<span class="fn">keys</span>().map(name => {
+    <span class="kw">return</span> dir.tree.<span class="fn">keys</span>().map(name =&gt; {
       <span class="kw">const</span> child = <span class="kw">this</span>.inodes.get(dir.tree.<span class="fn">get</span>(name));
       <span class="kw">return</span> child.type === <span class="str">"dir"</span> ? <span class="str">`  ${name}/`</span> : <span class="str">`  ${name}  (${child.data.length}B)`</span>;
     });
@@ -949,27 +961,24 @@ console.log(<span class="str">"\nstat /home/alice/docs/report.pdf:"</span>);
 console.log(fs.<span class="fn">stat</span>(<span class="str">"/home/alice/docs/report.pdf"</span>));
 
 console.log(<span class="str">"\nfind / -name 'report':"</span>);
-console.log(fs.<span class="fn">find</span>(<span class="str">"/"</span>, <span class="str">"report"</span>).map(p=><span class="str">`  ${p}`</span>).join(<span class="str">"\n"</span>));</pre>
-    <div class="out" id="o7"></div>
-  </div>
+console.log(fs.<span class="fn">find</span>(<span class="str">"/"</span>, <span class="str">"report"</span>).map(p=&gt;<span class="str">`  ${p}`</span>).join(<span class="str">"\n"</span>));</pre>
+<div class="out" id="o7"></div>
+</div>
 </section>
-
 <!-- ===== S8: FURTHER READING ===== -->
 <section class="section" id="s8">
-  <div class="sec-head"><span class="sec-n">08</span><h2>Further reading</h2></div>
-  <p>The B-Tree is one of the most important data structures in systems programming. These are excellent next steps:</p>
-  <div class="footer-links" style="flex-direction:column;gap:.7rem">
-    <a href="https://www.kernel.org/doc/html/latest/filesystems/ext4/index.html">Linux ext4 filesystem documentation — the authoritative technical reference</a>
-    <a href="https://en.wikipedia.org/wiki/HFS_Plus">HFS+ internals (Wikipedia) — Apple's B-Tree catalog structure in detail</a>
-    <a href="https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/btrees.pdf">CMU — B-Trees lecture slides (clear diagrams)</a>
-    <a href="https://github.com/torvalds/linux/blob/master/fs/ext4/extents.c">ext4/extents.c — actual Linux B-Tree extent code (C)</a>
-    <a href="https://en.wikipedia.org/wiki/B%2B_tree">B+ Tree — the variant most filesystems actually use (all values at leaves)</a>
-    <a href="https://link.springer.com/article/10.1007/BF00288683">Bayer &amp; McCreight (1972) — Organization and maintenance of large ordered indexes</a>
-  </div>
-</section>
-
+<div class="sec-head"><span class="sec-n">08</span><h2>Further reading</h2></div>
+<p>The B-Tree is one of the most important data structures in systems programming. These are excellent next steps:</p>
+<div class="footer-links" style="flex-direction:column;gap:.7rem">
+<a href="https://www.kernel.org/doc/html/latest/filesystems/ext4/index.html">Linux ext4 filesystem documentation — the authoritative technical reference</a>
+<a href="https://en.wikipedia.org/wiki/HFS_Plus">HFS+ internals (Wikipedia) — Apple's B-Tree catalog structure in detail</a>
+<a href="https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/btrees.pdf">CMU — B-Trees lecture slides (clear diagrams)</a>
+<a href="https://github.com/torvalds/linux/blob/master/fs/ext4/extents.c">ext4/extents.c — actual Linux B-Tree extent code (C)</a>
+<a href="https://en.wikipedia.org/wiki/B%2B_tree">B+ Tree — the variant most filesystems actually use (all values at leaves)</a>
+<a href="https://link.springer.com/article/10.1007/BF00288683">Bayer &amp; McCreight (1972) — Organization and maintenance of large ordered indexes</a>
 </div>
-
+</section>
+</div>
 <script>
 /* ============ CODE RUNNER ============ */
 function runCode(cid, oid) {

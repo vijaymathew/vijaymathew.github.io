@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Compression Game — Huffman and LZ</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -402,200 +403,228 @@ pre.code{
   .entropy-row{grid-template-columns:72px 56px 60px 1fr 64px 96px}
   .hero h1{max-width:none}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Explainers</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Interactive explainer</div>
-    <h1>The <em>Compression Game</em> — Huffman and LZ</h1>
-    <p>How do you make a file smaller without losing anything? The answer is to exploit structure twice: first by spotting repeated substrings, then by assigning short codes to the symbols that show up most often. This page walks from Shannon's entropy bound to Huffman coding, LZ77, and the way gzip combines both ideas.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Lossless</b> compression</span>
-      <span class="pill"><b>Shannon</b> entropy</span>
-      <span class="pill"><b>DEFLATE</b> = LZ77 + Huffman</span>
-      <span class="pill">Runnable JavaScript</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>The problem: same file, fewer bits</a>
-    <a href="#s2"><span class="toc-n">02</span>Entropy: Shannon's floor</a>
-    <a href="#s3"><span class="toc-n">03</span>Huffman coding</a>
-    <a href="#s4"><span class="toc-n">04</span>LZ77 and the sliding window</a>
-    <a href="#s5"><span class="toc-n">05</span>How gzip combines both</a>
-    <a href="#s6"><span class="toc-n">06</span>Implementation in JavaScript</a>
-    <a href="#s7"><span class="toc-n">07</span>Further reading</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: same file, fewer bits</h2></div>
-    <p>Lossless compression has a narrow brief: <strong>the output must decode to the exact original bytes</strong>. No approximations, no dropped detail, no “close enough.” The only move available is to describe the data more cleverly than the raw byte stream does.</p>
-    <p>That only works when the file has structure: repeated words, predictable symbols, recurring phrases, or common local patterns. If the bytes already look random, there is not much to save.</p>
-    <div class="callout">Compression is not magic. It cannot squeeze every file. It only wins when the data contains <strong>redundancy</strong> that the compressor can model.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Three files, three very different compression stories</div>
-      <div class="btn-row" id="sample-buttons">
-        <button class="btn act" data-sample="log" onclick="setSample('log')">Server log</button>
-        <button class="btn" data-sample="code" onclick="setSample('code')">Source code</button>
-        <button class="btn" data-sample="noise" onclick="setSample('noise')">Noisy data</button>
-      </div>
-      <div class="preview" id="sample-preview"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Original size</div><div class="stat-v" id="stat-bytes">0 <small>bytes</small></div></div>
-        <div class="stat"><div class="stat-k">Unique symbols</div><div class="stat-v" id="stat-unique">0</div></div>
-        <div class="stat"><div class="stat-k">Entropy</div><div class="stat-v" id="stat-entropy">0 <small>bits/symbol</small></div></div>
-        <div class="stat"><div class="stat-k">Shannon floor</div><div class="stat-v" id="stat-floor">0 <small>bytes</small></div></div>
-      </div>
-      <div class="meter">
-        <div class="meter-head"><span>8-bit raw bytes</span><span id="redundancy-head">Entropy uses 0% of that budget</span></div>
-        <div class="meter-bar"><div class="meter-fill" id="redundancy-fill" style="width:0%"></div></div>
-        <div class="meter-note" id="sample-note"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>Entropy: Shannon's floor</h2></div>
-    <p>Claude Shannon's key insight was that a source emitting very predictable symbols should require fewer bits per symbol than a source emitting unpredictable ones. If one character appears half the time and the others are rare, you should not spend the same number of bits on all of them.</p>
-    <p>Entropy is the average surprise of the source. Low entropy means the next symbol is usually easy to guess. High entropy means you are closer to randomness. In a long enough stream, <strong>entropy is the theoretical lower bound for any lossless compressor that models the source correctly</strong>.</p>
-    <div class="callout info">No heavy math needed here: think of entropy as the average number of yes/no questions required to identify the next symbol.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Where the bits go</div>
-      <div class="entropy-table" id="entropy-table"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Huffman coding</h2></div>
-    <p>Huffman coding turns a frequency table into a <strong>prefix code</strong>: common symbols get short bit strings, rare symbols get longer ones, and no code is a prefix of another. That last property guarantees the bitstream can be decoded unambiguously from left to right.</p>
-    <p>The construction is greedy and elegant. Repeatedly take the two least frequent symbols, combine them into a parent, and continue until one tree remains. The path to each leaf becomes that symbol's code.</p>
-    <div class="callout">Huffman coding only exploits <strong>symbol frequency</strong>. If the file contains repeated phrases like <code>compression compression compression</code>, Huffman alone still sees one symbol at a time.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Codes derived from the current sample</div>
-      <div class="huff-grid">
-        <div>
-          <table class="code-table">
-            <thead>
-              <tr><th>Symbol</th><th>Count</th><th>Share</th><th>Code</th><th>Bits</th></tr>
-            </thead>
-            <tbody id="huffman-table"></tbody>
-          </table>
-        </div>
-        <div class="mini-stats">
-          <div class="mini"><div class="label">Fixed-width ASCII</div><div class="value" id="fixed-bits">0 bits</div></div>
-          <div class="mini"><div class="label">Entropy floor</div><div class="value" id="entropy-bits">0 bits</div></div>
-          <div class="mini"><div class="label">Huffman output</div><div class="value" id="huffman-bits">0 bits</div></div>
-          <div class="mini"><div class="label">Average code length</div><div class="value" id="avg-bits">0 bits/symbol</div></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>LZ77 and the sliding window</h2></div>
-    <p>LZ77 tackles a different kind of redundancy. Instead of asking which <em>symbols</em> are common, it asks whether the next few characters already appeared nearby. If they did, emit a back-reference such as “copy 6 bytes from 11 bytes ago” instead of repeating the literal text.</p>
-    <p>That is why LZ77 works so well on logs, markup, source code, and repeated words: local history is a strong predictor of what comes next. In practice, encoders use a <strong>sliding window</strong> of recent bytes and greedily choose a long enough match when one exists.</p>
-    <div class="callout info">Real LZ77-style formats also allow <strong>overlapping</strong> copies. That is why runs like <code>AAAAAAAAAA</code> can collapse into a short literal prefix plus a back-reference whose length exceeds its distance.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Step through an LZ77-style parse</div>
-      <div class="btn-row" id="lz-buttons">
-        <button class="btn act" data-lz="banana" onclick="setLZSample('banana')">BANANA stream</button>
-        <button class="btn" data-lz="phrase" onclick="setLZSample('phrase')">Repeated phrase</button>
-        <button class="btn" data-lz="runs" onclick="setLZSample('runs')">Runs</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="stepLZ(-1)">Prev</button>
-        <button class="btn" onclick="stepLZ(1)">Next</button>
-      </div>
-      <div class="preview" id="lz-source"></div>
-      <div class="track" id="lz-track"></div>
-      <div class="step-box">
-        <div class="stat"><div class="stat-k">Window</div><div class="mono" id="lz-window-text"></div></div>
-        <div class="stat"><div class="stat-k">Lookahead</div><div class="mono" id="lz-lookahead-text"></div></div>
-        <div class="stat"><div class="stat-k">Emit token</div><div class="mono" id="lz-token-text"></div></div>
-      </div>
-      <div class="token-stream" id="lz-token-stream"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>How gzip combines both</h2></div>
-    <p>What most programmers casually call “gzip compression” is usually a <strong>gzip file wrapper around a DEFLATE stream</strong>. DEFLATE combines the two ideas above: first it finds repeated substrings with an LZ77-style parser, then it Huffman-codes the resulting literals, lengths, and distances.</p>
-    <p>That division of labor matters. LZ77 removes repeated phrases and local structure. Huffman then removes the remaining symbol-frequency waste from the token stream. One spots patterns across bytes; the other assigns shorter codes to frequent tokens.</p>
-    <div class="callout warn">The pipeline below is illustrative, not a byte-exact gzip size calculator. Real DEFLATE adds block structure, separate literal/length and distance alphabets, and some extra bits for certain lengths and distances.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">A toy DEFLATE-style pipeline for the current sample</div>
-      <div class="pipeline">
-        <div class="stage">
-          <div class="stage-k">Original</div>
-          <div class="stage-v" id="pipe-original">0 B</div>
-          <p>Raw bytes in the input sample.</p>
-        </div>
-        <div class="stage">
-          <div class="stage-k">LZ77 tokens</div>
-          <div class="stage-v" id="pipe-tokens">0</div>
-          <p id="pipe-lz-note">0 matches, 0 literals.</p>
-        </div>
-        <div class="stage">
-          <div class="stage-k">Toy Huffman</div>
-          <div class="stage-v" id="pipe-huff">0 bits</div>
-          <p id="pipe-huff-note">Average 0 bits per emitted symbol.</p>
-        </div>
-        <div class="stage">
-          <div class="stage-k">Takeaway</div>
-          <div class="stage-v" id="pipe-takeaway">—</div>
-          <p id="pipe-takeaway-note"></p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation in JavaScript</h2></div>
-    <p>The snippets below are deliberately small, but they are not pseudocode. The Huffman example really encodes and decodes a string and emits the codebook needed to decode it later. The LZ77 sketch really emits tokens, allows overlapping back-references, and reconstructs the original text.</p>
-
-    <div class="cb">
-      <div class="cb-head"><span>entropy.js — estimate Shannon entropy and the theoretical floor</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
-      <pre class="code" id="c1"></pre>
-      <div class="out" id="o1"></div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>huffman.js — Huffman encoder / decoder with serialized codebook</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
-      <pre class="code" id="c2"></pre>
-      <div class="out" id="o2"></div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>lz77_sketch.js — greedy LZ77-style encoder / decoder with overlapping copies</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
-      <pre class="code" id="c3"></pre>
-      <div class="out" id="o3"></div>
-    </div>
-  </section>
-
-  <section class="section footer" id="s7">
-    <div class="sec-head"><span class="sec-n">§07</span><h2>Further reading</h2></div>
-    <p>The big ideas here are old, durable, and still sitting underneath everyday tooling.</p>
-    <div class="footer-links">
-      <a href="https://www.rfc-editor.org/rfc/rfc1951">RFC 1951 — DEFLATE compressed data format</a>
-      <a href="https://www.rfc-editor.org/rfc/rfc1952">RFC 1952 — gzip file format</a>
-      <a href="https://compression.ru/download/articles/huff/huffman_1952_minimum-redundancy-codes.pdf">Huffman (1952) — minimum-redundancy codes (public mirror PDF)</a>
-      <a href="https://www.itsoc.org/publications/papers/a-universal-algorithm-for-sequential-data-compression">Lempel and Ziv (1977) — universal compression</a>
-    </div>
-  </section>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
 </div>
-
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Interactive explainer</div>
+<h1>The <em>Compression Game</em> — Huffman and LZ</h1>
+<p>How do you make a file smaller without losing anything? The answer is to exploit structure twice: first by spotting repeated substrings, then by assigning short codes to the symbols that show up most often. This page walks from Shannon's entropy bound to Huffman coding, LZ77, and the way gzip combines both ideas.</p>
+<div class="pill-row">
+<span class="pill"><b>Lossless</b> compression</span>
+<span class="pill"><b>Shannon</b> entropy</span>
+<span class="pill"><b>DEFLATE</b> = LZ77 + Huffman</span>
+<span class="pill">Runnable JavaScript</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>The problem: same file, fewer bits</a>
+<a href="#s2"><span class="toc-n">02</span>Entropy: Shannon's floor</a>
+<a href="#s3"><span class="toc-n">03</span>Huffman coding</a>
+<a href="#s4"><span class="toc-n">04</span>LZ77 and the sliding window</a>
+<a href="#s5"><span class="toc-n">05</span>How gzip combines both</a>
+<a href="#s6"><span class="toc-n">06</span>Implementation in JavaScript</a>
+<a href="#s7"><span class="toc-n">07</span>Further reading</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>The problem: same file, fewer bits</h2></div>
+<p>Lossless compression has a narrow brief: <strong>the output must decode to the exact original bytes</strong>. No approximations, no dropped detail, no “close enough.” The only move available is to describe the data more cleverly than the raw byte stream does.</p>
+<p>That only works when the file has structure: repeated words, predictable symbols, recurring phrases, or common local patterns. If the bytes already look random, there is not much to save.</p>
+<div class="callout">Compression is not magic. It cannot squeeze every file. It only wins when the data contains <strong>redundancy</strong> that the compressor can model.</div>
+<div class="demo">
+<div class="demo-lbl">Three files, three very different compression stories</div>
+<div class="btn-row" id="sample-buttons">
+<button class="btn act" data-sample="log" onclick="setSample('log')">Server log</button>
+<button class="btn" data-sample="code" onclick="setSample('code')">Source code</button>
+<button class="btn" data-sample="noise" onclick="setSample('noise')">Noisy data</button>
+</div>
+<div class="preview" id="sample-preview"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Original size</div><div class="stat-v" id="stat-bytes">0 <small>bytes</small></div></div>
+<div class="stat"><div class="stat-k">Unique symbols</div><div class="stat-v" id="stat-unique">0</div></div>
+<div class="stat"><div class="stat-k">Entropy</div><div class="stat-v" id="stat-entropy">0 <small>bits/symbol</small></div></div>
+<div class="stat"><div class="stat-k">Shannon floor</div><div class="stat-v" id="stat-floor">0 <small>bytes</small></div></div>
+</div>
+<div class="meter">
+<div class="meter-head"><span>8-bit raw bytes</span><span id="redundancy-head">Entropy uses 0% of that budget</span></div>
+<div class="meter-bar"><div class="meter-fill" id="redundancy-fill" style="width:0%"></div></div>
+<div class="meter-note" id="sample-note"></div>
+</div>
+</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>Entropy: Shannon's floor</h2></div>
+<p>Claude Shannon's key insight was that a source emitting very predictable symbols should require fewer bits per symbol than a source emitting unpredictable ones. If one character appears half the time and the others are rare, you should not spend the same number of bits on all of them.</p>
+<p>Entropy is the average surprise of the source. Low entropy means the next symbol is usually easy to guess. High entropy means you are closer to randomness. In a long enough stream, <strong>entropy is the theoretical lower bound for any lossless compressor that models the source correctly</strong>.</p>
+<div class="callout info">No heavy math needed here: think of entropy as the average number of yes/no questions required to identify the next symbol.</div>
+<div class="demo">
+<div class="demo-lbl">Where the bits go</div>
+<div class="entropy-table" id="entropy-table"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Huffman coding</h2></div>
+<p>Huffman coding turns a frequency table into a <strong>prefix code</strong>: common symbols get short bit strings, rare symbols get longer ones, and no code is a prefix of another. That last property guarantees the bitstream can be decoded unambiguously from left to right.</p>
+<p>The construction is greedy and elegant. Repeatedly take the two least frequent symbols, combine them into a parent, and continue until one tree remains. The path to each leaf becomes that symbol's code.</p>
+<div class="callout">Huffman coding only exploits <strong>symbol frequency</strong>. If the file contains repeated phrases like <code>compression compression compression</code>, Huffman alone still sees one symbol at a time.</div>
+<div class="demo">
+<div class="demo-lbl">Codes derived from the current sample</div>
+<div class="huff-grid">
+<div>
+<table class="code-table">
+<thead>
+<tr><th>Symbol</th><th>Count</th><th>Share</th><th>Code</th><th>Bits</th></tr>
+</thead>
+<tbody id="huffman-table"></tbody>
+</table>
+</div>
+<div class="mini-stats">
+<div class="mini"><div class="label">Fixed-width ASCII</div><div class="value" id="fixed-bits">0 bits</div></div>
+<div class="mini"><div class="label">Entropy floor</div><div class="value" id="entropy-bits">0 bits</div></div>
+<div class="mini"><div class="label">Huffman output</div><div class="value" id="huffman-bits">0 bits</div></div>
+<div class="mini"><div class="label">Average code length</div><div class="value" id="avg-bits">0 bits/symbol</div></div>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>LZ77 and the sliding window</h2></div>
+<p>LZ77 tackles a different kind of redundancy. Instead of asking which <em>symbols</em> are common, it asks whether the next few characters already appeared nearby. If they did, emit a back-reference such as “copy 6 bytes from 11 bytes ago” instead of repeating the literal text.</p>
+<p>That is why LZ77 works so well on logs, markup, source code, and repeated words: local history is a strong predictor of what comes next. In practice, encoders use a <strong>sliding window</strong> of recent bytes and greedily choose a long enough match when one exists.</p>
+<div class="callout info">Real LZ77-style formats also allow <strong>overlapping</strong> copies. That is why runs like <code>AAAAAAAAAA</code> can collapse into a short literal prefix plus a back-reference whose length exceeds its distance.</div>
+<div class="demo">
+<div class="demo-lbl">Step through an LZ77-style parse</div>
+<div class="btn-row" id="lz-buttons">
+<button class="btn act" data-lz="banana" onclick="setLZSample('banana')">BANANA stream</button>
+<button class="btn" data-lz="phrase" onclick="setLZSample('phrase')">Repeated phrase</button>
+<button class="btn" data-lz="runs" onclick="setLZSample('runs')">Runs</button>
+</div>
+<div class="btn-row">
+<button class="btn" onclick="stepLZ(-1)">Prev</button>
+<button class="btn" onclick="stepLZ(1)">Next</button>
+</div>
+<div class="preview" id="lz-source"></div>
+<div class="track" id="lz-track"></div>
+<div class="step-box">
+<div class="stat"><div class="stat-k">Window</div><div class="mono" id="lz-window-text"></div></div>
+<div class="stat"><div class="stat-k">Lookahead</div><div class="mono" id="lz-lookahead-text"></div></div>
+<div class="stat"><div class="stat-k">Emit token</div><div class="mono" id="lz-token-text"></div></div>
+</div>
+<div class="token-stream" id="lz-token-stream"></div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>How gzip combines both</h2></div>
+<p>What most programmers casually call “gzip compression” is usually a <strong>gzip file wrapper around a DEFLATE stream</strong>. DEFLATE combines the two ideas above: first it finds repeated substrings with an LZ77-style parser, then it Huffman-codes the resulting literals, lengths, and distances.</p>
+<p>That division of labor matters. LZ77 removes repeated phrases and local structure. Huffman then removes the remaining symbol-frequency waste from the token stream. One spots patterns across bytes; the other assigns shorter codes to frequent tokens.</p>
+<div class="callout warn">The pipeline below is illustrative, not a byte-exact gzip size calculator. Real DEFLATE adds block structure, separate literal/length and distance alphabets, and some extra bits for certain lengths and distances.</div>
+<div class="demo">
+<div class="demo-lbl">A toy DEFLATE-style pipeline for the current sample</div>
+<div class="pipeline">
+<div class="stage">
+<div class="stage-k">Original</div>
+<div class="stage-v" id="pipe-original">0 B</div>
+<p>Raw bytes in the input sample.</p>
+</div>
+<div class="stage">
+<div class="stage-k">LZ77 tokens</div>
+<div class="stage-v" id="pipe-tokens">0</div>
+<p id="pipe-lz-note">0 matches, 0 literals.</p>
+</div>
+<div class="stage">
+<div class="stage-k">Toy Huffman</div>
+<div class="stage-v" id="pipe-huff">0 bits</div>
+<p id="pipe-huff-note">Average 0 bits per emitted symbol.</p>
+</div>
+<div class="stage">
+<div class="stage-k">Takeaway</div>
+<div class="stage-v" id="pipe-takeaway">—</div>
+<p id="pipe-takeaway-note"></p>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Implementation in JavaScript</h2></div>
+<p>The snippets below are deliberately small, but they are not pseudocode. The Huffman example really encodes and decodes a string and emits the codebook needed to decode it later. The LZ77 sketch really emits tokens, allows overlapping back-references, and reconstructs the original text.</p>
+<div class="cb">
+<div class="cb-head"><span>entropy.js — estimate Shannon entropy and the theoretical floor</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+<pre class="code" id="c1"></pre>
+<div class="out" id="o1"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>huffman.js — Huffman encoder / decoder with serialized codebook</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+<pre class="code" id="c2"></pre>
+<div class="out" id="o2"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>lz77_sketch.js — greedy LZ77-style encoder / decoder with overlapping copies</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+<pre class="code" id="c3"></pre>
+<div class="out" id="o3"></div>
+</div>
+</section>
+<section class="section footer" id="s7">
+<div class="sec-head"><span class="sec-n">§07</span><h2>Further reading</h2></div>
+<p>The big ideas here are old, durable, and still sitting underneath everyday tooling.</p>
+<div class="footer-links">
+<a href="https://www.rfc-editor.org/rfc/rfc1951">RFC 1951 — DEFLATE compressed data format</a>
+<a href="https://www.rfc-editor.org/rfc/rfc1952">RFC 1952 — gzip file format</a>
+<a href="https://compression.ru/download/articles/huff/huffman_1952_minimum-redundancy-codes.pdf">Huffman (1952) — minimum-redundancy codes (public mirror PDF)</a>
+<a href="https://www.itsoc.org/publications/papers/a-universal-algorithm-for-sequential-data-compression">Lempel and Ziv (1977) — universal compression</a>
+</div>
+</section>
+</div>
 <script>
 const SAMPLE_TEXTS = {
   log:

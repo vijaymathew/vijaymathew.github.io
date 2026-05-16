@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Two-Key Trick - Public-Key Cryptography</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -100,93 +101,131 @@ footer .links{display:flex;flex-direction:column;gap:4px}
 @media (max-width:780px){
   .flow-grid,.rsa-grid,.sig-grid,.tls-grid,.explain-grid,.number-box{grid-template-columns:1fr}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Hub</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Security · Cryptography · Trust</div>
-    <h1>The Two-Key <em>Trick</em></h1>
-    <p>Public-key cryptography solved one of online security’s hardest bootstrap problems: how do two strangers on an open network establish trust and secrecy without already sharing a secret key? The answer is not “encrypt everything with giant math all the time.” The answer is to use public-key crypto sparingly for identity, signatures, and key establishment, then hand the session off to fast symmetric encryption.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Problem</b> strangers on an untrusted network</span>
-      <span class="pill"><b>Idea</b> publish one key, protect the other</span>
-      <span class="pill"><b>Role</b> authentication and session setup for the web</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>Why two keys matter</a>
-    <a href="#s2"><span class="toc-n">02</span>RSA intuition</a>
-    <a href="#s3"><span class="toc-n">03</span>Digital signatures</a>
-    <a href="#s4"><span class="toc-n">04</span>TLS and the web</a>
-    <a href="#s5"><span class="toc-n">05</span>What public-key crypto is for</a>
-    <a href="#s6"><span class="toc-n">06</span>Runnable code</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>Why two keys matter</h2></div>
-    <p>Symmetric cryptography is fast and powerful, but it has a setup problem: both sides must already know the same secret key. That works inside a system you control. It does not solve the broader Internet problem of a browser talking to an unfamiliar server over a hostile network.</p>
-    <p>Public-key cryptography changes the shape of the problem. You generate a <strong>keypair</strong>: one <strong>public key</strong> that anyone can know, and one <strong>private key</strong> that only you keep. Now strangers can encrypt something only you can open, or verify that a message really came from you if it carries your signature. On the web, that public key is usually trusted only after the browser validates a certificate chain and hostname binding.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Symmetric-only vs public-key setup</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="setBootstrap('symmetric', this)">Symmetric only</button>
-        <button class="btn" onclick="setBootstrap('public', this)">Public-key bootstrap</button>
-      </div>
-      <div class="flow-grid" id="bootstrap-viz"></div>
-    </div>
-
-    <div class="callout good">Public-key cryptography does not replace symmetric encryption. It makes symmetric encryption deployable between parties who did not already share a secret.</div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>RSA: a toy trapdoor built from multiplication</h2></div>
-    <p>RSA is the classic teaching example. Choose two primes <code>p</code> and <code>q</code>, multiply them to get <code>n = p · q</code>, then choose exponents <code>e</code> and <code>d</code> so that raising to <code>e</code> and then to <code>d</code> reverses the operation modulo <code>n</code>. The public key is <code>(n, e)</code>. The private key is <code>d</code>.</p>
-    <p>For a toy example, take <code>p = 61</code> and <code>q = 53</code>. Then <code>n = 3233</code>, and <code>φ(n) = (61 - 1)(53 - 1) = 3120</code>, where <code>φ(n)</code> is the count of integers below <code>n</code> that share no factor with <code>n</code>. Choose <code>e = 17</code>, which is coprime to <code>3120</code>, and then choose <code>d = 2753</code> because <code>17 × 2753 ≡ 1 mod 3120</code>. That gives the public key <code>(3233, 17)</code> and the private key <code>2753</code>. If the message is <code>42</code>, encryption computes <code>42^17 mod 3233 = 2557</code>, and decryption computes <code>2557^2753 mod 3233 = 42</code>.</p>
-    <p>The core asymmetry is this: multiplying primes is easy, but recovering the original factors from a large composite number is believed to be hard. Real systems use much larger keys than the toy numbers below, plus secure encodings and padding. This demo shows the shape of RSA, not a deployable scheme.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Toy RSA in one number</div>
-      <div class="rsa-grid">
-        <div class="stat-box">
-          <div class="slider-row">
-            <label>Message</label>
-            <input type="range" min="2" max="120" value="42" id="rsa-msg" oninput="updateRSADemo()">
-            <span class="slider-val" id="rsa-msg-val">42</span>
-          </div>
-          <div class="callout info tight">Fixed toy keypair: <code>p=61</code>, <code>q=53</code>, <code>n=3233</code>, <code>e=17</code>, <code>d=2753</code>.</div>
-          <div class="number-box">
-            <div class="mini-card">
-              <h3>Plaintext</h3>
-              <div class="big-val" id="rsa-plain">42</div>
-            </div>
-            <div class="mini-card">
-              <h3>Encrypted</h3>
-              <div class="big-val" id="rsa-cipher">2557</div>
-            </div>
-            <div class="mini-card">
-              <h3>Decrypted</h3>
-              <div class="big-val" id="rsa-restored">42</div>
-            </div>
-          </div>
-        </div>
-        <div class="stat-box">
-          <h3>Operations</h3>
-          <div class="step-list" id="rsa-steps"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>rsa_toy.js — textbook RSA for intuition only</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
-      <pre class="code" id="c1">function gcd(a, b) {
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
+</div>
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Security · Cryptography · Trust</div>
+<h1>The Two-Key <em>Trick</em></h1>
+<p>Public-key cryptography solved one of online security’s hardest bootstrap problems: how do two strangers on an open network establish trust and secrecy without already sharing a secret key? The answer is not “encrypt everything with giant math all the time.” The answer is to use public-key crypto sparingly for identity, signatures, and key establishment, then hand the session off to fast symmetric encryption.</p>
+<div class="pill-row">
+<span class="pill"><b>Problem</b> strangers on an untrusted network</span>
+<span class="pill"><b>Idea</b> publish one key, protect the other</span>
+<span class="pill"><b>Role</b> authentication and session setup for the web</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>Why two keys matter</a>
+<a href="#s2"><span class="toc-n">02</span>RSA intuition</a>
+<a href="#s3"><span class="toc-n">03</span>Digital signatures</a>
+<a href="#s4"><span class="toc-n">04</span>TLS and the web</a>
+<a href="#s5"><span class="toc-n">05</span>What public-key crypto is for</a>
+<a href="#s6"><span class="toc-n">06</span>Runnable code</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>Why two keys matter</h2></div>
+<p>Symmetric cryptography is fast and powerful, but it has a setup problem: both sides must already know the same secret key. That works inside a system you control. It does not solve the broader Internet problem of a browser talking to an unfamiliar server over a hostile network.</p>
+<p>Public-key cryptography changes the shape of the problem. You generate a <strong>keypair</strong>: one <strong>public key</strong> that anyone can know, and one <strong>private key</strong> that only you keep. Now strangers can encrypt something only you can open, or verify that a message really came from you if it carries your signature. On the web, that public key is usually trusted only after the browser validates a certificate chain and hostname binding.</p>
+<div class="demo">
+<div class="demo-lbl">Symmetric-only vs public-key setup</div>
+<div class="btn-row">
+<button class="btn act" onclick="setBootstrap('symmetric', this)">Symmetric only</button>
+<button class="btn" onclick="setBootstrap('public', this)">Public-key bootstrap</button>
+</div>
+<div class="flow-grid" id="bootstrap-viz"></div>
+</div>
+<div class="callout good">Public-key cryptography does not replace symmetric encryption. It makes symmetric encryption deployable between parties who did not already share a secret.</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>RSA: a toy trapdoor built from multiplication</h2></div>
+<p>RSA is the classic teaching example. Choose two primes <code>p</code> and <code>q</code>, multiply them to get <code>n = p · q</code>, then choose exponents <code>e</code> and <code>d</code> so that raising to <code>e</code> and then to <code>d</code> reverses the operation modulo <code>n</code>. The public key is <code>(n, e)</code>. The private key is <code>d</code>.</p>
+<p>For a toy example, take <code>p = 61</code> and <code>q = 53</code>. Then <code>n = 3233</code>, and <code>φ(n) = (61 - 1)(53 - 1) = 3120</code>, where <code>φ(n)</code> is the count of integers below <code>n</code> that share no factor with <code>n</code>. Choose <code>e = 17</code>, which is coprime to <code>3120</code>, and then choose <code>d = 2753</code> because <code>17 × 2753 ≡ 1 mod 3120</code>. That gives the public key <code>(3233, 17)</code> and the private key <code>2753</code>. If the message is <code>42</code>, encryption computes <code>42^17 mod 3233 = 2557</code>, and decryption computes <code>2557^2753 mod 3233 = 42</code>.</p>
+<p>The core asymmetry is this: multiplying primes is easy, but recovering the original factors from a large composite number is believed to be hard. Real systems use much larger keys than the toy numbers below, plus secure encodings and padding. This demo shows the shape of RSA, not a deployable scheme.</p>
+<div class="demo">
+<div class="demo-lbl">Toy RSA in one number</div>
+<div class="rsa-grid">
+<div class="stat-box">
+<div class="slider-row">
+<label>Message</label>
+<input id="rsa-msg" max="120" min="2" oninput="updateRSADemo()" type="range" value="42"/>
+<span class="slider-val" id="rsa-msg-val">42</span>
+</div>
+<div class="callout info tight">Fixed toy keypair: <code>p=61</code>, <code>q=53</code>, <code>n=3233</code>, <code>e=17</code>, <code>d=2753</code>.</div>
+<div class="number-box">
+<div class="mini-card">
+<h3>Plaintext</h3>
+<div class="big-val" id="rsa-plain">42</div>
+</div>
+<div class="mini-card">
+<h3>Encrypted</h3>
+<div class="big-val" id="rsa-cipher">2557</div>
+</div>
+<div class="mini-card">
+<h3>Decrypted</h3>
+<div class="big-val" id="rsa-restored">42</div>
+</div>
+</div>
+</div>
+<div class="stat-box">
+<h3>Operations</h3>
+<div class="step-list" id="rsa-steps"></div>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>rsa_toy.js — textbook RSA for intuition only</span><button class="run-btn" onclick="runCode('c1','o1')">▶ Run</button></div>
+<pre class="code" id="c1">function gcd(a, b) {
   while (b !== 0n) [a, b] = [b, a % b];
   return a;
 }
@@ -206,10 +245,10 @@ function modInv(a, m) {
 function modPow(base, exp, mod) {
   let out = 1n;
   base %= mod;
-  while (exp > 0n) {
+  while (exp &gt; 0n) {
     if (exp &amp; 1n) out = (out * base) % mod;
     base = (base * base) % mod;
-    exp >>= 1n;
+    exp &gt;&gt;= 1n;
   }
   return out;
 }
@@ -231,56 +270,53 @@ console.log(`public: n=${publicKey.n} e=${publicKey.e}`);
 console.log(`private: d=${privateKey.d}`);
 console.log("cipher:", cipher.toString());
 console.log("round-trip:", plain.toString());</pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Digital signatures: authenticity, not secrecy</h2></div>
-    <p>Encryption answers “who can read this?” Signatures answer “who wrote this, and was it changed?” The signer computes a digest of the message, uses the private key to sign that digest, and everyone else can verify the signature with the public key. In practice, real RSA signatures use secure signature encodings such as RSA-PSS rather than bare modular exponentiation.</p>
-    <p>This distinction matters on the web. When your browser connects to a bank, the first job is not bulk secrecy. The first job is proving that the server is really the bank and not a machine in the middle impersonating it.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Signature verification under tampering</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="setSignatureCase('clean', this)">Valid message</button>
-        <button class="btn" onclick="setSignatureCase('tampered', this)">Message changed</button>
-        <button class="btn" onclick="setSignatureCase('forged', this)">Forged signature</button>
-      </div>
-      <div class="sig-grid">
-        <div class="stat-box">
-          <div class="number-box">
-            <div class="mini-card">
-              <h3>Message</h3>
-              <div class="big-val" id="sig-message">TRANSFER=100</div>
-            </div>
-            <div class="mini-card">
-              <h3>Digest</h3>
-              <div class="big-val" id="sig-digest">0</div>
-            </div>
-            <div class="mini-card">
-              <h3>Signature</h3>
-              <div class="big-val" id="sig-signature">0</div>
-            </div>
-          </div>
-          <div id="sig-result" class="sig-result sig-ok"></div>
-        </div>
-        <div class="stat-box">
-          <h3>Interpretation</h3>
-          <div class="step-list" id="sig-steps"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>signatures.js — sign and verify a toy message digest</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
-      <pre class="code" id="c2">function modPow(base, exp, mod) {
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Digital signatures: authenticity, not secrecy</h2></div>
+<p>Encryption answers “who can read this?” Signatures answer “who wrote this, and was it changed?” The signer computes a digest of the message, uses the private key to sign that digest, and everyone else can verify the signature with the public key. In practice, real RSA signatures use secure signature encodings such as RSA-PSS rather than bare modular exponentiation.</p>
+<p>This distinction matters on the web. When your browser connects to a bank, the first job is not bulk secrecy. The first job is proving that the server is really the bank and not a machine in the middle impersonating it.</p>
+<div class="demo">
+<div class="demo-lbl">Signature verification under tampering</div>
+<div class="btn-row">
+<button class="btn act" onclick="setSignatureCase('clean', this)">Valid message</button>
+<button class="btn" onclick="setSignatureCase('tampered', this)">Message changed</button>
+<button class="btn" onclick="setSignatureCase('forged', this)">Forged signature</button>
+</div>
+<div class="sig-grid">
+<div class="stat-box">
+<div class="number-box">
+<div class="mini-card">
+<h3>Message</h3>
+<div class="big-val" id="sig-message">TRANSFER=100</div>
+</div>
+<div class="mini-card">
+<h3>Digest</h3>
+<div class="big-val" id="sig-digest">0</div>
+</div>
+<div class="mini-card">
+<h3>Signature</h3>
+<div class="big-val" id="sig-signature">0</div>
+</div>
+</div>
+<div class="sig-result sig-ok" id="sig-result"></div>
+</div>
+<div class="stat-box">
+<h3>Interpretation</h3>
+<div class="step-list" id="sig-steps"></div>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>signatures.js — sign and verify a toy message digest</span><button class="run-btn" onclick="runCode('c2','o2')">▶ Run</button></div>
+<pre class="code" id="c2">function modPow(base, exp, mod) {
   let out = 1n;
   base %= mod;
-  while (exp > 0n) {
+  while (exp &gt; 0n) {
     if (exp &amp; 1n) out = (out * base) % mod;
     base = (base * base) % mod;
-    exp >>= 1n;
+    exp &gt;&gt;= 1n;
   }
   return out;
 }
@@ -307,83 +343,78 @@ const sig = sign(msg);
 console.log("signature:", sig.toString());
 console.log("verify original:", verify(msg, sig));
 console.log("verify tampered:", verify("TRANSFER=900", sig));</pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>TLS and the web: authenticate first, then switch to symmetric crypto</h2></div>
-    <p>The browser does not use public-key cryptography because it wants to encrypt every page byte with slow heavyweight math. It uses public-key cryptography to authenticate the server and agree on a shared session secret. After that, the connection switches to fast symmetric encryption for the real traffic.</p>
-    <p>Modern TLS usually uses certificate-based signatures plus ephemeral Diffie-Hellman style key exchange rather than textbook RSA encryption of the session key. The server authenticates the handshake transcript with <code>CertificateVerify</code>, and both sides confirm the derived keys with <code>Finished</code>. The important architectural point is the same: public-key crypto bootstraps trust and key establishment; symmetric crypto carries the bulk data.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Browser handshake with and without a trusted signature</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="setTLSCase('honest', this)">Honest server</button>
-        <button class="btn" onclick="setTLSCase('mitm', this)">Attacker in the middle</button>
-      </div>
-      <div class="tls-grid">
-        <div class="stat-box">
-          <div class="flow-grid">
-            <div class="flow-box">
-              <h3>Browser</h3>
-              <strong>Trusted issuer keys</strong>
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>TLS and the web: authenticate first, then switch to symmetric crypto</h2></div>
+<p>The browser does not use public-key cryptography because it wants to encrypt every page byte with slow heavyweight math. It uses public-key cryptography to authenticate the server and agree on a shared session secret. After that, the connection switches to fast symmetric encryption for the real traffic.</p>
+<p>Modern TLS usually uses certificate-based signatures plus ephemeral Diffie-Hellman style key exchange rather than textbook RSA encryption of the session key. The server authenticates the handshake transcript with <code>CertificateVerify</code>, and both sides confirm the derived keys with <code>Finished</code>. The important architectural point is the same: public-key crypto bootstraps trust and key establishment; symmetric crypto carries the bulk data.</p>
+<div class="demo">
+<div class="demo-lbl">Browser handshake with and without a trusted signature</div>
+<div class="btn-row">
+<button class="btn act" onclick="setTLSCase('honest', this)">Honest server</button>
+<button class="btn" onclick="setTLSCase('mitm', this)">Attacker in the middle</button>
+</div>
+<div class="tls-grid">
+<div class="stat-box">
+<div class="flow-grid">
+<div class="flow-box">
+<h3>Browser</h3>
+<strong>Trusted issuer keys</strong>
               Checks signatures on the server's identity and ephemeral key material.
             </div>
-            <div class="flow-box">
-              <h3>Network</h3>
-              <strong>Open and hostile</strong>
+<div class="flow-box">
+<h3>Network</h3>
+<strong>Open and hostile</strong>
               Anyone may observe, relay, or modify traffic.
             </div>
-            <div class="flow-box">
-              <h3>Server</h3>
-              <strong>Private signing key</strong>
+<div class="flow-box">
+<h3>Server</h3>
+<strong>Private signing key</strong>
               Proves it owns the identity bound to the certificate.
             </div>
-          </div>
-          <div class="arrow-row" id="tls-arrow-row"></div>
-        </div>
-        <div class="stat-box">
-          <h3>Handshake steps</h3>
-          <div class="step-list" id="tls-steps"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>What public-key cryptography is actually for</h2></div>
-    <p>Public-key cryptography is foundational to online security, but it is easy to misunderstand its role. It is not a magical replacement for every other security primitive. In practice, it is most valuable for a narrow set of bootstrapping tasks.</p>
-    <div class="explain-grid">
-      <div class="mini-card">
-        <h3>Identity</h3>
-        <p>Signatures let a server prove possession of a private key linked to its certificate and domain identity.</p>
-      </div>
-      <div class="mini-card">
-        <h3>Key establishment</h3>
-        <p>Two parties can create or protect a shared session key even if they never met before.</p>
-      </div>
-      <div class="mini-card">
-        <h3>Delegation and audit</h3>
-        <p>Signed artifacts, tokens, commits, and updates can be verified later by anyone with the public key.</p>
-      </div>
-    </div>
-    <div class="callout info">For bulk encryption of web traffic, disks, and VPN tunnels, symmetric cryptography still does most of the heavy lifting because it is far faster.</div>
-  </section>
-
-  <section class="section" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a toy authenticated key exchange</h2></div>
-    <p>The final snippet combines the ideas above. It uses a toy Diffie-Hellman exchange to derive a shared secret and a toy RSA signature to authenticate a simplified handshake transcript that includes the ephemeral values. It also computes a toy <code>Finished</code>-style tag over that transcript and shared secret. This is still vastly simpler than real TLS, but it captures the real division of labor much better than “encrypt the whole website with RSA.”</p>
-
-    <div class="cb">
-      <div class="cb-head"><span>authenticated_key_exchange.js — signed transcript and shared session secret</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
-      <pre class="code" id="c3">function modPow(base, exp, mod) {
+</div>
+<div class="arrow-row" id="tls-arrow-row"></div>
+</div>
+<div class="stat-box">
+<h3>Handshake steps</h3>
+<div class="step-list" id="tls-steps"></div>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>What public-key cryptography is actually for</h2></div>
+<p>Public-key cryptography is foundational to online security, but it is easy to misunderstand its role. It is not a magical replacement for every other security primitive. In practice, it is most valuable for a narrow set of bootstrapping tasks.</p>
+<div class="explain-grid">
+<div class="mini-card">
+<h3>Identity</h3>
+<p>Signatures let a server prove possession of a private key linked to its certificate and domain identity.</p>
+</div>
+<div class="mini-card">
+<h3>Key establishment</h3>
+<p>Two parties can create or protect a shared session key even if they never met before.</p>
+</div>
+<div class="mini-card">
+<h3>Delegation and audit</h3>
+<p>Signed artifacts, tokens, commits, and updates can be verified later by anyone with the public key.</p>
+</div>
+</div>
+<div class="callout info">For bulk encryption of web traffic, disks, and VPN tunnels, symmetric cryptography still does most of the heavy lifting because it is far faster.</div>
+</section>
+<section class="section" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a toy authenticated key exchange</h2></div>
+<p>The final snippet combines the ideas above. It uses a toy Diffie-Hellman exchange to derive a shared secret and a toy RSA signature to authenticate a simplified handshake transcript that includes the ephemeral values. It also computes a toy <code>Finished</code>-style tag over that transcript and shared secret. This is still vastly simpler than real TLS, but it captures the real division of labor much better than “encrypt the whole website with RSA.”</p>
+<div class="cb">
+<div class="cb-head"><span>authenticated_key_exchange.js — signed transcript and shared session secret</span><button class="run-btn" onclick="runCode('c3','o3')">▶ Run</button></div>
+<pre class="code" id="c3">function modPow(base, exp, mod) {
   let out = 1n;
   base %= mod;
-  while (exp > 0n) {
+  while (exp &gt; 0n) {
     if (exp &amp; 1n) out = (out * base) % mod;
     base = (base * base) % mod;
-    exp >>= 1n;
+    exp &gt;&gt;= 1n;
   }
   return out;
 }
@@ -428,22 +459,20 @@ console.log("shared secret at client:", clientShared.toString());
 console.log("shared secret at server:", serverShared.toString());
 console.log("match:", clientShared === serverShared);
 console.log("finished tags match:", finishedClient === finishedServer);</pre>
-      <div class="out" id="o3"></div>
-    </div>
-
-    <footer>
-      <div class="label">Further reading</div>
-      <div class="links">
-        <a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446 — TLS 1.3</a>
-        <a href="https://cryptobook.nakov.com/asymmetric-key-ciphers/rsa-cryptosystem-concepts">RSA Cryptosystem Concepts — Practical Cryptography for Developers</a>
-        <a href="https://cryptobook.nakov.com/digital-signatures">Digital Signatures — Practical Cryptography for Developers</a>
-        <a href="https://cryptobook.nakov.com/key-exchange/dhke-examples">Diffie-Hellman Key Exchange Examples — Practical Cryptography for Developers</a>
-      </div>
-      <div class="footer-note">The RSA and signing demos use toy numbers so the arithmetic stays visible. Real deployments use large keys, padding, secure hashes, certificates, and constant-time implementations.</div>
-    </footer>
-  </section>
+<div class="out" id="o3"></div>
 </div>
-
+<footer>
+<div class="label">Further reading</div>
+<div class="links">
+<a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446 — TLS 1.3</a>
+<a href="https://cryptobook.nakov.com/asymmetric-key-ciphers/rsa-cryptosystem-concepts">RSA Cryptosystem Concepts — Practical Cryptography for Developers</a>
+<a href="https://cryptobook.nakov.com/digital-signatures">Digital Signatures — Practical Cryptography for Developers</a>
+<a href="https://cryptobook.nakov.com/key-exchange/dhke-examples">Diffie-Hellman Key Exchange Examples — Practical Cryptography for Developers</a>
+</div>
+<div class="footer-note">The RSA and signing demos use toy numbers so the arithmetic stays visible. Real deployments use large keys, padding, secure hashes, certificates, and constant-time implementations.</div>
+</footer>
+</section>
+</div>
 <script>
 function runCode(cid, oid) {
   const raw = document.getElementById(cid).innerText;

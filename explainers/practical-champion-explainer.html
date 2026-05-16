@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Practical Champion - Introsort and Quicksort</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -288,184 +289,216 @@ a{color:var(--blue)}
   .toc,.grid-two,.stat-grid{grid-template-columns:1fr}
   .hero h1{max-width:none}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Explainers</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Sorting In Memory</div>
-    <h1><em>The Practical Champion</em></h1>
-    <p>If you need to sort ten million records in memory, the argument is not about elegance. It is about branch behavior, cache movement, recursion depth, and what happens when the input shape gets hostile. Quicksort wins often because partitioning is cheap and in-place, but production libraries do not ship naive quicksort. They ship a hardened hybrid.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Partitioning</b> is the core move</span>
-      <span class="pill"><b>Pivot choice</b> decides your fate</span>
-      <span class="pill"><b>Introsort</b> is the real workhorse</span>
-      <span class="pill">Heapsort as fallback</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>Why partitioning wins</a>
-    <a href="#s2"><span class="toc-n">02</span>Lomuto versus Hoare</a>
-    <a href="#s3"><span class="toc-n">03</span>Pivot selection</a>
-    <a href="#s4"><span class="toc-n">04</span>Introsort</a>
-    <a href="#s5"><span class="toc-n">05</span>When not to use quicksort</a>
-    <a href="#s6"><span class="toc-n">06</span>Library practice</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>Why partitioning wins</h2></div>
-    <p>Quicksort's core idea is not recursion. It is <strong>partitioning</strong>. Pick a pivot, move smaller elements to one side and larger elements to the other, and you have turned one big problem into two smaller in-place problems with very little extra memory.</p>
-    <p>That is why quicksort stays competitive on large in-memory sorts. The partition pass is mostly linear scanning and swapping. When pivot choice is reasonable, the recursion stays shallow and the constant factors are excellent.</p>
-    <div class="callout">The practical story of quicksort is simple: partition cheaply, recurse on roughly balanced subarrays, and avoid letting a bad pivot policy turn linear partitioning into quadratic pain.</div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>Lomuto versus Hoare</h2></div>
-    <p>Two partition schemes show up again and again. <strong>Lomuto</strong> is easy to teach: scan once, keep a boundary of smaller elements, and swap the pivot into place at the end. <strong>Hoare</strong> uses two moving pointers from the ends and often performs fewer swaps, but its control flow is trickier and its returned partition index means something different.</p>
-    <p>That trade matters because partitioning is the hot loop. A teaching-friendly scheme is not always the one you want in a standard-library sort.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Same array, two partition schemes</div>
-      <div class="btn-row" id="partition-mode-buttons">
-        <button class="btn act" data-partition="lomuto" onclick="setPartitionMode('lomuto')">Lomuto</button>
-        <button class="btn" data-partition="hoare" onclick="setPartitionMode('hoare')">Hoare</button>
-      </div>
-      <div class="partition-controls">
-        <button class="btn" id="partition-play" onclick="togglePartitionPlayback()">Play</button>
-        <button class="btn" onclick="stepPartition()">Step</button>
-        <button class="btn" onclick="resetPartitionAnimation()">Reset</button>
-      </div>
-      <div class="preview" id="partition-preview"></div>
-      <div class="partition-strip" id="partition-strip"></div>
-      <p></p>
-      <div class="grid-two">
-        <div class="card">
-          <h4>Partition result</h4>
-          <div class="big" id="partition-array"></div>
-          <p id="partition-note"></p>
-        </div>
-        <div class="card">
-          <h4>Cost sketch</h4>
-          <div class="big" id="partition-cost"></div>
-          <p id="partition-cost-note"></p>
-        </div>
-      </div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Comparisons</div><div class="stat-v" id="partition-comps">0</div></div>
-        <div class="stat"><div class="stat-k">Swaps</div><div class="stat-v" id="partition-swaps">0</div></div>
-        <div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="partition-pivot">0</div></div>
-        <div class="stat"><div class="stat-k">Returned index</div><div class="stat-v" id="partition-index">0</div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>partition.js - Lomuto and Hoare side by side</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
-      <pre class="code" id="c1"></pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Pivot selection</h2></div>
-    <p>Naive pivot choice is where quicksort gets into trouble. Always choosing the first or last element is fine on random data until the day the input is already sorted, reverse sorted, or adversarially shaped. Then the recursion tree collapses into something close to a linked list and your <code>O(n log n)</code> intuition disappears.</p>
-    <p>Common defenses are random pivots and <strong>median-of-three</strong>, which samples the first, middle, and last elements and uses their median as the pivot. Production implementations go further, but even this simple move makes bad splits less common.</p>
-    <div class="callout warn">The dangerous belief is "quicksort is fast." The more honest version is "quicksort is fast if your pivot policy stops the input from humiliating you."</div>
-
-    <div class="demo">
-      <div class="demo-lbl">How the split changes with input shape</div>
-      <div class="btn-row" id="pivot-input-buttons">
-        <button class="btn act" data-pivot-input="sorted" onclick="setPivotInput('sorted')">Sorted</button>
-        <button class="btn" data-pivot-input="reverse" onclick="setPivotInput('reverse')">Reverse</button>
-        <button class="btn" data-pivot-input="mixed" onclick="setPivotInput('mixed')">Mixed</button>
-      </div>
-      <div class="btn-row" id="pivot-strategy-buttons">
-        <button class="btn act" data-pivot-strategy="first" onclick="setPivotStrategy('first')">First</button>
-        <button class="btn" data-pivot-strategy="random" onclick="setPivotStrategy('random')">Random</button>
-        <button class="btn" data-pivot-strategy="median3" onclick="setPivotStrategy('median3')">Median-of-three</button>
-      </div>
-      <div class="partition-controls">
-        <button class="btn" id="pivot-play" onclick="togglePivotPlayback()">Play</button>
-        <button class="btn" onclick="stepPivot()">Step</button>
-        <button class="btn" onclick="resetPivotAnimation()">Reset</button>
-      </div>
-      <div class="preview" id="pivot-preview"></div>
-      <div class="pivot-strip" id="pivot-strip"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="pivot-value">0</div></div>
-        <div class="stat"><div class="stat-k">Left size</div><div class="stat-v" id="pivot-left">0</div></div>
-        <div class="stat"><div class="stat-k">Right size</div><div class="stat-v" id="pivot-right">0</div></div>
-        <div class="stat"><div class="stat-k">Balance ratio</div><div class="stat-v" id="pivot-balance">0</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>Introsort</h2></div>
-    <p>Introsort starts as quicksort because quicksort is usually the fast path. But it watches the recursion depth. If the partition tree gets too deep, it gives up on quicksort and falls back to heapsort, guaranteeing <code>O(n log n)</code> worst-case behavior. Most implementations also switch to insertion sort for very small partitions.</p>
-    <p>That combination is the practical champion: quicksort's average-case speed, heapsort's worst-case guardrail, and insertion sort's tiny-range efficiency. Heaps deserve their own explainer someday, but here they matter because they stop quicksort from becoming a disaster.</p>
-    <div class="callout info">Introsort is not an academic curiosity. C++ library implementations use introspective sort hybrids because "usually fast" is not enough for a general-purpose standard library.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Depth guard in action</div>
-      <div class="btn-row" id="intro-shape-buttons">
-        <button class="btn act" data-intro-shape="sorted" onclick="setIntroShape('sorted')">Sorted input</button>
-        <button class="btn" data-intro-shape="mixed" onclick="setIntroShape('mixed')">Mixed input</button>
-      </div>
-      <div class="partition-controls">
-        <button class="btn" id="intro-play" onclick="toggleIntroPlayback()">Play</button>
-        <button class="btn" onclick="stepIntro()">Step</button>
-        <button class="btn" onclick="resetIntroAnimation()">Reset</button>
-      </div>
-      <div class="preview" id="intro-preview"></div>
-      <div class="intro-strip" id="intro-strip"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Quicksort calls</div><div class="stat-v" id="intro-qcalls">0</div></div>
-        <div class="stat"><div class="stat-k">Heap fallback calls</div><div class="stat-v" id="intro-heaps">0</div></div>
-        <div class="stat"><div class="stat-k">Insertion passes</div><div class="stat-v" id="intro-insertions">0</div></div>
-        <div class="stat"><div class="stat-k">Max depth seen</div><div class="stat-v" id="intro-depth">0</div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>introsort.js - introsort with median-of-three, insertion sort, and heap fallback</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
-      <pre class="code" id="c2"></pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>When not to use quicksort</h2></div>
-    <p>Quicksort and introsort are not the answer to every sorting question. If you need <strong>stability</strong>, they are the wrong default because equal elements are not guaranteed to preserve input order. If the data is already nearly sorted, insertion sort and timsort-style strategies can exploit that structure better. If you need predictable worst-case behavior from the start, mergesort or heapsort may be easier to reason about.</p>
-    <table class="table">
-      <thead>
-        <tr><th>Situation</th><th>Quicksort / Introsort fit?</th><th>Reason</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Large in-memory random data</td><td class="good">Usually yes</td><td>Excellent average constants and in-place partitioning.</td></tr>
-        <tr><td>Stable sort required</td><td class="bad">No</td><td>Equivalent elements may reorder.</td></tr>
-        <tr><td>Nearly sorted data</td><td class="bad">Often no</td><td>Adaptive algorithms can exploit order better.</td></tr>
-        <tr><td>Tiny partitions</td><td class="good">Only as a hybrid</td><td>Insertion sort usually wins once ranges get small.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section class="section footer" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Library practice</h2></div>
-    <p>Modern sort implementations are less dogmatic than textbook chapters. libstdc++ still shows the classic introsort structure plainly: median-of-three partitioning, a depth limit, heap-based fallback, and a final insertion-sort cleanup. libc++ keeps the same introspective skeleton while layering in additional practical ideas such as better pivot sampling and partition refinements.</p>
-    <p>That is why the right mental model for standard-library sorting is not "quicksort" in the naive classroom sense. It is "an aggressively engineered hybrid built around quicksort's partitioning advantage."</p>
-    <div class="footer-links">
-      <a href="https://gcc.gnu.org/onlinedocs/gcc-10.3.0/libstdc%2B%2B/api/a00590_source.html">libstdc++ sort source</a>
-      <a href="https://codebrowser.dev/llvm/libcxx/include/__algorithm/sort.h.html">libc++ sort source</a>
-    </div>
-  </section>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
 </div>
-
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Sorting In Memory</div>
+<h1><em>The Practical Champion</em></h1>
+<p>If you need to sort ten million records in memory, the argument is not about elegance. It is about branch behavior, cache movement, recursion depth, and what happens when the input shape gets hostile. Quicksort wins often because partitioning is cheap and in-place, but production libraries do not ship naive quicksort. They ship a hardened hybrid.</p>
+<div class="pill-row">
+<span class="pill"><b>Partitioning</b> is the core move</span>
+<span class="pill"><b>Pivot choice</b> decides your fate</span>
+<span class="pill"><b>Introsort</b> is the real workhorse</span>
+<span class="pill">Heapsort as fallback</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>Why partitioning wins</a>
+<a href="#s2"><span class="toc-n">02</span>Lomuto versus Hoare</a>
+<a href="#s3"><span class="toc-n">03</span>Pivot selection</a>
+<a href="#s4"><span class="toc-n">04</span>Introsort</a>
+<a href="#s5"><span class="toc-n">05</span>When not to use quicksort</a>
+<a href="#s6"><span class="toc-n">06</span>Library practice</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>Why partitioning wins</h2></div>
+<p>Quicksort's core idea is not recursion. It is <strong>partitioning</strong>. Pick a pivot, move smaller elements to one side and larger elements to the other, and you have turned one big problem into two smaller in-place problems with very little extra memory.</p>
+<p>That is why quicksort stays competitive on large in-memory sorts. The partition pass is mostly linear scanning and swapping. When pivot choice is reasonable, the recursion stays shallow and the constant factors are excellent.</p>
+<div class="callout">The practical story of quicksort is simple: partition cheaply, recurse on roughly balanced subarrays, and avoid letting a bad pivot policy turn linear partitioning into quadratic pain.</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>Lomuto versus Hoare</h2></div>
+<p>Two partition schemes show up again and again. <strong>Lomuto</strong> is easy to teach: scan once, keep a boundary of smaller elements, and swap the pivot into place at the end. <strong>Hoare</strong> uses two moving pointers from the ends and often performs fewer swaps, but its control flow is trickier and its returned partition index means something different.</p>
+<p>That trade matters because partitioning is the hot loop. A teaching-friendly scheme is not always the one you want in a standard-library sort.</p>
+<div class="demo">
+<div class="demo-lbl">Same array, two partition schemes</div>
+<div class="btn-row" id="partition-mode-buttons">
+<button class="btn act" data-partition="lomuto" onclick="setPartitionMode('lomuto')">Lomuto</button>
+<button class="btn" data-partition="hoare" onclick="setPartitionMode('hoare')">Hoare</button>
+</div>
+<div class="partition-controls">
+<button class="btn" id="partition-play" onclick="togglePartitionPlayback()">Play</button>
+<button class="btn" onclick="stepPartition()">Step</button>
+<button class="btn" onclick="resetPartitionAnimation()">Reset</button>
+</div>
+<div class="preview" id="partition-preview"></div>
+<div class="partition-strip" id="partition-strip"></div>
+<p></p>
+<div class="grid-two">
+<div class="card">
+<h4>Partition result</h4>
+<div class="big" id="partition-array"></div>
+<p id="partition-note"></p>
+</div>
+<div class="card">
+<h4>Cost sketch</h4>
+<div class="big" id="partition-cost"></div>
+<p id="partition-cost-note"></p>
+</div>
+</div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Comparisons</div><div class="stat-v" id="partition-comps">0</div></div>
+<div class="stat"><div class="stat-k">Swaps</div><div class="stat-v" id="partition-swaps">0</div></div>
+<div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="partition-pivot">0</div></div>
+<div class="stat"><div class="stat-k">Returned index</div><div class="stat-v" id="partition-index">0</div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>partition.js - Lomuto and Hoare side by side</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+<pre class="code" id="c1"></pre>
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Pivot selection</h2></div>
+<p>Naive pivot choice is where quicksort gets into trouble. Always choosing the first or last element is fine on random data until the day the input is already sorted, reverse sorted, or adversarially shaped. Then the recursion tree collapses into something close to a linked list and your <code>O(n log n)</code> intuition disappears.</p>
+<p>Common defenses are random pivots and <strong>median-of-three</strong>, which samples the first, middle, and last elements and uses their median as the pivot. Production implementations go further, but even this simple move makes bad splits less common.</p>
+<div class="callout warn">The dangerous belief is "quicksort is fast." The more honest version is "quicksort is fast if your pivot policy stops the input from humiliating you."</div>
+<div class="demo">
+<div class="demo-lbl">How the split changes with input shape</div>
+<div class="btn-row" id="pivot-input-buttons">
+<button class="btn act" data-pivot-input="sorted" onclick="setPivotInput('sorted')">Sorted</button>
+<button class="btn" data-pivot-input="reverse" onclick="setPivotInput('reverse')">Reverse</button>
+<button class="btn" data-pivot-input="mixed" onclick="setPivotInput('mixed')">Mixed</button>
+</div>
+<div class="btn-row" id="pivot-strategy-buttons">
+<button class="btn act" data-pivot-strategy="first" onclick="setPivotStrategy('first')">First</button>
+<button class="btn" data-pivot-strategy="random" onclick="setPivotStrategy('random')">Random</button>
+<button class="btn" data-pivot-strategy="median3" onclick="setPivotStrategy('median3')">Median-of-three</button>
+</div>
+<div class="partition-controls">
+<button class="btn" id="pivot-play" onclick="togglePivotPlayback()">Play</button>
+<button class="btn" onclick="stepPivot()">Step</button>
+<button class="btn" onclick="resetPivotAnimation()">Reset</button>
+</div>
+<div class="preview" id="pivot-preview"></div>
+<div class="pivot-strip" id="pivot-strip"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Pivot value</div><div class="stat-v" id="pivot-value">0</div></div>
+<div class="stat"><div class="stat-k">Left size</div><div class="stat-v" id="pivot-left">0</div></div>
+<div class="stat"><div class="stat-k">Right size</div><div class="stat-v" id="pivot-right">0</div></div>
+<div class="stat"><div class="stat-k">Balance ratio</div><div class="stat-v" id="pivot-balance">0</div></div>
+</div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>Introsort</h2></div>
+<p>Introsort starts as quicksort because quicksort is usually the fast path. But it watches the recursion depth. If the partition tree gets too deep, it gives up on quicksort and falls back to heapsort, guaranteeing <code>O(n log n)</code> worst-case behavior. Most implementations also switch to insertion sort for very small partitions.</p>
+<p>That combination is the practical champion: quicksort's average-case speed, heapsort's worst-case guardrail, and insertion sort's tiny-range efficiency. Heaps deserve their own explainer someday, but here they matter because they stop quicksort from becoming a disaster.</p>
+<div class="callout info">Introsort is not an academic curiosity. C++ library implementations use introspective sort hybrids because "usually fast" is not enough for a general-purpose standard library.</div>
+<div class="demo">
+<div class="demo-lbl">Depth guard in action</div>
+<div class="btn-row" id="intro-shape-buttons">
+<button class="btn act" data-intro-shape="sorted" onclick="setIntroShape('sorted')">Sorted input</button>
+<button class="btn" data-intro-shape="mixed" onclick="setIntroShape('mixed')">Mixed input</button>
+</div>
+<div class="partition-controls">
+<button class="btn" id="intro-play" onclick="toggleIntroPlayback()">Play</button>
+<button class="btn" onclick="stepIntro()">Step</button>
+<button class="btn" onclick="resetIntroAnimation()">Reset</button>
+</div>
+<div class="preview" id="intro-preview"></div>
+<div class="intro-strip" id="intro-strip"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Quicksort calls</div><div class="stat-v" id="intro-qcalls">0</div></div>
+<div class="stat"><div class="stat-k">Heap fallback calls</div><div class="stat-v" id="intro-heaps">0</div></div>
+<div class="stat"><div class="stat-k">Insertion passes</div><div class="stat-v" id="intro-insertions">0</div></div>
+<div class="stat"><div class="stat-k">Max depth seen</div><div class="stat-v" id="intro-depth">0</div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>introsort.js - introsort with median-of-three, insertion sort, and heap fallback</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+<pre class="code" id="c2"></pre>
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>When not to use quicksort</h2></div>
+<p>Quicksort and introsort are not the answer to every sorting question. If you need <strong>stability</strong>, they are the wrong default because equal elements are not guaranteed to preserve input order. If the data is already nearly sorted, insertion sort and timsort-style strategies can exploit that structure better. If you need predictable worst-case behavior from the start, mergesort or heapsort may be easier to reason about.</p>
+<table class="table">
+<thead>
+<tr><th>Situation</th><th>Quicksort / Introsort fit?</th><th>Reason</th></tr>
+</thead>
+<tbody>
+<tr><td>Large in-memory random data</td><td class="good">Usually yes</td><td>Excellent average constants and in-place partitioning.</td></tr>
+<tr><td>Stable sort required</td><td class="bad">No</td><td>Equivalent elements may reorder.</td></tr>
+<tr><td>Nearly sorted data</td><td class="bad">Often no</td><td>Adaptive algorithms can exploit order better.</td></tr>
+<tr><td>Tiny partitions</td><td class="good">Only as a hybrid</td><td>Insertion sort usually wins once ranges get small.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="section footer" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Library practice</h2></div>
+<p>Modern sort implementations are less dogmatic than textbook chapters. libstdc++ still shows the classic introsort structure plainly: median-of-three partitioning, a depth limit, heap-based fallback, and a final insertion-sort cleanup. libc++ keeps the same introspective skeleton while layering in additional practical ideas such as better pivot sampling and partition refinements.</p>
+<p>That is why the right mental model for standard-library sorting is not "quicksort" in the naive classroom sense. It is "an aggressively engineered hybrid built around quicksort's partitioning advantage."</p>
+<div class="footer-links">
+<a href="https://gcc.gnu.org/onlinedocs/gcc-10.3.0/libstdc%2B%2B/api/a00590_source.html">libstdc++ sort source</a>
+<a href="https://codebrowser.dev/llvm/libcxx/include/__algorithm/sort.h.html">libc++ sort source</a>
+</div>
+</section>
+</div>
 <script>
 const CODE_SNIPPETS = {
   c1: String.raw`function lomutoPartition(arr) {
