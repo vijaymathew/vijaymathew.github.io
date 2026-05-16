@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programming with Nex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body { background: #060c18; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem; font-family: 'Outfit', system-ui, sans-serif; }
+
+    .stage { position: relative; width: 100%; max-width: 580px; }
+
+    /* Book */
+    .book {
+      position: relative;
+      width: 100%;
+      max-width: 580px;
+      min-height: 900px;
+      background: #f9faff;
+      border-radius: 3px 8px 8px 3px;
+      box-shadow: -6px 0 0 #c0c8e0, -10px 4px 24px rgba(0,0,0,0.55), 32px 24px 72px rgba(0,0,0,0.45);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Spine */
+    .book::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 28px;
+      background: linear-gradient(to right, #bcc6e0, #d4ddf0 60%, #c8d2e8);
+    }
+
+    /* Texture */
+    .book::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='0.032'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    .book-inner { padding: 3.5rem 3rem 3rem 3.75rem; display: flex; flex-direction: column; flex: 1; position: relative; z-index: 1; }
+
+    /* Ghost */
+    .ghost {
+      position: absolute;
+      right: -0.1em; top: -0.05em;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 320px;
+      font-weight: 400;
+      color: #3b6fd4;
+      opacity: 0.042;
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Rule system */
+    .rule-top { width: 2.5rem; height: 2px; background: #3b6fd4; margin-bottom: 2rem; }
+
+    /* Title */
+    .book-supertitle {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-style: italic;
+      font-size: 1.55rem;
+      font-weight: 400;
+      color: #5a6a8a;
+      line-height: 1.2;
+      letter-spacing: 0.01em;
+      margin-bottom: 0.35rem;
+    }
+
+    .book-main-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5rem;
+      font-weight: 500;
+      color: #3b6fd4;
+      line-height: 0.92;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.3rem;
+    }
+
+    .book-subtitle {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      color: #8899bb;
+      margin-top: 1.25rem;
+      line-height: 1.45;
+      max-width: 32ch;
+    }
+
+    /* Ornament zone — Nex code sample */
+    .ornament {
+      margin: 2.5rem 0 1.5rem;
+      flex: 1;
+    }
+
+    .code-sample {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      line-height: 1.7;
+      color: #4a5a7a;
+    }
+    .code-sample .kw  { color: #3b6fd4; }
+    .code-sample .cn  { color: #2a9060; }
+    .code-sample .cm  { color: #9aaac0; font-style: italic; }
+    .code-sample .st  { color: #c0522a; }
+    .code-sample .ty  { color: #7a5ab0; }
+    .code-sample .op  { color: #6b7a9a; }
+
+    /* Decorative strip */
+    .deco-strip {
+      margin: 1.5rem 0 2rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: #3b6fd4;
+      opacity: 0.18;
+      letter-spacing: 0.15em;
+      word-spacing: 1.2em;
+    }
+
+    /* Author + link */
+    .author-block { margin-top: auto; padding-top: 1rem; border-top: 1px solid #dde3f0; }
+    .author-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5a6a8a;
+    }
+    .book-link {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8899bb;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-link:hover { color: #3b6fd4; }
+
+    /* Index panel */
+    .index-panel {
+      background: #060c18;
+      padding: 1.75rem 1.75rem 1.75rem 2.25rem;
+    }
+    .index-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #3b6fd4;
+      opacity: 0.7;
+      margin-bottom: 1rem;
+    }
+    .index-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem 2rem;
+    }
+    .index-list a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: #8899bb;
+      text-decoration: none;
+      letter-spacing: 0.01em;
+      transition: color 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .index-list a:hover { color: #c8d8f0; }
+    .index-list .part-label { color: #3b6fd4; opacity: 0.6; margin-right: 0.4em; }
+
+    @media (max-width: 640px) {
+      .book-main-title { font-size: 3.5rem; }
+      .book-inner { padding: 2.5rem 2rem 2rem 2.5rem; }
+      .index-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="book">
+    <div class="book-inner">
+      <div class="ghost">λ</div>
+      <div class="rule-top"></div>
+
+      <div class="book-supertitle">Programming with</div>
+      <div class="book-main-title">Nex</div>
+      <p class="book-subtitle">A step-by-step guide to Nex — from first programs to software engineering practice.</p>
+
+      <div class="ornament">
+        <pre class="code-sample"><span class="cm">// Design by Contract in Nex</span>
+<span class="kw">class</span> <span class="ty">Stack</span><span class="op">&lt;</span><span class="ty">T</span><span class="op">&gt;</span>
+
+  <span class="kw">fn</span> <span class="cn">push</span>(value<span class="op">:</span> <span class="ty">T</span>)
+    <span class="kw">requires</span> <span class="op">!</span>is_full()
+    <span class="kw">ensures</span>  count <span class="op">==</span> old_count <span class="op">+</span> <span class="cn">1</span>
+  <span class="kw">end</span>
+
+  <span class="kw">fn</span> <span class="cn">pop</span>() <span class="op">→</span> <span class="ty">T</span>
+    <span class="kw">requires</span> count <span class="op">&gt;</span> <span class="cn">0</span>
+  <span class="kw">end</span>
+
+<span class="kw">end</span></pre>
+      </div>
+
+      <div class="deco-strip">fn  class  requires  ensures  let  if  while  match  module</div>
+
+      <div class="author-block">
+        <div class="author-name">Vijay Mathew</div>
+        <a class="book-link" href="index.html">Contents →</a>
+      </div>
+    </div>
+
+    <div class="index-panel">
+      <div class="index-label">Contents</div>
+      <div class="index-list">
+        <a href="chapter_1.html"><span class="part-label">I</span>Getting Started</a>
+        <a href="chapter_6.html"><span class="part-label">II</span>Functions &amp; Structure</a>
+        <a href="chapter_9.html"><span class="part-label">III</span>Organising Data</a>
+        <a href="chapter_12.html"><span class="part-label">IV</span>Classes &amp; Objects</a>
+        <a href="chapter_16.html"><span class="part-label">V</span>Design by Contract</a>
+        <a href="chapter_21.html"><span class="part-label">VI</span>Errors &amp; Recovery</a>
+        <a href="chapter_23.html"><span class="part-label">VII</span>Working at Scale</a>
+        <a href="chapter_26.html"><span class="part-label">VIII</span>Putting It Together</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
