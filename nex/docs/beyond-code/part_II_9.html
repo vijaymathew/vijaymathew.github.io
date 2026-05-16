@@ -1,737 +1,136 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Designing a Good Data Model — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
+  <style>
+    :root {
+      --paper:     #fbfbfc;
+      --ink:       #0a0a0b;
+      --ink-mid:   #3d3d40;
+      --ink-faint: #6b6b6f;
+      --rule:      #e6e6ea;
+      --accent:    #1e7d7a;
+      --code-bg:   #e9ebf2;
+      --font-body: 'EB Garamond', Georgia, serif;
+      --font-ui:   'Outfit', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --text-xs:   0.72rem;
+      --text-sm:   0.85rem;
+      --text-base: 1.175rem;
+      --text-md:   1.32rem;
+      --text-lg:   1.65rem;
+      --text-xl:   2rem;
+      --text-2xl:  2.8rem;
+      --lh-body:   1.76;
+    }
 
-<meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.29">
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: var(--text-base); line-height: var(--lh-body); font-feature-settings: "kern" 1, "liga" 1, "onum" 1; }
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    .site-header { border-bottom: 1px solid var(--rule); padding: 1.1rem 2rem; }
+    .site-header-inner { max-width: 52rem; margin: 0 auto; display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap; }
+    a.book-title { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; letter-spacing: 0.01em; color: var(--ink-mid); text-decoration: none; transition: color 0.15s; }
+    a.book-title:hover { color: var(--ink); }
+    .book-nav { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-left: auto; }
+    .book-nav a { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-decoration: none; transition: color 0.15s; }
+    .book-nav a:hover { color: var(--ink); }
 
+    .page { max-width: 52rem; margin: 0 auto; padding: 5rem 2rem 8rem; }
 
-<title>10&nbsp; Designing a Good Data Model – Beyond Code -- Building Software Systems That Last</title>
-<style>
-/* Default styles provided by pandoc.
-** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
-*/
-code{white-space: pre-wrap;}
-span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
-div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-ul.task-list{list-style: none;}
-ul.task-list li input[type="checkbox"] {
-  width: 0.8em;
-  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
-  vertical-align: middle;
-}
-</style>
+    .opener { margin-bottom: 4rem; padding-bottom: 3rem; border-bottom: 1px solid var(--rule); }
+    .opener-label { display: block; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.25rem; }
+    .opener-title { font-family: var(--font-body); font-size: var(--text-2xl); font-weight: 400; line-height: 1.08; letter-spacing: -0.01em; color: var(--ink); max-width: 26ch; }
 
+    .prose { max-width: 66ch; }
+    .prose section { display: block; }
+    .prose p { margin-top: 1.2em; }
+    .prose p:first-child { margin-top: 0; }
+    .prose h2 { font-family: var(--font-body); font-size: var(--text-lg); font-weight: 400; line-height: 1.2; color: var(--ink); margin-top: 3rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+    .prose h3 { font-family: var(--font-body); font-size: var(--text-md); font-weight: 400; font-style: italic; color: var(--ink); margin-top: 2rem; margin-bottom: 0.75rem; }
+    .prose h4 { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    .prose ul, .prose ol { padding-left: 1.5rem; margin-top: 1em; margin-bottom: 1em; }
+    .prose li { margin-top: 0.3em; }
+    .prose li p { margin-top: 0.3em; }
+    .prose strong { font-weight: 500; color: var(--ink); }
+    .prose em { font-style: italic; }
+    .prose a { color: var(--ink-mid); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; transition: color 0.15s; }
+    .prose a:hover { color: var(--ink); text-decoration-color: var(--ink-faint); }
+    .prose blockquote { margin: 1.5em 0; padding: 0.75em 1.25em; border-left: 3px solid var(--rule); color: var(--ink-mid); font-style: italic; }
+    .prose blockquote p { margin-top: 0.5em; }
+    .prose blockquote p:first-child { margin-top: 0; }
+    .prose hr { border: none; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+    .prose code { font-family: var(--font-mono); font-size: 0.82em; background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 3px; }
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<link href="./part_II_10.html" rel="next">
-<link href="./part_II_8.html" rel="prev">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-5232b10e66237ae8972f47467b6b0662.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-e43b548255edd0a7ee8f0692a60c7808.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-12b16ee50bd121c27cff455db89649b3.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-e43b548255edd0a7ee8f0692a60c7808.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
-<script id="quarto-search-options" type="application/json">{
-  "location": "sidebar",
-  "copy-button": false,
-  "collapse-after": 3,
-  "panel-placement": "start",
-  "type": "textbox",
-  "limit": 50,
-  "keyboard-shortcut": [
-    "f",
-    "/",
-    "s"
-  ],
-  "show-item-context": false,
-  "language": {
-    "search-no-results-text": "No results",
-    "search-matching-documents-text": "matching documents",
-    "search-copy-link-title": "Copy link to search",
-    "search-hide-matches-text": "Hide additional matches",
-    "search-more-match-text": "more match in this document",
-    "search-more-matches-text": "more matches in this document",
-    "search-clear-button-title": "Clear",
-    "search-text-placeholder": "",
-    "search-detached-cancel-button-title": "Cancel",
-    "search-submit-button-title": "Submit",
-    "search-label": "Search"
-  }
-}</script>
-<style>html{ scroll-behavior: smooth; }</style>
+    /* plain pre blocks */
+    .prose pre:not(.sourceCode) { background: var(--code-bg); border: 1px solid #c8cdd8; border-radius: 6px; padding: 1.1rem 1.25rem; overflow-x: auto; margin: 1.5rem 0; font-size: 0.78rem; line-height: 1.65; font-family: var(--font-mono); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+    .prose pre:not(.sourceCode) code { background: none; padding: 0; border-radius: 0; font-size: inherit; }
 
+    /* code blocks */
+    .prose div.sourceCode { position: relative; margin: 1.5rem 0; border-radius: 6px; overflow: hidden; border: 1px solid #c8cdd8; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+    .prose pre.sourceCode { background: var(--code-bg); padding: 1.1rem 1.25rem; overflow-x: auto; margin: 0; border-radius: 0; font-size: 0.78rem; line-height: 1.65; }
+    .prose pre.sourceCode code { background: none; padding: 0; border-radius: 0; font-size: inherit; font-family: var(--font-mono); }
+    .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.8); border: 1px solid var(--rule); border-radius: 3px; padding: 0.2rem 0.5rem; font-family: var(--font-ui); font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); cursor: pointer; transition: color 0.15s, background 0.15s; }
+    .copy-btn:hover { color: var(--ink); background: white; }
 
-<link rel="stylesheet" href="styles.css">
+    /* figures */
+    .prose figure { margin: 2rem 0; }
+    .prose figure img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+    .prose figcaption { margin-top: 0.75rem; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-faint); text-align: center; line-height: 1.5; }
+    .prose figure p { margin: 0; }
+
+    /* tables */
+    .prose table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: var(--text-sm); }
+    .prose th { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1.5px solid var(--ink); }
+    .prose td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--rule); color: var(--ink-mid); }
+    .prose tr:last-child td { border-bottom: none; }
+
+    .chapter-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 5rem; padding-top: 2rem; border-top: 1px solid var(--rule); }
+    .chapter-nav .prev a, .chapter-nav .next a { display: inline-block; font-family: var(--font-ui); font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-decoration: none; transition: color 0.15s; }
+    .chapter-nav .next { text-align: right; }
+    .chapter-nav .next-title { display: block; font-family: var(--font-body); font-size: var(--text-base); font-style: italic; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-mid); margin-top: 0.3rem; transition: color 0.15s; }
+    .chapter-nav a:hover { color: var(--ink); }
+    .chapter-nav a:hover .next-title { color: var(--ink); }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .site-header { padding: 1rem 1.25rem; }
+      .book-nav { display: none; }
+      .opener-title { font-size: var(--text-xl); }
+      .chapter-nav { grid-template-columns: 1fr; }
+      .chapter-nav .next { text-align: left; }
+    }
+  
+    /* chapter cross-references */
+    .prose a.xref { font-family: var(--font-body); font-style: italic; color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(30,125,122,0.3); transition: border-color 0.15s, color 0.15s; }
+    .prose a.xref:hover { color: var(--ink); border-bottom-color: var(--ink-faint); }
+  </style>
 </head>
-
-<body class="nav-sidebar floating quarto-light"><script id="quarto-html-before-body" type="application/javascript">
-    const toggleBodyColorMode = (bsSheetEl) => {
-      const mode = bsSheetEl.getAttribute("data-mode");
-      const bodyEl = window.document.querySelector("body");
-      if (mode === "dark") {
-        bodyEl.classList.add("quarto-dark");
-        bodyEl.classList.remove("quarto-light");
-      } else {
-        bodyEl.classList.add("quarto-light");
-        bodyEl.classList.remove("quarto-dark");
-      }
-    }
-    const toggleBodyColorPrimary = () => {
-      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
-      if (bsSheetEl) {
-        toggleBodyColorMode(bsSheetEl);
-      }
-    }
-    const setColorSchemeToggle = (alternate) => {
-      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
-      for (let i=0; i < toggles.length; i++) {
-        const toggle = toggles[i];
-        if (toggle) {
-          if (alternate) {
-            toggle.classList.add("alternate");
-          } else {
-            toggle.classList.remove("alternate");
-          }
-        }
-      }
-    };
-    const toggleColorMode = (alternate) => {
-      // Switch the stylesheets
-      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
-      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
-      manageTransitions('#quarto-margin-sidebar .nav-link', false);
-      if (alternate) {
-        // note: dark is layered on light, we don't disable primary!
-        enableStylesheet(alternateStylesheets);
-        for (const sheetNode of alternateStylesheets) {
-          if (sheetNode.id === "quarto-bootstrap") {
-            toggleBodyColorMode(sheetNode);
-          }
-        }
-      } else {
-        disableStylesheet(alternateStylesheets);
-        enableStylesheet(primaryStylesheets)
-        toggleBodyColorPrimary();
-      }
-      manageTransitions('#quarto-margin-sidebar .nav-link', true);
-      // Switch the toggles
-      setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
-      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
-        manageTransitions("body", false);
-        window.scrollTo(0, 1);
-        setTimeout(() => {
-          window.scrollTo(0, 0);
-          manageTransitions("body", true);
-        }, 40);
-      }
-    }
-    const disableStylesheet = (stylesheets) => {
-      for (let i=0; i < stylesheets.length; i++) {
-        const stylesheet = stylesheets[i];
-        stylesheet.rel = 'disabled-stylesheet';
-      }
-    }
-    const enableStylesheet = (stylesheets) => {
-      for (let i=0; i < stylesheets.length; i++) {
-        const stylesheet = stylesheets[i];
-        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
-          stylesheet.rel = 'stylesheet';
-        }
-      }
-    }
-    const manageTransitions = (selector, allowTransitions) => {
-      const els = window.document.querySelectorAll(selector);
-      for (let i=0; i < els.length; i++) {
-        const el = els[i];
-        if (allowTransitions) {
-          el.classList.remove('notransition');
-        } else {
-          el.classList.add('notransition');
-        }
-      }
-    }
-    const isFileUrl = () => {
-      return window.location.protocol === 'file:';
-    }
-    const hasAlternateSentinel = () => {
-      let styleSentinel = getColorSchemeSentinel();
-      if (styleSentinel !== null) {
-        return styleSentinel === "alternate";
-      } else {
-        return false;
-      }
-    }
-    const setStyleSentinel = (alternate) => {
-      const value = alternate ? "alternate" : "default";
-      if (!isFileUrl()) {
-        window.localStorage.setItem("quarto-color-scheme", value);
-      } else {
-        localAlternateSentinel = value;
-      }
-    }
-    const getColorSchemeSentinel = () => {
-      if (!isFileUrl()) {
-        const storageValue = window.localStorage.getItem("quarto-color-scheme");
-        return storageValue != null ? storageValue : localAlternateSentinel;
-      } else {
-        return localAlternateSentinel;
-      }
-    }
-    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
-      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
-      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
-      let newTheme = '';
-      if(authorPrefersDark) {
-        newTheme = isAlternate ? baseTheme : alternateTheme;
-      } else {
-        newTheme = isAlternate ? alternateTheme : baseTheme;
-      }
-      const changeGiscusTheme = () => {
-        // From: https://github.com/giscus/giscus/issues/336
-        const sendMessage = (message) => {
-          const iframe = document.querySelector('iframe.giscus-frame');
-          if (!iframe) return;
-          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
-        }
-        sendMessage({
-          setConfig: {
-            theme: newTheme
-          }
-        });
-      }
-      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
-      if (isGiscussLoaded) {
-        changeGiscusTheme();
-      }
-    };
-    const authorPrefersDark = false;
-    const darkModeDefault = authorPrefersDark;
-      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
-      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
-    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
-    // Dark / light mode switch
-    window.quartoToggleColorScheme = () => {
-      // Read the current dark / light value
-      let toAlternate = !hasAlternateSentinel();
-      toggleColorMode(toAlternate);
-      setStyleSentinel(toAlternate);
-      toggleGiscusIfUsed(toAlternate, darkModeDefault);
-      window.dispatchEvent(new Event('resize'));
-    };
-    // Switch to dark mode if need be
-    if (hasAlternateSentinel()) {
-      toggleColorMode(true);
-    } else {
-      toggleColorMode(false);
-    }
-  </script>
-
-<div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top">
-  <nav class="quarto-secondary-nav">
-    <div class="container-fluid d-flex">
-      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
-        <i class="bi bi-layout-text-sidebar-reverse"></i>
-      </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./part_II_6.html">Part II — Modeling the World</a></li><li class="breadcrumb-item"><a href="./part_II_9.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Designing a Good Data Model</span></a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-        </a>
-      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
-        <i class="bi bi-search"></i>
-      </button>
-    </div>
-  </nav>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
 </header>
-<!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
-<!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
-    <div class="pt-lg-2 mt-2 text-left sidebar-header">
-    <div class="sidebar-title mb-0 py-0">
-      <a href="./">Beyond Code – Building Software Systems That Last</a> 
-        <div class="sidebar-tools-main">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
-</div>
-    </div>
-      </div>
-        <div class="mt-2 flex-shrink-0 align-items-center">
-        <div class="sidebar-search">
-        <div id="quarto-search" class="" title="Search"></div>
-        </div>
-        </div>
-    <div class="sidebar-menu-container"> 
-    <ul class="list-unstyled mt-1">
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Home</span></span></a>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 10</span>
+    <h1 class="opener-title">Designing a Good Data Model</h1>
   </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./forward.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Foreword: What This Book Is For</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./prologue.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Prologue — The Day the System Broke</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Part I — Seeing The Problem</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_I_1.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">What Problem Are We Actually Solving?</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_I_2.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Looking at the Real World</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_I_3.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Writing a Problem Statement</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_I_4.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Edge Cases — Where Systems Break</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_I_5.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">From Stories to Specifications</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./studio_1.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Studio 1 — Our First Tiny System</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Part II — Modeling the World</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_II_6.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Why Software Needs Models</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_II_7.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Entities — The Things That Exist</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_II_8.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Relationships — How Things Connect</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_II_9.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Designing a Good Data Model</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_II_10.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Modeling Change</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./studio_2.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Studio 2 — The Model Redesign</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Part III — The Shape of Algorithms</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_III_11.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">What Is an Algorithm?</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_III_12.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Breaking Problems Apart</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_III_13.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Thinking Recursively</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_III_14.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Measuring Algorithm Behavior</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./algorithm_lab_1.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Algorithm Lab — The First Experiments</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Part IV — Organizing Data</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IV_15.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Lists and Sequences</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IV_16.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Sets and Maps</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IV_17.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Trees — Structured Data</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IV_18.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Graphs — Networks of Everything</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./studio_3.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Studio 3 — The Scaling Crisis</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
- <span class="menu-text">Part V — Algorithms That Power Systems</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_V_19.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Searching for What Matters</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_V_20.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Sorting the World</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_V_21.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Exploring Trees and Graphs</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_V_22.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Finding the Best Path</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./algorithm_lab_2.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Algorithm Lab — When Algorithms Compete</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
- <span class="menu-text">Part VI — Building Real Software</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VI_23.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">From Algorithms to Components</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VI_24.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Functional Thinking</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VI_25.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Object-Oriented Thinking</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VI_26.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Designing Interfaces</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./studio_4.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Studio 4 — The Architecture Refactor</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
- <span class="menu-text">Part VII — Making Software Trustworthy</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VII_27.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Preconditions and Postconditions</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VII_28.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Invariants — Rules That Must Never Break</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VII_29.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Testing as Exploration</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VII_30.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Debugging Like an Engineer</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./studio_5.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Studio 5 — Reliability</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
- <span class="menu-text">Part VIII — Systems That Grow</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VIII_31.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Managing Complexity</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VIII_32.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Designing for Change</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_VIII_33.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Refactoring Without Fear</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./studio_6.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Studio 6 — Evolution</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
- <span class="menu-text">Part IX — Programming in the Age of AI</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IX_34.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Working With AI Coding Assistants</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IX_35.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Reviewing AI-Generated Code</span></span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./part_IX_36.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Human Judgment in an AI World</span></span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./epilogue.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Epilogue — The Systems Behind Everything</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./glossary.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Glossary</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./index_terms.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Index of Terms</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./references.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">References</span></span></a>
-  </div>
-</li>
-    </ul>
-    </div>
-</nav>
-<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
-<!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
-   
-  <ul>
-  <li><a href="#five-properties-of-a-good-model" id="toc-five-properties-of-a-good-model" class="nav-link active" data-scroll-target="#five-properties-of-a-good-model"><span class="header-section-number">10.1</span> Five Properties of a Good Model</a></li>
-  <li><a href="#model-from-operations-not-from-nouns-alone" id="toc-model-from-operations-not-from-nouns-alone" class="nav-link" data-scroll-target="#model-from-operations-not-from-nouns-alone"><span class="header-section-number">10.2</span> Model from Operations, Not from Nouns Alone</a></li>
-  <li><a href="#tradeoffs-that-must-be-made-explicit" id="toc-tradeoffs-that-must-be-made-explicit" class="nav-link" data-scroll-target="#tradeoffs-that-must-be-made-explicit"><span class="header-section-number">10.3</span> Tradeoffs That Must Be Made Explicit</a></li>
-  <li><a href="#from-requirement-to-data-model" id="toc-from-requirement-to-data-model" class="nav-link" data-scroll-target="#from-requirement-to-data-model"><span class="header-section-number">10.4</span> From Requirement to Data Model</a></li>
-  <li><a href="#a-data-model-in-code" id="toc-a-data-model-in-code" class="nav-link" data-scroll-target="#a-data-model-in-code"><span class="header-section-number">10.5</span> A Data Model in Code</a></li>
-  <li><a href="#four-ways-data-model-design-fails" id="toc-four-ways-data-model-design-fails" class="nav-link" data-scroll-target="#four-ways-data-model-design-fails"><span class="header-section-number">10.6</span> Four Ways Data Model Design Fails</a></li>
-  </ul>
-</nav>
-    </div>
-<!-- main -->
-<main class="content" id="quarto-document-content">
-
-
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./part_II_6.html">Part II — Modeling the World</a></li><li class="breadcrumb-item"><a href="./part_II_9.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Designing a Good Data Model</span></a></li></ol></nav>
-<div class="quarto-title">
-<h1 class="title"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Designing a Good Data Model</span></h1>
-</div>
-
-
-
-<div class="quarto-title-meta">
-
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
+  <div class="prose">
 <p>Chapters 7 and 8 gave us the two building blocks of a model: entities, which carry identity and state, and relationships, which encode the structure between them. A data model is what these pieces become when assembled into a coherent design — one that must hold together not just on paper, but under the pressure of real queries, real load, and real change.</p>
 <p>The goal is not the most abstract model or the most general one. It is the model that keeps the system correct, understandable, and evolvable as usage evolves. Those three properties are in genuine tension, and resolving that tension requires making explicit choices rather than deferring them.</p>
-<section id="five-properties-of-a-good-model" class="level2" data-number="10.1">
-<h2 data-number="10.1" class="anchored" data-anchor-id="five-properties-of-a-good-model"><span class="header-section-number">10.1</span> Five Properties of a Good Model</h2>
+<section class="level2" data-number="10.1" id="five-properties-of-a-good-model">
+<h2 class="anchored" data-anchor-id="five-properties-of-a-good-model" data-number="10.1"> Five Properties of a Good Model</h2>
 <p>A data model that serves a system well over time satisfies five properties.</p>
 <p><strong>It represents reality adequately for the problem’s scope.</strong> Not perfectly — a model that tries to represent every nuance of the domain it describes becomes as complex as the domain itself. The right model captures the distinctions that matter for the operations the system must perform, and deliberately ignores the rest.</p>
 <p><strong>It supports critical operations efficiently.</strong> A model that is logically correct but operationally unusable at scale is not a good model; it is a design that deferred a hard problem. The access patterns the system depends on most heavily should be visible in the model’s structure.</p>
@@ -739,8 +138,8 @@ ul.task-list li input[type="checkbox"] {
 <p><strong>It allows change without destructive rewrites.</strong> Requirements change. The model must be able to absorb that change incrementally. A model that is correct today but can only be extended by dismantling its existing structure will be replaced, or worked around, rather than evolved.</p>
 <p><strong>It remains explainable to new engineers.</strong> A model that can only be understood by the person who built it is a liability. Explainability is not a soft requirement; it is what determines whether the model continues to be used correctly as the team changes.</p>
 </section>
-<section id="model-from-operations-not-from-nouns-alone" class="level2" data-number="10.2">
-<h2 data-number="10.2" class="anchored" data-anchor-id="model-from-operations-not-from-nouns-alone"><span class="header-section-number">10.2</span> Model from Operations, Not from Nouns Alone</h2>
+<section class="level2" data-number="10.2" id="model-from-operations-not-from-nouns-alone">
+<h2 class="anchored" data-anchor-id="model-from-operations-not-from-nouns-alone" data-number="10.2"> Model from Operations, Not from Nouns Alone</h2>
 <p>The most common failure in data modeling is to begin with a list of entities — the nouns in the domain — and build structure around them without asking how the data will actually be used. This produces models that are logically tidy and operationally expensive, because the access patterns the system needs were never consulted during design.</p>
 <p>The corrective practice is to ask three questions before the model is finalized:</p>
 <p><em>What are the most frequent read paths?</em> For a knowledge engine where the dominant operation is retrieving notes by tag and recency, the model needs a tag index path, a recency field, and a defined ranking input. Without these, code accumulates ad hoc caches and special cases to compensate for a model that was never shaped for this query.</p>
@@ -748,15 +147,15 @@ ul.task-list li input[type="checkbox"] {
 <p><em>What invariants must hold through both reads and writes?</em> The invariants that protect the model during reads — a task’s status must be one of a defined set — also constrain writes. A write that violates an invariant must be rejected before it completes, not discovered afterward.</p>
 <p>Designing from operations does not mean ignoring the domain. It means ensuring that the domain model and the operational reality stay aligned from the beginning, rather than diverging and requiring reconciliation later.</p>
 </section>
-<section id="tradeoffs-that-must-be-made-explicit" class="level2" data-number="10.3">
-<h2 data-number="10.3" class="anchored" data-anchor-id="tradeoffs-that-must-be-made-explicit"><span class="header-section-number">10.3</span> Tradeoffs That Must Be Made Explicit</h2>
+<section class="level2" data-number="10.3" id="tradeoffs-that-must-be-made-explicit">
+<h2 class="anchored" data-anchor-id="tradeoffs-that-must-be-made-explicit" data-number="10.3"> Tradeoffs That Must Be Made Explicit</h2>
 <p>No model of a real system is free of tradeoffs. The failure is not in making tradeoffs — it is in making them implicitly, so that their consequences are discovered rather than anticipated.</p>
 <p><strong>Normalization versus duplication.</strong> A fully normalized model stores each fact in exactly one place, which makes updates clean and consistency easy to guarantee. It also means that queries requiring data from multiple entities must traverse relationships, which increases read complexity. A model that duplicates data for read performance trades update complexity for query simplicity. Neither choice is universally correct; both choices need to be documented so that future developers understand why the model has the shape it does.</p>
 <p><strong>Generality versus simplicity.</strong> A highly generic schema — one that represents all possible relationships as typed edges, or all possible attributes as key-value pairs — can accommodate future requirements that the current model does not anticipate. It also makes the current requirements harder to express, harder to validate, and harder to query efficiently. The right level of generality is the minimum needed to handle the requirements that are actually known, plus a small margin for the changes that are already foreseeable.</p>
 <p><strong>Strictness versus flexibility.</strong> Strict constraints prevent invalid states. They also mean that workflows requiring temporarily incomplete data — a delivery task created before a robot is assigned, a document link created before its target exists — must be designed explicitly. Relaxing constraints to accommodate these workflows trades correctness guarantees for operational convenience. This tradeoff is real and sometimes the right one; what matters is that it is chosen deliberately and that the consequences are understood.</p>
 </section>
-<section id="from-requirement-to-data-model" class="level2" data-number="10.4">
-<h2 data-number="10.4" class="anchored" data-anchor-id="from-requirement-to-data-model"><span class="header-section-number">10.4</span> From Requirement to Data Model</h2>
+<section class="level2" data-number="10.4" id="from-requirement-to-data-model">
+<h2 class="anchored" data-anchor-id="from-requirement-to-data-model" data-number="10.4"> From Requirement to Data Model</h2>
 <p>The following requirement will serve as a worked example:</p>
 <blockquote class="blockquote">
 <p><em>“Show live delivery status and allow reassignment when robots fail.”</em></p>
@@ -769,8 +168,8 @@ ul.task-list li input[type="checkbox"] {
 <p><strong>Step 5: Protect invariants.</strong> A delivered task cannot be reassigned. A task in transit must have an assigned robot. Origin and destination must reference valid locations. These are the constraints that the model must enforce, not merely assume.</p>
 <p><strong>Step 6: Plan for evolution.</strong> Future requirements already visible on the horizon include multi-robot cooperative delivery, regional routing constraints, and service-level classes. The current model should not implement these, but it should not foreclose them either. The task’s assignment relationship should accommodate multiple assignees when that requirement arrives. The priority field should be defined broadly enough that SLA classes can be expressed through it. The goal is not to build for the future now — it is to avoid building something today that prevents the future from being built at all.</p>
 </section>
-<section id="a-data-model-in-code" class="level2" data-number="10.5">
-<h2 data-number="10.5" class="anchored" data-anchor-id="a-data-model-in-code"><span class="header-section-number">10.5</span> A Data Model in Code</h2>
+<section class="level2" data-number="10.5" id="a-data-model-in-code">
+<h2 class="anchored" data-anchor-id="a-data-model-in-code" data-number="10.5"> A Data Model in Code</h2>
 <pre class="nex"><code>class Delivery_Model
 feature
   task_id: String
@@ -810,8 +209,8 @@ end</code></pre>
 <p>This sketch is worth reading against the six steps above. The status and priority fields answer Step 4. The three invariants answer Step 5. The <code>can_reassign</code> query answers the first part of Step 3 — it codifies the rule that only <code>PENDING</code> and <code>FAILED</code> tasks are available for reassignment, making that rule checkable before <code>mark_in_transit</code> is called. The precondition on <code>mark_in_transit</code> answers the second part: a transition into <code>IN_TRANSIT</code> requires both a valid robot identifier and a legal starting status.</p>
 <p>What the sketch does not address is the storage backend, the query execution strategy, or the index layout. Those are implementation concerns. The model’s job is to define what is true; the implementation’s job is to enforce and compute it efficiently.</p>
 </section>
-<section id="four-ways-data-model-design-fails" class="level2" data-number="10.6">
-<h2 data-number="10.6" class="anchored" data-anchor-id="four-ways-data-model-design-fails"><span class="header-section-number">10.6</span> Four Ways Data Model Design Fails</h2>
+<section class="level2" data-number="10.6" id="four-ways-data-model-design-fails">
+<h2 class="anchored" data-anchor-id="four-ways-data-model-design-fails" data-number="10.6"> Four Ways Data Model Design Fails</h2>
 <p><strong>Mirroring the UI rather than the domain.</strong> When the data model is shaped to match the structure of a particular screen or interface, it becomes fragile in exactly the way interfaces are fragile: a UI redesign requires a model change, which requires a migration, which propagates through every system that depends on the model. The recovery is to model domain semantics first and treat every interface as a projection of the model, not a template for it.</p>
 <p><strong>Missing transition rules.</strong> When the operations that change entity state are not part of the model — when status updates are just field assignments with no enforced preconditions — illegal state combinations appear in production. A delivered task becomes pending; an in-transit task loses its assigned robot. The recovery is to encode transitions explicitly, as operations with preconditions and postconditions, and to verify them with tests that attempt the illegal transitions.</p>
 <p><strong>Performance as an afterthought.</strong> A model designed without consulting its dominant access patterns will be correct and slow. At the point where performance becomes unacceptable, the model has usually hardened into the system’s foundation, and adjusting it is expensive. The recovery — which is really a prevention — is to identify the critical query paths during modeling, not after deployment.</p>
@@ -832,492 +231,32 @@ end</code></pre>
 <li>The test of a model’s quality is not how it looks at design time but how well it absorbs change over the life of the system.</li>
 </ul>
 </div>
-<p><em>The next chapter, <code>Modeling Change</code>, examines the dimension of data modeling that most designs underestimate: change over time. A model that handles its initial requirements correctly may still fail as the system evolves. <code>Modeling Change</code> makes the patterns of temporal change explicit and shows how to design for them.</em></p>
-
-
+<p><em>The next chapter, <a class="xref" href="part_II_10.html">Modeling Change</a>, examines the dimension of data modeling that most designs underestimate: change over time. A model that handles its initial requirements correctly may still fail as the system evolves. <a class="xref" href="part_II_10.html">Modeling Change</a> makes the patterns of temporal change explicit and shows how to design for them.</em></p>
 </section>
 
-</main> <!-- /main -->
-<script>
-(function () {
-  // Workaround: Quarto sometimes emits data-mode="light" on the dark
-  // bootstrap stylesheet when both themes share an SCSS include, which
-  // breaks the color-scheme toggle. Re-derive data-mode from the href
-  // and reconcile the body class with the active stylesheet.
-  document
-    .querySelectorAll('link.quarto-color-scheme#quarto-bootstrap')
-    .forEach(function (el) {
-      if (el.classList.contains('quarto-color-scheme-extra')) return;
-      var isDark = /bootstrap-dark/.test(el.getAttribute('href') || '');
-      el.setAttribute('data-mode', isDark ? 'dark' : 'light');
-    });
-  var altActive = document.querySelector(
-    'link#quarto-bootstrap.quarto-color-scheme.quarto-color-alternate[rel="stylesheet"]'
-  );
-  if (altActive) {
-    document.body.classList.add('quarto-dark');
-    document.body.classList.remove('quarto-light');
-  }
-})();
-document.addEventListener("DOMContentLoaded", function () {
-  function adjustNumber(el) {
-    const text = el.textContent.trim();
-    const parts = text.split(".");
-    const value = parseInt(parts[0], 10);
-    if (!Number.isNaN(value) && value > 4) {
-      parts[0] = String(value - 4);
-      el.textContent = parts.join(".");
-    }
-  }
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_II_8.html">← Chapter 9</a></div>
+    <div class="next"><a href="part_II_10.html">Chapter 11 →<span class="next-title">Modeling Change</span></a></div>
+  </nav>
+</div>
 
-  const indexLinks = document.querySelectorAll('a[href$="index.html"]');
-  indexLinks.forEach(function (link) {
-    const num = link.querySelector(".chapter-number");
-    if (num) num.remove();
-    const title = link.querySelector(".chapter-title");
-    if (title) {
-      title.textContent = "Home";
-    }
-  });
-
-  document.querySelectorAll(".header-section-number").forEach(adjustNumber);
-  document.querySelectorAll(".toc-section-number").forEach(adjustNumber);
-});
-</script>
-<script id="quarto-html-after-body" type="application/javascript">
-  window.document.addEventListener("DOMContentLoaded", function (event) {
-    // Ensure there is a toggle, if there isn't float one in the top right
-    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
-      const i = window.document.createElement("i");
-      i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
-    }
-    setColorSchemeToggle(hasAlternateSentinel())
-    const icon = "";
-    const anchorJS = new window.AnchorJS();
-    anchorJS.options = {
-      placement: 'right',
-      icon: icon
-    };
-    anchorJS.add('.anchored');
-    const isCodeAnnotation = (el) => {
-      for (const clz of el.classList) {
-        if (clz.startsWith('code-annotation-')) {                     
-          return true;
-        }
-      }
-      return false;
-    }
-    const onCopySuccess = function(e) {
-      // button target
-      const button = e.trigger;
-      // don't keep focus
-      button.blur();
-      // flash "checked"
-      button.classList.add('code-copy-button-checked');
-      var currentTitle = button.getAttribute("title");
-      button.setAttribute("title", "Copied!");
-      let tooltip;
-      if (window.bootstrap) {
-        button.setAttribute("data-bs-toggle", "tooltip");
-        button.setAttribute("data-bs-placement", "left");
-        button.setAttribute("data-bs-title", "Copied!");
-        tooltip = new bootstrap.Tooltip(button, 
-          { trigger: "manual", 
-            customClass: "code-copy-button-tooltip",
-            offset: [0, -8]});
-        tooltip.show();    
-      }
-      setTimeout(function() {
-        if (tooltip) {
-          tooltip.hide();
-          button.removeAttribute("data-bs-title");
-          button.removeAttribute("data-bs-toggle");
-          button.removeAttribute("data-bs-placement");
-        }
-        button.setAttribute("title", currentTitle);
-        button.classList.remove('code-copy-button-checked');
-      }, 1000);
-      // clear code selection
-      e.clearSelection();
-    }
-    const getTextToCopy = function(trigger) {
-      const outerScaffold = trigger.parentElement.cloneNode(true);
-      const codeEl = outerScaffold.querySelector('code');
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
-      text: getTextToCopy
-    });
-    clipboard.on('success', onCopySuccess);
-    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
-      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
-        text: getTextToCopy,
-        container: window.document.getElementById('quarto-embedded-source-code-modal')
-      });
-      clipboardModal.on('success', onCopySuccess);
-    }
-      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-      var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
-      var isInternal = (href) => {
-          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-      }
-      // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-      for (var i=0; i<links.length; i++) {
-        const link = links[i];
-        if (!isInternal(link.href)) {
-          // undo the damage that might have been done by quarto-nav.js in the case of
-          // links that we want to consider external
-          if (link.dataset.originalHref !== undefined) {
-            link.href = link.dataset.originalHref;
-          }
-            // target, if specified
-            link.setAttribute("target", "_blank");
-            if (link.getAttribute("rel") === null) {
-              link.setAttribute("rel", "noopener");
-            }
-        }
-      }
-    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-      const config = {
-        allowHTML: true,
-        maxWidth: 500,
-        delay: 100,
-        arrow: false,
-        appendTo: function(el) {
-            return el.parentElement;
-        },
-        interactive: true,
-        interactiveBorder: 10,
-        theme: 'quarto',
-        placement: 'bottom-start',
-      };
-      if (contentFn) {
-        config.content = contentFn;
-      }
-      if (onTriggerFn) {
-        config.onTrigger = onTriggerFn;
-      }
-      if (onUntriggerFn) {
-        config.onUntrigger = onUntriggerFn;
-      }
-      window.tippy(el, config); 
-    }
-    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
-    for (var i=0; i<noterefs.length; i++) {
-      const ref = noterefs[i];
-      tippyHover(ref, function() {
-        // use id or data attribute instead here
-        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
-        try { href = new URL(href).hash; } catch {}
-        const id = href.replace(/^#\/?/, "");
-        const note = window.document.getElementById(id);
-        if (note) {
-          return note.innerHTML;
-        } else {
-          return "";
-        }
-      });
-    }
-    const xrefs = window.document.querySelectorAll('a.quarto-xref');
-    const processXRef = (id, note) => {
-      // Strip column container classes
-      const stripColumnClz = (el) => {
-        el.classList.remove("page-full", "page-columns");
-        if (el.children) {
-          for (const child of el.children) {
-            stripColumnClz(child);
-          }
-        }
-      }
-      stripColumnClz(note)
-      if (id === null || id.startsWith('sec-')) {
-        // Special case sections, only their first couple elements
-        const container = document.createElement("div");
-        if (note.children && note.children.length > 2) {
-          container.appendChild(note.children[0].cloneNode(true));
-          for (let i = 1; i < note.children.length; i++) {
-            const child = note.children[i];
-            if (child.tagName === "P" && child.innerText === "") {
-              continue;
-            } else {
-              container.appendChild(child.cloneNode(true));
-              break;
-            }
-          }
-          if (window.Quarto?.typesetMath) {
-            window.Quarto.typesetMath(container);
-          }
-          return container.innerHTML
-        } else {
-          if (window.Quarto?.typesetMath) {
-            window.Quarto.typesetMath(note);
-          }
-          return note.innerHTML;
-        }
-      } else {
-        // Remove any anchor links if they are present
-        const anchorLink = note.querySelector('a.anchorjs-link');
-        if (anchorLink) {
-          anchorLink.remove();
-        }
-        if (window.Quarto?.typesetMath) {
-          window.Quarto.typesetMath(note);
-        }
-        if (note.classList.contains("callout")) {
-          return note.outerHTML;
-        } else {
-          return note.innerHTML;
-        }
-      }
-    }
-    for (var i=0; i<xrefs.length; i++) {
-      const xref = xrefs[i];
-      tippyHover(xref, undefined, function(instance) {
-        instance.disable();
-        let url = xref.getAttribute('href');
-        let hash = undefined; 
-        if (url.startsWith('#')) {
-          hash = url;
-        } else {
-          try { hash = new URL(url).hash; } catch {}
-        }
-        if (hash) {
-          const id = hash.replace(/^#\/?/, "");
-          const note = window.document.getElementById(id);
-          if (note !== null) {
-            try {
-              const html = processXRef(id, note.cloneNode(true));
-              instance.setContent(html);
-            } finally {
-              instance.enable();
-              instance.show();
-            }
-          } else {
-            // See if we can fetch this
-            fetch(url.split('#')[0])
-            .then(res => res.text())
-            .then(html => {
-              const parser = new DOMParser();
-              const htmlDoc = parser.parseFromString(html, "text/html");
-              const note = htmlDoc.getElementById(id);
-              if (note !== null) {
-                const html = processXRef(id, note);
-                instance.setContent(html);
-              } 
-            }).finally(() => {
-              instance.enable();
-              instance.show();
-            });
-          }
-        } else {
-          // See if we can fetch a full url (with no hash to target)
-          // This is a special case and we should probably do some content thinning / targeting
-          fetch(url)
-          .then(res => res.text())
-          .then(html => {
-            const parser = new DOMParser();
-            const htmlDoc = parser.parseFromString(html, "text/html");
-            const note = htmlDoc.querySelector('main.content');
-            if (note !== null) {
-              // This should only happen for chapter cross references
-              // (since there is no id in the URL)
-              // remove the first header
-              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
-                note.children[0].remove();
-              }
-              const html = processXRef(null, note);
-              instance.setContent(html);
-            } 
-          }).finally(() => {
-            instance.enable();
-            instance.show();
-          });
-        }
-      }, function(instance) {
-      });
-    }
-        let selectedAnnoteEl;
-        const selectorForAnnotation = ( cell, annotation) => {
-          let cellAttr = 'data-code-cell="' + cell + '"';
-          let lineAttr = 'data-code-annotation="' +  annotation + '"';
-          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
-          return selector;
-        }
-        const selectCodeLines = (annoteEl) => {
-          const doc = window.document;
-          const targetCell = annoteEl.getAttribute("data-target-cell");
-          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
-          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
-          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
-          const lineIds = lines.map((line) => {
-            return targetCell + "-" + line;
-          })
-          let top = null;
-          let height = null;
-          let parent = null;
-          if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
-            }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
-            }
-            selectedAnnoteEl = annoteEl;
-          }
-        };
-        const unselectCodeLines = () => {
-          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
-          elementsIds.forEach((elId) => {
-            const div = window.document.getElementById(elId);
-            if (div) {
-              div.remove();
-            }
-          });
-          selectedAnnoteEl = undefined;
-        };
-          // Handle positioning of the toggle
-      window.addEventListener(
-        "resize",
-        throttle(() => {
-          elRect = undefined;
-          if (selectedAnnoteEl) {
-            selectCodeLines(selectedAnnoteEl);
-          }
-        }, 10)
-      );
-      function throttle(fn, ms) {
-      let throttle = false;
-      let timer;
-        return (...args) => {
-          if(!throttle) { // first call gets through
-              fn.apply(this, args);
-              throttle = true;
-          } else { // all the others get throttled
-              if(timer) clearTimeout(timer); // cancel #2
-              timer = setTimeout(() => {
-                fn.apply(this, args);
-                timer = throttle = false;
-              }, ms);
-          }
-        };
-      }
-        // Attach click handler to the DT
-        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
-        for (const annoteDlNode of annoteDls) {
-          annoteDlNode.addEventListener('click', (event) => {
-            const clickedEl = event.target;
-            if (clickedEl !== selectedAnnoteEl) {
-              unselectCodeLines();
-              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
-              if (activeEl) {
-                activeEl.classList.remove('code-annotation-active');
-              }
-              selectCodeLines(clickedEl);
-              clickedEl.classList.add('code-annotation-active');
-            } else {
-              // Unselect the line
-              unselectCodeLines();
-              clickedEl.classList.remove('code-annotation-active');
-            }
-          });
-        }
-    const findCites = (el) => {
-      const parentEl = el.parentElement;
-      if (parentEl) {
-        const cites = parentEl.dataset.cites;
-        if (cites) {
-          return {
-            el,
-            cites: cites.split(' ')
-          };
-        } else {
-          return findCites(el.parentElement)
-        }
-      } else {
-        return undefined;
-      }
-    };
-    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-    for (var i=0; i<bibliorefs.length; i++) {
-      const ref = bibliorefs[i];
-      const citeInfo = findCites(ref);
-      if (citeInfo) {
-        tippyHover(citeInfo.el, function() {
-          var popup = window.document.createElement('div');
-          citeInfo.cites.forEach(function(cite) {
-            var citeDiv = window.document.createElement('div');
-            citeDiv.classList.add('hanging-indent');
-            citeDiv.classList.add('csl-entry');
-            var biblioDiv = window.document.getElementById('ref-' + cite);
-            if (biblioDiv) {
-              citeDiv.innerHTML = biblioDiv.innerHTML;
-            }
-            popup.appendChild(citeDiv);
-          });
-          return popup.innerHTML;
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
         });
-      }
-    }
-  });
+      });
+    });
   </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-      <a href="./part_II_8.html" class="pagination-link" aria-label="Relationships — How Things Connect">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Relationships — How Things Connect</span></span>
-      </a>          
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="./part_II_10.html" class="pagination-link" aria-label="Modeling Change">
-        <span class="nav-page-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Modeling Change</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
-</div> <!-- /content -->
 
-
-
-
-<script src="site_libs/quarto-html/zenscroll-min.js"></script>
-</body></html>
+</body>
+</html>
