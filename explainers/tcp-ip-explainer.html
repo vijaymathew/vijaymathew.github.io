@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Reliable Network - How TCP/IP Works</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -137,74 +138,114 @@ footer .links{display:flex;flex-direction:column;gap:4px}
 @media (max-width:780px){
   .demo-grid,.window-box,.explain-grid{grid-template-columns:1fr}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Hub</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Distributed Systems · Networking · Reliability</div>
-    <h1>The Reliable <em>Network</em></h1>
-    <p>The Internet is reliable for a strange reason: its core is not. IP does not promise delivery, order, or even survival for a packet. Reliability comes from a layered design that keeps the network simple, lets routers route around damage, and pushes retransmission and ordering to the endpoints. That split is why the system scales and why it keeps working through loss, congestion, and broken links.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Problem</b> broken links, loss, reordering</span>
-      <span class="pill"><b>Idea</b> best-effort core, reliable edges</span>
-      <span class="pill"><b>Implementation</b> simplified TCP/IP in JavaScript</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>The problem</a>
-    <a href="#s2"><span class="toc-n">02</span>IP and packet switching</a>
-    <a href="#s3"><span class="toc-n">03</span>TCP reliability</a>
-    <a href="#s4"><span class="toc-n">04</span>Windows and congestion</a>
-    <a href="#s5"><span class="toc-n">05</span>Why the architecture survives</a>
-    <a href="#s6"><span class="toc-n">06</span>Runnable code</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: communication across failure</h2></div>
-    <p>If two machines need to exchange bytes across cities, providers, routers, and cables, lots of things can go wrong. Links fail. Packets are dropped. Routers reboot. Bursts of traffic overflow queues. Paths change mid-transfer. If the network required every router to maintain perfect state for every flow, the system would be brittle and hard to scale.</p>
-    <p>The TCP/IP design chooses a different split. <strong>IP</strong> offers a simple packet delivery service: try to move this datagram toward its destination. <strong>TCP</strong> sits above that and turns many imperfect datagrams into a reliable byte stream using sequence numbers, acknowledgments, timers, and windows.</p>
-    <div class="callout good">The Internet’s resilience comes less from any single clever algorithm than from where the responsibilities live: routing and forwarding in the middle, correctness and repair at the ends.</div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>IP: packet switching and routing around damage</h2></div>
-    <p>IP is deliberately modest. A router looks at a destination address, picks a next hop, decrements the packet’s TTL, and forwards it. It does not promise delivery. It does not keep the whole conversation in memory. Each packet is handled independently.</p>
-    <p>That simplicity is what makes failure resistance possible. If one fiber cut knocks out a path, routing can converge on another path without requiring every existing connection to be rebuilt from scratch. The packet might arrive late, out of order, or not at all, but the network can keep moving.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Packet routing with failed links</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="setRouteScenario('healthy', this)">Healthy network</button>
-        <button class="btn" onclick="setRouteScenario('cut', this)">One core link down</button>
-        <button class="btn" onclick="setRouteScenario('partition', this)">Partitioned</button>
-      </div>
-      <div class="demo-grid">
-        <div class="network-stage">
-          <svg id="route-svg" class="viz-svg" viewBox="0 0 560 280"></svg>
-          <div class="legend">
-            <span><i class="swatch path"></i> chosen path</span>
-            <span><i class="swatch failed"></i> failed link</span>
-            <span><i class="swatch available"></i> available link</span>
-          </div>
-        </div>
-        <div class="network-side">
-          <h3>Current route</h3>
-          <div class="stat-list" id="route-stats"></div>
-          <div class="callout tight">TTL exists so packets do not loop forever if routing temporarily disagrees. Each hop burns one count.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>routing.js — shortest path over a damaged graph</span><button class="run-btn" onclick="runCode('c1','o1')">&#9654; Run</button></div>
-      <pre class="code" id="c1">const graph = {
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
+</div>
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Distributed Systems · Networking · Reliability</div>
+<h1>The Reliable <em>Network</em></h1>
+<p>The Internet is reliable for a strange reason: its core is not. IP does not promise delivery, order, or even survival for a packet. Reliability comes from a layered design that keeps the network simple, lets routers route around damage, and pushes retransmission and ordering to the endpoints. That split is why the system scales and why it keeps working through loss, congestion, and broken links.</p>
+<div class="pill-row">
+<span class="pill"><b>Problem</b> broken links, loss, reordering</span>
+<span class="pill"><b>Idea</b> best-effort core, reliable edges</span>
+<span class="pill"><b>Implementation</b> simplified TCP/IP in JavaScript</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>The problem</a>
+<a href="#s2"><span class="toc-n">02</span>IP and packet switching</a>
+<a href="#s3"><span class="toc-n">03</span>TCP reliability</a>
+<a href="#s4"><span class="toc-n">04</span>Windows and congestion</a>
+<a href="#s5"><span class="toc-n">05</span>Why the architecture survives</a>
+<a href="#s6"><span class="toc-n">06</span>Runnable code</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>The problem: communication across failure</h2></div>
+<p>If two machines need to exchange bytes across cities, providers, routers, and cables, lots of things can go wrong. Links fail. Packets are dropped. Routers reboot. Bursts of traffic overflow queues. Paths change mid-transfer. If the network required every router to maintain perfect state for every flow, the system would be brittle and hard to scale.</p>
+<p>The TCP/IP design chooses a different split. <strong>IP</strong> offers a simple packet delivery service: try to move this datagram toward its destination. <strong>TCP</strong> sits above that and turns many imperfect datagrams into a reliable byte stream using sequence numbers, acknowledgments, timers, and windows.</p>
+<div class="callout good">The Internet’s resilience comes less from any single clever algorithm than from where the responsibilities live: routing and forwarding in the middle, correctness and repair at the ends.</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>IP: packet switching and routing around damage</h2></div>
+<p>IP is deliberately modest. A router looks at a destination address, picks a next hop, decrements the packet’s TTL, and forwards it. It does not promise delivery. It does not keep the whole conversation in memory. Each packet is handled independently.</p>
+<p>That simplicity is what makes failure resistance possible. If one fiber cut knocks out a path, routing can converge on another path without requiring every existing connection to be rebuilt from scratch. The packet might arrive late, out of order, or not at all, but the network can keep moving.</p>
+<div class="demo">
+<div class="demo-lbl">Packet routing with failed links</div>
+<div class="btn-row">
+<button class="btn act" onclick="setRouteScenario('healthy', this)">Healthy network</button>
+<button class="btn" onclick="setRouteScenario('cut', this)">One core link down</button>
+<button class="btn" onclick="setRouteScenario('partition', this)">Partitioned</button>
+</div>
+<div class="demo-grid">
+<div class="network-stage">
+<svg class="viz-svg" id="route-svg" viewbox="0 0 560 280"></svg>
+<div class="legend">
+<span><i class="swatch path"></i> chosen path</span>
+<span><i class="swatch failed"></i> failed link</span>
+<span><i class="swatch available"></i> available link</span>
+</div>
+</div>
+<div class="network-side">
+<h3>Current route</h3>
+<div class="stat-list" id="route-stats"></div>
+<div class="callout tight">TTL exists so packets do not loop forever if routing temporarily disagrees. Each hop burns one count.</div>
+</div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>routing.js — shortest path over a damaged graph</span><button class="run-btn" onclick="runCode('c1','o1')">▶ Run</button></div>
+<pre class="code" id="c1">const graph = {
   A: [{to: "B", cost: 1}, {to: "C", cost: 2}],
   B: [{to: "A", cost: 1}, {to: "D", cost: 1}, {to: "E", cost: 3}],
   C: [{to: "A", cost: 2}, {to: "D", cost: 1}],
@@ -227,7 +268,7 @@ function shortestPath(graph, start, goal, down = new Set()) {
     let node = null;
     let best = Infinity;
     for (const [name, d] of dist) {
-      if (!seen.has(name) && d &lt; best) {
+      if (!seen.has(name) &amp;&amp; d &lt; best) {
         best = d;
         node = name;
       }
@@ -253,7 +294,7 @@ function shortestPath(graph, start, goal, down = new Set()) {
 }
 
 function sendPacket(ttl, path) {
-  for (let i = 1; i < path.length; i++) {
+  for (let i = 1; i &lt; path.length; i++) {
     if (ttl === 0) return {ok: false, stoppedAt: path[i]};
     ttl--;
   }
@@ -268,41 +309,38 @@ console.log("Link D-F down:", damaged.path.join(" → "), "cost", damaged.cost);
 
 const packet = sendPacket(8, damaged.path);
 console.log("TTL result:", packet);</pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>TCP: sequence numbers, ACKs, and retransmission</h2></div>
-    <p>TCP assumes the network may drop, duplicate, damage, or reorder packets. It detects corruption, discards bad segments, and recovers at the endpoints with acknowledgments and retransmission. Every byte belongs to a sequence number range. The receiver acknowledges the next byte it still needs. If an ACK never arrives, the sender retransmits. If packets arrive out of order, the receiver can buffer them but still keep asking for the missing gap.</p>
-    <p>This is why the Internet can survive random failures without the core becoming complicated. Routers forward packets. TCP endpoints notice missing data and repair it themselves.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">One lost segment, then recovery</div>
-      <div class="btn-row">
-        <button class="btn act" onclick="resetTcpDemo(this)">Restart</button>
-        <button class="btn" onclick="stepTcpDemo()">Step</button>
-      </div>
-      <div class="lane-wrap">
-        <div class="lane">
-          <div class="lane-label">Sender</div>
-          <div class="lane-body" id="tcp-sender"></div>
-        </div>
-        <div class="lane">
-          <div class="lane-label">Network</div>
-          <div class="lane-body" id="tcp-network"></div>
-        </div>
-        <div class="lane">
-          <div class="lane-label">Receiver</div>
-          <div class="lane-body" id="tcp-receiver"></div>
-        </div>
-      </div>
-      <div class="event-log" id="tcp-log"></div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>tcp_retransmit.js — cumulative ACKs over a lossy link</span><button class="run-btn" onclick="runCode('c2','o2')">&#9654; Run</button></div>
-      <pre class="code" id="c2">class Receiver {
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>TCP: sequence numbers, ACKs, and retransmission</h2></div>
+<p>TCP assumes the network may drop, duplicate, damage, or reorder packets. It detects corruption, discards bad segments, and recovers at the endpoints with acknowledgments and retransmission. Every byte belongs to a sequence number range. The receiver acknowledges the next byte it still needs. If an ACK never arrives, the sender retransmits. If packets arrive out of order, the receiver can buffer them but still keep asking for the missing gap.</p>
+<p>This is why the Internet can survive random failures without the core becoming complicated. Routers forward packets. TCP endpoints notice missing data and repair it themselves.</p>
+<div class="demo">
+<div class="demo-lbl">One lost segment, then recovery</div>
+<div class="btn-row">
+<button class="btn act" onclick="resetTcpDemo(this)">Restart</button>
+<button class="btn" onclick="stepTcpDemo()">Step</button>
+</div>
+<div class="lane-wrap">
+<div class="lane">
+<div class="lane-label">Sender</div>
+<div class="lane-body" id="tcp-sender"></div>
+</div>
+<div class="lane">
+<div class="lane-label">Network</div>
+<div class="lane-body" id="tcp-network"></div>
+</div>
+<div class="lane">
+<div class="lane-label">Receiver</div>
+<div class="lane-body" id="tcp-receiver"></div>
+</div>
+</div>
+<div class="event-log" id="tcp-log"></div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>tcp_retransmit.js — cumulative ACKs over a lossy link</span><button class="run-btn" onclick="runCode('c2','o2')">▶ Run</button></div>
+<pre class="code" id="c2">class Receiver {
   constructor() {
     this.expected = 1;
     this.buffer = new Map();
@@ -356,87 +394,82 @@ const s3 = sender.sendNext();
 console.log("send", s1, s2, s3);
 
 let ack = receiver.receive(s1);
-console.log("recv seq1 -> ACK", ack);
+console.log("recv seq1 -&gt; ACK", ack);
 sender.ack(ack);
 
 console.log("seq2 lost in network");
 ack = receiver.receive(s3);
-console.log("recv seq3 out of order -> duplicate ACK", ack);
+console.log("recv seq3 out of order -&gt; duplicate ACK", ack);
 
 const retry = sender.oldestUnacked();
-console.log("timeout -> retransmit", retry);
+console.log("timeout -&gt; retransmit", retry);
 ack = receiver.receive(retry);
-console.log("recv retry -> ACK", ack);
+console.log("recv retry -&gt; ACK", ack);
 sender.ack(ack);
 
 console.log("delivered:", receiver.delivered.join("")); </pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>Windows: the receiver and the network both get a vote</h2></div>
-    <p>Reliability is not enough. A fast sender can still overwhelm a slow receiver or flood the network. TCP therefore has two separate limits. The <strong>receive window</strong> says how much the receiver can buffer. The <strong>congestion window</strong> says how much data the sender believes the network can currently handle. The sender may only have <code>min(rwnd, cwnd)</code> bytes in flight.</p>
-    <p>This is another reason the architecture survives at scale: endpoints adapt to both machine capacity and path capacity without requiring routers to understand every application.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">Effective send window = min(receiver window, congestion window)</div>
-      <div class="window-box">
-        <div class="stat-box">
-          <div class="slider-row">
-            <label>Receiver window</label>
-            <input type="range" min="1" max="12" value="9" id="rwnd-sl" oninput="updateWindowDemo()">
-            <span class="slider-val" id="rwnd-val">9</span>
-          </div>
-          <div class="slider-row">
-            <label>Congestion window</label>
-            <input type="range" min="1" max="12" value="6" id="cwnd-sl" oninput="updateWindowDemo()">
-            <span class="slider-val" id="cwnd-val">6</span>
-          </div>
-          <div class="slider-row">
-            <label>In flight now</label>
-            <input type="range" min="0" max="12" value="3" id="flight-sl" oninput="updateWindowDemo()">
-            <span class="slider-val" id="flight-val">3</span>
-          </div>
-          <div class="callout good tight">If loss appears, TCP reduces <code>cwnd</code>. If the receiver is slow, <code>rwnd</code> shrinks. Either way, the sender backs off.</div>
-        </div>
-        <div class="stat-box">
-          <h3>Available send budget</h3>
-          <div class="stat-list" id="window-stats"></div>
-          <div class="bar-track" id="window-track"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>Why this architecture keeps surviving</h2></div>
-    <p>TCP/IP is not reliable because every component is perfect. It is reliable because imperfections are expected and isolated. IP gives the network a narrow job: move packets hop by hop. TCP gives the endpoints the richer job: detect missing data, reorder it, pace transmission, and retry when necessary.</p>
-    <p>That split creates three important engineering advantages.</p>
-    <div class="explain-grid">
-      <div class="card-mini">
-        <h3>Routers stay simple</h3>
-        <p>Forwarding per packet is cheaper and more failure-tolerant than forcing every router to hold precise per-flow conversation state.</p>
-      </div>
-      <div class="card-mini">
-        <h3>Paths can change midstream</h3>
-        <p>Because packets are independent, routing can adapt around damaged links while TCP continues repairing any loss at the ends.</p>
-      </div>
-      <div class="card-mini">
-        <h3>Correctness is end-to-end</h3>
-        <p>The sender and receiver are the only places that can truly know whether the application’s bytes arrived in the right order.</p>
-      </div>
-    </div>
-    <div class="callout warn">This is also why “the Internet is reliable” is slightly misleading. The network is best effort. Reliability is a protocol stack property built on top of that.</div>
-  </section>
-
-  <section class="section" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a simplified reliable stream</h2></div>
-    <p>The code below is not a full TCP implementation, but it captures the core contract. The sender chops a message into segments, tracks which ones are unacknowledged, retransmits after loss, and advances only when cumulative ACKs arrive. The receiver buffers out-of-order data and acknowledges the next gap.</p>
-
-    <div class="cb">
-      <div class="cb-head"><span>reliable_stream.js — deliver bytes despite loss</span><button class="run-btn" onclick="runCode('c3','o3')">&#9654; Run</button></div>
-      <pre class="code" id="c3">class LossyLink {
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>Windows: the receiver and the network both get a vote</h2></div>
+<p>Reliability is not enough. A fast sender can still overwhelm a slow receiver or flood the network. TCP therefore has two separate limits. The <strong>receive window</strong> says how much the receiver can buffer. The <strong>congestion window</strong> says how much data the sender believes the network can currently handle. The sender may only have <code>min(rwnd, cwnd)</code> bytes in flight.</p>
+<p>This is another reason the architecture survives at scale: endpoints adapt to both machine capacity and path capacity without requiring routers to understand every application.</p>
+<div class="demo">
+<div class="demo-lbl">Effective send window = min(receiver window, congestion window)</div>
+<div class="window-box">
+<div class="stat-box">
+<div class="slider-row">
+<label>Receiver window</label>
+<input id="rwnd-sl" max="12" min="1" oninput="updateWindowDemo()" type="range" value="9"/>
+<span class="slider-val" id="rwnd-val">9</span>
+</div>
+<div class="slider-row">
+<label>Congestion window</label>
+<input id="cwnd-sl" max="12" min="1" oninput="updateWindowDemo()" type="range" value="6"/>
+<span class="slider-val" id="cwnd-val">6</span>
+</div>
+<div class="slider-row">
+<label>In flight now</label>
+<input id="flight-sl" max="12" min="0" oninput="updateWindowDemo()" type="range" value="3"/>
+<span class="slider-val" id="flight-val">3</span>
+</div>
+<div class="callout good tight">If loss appears, TCP reduces <code>cwnd</code>. If the receiver is slow, <code>rwnd</code> shrinks. Either way, the sender backs off.</div>
+</div>
+<div class="stat-box">
+<h3>Available send budget</h3>
+<div class="stat-list" id="window-stats"></div>
+<div class="bar-track" id="window-track"></div>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>Why this architecture keeps surviving</h2></div>
+<p>TCP/IP is not reliable because every component is perfect. It is reliable because imperfections are expected and isolated. IP gives the network a narrow job: move packets hop by hop. TCP gives the endpoints the richer job: detect missing data, reorder it, pace transmission, and retry when necessary.</p>
+<p>That split creates three important engineering advantages.</p>
+<div class="explain-grid">
+<div class="card-mini">
+<h3>Routers stay simple</h3>
+<p>Forwarding per packet is cheaper and more failure-tolerant than forcing every router to hold precise per-flow conversation state.</p>
+</div>
+<div class="card-mini">
+<h3>Paths can change midstream</h3>
+<p>Because packets are independent, routing can adapt around damaged links while TCP continues repairing any loss at the ends.</p>
+</div>
+<div class="card-mini">
+<h3>Correctness is end-to-end</h3>
+<p>The sender and receiver are the only places that can truly know whether the application’s bytes arrived in the right order.</p>
+</div>
+</div>
+<div class="callout warn">This is also why “the Internet is reliable” is slightly misleading. The network is best effort. Reliability is a protocol stack property built on top of that.</div>
+</section>
+<section class="section" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Implementation: a simplified reliable stream</h2></div>
+<p>The code below is not a full TCP implementation, but it captures the core contract. The sender chops a message into segments, tracks which ones are unacknowledged, retransmits after loss, and advances only when cumulative ACKs arrive. The receiver buffers out-of-order data and acknowledges the next gap.</p>
+<div class="cb">
+<div class="cb-head"><span>reliable_stream.js — deliver bytes despite loss</span><button class="run-btn" onclick="runCode('c3','o3')">▶ Run</button></div>
+<pre class="code" id="c3">class LossyLink {
   constructor(dropFirst = []) {
     this.dropFirst = new Set(dropFirst);
     this.dropped = new Set();
@@ -539,7 +572,7 @@ function transfer(message) {
       for (const seg of sender.timeoutSegments()) {
         if (!sender.unacked.has(seg.seq)) continue;
         const arrived = link.transmit(seg);
-        log.push(`timeout -> retransmit seq=${seg.seq}`);
+        log.push(`timeout -&gt; retransmit seq=${seg.seq}`);
         if (arrived) {
           const ack = receiver.receive(arrived);
           log.push(`  receiver ACK ${ack}`);
@@ -556,22 +589,20 @@ function transfer(message) {
 for (const line of transfer("PACKETS MAKE ORDER FROM CHAOS")) {
   console.log(line);
 }</pre>
-      <div class="out" id="o3"></div>
-    </div>
-
-    <footer>
-      <div class="label">Further reading</div>
-      <div class="links">
-        <a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791 — Internet Protocol</a>
-        <a href="https://www.rfc-editor.org/rfc/rfc793">RFC 793 — Transmission Control Protocol</a>
-        <a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122 — Host Requirements</a>
-        <a href="https://www.rfc-editor.org/rfc/rfc5681">RFC 5681 — TCP Congestion Control</a>
-      </div>
-      <div class="footer-note">The demos intentionally simplify routing and TCP state, but the core split is faithful: best-effort packet forwarding in the middle, reliability and pacing at the ends.</div>
-    </footer>
-  </section>
+<div class="out" id="o3"></div>
 </div>
-
+<footer>
+<div class="label">Further reading</div>
+<div class="links">
+<a href="https://www.rfc-editor.org/rfc/rfc791">RFC 791 — Internet Protocol</a>
+<a href="https://www.rfc-editor.org/rfc/rfc793">RFC 793 — Transmission Control Protocol</a>
+<a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122 — Host Requirements</a>
+<a href="https://www.rfc-editor.org/rfc/rfc5681">RFC 5681 — TCP Congestion Control</a>
+</div>
+<div class="footer-note">The demos intentionally simplify routing and TCP state, but the core split is faithful: best-effort packet forwarding in the middle, reliability and pacing at the ends.</div>
+</footer>
+</section>
+</div>
 <script>
 function runCode(cid, oid){
   const raw = document.getElementById(cid).innerText;

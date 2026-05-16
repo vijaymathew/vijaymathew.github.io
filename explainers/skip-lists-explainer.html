@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Casino Data Structure — Skip Lists</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --felt:#0f4c3a;
@@ -520,196 +521,226 @@ pre.code{
   .toc,.stat-grid,.compare-grid,.grid-two{grid-template-columns:1fr}
   .hero h1{max-width:none}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Explainers</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Interactive explainer</div>
-    <h1>The <em>Casino Data Structure</em> — Skip Lists</h1>
-    <p>Skip lists gamble on structure in a very controlled way: every node climbs to higher levels according to coin flips, and the resulting towers behave like a balanced search structure with high probability. That sounds suspicious until you see why it works, why it is easy to augment with ranks, and why Redis uses it in the skiplist-backed form of its sorted sets.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Probabilistic</b> balancing</span>
-      <span class="pill"><b>Redis</b> sorted sets</span>
-      <span class="pill"><b>Rank queries</b> via spans</span>
-      <span class="pill">JavaScript implementation</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>Why Redis needs more than a tree story</a>
-    <a href="#s2"><span class="toc-n">02</span>Probabilistic balancing</a>
-    <a href="#s3"><span class="toc-n">03</span>Why skip lists play well with concurrency</a>
-    <a href="#s4"><span class="toc-n">04</span>Redis sorted sets in practice</a>
-    <a href="#s5"><span class="toc-n">05</span>Skip list in JavaScript</a>
-    <a href="#s6"><span class="toc-n">06</span>Further reading</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>Why Redis needs more than a tree story</h2></div>
-    <p>Redis sorted sets are not just “store items in order.” They need several operations at once: look up a member directly, update its score, fetch ranges by score, fetch ranges by rank, and return the rank of a member quickly. That is a harder job than plain dictionary lookup.</p>
-    <p>A hash table is great for <code>member -&gt; score</code>, but it does not know anything about order. A balanced tree can represent order, but Redis does not just need ordering. It also needs <strong>ranks</strong>, range scans, and a structure that is straightforward to augment and maintain.</p>
-    <div class="callout">In Redis's <strong>skiplist-backed sorted-set encoding</strong>, the system keeps two views of the same data: a hash table for direct member lookup and a skip list for score order. Small sorted sets can stay in a more compact representation until they outgrow it.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">One sorted set, two access paths</div>
-      <div class="compare-grid">
-        <div class="card">
-          <h4>Hash Table</h4>
-          <div class="big">Member → score</div>
-          <p>Perfect for exact lookup and updates when you already know the member name.</p>
-        </div>
-        <div class="card">
-          <h4>Skip List</h4>
-          <div class="big">Score → ordered walk</div>
-          <p>Perfect for rank, range, predecessor/successor, and walking the set in sorted order.</p>
-        </div>
-        <div class="card">
-          <h4>Together</h4>
-          <div class="big">The Redis move</div>
-          <p>When Redis switches to its skiplist-backed encoding, it uses the hash table for identity and the skip list for order, so neither structure has to be contorted into doing both jobs alone.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>Probabilistic balancing</h2></div>
-    <p>A skip list is a stack of ordered linked lists. The bottom level contains every element. Higher levels contain progressively fewer elements, acting as express lanes. To decide how tall a node becomes, you repeatedly flip a coin: promote once for heads, stop on tails.</p>
-    <p>Search works by starting at the <strong>top-left</strong> of the structure. At each level, you move right while the next key is still less than your target. When moving right would overshoot, you drop down one level and continue. By the time you reach level 0, you are either sitting on the target key or on the last key before where it should be. The higher levels let you skip across big stretches of the list quickly; the lower levels do the fine-grained cleanup.</p>
-    <p>Insertion uses almost the same walk. As you search for the insertion point, you remember the last node visited at each level. Those remembered nodes are the <strong>predecessors</strong>. Then you flip coins to choose the new node's height and splice the new tower in after those predecessors on each level it occupies. So insertion is not a global rebalance. It is a local pointer rewrite after one top-down search.</p>
-    <p>No explicit rotations. No recoloring. No global rebalancing pass. The structure stays well-shaped <strong>with high probability</strong> because the number of tall towers falls off geometrically. That is what “probabilistic balancing” means here: the balancing policy is encoded in the level distribution rather than by deterministic repair rules.</p>
-    <div class="callout info">If the promotion probability is <code>p = 1/2</code>, roughly half the nodes appear on level 2, a quarter on level 3, an eighth on level 4, and so on.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Reroll the towers</div>
-      <div class="btn-row">
-        <button class="btn" onclick="setProbability(0.5)">p = 1/2</button>
-        <button class="btn act" onclick="setProbability(0.25)">p = 1/4</button>
-        <button class="btn" onclick="setProbability(0.125)">p = 1/8</button>
-        <button class="btn" onclick="rerollTowers()">Reroll</button>
-      </div>
-      <div class="preview" id="prob-preview"></div>
-      <div class="tower-board" id="tower-board"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Promotion p</div><div class="stat-v" id="prob-p">0.25</div></div>
-        <div class="stat"><div class="stat-k">Average height</div><div class="stat-v" id="prob-avg">0</div></div>
-        <div class="stat"><div class="stat-k">Tallest tower</div><div class="stat-v" id="prob-max">0</div></div>
-        <div class="stat"><div class="stat-k">Express lanes</div><div class="stat-v" id="prob-lanes">0</div></div>
-      </div>
-      <div class="meter">
-        <div class="meter-head"><span>Higher p = more tall towers</span><span id="prob-note-head">Expected height is low</span></div>
-        <div class="meter-bar"><div class="meter-fill" id="prob-fill" style="width:0%"></div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>random_levels.js — tower heights from repeated coin flips</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
-      <pre class="code" id="c1"></pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Why skip lists play well with concurrency</h2></div>
-    <p>Balanced trees can absolutely be made concurrent. The issue is not possibility; it is engineering friction. Tree updates often involve rotations and multi-node structural cases. Getting all of those corner cases correct under interleaving updates is delicate.</p>
-    <p>Skip lists mutate more locally. Insertion and deletion are mostly pointer splices across a small number of levels. There is no rotation logic, and the invariants are easier to state: each level is ordered, and each node's tower is vertically aligned. That simplicity is why skip lists show up so often in lock-free and concurrent data-structure literature.</p>
-    <div class="callout good">William Pugh's concurrent skip-list paper makes the key point directly: skip lists preserve much of the simplicity of unbalanced trees while still giving good expected performance.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Mutation complexity at a glance</div>
-      <div class="btn-row" id="concurrency-buttons">
-        <button class="btn act" data-concurrency="insert" onclick="setConcurrencyMode('insert')">Insertion</button>
-        <button class="btn" data-concurrency="delete" onclick="setConcurrencyMode('delete')">Deletion</button>
-        <button class="btn" data-concurrency="augment" onclick="setConcurrencyMode('augment')">Add rank metadata</button>
-      </div>
-      <div class="compare-grid">
-        <div class="card">
-          <h4>Red-Black Tree</h4>
-          <div class="big" id="conc-tree-title">—</div>
-          <p id="conc-tree-note"></p>
-        </div>
-        <div class="card">
-          <h4>Skip List</h4>
-          <div class="big" id="conc-skip-title">—</div>
-          <p id="conc-skip-note"></p>
-        </div>
-        <div class="card">
-          <h4>Why it matters</h4>
-          <div class="big" id="conc-why-title">—</div>
-          <p id="conc-why-note"></p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>Redis sorted sets in practice</h2></div>
-    <p>In Redis's skiplist-backed sorted-set encoding, the implementation comment says the structure uses <strong>two data structures to hold the same elements</strong>: a hash table mapping elements to scores, and a skip list mapping scores to elements. That gives <code>O(log N)</code> ordered updates while preserving direct member lookup. Small sorted sets may instead use a compact listpack encoding.</p>
-    <p>The interesting extra is <strong>span metadata</strong>. Each forward pointer stores how many bottom-level nodes it skips. That lets Redis answer rank queries in logarithmic time by accumulating spans while descending the structure. Redis also keeps a backward pointer at level 1, which makes reverse range traversal efficient.</p>
-
-    <div class="demo">
-      <div class="demo-lbl">A tiny Redis-like sorted set</div>
-      <div class="btn-row">
-        <button class="btn act" data-redis="alice" onclick="setRedisMember('alice')">alice</button>
-        <button class="btn" data-redis="carol" onclick="setRedisMember('carol')">carol</button>
-        <button class="btn" data-redis="erin" onclick="setRedisMember('erin')">erin</button>
-      </div>
-      <div class="grid-two">
-        <div class="card">
-          <h4>Hash table view</h4>
-          <table class="table" id="redis-dict"></table>
-        </div>
-        <div class="card">
-          <h4>Skip list structure</h4>
-          <div class="redis-skip" id="redis-skip"></div>
-          <div class="redis-read-note">Top rows are sparse express lanes. The bottom row contains every member in score order, which is where rank and range queries are counted.</div>
-        </div>
-      </div>
-      <div class="lane" id="redis-ranks"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Query member</div><div class="stat-v" id="redis-member">alice</div></div>
-        <div class="stat"><div class="stat-k">Score</div><div class="stat-v" id="redis-score">0</div></div>
-        <div class="stat"><div class="stat-k">Rank</div><div class="stat-v" id="redis-rank">0</div></div>
-        <div class="stat"><div class="stat-k">Range 2..4</div><div class="stat-v"><small id="redis-range"></small></div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>redis_like_skiplist.js — spans and rank queries in a simplified skip list</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
-      <pre class="code" id="c2"></pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>Skip list in JavaScript</h2></div>
-    <p>The implementation below is a generic ordered skip list in JavaScript. It stores a value at each key, maintains span metadata so ranks can be answered in logarithmic expected time, and includes the core ordered-map operations: insertion, lookup, deletion, rank, and selection by rank.</p>
-    <div class="callout">This is the same structural idea Redis uses in its skiplist-backed sorted sets, generalized into a reusable skip list map you can run directly in the page.</div>
-
-    <div class="cb">
-      <div class="cb-head"><span>skip_map.js — generic ordered skip list with spans, rank, and deletion</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
-      <pre class="code" id="c3"></pre>
-      <div class="out" id="o3"></div>
-    </div>
-  </section>
-
-  <section class="section footer" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Further reading</h2></div>
-    <p>Skip lists sit at the intersection of elegant probability arguments and very practical systems engineering.</p>
-    <div class="footer-links">
-      <a href="https://drum.lib.umd.edu/items/3c796454-0f7b-4fef-806e-c387fdfc88a4">Pugh — Concurrent Maintenance of Skip Lists</a>
-      <a href="https://redis.io/docs/latest/develop/data-types/sorted-sets/">Redis sorted sets docs</a>
-      <a href="https://raw.githubusercontent.com/redis/redis/unstable/src/t_zset.c">Redis source: <code>t_zset.c</code></a>
-    </div>
-  </section>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
 </div>
-
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Interactive explainer</div>
+<h1>The <em>Casino Data Structure</em> — Skip Lists</h1>
+<p>Skip lists gamble on structure in a very controlled way: every node climbs to higher levels according to coin flips, and the resulting towers behave like a balanced search structure with high probability. That sounds suspicious until you see why it works, why it is easy to augment with ranks, and why Redis uses it in the skiplist-backed form of its sorted sets.</p>
+<div class="pill-row">
+<span class="pill"><b>Probabilistic</b> balancing</span>
+<span class="pill"><b>Redis</b> sorted sets</span>
+<span class="pill"><b>Rank queries</b> via spans</span>
+<span class="pill">JavaScript implementation</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>Why Redis needs more than a tree story</a>
+<a href="#s2"><span class="toc-n">02</span>Probabilistic balancing</a>
+<a href="#s3"><span class="toc-n">03</span>Why skip lists play well with concurrency</a>
+<a href="#s4"><span class="toc-n">04</span>Redis sorted sets in practice</a>
+<a href="#s5"><span class="toc-n">05</span>Skip list in JavaScript</a>
+<a href="#s6"><span class="toc-n">06</span>Further reading</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>Why Redis needs more than a tree story</h2></div>
+<p>Redis sorted sets are not just “store items in order.” They need several operations at once: look up a member directly, update its score, fetch ranges by score, fetch ranges by rank, and return the rank of a member quickly. That is a harder job than plain dictionary lookup.</p>
+<p>A hash table is great for <code>member -&gt; score</code>, but it does not know anything about order. A balanced tree can represent order, but Redis does not just need ordering. It also needs <strong>ranks</strong>, range scans, and a structure that is straightforward to augment and maintain.</p>
+<div class="callout">In Redis's <strong>skiplist-backed sorted-set encoding</strong>, the system keeps two views of the same data: a hash table for direct member lookup and a skip list for score order. Small sorted sets can stay in a more compact representation until they outgrow it.</div>
+<div class="demo">
+<div class="demo-lbl">One sorted set, two access paths</div>
+<div class="compare-grid">
+<div class="card">
+<h4>Hash Table</h4>
+<div class="big">Member → score</div>
+<p>Perfect for exact lookup and updates when you already know the member name.</p>
+</div>
+<div class="card">
+<h4>Skip List</h4>
+<div class="big">Score → ordered walk</div>
+<p>Perfect for rank, range, predecessor/successor, and walking the set in sorted order.</p>
+</div>
+<div class="card">
+<h4>Together</h4>
+<div class="big">The Redis move</div>
+<p>When Redis switches to its skiplist-backed encoding, it uses the hash table for identity and the skip list for order, so neither structure has to be contorted into doing both jobs alone.</p>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>Probabilistic balancing</h2></div>
+<p>A skip list is a stack of ordered linked lists. The bottom level contains every element. Higher levels contain progressively fewer elements, acting as express lanes. To decide how tall a node becomes, you repeatedly flip a coin: promote once for heads, stop on tails.</p>
+<p>Search works by starting at the <strong>top-left</strong> of the structure. At each level, you move right while the next key is still less than your target. When moving right would overshoot, you drop down one level and continue. By the time you reach level 0, you are either sitting on the target key or on the last key before where it should be. The higher levels let you skip across big stretches of the list quickly; the lower levels do the fine-grained cleanup.</p>
+<p>Insertion uses almost the same walk. As you search for the insertion point, you remember the last node visited at each level. Those remembered nodes are the <strong>predecessors</strong>. Then you flip coins to choose the new node's height and splice the new tower in after those predecessors on each level it occupies. So insertion is not a global rebalance. It is a local pointer rewrite after one top-down search.</p>
+<p>No explicit rotations. No recoloring. No global rebalancing pass. The structure stays well-shaped <strong>with high probability</strong> because the number of tall towers falls off geometrically. That is what “probabilistic balancing” means here: the balancing policy is encoded in the level distribution rather than by deterministic repair rules.</p>
+<div class="callout info">If the promotion probability is <code>p = 1/2</code>, roughly half the nodes appear on level 2, a quarter on level 3, an eighth on level 4, and so on.</div>
+<div class="demo">
+<div class="demo-lbl">Reroll the towers</div>
+<div class="btn-row">
+<button class="btn" onclick="setProbability(0.5)">p = 1/2</button>
+<button class="btn act" onclick="setProbability(0.25)">p = 1/4</button>
+<button class="btn" onclick="setProbability(0.125)">p = 1/8</button>
+<button class="btn" onclick="rerollTowers()">Reroll</button>
+</div>
+<div class="preview" id="prob-preview"></div>
+<div class="tower-board" id="tower-board"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Promotion p</div><div class="stat-v" id="prob-p">0.25</div></div>
+<div class="stat"><div class="stat-k">Average height</div><div class="stat-v" id="prob-avg">0</div></div>
+<div class="stat"><div class="stat-k">Tallest tower</div><div class="stat-v" id="prob-max">0</div></div>
+<div class="stat"><div class="stat-k">Express lanes</div><div class="stat-v" id="prob-lanes">0</div></div>
+</div>
+<div class="meter">
+<div class="meter-head"><span>Higher p = more tall towers</span><span id="prob-note-head">Expected height is low</span></div>
+<div class="meter-bar"><div class="meter-fill" id="prob-fill" style="width:0%"></div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>random_levels.js — tower heights from repeated coin flips</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+<pre class="code" id="c1"></pre>
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Why skip lists play well with concurrency</h2></div>
+<p>Balanced trees can absolutely be made concurrent. The issue is not possibility; it is engineering friction. Tree updates often involve rotations and multi-node structural cases. Getting all of those corner cases correct under interleaving updates is delicate.</p>
+<p>Skip lists mutate more locally. Insertion and deletion are mostly pointer splices across a small number of levels. There is no rotation logic, and the invariants are easier to state: each level is ordered, and each node's tower is vertically aligned. That simplicity is why skip lists show up so often in lock-free and concurrent data-structure literature.</p>
+<div class="callout good">William Pugh's concurrent skip-list paper makes the key point directly: skip lists preserve much of the simplicity of unbalanced trees while still giving good expected performance.</div>
+<div class="demo">
+<div class="demo-lbl">Mutation complexity at a glance</div>
+<div class="btn-row" id="concurrency-buttons">
+<button class="btn act" data-concurrency="insert" onclick="setConcurrencyMode('insert')">Insertion</button>
+<button class="btn" data-concurrency="delete" onclick="setConcurrencyMode('delete')">Deletion</button>
+<button class="btn" data-concurrency="augment" onclick="setConcurrencyMode('augment')">Add rank metadata</button>
+</div>
+<div class="compare-grid">
+<div class="card">
+<h4>Red-Black Tree</h4>
+<div class="big" id="conc-tree-title">—</div>
+<p id="conc-tree-note"></p>
+</div>
+<div class="card">
+<h4>Skip List</h4>
+<div class="big" id="conc-skip-title">—</div>
+<p id="conc-skip-note"></p>
+</div>
+<div class="card">
+<h4>Why it matters</h4>
+<div class="big" id="conc-why-title">—</div>
+<p id="conc-why-note"></p>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>Redis sorted sets in practice</h2></div>
+<p>In Redis's skiplist-backed sorted-set encoding, the implementation comment says the structure uses <strong>two data structures to hold the same elements</strong>: a hash table mapping elements to scores, and a skip list mapping scores to elements. That gives <code>O(log N)</code> ordered updates while preserving direct member lookup. Small sorted sets may instead use a compact listpack encoding.</p>
+<p>The interesting extra is <strong>span metadata</strong>. Each forward pointer stores how many bottom-level nodes it skips. That lets Redis answer rank queries in logarithmic time by accumulating spans while descending the structure. Redis also keeps a backward pointer at level 1, which makes reverse range traversal efficient.</p>
+<div class="demo">
+<div class="demo-lbl">A tiny Redis-like sorted set</div>
+<div class="btn-row">
+<button class="btn act" data-redis="alice" onclick="setRedisMember('alice')">alice</button>
+<button class="btn" data-redis="carol" onclick="setRedisMember('carol')">carol</button>
+<button class="btn" data-redis="erin" onclick="setRedisMember('erin')">erin</button>
+</div>
+<div class="grid-two">
+<div class="card">
+<h4>Hash table view</h4>
+<table class="table" id="redis-dict"></table>
+</div>
+<div class="card">
+<h4>Skip list structure</h4>
+<div class="redis-skip" id="redis-skip"></div>
+<div class="redis-read-note">Top rows are sparse express lanes. The bottom row contains every member in score order, which is where rank and range queries are counted.</div>
+</div>
+</div>
+<div class="lane" id="redis-ranks"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Query member</div><div class="stat-v" id="redis-member">alice</div></div>
+<div class="stat"><div class="stat-k">Score</div><div class="stat-v" id="redis-score">0</div></div>
+<div class="stat"><div class="stat-k">Rank</div><div class="stat-v" id="redis-rank">0</div></div>
+<div class="stat"><div class="stat-k">Range 2..4</div><div class="stat-v"><small id="redis-range"></small></div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>redis_like_skiplist.js — spans and rank queries in a simplified skip list</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+<pre class="code" id="c2"></pre>
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>Skip list in JavaScript</h2></div>
+<p>The implementation below is a generic ordered skip list in JavaScript. It stores a value at each key, maintains span metadata so ranks can be answered in logarithmic expected time, and includes the core ordered-map operations: insertion, lookup, deletion, rank, and selection by rank.</p>
+<div class="callout">This is the same structural idea Redis uses in its skiplist-backed sorted sets, generalized into a reusable skip list map you can run directly in the page.</div>
+<div class="cb">
+<div class="cb-head"><span>skip_map.js — generic ordered skip list with spans, rank, and deletion</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+<pre class="code" id="c3"></pre>
+<div class="out" id="o3"></div>
+</div>
+</section>
+<section class="section footer" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Further reading</h2></div>
+<p>Skip lists sit at the intersection of elegant probability arguments and very practical systems engineering.</p>
+<div class="footer-links">
+<a href="https://drum.lib.umd.edu/items/3c796454-0f7b-4fef-806e-c387fdfc88a4">Pugh — Concurrent Maintenance of Skip Lists</a>
+<a href="https://redis.io/docs/latest/develop/data-types/sorted-sets/">Redis sorted sets docs</a>
+<a href="https://raw.githubusercontent.com/redis/redis/unstable/src/t_zset.c">Redis source: <code>t_zset.c</code></a>
+</div>
+</section>
+</div>
 <script>
 const CODE_SNIPPETS = {
   c1: String.raw`function randomLevel(p = 0.25, maxLevel = 12) {

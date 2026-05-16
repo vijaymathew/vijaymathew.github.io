@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Good Enough Answers - Probabilistic Data Structures</title>
-<link rel="stylesheet" href="./shared.css">
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root{
   --bg:#fbfbfc;
@@ -483,216 +484,246 @@ code{
   .toc,.grid-two,.stat-grid{grid-template-columns:1fr}
   .hero h1{max-width:none}
 }
+
+    /* ── book site-header ── */
+    .site-header {
+      border-bottom: 1px solid #e6e6ea;
+      padding: 1.1rem 2rem;
+      margin-bottom: 0;
+    }
+    .site-header-inner {
+      max-width: 52rem;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    a.book-title {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: #3d3d40;
+      text-decoration: none;
+    }
+    a.book-title:hover { color: #0a0a0b; }
+    .book-nav {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .book-nav a {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b6b6f;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .book-nav a:hover { color: #0a0a0b; }
 </style>
-</head>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&amp;display=swap" rel="stylesheet"/></head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span>Modern Software Tools, Explained</span>
-    <a href="./index.html">Back to Explainers</a>
-  </div>
-
-  <header class="hero">
-    <div class="hero-kicker">Approximate Answers</div>
-    <h1><em>Good Enough Answers</em> - Probabilistic Data Structures</h1>
-    <p>Sometimes exactness is the wrong objective. If you need to ask whether a URL is in a set of ten billion URLs, or estimate the number of distinct users in a stream, the winning move is often to spend a tiny amount of memory on an answer that is almost always right and explicitly bounded when it is wrong.</p>
-    <div class="pill-row">
-      <span class="pill"><b>Bloom filters</b> for membership</span>
-      <span class="pill"><b>Count-min sketch</b> for frequencies</span>
-      <span class="pill"><b>HyperLogLog</b> for distinct counts</span>
-      <span class="pill">Error as a design parameter</span>
-    </div>
-  </header>
-
-  <nav class="toc">
-    <a href="#s1"><span class="toc-n">01</span>The memory wall</a>
-    <a href="#s2"><span class="toc-n">02</span>Bloom filters</a>
-    <a href="#s3"><span class="toc-n">03</span>Count-min sketch</a>
-    <a href="#s4"><span class="toc-n">04</span>HyperLogLog</a>
-    <a href="#s5"><span class="toc-n">05</span>The philosophy</a>
-    <a href="#s6"><span class="toc-n">06</span>Case studies</a>
-  </nav>
-
-  <section class="section" id="s1">
-    <div class="sec-head"><span class="sec-n">§01</span><h2>The memory wall</h2></div>
-    <p>Suppose you want to ask a simple question: <strong>does this URL exist in a set of ten billion URLs?</strong> A fully exact hash set may be fine on paper, but not when you only have about <code>1GB</code> of RAM and still need room for everything else the program does.</p>
-    <p>This is where probabilistic data structures enter. They answer narrower questions with radically less memory, and they do so by being honest about the shape of their errors. Bloom filters allow false positives but not false negatives. Count-min sketch overestimates counts but never underestimates them. HyperLogLog estimates cardinality with a known relative error. They do not make every scale point magically fit, but they often make staged designs practical where exact storage is hopeless.</p>
-    <div class="callout">The key engineering move is not "be sloppy." It is "choose a cheap kind of wrongness that the system can tolerate." At 10B URLs and 1GB RAM, that likely means an approximate local stage plus a second check, not one giant exact in-memory set.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Exact set versus compact summary</div>
-      <div class="grid-two">
-        <div class="card">
-          <h4>Exact</h4>
-          <div class="big">Store every key</div>
-          <p>Memory scales with the number of elements plus allocator overhead, pointers, and metadata.</p>
-        </div>
-        <div class="card">
-          <h4>Probabilistic</h4>
-          <div class="big">Store evidence, not the elements</div>
-          <p>Memory scales with a target error budget: bits, counters, or registers instead of the raw key set.</p>
-        </div>
-      </div>
-      <div class="preview" id="overview-preview"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">URLs</div><div class="stat-v">10B</div></div>
-        <div class="stat"><div class="stat-k">RAM budget</div><div class="stat-v">1GB</div></div>
-        <div class="stat"><div class="stat-k">Question</div><div class="stat-v">membership?</div></div>
-        <div class="stat"><div class="stat-k">Likely move</div><div class="stat-v">approx + staged</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="s2">
-    <div class="sec-head"><span class="sec-n">§02</span><h2>Bloom filters</h2></div>
-    <p>A Bloom filter is a bit array plus <code>k</code> hash functions. To insert a key, hash it <code>k</code> ways and set those bit positions to <code>1</code>. To query a key, hash it the same ways and check those positions. If any bit is <code>0</code>, the key is definitely absent. If all are <code>1</code>, the key is probably present.</p>
-    <p>The false-positive rate is not hand-waving. For <code>m</code> bits, <code>n</code> inserted items, and <code>k</code> hashes, the standard approximation is <code>(1 - e^(-kn/m))^k</code>. That lets you size the filter from the workload instead of guessing.</p>
-    <div class="callout info">Bloom filters buy tiny memory and fast negative lookups. In exchange, they cannot list contents, cannot count frequency, and cannot delete cleanly without upgrading to a counting variant.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Target a false-positive rate</div>
-      <div class="btn-row" id="bloom-rate-buttons">
-        <button class="btn" data-bloom-rate="0.1" onclick="setBloomRate(0.1)">10%</button>
-        <button class="btn act" data-bloom-rate="0.01" onclick="setBloomRate(0.01)">1%</button>
-        <button class="btn" data-bloom-rate="0.001" onclick="setBloomRate(0.001)">0.1%</button>
-      </div>
-      <div class="btn-row" id="bloom-key-buttons">
-        <button class="btn act" data-bloom-key="apple" onclick="setBloomKey('apple')">apple</button>
-        <button class="btn" data-bloom-key="banana" onclick="setBloomKey('banana')">banana</button>
-        <button class="btn" data-bloom-key="mango" onclick="setBloomKey('mango')">mango</button>
-        <button class="btn" data-bloom-key="papaya" onclick="setBloomKey('papaya')">papaya</button>
-      </div>
-      <div class="preview" id="bloom-preview"></div>
-      <div class="bloom-board" id="bloom-board"></div>
-      <div class="bar"><div class="fill" id="bloom-fill"></div></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Expected items</div><div class="stat-v" id="bloom-n">0</div></div>
-        <div class="stat"><div class="stat-k">Bits needed</div><div class="stat-v" id="bloom-bits">0</div></div>
-        <div class="stat"><div class="stat-k">Hash functions</div><div class="stat-v" id="bloom-k">0</div></div>
-        <div class="stat"><div class="stat-k">Observed false +</div><div class="stat-v" id="bloom-observed">0%</div></div>
-      </div>
-      <div class="mini-grid">
-        <div class="row"><span class="tag">Sample workload</span><span id="bloom-summary"></span></div>
-        <div class="row"><span class="tag">Memory per item</span><span id="bloom-bpi"></span></div>
-        <div class="row"><span class="tag">Selected query</span><span id="bloom-query"></span></div>
-        <div class="row"><span class="tag">Hash probes</span><span id="bloom-probes"></span></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>bloom_filter.js - membership with explicit false-positive control</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
-      <pre class="code" id="c1"></pre>
-      <div class="out" id="o1"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s3">
-    <div class="sec-head"><span class="sec-n">§03</span><h2>Count-min sketch</h2></div>
-    <p>Count-min sketch is for a different question: <strong>how often did this item appear in a stream?</strong> It keeps a small table of counters arranged in rows and columns. Each row has its own hash function. Updating an item increments one counter per row. Querying an item returns the minimum of those counters.</p>
-    <p>Why the minimum? Collisions only push counts upward, never downward. Taking the minimum across rows gives the least inflated answer available. The knobs are usually framed as <code>epsilon</code> for additive error and <code>delta</code> for failure probability, which translate to width and depth.</p>
-    <div class="callout">Count-min sketch is not trying to know everything. It is trying to know enough to spot heavy hitters and approximate frequencies in streams that are too large to store exactly.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Frequency estimation from a stream</div>
-      <div class="btn-row" id="cms-epsilon-buttons">
-        <button class="btn" data-cms-eps="0.2" onclick="setCmsEpsilon(0.2)">eps 0.20</button>
-        <button class="btn act" data-cms-eps="0.1" onclick="setCmsEpsilon(0.1)">eps 0.10</button>
-        <button class="btn" data-cms-eps="0.05" onclick="setCmsEpsilon(0.05)">eps 0.05</button>
-      </div>
-      <div class="btn-row" id="cms-query-buttons">
-        <button class="btn act" data-cms-key="apple" onclick="setCmsKey('apple')">apple</button>
-        <button class="btn" data-cms-key="banana" onclick="setCmsKey('banana')">banana</button>
-        <button class="btn" data-cms-key="mango" onclick="setCmsKey('mango')">mango</button>
-        <button class="btn" data-cms-key="pear" onclick="setCmsKey('pear')">pear</button>
-        <button class="btn" data-cms-key="papaya" onclick="setCmsKey('papaya')">papaya</button>
-      </div>
-      <div class="preview" id="cms-preview"></div>
-      <div class="cms-board" id="cms-board"></div>
-      <div class="mini-grid">
-        <div class="row"><span class="tag">Selected key</span><span id="cms-selected">apple</span></div>
-        <div class="row"><span class="tag">Exact vs estimate</span><span id="cms-selected-stats"></span></div>
-        <div class="row"><span class="tag">Why this answer</span><span id="cms-selected-note"></span></div>
-      </div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Width</div><div class="stat-v" id="cms-width">0</div></div>
-        <div class="stat"><div class="stat-k">Depth</div><div class="stat-v" id="cms-depth">0</div></div>
-        <div class="stat"><div class="stat-k">Max additive error</div><div class="stat-v" id="cms-error">0</div></div>
-        <div class="stat"><div class="stat-k">Failure prob.</div><div class="stat-v" id="cms-delta">0</div></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>count_min_sketch.js - streaming counts with error controls</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
-      <pre class="code" id="c2"></pre>
-      <div class="out" id="o2"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s4">
-    <div class="sec-head"><span class="sec-n">§04</span><h2>HyperLogLog</h2></div>
-    <p>HyperLogLog answers a third question: <strong>how many distinct elements have I seen?</strong> Instead of storing the elements, it hashes them, partitions the hash space into registers, and records how many leading zeros appear in the remaining bits. Rare long runs of leading zeros are evidence that many distinct items must have passed through.</p>
-    <p>A toy binary example helps. Suppose the hash for some item is <code>10100010</code> and you use the first 3 bits to choose a register. Then <code>101 | 00010</code> means “go to register 5, then inspect the remaining bits <code>00010</code>.” That suffix starts with three zeros before the first one, so the observed rank is <code>4</code>. HyperLogLog keeps the largest such rank seen in each register.</p>
-    <p>The main control is precision: more registers mean lower relative error, roughly <code>1.04 / sqrt(m)</code> where <code>m</code> is the number of registers. That is why systems like Redis can offer approximate cardinality with a tiny, nearly fixed memory footprint.</p>
-    <div class="callout good">HyperLogLog is one of the cleanest examples of "scale by changing the question." You stop asking for the set itself and ask only for the size of the set.</div>
-
-    <div class="demo">
-      <div class="demo-lbl">Precision versus error</div>
-      <div class="btn-row" id="hll-precision-buttons">
-        <button class="btn" data-hll-p="4" onclick="setHllPrecision(4)">16 regs</button>
-        <button class="btn act" data-hll-p="6" onclick="setHllPrecision(6)">64 regs</button>
-        <button class="btn" data-hll-p="8" onclick="setHllPrecision(8)">256 regs</button>
-      </div>
-      <div class="btn-row" id="hll-sample-buttons">
-        <button class="btn act" data-hll-sample="user-17" onclick="setHllSample('user-17')">user-17</button>
-        <button class="btn" data-hll-sample="user-2048" onclick="setHllSample('user-2048')">user-2048</button>
-        <button class="btn" data-hll-sample="user-4099" onclick="setHllSample('user-4099')">user-4099</button>
-      </div>
-      <div class="preview" id="hll-preview"></div>
-      <div class="hll-board" id="hll-board"></div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-k">Registers</div><div class="stat-v" id="hll-registers">0</div></div>
-        <div class="stat"><div class="stat-k">Exact distinct</div><div class="stat-v" id="hll-exact">0</div></div>
-        <div class="stat"><div class="stat-k">Estimated distinct</div><div class="stat-v" id="hll-est">0</div></div>
-        <div class="stat"><div class="stat-k">Expected rel. error</div><div class="stat-v" id="hll-error">0%</div></div>
-      </div>
-      <div class="mini-grid">
-        <div class="row"><span class="tag">Memory shape</span><span id="hll-memory"></span></div>
-        <div class="row"><span class="tag">Actual relative error</span><span id="hll-actual"></span></div>
-        <div class="row"><span class="tag">Selected sample</span><span id="hll-sample"></span></div>
-        <div class="row"><span class="tag">Hash split</span><span id="hll-hash"></span></div>
-        <div class="row"><span class="tag">Register path</span><span id="hll-sample-note"></span></div>
-      </div>
-    </div>
-
-    <div class="cb">
-      <div class="cb-head"><span>hyperloglog.js - approximate distinct counting with precision control</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
-      <pre class="code" id="c3"></pre>
-      <div class="out" id="o3"></div>
-    </div>
-  </section>
-
-  <section class="section" id="s5">
-    <div class="sec-head"><span class="sec-n">§05</span><h2>The philosophy</h2></div>
-    <p>There is a recurring engineering mistake: treating approximation as a moral failure rather than a workload decision. In real systems, exactness competes with memory, latency, bandwidth, and operational simplicity. If the tolerated error is explicit and the business consequence is acceptable, an approximate answer can be the higher-quality design.</p>
-    <p>That is the deeper lesson of these structures. They do not merely compress data. They compress <strong>decision-relevant information</strong>. A Bloom filter only needs to know enough to skip work most of the time. A count-min sketch only needs to know enough to rank frequent items. A HyperLogLog only needs to know enough to estimate cardinality.</p>
-    <div class="callout">Trading exactness for scale is not surrender. It is choosing the cheapest answer that still supports the product decision you actually need to make.</div>
-  </section>
-
-  <section class="section footer" id="s6">
-    <div class="sec-head"><span class="sec-n">§06</span><h2>Case studies</h2></div>
-    <p><strong>Chrome Safe Browsing</strong> is a good reminder to stay concrete. Current public docs emphasize downloaded local lists and hash-prefix lookups rather than advertising a Bloom filter by name. But the engineering instinct is the same: keep a compact local structure on-device, rule out the vast majority of URLs cheaply, and only escalate when needed.</p>
-    <p><strong>Cassandra</strong> uses Bloom filters directly in the read path to avoid touching SSTable data files that definitely do not contain the requested partition key. It even exposes <code>bloom_filter_fp_chance</code> as a tuning parameter because the RAM-versus-I/O trade is operationally important.</p>
-    <p><strong>Redis</strong> ships HyperLogLog as a first-class command family: <code>PFADD</code>, <code>PFCOUNT</code>, and <code>PFMERGE</code>. The attraction is exactly what this explainer shows: a tiny, nearly fixed memory footprint for distinct counting, with a known standard error instead of exact set storage.</p>
-    <div class="footer-links">
-      <a href="https://developers.google.com/safe-browsing/v4/urls-hashing">Safe Browsing URL hashing</a>
-      <a href="https://support.google.com/chrome/answer/13844634?hl=en">Chrome Safe Browsing privacy</a>
-      <a href="https://cassandra.apache.org/doc/3.11/cassandra/operating/bloom_filters.html">Cassandra Bloom filters</a>
-      <a href="https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/">Redis HyperLogLog docs</a>
-      <a href="https://redis.io/docs/latest/commands/pfcount/">Redis PFCOUNT</a>
-    </div>
-  </section>
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="./index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="./index.html">Contents</a>
+</nav>
 </div>
-
+</header><div class="page">
+<header class="hero">
+<div class="hero-kicker">Approximate Answers</div>
+<h1><em>Good Enough Answers</em> - Probabilistic Data Structures</h1>
+<p>Sometimes exactness is the wrong objective. If you need to ask whether a URL is in a set of ten billion URLs, or estimate the number of distinct users in a stream, the winning move is often to spend a tiny amount of memory on an answer that is almost always right and explicitly bounded when it is wrong.</p>
+<div class="pill-row">
+<span class="pill"><b>Bloom filters</b> for membership</span>
+<span class="pill"><b>Count-min sketch</b> for frequencies</span>
+<span class="pill"><b>HyperLogLog</b> for distinct counts</span>
+<span class="pill">Error as a design parameter</span>
+</div>
+</header>
+<nav class="toc">
+<a href="#s1"><span class="toc-n">01</span>The memory wall</a>
+<a href="#s2"><span class="toc-n">02</span>Bloom filters</a>
+<a href="#s3"><span class="toc-n">03</span>Count-min sketch</a>
+<a href="#s4"><span class="toc-n">04</span>HyperLogLog</a>
+<a href="#s5"><span class="toc-n">05</span>The philosophy</a>
+<a href="#s6"><span class="toc-n">06</span>Case studies</a>
+</nav>
+<section class="section" id="s1">
+<div class="sec-head"><span class="sec-n">§01</span><h2>The memory wall</h2></div>
+<p>Suppose you want to ask a simple question: <strong>does this URL exist in a set of ten billion URLs?</strong> A fully exact hash set may be fine on paper, but not when you only have about <code>1GB</code> of RAM and still need room for everything else the program does.</p>
+<p>This is where probabilistic data structures enter. They answer narrower questions with radically less memory, and they do so by being honest about the shape of their errors. Bloom filters allow false positives but not false negatives. Count-min sketch overestimates counts but never underestimates them. HyperLogLog estimates cardinality with a known relative error. They do not make every scale point magically fit, but they often make staged designs practical where exact storage is hopeless.</p>
+<div class="callout">The key engineering move is not "be sloppy." It is "choose a cheap kind of wrongness that the system can tolerate." At 10B URLs and 1GB RAM, that likely means an approximate local stage plus a second check, not one giant exact in-memory set.</div>
+<div class="demo">
+<div class="demo-lbl">Exact set versus compact summary</div>
+<div class="grid-two">
+<div class="card">
+<h4>Exact</h4>
+<div class="big">Store every key</div>
+<p>Memory scales with the number of elements plus allocator overhead, pointers, and metadata.</p>
+</div>
+<div class="card">
+<h4>Probabilistic</h4>
+<div class="big">Store evidence, not the elements</div>
+<p>Memory scales with a target error budget: bits, counters, or registers instead of the raw key set.</p>
+</div>
+</div>
+<div class="preview" id="overview-preview"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">URLs</div><div class="stat-v">10B</div></div>
+<div class="stat"><div class="stat-k">RAM budget</div><div class="stat-v">1GB</div></div>
+<div class="stat"><div class="stat-k">Question</div><div class="stat-v">membership?</div></div>
+<div class="stat"><div class="stat-k">Likely move</div><div class="stat-v">approx + staged</div></div>
+</div>
+</div>
+</section>
+<section class="section" id="s2">
+<div class="sec-head"><span class="sec-n">§02</span><h2>Bloom filters</h2></div>
+<p>A Bloom filter is a bit array plus <code>k</code> hash functions. To insert a key, hash it <code>k</code> ways and set those bit positions to <code>1</code>. To query a key, hash it the same ways and check those positions. If any bit is <code>0</code>, the key is definitely absent. If all are <code>1</code>, the key is probably present.</p>
+<p>The false-positive rate is not hand-waving. For <code>m</code> bits, <code>n</code> inserted items, and <code>k</code> hashes, the standard approximation is <code>(1 - e^(-kn/m))^k</code>. That lets you size the filter from the workload instead of guessing.</p>
+<div class="callout info">Bloom filters buy tiny memory and fast negative lookups. In exchange, they cannot list contents, cannot count frequency, and cannot delete cleanly without upgrading to a counting variant.</div>
+<div class="demo">
+<div class="demo-lbl">Target a false-positive rate</div>
+<div class="btn-row" id="bloom-rate-buttons">
+<button class="btn" data-bloom-rate="0.1" onclick="setBloomRate(0.1)">10%</button>
+<button class="btn act" data-bloom-rate="0.01" onclick="setBloomRate(0.01)">1%</button>
+<button class="btn" data-bloom-rate="0.001" onclick="setBloomRate(0.001)">0.1%</button>
+</div>
+<div class="btn-row" id="bloom-key-buttons">
+<button class="btn act" data-bloom-key="apple" onclick="setBloomKey('apple')">apple</button>
+<button class="btn" data-bloom-key="banana" onclick="setBloomKey('banana')">banana</button>
+<button class="btn" data-bloom-key="mango" onclick="setBloomKey('mango')">mango</button>
+<button class="btn" data-bloom-key="papaya" onclick="setBloomKey('papaya')">papaya</button>
+</div>
+<div class="preview" id="bloom-preview"></div>
+<div class="bloom-board" id="bloom-board"></div>
+<div class="bar"><div class="fill" id="bloom-fill"></div></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Expected items</div><div class="stat-v" id="bloom-n">0</div></div>
+<div class="stat"><div class="stat-k">Bits needed</div><div class="stat-v" id="bloom-bits">0</div></div>
+<div class="stat"><div class="stat-k">Hash functions</div><div class="stat-v" id="bloom-k">0</div></div>
+<div class="stat"><div class="stat-k">Observed false +</div><div class="stat-v" id="bloom-observed">0%</div></div>
+</div>
+<div class="mini-grid">
+<div class="row"><span class="tag">Sample workload</span><span id="bloom-summary"></span></div>
+<div class="row"><span class="tag">Memory per item</span><span id="bloom-bpi"></span></div>
+<div class="row"><span class="tag">Selected query</span><span id="bloom-query"></span></div>
+<div class="row"><span class="tag">Hash probes</span><span id="bloom-probes"></span></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>bloom_filter.js - membership with explicit false-positive control</span><button class="run-btn" onclick="runCode('c1','o1')">Run</button></div>
+<pre class="code" id="c1"></pre>
+<div class="out" id="o1"></div>
+</div>
+</section>
+<section class="section" id="s3">
+<div class="sec-head"><span class="sec-n">§03</span><h2>Count-min sketch</h2></div>
+<p>Count-min sketch is for a different question: <strong>how often did this item appear in a stream?</strong> It keeps a small table of counters arranged in rows and columns. Each row has its own hash function. Updating an item increments one counter per row. Querying an item returns the minimum of those counters.</p>
+<p>Why the minimum? Collisions only push counts upward, never downward. Taking the minimum across rows gives the least inflated answer available. The knobs are usually framed as <code>epsilon</code> for additive error and <code>delta</code> for failure probability, which translate to width and depth.</p>
+<div class="callout">Count-min sketch is not trying to know everything. It is trying to know enough to spot heavy hitters and approximate frequencies in streams that are too large to store exactly.</div>
+<div class="demo">
+<div class="demo-lbl">Frequency estimation from a stream</div>
+<div class="btn-row" id="cms-epsilon-buttons">
+<button class="btn" data-cms-eps="0.2" onclick="setCmsEpsilon(0.2)">eps 0.20</button>
+<button class="btn act" data-cms-eps="0.1" onclick="setCmsEpsilon(0.1)">eps 0.10</button>
+<button class="btn" data-cms-eps="0.05" onclick="setCmsEpsilon(0.05)">eps 0.05</button>
+</div>
+<div class="btn-row" id="cms-query-buttons">
+<button class="btn act" data-cms-key="apple" onclick="setCmsKey('apple')">apple</button>
+<button class="btn" data-cms-key="banana" onclick="setCmsKey('banana')">banana</button>
+<button class="btn" data-cms-key="mango" onclick="setCmsKey('mango')">mango</button>
+<button class="btn" data-cms-key="pear" onclick="setCmsKey('pear')">pear</button>
+<button class="btn" data-cms-key="papaya" onclick="setCmsKey('papaya')">papaya</button>
+</div>
+<div class="preview" id="cms-preview"></div>
+<div class="cms-board" id="cms-board"></div>
+<div class="mini-grid">
+<div class="row"><span class="tag">Selected key</span><span id="cms-selected">apple</span></div>
+<div class="row"><span class="tag">Exact vs estimate</span><span id="cms-selected-stats"></span></div>
+<div class="row"><span class="tag">Why this answer</span><span id="cms-selected-note"></span></div>
+</div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Width</div><div class="stat-v" id="cms-width">0</div></div>
+<div class="stat"><div class="stat-k">Depth</div><div class="stat-v" id="cms-depth">0</div></div>
+<div class="stat"><div class="stat-k">Max additive error</div><div class="stat-v" id="cms-error">0</div></div>
+<div class="stat"><div class="stat-k">Failure prob.</div><div class="stat-v" id="cms-delta">0</div></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>count_min_sketch.js - streaming counts with error controls</span><button class="run-btn" onclick="runCode('c2','o2')">Run</button></div>
+<pre class="code" id="c2"></pre>
+<div class="out" id="o2"></div>
+</div>
+</section>
+<section class="section" id="s4">
+<div class="sec-head"><span class="sec-n">§04</span><h2>HyperLogLog</h2></div>
+<p>HyperLogLog answers a third question: <strong>how many distinct elements have I seen?</strong> Instead of storing the elements, it hashes them, partitions the hash space into registers, and records how many leading zeros appear in the remaining bits. Rare long runs of leading zeros are evidence that many distinct items must have passed through.</p>
+<p>A toy binary example helps. Suppose the hash for some item is <code>10100010</code> and you use the first 3 bits to choose a register. Then <code>101 | 00010</code> means “go to register 5, then inspect the remaining bits <code>00010</code>.” That suffix starts with three zeros before the first one, so the observed rank is <code>4</code>. HyperLogLog keeps the largest such rank seen in each register.</p>
+<p>The main control is precision: more registers mean lower relative error, roughly <code>1.04 / sqrt(m)</code> where <code>m</code> is the number of registers. That is why systems like Redis can offer approximate cardinality with a tiny, nearly fixed memory footprint.</p>
+<div class="callout good">HyperLogLog is one of the cleanest examples of "scale by changing the question." You stop asking for the set itself and ask only for the size of the set.</div>
+<div class="demo">
+<div class="demo-lbl">Precision versus error</div>
+<div class="btn-row" id="hll-precision-buttons">
+<button class="btn" data-hll-p="4" onclick="setHllPrecision(4)">16 regs</button>
+<button class="btn act" data-hll-p="6" onclick="setHllPrecision(6)">64 regs</button>
+<button class="btn" data-hll-p="8" onclick="setHllPrecision(8)">256 regs</button>
+</div>
+<div class="btn-row" id="hll-sample-buttons">
+<button class="btn act" data-hll-sample="user-17" onclick="setHllSample('user-17')">user-17</button>
+<button class="btn" data-hll-sample="user-2048" onclick="setHllSample('user-2048')">user-2048</button>
+<button class="btn" data-hll-sample="user-4099" onclick="setHllSample('user-4099')">user-4099</button>
+</div>
+<div class="preview" id="hll-preview"></div>
+<div class="hll-board" id="hll-board"></div>
+<div class="stat-grid">
+<div class="stat"><div class="stat-k">Registers</div><div class="stat-v" id="hll-registers">0</div></div>
+<div class="stat"><div class="stat-k">Exact distinct</div><div class="stat-v" id="hll-exact">0</div></div>
+<div class="stat"><div class="stat-k">Estimated distinct</div><div class="stat-v" id="hll-est">0</div></div>
+<div class="stat"><div class="stat-k">Expected rel. error</div><div class="stat-v" id="hll-error">0%</div></div>
+</div>
+<div class="mini-grid">
+<div class="row"><span class="tag">Memory shape</span><span id="hll-memory"></span></div>
+<div class="row"><span class="tag">Actual relative error</span><span id="hll-actual"></span></div>
+<div class="row"><span class="tag">Selected sample</span><span id="hll-sample"></span></div>
+<div class="row"><span class="tag">Hash split</span><span id="hll-hash"></span></div>
+<div class="row"><span class="tag">Register path</span><span id="hll-sample-note"></span></div>
+</div>
+</div>
+<div class="cb">
+<div class="cb-head"><span>hyperloglog.js - approximate distinct counting with precision control</span><button class="run-btn" onclick="runCode('c3','o3')">Run</button></div>
+<pre class="code" id="c3"></pre>
+<div class="out" id="o3"></div>
+</div>
+</section>
+<section class="section" id="s5">
+<div class="sec-head"><span class="sec-n">§05</span><h2>The philosophy</h2></div>
+<p>There is a recurring engineering mistake: treating approximation as a moral failure rather than a workload decision. In real systems, exactness competes with memory, latency, bandwidth, and operational simplicity. If the tolerated error is explicit and the business consequence is acceptable, an approximate answer can be the higher-quality design.</p>
+<p>That is the deeper lesson of these structures. They do not merely compress data. They compress <strong>decision-relevant information</strong>. A Bloom filter only needs to know enough to skip work most of the time. A count-min sketch only needs to know enough to rank frequent items. A HyperLogLog only needs to know enough to estimate cardinality.</p>
+<div class="callout">Trading exactness for scale is not surrender. It is choosing the cheapest answer that still supports the product decision you actually need to make.</div>
+</section>
+<section class="section footer" id="s6">
+<div class="sec-head"><span class="sec-n">§06</span><h2>Case studies</h2></div>
+<p><strong>Chrome Safe Browsing</strong> is a good reminder to stay concrete. Current public docs emphasize downloaded local lists and hash-prefix lookups rather than advertising a Bloom filter by name. But the engineering instinct is the same: keep a compact local structure on-device, rule out the vast majority of URLs cheaply, and only escalate when needed.</p>
+<p><strong>Cassandra</strong> uses Bloom filters directly in the read path to avoid touching SSTable data files that definitely do not contain the requested partition key. It even exposes <code>bloom_filter_fp_chance</code> as a tuning parameter because the RAM-versus-I/O trade is operationally important.</p>
+<p><strong>Redis</strong> ships HyperLogLog as a first-class command family: <code>PFADD</code>, <code>PFCOUNT</code>, and <code>PFMERGE</code>. The attraction is exactly what this explainer shows: a tiny, nearly fixed memory footprint for distinct counting, with a known standard error instead of exact set storage.</p>
+<div class="footer-links">
+<a href="https://developers.google.com/safe-browsing/v4/urls-hashing">Safe Browsing URL hashing</a>
+<a href="https://support.google.com/chrome/answer/13844634?hl=en">Chrome Safe Browsing privacy</a>
+<a href="https://cassandra.apache.org/doc/3.11/cassandra/operating/bloom_filters.html">Cassandra Bloom filters</a>
+<a href="https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/">Redis HyperLogLog docs</a>
+<a href="https://redis.io/docs/latest/commands/pfcount/">Redis PFCOUNT</a>
+</div>
+</section>
+</div>
 <script>
 const CODE_SNIPPETS = {
   c1: String.raw`class BloomFilter {
