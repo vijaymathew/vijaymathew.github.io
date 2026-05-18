@@ -542,7 +542,7 @@
       <li>Structure: front matter, body, back matter</li>
       <li>Chapter openers, drop caps, and section breaks</li>
       <li>Footnotes and endnotes in Paged.js</li>
-      <li>A complete book interior, built step by step</li>
+      <li>The Compositor's Garden — design decisions examined</li>
     </ul>
   </div>
 
@@ -842,58 +842,43 @@
 
     <p>Footnotes and endnotes serve the same purpose — providing supplementary information without interrupting the main text — but they produce very different reading experiences. Footnotes appear at the foot of the page where the reference mark appears, so the reader can glance down without losing their place. Endnotes are consolidated at the back of the book, requiring the reader to leave the text entirely to consult them. Footnotes are more convenient for the reader; endnotes are more convenient for the designer, because they do not require dynamic sizing of the foot area.</p>
 
-    <p>In Paged.js, footnotes are supported through the CSS Paged Media specification's <code>float: footnote</code> value. An element with this value is removed from the normal flow and placed in the page's footnote area — the region between the text column and the foot margin — with a separator rule and the appropriate footnote marker. This is the most powerful and complex feature of CSS Paged Media, and Paged.js's implementation requires specific markup:</p>
+    <p>Chapter 19 introduced the complete footnote system for Paged.js: <code>float: footnote</code> on the note element, <code>::footnote-call</code> for the superscript reference in the text, <code>::footnote-marker</code> for the number at the start of the footnote, and <code>@footnote</code> within the named <code>@page</code> rule for the area itself. The same four rules apply directly to a book interior. Place the footnote content inline in the paragraph as a <code>&lt;span class="fn"&gt;</code> at the exact position of the reference, and the CSS moves it to the foot of the page automatically:</p>
 
-<pre><code><span class="c-comment">/* ── Paged.js footnote implementation ─────────── */</span>
+<pre><code><span class="c-comment">/* ── Footnote system for a book interior ──────── */</span>
 
-<span class="c-comment">/* HTML: inline footnote marker + content         */</span>
-<span class="c-comment">/* &lt;span class="fn"&gt;
-     &lt;span class="fn-marker"&gt;&lt;/span&gt;
-     &lt;span class="fn-body"&gt;The footnote text.&lt;/span&gt;
-   &lt;/span&gt;                                         */</span>
-
-<span class="c-comment">/* Float footnote body to footnote area           */</span>
-<span class="c-sel">.fn-body</span> {
-  <span class="c-prop">float</span>:            <span class="c-val">footnote</span>;
-  <span class="c-prop">font-size</span>:        <span class="c-val">var(--text-sm)</span>;
-  <span class="c-prop">line-height</span>:      <span class="c-val">1.62</span>;
-  <span class="c-prop">color</span>:            <span class="c-val">var(--ink-mid)</span>;
+<span class="c-sel">.fn</span> {
+  <span class="c-prop">float</span>:       <span class="c-val">footnote</span>;
+  <span class="c-prop">font-size</span>:   <span class="c-val">var(--text-sm)</span>;
+  <span class="c-prop">line-height</span>: <span class="c-val">1.62</span>;
+  <span class="c-prop">color</span>:       <span class="c-val">var(--ink-mid)</span>;
 }
 
-<span class="c-comment">/* Auto-numbered marker                           */</span>
-<span class="c-sel">.fn-marker</span> {
-  <span class="c-prop">display</span>:          <span class="c-val">none</span>; <span class="c-comment">/* Paged.js generates the marker */</span>
+<span class="c-sel">.fn</span>::<span class="c-sel">footnote-call</span> {
+  <span class="c-prop">content</span>:        <span class="c-val">counter(footnote, decimal)</span>;
+  <span class="c-prop">font-size</span>:      <span class="c-val">0.65em</span>;
+  <span class="c-prop">vertical-align</span>: <span class="c-val">super</span>;
+  <span class="c-prop">line-height</span>:    <span class="c-val">0</span>;
+  <span class="c-prop">color</span>:          <span class="c-val">var(--accent)</span>;
+  <span class="c-prop">margin-left</span>:    <span class="c-val">0.05em</span>;
 }
 
-<span class="c-comment">/* Footnote counter: superscript in text          */</span>
-<span class="c-sel">.fn::before</span> {
-  <span class="c-prop">content</span>:          <span class="c-val">counter(footnote)</span>;
-  <span class="c-prop">font-size</span>:        <span class="c-val">0.64em</span>;
-  <span class="c-prop">vertical-align</span>:   <span class="c-val">super</span>;
-  <span class="c-prop">color</span>:            <span class="c-val">var(--accent)</span>;
+<span class="c-sel">.fn</span>::<span class="c-sel">footnote-marker</span> {
+  <span class="c-prop">content</span>:       <span class="c-val">counter(footnote, decimal) '.'</span>;
+  <span class="c-prop">font-size</span>:     <span class="c-val">var(--text-xs)</span>;
+  <span class="c-prop">color</span>:         <span class="c-val">var(--ink-faint)</span>;
+  <span class="c-prop">padding-right</span>: <span class="c-val">0.4em</span>;
 }
 
-<span class="c-comment">/* Separator rule above footnote area             */</span>
-<span class="c-sel">::footnote-call</span> {
-  <span class="c-prop">content</span>:          <span class="c-val">counter(footnote, decimal)</span>;
-  <span class="c-prop">font-size</span>:        <span class="c-val">0.64em</span>;
-  <span class="c-prop">vertical-align</span>:   <span class="c-val">super</span>;
-  <span class="c-prop">color</span>:            <span class="c-val">var(--accent)</span>;
-}
-
-<span class="c-sel">::footnote-marker</span> {
-  <span class="c-prop">content</span>:          <span class="c-val">counter(footnote, decimal) ". "</span>;
-  <span class="c-prop">font-size</span>:        <span class="c-val">var(--text-sm)</span>;
-  <span class="c-prop">color</span>:            <span class="c-val">var(--accent)</span>;
-}
-
-<span class="c-at">@page</span> {
+<span class="c-at">@page</span> <span class="c-val">body</span> {
   <span class="c-at">@footnote</span> {
-    <span class="c-prop">border-top</span>:       <span class="c-val">1px solid var(--rule)</span>;
-    <span class="c-prop">padding-top</span>:      <span class="c-val">0.6rem</span>;
-    <span class="c-prop">margin-top</span>:       <span class="c-val">var(--space-lg)</span>;
+    <span class="c-prop">border-top</span>:  <span class="c-val">1px solid var(--rule)</span>;
+    <span class="c-prop">padding-top</span>: <span class="c-val">0.75rem</span>;
+    <span class="c-prop">margin-top</span>:  <span class="c-val">1rem</span>;
   }
-}</code></pre>
+}
+
+<span class="c-comment">/* Reset per chapter, not per book                */</span>
+<span class="c-sel">.chapter-body</span> { <span class="c-prop">counter-reset</span>: <span class="c-val">footnote</span>; }</code></pre>
 
     <p>For simpler documents or those where the number of footnotes per page is predictable and small, a more reliable alternative to <code>float: footnote</code> is to implement footnotes as endnotes: collect all footnote text in a consolidated notes section at the back of the book, and use superscript markers in the main text that correspond to numbered entries in the notes section. This approach requires no special CSS support and produces consistently reliable output, at the cost of the reader's convenience.</p>
 
@@ -982,10 +967,49 @@
       <p><strong>Figure 20.3 — Footnotes on a body page.</strong> Two footnotes on a single page, implemented with <code>float: footnote</code>. The superscript markers in the text (shown in accent color) correspond to the numbered footnotes below the separator rule at the foot of the page. The footnotes appear on the same page as their reference marks, sized smaller than the body text and in a secondary color. The separator rule is a short line rather than a full-width rule, following classical convention.</p>
     </div>
 
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">The Compositor's Garden — examined</span>
+      How the project implements these principles</h2>
+
+    <p>The project built through Parts Two, Three, and Four is a working instance of everything described in this chapter. Rather than leaving the connection implicit, it is worth examining the specific decisions made — the CSS behind the grid, the display pages, and the zone transitions — so the link between principle and code is visible.</p>
+
+    <p>The chapter body is defined in <code>04-layout.css</code> as a three-column CSS grid:</p>
+
+<pre><code><span class="c-comment">/* ── The Compositor's Garden: body grid ──────── */</span>
+<span class="c-sel">.chapter-body</span> {
+  <span class="c-prop">display</span>:               <span class="c-val">grid</span>;
+  <span class="c-prop">grid-template-columns</span>: <span class="c-val">2rem 1fr 6rem</span>;
+  <span class="c-prop">grid-template-areas</span>:   <span class="c-val">"margin  text  notes"</span>;
+  <span class="c-prop">column-gap</span>:            <span class="c-val">1.5rem</span>;
+  <span class="c-prop">max-width</span>:             <span class="c-val">52rem</span>;
+  <span class="c-prop">margin</span>:                <span class="c-val">0 auto</span>;
+}
+
+<span class="c-comment">/* All content defaults to the text column        */</span>
+<span class="c-sel">.chapter-body > *</span> { <span class="c-prop">grid-column</span>: <span class="c-val">2</span>; }</code></pre>
+
+    <p>Three tracks: a narrow 2rem inner margin strip, a flexible 1fr text column, and a 6rem outer notes column. Every block-level element is assigned to <code>grid-column: 2</code> — the text track. The outer columns are reserved but unpopulated in this edition; their presence is what creates the proportions of a page that feels wider than its text column, because the unused tracks read as generous margins without carrying any content. The <code>max-width: 52rem</code> at 16px base equals 832px — wide enough to hold the 66-character measure established in Chapter 9 with room for the two outer columns.</p>
+
+    <p>Front matter display pages — half-title, title page, copyright verso, dedication — use a different pattern: a flexbox container that fills and centers on the page:</p>
+
+<pre><code><span class="c-sel">.display-page</span> {
+  <span class="c-prop">display</span>:         <span class="c-val">flex</span>;
+  <span class="c-prop">align-items</span>:     <span class="c-val">center</span>;
+  <span class="c-prop">justify-content</span>: <span class="c-val">center</span>;
+  <span class="c-prop">min-height</span>:      <span class="c-val">100vh</span>;
+}</code></pre>
+
+    <p>The <code>min-height: 100vh</code> fills the full viewport in the browser preview. Paged.js replaces the viewport height with the actual page height when paginating — the element expands to cover one complete page surface. This is the standard pattern for full-page elements: size to <code>100vh</code> for the browser, and the pagination engine applies the correct page geometry automatically. The same principle applies to chapter openers and part dividers.</p>
+
+    <p>The three book zones map to seven named <code>@page</code> rules in <code>06-page.css</code>. Front matter display pages use <code>@page front-matter-display</code>, which suppresses both the running header and the folio entirely — these are the pages where numbering has not yet begun and no header is appropriate. The table of contents and preface use <code>@page front-matter</code> with roman numeral folios at the bottom center. Chapter openers use <code>@page chapter-opener</code> with a 2-inch head margin and no running header, which creates the large drop above the chapter label. Body pages use <code>@page body</code> with the book title in the top-left margin box and the current chapter title — captured with <code>string-set</code> and propagated by Paged.js across all pages of that chapter — in the top-right margin box. Back matter pages use <code>@page back-matter</code>, which shares the body's geometry but populates the header with the section name rather than the chapter title.</p>
+
+    <p>Every rule in the project is an instance of a principle from Parts Two through Four. What this chapter adds is the perspective from which to read those rules — not as isolated CSS but as a coherent system in which the grid, the page geometry, the typography, and the page furniture work together so that the book reads as a single made thing rather than a collection of parts. That coherence, more than any individual decision, is what distinguishes a designed book from a styled document.</p>
+
     <div class="callout">
-      <p class="callout-label">The complete generic book interior</p>
-      <p>The companion files for this chapter include a complete, generic book interior stylesheet — a single CSS file that implements all the elements described here: front matter pages, body pages with running headers and folios, chapter openers with drop caps, section breaks, and footnotes. It is built on the same custom property system as the project document and is designed to be adapted by changing the property values rather than the structural rules.</p>
-      <p>To use it for a new book: fork the file, update the custom properties (typefaces, type scale, color palette, page dimensions), adjust the named page margin values to match your trim size, and apply the class names to your HTML. The structural CSS — the named pages, the footnote float, the drop cap, the section break — remains unchanged. This is the value of a system built on custom properties: you change the values, not the logic.</p>
+      <p class="callout-label">The Compositor's Garden as reference</p>
+      <p>The project document is itself the reference implementation for everything in this chapter. Its seven stylesheet layers — from <code>01-tokens.css</code> through <code>07-print.css</code> — implement the complete book interior: the front matter page sequence, the three-column body grid, chapter openers with the 2-inch drop, drop caps, section breaks, and the footnote area. The files are available alongside this book.</p>
+      <p>To adapt the project for a different book: update the custom properties in <code>01-tokens.css</code> (typefaces, type scale, colors, page dimensions) and the <code>@page</code> margin values in <code>06-page.css</code> to match your trim size. The structural rules — the named pages, the grid, the footnote area, the drop cap — stay unchanged. The system was designed so that changing the values changes the book; the logic is fixed.</p>
     </div>
 
     <span class="sep">· · ·</span>

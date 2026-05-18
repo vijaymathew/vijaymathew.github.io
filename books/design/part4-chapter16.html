@@ -529,6 +529,7 @@
       <li>The <code>@page</code> rule: size, margins, and orientation</li>
       <li>Named pages and page sequences</li>
       <li>The mental model shift from scroll to spread</li>
+      <li>Setting up Paged.js: the polyfill and the font-ready guard</li>
     </ul>
   </div>
 
@@ -1046,11 +1047,46 @@
 
     <p>The other spread-level consideration is the gutter — the two facing inner margins of a spread. As discussed in Chapter 14, the inner margins must be sufficient to account for the binding. But at the spread level, you also need to consider how the two text blocks relate visually. When both pages of a spread have the same top margin, the first lines of text on both pages align horizontally — a continuity that gives the spread a settled, composed feeling. When they don't — because one page has a large pull quote or a chapter drop — the spread feels asymmetric in a way that may or may not be intentional. Being aware of the spread means noticing these relationships.<sup>1</sup></p>
 
-    <div class="callout">
-      <p class="callout-label">Setting up Paged.js</p>
-      <p>Paged.js is available as a JavaScript file that polyfills the CSS Paged Media specification in any modern browser. For the project document, the simplest setup is to include the Paged.js script in the document's <code>&lt;head&gt;</code> and let it run automatically. The browser preview will show the paginated layout — pages stacked vertically with visible page edges — which you can inspect, adjust, and print to PDF.</p>
-      <p>Download the latest version of Paged.js from <em>pagedjs.org</em>, or reference the hosted version. Then add the font-loading guard from Chapter 11 to ensure Paged.js does not begin paginating before the fonts have loaded. With that in place, the HTML document you have been building through Parts Two and Three will begin to look like a book.</p>
-    </div>
+    <h2><span class="label">Setting up Paged.js</span>
+      The polyfill, font loading, and the browser preview</h2>
+
+    <p>Before any of the CSS introduced in this chapter has visible effect, Paged.js must be loaded into the document. Paged.js is a JavaScript polyfill — it reads your <code>@page</code> rules, margin boxes, and named page assignments and applies them in a browser that does not otherwise implement the CSS Paged Media specification. Without it, those rules are silently ignored. With it, the browser renders a stacked sequence of discrete, fixed-size pages — the browser preview — from which you inspect the layout, adjust the CSS, and generate the PDF.</p>
+
+    <p>Including Paged.js is a single script tag in the document's <code>&lt;head&gt;</code>, placed after your stylesheets:</p>
+
+<pre><code><span class="c-comment">&lt;!-- CDN reference for development                --&gt;</span>
+&lt;script src=<span class="c-val">"https://unpkg.com/pagedjs/dist/paged.polyfill.js"</span>&gt;&lt;/script&gt;
+
+<span class="c-comment">&lt;!-- Local copy for production work               --&gt;</span>
+&lt;script src=<span class="c-val">"./paged.polyfill.js"</span>&gt;&lt;/script&gt;</code></pre>
+
+    <p>Download the latest stable release from <em>pagedjs.org</em> and place it in the project folder for production use. The CDN reference is convenient during development; the local copy makes the document self-contained for offline rendering and automated PDF generation. Once the script is in place, loading the document in a browser immediately shows the stacked-page preview — pages the size defined in your <code>@page</code> rule, separated by narrow gaps, with their edges visible. The browser's developer tools work normally against the preview: adjust a margin in the CSS and the pagination updates in real time.</p>
+
+    <p>There is one critical setup detail that must not be overlooked: <em>Paged.js must not begin paginating before web fonts have loaded.</em> When the polyfill paginates the document, it measures the text — character widths, line lengths, paragraph heights — to determine where lines break and pages fill. Those measurements depend on the actual font loaded at that moment. If the fonts have not yet arrived from the server, the browser falls back to a system typeface with different metrics, and Paged.js calculates page breaks against those wrong values. When the real fonts load and the text reflows, the breaks stay in the positions calculated for the wrong font. The layout appears correct in the preview but is wrong in the PDF — a discrepancy that is invisible until you examine a paragraph at a page boundary closely.</p>
+
+    <p>The fix has two parts. First, add <code>display=block</code> to your Google Fonts URL:</p>
+
+<pre><code>&lt;link href=<span class="c-val">"https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500
+     &amp;family=Outfit:wght@300;400;500&amp;display=block"</span> rel=<span class="c-val">"stylesheet"</span>&gt;</code></pre>
+
+    <p>The commonly recommended <code>display=swap</code> renders immediately in a fallback font and swaps in the web font when it arrives. For interactive pages this is the right choice — text is readable from the first paint. For a Paged.js document it produces incorrect layout: the swap happens after the polyfill has already measured and paginated using the fallback font's metrics. <code>display=block</code> holds the text invisible until the font is available, then renders at once with the correct face. The brief blank period is imperceptible in a paginated document, and the pagination is correct from the start.</p>
+
+    <p>Second, disable Paged.js's automatic pagination and trigger it manually after the browser confirms all fonts are ready:</p>
+
+<pre><code><span class="c-comment">&lt;!-- 1. Disable auto-pagination, before Paged.js loads --&gt;</span>
+&lt;script&gt;window.PagedConfig = { <span class="c-prop">auto</span>: <span class="c-val">false</span> };&lt;/script&gt;
+
+<span class="c-comment">&lt;!-- 2. Load Paged.js                                  --&gt;</span>
+&lt;script src=<span class="c-val">"./paged.polyfill.js"</span>&gt;&lt;/script&gt;
+
+<span class="c-comment">&lt;!-- 3. Trigger pagination after fonts are ready       --&gt;</span>
+&lt;script&gt;
+  document.fonts.ready.<span class="c-sel">then</span>(<span class="c-sel">function</span>() {
+    <span class="c-sel">new</span> window.Paged.<span class="c-sel">Previewer</span>().<span class="c-sel">preview</span>();
+  });
+&lt;/script&gt;</code></pre>
+
+    <p>Setting <code>PagedConfig.auto</code> to <code>false</code> prevents Paged.js from running at load time. The <code>document.fonts.ready</code> promise resolves once every font referenced in the document is fully loaded — at that point, calling <code>new Paged.Previewer().preview()</code> triggers pagination with the correct metrics in place. These three script blocks, together with the <code>display=block</code> font parameter, constitute the complete setup for <em>The Compositor's Garden</em>: copy them into the <code>&lt;head&gt;</code> of the project's <code>index.html</code>, load it in a Chromium-based browser, and the paginated preview will appear.</p>
 
     <span class="sep">· · ·</span>
 
