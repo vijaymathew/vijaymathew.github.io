@@ -991,6 +991,18 @@
 
     <p>Three tracks: a narrow 2rem inner margin strip, a flexible 1fr text column, and a 6rem outer notes column. Every block-level element is assigned to <code>grid-column: 2</code> — the text track. The outer columns are reserved but unpopulated in this edition; their presence is what creates the proportions of a page that feels wider than its text column, because the unused tracks read as generous margins without carrying any content. The <code>max-width: 52rem</code> at 16px base equals 832px — wide enough to hold the 66-character measure established in Chapter 9 with room for the two outer columns.</p>
 
+    <p>This grid is correct for screen preview, where the browser window is wide and the columns produce well-proportioned reading geometry. For the PDF it requires an override. On the 5.5 × 8.5in trim, the <code>@page</code> margins (0.625in inside, 0.875in outside) constrain the content area to 4 inches — 384px in the browser coordinate system Paged.js uses. Within that space, the fixed tracks and gaps consume roughly 240px, leaving the text column at around 1.5 inches: uncomfortably narrow for body text. The <code>@page</code> margins are already providing the horizontal whitespace; the grid's outer columns are redundant overhead. <code>07-print.css</code> resets this when injected at build time:</p>
+
+<pre><code><span class="c-comment">/* ── 07-print.css: strip screen-preview constraints ── */</span>
+<span class="c-sel">.chapter-body</span> {
+  <span class="c-prop">display</span>:   <span class="c-val">block</span>;
+  <span class="c-prop">max-width</span>: <span class="c-val">none</span>;
+  <span class="c-prop">margin</span>:    <span class="c-val">0</span>;
+  <span class="c-prop">padding</span>:   <span class="c-val">0</span>;
+}</code></pre>
+
+    <p>With the grid collapsed, content flows as a simple block across the full 4-inch content area. This is the correct division of responsibility: <code>04-layout.css</code> serves the browser preview; <code>07-print.css</code> resets what is no longer needed and lets the <code>@page</code> geometry do its job.</p>
+
     <p>Front matter display pages — half-title, title page, copyright verso, dedication — use a different pattern: a flexbox container that fills and centers on the page:</p>
 
 <pre><code><span class="c-sel">.display-page</span> {
@@ -1008,8 +1020,8 @@
 
     <div class="callout">
       <p class="callout-label">The Compositor's Garden as reference</p>
-      <p>The project document is itself the reference implementation for everything in this chapter. Its seven stylesheet layers — from <code>01-tokens.css</code> through <code>07-print.css</code> — implement the complete book interior: the front matter page sequence, the three-column body grid, chapter openers with the 2-inch drop, drop caps, section breaks, and the footnote area. The files are available alongside this book.</p>
-      <p>To adapt the project for a different book: update the custom properties in <code>01-tokens.css</code> (typefaces, type scale, colors, page dimensions) and the <code>@page</code> margin values in <code>06-page.css</code> to match your trim size. The structural rules — the named pages, the grid, the footnote area, the drop cap — stay unchanged. The system was designed so that changing the values changes the book; the logic is fixed.</p>
+      <p>The project document is itself the reference implementation for everything in this chapter. Its seven stylesheet layers — from <code>01-tokens.css</code> through <code>07-print.css</code> — implement the complete book interior: the front matter page sequence, chapter openers with the 2-inch drop, drop caps, section breaks, the footnote area, and the screen/print layout split described above. The files are available alongside this book.</p>
+      <p>To adapt the project for a different book: update the custom properties in <code>01-tokens.css</code> (typefaces, type scale, colors) and the <code>@page</code> margin values in <code>06-page.css</code> to match your trim size. If the trim size changes the content-area width significantly, revisit the <code>.chapter-body</code> grid in <code>04-layout.css</code> for the screen preview proportions — the print override in <code>07-print.css</code> will still collapse it to full-width for the PDF regardless. The structural rules — the named pages, the footnote area, the drop cap — stay unchanged.</p>
     </div>
 
     <span class="sep">· · ·</span>
