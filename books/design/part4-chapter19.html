@@ -567,6 +567,7 @@
     <ul class="opener-topics">
       <li>Bleeds, crop marks, and safe zones</li>
       <li>Color considerations for professional printing</li>
+      <li>Footnotes and the <code>@footnote</code> area</li>
       <li>Generating and checking your PDF</li>
       <li>Working with print-on-demand services</li>
     </ul>
@@ -767,6 +768,64 @@
         <p><strong>Figure 19.2 — Colors safe and risky for CMYK conversion.</strong> Left: three colors from the project palette — near-black body text, warm off-white background, and muted amber accent. All have saturation well below 60% and convert predictably to CMYK. Right: three vivid colors with saturation above 80%. These are near or outside the CMYK gamut, and will shift noticeably when printed — particularly the vivid blue and vivid green, which are specific trouble areas for CMYK conversion. For a design that must be accurate in print, keep saturation below 60%.</p>
       </div>
     </div>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Footnotes in Paged.js</span>
+      The @footnote area and how to populate it</h2>
+
+    <p>Paged.js implements the CSS specification's mechanism for footnotes: content is floated to a reserved area at the bottom of the page, leaving a superscript reference mark at its original position in the text. Four CSS rules work together to produce a complete footnote system — the float declaration that moves the content, two pseudo-elements that style the reference call and the note's number, and a margin-box declaration that defines the footnote area within the page.</p>
+
+    <p>In HTML, a footnote is a <code>&lt;span&gt;</code> placed inline in the paragraph, at exactly the point where the reference belongs:</p>
+
+<pre><code><span class="c-comment">&lt;!-- The footnote content sits inline in the text  --&gt;</span>
+&lt;p&gt;Typography is not decoration but engineering.&lt;span class=<span class="c-val">"fn"</span>&gt;
+  See Warde, &lt;em&gt;"The Crystal Goblet,"&lt;/em&gt; 1930.
+&lt;/span&gt; The reader is the final judge.&lt;/p&gt;</code></pre>
+
+    <p>The span contains the full note text. Paged.js removes it from the paragraph flow, places a call mark where it was, and renders the content in the footnote area at the bottom of whichever page contains the reference. The CSS that produces this behaviour:</p>
+
+<pre><code><span class="c-comment">/* Move the element to the footnote area          */</span>
+<span class="c-sel">.fn</span> {
+  <span class="c-prop">float</span>:       <span class="c-val">footnote</span>;
+  <span class="c-prop">font-size</span>:   <span class="c-val">var(--text-sm)</span>;
+  <span class="c-prop">line-height</span>: <span class="c-val">1.62</span>;
+  <span class="c-prop">color</span>:       <span class="c-val">var(--ink-mid)</span>;
+}
+
+<span class="c-comment">/* The superscript call mark left in the text      */</span>
+<span class="c-sel">.fn</span>::<span class="c-sel">footnote-call</span> {
+  <span class="c-prop">content</span>:        <span class="c-val">counter(footnote, decimal)</span>;
+  <span class="c-prop">font-size</span>:      <span class="c-val">0.65em</span>;
+  <span class="c-prop">vertical-align</span>: <span class="c-val">super</span>;
+  <span class="c-prop">line-height</span>:    <span class="c-val">0</span>;
+  <span class="c-prop">color</span>:          <span class="c-val">var(--accent)</span>;
+  <span class="c-prop">margin-left</span>:    <span class="c-val">0.05em</span>;
+}
+
+<span class="c-comment">/* The number at the start of each footnote entry  */</span>
+<span class="c-sel">.fn</span>::<span class="c-sel">footnote-marker</span> {
+  <span class="c-prop">content</span>:       <span class="c-val">counter(footnote, decimal) '.'</span>;
+  <span class="c-prop">font-size</span>:     <span class="c-val">var(--text-xs)</span>;
+  <span class="c-prop">color</span>:         <span class="c-val">var(--ink-faint)</span>;
+  <span class="c-prop">padding-right</span>: <span class="c-val">0.4em</span>;
+}
+
+<span class="c-comment">/* The footnote area — declared inside @page body  */</span>
+<span class="c-at">@page</span> <span class="c-val">body</span> {
+  <span class="c-at">@footnote</span> {
+    <span class="c-prop">border-top</span>:  <span class="c-val">1px solid var(--rule)</span>;
+    <span class="c-prop">padding-top</span>: <span class="c-val">0.75rem</span>;
+    <span class="c-prop">margin-top</span>:  <span class="c-val">1rem</span>;
+  }
+}
+
+<span class="c-comment">/* Reset the footnote counter at each chapter      */</span>
+<span class="c-sel">.chapter-body</span> { <span class="c-prop">counter-reset</span>: <span class="c-val">footnote</span>; }</code></pre>
+
+    <p>Paged.js manages the <code>footnote</code> counter automatically, incrementing it for each <code>.fn</code> element as the document flows. Both <code>::footnote-call</code> and <code>::footnote-marker</code> display the current value using <code>counter(footnote, decimal)</code> — they stay in sync without any additional work. The <code>counter-reset: footnote</code> on <code>.chapter-body</code> restarts numbering from 1 at each chapter, which is conventional for literary documents. For academic papers where footnotes run continuously through the document, remove the chapter-level reset.</p>
+
+    <p>The <code>@footnote</code> area within <code>@page body</code> appears only on pages that have footnotes; on pages without them, the body text column fills the full content area. When footnotes are present, the body column shrinks upward to make room. Keep footnote text concise — one or two sentences. Long footnotes that occupy more than a quarter of the page height interact unpredictably with break rules, and footnotes that must flow across multiple pages are not reliably supported in Paged.js's current implementation. For extensive annotation, endnotes collected in the back matter are both the more conventional choice and the more technically robust one.</p>
 
     <span class="sep">· · ·</span>
 

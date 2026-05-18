@@ -252,7 +252,8 @@
     <p class="opener-subtitle">A document project that starts in one file and grows without structure becomes unworkable before it is finished. The decisions made at the start — about folders, about CSS layers, about what goes where — determine whether the project is maintainable or merely functional.</p>
     <ul class="opener-topics">
       <li>Folder structure and file naming conventions</li>
-      <li>Layering CSS: base, theme, layout, print</li>
+      <li>Layering CSS: seven files, seven concerns</li>
+      <li>CSS cascade layers (<code>@layer</code>) — and why the project uses file-ordering instead</li>
       <li>Separating content from presentation</li>
       <li>Git for document version control</li>
     </ul>
@@ -401,6 +402,39 @@
     </div>
 
     <p>The strict separation at layer 6 — everything Paged.js-specific goes in <code>06-page.css</code>, nothing else goes there — makes it straightforward to test the document in a non-Paged.js context. If you need to render the HTML as a screen document (for a web preview, for example), you simply omit <code>06-page.css</code> and <code>07-print.css</code> from the <code>&lt;link&gt;</code> tags. Layers 1 through 5 remain fully functional without any paged-media-specific CSS. This separation also makes it easy to port the document's visual design to a different rendering tool — WeasyPrint, Prince — by swapping the <code>@page</code> rules in <code>06-page.css</code> for that tool's specific syntax, while leaving all the typography and layout CSS untouched.</p>
+
+    <h2><span class="label">CSS cascade layers</span>
+      The formal version — and why the project doesn't use it</h2>
+
+    <p>The file-ordering approach described above relies on two things being true: the <code>&lt;link&gt;</code> tags in <code>index.html</code> are ordered correctly, and each CSS file respects its scope without accidentally overriding another layer through high-specificity selectors. Both conditions are easy to maintain in a small project. In a larger project — multiple contributors, generated CSS, third-party stylesheets — they are harder to guarantee.</p>
+
+    <p>The CSS Cascade Level 5 specification introduces a formal mechanism for exactly this problem: the <code>@layer</code> at-rule. A cascade layer is a named group of CSS rules whose priority relative to other layers is declared once, explicitly, regardless of specificity or loading order:</p>
+
+<pre><code><span class="c-comment">/* Declare the layer order once — before any rules.
+   Later layers have higher priority than earlier ones. */</span>
+<span class="c-sel">@layer</span> tokens, base, typography, layout, components, page;
+
+<span class="c-comment">/* In 01-tokens.css */</span>
+<span class="c-sel">@layer</span> tokens {
+  <span class="c-sel">:root</span> {
+    <span class="c-prop">--text-base</span>: <span class="c-val">1.175rem</span>;
+    <span class="c-prop">--accent</span>:    <span class="c-val">#d4471a</span>;
+  }
+}
+
+<span class="c-comment">/* In 03-typography.css */</span>
+<span class="c-sel">@layer</span> typography {
+  <span class="c-sel">h2</span> { <span class="c-prop">font-size</span>: <span class="c-val">var(--text-lg)</span>; }
+}
+
+<span class="c-comment">/* In 06-page.css */</span>
+<span class="c-sel">@layer</span> page {
+  <span class="c-sel">@page body</span> { <span class="c-prop">margin</span>: <span class="c-val">0.875in 0.75in</span>; }
+}</code></pre>
+
+    <p>With this in place, <code>typography</code> always overrides <code>base</code>, and <code>layout</code> always overrides <code>typography</code> — regardless of specificity or loading order. A rule in <code>typography</code> does not need a higher-specificity selector than a rule in <code>base</code> to win; it wins because the layer order makes it higher priority. If a <code>&lt;link&gt;</code> tag is accidentally reordered, the priority is not affected. If a third-party stylesheet is included, it can be placed in a named layer below <code>tokens</code> and will never override your own CSS regardless of how specific its selectors are. Browser support for <code>@layer</code> is complete across all current browsers, and Paged.js processes it correctly.<sup>1</sup></p>
+
+    <p><em>The Compositor's Garden</em> uses file-ordering rather than <code>@layer</code> for one reason: learning transparency. When the goal is to understand how the CSS cascade works — how specificity, inheritance, and loading order interact — <code>@layer</code> introduces a third priority axis above specificity and below <code>!important</code>. That additional mechanism is genuinely useful in production, but it also means that when something overrides unexpectedly, there are three dimensions to diagnose instead of two. The project keeps the cascade unmediated so that the rules of standard CSS remain visible. For any project that moves beyond the learning stage, <code>@layer</code> is the recommended upgrade: wrap each CSS file's rules in its named layer, add the single <code>@layer</code> declaration to <code>index.html</code> before the first <code>&lt;link&gt;</code> tag, and the file-ordering requirement becomes a convenience rather than a necessity.</p>
 
     <span class="sep">· · ·</span>
 
@@ -572,7 +606,7 @@ npm-debug.log</span>
   <aside class="footnotes">
     <p class="footnotes-label">Notes</p>
     <ol>
-      <li>The principle of CSS cascade layers — the <code>@layer</code> at-rule introduced in the CSS Cascade Level 5 specification — provides a formal mechanism for the concern-based layering described in this chapter. Rather than relying on file loading order and specificity, <code>@layer</code> lets you explicitly declare the priority order of CSS layers: <code>@layer tokens, base, typography, layout, components, page;</code> — and all styles in <code>tokens</code> will be lower priority than <code>base</code>, regardless of specificity or loading order. This is a stronger isolation than the file-naming convention described here and is worth adopting in new projects. Browser support is now excellent. The interaction between <code>@layer</code> and Paged.js's own CSS processing is well-behaved in current Paged.js versions.</li>
+      <li>There is one counterintuitive aspect of <code>@layer</code> worth knowing: <code>!important</code> reverses the layer priority order. A rule declared <code>!important</code> in the <code>tokens</code> layer — the lowest-priority layer — wins over a rule declared <code>!important</code> in the <code>typography</code> layer. This is intentional in the specification: it mirrors how <code>!important</code> already works in the cascade (user-agent <code>!important</code> beats author <code>!important</code>), but it can be surprising if you apply <code>!important</code> in a layered stylesheet expecting it to simply "win everything." The practical advice is the same as for the cascade generally: avoid <code>!important</code> except in the specific situation it was designed for (overriding styles you cannot otherwise reach), and the layer priority order will behave as expected.</li>
       <li>For multi-author document projects where Git's text-based merging is insufficient — for instance, where content is managed in a headless CMS or generated from a database — a build system (Eleventy, Astro, or a custom script) that assembles HTML from data sources and templates may be more appropriate than hand-authored HTML files. The CSS layer structure and Paged.js configuration remain the same; only the content authoring layer changes. The companion online resources cover this pattern for teams with more complex content management needs.</li>
     </ol>
   </aside>

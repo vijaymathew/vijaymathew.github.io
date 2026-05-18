@@ -564,6 +564,7 @@
     <ul class="opener-topics">
       <li>Proportional systems: modular scale, classical ratios</li>
       <li>Building a scale in CSS custom properties</li>
+      <li>Custom property scoping, <code>:root</code>, and naming conventions</li>
       <li>Applying the scale consistently across a document</li>
       <li>When and how to break the scale intentionally</li>
     </ul>
@@ -653,11 +654,54 @@
     <span class="sep">· · ·</span>
 
     <h2><span class="label">Building a scale in CSS</span>
-      Custom properties and the rem unit</h2>
+      The tools: custom properties and the rem unit</h2>
 
     <p>The most effective way to implement a type scale in CSS is with custom properties — CSS variables — defined at the <code>:root</code> level. This approach makes the scale explicit, readable, and easy to adjust: all size relationships are visible in one place, and changing the base size or the ratio propagates through the entire document automatically.</p>
 
-    <p>The foundation is a base font size set on the <code>html</code> element, and a set of named scale steps defined as <code>rem</code> values. The <code>rem</code> unit — root em — is always relative to the base font size of the document, not to the size of the parent element. This makes it predictable in a way that <code>em</code> is not: a <code>rem</code> value means the same thing wherever it appears in the document, which is exactly what you want for a consistent scale.<sup>2</sup></p>
+    <p>The sizes are expressed in <code>rem</code> units — root em — which are always relative to the base font size of the document, not to the size of the parent element. This makes them predictable in a way that <code>em</code> is not: a <code>rem</code> value means the same thing wherever it appears in the document, which is exactly what you want for a consistent scale.<sup>2</sup> Before writing the scale, it helps to understand how custom properties themselves work — what the syntax means, why <code>:root</code> is the right declaration site, and how to name them well.</p>
+
+    <h2><span class="label">Custom properties and scope</span>
+      How CSS variables work in the cascade</h2>
+
+    <p>CSS custom properties are declared with a mandatory double-dash prefix and read back with the <code>var()</code> function. Unlike the variables you may know from Sass or LESS — which are resolved at compile time and disappear in the final CSS — custom properties are part of the live cascade. They inherit, they respond to media queries, and they can be read and written by JavaScript at runtime.</p>
+
+<pre><code><span class="c-comment">/* Declaration — anywhere in your CSS        */</span>
+<span class="c-sel">:root</span> {
+  <span class="c-prop">--text-base</span>: <span class="c-val">1.175rem</span>;
+}
+
+<span class="c-comment">/* Usage — in any rule that follows          */</span>
+<span class="c-sel">body</span> {
+  <span class="c-prop">font-size</span>: <span class="c-val">var(--text-base)</span>;
+}</code></pre>
+
+    <p>The <code>--</code> prefix is part of the specification, not a convention — it marks the property name as custom, reserving it from collision with any current or future standard CSS property. Everything after the two dashes is the name you choose. The value can be anything valid for the property where you use it: a length, a colour, a font family string, a line-height ratio.</p>
+
+    <p><strong>Why <code>:root</code>?</strong> CSS custom properties inherit through the document tree the same way <code>color</code> and <code>font-size</code> do. A property declared on any element is available to that element and all its descendants. <code>:root</code> is a pseudo-class that matches the root element of the document — in HTML, the <code>&lt;html&gt;</code> element — so declaring your tokens there makes them available to every element in the page. It also carries slightly higher specificity than a plain <code>html</code> selector, which avoids edge-case overriding problems.</p>
+
+    <p>The useful implication is that you can override a token at any point in the tree to create a local context. A sidebar with its own base size, a callout component with a different accent colour — these require only a targeted declaration on the right element. Everything below it in the tree picks up the new value; everything outside it uses the global one.</p>
+
+<pre><code><span class="c-comment">/* Global token — available everywhere       */</span>
+<span class="c-sel">:root</span> {
+  <span class="c-prop">--text-base</span>: <span class="c-val">1.175rem</span>;
+  <span class="c-prop">--accent</span>:    <span class="c-val">#d4471a</span>;
+}
+
+<span class="c-comment">/* Local override — only inside .sidebar     */</span>
+<span class="c-sel">.sidebar</span> {
+  <span class="c-prop">--text-base</span>: <span class="c-val">1rem</span>;     <span class="c-comment">/* smaller type in sidebar  */</span>
+}
+
+<span class="c-comment">/* This rule reads the local value inside
+   .sidebar, and the global value outside it */</span>
+<span class="c-sel">p</span> { <span class="c-prop">font-size</span>: <span class="c-val">var(--text-base)</span>; }</code></pre>
+
+    <p><strong>Naming conventions.</strong> The <code>--</code> is mandatory; the rest is yours. A few conventions are widely used and worth following. First, prefix by category: <code>--text-*</code> for scale values, <code>--color-*</code> or bare semantic names for colour, <code>--space-*</code> for spacing. This makes the stylesheet self-documenting — the prefix tells you what kind of value the property holds before you look at the value itself. Second, prefer semantic names for roles that are stable even if values change: <code>--accent</code> rather than <code>--burnt-orange</code>; <code>--ink-faint</code> rather than <code>--grey-60</code>. The project colour tokens follow this pattern — <code>--paper</code>, <code>--ink</code>, <code>--ink-mid</code>, <code>--rule</code>, <code>--accent</code> — because those roles will remain meaningful even if the palette shifts from one edition to another. The scale tokens use a descriptive positional name (<code>--text-xs</code>, <code>--text-sm</code>, <code>--text-base</code>) because the scale positions are what they are: small, base, large. Third, use kebab-case throughout — lowercase with hyphens. Both <code>--TextBase</code> and <code>--text_base</code> are technically valid but inconsistent with the rest of CSS convention.</p>
+
+    <span class="sep">· · ·</span>
+
+    <h2><span class="label">Building the scale</span>
+      From ratio to named steps</h2>
 
     <p>Here is the scale used for this book, implemented as CSS custom properties:</p>
 

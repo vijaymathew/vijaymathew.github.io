@@ -640,6 +640,7 @@
     <p class="opener-subtitle">A typeface that loads beautifully in a browser may behave differently on its way to a PDF. Understanding the pipeline prevents surprises.</p>
     <ul class="opener-topics">
       <li>Loading strategies for Paged.js documents</li>
+      <li>Why <code>display=swap</code> breaks pagination — and the <code>display=block</code> fix</li>
       <li>System fonts as a deliberate choice</li>
       <li>Font licensing for PDF distribution</li>
       <li>Performance vs. typographic richness</li>
@@ -663,18 +664,19 @@
 
     <p>The most robust approach is the <code>document.fonts.ready</code> promise, which resolves when all font faces referenced in the document's CSS have finished loading. Paged.js provides a mechanism to delay its automatic preview until this promise resolves. In the simplest setup, where Paged.js runs automatically on page load, you can use the <code>previewer</code> API to trigger pagination manually after fonts are ready:</p>
 
-<pre><code><span class="c-comment">/* In your HTML, include Paged.js but prevent
-   auto-run by adding the data attribute       */</span>
-<span class="c-tag">&lt;script</span>
-  <span class="c-prop">src</span>=<span class="c-str">"paged.js"</span>
-  <span class="c-prop">data-paged-preview</span>=<span class="c-str">"false"</span>
-<span class="c-tag">&gt;&lt;/script&gt;</span>
-
-<span class="c-comment">/* Then in a separate script block           */</span>
+<pre><code><span class="c-comment">/* 1. Disable auto-preview BEFORE loading the polyfill */</span>
 <span class="c-tag">&lt;script&gt;</span>
-  document.fonts.ready.then(() => {
+  window.PagedConfig = { auto: <span class="c-val">false</span> };
+<span class="c-tag">&lt;/script&gt;</span>
+
+<span class="c-comment">/* 2. Load the polyfill                              */</span>
+<span class="c-tag">&lt;script</span> <span class="c-prop">src</span>=<span class="c-str">"paged.polyfill.js"</span><span class="c-tag">&gt;&lt;/script&gt;</span>
+
+<span class="c-comment">/* 3. Trigger preview only after fonts are ready     */</span>
+<span class="c-tag">&lt;script&gt;</span>
+  document.fonts.ready.then(<span class="c-val">function</span> () {
     <span class="c-comment">// All fonts loaded — safe to paginate</span>
-    window.PagedPolyfill.preview();
+    <span class="c-val">new</span> window.Paged.Previewer().preview();
   });
 <span class="c-tag">&lt;/script&gt;</span></code></pre>
 
@@ -690,7 +692,24 @@
        <span class="c-val">format('woff2')</span>;
 }</code></pre>
 
-    <p>When using Google Fonts rather than self-hosted files, you cannot control the <code>font-display</code> descriptor directly — it is set by Google's servers, typically to <code>swap</code>. In this case, the <code>document.fonts.ready</code> approach is the more reliable option for ensuring fonts are loaded before Paged.js paginates.</p>
+    <h2><span class="label">The display=swap problem</span>
+      Why the default Google Fonts setting breaks pagination</h2>
+
+    <p>When using Google Fonts, the default <code>font-display</code> value is <code>swap</code>. This is sensible for a website: the browser renders immediately using a fallback system font, then swaps in the web font once it loads — giving users something to read quickly. For a Paged.js document it is the wrong behaviour, and understanding exactly why matters.</p>
+
+    <p>Paged.js runs when its script executes — usually on <code>DOMContentLoaded</code> or shortly after. With <code>font-display: swap</code>, the web fonts have not arrived yet at that moment; the browser is displaying your text in the fallback font. Paged.js reads the current rendering, calculates where lines break and where pages break, and builds its page structure — all against the fallback font's metrics. When the web font loads moments later (the "swap"), the browser updates the text rendering, but Paged.js does not re-paginate. The pagination was calculated for, say, Georgia; the text is now rendered in EB Garamond, which has different character widths and a different line rhythm. The result is text that overflows pages, page breaks in the wrong places, and a document that looks visually correct but is typographically broken.</p>
+
+    <p>Google Fonts supports a URL parameter that overrides this default. Appending <code>&amp;display=block</code> to the API request URL applies <code>font-display: block</code> to every font in the request — instructing the browser to wait, invisibly, until all fonts are loaded before rendering anything:</p>
+
+<pre><code><span class="c-comment">&lt;!-- Google Fonts with display=block
+     Prevents swap; browser waits for fonts  --&gt;</span>
+<span class="c-tag">&lt;link</span> rel=<span class="c-str">"stylesheet"</span>
+      href=<span class="c-str">"https://fonts.googleapis.com/css2?
+  family=EB+Garamond:ital,wght@0,400..500;1,400..500
+  &amp;family=Outfit:wght@400;500
+  &amp;display=block"</span><span class="c-tag">&gt;</span></code></pre>
+
+    <p>With <code>display=block</code> in effect, Paged.js runs against the correct fonts — the same result as using <code>font-display: block</code> in a self-hosted <code>@font-face</code> declaration. This is the approach used in <em>The Compositor's Garden</em> project files. The <code>document.fonts.ready</code> guard adds a second layer of protection and remains useful in environments where script execution order is less predictable — both techniques together are belt-and-suspenders, but <code>display=block</code> alone is sufficient for typical development workflows.</p>
 
     <!-- Figure 11.1: Font loading strategies compared -->
     <div class="strategy-cards">
@@ -920,7 +939,7 @@
   &amp;family=Outfit:wght@400;500
   &amp;display=block"</span><span class="c-tag">&gt;</span></code></pre>
 
-    <p>Note the <code>display=block</code> parameter appended to the Google Fonts URL. This applies <code>font-display: block</code> to all the fonts in the request — instructing the browser to wait for the fonts rather than rendering with a fallback. As discussed earlier, this is the correct behavior for a Paged.js document and is now supported in Google Fonts URL parameters.<sup>2</sup></p>
+    <p>The <code>display=block</code> parameter applies the behaviour described in the previous section. Note also the variable font syntax for EB Garamond: <code>wght@0,400..500;1,400..500</code> requests a continuous weight range from 400 to 500 in both roman and italic, rather than requesting two discrete weights as separate font files. This reduces the number of network requests while giving the CSS full access to any intermediate weight in that range.<sup>2</sup></p>
 
     <span class="sep">· · ·</span>
 
@@ -949,16 +968,16 @@
   &amp;family=Outfit:wght@400;500
   &amp;display=block"</span><span class="c-tag">&gt;</span>
 
-<span class="c-comment">&lt;!-- 3. Paged.js — disable auto-preview --&gt;</span>
-<span class="c-tag">&lt;script</span>
-  src=<span class="c-str">"paged.polyfill.js"</span>
-  data-paged-preview=<span class="c-str">"false"</span>
-<span class="c-tag">&gt;&lt;/script&gt;</span>
-
-<span class="c-comment">&lt;!-- 4. Font-ready guard --&gt;</span>
+<span class="c-comment">&lt;!-- 3. Disable auto-preview BEFORE loading Paged.js --&gt;</span>
 <span class="c-tag">&lt;script&gt;</span>
-  document.fonts.ready.then(function () {
-    window.PagedPolyfill.preview();
+  window.PagedConfig = { auto: <span class="c-val">false</span> };
+<span class="c-tag">&lt;/script&gt;</span>
+<span class="c-tag">&lt;script</span> src=<span class="c-str">"paged.polyfill.js"</span><span class="c-tag">&gt;&lt;/script&gt;</span>
+
+<span class="c-comment">&lt;!-- 4. Font-ready guard — belt-and-suspenders     --&gt;</span>
+<span class="c-tag">&lt;script&gt;</span>
+  document.fonts.ready.then(<span class="c-val">function</span> () {
+    <span class="c-val">new</span> window.Paged.Previewer().preview();
   });
 <span class="c-tag">&lt;/script&gt;</span>
 
@@ -982,7 +1001,7 @@
     <div class="callout">
       <p class="callout-label">A note on offline use</p>
       <p>If you will be working on the project document in environments without reliable internet access — on a plane, in a location with poor connectivity, or in a build environment without outbound network access — download the font files from Google Fonts using the google-webfonts-helper tool and switch to the self-hosted <code>@font-face</code> approach from earlier in this chapter. Change <code>font-display: block</code> in the <code>@font-face</code> declarations, remove the Google Fonts <code>&lt;link&gt;</code> elements, and remove the <code>fonts.ready</code> guard — it is no longer needed, because the fonts load from local files before the page script runs.</p>
-      <p>The companion project files for this book include both versions of the font setup — online and offline — with comments indicating which lines to switch between them. For most development work, the Google Fonts version is more convenient. For production output, self-hosting is more reliable.</p>
+      <p>The compositor-garden project uses the Google Fonts approach with <code>&amp;display=block</code>. To switch to self-hosted fonts, download the files from Google Fonts, add the <code>@font-face</code> declarations to the project's <code>01-tokens.css</code> with <code>font-display: block</code>, and remove the <code>&lt;link&gt;</code> elements from the HTML. The <code>fonts.ready</code> guard can be removed in that case — self-hosted fonts load from disk before any script executes.</p>
     </div>
 
     <span class="sep">· · ·</span>
@@ -997,7 +1016,7 @@
     <p class="footnotes-label">Notes</p>
     <ol>
       <li>The distinction between web font embedding and PDF embedding is the source of considerable confusion in font licensing. A web font licence permits the font to be served from a web server and rendered in a browser — this is what Google Fonts and CDN delivery services do. PDF embedding means the font data is included inside the PDF file itself, so that any reader can view the correct typeface regardless of whether it is installed on their machine. These are legally distinct uses, and a licence that explicitly covers web use may not cover PDF embedding. The SIL Open Font License covers both explicitly and unambiguously, which is one reason it has become the dominant licence for open-source typefaces used in document work.</li>
-      <li>The <code>display=block</code> parameter in Google Fonts URLs was added to support use cases, like Paged.js documents, where rendering correctness is more important than first-paint performance. It applies <code>font-display: block</code> to all fonts in the request, instructing the browser to hold rendering until all fonts are loaded. Not all font CDNs support this parameter; it is specific to Google Fonts and should be verified against current Google Fonts documentation, as the API evolves.</li>
+      <li>Variable font axis ranges in Google Fonts URLs use the syntax <code>wght@min..max</code> (two dots). For EB Garamond, <code>ital,wght@0,400..500;1,400..500</code> requests the roman axis at weights 400–500 and the italic axis at 400–500 as a single font file pair rather than four discrete cuts. Not all Google Fonts are variable fonts; check the Google Fonts specimen page to confirm whether a variable weight range is available before using the range syntax.</li>
       <li>For automated document generation — producing PDFs from HTML programmatically at scale — Puppeteer and Playwright are the most common tools. Both headless Chromium-based browsers can run Paged.js, navigate to the document URL, and export the Paged.js-rendered view as a PDF. In this pipeline, fonts must be self-hosted or loaded before the PDF export command is issued. The Paged.js documentation includes a section on CLI and automated workflows covering the specifics of font loading in headless environments.</li>
     </ol>
   </aside>
