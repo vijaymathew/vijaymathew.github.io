@@ -361,6 +361,12 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#comparable-deferred" id="toc-comparable-deferred" class="nav-link" data-scroll-target="#comparable-deferred"><code>Comparable</code> (deferred)</a></li>
   <li><a href="#hashable-deferred" id="toc-hashable-deferred" class="nav-link" data-scroll-target="#hashable-deferred"><code>Hashable</code> (deferred)</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#class-modifiers" id="toc-class-modifiers" class="nav-link" data-scroll-target="#class-modifiers">Class Modifiers</a>
+  <ul class="collapse">
+  <li><a href="#once" id="toc-once" class="nav-link" data-scroll-target="#once"><code>once</code></a></li>
+  <li><a href="#deferred" id="toc-deferred" class="nav-link" data-scroll-target="#deferred"><code>deferred</code></a></li>
+  <li><a href="#sealed-deferred" id="toc-sealed-deferred" class="nav-link" data-scroll-target="#sealed-deferred"><code>sealed deferred</code></a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -559,8 +565,65 @@ print(s.hash())
 let n := 42
 print(n.compare(10))               -- positive
 print(n.hash())</code></pre>
+</section>
+<section id="class-modifiers" class="level2">
+<h2 class="anchored" data-anchor-id="class-modifiers">Class Modifiers</h2>
+<section id="once" class="level3">
+<h3 class="anchored" data-anchor-id="once"><code>once</code></h3>
+<p>A field declared with <code>once</code> can be assigned in a constructor but never reassigned afterward. The typechecker enforces this at compile time.</p>
+<pre class="nex"><code>class Point
+  feature
+    once x: Integer
+    once y: Integer
+  create
+    make(px: Integer, py: Integer) do
+      x := px
+      y := py
+    end
+end</code></pre>
+<p>Assigning a <code>once</code> field outside a constructor is a compile-time error:</p>
+<pre class="nex"><code>class Box
+  feature
+    once value: Integer
+  create
+    make(v: Integer) do value := v end
+  feature
+    overwrite(v: Integer) do
+      value := v     -- error: 'value' is a once field
+    end
+end</code></pre>
+</section>
+<section id="deferred" class="level3">
+<h3 class="anchored" data-anchor-id="deferred"><code>deferred</code></h3>
+<p>A <code>deferred</code> class cannot be instantiated directly. It defines an interface — methods that subclasses are expected to override.</p>
+<pre class="nex"><code>deferred class Shape
+  feature
+    area(): Real do end        -- overridden by each subclass
+end</code></pre>
+</section>
+<section id="sealed-deferred" class="level3">
+<h3 class="anchored" data-anchor-id="sealed-deferred"><code>sealed deferred</code></h3>
+<p>A <code>sealed deferred</code> class is both abstract and closed: only classes defined alongside it can inherit from it. The typechecker tracks all known subclasses and verifies exhaustive handling in <code>match</code> statements.</p>
+<pre class="nex"><code>sealed deferred class Result
+end
 
+class Ok
+  inherit Result
+  feature value: Integer
+  create make(v: Integer) do value := v end
+end
 
+class Err
+  inherit Result
+  feature msg: String
+  create make(m: String) do msg := m end
+end</code></pre>
+<p>A <code>match</code> on a sealed type must cover every variant or supply an <code>else</code> branch — a missing variant is a compile-time error:</p>
+<pre class="nex"><code>match r of
+  when Ok as ok then print(ok.value)
+  when Err as err then print(err.msg)
+end</code></pre>
+</section>
 </section>
 
 </main> <!-- /main -->
