@@ -283,8 +283,48 @@ end</code></pre>
 </ul>
 <p>That balance is not arbitrary. It reflects the routine’s role in the design. If the caller is expected to pass non-empty strings, make it a contract. If the content may legitimately fail to parse, raise or handle an exception.</p>
 </section>
-<section class="level2" data-number="22.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="22.9"> Summary</h2>
+<section class="level2" data-number="22.9" id="typed-error-results">
+<h2 class="anchored" data-anchor-id="typed-error-results" data-number="22.9"> Typed Error Results</h2>
+<p><code>raise</code> and <code>rescue</code> are the right tool for truly exceptional conditions — file not found, network down, service unavailable. But sometimes a routine naturally has two outcomes, both expected: a parse may succeed or it may fail; a lookup may find the key or it may not. Expressing these as exceptions forces the caller to use a rescue block for what is really an ordinary control flow decision.</p>
+<p>Sealed classes and the <code>match</code> statement provide an alternative that keeps the failure path explicit in the type signature. Define a sealed result type with one variant for each outcome:</p>
+<pre><code>sealed deferred class Parse_Result
+end
+
+class Parse_Ok
+  inherit Parse_Result
+  feature value: Integer
+  create make(v: Integer) do value := v end
+end
+
+class Parse_Error
+  inherit Parse_Result
+  feature reason: String
+  create make(r: String) do reason := r end
+end</code></pre>
+<p>A routine returns the sealed type instead of raising:</p>
+<pre><code>function parse_positive(text: String): Parse_Result
+do
+  let n := text.to_integer
+  if n > 0 then
+    result := create Parse_Ok.make(n)
+  else
+    result := create Parse_Error.make("must be positive")
+  end
+end</code></pre>
+<p>The caller handles both cases with <code>match</code>. The typechecker verifies that neither branch is forgotten — forgetting the error case is a compile-time error, not a silent runtime failure:</p>
+<pre><code>let outcome: Parse_Result := parse_positive("42")
+
+match outcome of
+  when Parse_Ok as ok then
+    print("got: " + ok.value.to_string)
+  when Parse_Error as err then
+    print("failed: " + err.reason)
+end</code></pre>
+<p>Compared to string-based exceptions, this approach gives the caller a typed handle on the error — <code>err.reason</code> is a <code>String</code> field, not an opaque exception value — and moves the handling obligation from runtime to compile time.</p>
+<p>Use <code>raise</code>/<code>rescue</code> for conditions that are unexpected during correct operation. Use sealed result types when both success and failure are normal outcomes that every caller must actively decide how to handle.</p>
+</section>
+<section class="level2" data-number="22.10" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="22.10"> Summary</h2>
 <ul>
 <li>Exceptions are for failures that can occur during otherwise valid execution</li>
 <li><code>raise</code> signals an exception; <code>rescue</code> handles it; <code>retry</code> tries the protected block again</li>
@@ -292,10 +332,11 @@ end</code></pre>
 <li>A rescue block should repair, substitute, or re-raise, not merely hide the error</li>
 <li>Retry should usually have a clear stopping condition</li>
 <li>Good error handling preserves meaning rather than blurring it</li>
+<li>Use sealed result types with <code>match</code> when both success and failure are ordinary outcomes — the typechecker enforces that every variant is handled</li>
 </ul>
 </section>
-<section class="level2" data-number="22.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="22.10"> Exercises</h2>
+<section class="level2" data-number="22.11" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="22.11"> Exercises</h2>
 <p><strong>1.</strong> Write a <code>do ... rescue ... end</code> block that raises <code>"too small"</code> until a counter reaches 5, then prints <code>"ok"</code>. Use <code>retry</code>.</p>
 <p><strong>2.</strong> Define a function <code>safe_reciprocal(x: Real): Real</code> that raises an exception when <code>x = 0.0</code>. Then wrap a call in a rescue block that prints a fallback message.</p>
 <p><strong>3.</strong> Rewrite a routine of your own choosing so that it distinguishes clearly between a contract violation and an exception-producing environmental failure.</p>
