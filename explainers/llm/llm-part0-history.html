@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Road to Transformers — LLMs from First Principles</title>
+<link href="../shared.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  /* ── LLM-series tokens (extend shared.css) ─── */
+  :root {
+    --accent:    #c0392b;
+    --accent2:   #2c7a7b;
+    --code-bg:   #1e1e1e;
+    --code-text: #d4d4d4;
+    --run-btn:   #2c7a7b;
+    --run-hover: #235f60;
+    --tag-bg:    #ede9e4;
+    --tag-text:  #4a4540;
+    --border:    var(--rule-strong);
+    --text:      var(--ink);
+    --muted:     var(--ink-3);
+    --link:      #c0392b;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--serif); font-size: 17px; line-height: 1.72; }
+  p { font-size: 1.0625rem; line-height: 1.72; margin-bottom: 1rem; }
+  .callout p, .demo-box p, .summary-card p { font-size: inherit; line-height: inherit; }
+  .page { padding: 0 2rem 6rem; }
+
+  .kicker { font-family: var(--sans); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 3.5rem; margin-bottom: .75rem; }
+  h1.hero { font-family: var(--serif); font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: normal; line-height: 1.15; letter-spacing: -.02em; color: var(--ink); margin-bottom: 1.25rem; max-width: none; }
+  h1.hero em { font-style: italic; color: var(--accent); }
+  .lede { font-size: 1.1rem; line-height: 1.65; color: var(--ink-2); max-width: 620px; margin-bottom: 2.5rem; font-style: italic; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 2.5rem; }
+  .summary-card { background: var(--bg); padding: 1.1rem 1.2rem; }
+  .summary-card .label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .3rem; }
+  .summary-card .value { font-family: var(--sans); font-size: .85rem; font-weight: 600; color: var(--ink); line-height: 1.3; }
+  .summary-card .sub { font-family: var(--sans); font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 3rem; }
+  .tag { font-family: var(--sans); font-size: 11px; letter-spacing: .04em; color: var(--tag-text); background: var(--tag-bg); padding: 3px 9px; border-radius: 2px; }
+
+  .toc { display: block; grid-template-columns: none; border: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); border-radius: 0; background: none; box-shadow: none; padding: 1.5rem 0; margin: 0 0 4rem; }
+  .toc a { display: flex; padding: .25rem 0; border-right: none; border-bottom: 1px solid transparent; background: none; font-size: .82rem; font-family: var(--sans); color: var(--muted); gap: .6rem; align-items: baseline; transition: color .15s, border-color .15s; }
+  .toc a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .toc-n, .toc-num { display: none; }
+  .toc-label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+  .toc-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: .1rem 2rem; }
+  .toc-list li a .num { font-family: var(--mono); font-size: .72rem; color: var(--accent); flex-shrink: 0; }
+
+  /* ── Timeline (flat block, year shown in section heading) ── */
+  .timeline-entry { display: block; margin-bottom: 0; }
+  .tl-year { display: none; }
+  .tl-spine-col { display: none; }
+  .tl-body { padding-bottom: 3.5rem; min-width: 0; }
+
+  .section-header { align-items: flex-start; gap: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .section-num { font-family: var(--mono); font-size: .72rem; color: var(--accent); letter-spacing: .04em; flex-shrink: 0; margin-top: .35rem; }
+  .section h2 { font-family: var(--serif); font-size: 1.45rem; font-weight: normal; line-height: 1.3; letter-spacing: -.01em; color: var(--ink); }
+  .section h2 .year-badge { font-family: var(--sans); font-size: .72rem; font-weight: 600; letter-spacing: .06em; background: var(--tag-bg); color: var(--muted); padding: 2px 7px; border-radius: 2px; margin-right: .6rem; vertical-align: middle; }
+  .section h3 { font-family: var(--serif); font-size: 1.05rem; font-weight: normal; font-style: italic; letter-spacing: 0; text-transform: none; margin: 1.5rem 0 .6rem; color: var(--ink); }
+  .section p:last-child { margin-bottom: 0; }
+  .section ul, .section ol { margin: .6rem 0 1rem 1.4rem; font-size: .95rem; line-height: 2; }
+
+  a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { color: var(--link); border-bottom-color: var(--link); }
+
+  code { font-family: var(--mono); font-size: .82em; background: var(--surface-muted); border: 1px solid var(--border); padding: 1px 5px; border-radius: 2px; color: var(--ink); }
+
+  .demo-box { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 3px; padding: 1.4rem 1.5rem; margin: 1.5rem 0; }
+  .demo-box .demo-label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+  .code-block { margin: 1.5rem 0; border-radius: 3px; overflow: hidden; border: 1px solid #333; }
+  .code-header { background: #2a2a2a; display: flex; align-items: center; padding: .45rem .85rem; gap: .7rem; }
+  .code-filename { font-family: var(--mono); font-size: .75rem; color: #9d9d9d; flex: 1; }
+  .code-lang { font-family: var(--sans); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: #666; }
+  .run-btn { font-family: var(--sans); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; background: var(--run-btn); color: #fff; border: none; padding: 4px 12px; border-radius: 2px; cursor: pointer; transition: background .15s; }
+  .run-btn:hover { background: var(--run-hover); }
+  .code-block pre { background: var(--code-bg); color: var(--code-text); font-family: var(--mono); font-size: .8rem; line-height: 1.6; padding: 1rem; overflow-x: auto; margin: 0; }
+  .output-area { background: #111; color: #a8d8a8; font-family: var(--mono); font-size: .78rem; line-height: 1.6; padding: .8rem 1rem; border-top: 1px solid #333; white-space: pre-wrap; display: none; min-height: 2rem; }
+  .output-area.visible { display: block; }
+
+  .prose-table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: .83rem; margin: 1.5rem 0; }
+  .prose-table th { text-align: left; padding: .5rem .8rem; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
+  .prose-table td { padding: .55rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+  .prose-table tr:last-child td { border-bottom: none; }
+
+  .callout { border-left: 3px solid var(--accent2); border-top: none; border-right: none; border-bottom: none; border-radius: 0; background: #f0f7f7; padding: .9rem 1.2rem; margin: 1.5rem 0; font-size: .93rem; }
+  .callout strong { color: var(--accent2); }
+  .callout.red { border-left-color: var(--accent); background: #fdf2f2; }
+  .callout.red strong { color: var(--accent); }
+
+  .anim-wrap { background: #fff; border: 1px solid var(--border); border-radius: 3px; margin: 1.5rem 0; overflow: hidden; }
+  .anim-controls { display: flex; gap: .6rem; padding: .6rem 1rem; background: var(--surface-muted); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+  .anim-controls .ctrl-label { font-family: var(--sans); font-size: .75rem; color: var(--muted); margin-right: .3rem; }
+  .ctrl-btn { font-family: var(--sans); font-size: .72rem; padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 2px; cursor: pointer; color: var(--ink); transition: background .12s; }
+  .ctrl-btn:hover { background: var(--border); }
+  .ctrl-btn.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  canvas { display: block; max-width: 100%; }
+  input[type=range] { accent-color: var(--accent2); cursor: pointer; }
+  input[type=text] { font-family: var(--mono); font-size: .85rem; padding: 5px 8px; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--ink); }
+
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 4rem 0; }
+  .breakthrough { display: inline-block; font-family: var(--sans); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; background: #fdf2f2; color: var(--accent); border: 1px solid #f5c6c2; padding: 2px 8px; border-radius: 2px; margin-left: .5rem; vertical-align: middle; }
+  footer { border-top: 1px solid var(--border); padding: 2rem 0; font-family: var(--sans); font-size: .8rem; color: var(--muted); text-align: center; }
+  footer a { color: var(--muted); border-bottom: 1px solid var(--border); }
+
+  @media (max-width: 600px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .toc-list { grid-template-columns: 1fr; }
+    h1.hero { font-size: 2rem; }
+  }
+
+  .site-header { border-bottom: 1px solid #e6e6ea; padding: 1.1rem 2rem; }
+  .site-header-inner { max-width: 52rem; margin: 0 auto; display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap; }
+  a.book-title { font-family: 'Outfit', system-ui, sans-serif; font-size: 0.85rem; font-weight: 400; letter-spacing: 0.01em; color: #3d3d40; text-decoration: none; border-bottom: none; }
+  a.book-title:hover { color: #0a0a0b; border-bottom: none; }
+  .book-nav { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-left: auto; }
+  .book-nav a { font-family: 'Outfit', system-ui, sans-serif; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: #6b6b6f; text-decoration: none; border-bottom: none; transition: color 0.15s; }
+  .book-nav a:hover { color: #0a0a0b; border-bottom: none; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="../index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="../index.html">Contents</a>
+</nav>
+</div>
+</header>
+
+<div class="page">
+
+  <p class="kicker">History of ideas · Language &amp; computation</p>
+  <h1 class="hero">The road to<br><em>Transformers</em></h1>
+  <p class="lede">Seventy years of wrong turns, abandoned ideas, and sudden clarity — the chain of intuitions that led from Shannon's coin flips to the attention mechanism. Each section shows the model that era produced, running in your browser.</p>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">Period covered</div>
+      <div class="value">1948 – 2017</div>
+      <div class="sub">Shannon to "Attention Is All You Need"</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Key thread</div>
+      <div class="value">The context problem</div>
+      <div class="sub">how much of the past should matter?</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Central question</div>
+      <div class="value">What is language, computationally?</div>
+      <div class="sub">statistics, symbols, or geometry?</div>
+    </div>
+  </div>
+
+  <div class="tags">
+    <span class="tag">Shannon entropy</span>
+    <span class="tag">N-gram models</span>
+    <span class="tag">Perceptron</span>
+    <span class="tag">Backpropagation</span>
+    <span class="tag">Recurrent networks</span>
+    <span class="tag">Vanishing gradient</span>
+    <span class="tag">LSTM</span>
+    <span class="tag">Word embeddings</span>
+    <span class="tag">Seq2seq</span>
+    <span class="tag">Attention</span>
+    <span class="tag">Pure JavaScript</span>
+  </div>
+
+  <div class="toc">
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li><a href="#s1"><span class="num">§01</span> Shannon &amp; the statistics of language</a></li>
+      <li><a href="#s2"><span class="num">§02</span> N-gram models</a></li>
+      <li><a href="#s3"><span class="num">§03</span> The Perceptron and its limits</a></li>
+      <li><a href="#s4"><span class="num">§04</span> Backpropagation &amp; the revival</a></li>
+      <li><a href="#s5"><span class="num">§05</span> Recurrent networks &amp; sequences</a></li>
+      <li><a href="#s6"><span class="num">§06</span> The vanishing gradient problem</a></li>
+      <li><a href="#s7"><span class="num">§07</span> LSTMs: memory with gates</a></li>
+      <li><a href="#s8"><span class="num">§08</span> Word embeddings &amp; meaning as geometry</a></li>
+      <li><a href="#s9"><span class="num">§09</span> Sequence-to-sequence &amp; the bottleneck</a></li>
+      <li><a href="#s10"><span class="num">§10</span> Attention: a soft, learnable lookup</a></li>
+      <li><a href="#s11"><span class="num">§11</span> Removing recurrence entirely</a></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- §01 Shannon -->
+  <div class="timeline-entry">
+    <div class="tl-year">1948</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s1">
+        <div class="section-header">
+          <span class="section-num">§01</span>
+          <h2><span class="year-badge">1948</span>Shannon &amp; the statistics of language</h2>
+        </div>
+
+        <p>Claude Shannon's 1948 paper <em>A Mathematical Theory of Communication</em> did not set out to explain language. It set out to understand how much information a channel could carry. But in doing so it established the foundational idea that would eventually lead to LLMs: <strong>language is a probability distribution over sequences of symbols</strong>.</p>
+
+        <p>Shannon's key demonstration was entropy — a measure of how unpredictable the next symbol in a sequence is. He showed that English has an entropy of roughly 1 bit per character: knowing the preceding characters, the next one is not random — it is heavily constrained. The letter <em>q</em> is almost always followed by <em>u</em>. The word <em>the</em> is far more likely after a period than after another <em>the</em>.</p>
+
+        <p>Shannon made this vivid with a thought experiment: he asked human subjects to guess the next letter in a text, measuring how often they were right. Humans, steeped in statistical regularities of English, performed far above chance — demonstrating that language has deep probabilistic structure. A machine that could learn that structure would be a machine that could model language.</p>
+
+        <div class="anim-wrap">
+          <div class="anim-controls">
+            <span class="ctrl-label">Shannon's guessing game — predict the next character:</span>
+          </div>
+          <canvas id="shannon-canvas" width="700" height="130"></canvas>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">entropy.js — measuring language entropy</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('entropy')">▶ Run</button>
+          </div>
+          <pre id="code-entropy">// Shannon entropy: H = -Σ p(x) log₂ p(x)
+// Measures the average surprise (bits) of the next symbol.
+
+function entropy(freq) {
+  const total = Object.values(freq).reduce((a,b)=>a+b, 0);
+  return -Object.values(freq).reduce((sum, count) => {
+    if (count === 0) return sum;
+    const p = count / total;
+    return sum + p * Math.log2(p);
+  }, 0);
+}
+
+function charFreq(text) {
+  const f = {};
+  for (const c of text.toLowerCase()) {
+    if (/[a-z ]/.test(c)) f[c] = (f[c]||0) + 1;
+  }
+  return f;
+}
+
+// Compare entropy across different text sources
+const sources = [
+  { name: 'Random letters',   text: Array.from({length:500},()=>String.fromCharCode(97+Math.floor(Math.random()*26))).join('') },
+  { name: 'English prose',    text: 'the cat sat on the mat a big dog ran on the path the sun set over the hill and the wind blew cold through the trees the old man walked slowly down the long road' },
+  { name: 'Repetitive text',  text: 'the the the the the cat cat cat the the mat mat mat the the the the the cat cat sat sat sat on on the the mat' },
+  { name: 'Code (JS)',        text: 'function add a b return a plus b const x equals add one two console log x if x greater three then doSomething else doOther end' },
+];
+
+console.log('Shannon entropy by text type (bits per character):\n');
+console.log('Source'.padEnd(22) + 'Entropy   Predictability');
+console.log('─'.repeat(52));
+for (const { name, text } of sources) {
+  const freq = charFreq(text);
+  const H = entropy(freq);
+  const maxH = Math.log2(Object.keys(freq).length);
+  const predictability = (1 - H/maxH) * 100;
+  const bar = '█'.repeat(Math.round(predictability/5));
+  console.log(`${name.padEnd(22)}${H.toFixed(3)} bits   ${predictability.toFixed(0).padStart(3)}% ${bar}`);
+}
+
+console.log('\nKey insight: lower entropy = more predictable = easier to model.');
+console.log('English prose is ~40-50% predictable from character frequencies alone.');</pre>
+          <div class="output-area" id="out-entropy"></div>
+        </div>
+
+        <p>This statistical view of language was not universally accepted. Chomsky would argue in 1959 that language has generative structure that no finite-state model could capture — a productive critique that sent linguistics in a different direction for decades. But the probabilistic view quietly persisted in engineering. Every spell-checker, speech recognizer, and machine translation system built between 1970 and 2010 was built on Shannon's foundation.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- §02 N-grams -->
+  <div class="timeline-entry">
+    <div class="tl-year">1950s–</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s2">
+        <div class="section-header">
+          <span class="section-num">§02</span>
+          <h2><span class="year-badge">1950s</span>N-gram models <span class="breakthrough">first working LM</span></h2>
+        </div>
+
+        <p>Shannon's theory needed an implementation. The simplest one was the n-gram model: estimate <code>P(word | previous n−1 words)</code> by counting how often that sequence appeared in a large corpus, then normalize.</p>
+
+        <p>A unigram model knows only word frequencies. A bigram model tracks pairs. A trigram model tracks triples. Each step buys more context at the cost of more data — a trigram model on a 100,000-word vocabulary requires tracking 10¹⁵ possible triples, most of which will never appear. Sparse data is the central problem with n-grams.</p>
+
+        <p>Practitioners developed elaborate smoothing techniques — Kneser-Ney, Good-Turing, Katz backoff — to handle the inevitable zero-count problem: what probability should be assigned to sequences never seen in training? These techniques worked well enough that n-gram language models ran at the heart of commercial speech recognition and machine translation systems from the 1980s through the early 2010s.</p>
+
+        <p>But they have a hard ceiling. A trigram model cannot learn that "the dog chased the cat" and "the cat was pursued by the dog" are semantically equivalent — they share no n-gram overlap. Context is bounded at three words regardless of the sentence. No amount of smoothing fixes this architectural limit.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">ngram.js — bigram and trigram language models</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('ngram')">▶ Run</button>
+          </div>
+          <pre id="code-ngram">// N-gram language model with Laplace (add-1) smoothing.
+// Simple but fully functional — this is the pre-neural baseline.
+
+function buildNgram(tokens, n) {
+  const counts = {};    // context → { next_word: count }
+  const ctxCounts = {}; // context → total count
+
+  for (let i = 0; i <= tokens.length - n; i++) {
+    const ctx  = tokens.slice(i, i+n-1).join(' ');
+    const next = tokens[i+n-1];
+    if (!counts[ctx]) counts[ctx] = {};
+    counts[ctx][next] = (counts[ctx][next] || 0) + 1;
+    ctxCounts[ctx] = (ctxCounts[ctx] || 0) + 1;
+  }
+  return { counts, ctxCounts };
+}
+
+function ngramProb(model, vocabSize, ctx, word, alpha=0.1) {
+  // Laplace smoothing: add alpha to every count
+  const ctxCounts = model.ctxCounts[ctx] || 0;
+  const wordCount = (model.counts[ctx] || {})[word] || 0;
+  return (wordCount + alpha) / (ctxCounts + alpha * vocabSize);
+}
+
+function ngramGenerate(model, vocabSize, seed, vocab, n, steps=10) {
+  let tokens = [...seed];
+  for (let i = 0; i < steps; i++) {
+    const ctx = tokens.slice(-(n-1)).join(' ');
+    // Score all vocabulary words and sample
+    const scores = vocab.map(w => ({w, p: ngramProb(model, vocabSize, ctx, w)}));
+    const total  = scores.reduce((s,x)=>s+x.p, 0);
+    let r = Math.random() * total, chosen = vocab[0];
+    for (const {w, p} of scores) { r -= p; if (r<=0) { chosen=w; break; } }
+    tokens.push(chosen);
+  }
+  return tokens;
+}
+
+// Training corpus
+const corpus = ('the cat sat on the mat the big cat ran on the long mat ' +
+                'a small dog sat on a mat the cat and the dog sat together ' +
+                'the dog ran fast the cat ran faster the mat was on the floor').split(' ');
+const vocab  = [...new Set(corpus)];
+const V      = vocab.length;
+
+// Train bigram and trigram models
+const bigram  = buildNgram(corpus, 2);
+const trigram = buildNgram(corpus, 3);
+
+console.log(`Corpus: ${corpus.length} tokens, vocabulary: ${V} words\n`);
+
+// Show top predictions after "the cat"
+const ctx = 'the cat';
+console.log(`Top 5 trigram predictions after "the cat":`);
+const preds = vocab.map(w => ({ w, p: ngramProb(trigram, V, ctx, w) }))
+  .sort((a,b)=>b.p-a.p).slice(0,5);
+preds.forEach(({w,p}) => {
+  const bar = '█'.repeat(Math.round(p*200));
+  console.log(`  "${w}".padEnd(10) ${(p*100).toFixed(1).padStart(5)}%  ${bar}`);
+});
+
+// Generate text from each model
+console.log('\nGenerated text (bigram):');
+console.log(' ', ngramGenerate(bigram,  V, ['the','cat'], vocab, 2, 12).join(' '));
+console.log('Generated text (trigram):');
+console.log(' ', ngramGenerate(trigram, V, ['the','cat'], vocab, 3, 12).join(' '));
+
+console.log('\nThe hard limit: context window is fixed at n-1 words.');
+console.log(`Trigram can only look back ${3-1} words — no long-range dependencies.`);</pre>
+          <div class="output-area" id="out-ngram"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §03 Perceptron -->
+  <div class="timeline-entry">
+    <div class="tl-year">1958</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s3">
+        <div class="section-header">
+          <span class="section-num">§03</span>
+          <h2><span class="year-badge">1958</span>The Perceptron and its limits</h2>
+        </div>
+
+        <p>In 1958, Frank Rosenblatt built the Perceptron — a physical machine with 400 photocells that could learn to classify shapes. The <em>New York Times</em> reported it might "be able to walk, talk, see, write, reproduce itself and be conscious of its existence." The dream of a learning machine was suddenly vivid.</p>
+
+        <p>The Perceptron learns a linear classifier. Given inputs <code>x₁...xₙ</code> and weights <code>w₁...wₙ</code>, it computes <code>Σ wᵢxᵢ</code>, compares to a threshold, and outputs +1 or −1. When it gets a prediction wrong, it adjusts the weights by a small amount in the direction that would have been correct. This <em>perceptron learning rule</em> is provably convergent when the data is linearly separable.</p>
+
+        <div class="callout red">
+          <strong>The fatal critique:</strong> In 1969, Marvin Minsky and Seymour Papert published <em>Perceptrons</em>, proving that a single-layer perceptron cannot learn XOR — a function that requires a nonlinear boundary. Since many interesting problems are nonlinear, they argued the architecture was fundamentally limited. Funding evaporated. The first AI winter began.
+        </div>
+
+        <p>In retrospect, the critique was correct but the conclusion too strong. The limitation was not perceptrons as such but single-layer perceptrons. Stacking layers creates nonlinear functions — but in 1969 nobody knew how to train them.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">perceptron.js — learning rule and XOR failure</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('perceptron')">▶ Run</button>
+          </div>
+          <pre id="code-perceptron">// The Perceptron learning algorithm (Rosenblatt, 1958).
+// Demonstrates both its success on linearly separable data
+// and its fundamental failure on XOR.
+
+function perceptron(inputs, weights, bias) {
+  const sum = inputs.reduce((s,x,i) => s + x*weights[i], bias);
+  return sum >= 0 ? 1 : -1;
+}
+
+function trainPerceptron(data, lr=0.1, maxEpochs=100) {
+  let weights = [0, 0];
+  let bias    = 0;
+
+  for (let epoch = 0; epoch < maxEpochs; epoch++) {
+    let errors = 0;
+    for (const [x, y] of data) {
+      const pred = perceptron(x, weights, bias);
+      if (pred !== y) {
+        // Update rule: w += lr * (y - pred) * x
+        weights = weights.map((w,i) => w + lr * (y-pred) * x[i]);
+        bias   += lr * (y - pred);
+        errors++;
+      }
+    }
+    if (errors === 0) return { weights, bias, epochs: epoch+1, converged: true };
+  }
+  return { weights, bias, epochs: maxEpochs, converged: false };
+}
+
+// ── AND: linearly separable — should converge ─────────────────────
+const AND = [
+  [[0,0], -1], [[0,1], -1], [[1,0], -1], [[1,1],  1],
+];
+const andResult = trainPerceptron(AND);
+console.log('AND gate (linearly separable):');
+console.log(`  Converged: ${andResult.converged} in ${andResult.epochs} epochs`);
+AND.forEach(([x,y]) => {
+  const pred = perceptron(x, andResult.weights, andResult.bias);
+  console.log(`  input ${x} → predicted ${pred===1?'+1':'-1'}, actual ${y===1?'+1':'-1'} ${pred===y?'✓':'✗'}`);
+});
+
+// ── XOR: not linearly separable — will never converge ─────────────
+const XOR = [
+  [[0,0], -1], [[0,1],  1], [[1,0],  1], [[1,1], -1],
+];
+const xorResult = trainPerceptron(XOR, 0.1, 200);
+console.log('\nXOR gate (NOT linearly separable):');
+console.log(`  Converged: ${xorResult.converged} after ${xorResult.epochs} epochs`);
+XOR.forEach(([x,y]) => {
+  const pred = perceptron(x, xorResult.weights, xorResult.bias);
+  console.log(`  input ${x} → predicted ${pred===1?'+1':'-1'}, actual ${y===1?'+1':'-1'} ${pred===y?'✓':'✗'}`);
+});
+console.log('\nThe perceptron cannot learn XOR — it requires a nonlinear decision boundary.');
+console.log('Minsky & Papert, 1969: this single observation froze AI funding for 15 years.');</pre>
+          <div class="output-area" id="out-perceptron"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §04 Backprop -->
+  <div class="timeline-entry">
+    <div class="tl-year">1986</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s4">
+        <div class="section-header">
+          <span class="section-num">§04</span>
+          <h2><span class="year-badge">1986</span>Backpropagation &amp; the revival <span class="breakthrough">key unlock</span></h2>
+        </div>
+
+        <p>The answer to XOR had been known since the 1960s: add a hidden layer. A two-layer network can learn any nonlinear boundary in principle. The problem was training it — how do you adjust the weights of a hidden layer that has no direct output to measure against?</p>
+
+        <p>The chain rule of calculus answers this: differentiate the loss with respect to each weight, following the computation graph backwards from output to input. This had been discovered and forgotten several times before Rumelhart, Hinton, and Williams published their landmark 1986 paper <em>Learning representations by back-propagating errors</em> — the version that finally stuck, because it came with compelling experiments on language, perception, and logic tasks.</p>
+
+        <p>Backpropagation made deep learning possible in principle. But the practice remained hard for another 25 years: computers were too slow, datasets too small, and the training of very deep networks still unstable. The 1986 revival produced interesting results but no commercial breakthroughs, and a second, milder winter followed in the 1990s.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">mlp_xor.js — two-layer network solves XOR</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('mlpxor')">▶ Run</button>
+          </div>
+          <pre id="code-mlpxor">// A two-layer network trained with backpropagation solves XOR.
+// This is exactly what the 1986 Rumelhart paper demonstrated.
+
+function sigmoid(x)     { return 1/(1+Math.exp(-x)); }
+function sigmoidGrad(x) { const s=sigmoid(x); return s*(1-s); }
+
+// Network: 2 inputs → 2 hidden → 1 output
+// Initialize weights with small random values
+function randn() { return (Math.random()-0.5)*0.5; }
+let W1 = [[randn(),randn()],[randn(),randn()]]; // [2×2]
+let b1 = [randn(), randn()];
+let W2 = [[randn(),randn()]];                    // [1×2]
+let b2 = [randn()];
+
+function forward(x) {
+  // Hidden layer
+  const z1 = W1.map((row,i) => row.reduce((s,w,j)=>s+w*x[j], b1[i]));
+  const a1  = z1.map(sigmoid);
+  // Output layer
+  const z2  = [W2[0].reduce((s,w,j)=>s+w*a1[j], b2[0])];
+  const a2  = z2.map(sigmoid);
+  return { z1, a1, z2, a2 };
+}
+
+function trainStep(data, lr=0.5) {
+  let totalLoss = 0;
+  // Zero gradients
+  const dW1=[[0,0],[0,0]], db1=[0,0], dW2=[[0,0]], db2=[0];
+
+  for (const [x, yTarget] of data) {
+    const { z1, a1, z2, a2 } = forward(x);
+    const loss = 0.5*(a2[0]-yTarget)**2;
+    totalLoss += loss;
+
+    // Output delta
+    const delta2 = [(a2[0]-yTarget) * sigmoidGrad(z2[0])];
+    // Hidden delta
+    const delta1 = z1.map((_,i) => W2[0][i]*delta2[0] * sigmoidGrad(z1[i]));
+
+    // Accumulate gradients
+    W2[0].forEach((_,j) => dW2[0][j] += delta2[0]*a1[j]);
+    db2[0] += delta2[0];
+    W1.forEach((row,i) => row.forEach((_,j) => dW1[i][j] += delta1[i]*x[j]));
+    delta1.forEach((d,i) => db1[i] += d);
+  }
+
+  // Update weights
+  W1.forEach((row,i) => row.forEach((_,j) => { W1[i][j]-=lr*dW1[i][j]; }));
+  b1.forEach((_,i) => b1[i]-=lr*db1[i]);
+  W2.forEach((row,i) => row.forEach((_,j) => { W2[i][j]-=lr*dW2[i][j]; }));
+  b2.forEach((_,i) => b2[i]-=lr*db2[i]);
+
+  return totalLoss/data.length;
+}
+
+const XOR = [[[0,0],0],[[0,1],1],[[1,0],1],[[1,1],0]];
+
+let loss;
+for (let ep=0; ep<5000; ep++) loss = trainStep(XOR);
+
+console.log('Two-layer network trained on XOR with backpropagation:\n');
+XOR.forEach(([x,y]) => {
+  const pred = forward(x).a2[0];
+  const label = pred > 0.5 ? 1 : 0;
+  console.log(`  input [${x}] → output ${pred.toFixed(4)}  → class ${label}  target ${y} ${label===y?'✓':'✗'}`);
+});
+console.log(`\nFinal loss: ${loss.toFixed(6)}`);
+console.log('The addition of one hidden layer + backprop solves what stumped Rosenblatt.');</pre>
+          <div class="output-area" id="out-mlpxor"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §05 RNNs -->
+  <div class="timeline-entry">
+    <div class="tl-year">1990s</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s5">
+        <div class="section-header">
+          <span class="section-num">§05</span>
+          <h2><span class="year-badge">1990s</span>Recurrent networks &amp; sequences</h2>
+        </div>
+
+        <p>Feedforward networks process one fixed-size input at a time. Language is sequential — a sentence is a series of words of variable length, and the meaning of word 10 can depend on word 1. To handle sequences, researchers turned to <em>recurrent neural networks</em>.</p>
+
+        <p>An RNN processes tokens one at a time, maintaining a <em>hidden state</em> — a vector that summarizes everything seen so far. At each step, the new hidden state is a function of the old one and the new input: <code>hₜ = tanh(Wₕ · hₜ₋₁ + Wₓ · xₜ + b)</code>. The hidden state is the memory of the network.</p>
+
+        <p>This was elegant and it worked — RNNs could model sequences of arbitrary length with a fixed number of parameters. They powered early speech recognition, handwriting recognition, and text generation systems throughout the 1990s and early 2000s.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">rnn.js — vanilla RNN forward pass</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('rnn')">▶ Run</button>
+          </div>
+          <pre id="code-rnn">// Vanilla RNN — processes a sequence step by step,
+// maintaining a hidden state vector.
+
+function tanh(x)     { return Math.tanh(x); }
+function tanhGrad(x) { return 1 - Math.tanh(x)**2; }
+
+function matVecMul(M, v) {
+  return M.map(row => row.reduce((s,w,j)=>s+w*v[j], 0));
+}
+function vecAdd(a, b) { return a.map((v,i)=>v+b[i]); }
+function vecScale(v, s) { return v.map(x=>x*s); }
+
+class VanillaRNN {
+  constructor(inputSize, hiddenSize, outputSize) {
+    const r = () => (Math.random()-0.5)*0.2;
+    this.Wh = Array.from({length:hiddenSize},()=>Array.from({length:hiddenSize},r));
+    this.Wx = Array.from({length:hiddenSize},()=>Array.from({length:inputSize },r));
+    this.Wy = Array.from({length:outputSize},()=>Array.from({length:hiddenSize},r));
+    this.bh = new Array(hiddenSize).fill(0);
+    this.by = new Array(outputSize).fill(0);
+    this.h  = new Array(hiddenSize).fill(0); // hidden state
+  }
+
+  step(x) {
+    // hₜ = tanh(Wₕ·hₜ₋₁ + Wₓ·xₜ + bₕ)
+    const fromH = matVecMul(this.Wh, this.h);
+    const fromX = matVecMul(this.Wx, x);
+    const preact = vecAdd(vecAdd(fromH, fromX), this.bh);
+    this.h = preact.map(tanh);
+
+    // yₜ = Wᵧ·hₜ + bᵧ (logits, no softmax here)
+    return vecAdd(matVecMul(this.Wy, this.h), this.by);
+  }
+
+  resetState() { this.h.fill(0); }
+}
+
+// ── Demo: process "the cat sat" token by token ───────────────────
+const VOCAB = ['<pad>','the','cat','sat','on','mat','dog','ran'];
+const V = VOCAB.length;
+
+// One-hot encode tokens
+function oneHot(id, size) {
+  const v = new Array(size).fill(0);
+  v[id] = 1;
+  return v;
+}
+
+const rnn = new VanillaRNN(V, 4, V);  // 4-dim hidden state
+const sentence = ['the','cat','sat'];
+const ids = sentence.map(w => VOCAB.indexOf(w));
+
+console.log('RNN processes "the cat sat" token by token:\n');
+console.log('Token      Hidden state (4 dims)                 Top prediction');
+console.log('─'.repeat(70));
+
+ids.forEach((id, t) => {
+  const x = oneHot(id, V);
+  const logits = rnn.step(x);
+
+  // Softmax
+  const max = Math.max(...logits);
+  const exps = logits.map(x=>Math.exp(x-max));
+  const sum  = exps.reduce((a,b)=>a+b,0);
+  const probs = exps.map(p=>p/sum);
+  const topIdx = probs.indexOf(Math.max(...probs));
+
+  const hStr = rnn.h.map(v=>v.toFixed(2).padStart(6)).join(' ');
+  console.log(`"${sentence[t]}".padEnd(10) [${hStr} ]  → "${VOCAB[topIdx]}"`);
+});
+
+console.log('\nThe hidden state evolves as each token is processed.');
+console.log('It must compress the entire history into a fixed-size vector.');</pre>
+          <div class="output-area" id="out-rnn"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §06 Vanishing gradient -->
+  <div class="timeline-entry">
+    <div class="tl-year">1991</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s6">
+        <div class="section-header">
+          <span class="section-num">§06</span>
+          <h2><span class="year-badge">1991</span>The vanishing gradient problem</h2>
+        </div>
+
+        <p>The RNN has a critical flaw. Hochreiter documented it carefully in his 1991 diploma thesis: when you backpropagate through many time steps, the gradient signal multiplies the same weight matrix at every step. If the spectral radius of that matrix (the magnitude of its largest eigenvalue — roughly, how much the matrix stretches vectors on average) is less than 1, the gradient decays exponentially — it <em>vanishes</em> before reaching early time steps. If greater than 1, it explodes.</p>
+
+        <p>This means an RNN trained with backpropagation through time cannot reliably learn long-range dependencies. "The trophy didn't fit in the suitcase because it was too big" — the antecedent of "it" is 8 words back. An RNN trained on this sentence will fail to connect <em>it</em> to <em>trophy</em> because the gradient signal linking them has shrunk to near zero by the time it reaches that far.</p>
+
+        <div class="anim-wrap">
+          <div class="anim-controls">
+            <span class="ctrl-label">Gradient magnitude through RNN time steps:</span>
+            <button class="ctrl-btn active" id="vg-stable" onclick="drawVanishing('stable')">Stable (‖W‖≈1)</button>
+            <button class="ctrl-btn" id="vg-vanish" onclick="drawVanishing('vanish')">Vanishing (‖W‖&lt;1)</button>
+            <button class="ctrl-btn" id="vg-explode" onclick="drawVanishing('explode')">Exploding (‖W‖&gt;1)</button>
+          </div>
+          <canvas id="vanish-canvas" width="700" height="190"></canvas>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">vanishing.js — gradient flow through time</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('vanishing')">▶ Run</button>
+          </div>
+          <pre id="code-vanishing">// Vanishing gradient in RNNs.
+// During backprop through time, gradients are multiplied by
+// dh_t/dh_{t-1} at each step. If this value < 1, signal vanishes.
+
+// Simplified: track gradient magnitude through T steps
+// dL/dh_0 = dL/dh_T * prod_{t=1}^{T} (dh_t/dh_{t-1})
+// Each dh_t/dh_{t-1} ≈ tanh'(z_t) * W_h (simplified to scalar)
+
+function simulateGradientFlow(T, W_h_norm, noise=0.02) {
+  const grads = [1.0]; // gradient starts at 1 at the output
+  let g = 1.0;
+  for (let t = 0; t < T; t++) {
+    // At each step, multiply by tanh'(z) * W_h
+    // tanh'(z) is between 0 and 1 (max at z=0 is 1)
+    // For a saturated unit tanh'(z) ≈ 0.3
+    const tanhPrime = 0.4 + noise*(Math.random()-0.5); // ~saturated
+    g *= tanhPrime * W_h_norm;
+    grads.push(g);
+  }
+  return grads;
+}
+
+const T = 20; // sequence length
+
+const configs = [
+  { name: 'Stable   (‖Wh‖ = 1.0)', norm: 1.0  },
+  { name: 'Vanishing(‖Wh‖ = 0.7)', norm: 0.7  },
+  { name: 'Exploding(‖Wh‖ = 1.6)', norm: 1.6  },
+];
+
+for (const { name, norm } of configs) {
+  const grads = simulateGradientFlow(T, norm, 0);
+  console.log(`\n${name}`);
+  console.log('Step:  ' + Array.from({length:T+1},(_,i)=>String(i).padStart(6)).join(''));
+  console.log('|grad|:' + grads.map(g=>{
+    if (g > 999) return '  >999';
+    if (g < 0.001) return '  ≈0  ';
+    return g.toFixed(3).padStart(6);
+  }).join(''));
+}
+
+console.log('\nVanishing: gradient at step 0 is ~0 → early tokens get no training signal.');
+console.log('Exploding: gradient at step 0 is huge → training diverges.');
+console.log('\nThis is why vanilla RNNs cannot learn long-range dependencies.');</pre>
+          <div class="output-area" id="out-vanishing"></div>
+        </div>
+
+        <p>The vanishing gradient problem was identified in 1991 but widely discussed only after Bengio, Simard, and Frasconi's 1994 paper. It sat as an open problem for three years until Hochreiter and Schmidhuber produced their solution.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- §07 LSTM -->
+  <div class="timeline-entry">
+    <div class="tl-year">1997</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s7">
+        <div class="section-header">
+          <span class="section-num">§07</span>
+          <h2><span class="year-badge">1997</span>LSTMs: memory with gates <span class="breakthrough">solves vanishing gradient</span></h2>
+        </div>
+
+        <p>Hochreiter and Schmidhuber's Long Short-Term Memory (1997) solved the vanishing gradient problem with a single elegant idea: a <em>cell state</em> that runs straight through time with only additive modifications, and <em>gates</em> that control what gets written to it, read from it, and erased.</p>
+
+        <p>The cell state is a conveyor belt. During backpropagation, there exists a gradient path through the cell state where updates are purely additive — no tanh derivatives are multiplied in, no sigmoid squashing. Unlike the hidden-state pathway, which accumulates products of values smaller than 1 at every step, the cell state offers a route that carries gradients backward without systematically shrinking them. The forget gate still multiplies (gradients <em>can</em> still be attenuated there), but the cell state gives the optimizer a highway around the vanishing-gradient bottleneck. The three gates — forget, input, output — are learned sigmoid functions that control what information survives. The forget gate decides what to erase. The input gate decides what new information to write. The output gate decides what to expose as the hidden state.</p>
+
+        <div class="anim-wrap">
+          <div class="anim-controls">
+            <span class="ctrl-label">LSTM cell — step through gates:</span>
+            <button class="ctrl-btn active" id="lstm-all" onclick="drawLSTM('all')">Full cell</button>
+            <button class="ctrl-btn" id="lstm-forget" onclick="drawLSTM('forget')">Forget gate</button>
+            <button class="ctrl-btn" id="lstm-input" onclick="drawLSTM('input')">Input gate</button>
+            <button class="ctrl-btn" id="lstm-output" onclick="drawLSTM('output')">Output gate</button>
+          </div>
+          <canvas id="lstm-canvas" width="700" height="220"></canvas>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">lstm.js — LSTM cell from scratch</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('lstm')">▶ Run</button>
+          </div>
+          <pre id="code-lstm">// LSTM cell — the four-gate architecture of Hochreiter & Schmidhuber (1997).
+// Three innovations over vanilla RNN:
+//   1. Cell state (c) — gradient highway with additive updates
+//   2. Forget gate — learned selective erasure
+//   3. Input/output gates — controlled read/write
+
+function sigmoid(x)  { return 1/(1+Math.exp(-x)); }
+function tanh(x)     { return Math.tanh(x); }
+
+class LSTMCell {
+  constructor(inputSize, hiddenSize) {
+    const scale = 0.1;
+    const r = () => (Math.random()-0.5)*scale;
+    const mat = (rows,cols) => Array.from({length:rows},()=>Array.from({length:cols},r));
+    const vec = n => new Array(n).fill(0);
+
+    const D = hiddenSize, I = inputSize;
+    // Weight matrices for all four gates: [forget, input, cell_gate, output]
+    this.Wf=mat(D,D+I); this.bf=vec(D);  // forget gate
+    this.Wi=mat(D,D+I); this.bi=vec(D);  // input gate
+    this.Wg=mat(D,D+I); this.bg=vec(D);  // cell gate (candidate)
+    this.Wo=mat(D,D+I); this.bo=vec(D);  // output gate
+
+    // Initial states
+    this.h = vec(D);  // hidden state
+    this.c = vec(D);  // cell state
+    this.D = D;
+  }
+
+  step(x) {
+    // Concatenate [h, x]
+    const hx = [...this.h, ...x];
+
+    // Gate computations
+    const f  = this.Wf.map((row,i) => sigmoid(row.reduce((s,w,j)=>s+w*hx[j], this.bf[i])));
+    const i_ = this.Wi.map((row,i) => sigmoid(row.reduce((s,w,j)=>s+w*hx[j], this.bi[i])));
+    const g  = this.Wg.map((row,i) => tanh   (row.reduce((s,w,j)=>s+w*hx[j], this.bg[i])));
+    const o  = this.Wo.map((row,i) => sigmoid(row.reduce((s,w,j)=>s+w*hx[j], this.bo[i])));
+
+    // Cell state update: additive! — the gradient highway
+    // c_t = f * c_{t-1}  +  i * g
+    //        ↑ forget         ↑ write new info
+    this.c = this.c.map((_,k) => f[k]*this.c[k] + i_[k]*g[k]);
+
+    // Hidden state
+    this.h = this.c.map((v,k) => o[k]*tanh(v));
+
+    return { f, i: i_, g, o, c: [...this.c], h: [...this.h] };
+  }
+}
+
+// ── Demo: process a sentence, watch cell state evolve ─────────────
+const VOCAB = ['&lt;s&gt;','the','cat','sat','on','mat','dog','ran','&lt;e&gt;'];
+const V = VOCAB.length;
+function oneHot(id) { const v=new Array(V).fill(0); v[id]=1; return v; }
+
+const lstm = new LSTMCell(V, 3);  // 3-dim cell state
+const sentence = ['the','cat','sat','on','the','mat'];
+const ids = sentence.map(w=>VOCAB.indexOf(w));
+
+console.log('LSTM processing "the cat sat on the mat"\n');
+console.log('Token     Forget gate    Input gate     Cell state');
+console.log('─'.repeat(60));
+
+ids.forEach((id, t) => {
+  const { f, i, c } = lstm.step(oneHot(id));
+  const fStr = f.map(v=>v.toFixed(2)).join(' ');
+  const iStr = i.map(v=>v.toFixed(2)).join(' ');
+  const cStr = c.map(v=>v.toFixed(2)).join(' ');
+  console.log(`"${sentence[t]}".padEnd(10) [${fStr}]  [${iStr}]  [${cStr}]`);
+});
+
+console.log('\nForget gate ≈ 1.0 → keep previous cell state');
+console.log('Forget gate ≈ 0.0 → erase it');
+console.log('Input gate  ≈ 1.0 → write new information');
+console.log('\nThe cell state provides a gradient highway: a path through the network');
+console.log('where updates are additive, not gated through tanh — so gradients');
+console.log('reach early time steps without the systematic decay of plain RNNs.');</pre>
+          <div class="output-area" id="out-lstm"></div>
+        </div>
+
+        <p>LSTMs remained the dominant sequence model for twenty years. They powered Google's neural machine translation (2016), Apple's Siri, and Amazon's Alexa. The GRU (Gated Recurrent Unit, 2014) simplified the architecture to two gates while achieving comparable results. Both are still used today in constrained environments where Transformer compute costs are prohibitive.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- §08 Word embeddings -->
+  <div class="timeline-entry">
+    <div class="tl-year">2013</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s8">
+        <div class="section-header">
+          <span class="section-num">§08</span>
+          <h2><span class="year-badge">2013</span>Word embeddings &amp; meaning as geometry <span class="breakthrough">semantic geometry</span></h2>
+        </div>
+
+        <p>In every neural network language model so far, words were one-hot vectors — orthogonal, equally distant, carrying no information about similarity. "Dog" and "puppy" were as different as "dog" and "democracy" in the input space. A critical insight was waiting to be harvested: words that appear in similar contexts must have similar meanings.</p>
+
+        <p>Mikolov et al.'s word2vec (2013) made this operational at scale. Train a shallow network to predict a word from its context (CBOW) or to predict context from a word (skip-gram). Discard the network after training. Keep the embedding matrix. The embeddings that emerge have striking geometric properties — semantic relationships are encoded as vector arithmetic:</p>
+
+        <div class="demo-box" style="font-family:var(--mono);font-size:.88rem;padding:1.2rem;">
+          <div style="margin-bottom:.5rem;">king − man + woman ≈ queen</div>
+          <div style="margin-bottom:.5rem;">Paris − France + Germany ≈ Berlin</div>
+          <div>walked − walk + swim ≈ swam</div>
+        </div>
+
+        <p>This was not programmed in. It emerged from the statistical structure of text. The mechanism: if "man" and "woman" appear in similar contexts as each other, and "king" appears in similar contexts to "man" (royal, political, leader), then "queen" must be near the result of the arithmetic. The geometry of the embedding space mirrors the geometry of meaning.</p>
+
+        <p>Word2vec also introduced the idea of <em>negative sampling</em>: instead of computing a softmax over the entire vocabulary (expensive), train a binary classifier to distinguish real context words from random noise words. This made training on billions of words tractable on a single machine.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">word2vec.js — skip-gram with negative sampling</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('word2vec')">▶ Run</button>
+          </div>
+          <pre id="code-word2vec">// Skip-gram word2vec with negative sampling — from scratch.
+// Train a shallow network to predict context from center word.
+// The embeddings are the by-product we care about.
+
+function sigmoid(x) { return 1/(1+Math.exp(-x)); }
+
+const VOCAB = ['king','queen','man','woman','royal','crown','prince','princess',
+               'dog','cat','pet','animal','run','walk','fast','slow'];
+const V = VOCAB.length;
+const D = 8;  // embedding dimension
+
+// Initialize embeddings (center and context matrices)
+const rand = () => (Math.random()-0.5)*0.1;
+let W = Array.from({length:V},()=>Array.from({length:D},rand)); // center embeddings
+let C = Array.from({length:V},()=>Array.from({length:D},rand)); // context embeddings
+
+// Skip-gram training pairs (manually constructed for demo)
+const pairs = [
+  // royalty cluster
+  [0,1],[0,4],[0,5],[0,6],  // king→queen,royal,crown,prince
+  [1,0],[1,4],[1,5],[1,7],  // queen→king,royal,crown,princess
+  [2,0],[2,6],[2,8],        // man→king,prince,dog
+  [3,1],[3,7],[3,9],        // woman→queen,princess,cat
+  // animal cluster
+  [8,9],[8,10],[8,11],[8,12],[8,13],   // dog-cat-pet-animal-run-walk
+  [9,8],[9,10],[9,11],[9,14],[9,15],   // cat-dog-pet-animal-fast-slow
+];
+
+function dot(a,b) { return a.reduce((s,v,i)=>s+v*b[i], 0); }
+function cosineSim(a,b) {
+  const d=dot(a,b), na=Math.sqrt(dot(a,a)), nb=Math.sqrt(dot(b,b));
+  return d/(na*nb+1e-10);
+}
+
+// Negative sampling: one positive pair + k negative samples
+function trainStep(centerIdx, contextIdx, k=5, lr=0.05) {
+  const posScore = sigmoid(dot(W[centerIdx], C[contextIdx]));
+  const posLoss  = -Math.log(posScore+1e-10);
+
+  // Positive gradient
+  const dCenter = C[contextIdx].map(v => (posScore-1)*v);
+  const dCtx    = W[centerIdx].map(v => (posScore-1)*v);
+
+  // Negative samples
+  for (let n=0; n<k; n++) {
+    let negIdx = Math.floor(Math.random()*V);
+    while (negIdx===contextIdx) negIdx=Math.floor(Math.random()*V);
+    const negScore = sigmoid(dot(W[centerIdx], C[negIdx]));
+    dCenter.forEach((_,d) => dCenter[d] += negScore*C[negIdx][d]);
+    C[negIdx].forEach((_,d) => C[negIdx][d] -= lr*negScore*W[centerIdx][d]);
+  }
+
+  W[centerIdx].forEach((_,d) => W[centerIdx][d] -= lr*dCenter[d]);
+  C[contextIdx].forEach((_,d) => C[contextIdx][d] -= lr*dCtx[d]);
+}
+
+// Train
+for (let epoch=0; epoch<800; epoch++)
+  for (const [c,ctx] of pairs) trainStep(c, ctx);
+
+// Evaluate geometric properties
+console.log('Cosine similarity after training:\n');
+const check = [
+  ['king','queen'], ['king','man'], ['man','woman'],
+  ['dog','cat'],    ['dog','animal'], ['king','dog'],
+];
+check.forEach(([a,b]) => {
+  const sim = cosineSim(W[VOCAB.indexOf(a)], W[VOCAB.indexOf(b)]);
+  const bar = '█'.repeat(Math.max(0,Math.round((sim+1)/2*20)));
+  console.log(`  sim("${a}","${b}") = ${sim.toFixed(3).padStart(7)}  ${bar}`);
+});
+
+// Analogy: king - man + woman ≈ ?
+const king=W[0], man=W[2], woman=W[3];
+const target = king.map((_,i)=>king[i]-man[i]+woman[i]);
+const scores = VOCAB.map((w,i)=>({w, s:cosineSim(target,W[i])}))
+  .filter(x=>!['king','man','woman'].includes(x.w))
+  .sort((a,b)=>b.s-a.s);
+console.log(`\nAnalogy: king − man + woman ≈ "${scores[0].w}" (sim=${scores[0].s.toFixed(3)})`);
+console.log('(Expected: "queen")');</pre>
+          <div class="output-area" id="out-word2vec"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §09 Seq2seq -->
+  <div class="timeline-entry">
+    <div class="tl-year">2014</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s9">
+        <div class="section-header">
+          <span class="section-num">§09</span>
+          <h2><span class="year-badge">2014</span>Sequence-to-sequence &amp; the bottleneck</h2>
+        </div>
+
+        <p>Sutskever, Vinyals, and Le (2014) combined LSTMs and word embeddings into a general architecture for sequence-to-sequence tasks: an <em>encoder</em> LSTM reads the source sequence into a fixed-size vector, and a <em>decoder</em> LSTM generates the target sequence from that vector, one token at a time.</p>
+
+        <p>Applied to machine translation, this was state of the art. It was also the architecture that powered early neural machine translation at Google. But it had a structural flaw that became increasingly apparent at longer sequences: the entire source sentence was compressed into a single fixed-size vector before decoding began. Information was lost. Sentences of 30+ words degraded noticeably.</p>
+
+        <div class="anim-wrap">
+          <div class="anim-controls">
+            <span class="ctrl-label">The bottleneck — longer sentences degrade:</span>
+            <button class="ctrl-btn active" id="seq-short" onclick="drawBottleneck('short')">Short sentence</button>
+            <button class="ctrl-btn" id="seq-medium" onclick="drawBottleneck('medium')">Medium sentence</button>
+            <button class="ctrl-btn" id="seq-long" onclick="drawBottleneck('long')">Long sentence</button>
+          </div>
+          <canvas id="bottleneck-canvas" width="700" height="190"></canvas>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">seq2seq.js — encoder/decoder with visible bottleneck</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('seq2seq')">▶ Run</button>
+          </div>
+          <pre id="code-seq2seq">// Seq2seq: encode sequence → fixed vector → decode.
+// We measure information loss as input length grows.
+
+function tanh(x) { return Math.tanh(x); }
+
+// Minimal RNN encoder: returns final hidden state
+function encode(tokens, Wh, Wx, b, hidSize) {
+  let h = new Array(hidSize).fill(0);
+  for (const x of tokens) {
+    // h_t = tanh(Wh·h + Wx·x + b)
+    const newH = Array.from({length:hidSize}, (_,i) =>
+      tanh(Wh[i].reduce((s,w,j)=>s+w*h[j],0) +
+           Wx[i].reduce((s,w,j)=>s+w*x[j],0) + b[i])
+    );
+    h = newH;
+  }
+  return h;
+}
+
+// Measure how much information from position t survives in final state
+// Proxy: correlation between early token representation and final hidden state
+function infoSurvival(seqLen, hidSize=4) {
+  const r = () => (Math.random()-0.5)*0.2;
+  const Wh = Array.from({length:hidSize},()=>Array.from({length:hidSize},r));
+  const Wx = Array.from({length:hidSize},()=>Array.from({length:hidSize},r));
+  const b  = new Array(hidSize).fill(0);
+
+  // Generate a random sequence of one-hot vectors
+  const seq = Array.from({length:seqLen},()=>{
+    const v=new Array(hidSize).fill(0); v[Math.floor(Math.random()*hidSize)]=1; return v;
+  });
+
+  // Get final encoding
+  const hFinal = encode(seq, Wh, Wx, b, hidSize);
+
+  // For each position, get the hidden state at that point
+  const survivals = [];
+  let h = new Array(hidSize).fill(0);
+  for (let t=0; t<seqLen; t++) {
+    h = Array.from({length:hidSize},(_,i)=>
+      tanh(Wh[i].reduce((s,w,j)=>s+w*h[j],0)+Wx[i].reduce((s,w,j)=>s+w*seq[t][j],0)+b[i])
+    );
+    // Cosine similarity between intermediate state and final state
+    const dot=h.reduce((s,v,i)=>s+v*hFinal[i],0);
+    const na=Math.sqrt(h.reduce((s,v)=>s+v*v,0));
+    const nb=Math.sqrt(hFinal.reduce((s,v)=>s+v*v,0));
+    survivals.push(Math.abs(dot/(na*nb+1e-10)));
+  }
+  return survivals;
+}
+
+console.log('Information survival from each position to final hidden state:\n');
+console.log('Position:  ' + Array.from({length:12},(_,i)=>String(i+1).padStart(5)).join(''));
+[4,8,12].forEach(len => {
+  const surv = infoSurvival(len);
+  // Show survival for all positions
+  const vals = surv.map(v=>v.toFixed(2).padStart(5)).join('');
+  const pad  = '     '.repeat(12-len);
+  console.log(`SeqLen=${len}: ` + vals + pad);
+});
+
+console.log('\nThe further a token is from the end, the less it survives.');
+console.log('At position 1 in a 12-token sequence, signal is severely degraded.');
+console.log('\nThis is the fundamental bottleneck of seq2seq: one vector, all history.');</pre>
+          <div class="output-area" id="out-seq2seq"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §10 Attention -->
+  <div class="timeline-entry">
+    <div class="tl-year">2015</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s10">
+        <div class="section-header">
+          <span class="section-num">§10</span>
+          <h2><span class="year-badge">2015</span>Attention: a soft, learnable lookup <span class="breakthrough">the real breakthrough</span></h2>
+        </div>
+
+        <p>Bahdanau, Cho, and Bengio (2015) made a simple but profound observation: instead of forcing the decoder to work from one fixed vector, let it <em>look back</em> at all of the encoder's hidden states, weighted by relevance. The weights are computed by a small learned function that scores the compatibility between the current decoder state and each encoder state.</p>
+
+        <p>This is attention — a <em>soft, differentiable lookup</em>. At each decoding step, the model computes a weighted combination of all encoder states. The weights are normalized by softmax, so they form a probability distribution over the source sequence: "how much should I attend to position 1? position 2? ..." The whole thing is differentiable end-to-end, so it can be trained with backpropagation.</p>
+
+        <p>The impact was immediate and dramatic. Long sentences no longer degraded. Translating a 30-word sentence, the model could attend directly to the relevant source words when generating each target word — not through a bottleneck but through a direct weighted query. Researchers visualized the attention weights as heatmaps and found they corresponded to linguistic alignment: French "la" attends to English "the", verbs attend to their subjects.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">attention_bahdanau.js — original additive attention</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('bahdanau')">▶ Run</button>
+          </div>
+          <pre id="code-bahdanau">// Bahdanau attention (2015) — the original formulation.
+// score(s, h_j) = v^T · tanh(W_s·s + W_h·h_j)
+// where s is decoder state and h_j is encoder state at position j.
+// context = Σ_j softmax(score_j) · h_j
+
+function tanh(x) { return Math.tanh(x); }
+function sigmoid(x) { return 1/(1+Math.exp(-x)); }
+
+function softmax(arr) {
+  const max = Math.max(...arr);
+  const ex  = arr.map(x=>Math.exp(x-max));
+  const sum = ex.reduce((a,b)=>a+b,0);
+  return ex.map(x=>x/sum);
+}
+
+// Additive attention score
+function attentionScore(s, h_j, Ws, Wh, v) {
+  const D = s.length;
+  // e_j = vᵀ · tanh(Ws·s + Wh·h_j)
+  const combined = Array.from({length:D},(_,i)=>
+    Ws[i].reduce((sum,w,k)=>sum+w*s[k],0) +
+    Wh[i].reduce((sum,w,k)=>sum+w*h_j[k],0)
+  );
+  const activated = combined.map(tanh);
+  return v.reduce((sum,vi,i)=>sum+vi*activated[i],0);
+}
+
+function attentionContext(s, encoderStates, Ws, Wh, v) {
+  const scores  = encoderStates.map(h_j => attentionScore(s, h_j, Ws, Wh, v));
+  const weights = softmax(scores);
+  // context = weighted sum of encoder states
+  const D = encoderStates[0].length;
+  const context = Array.from({length:D},(_,i)=>
+    weights.reduce((sum,w,j)=>sum+w*encoderStates[j][i],0)
+  );
+  return { context, weights };
+}
+
+// ── Demo: translating "the cat sat" ──────────────────────────────
+// Simulated encoder hidden states for "the | cat | sat"
+const encoderStates = [
+  [ 0.7, -0.3, 0.1, 0.5],  // "the"
+  [-0.2,  0.8, 0.6,-0.1],  // "cat"
+  [-0.5,  0.1,-0.3, 0.9],  // "sat"
+];
+const srcWords = ['the', 'cat', 'sat'];
+const tgtWords = ['le', 'chat', 'a assis'];
+
+// Random attention parameters
+const D = 4;
+const Ws = Array.from({length:D},()=>Array.from({length:D},()=>(Math.random()-.5)*.3));
+const Wh = Array.from({length:D},()=>Array.from({length:D},()=>(Math.random()-.5)*.3));
+const v  = Array.from({length:D},()=>(Math.random()-.5)*.3);
+
+// Simulate three decoder steps, each with a different query state
+const decoderStates = [
+  [ 0.1, 0.2, 0.3,-0.1],  // when generating "le"
+  [-0.1, 0.7, 0.4, 0.2],  // when generating "chat"
+  [-0.4, 0.2,-0.2, 0.8],  // when generating "a assis"
+];
+
+console.log('Attention weights at each decoder step:\n');
+console.log('Generating  | ' + srcWords.map(w=>w.padStart(8)).join(' '));
+console.log('─'.repeat(44));
+decoderStates.forEach((s, t) => {
+  const { weights } = attentionContext(s, encoderStates, Ws, Wh, v);
+  const bars = weights.map(w=>'█'.repeat(Math.round(w*12)).padEnd(12));
+  const pcts = weights.map(w=>`${(w*100).toFixed(0)}%`.padStart(8));
+  console.log(`"${tgtWords[t]}".padEnd(11) |${pcts.join(' ')}`);
+  console.log(`            |${bars.map(b=>b.padStart(9)).join(' ')}`);
+});
+
+console.log('\nEach row shows which source tokens the decoder attends to.');
+console.log('The weights are learned — no manual alignment is specified.');</pre>
+          <div class="output-area" id="out-bahdanau"></div>
+        </div>
+
+        <p>Bahdanau attention solved the seq2seq bottleneck — but it was still attached to an RNN. The encoder still processed tokens sequentially; the decoder still stepped through one token at a time. There was still an O(n) sequential dependency. Parallelism was limited. Then two years later, someone asked a harder question.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- §11 Transformer -->
+  <div class="timeline-entry">
+    <div class="tl-year">2017</div>
+    <div class="tl-spine-col"><div class="tl-dot"></div><div class="tl-line last"></div></div>
+    <div class="tl-body">
+      <div class="section" id="s11">
+        <div class="section-header">
+          <span class="section-num">§11</span>
+          <h2><span class="year-badge">2017</span>Removing recurrence entirely <span class="breakthrough">attention is all you need</span></h2>
+        </div>
+
+        <p>If attention can connect any two positions in a sequence directly — bypassing the bottleneck — why not use attention to build the entire representation, without any recurrence at all?</p>
+
+        <p>This is the question Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, and Polosukhin asked in their 2017 paper <em>Attention Is All You Need</em>. Their answer — the Transformer — replaced every recurrent and convolutional component with attention and feedforward layers. Every token attends to every other token at every layer, in parallel.</p>
+
+        <p>The consequences were enormous:</p>
+
+        <ul>
+          <li><strong>Parallelism:</strong> all positions are computed simultaneously — GPU utilization goes from 30% to near 100%.</li>
+          <li><strong>No vanishing gradient:</strong> attention creates direct connections between distant positions — gradient highway at every layer.</li>
+          <li><strong>Scalability:</strong> the architecture trains efficiently on modern hardware, making very large models feasible.</li>
+        </ul>
+
+        <p>The paper also introduced scaled dot-product attention — simpler than Bahdanau's additive formulation, and faster to compute on GPUs. Three weight matrices (Q, K, V) replace the alignment network. The scaling by <code>1/√dₖ</code> keeps the dot products well-behaved in high dimensions. The reason Bahdanau used an additive form (<code>v·tanh(Ws·s + Wh·h)</code>) rather than a dot product is that the decoder state <em>s</em> and encoder state <em>h</em> live in different vector spaces with potentially different dimensions — you cannot take a meaningful dot product between them. The Transformer avoids this by projecting queries and keys into the same <em>dₖ</em>-dimensional space first, making the dot product both valid and efficient.</p>
+
+        <div class="anim-wrap">
+          <div class="anim-controls">
+            <span class="ctrl-label">The evolutionary path — click to compare:</span>
+            <button class="ctrl-btn active" id="evo-rnn" onclick="drawEvolution('rnn')">RNN</button>
+            <button class="ctrl-btn" id="evo-attn" onclick="drawEvolution('attn')">RNN + Attention</button>
+            <button class="ctrl-btn" id="evo-tfm" onclick="drawEvolution('tfm')">Transformer</button>
+          </div>
+          <canvas id="evo-canvas" width="700" height="210"></canvas>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">compare.js — RNN vs Transformer: operation counts</span>
+            <span class="code-lang">JS</span>
+            <button class="run-btn" onclick="runCode('compare')">▶ Run</button>
+          </div>
+          <pre id="code-compare">// Comparing RNN and Transformer on key metrics.
+// Shows why the Transformer became the dominant architecture.
+
+function rnnComplexity(n, d) {
+  return {
+    sequentialOps: n,            // must process tokens 1..n in order
+    parallelOps: 1,              // only one token at a time
+    pathLength: n,               // to connect position 1 to position n
+    params: 4 * d * d,           // W_hh, W_xh, W_hy, W_ih
+    memoryPerToken: d,           // one hidden state vector
+  };
+}
+
+function transformerComplexity(n, d, h) {
+  return {
+    sequentialOps: 1,            // all positions computed in parallel
+    parallelOps: n,              // every token processed simultaneously
+    pathLength: 1,               // direct attention between any positions
+    params: 4 * d * d,           // W_q, W_k, W_v, W_o (approximately)
+    memoryPerToken: n * d,       // must store all K,V pairs
+  };
+}
+
+const configs = [
+  { n:  64, d: 256, h: 8, label: 'Small (n=64,  d=256)' },
+  { n: 512, d: 512, h: 8, label: 'Medium(n=512, d=512)' },
+  { n:2048, d:1024, h:16, label: 'Large (n=2048,d=1024)'},
+];
+
+console.log('RNN vs Transformer — key complexity metrics:\n');
+for (const {n, d, h, label} of configs) {
+  const rnn = rnnComplexity(n, d);
+  const tfm = transformerComplexity(n, d, h);
+  console.log(`=== ${label} ===`);
+  console.log(`  Sequential operations:  RNN=${rnn.sequentialOps}  Transformer=${tfm.sequentialOps}`);
+  console.log(`  Parallel ops possible:  RNN=${rnn.parallelOps}     Transformer=${tfm.parallelOps}`);
+  console.log(`  Max path length:        RNN=${rnn.pathLength}     Transformer=${tfm.pathLength}`);
+  const speedup = rnn.sequentialOps / tfm.sequentialOps;
+  console.log(`  Parallelism speedup:    ${speedup}×`);
+  console.log();
+}
+
+console.log('The Transformer reduces sequential operations from O(n) to O(1).');
+console.log('This single change made training on modern GPUs orders of magnitude faster.');
+console.log('It is why scaling to 100B+ parameters became feasible.');</pre>
+          <div class="output-area" id="out-compare"></div>
+        </div>
+
+        <p>The Transformer was not the end of the story. GPT-1 (2018) showed that pretraining a Transformer on large corpora transferred powerfully to downstream tasks. BERT (2018) showed that bidirectional pretraining was better for understanding tasks. GPT-3 (2020) showed that scale alone produced capabilities that seemed qualitatively new. The details continued to evolve — positional encodings, normalization placement, activation functions — but the fundamental architecture of 2017 persists at the core of every large language model in production today.</p>
+
+        <div class="callout">
+          <strong>Where Part 1 begins:</strong> the Transformer architecture — tokens, embeddings, multi-head attention, feedforward layers, the full forward pass — is covered in detail in <a href="llm-part1-transformer.html">Part 1: Attention &amp; the Transformer</a>. Part 0 gave you the "why". Part 1 gives you the "how".
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div style="margin-bottom:3rem;">
+    <p class="kicker">Continue reading</p>
+    <p style="font-size:1.05rem;">
+      <strong>→ <a href="llm-part1-transformer.html">Part 1: Attention &amp; the Transformer</a></strong> — embeddings, multi-head attention, positional encoding, the full forward pass.
+    </p>
+  </div>
+
+  <footer>
+    Part of <a href="https://schemer.in/explainers/index.html">Modern Software Tools, Explained</a>
+    · Pure JavaScript, no external dependencies
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- JavaScript                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Code runner ───────────────────────────────────────────────────────
+function runCode(id) {
+  const codeEl = document.getElementById('code-'+id);
+  const outEl  = document.getElementById('out-'+id);
+  outEl.classList.add('visible');
+  outEl.style.color = '#a8d8a8';
+  const logs = [];
+  const con = { log: (...args) => logs.push(args.map(a=>typeof a==='object'?JSON.stringify(a):String(a)).join(' ')) };
+  try {
+    new Function('console', codeEl.textContent)(con);
+    outEl.textContent = logs.join('\n') || '(no output)';
+  } catch(e) {
+    outEl.style.color = '#f08080';
+    outEl.textContent = '✗ ' + e.message;
+  }
+}
+
+// ── §01 Shannon guessing game ─────────────────────────────────────────
+const SAMPLE_TEXT = 'the cat sat on the mat a big dog ran past the old barn';
+const shannonTokens = SAMPLE_TEXT.split('');
+let shannonPos = 1;
+let shannonScore = 0, shannonTotal = 0;
+
+function drawShannon() {
+  const canvas = document.getElementById('shannon-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const shown = Math.min(shannonPos, 38);
+  const text  = SAMPLE_TEXT.slice(0, shown);
+  const next  = SAMPLE_TEXT[shown] || '';
+  const accuracy = shannonTotal > 0 ? (shannonScore/shannonTotal*100).toFixed(0) : '—';
+
+  ctx.font = '15px Menlo, monospace';
+  ctx.fillStyle = '#1a1917';
+  ctx.fillText('Context: "' + text.slice(-30) + '"', 20, 35);
+
+  ctx.fillStyle = '#2c7a7b';
+  ctx.fillText('Next character is: "' + next + '"', 20, 65);
+
+  ctx.fillStyle = '#6b6763';
+  ctx.font = '12px Helvetica Neue, sans-serif';
+  ctx.fillText(`Shannon's insight: the next character is heavily constrained by context.`, 20, 95);
+  ctx.fillText(`Human guessing accuracy on English: ~70–80% — far above the 1-in-27 random baseline.`, 20, 113);
+}
+window.addEventListener('load', drawShannon);
+
+// ── §06 Vanishing gradient ────────────────────────────────────────────
+function drawVanishing(mode) {
+  ['stable','vanish','explode'].forEach(m =>
+    document.getElementById('vg-'+m).classList.toggle('active', m===mode));
+
+  const canvas = document.getElementById('vanish-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const T = 20;
+  const configs = {
+    stable:  { norm: 1.0,  color: '#2c7a7b', label: 'Stable: ‖Wh‖ ≈ 1.0 — gradient preserved' },
+    vanish:  { norm: 0.65, color: '#e67e22', label: 'Vanishing: ‖Wh‖ < 1 — gradient shrinks to zero' },
+    explode: { norm: 1.5,  color: '#c0392b', label: 'Exploding: ‖Wh‖ > 1 — gradient grows without bound' },
+  };
+  const cfg = configs[mode];
+
+  // Simulate gradient flow
+  const grads = [1.0];
+  for (let t=0; t<T; t++) grads.push(grads[grads.length-1] * 0.4 * cfg.norm);
+
+  const pad = {l:50, r:20, t:30, b:35};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+
+  // Y axis: clamp gradient display to [0, 3]
+  const yMax = 3.0;
+  function xp(i) { return pad.l + i/T*cw; }
+  function yp(g) { return pad.t + ch - Math.min(g/yMax, 1)*ch; }
+
+  // Grid
+  ctx.strokeStyle = '#f0ede8'; ctx.lineWidth=1;
+  [1,2,3].forEach(v => { ctx.beginPath(); ctx.moveTo(pad.l,yp(v)); ctx.lineTo(pad.l+cw,yp(v)); ctx.stroke(); });
+
+  // Gradient curve
+  ctx.strokeStyle = cfg.color; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  grads.forEach((g,i) => {
+    const x = xp(T-i), y = yp(g); // reverse: left=past, right=present
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Points
+  grads.forEach((g,i) => {
+    if (i%4===0) {
+      ctx.fillStyle = cfg.color;
+      ctx.beginPath(); ctx.arc(xp(T-i), yp(g), 4, 0, Math.PI*2); ctx.fill();
+    }
+  });
+
+  // Axes
+  ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+
+  // Labels
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('← earlier time steps', pad.l+cw*0.25, H-6);
+  ctx.fillText('output (present) →', pad.l+cw*0.82, H-6);
+  ctx.textAlign='right';
+  [1,2,3].forEach(v=>ctx.fillText(v.toFixed(0), pad.l-4, yp(v)+4));
+  ctx.textAlign='left';
+  ctx.fillStyle=cfg.color; ctx.font='12px Helvetica Neue,sans-serif';
+  ctx.fillText(cfg.label, pad.l+4, pad.t+16);
+
+  // Annotation
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('|gradient|', 14, pad.t+ch/2);
+}
+window.addEventListener('load', ()=>drawVanishing('stable'));
+
+// ── §07 LSTM diagram ──────────────────────────────────────────────────
+function drawLSTM(mode) {
+  ['all','forget','input','output'].forEach(m=>
+    document.getElementById('lstm-'+m).classList.toggle('active', m===mode));
+
+  const canvas = document.getElementById('lstm-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const cx = W/2, cy = H/2;
+  // Colors per gate
+  const colors = {
+    forget: '#e67e22', input: '#2c7a7b', output: '#8e44ad', cell: '#27ae60'
+  };
+
+  function box(x, y, w, h, color, label, sublabel) {
+    ctx.fillStyle = color+'22';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(x-w/2,y-h/2,w,h,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = 'bold 12px Helvetica Neue, sans-serif'; ctx.textAlign='center';
+    ctx.fillText(label, x, y+2);
+    if (sublabel) {
+      ctx.font = '10px Helvetica Neue, sans-serif'; ctx.fillStyle='#6b6763';
+      ctx.fillText(sublabel, x, y+15);
+    }
+  }
+
+  function arrow(x1,y1,x2,y2,color) {
+    ctx.strokeStyle=color||'#ccc'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const angle = Math.atan2(y2-y1,x2-x1);
+    ctx.fillStyle=color||'#ccc';
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-9*Math.cos(angle-0.4), y2-9*Math.sin(angle-0.4));
+    ctx.lineTo(x2-9*Math.cos(angle+0.4), y2-9*Math.sin(angle+0.4));
+    ctx.fill();
+  }
+
+  // Cell state highway (top)
+  const cellY = 55;
+  ctx.strokeStyle = colors.cell; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(30, cellY); ctx.lineTo(W-30, cellY); ctx.stroke();
+  ctx.fillStyle = colors.cell; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('cell state c  (gradient highway — additive, no saturation)', 40, cellY-8);
+
+  // Gates
+  const gateY = 145;
+  const gates = [
+    { x: 160, label:'forget gate', sub:'σ(Wf·[h,x])', color: colors.forget,  key:'forget' },
+    { x: 350, label:'input gate', sub:'σ(Wi·[h,x])', color: colors.input,   key:'input'  },
+    { x: 540, label:'output gate', sub:'σ(Wo·[h,x])', color: colors.output,  key:'output' },
+  ];
+
+  // Cell gate (candidate)
+  const cgX=350, cgY=190;
+
+  gates.forEach(g => {
+    const active = mode==='all' || mode===g.key;
+    const alpha  = active ? 'ff' : '33';
+    box(g.x, gateY, 110, 44, g.color, g.label, g.sub);
+    // Arrow up to cell state
+    arrow(g.x, gateY-22, g.x, cellY+8, g.color);
+    // Label on cell state
+    if (active) {
+      ctx.fillStyle = g.color; ctx.font='10px Menlo,monospace'; ctx.textAlign='center';
+      if (g.key==='forget') ctx.fillText('× (erase)', g.x, cellY+18);
+      if (g.key==='input')  ctx.fillText('× (write)', g.x, cellY+18);
+    }
+  });
+
+  // Input arrows
+  [160,350,540].forEach(x=>{
+    arrow(x, H-10, x, gateY+22, '#bbb');
+  });
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('[h_{t-1}, x_t]  (concatenated previous hidden state + current input)', W/2, H-2);
+
+  // Output arrow
+  arrow(W-30, cellY, W-30, gateY+22, colors.output);
+  arrow(540, gateY-22, W-30, cellY-8, colors.output);
+
+  // h_t output
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue, sans-serif'; ctx.textAlign='right';
+  ctx.fillText('h_t out →', W-14, gateY-10);
+}
+window.addEventListener('load', ()=>drawLSTM('all'));
+
+// ── §09 Bottleneck ────────────────────────────────────────────────────
+function drawBottleneck(mode) {
+  ['short','medium','long'].forEach(m=>
+    document.getElementById('seq-'+m).classList.toggle('active', m===mode));
+
+  const canvas = document.getElementById('bottleneck-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const configs = {
+    short:  { words: ['the','cat','sat'], quality: 0.92 },
+    medium: { words: ['the','old','cat','slowly','sat','on','the','mat'], quality: 0.61 },
+    long:   { words: ['the','very','old','cat','that','lived','by','the','river','slowly','sat','down','on','the','large','mat'], quality: 0.28 },
+  };
+  const cfg = configs[mode];
+  const n = cfg.words.length;
+
+  const encW = Math.min(Math.floor((W-200)/n)-4, 64);
+  const startX = 30, encY = 70, boxH = 34;
+  const bottleX = W-140, bottleY = 70, bottleW = 80, bottleH = 120;
+
+  // Encoder tokens
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Encoder', startX, 25);
+
+  cfg.words.forEach((w,i) => {
+    const x = startX + i*(encW+4);
+    // Color fades as distance from end increases (info loss)
+    const distFromEnd = n-1-i;
+    const survival = Math.exp(-distFromEnd*0.35);
+    const g = Math.round(100 + survival*80);
+    ctx.fillStyle = `rgb(44,${g},123)`;
+    ctx.strokeStyle = `rgba(44,122,123,${0.3+survival*0.7})`;
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(x, encY, encW, boxH, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font=`${Math.min(11,encW/w.length*1.6)}px Menlo,monospace`;
+    ctx.textAlign='center';
+    ctx.fillText(w.length>6?w.slice(0,5)+'…':w, x+encW/2, encY+boxH/2+4);
+
+    // Arrow
+    if (i < n-1) {
+      ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x+encW+1, encY+boxH/2); ctx.lineTo(x+encW+4, encY+boxH/2); ctx.stroke();
+    }
+  });
+
+  // Arrow to bottleneck
+  const lastX = startX + (n-1)*(encW+4) + encW;
+  ctx.strokeStyle='#c0392b'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(lastX+4, encY+boxH/2); ctx.lineTo(bottleX, bottleY+bottleH/2); ctx.stroke();
+  ctx.fillStyle='#c0392b';
+  ctx.beginPath(); ctx.moveTo(bottleX,bottleY+bottleH/2); ctx.lineTo(bottleX-8,bottleY+bottleH/2-5); ctx.lineTo(bottleX-8,bottleY+bottleH/2+5); ctx.fill();
+
+  // Bottleneck vector
+  ctx.fillStyle = '#fdf2f2'; ctx.strokeStyle='#c0392b'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(bottleX, bottleY, bottleW, bottleH, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#c0392b'; ctx.font='bold 11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Fixed', bottleX+bottleW/2, bottleY+bottleH/2-8);
+  ctx.fillText('vector', bottleX+bottleW/2, bottleY+bottleH/2+6);
+  ctx.font='10px Helvetica Neue,sans-serif'; ctx.fillStyle='#6b6763';
+  ctx.fillText('512 dims', bottleX+bottleW/2, bottleY+bottleH/2+22);
+
+  // Quality indicator
+  const qColor = cfg.quality > 0.7 ? '#27ae60' : cfg.quality > 0.45 ? '#e67e22' : '#c0392b';
+  ctx.fillStyle=qColor; ctx.font='bold 12px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText(`Translation quality: ${Math.round(cfg.quality*100)}%`, bottleX+bottleW/2, H-8);
+
+  // Fading info label
+  ctx.fillStyle='#6b6763'; ctx.font='10px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('← colour intensity shows how much each token\'s info survives compression', startX, H-8);
+}
+window.addEventListener('load', ()=>drawBottleneck('short'));
+
+// ── §11 Evolution diagram ─────────────────────────────────────────────
+function drawEvolution(mode) {
+  ['rnn','attn','tfm'].forEach(m=>
+    document.getElementById('evo-'+m).classList.toggle('active', m===mode));
+
+  const canvas = document.getElementById('evo-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const tokens = ['the','cat','sat','on','mat'];
+  const n = tokens.length;
+  const tokenY = 170, tokenX0 = 60, tokenSpacing = 120;
+  const hiddenY = 100;
+
+  function tokenBox(i, highlight) {
+    const x = tokenX0 + i*tokenSpacing;
+    ctx.fillStyle = highlight ? '#fff3f3' : '#f3f1ee';
+    ctx.strokeStyle = highlight ? '#c0392b' : '#d4cfc8';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(x-28, tokenY-16, 56, 32, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = highlight ? '#c0392b' : '#6b6763';
+    ctx.font='12px Menlo,monospace'; ctx.textAlign='center';
+    ctx.fillText(tokens[i], x, tokenY+4);
+  }
+
+  function hiddenBox(i, color) {
+    const x = tokenX0 + i*tokenSpacing;
+    ctx.fillStyle = color+'33';
+    ctx.strokeStyle = color;
+    ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(x-28, hiddenY-16, 56, 32, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.font='10px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(`h${i+1}`, x, hiddenY+4);
+  }
+
+  function seq_arrow(i, color) {
+    const x1=tokenX0+i*tokenSpacing+28, x2=tokenX0+(i+1)*tokenSpacing-28, y=hiddenY;
+    ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.moveTo(x2,y); ctx.lineTo(x2-8,y-5); ctx.lineTo(x2-8,y+5); ctx.fill();
+  }
+
+  function attn_arc(i, j, alpha, color) {
+    const xi=tokenX0+i*tokenSpacing, xj=tokenX0+j*tokenSpacing, y=hiddenY;
+    const mid=(xi+xj)/2, rise=30+Math.abs(i-j)*18;
+    ctx.strokeStyle=color; ctx.lineWidth=alpha*2.5; ctx.globalAlpha=alpha;
+    ctx.beginPath(); ctx.moveTo(xi,y); ctx.quadraticCurveTo(mid,y-rise,xj,y); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+
+  // Draw tokens
+  tokens.forEach((_,i)=>tokenBox(i,false));
+
+  if (mode==='rnn') {
+    ctx.fillStyle='#1a1917'; ctx.font='bold 13px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Vanilla RNN — sequential, O(n) path length', 20, 22);
+    ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif';
+    ctx.fillText('Each hidden state depends only on previous hidden state. Position 1 must pass through all n steps to influence output.', 20, 42);
+    tokens.forEach((_,i)=>{
+      hiddenBox(i,'#2c7a7b');
+      const x=tokenX0+i*tokenSpacing;
+      ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,tokenY-16); ctx.lineTo(x,hiddenY+16); ctx.stroke();
+      if(i<n-1) seq_arrow(i,'#2c7a7b');
+    });
+    ctx.fillStyle='#c0392b'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('⚠ Sequential: token 1 must wait for token 2 before token 3 can begin', W/2, 56);
+  } else if (mode==='attn') {
+    ctx.fillStyle='#1a1917'; ctx.font='bold 13px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+    ctx.fillText('RNN + Bahdanau Attention — bottleneck broken, but still sequential', 20, 22);
+    ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif';
+    ctx.fillText('Decoder can attend to any encoder state directly. Encoder still runs sequentially.', 20, 42);
+    tokens.forEach((_,i)=>{
+      hiddenBox(i,'#2c7a7b');
+      const x=tokenX0+i*tokenSpacing;
+      ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,tokenY-16); ctx.lineTo(x,hiddenY+16); ctx.stroke();
+      if(i<n-1) seq_arrow(i,'#2c7a7b');
+    });
+    // Attention arcs from last token to all others
+    [0,1,2,3].forEach(j=>attn_arc(4,j,0.15+j*0.15,'#c0392b'));
+    ctx.fillStyle='#c0392b'; ctx.font='10px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('attention arcs', tokenX0+4*tokenSpacing, hiddenY-75);
+  } else {
+    ctx.fillStyle='#1a1917'; ctx.font='bold 13px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Transformer — fully parallel, O(1) path length', 20, 22);
+    ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif';
+    ctx.fillText('Every token attends to every other token simultaneously. No sequential dependency at all.', 20, 42);
+    tokens.forEach((_,i)=>{
+      hiddenBox(i,'#8e44ad');
+      const x=tokenX0+i*tokenSpacing;
+      ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,tokenY-16); ctx.lineTo(x,hiddenY+16); ctx.stroke();
+    });
+    // Dense attention arcs between all pairs
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) attn_arc(i,j,0.2,'#8e44ad');
+    ctx.fillStyle='#27ae60'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('✓ All tokens computed in parallel — full GPU utilization', W/2, 56);
+  }
+}
+window.addEventListener('load', ()=>drawEvolution('rnn'));
+</script>
+</body>
+</html>

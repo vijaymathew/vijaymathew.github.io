@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training & Inference — LLMs from First Principles</title>
+<link href="../shared.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  /* ── LLM-series tokens (extend shared.css) ─── */
+  :root {
+    --accent:    #c0392b;
+    --accent2:   #2c7a7b;
+    --code-bg:   #1e1e1e;
+    --code-text: #d4d4d4;
+    --run-btn:   #2c7a7b;
+    --run-hover: #235f60;
+    --tag-bg:    #ede9e4;
+    --tag-text:  #4a4540;
+    --border:    var(--rule-strong);
+    --text:      var(--ink);
+    --muted:     var(--ink-3);
+    --link:      #c0392b;
+  }
+
+  body { font-family: var(--serif); font-size: 17px; line-height: 1.72; }
+  p { font-size: 1.0625rem; line-height: 1.72; margin-bottom: 1rem; }
+  .callout p, .demo-box p, .summary-card p { font-size: inherit; line-height: inherit; }
+  .page { padding: 0 2rem 6rem; }
+
+  .kicker { font-family: var(--sans); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 3.5rem; margin-bottom: .75rem; }
+  h1.hero { font-family: var(--serif); font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: normal; line-height: 1.15; letter-spacing: -.02em; color: var(--ink); margin-bottom: 1.25rem; max-width: none; }
+  h1.hero em { font-style: italic; color: var(--accent); }
+  .lede { font-size: 1.1rem; line-height: 1.65; color: var(--ink-2); max-width: 620px; margin-bottom: 2.5rem; font-style: italic; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 2.5rem; }
+  .summary-card { background: var(--bg); padding: 1.1rem 1.2rem; }
+  .summary-card .label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .3rem; }
+  .summary-card .value { font-family: var(--sans); font-size: .85rem; font-weight: 600; color: var(--ink); line-height: 1.3; }
+  .summary-card .sub { font-family: var(--sans); font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 3rem; }
+  .tag { font-family: var(--sans); font-size: 11px; letter-spacing: .04em; color: var(--tag-text); background: var(--tag-bg); padding: 3px 9px; border-radius: 2px; }
+
+  .toc { display: block; grid-template-columns: none; border: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); border-radius: 0; background: none; box-shadow: none; padding: 1.5rem 0; margin: 0 0 4rem; }
+  .toc a { display: flex; padding: .25rem 0; border-right: none; border-bottom: 1px solid transparent; background: none; font-size: .82rem; font-family: var(--sans); color: var(--muted); gap: .6rem; align-items: baseline; transition: color .15s, border-color .15s; }
+  .toc a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .toc-n, .toc-num { display: none; }
+  .toc-label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+  .toc-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: .1rem 2rem; }
+  .toc-list li a .num { font-family: var(--mono); font-size: .72rem; color: var(--accent); flex-shrink: 0; }
+
+  .section-header { align-items: flex-start; gap: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .section-num { font-family: var(--mono); font-size: .72rem; color: var(--accent); letter-spacing: .04em; flex-shrink: 0; margin-top: .35rem; }
+  .section h2 { font-family: var(--serif); font-size: 1.55rem; font-weight: normal; line-height: 1.3; letter-spacing: -.01em; color: var(--ink); }
+  .section h3 { font-family: var(--serif); font-size: 1.1rem; font-weight: normal; font-style: italic; letter-spacing: 0; text-transform: none; margin: 1.5rem 0 .6rem; color: var(--ink); }
+  .section p:last-child { margin-bottom: 0; }
+  .section ul, .section ol { margin: .6rem 0 1rem 1.4rem; font-size: .95rem; line-height: 2; }
+
+  a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { color: var(--link); border-bottom-color: var(--link); }
+
+  code { font-family: var(--mono); font-size: .82em; background: var(--surface-muted); border: 1px solid var(--border); padding: 1px 5px; border-radius: 2px; color: var(--ink); }
+
+  .demo-box { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 3px; padding: 1.4rem 1.5rem; margin: 1.5rem 0; }
+  .demo-box .demo-label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+  .code-block { margin: 1.5rem 0; border-radius: 3px; overflow: hidden; border: 1px solid #333; }
+  .code-header { background: #2a2a2a; display: flex; align-items: center; padding: .45rem .85rem; gap: .7rem; }
+  .code-filename { font-family: var(--mono); font-size: .75rem; color: #9d9d9d; flex: 1; }
+  .code-lang { font-family: var(--sans); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: #666; }
+  .run-btn { font-family: var(--sans); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; background: var(--run-btn); color: #fff; border: none; padding: 4px 12px; border-radius: 2px; cursor: pointer; transition: background .15s; }
+  .run-btn:hover { background: var(--run-hover); }
+  .code-block pre { background: var(--code-bg); color: var(--code-text); font-family: var(--mono); font-size: .8rem; line-height: 1.6; padding: 1rem; overflow-x: auto; margin: 0; }
+  .output-area { background: #111; color: #a8d8a8; font-family: var(--mono); font-size: .78rem; line-height: 1.6; padding: .8rem 1rem; border-top: 1px solid #333; white-space: pre-wrap; display: none; min-height: 2rem; }
+  .output-area.visible { display: block; }
+
+  .prose-table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: .83rem; margin: 1.5rem 0; }
+  .prose-table th { text-align: left; padding: .5rem .8rem; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
+  .prose-table td { padding: .55rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+  .prose-table tr:last-child td { border-bottom: none; }
+
+  .callout { border-left: 3px solid var(--accent2); border-top: none; border-right: none; border-bottom: none; border-radius: 0; background: #f0f7f7; padding: .9rem 1.2rem; margin: 1.5rem 0; font-size: .93rem; }
+  .callout strong { color: var(--accent2); }
+
+  .anim-wrap { background: #fff; border: 1px solid var(--border); border-radius: 3px; margin: 1.5rem 0; overflow: hidden; }
+  .anim-controls { display: flex; gap: .6rem; padding: .6rem 1rem; background: var(--surface-muted); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+  .anim-controls .ctrl-label { font-family: var(--sans); font-size: .75rem; color: var(--muted); margin-right: .3rem; }
+  .ctrl-btn { font-family: var(--sans); font-size: .72rem; padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 2px; cursor: pointer; color: var(--ink); transition: background .12s; }
+  .ctrl-btn:hover { background: var(--border); }
+  .ctrl-btn.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  canvas { display: block; max-width: 100%; }
+  input[type=range] { accent-color: var(--accent2); cursor: pointer; }
+  input[type=number], input[type=text] { font-family: var(--mono); font-size: .85rem; padding: 5px 8px; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--ink); }
+  select { font-family: var(--sans); font-size: .8rem; padding: 4px 8px; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--ink); cursor: pointer; }
+
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 4rem 0; }
+  footer { border-top: 1px solid var(--border); padding: 2rem 0; font-family: var(--sans); font-size: .8rem; color: var(--muted); text-align: center; }
+  footer a { color: var(--muted); border-bottom: 1px solid var(--border); }
+
+  @media (max-width: 600px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .toc-list { grid-template-columns: 1fr; }
+    h1.hero { font-size: 2rem; }
+  }
+
+  .site-header { border-bottom: 1px solid #e6e6ea; padding: 1.1rem 2rem; }
+  .site-header-inner { max-width: 52rem; margin: 0 auto; display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap; }
+  a.book-title { font-family: 'Outfit', system-ui, sans-serif; font-size: 0.85rem; font-weight: 400; letter-spacing: 0.01em; color: #3d3d40; text-decoration: none; border-bottom: none; }
+  a.book-title:hover { color: #0a0a0b; border-bottom: none; }
+  .book-nav { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-left: auto; }
+  .book-nav a { font-family: 'Outfit', system-ui, sans-serif; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: #6b6b6f; text-decoration: none; border-bottom: none; transition: color 0.15s; }
+  .book-nav a:hover { color: #0a0a0b; border-bottom: none; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="../index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="../index.html">Contents</a>
+</nav>
+</div>
+</header>
+
+<div class="page">
+  <p class="kicker">Machine learning · Language models</p>
+  <h1 class="hero">Training &amp;<br><em>Inference</em></h1>
+  <p class="lede">How random weights become a language model — cross-entropy loss, backpropagation, the training loop, sampling strategies, and how a next-token predictor becomes a conversational assistant. Pure JavaScript throughout.</p>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">Goal of training</div>
+      <div class="value">Minimize cross-entropy loss</div>
+      <div class="sub">predict next token correctly</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Mechanism</div>
+      <div class="value">Backpropagation + gradient descent</div>
+      <div class="sub">nudge weights toward lower loss</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Part 1 prerequisite</div>
+      <div class="value">Forward pass assumed known</div>
+      <div class="sub">embeddings → logits</div>
+    </div>
+  </div>
+
+  <div class="tags">
+    <span class="tag">Cross-entropy loss</span>
+    <span class="tag">Backpropagation</span>
+    <span class="tag">Gradient descent</span>
+    <span class="tag">Adam optimizer</span>
+    <span class="tag">Training loop</span>
+    <span class="tag">Overfitting</span>
+    <span class="tag">Autoregressive generation</span>
+    <span class="tag">Temperature</span>
+    <span class="tag">Top-k / Top-p</span>
+    <span class="tag">KV cache</span>
+    <span class="tag">RLHF</span>
+  </div>
+
+  <div class="toc">
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li><a href="#s1"><span class="num">§01</span> What training means</a></li>
+      <li><a href="#s2"><span class="num">§02</span> Tokenized datasets</a></li>
+      <li><a href="#s3"><span class="num">§03</span> Cross-entropy loss</a></li>
+      <li><a href="#s4"><span class="num">§04</span> Backpropagation</a></li>
+      <li><a href="#s5"><span class="num">§05</span> Gradient descent &amp; Adam</a></li>
+      <li><a href="#s6"><span class="num">§06</span> The training loop</a></li>
+      <li><a href="#s7"><span class="num">§07</span> Overfitting &amp; generalization</a></li>
+      <li><a href="#s8"><span class="num">§08</span> Autoregressive generation</a></li>
+      <li><a href="#s9"><span class="num">§09</span> Sampling strategies</a></li>
+      <li><a href="#s10"><span class="num">§10</span> The KV cache</a></li>
+      <li><a href="#s11"><span class="num">§11</span> RLHF: from predictor to assistant</a></li>
+    </ul>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §01 What training means -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <span class="section-num">§01</span>
+      <h2>What training means</h2>
+    </div>
+
+    <p>At the end of Part 1, the forward pass produced a probability distribution over the vocabulary. The weights that produced it were random — the predictions were meaningless. Training is the process of adjusting those weights so the predictions become good.</p>
+
+    <p>"Good" is defined precisely: assign high probability to the token that actually comes next in real text. The training corpus is billions of sentences. For each one, the model predicts the next token at every position; we measure how wrong it was; we compute how each weight contributed to that wrongness; we nudge every weight slightly in the direction that reduces it. Repeat hundreds of billions of times.</p>
+
+    <p>Three questions to answer before diving in:</p>
+    <ul>
+      <li><strong>How do we measure wrongness?</strong> — Cross-entropy loss (§03)</li>
+      <li><strong>How do we assign blame to each weight?</strong> — Backpropagation (§04)</li>
+      <li><strong>How do we nudge weights efficiently?</strong> — Adam optimizer (§05)</li>
+    </ul>
+
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">Training loop overview</span>
+      </div>
+      <canvas id="loop-canvas" width="700" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §02 Tokenized datasets -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <span class="section-num">§02</span>
+      <h2>Tokenized datasets</h2>
+    </div>
+
+    <p>Raw text is tokenized once and stored as a flat array of integers. Training draws <em>chunks</em> from this array — contiguous runs of <code>context_length + 1</code> tokens. The first <code>context_length</code> tokens form the input; the last <code>context_length</code> tokens form the targets, shifted by one position.</p>
+
+    <p>This shift-by-one trick means every chunk of text yields <code>context_length</code> training examples simultaneously. A context window of 2,048 tokens gives 2,048 next-token prediction problems from a single forward pass.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">dataset.js — chunking tokens into training examples</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('dataset')">▶ Run</button>
+      </div>
+      <pre id="code-dataset">// How raw token IDs become training pairs (input, target).
+// The target is just the input shifted one position to the right.
+
+function makeDataset(tokenIds, contextLen) {
+  const examples = [];
+  for (let i = 0; i + contextLen < tokenIds.length; i++) {
+    const input  = tokenIds.slice(i, i + contextLen);
+    const target = tokenIds.slice(i + 1, i + contextLen + 1);
+    examples.push({ input, target });
+  }
+  return examples;
+}
+
+// Mini corpus: "the cat sat on the mat"
+// Vocabulary: {'the':0, 'cat':1, 'sat':2, 'on':3, 'mat':4}
+const VOCAB = ['the', 'cat', 'sat', 'on', 'mat'];
+const corpus = [0, 1, 2, 3, 0, 4];  // token IDs
+
+const contextLen = 3;
+const dataset = makeDataset(corpus, contextLen);
+
+console.log(`Corpus: [${corpus.map(id => '"'+VOCAB[id]+'"').join(', ')}]`);
+console.log(`Context length: ${contextLen}`);
+console.log(`Number of training examples: ${dataset.length}\n`);
+
+dataset.forEach(({input, target}, i) => {
+  const iStr = input .map(id => '"'+VOCAB[id]+'"').join(', ');
+  const tStr = target.map(id => '"'+VOCAB[id]+'"').join(', ');
+  console.log(`Example ${i+1}:`);
+  console.log(`  input:  [${iStr}]`);
+  console.log(`  target: [${tStr}]`);
+  console.log(`  → at position 0, predict "${VOCAB[target[0]]}"; at position 1, predict "${VOCAB[target[1]]}"; ...`);
+});</pre>
+      <div class="output-area" id="out-dataset"></div>
+    </div>
+
+    <p>In practice, data is batched: many examples are processed in parallel. A batch of 512 examples each of length 2,048 means ~1 million token predictions per forward pass. This is why training requires thousands of GPUs running for weeks.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §03 Cross-entropy loss -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <span class="section-num">§03</span>
+      <h2>Cross-entropy loss</h2>
+    </div>
+
+    <p>We need a number that measures how bad a prediction is. The right number is <em>cross-entropy loss</em>: given a probability distribution over the vocabulary and the true next token, the loss is the negative log probability assigned to the correct token:</p>
+
+    <div class="demo-box" style="font-family:var(--mono);font-size:.9rem;text-align:center;padding:1.2rem;">
+      L = −log P(correct token)
+    </div>
+
+    <p>Why negative log? Because probabilities are between 0 and 1, so their logs are negative — we negate to get a positive loss. A perfect prediction (P = 1.0) gives loss 0. Assigning probability 0.01 to the correct token gives loss 4.6. Predicting completely wrong (P → 0) gives loss → ∞.</p>
+
+    <p>The loss across a batch is the mean over all token positions. This single scalar is what the entire training machinery works to minimize.</p>
+
+    <!-- Interactive loss demo -->
+    <div class="demo-box">
+      <div class="demo-label">Interactive — cross-entropy loss</div>
+      <p style="font-family:var(--sans);font-size:.85rem;color:var(--muted);margin-bottom:1rem;">
+        Drag the slider to see how loss changes as the model assigns different probabilities to the correct token.
+      </p>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap;">
+        <label style="font-family:var(--sans);font-size:.82rem;">P(correct) = <strong id="prob-val">0.50</strong></label>
+        <input type="range" id="prob-slider" min="1" max="99" value="50" style="width:200px;" oninput="updateLossDemo()">
+        <span style="font-family:var(--mono);font-size:.85rem;">Loss = <strong id="loss-val" style="color:var(--accent);">0.693</strong></span>
+      </div>
+      <canvas id="loss-canvas" width="660" height="140"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">loss.js — cross-entropy loss from scratch</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('loss')">▶ Run</button>
+      </div>
+      <pre id="code-loss">// Cross-entropy loss — the single number training minimizes.
+
+function softmax(logits) {
+  const max = Math.max(...logits);
+  const ex  = logits.map(x => Math.exp(x - max));
+  const sum = ex.reduce((a,b) => a+b, 0);
+  return ex.map(x => x/sum);
+}
+
+function crossEntropyLoss(logits, targetId) {
+  // logits: raw scores from the model [vocab_size]
+  // targetId: index of the correct token
+  const probs = softmax(logits);
+  const correctProb = probs[targetId];
+  // Clamp to avoid log(0)
+  return -Math.log(Math.max(correctProb, 1e-10));
+}
+
+function batchLoss(allLogits, targetIds) {
+  // allLogits: [seq_len × vocab_size], targetIds: [seq_len]
+  const losses = allLogits.map((logits, i) =>
+    crossEntropyLoss(logits, targetIds[i])
+  );
+  return losses.reduce((a,b) => a+b, 0) / losses.length;
+}
+
+// ── Example: vocabulary of 5 tokens ─────────────────────────────
+const VOCAB = ['the', 'cat', 'sat', 'on', 'mat'];
+const correctId = 2; // "sat"
+
+// Case 1: uniform logits (untrained model)
+const uniformLogits = [0, 0, 0, 0, 0];
+const l1 = crossEntropyLoss(uniformLogits, correctId);
+console.log('=== Untrained model (uniform logits) ===');
+console.log(`Logits:  [${uniformLogits.join(', ')}]`);
+console.log(`Probs:   [${softmax(uniformLogits).map(p=>p.toFixed(3)).join(', ')}]`);
+console.log(`P(sat):  ${softmax(uniformLogits)[correctId].toFixed(3)}`);
+console.log(`Loss:    ${l1.toFixed(4)}  (= log(5) — random-guess baseline)\n`);
+
+// Case 2: model is starting to learn
+const learningLogits = [-1, 0.5, 2.0, -0.5, 0.3];
+const l2 = crossEntropyLoss(learningLogits, correctId);
+console.log('=== Partially trained model ===');
+console.log(`Logits:  [${learningLogits.join(', ')}]`);
+console.log(`Probs:   [${softmax(learningLogits).map(p=>p.toFixed(3)).join(', ')}]`);
+console.log(`P(sat):  ${softmax(learningLogits)[correctId].toFixed(3)}`);
+console.log(`Loss:    ${l2.toFixed(4)}\n`);
+
+// Case 3: well-trained model
+const goodLogits = [-5, -3, 8, -4, -2];
+const l3 = crossEntropyLoss(goodLogits, correctId);
+console.log('=== Well-trained model ===');
+console.log(`Logits:  [${goodLogits.join(', ')}]`);
+console.log(`Probs:   [${softmax(goodLogits).map(p=>p.toFixed(3)).join(', ')}]`);
+console.log(`P(sat):  ${softmax(goodLogits)[correctId].toFixed(3)}`);
+console.log(`Loss:    ${l3.toFixed(4)}`);</pre>
+      <div class="output-area" id="out-loss"></div>
+    </div>
+
+    <p>The <em>perplexity</em> of a model is <code>exp(average_loss)</code> — it measures how "surprised" the model is by the text. An untrained model on a 50,000-token vocabulary has perplexity 50,000. GPT-2 achieves ~35 on standard benchmarks; GPT-4 is substantially lower.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §04 Backpropagation -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <span class="section-num">§04</span>
+      <h2>Backpropagation</h2>
+    </div>
+
+    <p>We have a loss. Now we need to know: for each weight in the model, does increasing it make the loss go up or down, and by how much? This is the <em>gradient</em> — a vector with one number per weight, pointing in the direction of steepest loss increase.</p>
+
+    <p>Backpropagation computes this gradient efficiently using the chain rule. The computation graph of the forward pass — every addition, multiplication, softmax — is traversed in reverse. At each node, we compute how much that operation contributed to the final loss, and pass the signal back to its inputs.</p>
+
+    <h3>A concrete walk-through</h3>
+
+    <p>Consider the simplest possible network: one weight <code>w</code>, one input <code>x</code>, one output <code>y = w·x</code>, and a loss <code>L = (y − target)²</code>. We want <code>dL/dw</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">backprop.js — autodiff from scratch</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('backprop')">▶ Run</button>
+      </div>
+      <pre id="code-backprop">// Manual backpropagation through a tiny network.
+// We implement forward pass, loss, and gradient computation by hand
+// to make the chain rule fully explicit.
+
+// Network: y = relu(w2 · relu(w1·x + b1) + b2)
+// Loss: L = (y - target)^2
+
+function relu(x) { return Math.max(0, x); }
+function reluGrad(x) { return x > 0 ? 1 : 0; }
+
+function forward(x, w1, b1, w2, b2) {
+  const z1 = w1 * x + b1;           // pre-activation layer 1
+  const a1 = relu(z1);               // activation
+  const z2 = w2 * a1 + b2;          // pre-activation layer 2
+  const y  = relu(z2);               // output
+  return { z1, a1, z2, y };
+}
+
+function loss(y, target) {
+  return (y - target) ** 2;
+}
+
+function backward(x, w1, b1, w2, b2, target, cache) {
+  const { z1, a1, z2, y } = cache;
+
+  // dL/dy — gradient of loss w.r.t. output
+  const dL_dy = 2 * (y - target);
+
+  // dL/dz2 — chain through relu at z2
+  const dL_dz2 = dL_dy * reluGrad(z2);
+
+  // dL/dw2 = dL/dz2 · dz2/dw2 = dL/dz2 · a1
+  const dL_dw2 = dL_dz2 * a1;
+  // dL/db2 = dL/dz2 · 1
+  const dL_db2 = dL_dz2;
+
+  // dL/da1 = dL/dz2 · dz2/da1 = dL/dz2 · w2
+  const dL_da1 = dL_dz2 * w2;
+
+  // dL/dz1 — chain through relu at z1
+  const dL_dz1 = dL_da1 * reluGrad(z1);
+
+  // dL/dw1 = dL/dz1 · x
+  const dL_dw1 = dL_dz1 * x;
+  // dL/db1 = dL/dz1 · 1
+  const dL_db1 = dL_dz1;
+
+  return { dL_dw1, dL_db1, dL_dw2, dL_db2 };
+}
+
+// ── Verify by finite difference (numerical gradient check) ───────
+function numericalGrad(fn, param, eps=1e-5) {
+  return (fn(param + eps) - fn(param - eps)) / (2 * eps);
+}
+
+let w1=0.5, b1=0.1, w2=0.8, b2=-0.2;
+const x=2.0, target=3.0;
+
+const cache = forward(x, w1, b1, w2, b2);
+const L = loss(cache.y, target);
+const grads = backward(x, w1, b1, w2, b2, target, cache);
+
+console.log('Forward pass:');
+console.log(`  x=${x}, target=${target}`);
+console.log(`  z1=${cache.z1.toFixed(4)}, a1=${cache.a1.toFixed(4)}`);
+console.log(`  z2=${cache.z2.toFixed(4)}, y=${cache.y.toFixed(4)}`);
+console.log(`  Loss L=${L.toFixed(6)}\n`);
+
+console.log('Analytical gradients (backprop):');
+console.log(`  dL/dw1 = ${grads.dL_dw1.toFixed(6)}`);
+console.log(`  dL/dw2 = ${grads.dL_dw2.toFixed(6)}\n`);
+
+// Verify with numerical gradients
+const ng_w1 = numericalGrad(w => {
+  const c = forward(x, w, b1, w2, b2);
+  return loss(c.y, target);
+}, w1);
+const ng_w2 = numericalGrad(w => {
+  const c = forward(x, w1, b1, w, b2);
+  return loss(c.y, target);
+}, w2);
+
+console.log('Numerical gradients (finite difference check):');
+console.log(`  dL/dw1 ≈ ${ng_w1.toFixed(6)}  ← should match above`);
+console.log(`  dL/dw2 ≈ ${ng_w2.toFixed(6)}  ← should match above`);
+console.log(`\nMax error: ${Math.max(Math.abs(grads.dL_dw1 - ng_w1), Math.abs(grads.dL_dw2 - ng_w2)).toExponential(2)}`);</pre>
+      <div class="output-area" id="out-backprop"></div>
+    </div>
+
+    <p>In a real Transformer, the same chain rule applies — but through billions of parameters and dozens of operations. PyTorch and JAX automate this by recording the computation graph during the forward pass, then traversing it in reverse. The math is identical to what you just ran; the scale is not.</p>
+
+    <div class="callout">
+      <strong>Why residual connections matter for backprop:</strong> in a deep network without residuals, gradients are multiplied by the derivative at every layer on the way back. If those derivatives are slightly less than 1, the gradient shrinks exponentially — the <em>vanishing gradient</em> problem. Residual connections add a direct path (gradient = 1) that bypasses the multiplication chain.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §05 Gradient descent & Adam -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <span class="section-num">§05</span>
+      <h2>Gradient descent &amp; Adam</h2>
+    </div>
+
+    <p>Once we have the gradient, we update each weight by subtracting a small multiple of it. The multiplier is the <em>learning rate</em> — perhaps the most important hyperparameter in training:</p>
+
+    <div class="demo-box" style="font-family:var(--mono);font-size:.9rem;text-align:center;padding:1.2rem;">
+      w ← w − η · (dL/dw)
+    </div>
+
+    <p>Vanilla gradient descent has a problem: the gradient is noisy (computed on a small batch) and the same learning rate applies to every parameter regardless of its history. The Adam optimizer fixes both problems by tracking a running average of the gradient and of the squared gradient for each parameter, using them to produce an adaptive, low-variance update.</p>
+
+    <!-- Loss landscape visualization -->
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">Learning rate:</span>
+        <button class="ctrl-btn active" id="lr-slow" onclick="runDescent('slow')">η = 0.05 (slow)</button>
+        <button class="ctrl-btn" id="lr-good" onclick="runDescent('good')">η = 0.3 (good)</button>
+        <button class="ctrl-btn" id="lr-big"  onclick="runDescent('big')">η = 1.2 (too large)</button>
+        <button class="ctrl-btn" id="lr-adam" onclick="runDescent('adam')">Adam</button>
+      </div>
+      <canvas id="descent-canvas" width="700" height="220"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">adam.js — Adam optimizer from scratch</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('adam')">▶ Run</button>
+      </div>
+      <pre id="code-adam">// Adam optimizer — the standard for training LLMs.
+// Maintains per-parameter moving averages of gradient (m) and
+// gradient-squared (v), then computes bias-corrected updates.
+
+function adamOptimizer(lr=1e-3, beta1=0.9, beta2=0.999, eps=1e-8) {
+  const state = {};  // { paramName: { m, v, t } }
+
+  return function update(params, grads) {
+    for (const [name, grad] of Object.entries(grads)) {
+      if (!state[name]) state[name] = { m: 0, v: 0, t: 0 };
+      const s = state[name];
+      s.t += 1;
+
+      // Update biased first moment estimate
+      s.m = beta1 * s.m + (1 - beta1) * grad;
+
+      // Update biased second moment estimate
+      s.v = beta2 * s.v + (1 - beta2) * grad * grad;
+
+      // Bias correction (important in early steps when m,v are near zero)
+      const m_hat = s.m / (1 - Math.pow(beta1, s.t));
+      const v_hat = s.v / (1 - Math.pow(beta2, s.t));
+
+      // Update parameter
+      params[name] -= lr * m_hat / (Math.sqrt(v_hat) + eps);
+    }
+    return params;
+  };
+}
+
+// ── Demo: train a single weight to match a target ─────────────────
+function runComparison(optimizerFn, steps, name) {
+  let w = 3.0;          // starting weight (far from optimal 0.0)
+  const target = 0.0;
+  const losses = [];
+
+  const update = optimizerFn();
+  const params = { w };
+
+  for (let i = 0; i < steps; i++) {
+    // MSE loss: L = (w - target)^2, dL/dw = 2*(w - target)
+    const loss = (params.w - target) ** 2;
+    const grad = 2 * (params.w - target);
+    update(params, { w: grad });
+    losses.push(loss);
+  }
+
+  console.log(`\n${name}:`);
+  [0, 4, 9, 19, 49].filter(i => i < steps).forEach(i => {
+    console.log(`  step ${String(i+1).padStart(3)}: w=${params.w.toFixed(4).padStart(8)}, loss=${losses[i].toFixed(6)}`);
+  });
+}
+
+// SGD (no momentum)
+function sgd(lr=0.1) {
+  return () => (params, grads) => {
+    for (const [k, g] of Object.entries(grads)) params[k] -= lr * g;
+    return params;
+  };
+}
+
+runComparison(sgd(0.1),    50, 'SGD (lr=0.1)');
+runComparison(() => adamOptimizer(0.1), 50, 'Adam (lr=0.1)');</pre>
+      <div class="output-area" id="out-adam"></div>
+    </div>
+
+    <p>Real LLM training uses a <em>learning rate schedule</em>: the rate is warmed up linearly from zero over the first few thousand steps (to avoid large updates with unreliable initial gradients), then decayed following a cosine curve through the rest of training. The peak learning rate for GPT-3 was 6×10⁻⁴ — a tiny number applied to 175 billion parameters at every step.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §06 The training loop -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <span class="section-num">§06</span>
+      <h2>The training loop</h2>
+    </div>
+
+    <p>We now have all pieces. The training loop is the engine that runs forward pass → loss → backward pass → optimizer update, repeatedly, over the entire dataset for multiple passes (epochs). For LLMs trained once on the internet, there is typically only one epoch — the dataset is so large that seeing each document more than once risks overfitting.</p>
+
+    <p>Production training loops add two more steps between backprop and the optimizer update. First, <strong>gradient clipping</strong>: if the global norm of all gradients exceeds a threshold (typically 1.0), every gradient is scaled down proportionally. This directly addresses the exploding gradient problem from Part 0 §06 — even with LSTMs or Transformers, anomalous batches can produce sudden large gradients, and clipping prevents them from causing catastrophic weight updates. Second, a <strong>learning rate schedule</strong>: the rate warms up from zero over the first few thousand steps (when initial random weights produce unreliable gradient directions), then decays through the rest of training.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">train.js — a complete training loop on a tiny model</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('train')">▶ Run</button>
+      </div>
+      <pre id="code-train">// Complete training loop — a tiny bigram neural network trained
+// end-to-end: forward pass → cross-entropy loss → backprop → Adam.
+// No libraries. The same loop structure runs in PyTorch for GPT-4.
+
+// ── Model: single embedding matrix, no transformer layers ────────
+// This is the simplest possible LM: predict next token from current token.
+// Output = softmax(E[input] · Eᵀ) — weight-tied embedding/unembedding.
+
+const VOCAB2 = ['the','cat','sat','on','mat'];
+const V = VOCAB2.length;  // 5
+const D2 = 4;             // embedding dimension
+
+// Initialize embedding table with small random values
+function randn(r, c, scale=0.1) {
+  return Array.from({length:r}, () =>
+    Array.from({length:c}, () => {
+      const u=1-Math.random(), v=Math.random();
+      return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v) * scale;
+    })
+  );
+}
+
+let E = randn(V, D2);  // [V × D] — shared embedding/unembedding
+
+function forward2(inputId) {
+  const emb   = E[inputId];                           // [D]
+  // logits = emb · Eᵀ — dot with every row of E
+  const logits = E.map(row => row.reduce((s,v,i) => s + v*emb[i], 0)); // [V]
+  const max    = Math.max(...logits);
+  const exps   = logits.map(x => Math.exp(x - max));
+  const sum    = exps.reduce((a,b) => a+b, 0);
+  const probs  = exps.map(x => x/sum);
+  return { emb, logits, probs };
+}
+
+// Cross-entropy loss + gradients w.r.t. E
+function lossAndGrad(inputId, targetId) {
+  const { emb, probs } = forward2(inputId);
+  const loss = -Math.log(Math.max(probs[targetId], 1e-10));
+
+  // dL/d_logits[j] = probs[j] - 1{j == target}
+  const dLogits = probs.map((p, j) => p - (j === targetId ? 1 : 0));
+
+  // dL/d_E: each logit[j] = emb · E[j], so:
+  //   dL/d_E[j] += dLogits[j] · emb        (outer product, j-th row)
+  //   dL/d_E[inputId] += sum_j(dLogits[j] · E[j])   (chain from emb)
+  const dE = Array.from({length:V}, () => new Array(D2).fill(0));
+
+  for (let j = 0; j < V; j++)
+    for (let d = 0; d < D2; d++)
+      dE[j][d] += dLogits[j] * emb[d];
+
+  for (let j = 0; j < V; j++)
+    for (let d = 0; d < D2; d++)
+      dE[inputId][d] += dLogits[j] * E[j][d];
+
+  return { loss, dE };
+}
+
+// ── Adam state for E ──────────────────────────────────────────────
+const mE = Array.from({length:V}, () => new Array(D2).fill(0));
+const vE = Array.from({length:V}, () => new Array(D2).fill(0));
+let   t  = 0;
+const lr=0.05, beta1=0.9, beta2=0.999, eps=1e-8;
+
+// ── Training data: bigram pairs from corpus ───────────────────────
+const corpus2 = [0,1,2,3,0,4,0,1,3,0,4];  // "the cat sat on the mat..."
+const pairs = [];
+for (let i = 0; i < corpus2.length - 1; i++)
+  pairs.push([corpus2[i], corpus2[i+1]]);
+
+// ── Training loop ─────────────────────────────────────────────────
+const steps = 200;
+const logEvery = 40;
+for (let step = 0; step < steps; step++) {
+  t++;
+  // Average gradients over all pairs
+  const totalDE = Array.from({length:V}, () => new Array(D2).fill(0));
+  let totalLoss = 0;
+
+  for (const [inp, tgt] of pairs) {
+    const { loss, dE } = lossAndGrad(inp, tgt);
+    totalLoss += loss;
+    for (let i=0;i<V;i++) for (let d=0;d<D2;d++) totalDE[i][d] += dE[i][d]/pairs.length;
+  }
+  totalLoss /= pairs.length;
+
+  // Adam update on E
+  for (let i=0;i<V;i++) for (let d=0;d<D2;d++) {
+    const g = totalDE[i][d];
+    mE[i][d] = beta1*mE[i][d] + (1-beta1)*g;
+    vE[i][d] = beta2*vE[i][d] + (1-beta2)*g*g;
+    const mh = mE[i][d]/(1-Math.pow(beta1,t));
+    const vh = vE[i][d]/(1-Math.pow(beta2,t));
+    E[i][d] -= lr * mh / (Math.sqrt(vh)+eps);
+  }
+
+  if (step % logEvery === 0 || step === steps-1)
+    console.log(`step ${String(step+1).padStart(3)}: loss=${totalLoss.toFixed(4)}, perplexity=${Math.exp(totalLoss).toFixed(2)}`);
+}
+
+// ── Show what the model learned ───────────────────────────────────
+console.log('\nLearned predictions (top-2 next token after each word):');
+VOCAB2.forEach((word, id) => {
+  const { probs } = forward2(id);
+  const top2 = probs.map((p,i)=>[VOCAB2[i],p]).sort((a,b)=>b[1]-a[1]).slice(0,2);
+  console.log(`  after "${word}": ${top2.map(([w,p])=>`"${w}"(${(p*100).toFixed(0)}%)`).join(', ')}`);
+});</pre>
+      <div class="output-area" id="out-train"></div>
+    </div>
+
+    <p>Notice that loss drops and perplexity falls toward the theoretical minimum for this small corpus. The model learns which tokens tend to follow which — the same information captured, at scale, by a real language model trained on the internet.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §07 Overfitting & generalization -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <span class="section-num">§07</span>
+      <h2>Overfitting &amp; generalization</h2>
+    </div>
+
+    <p>A model that has memorized its training data perfectly will perform poorly on new text — it has learned the idiosyncrasies of training examples rather than the underlying structure of language. This is <em>overfitting</em>.</p>
+
+    <p>The standard diagnostic is to plot <em>training loss</em> and <em>validation loss</em> separately throughout training. Validation loss is computed on a held-out set not used for updates. Healthy training: both curves fall together. Overfitting: training loss keeps falling while validation loss levels off or rises.</p>
+
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">Training scenario:</span>
+        <button class="ctrl-btn active" id="fit-good" onclick="drawLossCurves('good')">Good fit</button>
+        <button class="ctrl-btn" id="fit-over" onclick="drawLossCurves('over')">Overfitting</button>
+        <button class="ctrl-btn" id="fit-under" onclick="drawLossCurves('under')">Underfitting</button>
+      </div>
+      <canvas id="curves-canvas" width="700" height="220"></canvas>
+    </div>
+
+    <p>LLMs avoid overfitting primarily through sheer scale: training data is so vast that the model rarely sees the same document twice. Additional techniques include <em>dropout</em> (randomly zeroing activations during training), <em>weight decay</em> (an L2 penalty that keeps weights small), and careful early stopping based on validation loss.</p>
+
+    <table class="prose-table">
+      <thead><tr><th>Technique</th><th>What it does</th><th>Intuition</th></tr></thead>
+      <tbody>
+        <tr><td>Dropout</td><td>Zero out random activations with probability p</td><td>Forces the network not to rely on any single path</td></tr>
+        <tr><td>Weight decay</td><td>Add λ·‖w‖² to loss at each step</td><td>Penalizes large weights; shrinks toward zero</td></tr>
+        <tr><td>Early stopping</td><td>Halt when validation loss stops improving</td><td>The validation curve tells you when to stop</td></tr>
+        <tr><td>Data augmentation</td><td>Varied rephrasings of training examples</td><td>More unique examples per concept</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §08 Autoregressive generation -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <span class="section-num">§08</span>
+      <h2>Autoregressive generation</h2>
+    </div>
+
+    <p>At inference time, the model has no target token — it must generate. The process is <em>autoregressive</em>: the model produces one token at a time, appends it to the context, then runs the forward pass again to predict the next one.</p>
+
+    <p>This is the most computationally expensive characteristic of LLM inference. Generating 100 tokens requires 100 sequential forward passes. Each pass processes the full context window, which grows by one token at each step. There is no way to parallelize across time steps — each token depends on all previous ones.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">generate.js — autoregressive generation loop</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('generate')">▶ Run</button>
+      </div>
+      <pre id="code-generate">// Autoregressive generation: produce one token at a time,
+// feeding each output back as input for the next step.
+
+const VOCAB3 = ['the','cat','sat','on','mat','dog','ran','a','big'];
+const V3 = VOCAB3.length;
+
+// Toy transition matrix (like a trained model's implicit knowledge)
+// entry[i][j] = log probability of token j following token i
+const logProbs = [
+  // the   cat   sat   on    mat   dog   ran   a     big
+  [-2.2, -1.2, -3.0, -3.0, -1.8, -1.5, -3.0, -1.3, -2.0],  // the
+  [-3.0, -3.5, -1.0, -3.0, -3.0, -3.5, -3.5, -3.5, -3.5],  // cat
+  [-3.5, -3.5, -3.5, -1.2, -3.5, -3.5, -3.5, -3.5, -3.5],  // sat
+  [-1.0, -3.5, -3.5, -3.5, -1.5, -3.5, -3.5, -1.2, -3.5],  // on
+  [-3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5],  // mat
+  [-3.0, -3.5, -1.5, -3.0, -3.5, -3.5, -1.0, -3.5, -3.5],  // dog
+  [-2.0, -3.5, -3.5, -1.5, -3.5, -3.5, -3.5, -3.5, -3.5],  // ran
+  [-1.2, -1.3, -3.5, -3.5, -1.5, -1.3, -3.5, -3.5, -1.2],  // a
+  [-3.5, -1.2, -3.5, -3.5, -3.5, -1.3, -3.5, -3.5, -3.5],  // big
+];
+
+function getLogits(contextTokens) {
+  // Use last token for predictions (bigram model)
+  const lastId = contextTokens[contextTokens.length - 1];
+  return logProbs[lastId];
+}
+
+function softmax2(logits) {
+  const max = Math.max(...logits);
+  const ex  = logits.map(x => Math.exp(x - max));
+  const sum = ex.reduce((a,b) => a+b, 0);
+  return ex.map(x => x/sum);
+}
+
+function sampleFromProbs(probs) {
+  let r = Math.random(), cumul = 0;
+  for (let i = 0; i < probs.length; i++) {
+    cumul += probs[i];
+    if (r < cumul) return i;
+  }
+  return probs.length - 1;
+}
+
+function generate2(prompt, maxTokens=8) {
+  const context = prompt.map(w => VOCAB3.indexOf(w));
+  const generated = [...context];
+
+  console.log(`Prompt: "${prompt.join(' ')}"`);
+  console.log('Generating...\n');
+
+  for (let step = 0; step < maxTokens; step++) {
+    const logits = getLogits(generated);
+    const probs  = softmax2(logits);
+
+    // Show top-3 candidates at this step
+    const top3 = probs.map((p,i)=>[VOCAB3[i],p])
+      .sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const nextId = sampleFromProbs(probs);
+    const nextTok = VOCAB3[nextId];
+
+    console.log(`Step ${step+1}: top candidates: ${top3.map(([w,p])=>`"${w}"(${(p*100).toFixed(0)}%)`).join(' | ')}`);
+    console.log(`         → sampled: "${nextTok}"`);
+    generated.push(nextId);
+
+    // Stop at sentence-ending tokens
+    if (nextTok === 'mat') break;
+  }
+
+  const result = generated.map(id => VOCAB3[id]).join(' ');
+  console.log(`\nFull output: "${result}"`);
+}
+
+generate2(['the']);</pre>
+      <div class="output-area" id="out-generate"></div>
+    </div>
+
+    <p>Every call to <code>getLogits</code> above corresponds to one full forward pass through a real Transformer. The fact that each step is sequential — and that context grows by one each time — is the fundamental bottleneck of LLM serving.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §09 Sampling strategies -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <span class="section-num">§09</span>
+      <h2>Sampling strategies</h2>
+    </div>
+
+    <p>Given a probability distribution over the vocabulary, how do you pick the next token? The choice matters enormously for the quality of generated text.</p>
+
+    <h3>Greedy decoding</h3>
+    <p>Always pick the highest-probability token. Deterministic, but produces repetitive, bland text. The model gets stuck in loops ("the the the the...").</p>
+
+    <h3>Temperature</h3>
+    <p>Before taking softmax, divide all logits by a temperature parameter <code>T</code>. High T (>1) flattens the distribution — more random. Low T (<1) sharpens it — more confident, less creative. T=1 is unmodified. T→0 approaches greedy.</p>
+
+    <h3>Top-k sampling</h3>
+    <p>Zero out all but the top-k tokens by probability, renormalize, then sample. Prevents the model from ever choosing very low-probability tokens. Typical k = 40–200.</p>
+
+    <h3>Top-p (nucleus) sampling</h3>
+    <p>Instead of a fixed k, keep the smallest set of tokens whose cumulative probability exceeds p. If the distribution is very peaked (model is confident), only a few tokens pass; if flat (model is uncertain), more do. Typical p = 0.9–0.95.</p>
+
+    <!-- Interactive sampler -->
+    <div class="demo-box">
+      <div class="demo-label">Interactive — sampling strategies</div>
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">
+        <label style="font-family:var(--sans);font-size:.82rem;">
+          Temperature: <strong id="temp-val">1.0</strong>
+          <input type="range" id="temp-slider" min="1" max="30" value="10"
+            style="width:120px;margin-left:.4rem;" oninput="updateSampler()">
+        </label>
+        <label style="font-family:var(--sans);font-size:.82rem;">
+          Top-k: <strong id="topk-val">0 (off)</strong>
+          <input type="range" id="topk-slider" min="0" max="9" value="0"
+            style="width:100px;margin-left:.4rem;" oninput="updateSampler()">
+        </label>
+        <label style="font-family:var(--sans);font-size:.82rem;">
+          Top-p: <strong id="topp-val">1.0 (off)</strong>
+          <input type="range" id="topp-slider" min="1" max="10" value="10"
+            style="width:100px;margin-left:.4rem;" oninput="updateSampler()">
+        </label>
+      </div>
+      <canvas id="sampler-canvas" width="660" height="160"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">sampling.js — temperature, top-k, top-p</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('sampling')">▶ Run</button>
+      </div>
+      <pre id="code-sampling">// All three sampling strategies from scratch.
+
+function softmaxWithTemp(logits, temp=1.0) {
+  const scaled = logits.map(x => x / temp);
+  const max    = Math.max(...scaled);
+  const ex     = scaled.map(x => Math.exp(x - max));
+  const sum    = ex.reduce((a,b) => a+b, 0);
+  return ex.map(x => x/sum);
+}
+
+function topKFilter(probs, k) {
+  if (k <= 0) return probs;
+  const indexed = probs.map((p,i) => [p,i]).sort((a,b) => b[0]-a[0]);
+  const mask    = new Array(probs.length).fill(0);
+  indexed.slice(0, k).forEach(([,i]) => mask[i] = 1);
+  const filtered = probs.map((p,i) => p * mask[i]);
+  const sum = filtered.reduce((a,b) => a+b, 0);
+  return filtered.map(p => p/sum);
+}
+
+function topPFilter(probs, p) {
+  if (p >= 1.0) return probs;
+  const indexed = [...probs.map((v,i)=>[v,i])].sort((a,b)=>b[0]-a[0]);
+  let cumul = 0, cutoff = 0;
+  for (const [v,] of indexed) {
+    cumul += v;
+    cutoff++;
+    if (cumul >= p) break;
+  }
+  const topTokens = new Set(indexed.slice(0, cutoff).map(([,i])=>i));
+  const filtered  = probs.map((v,i) => topTokens.has(i) ? v : 0);
+  const sum = filtered.reduce((a,b) => a+b, 0);
+  return filtered.map(v => v/sum);
+}
+
+function sample2(probs) {
+  let r = Math.random(), cumul = 0;
+  for (let i=0;i<probs.length;i++) { cumul+=probs[i]; if(r<cumul) return i; }
+  return probs.length-1;
+}
+
+// Example: model logits for 8 candidate tokens
+const CANDS = ['the','cat','sat','ran','mat','dog','on','a'];
+const rawLogits = [1.2, 2.8, 0.3, -0.5, 1.0, 2.1, 0.8, 1.5];
+
+function showSampling(temp, k, p) {
+  let probs = softmaxWithTemp(rawLogits, temp);
+  if (k > 0) probs = topKFilter(probs, k);
+  if (p < 1) probs = topPFilter(probs, p);
+  const bar = v => '█'.repeat(Math.round(v*30));
+  console.log(`\n--- temp=${temp}, top-k=${k||'off'}, top-p=${p} ---`);
+  probs.map((p,i)=>[CANDS[i],p]).sort((a,b)=>b[1]-a[1])
+    .forEach(([w,p]) => {
+      if (p < 0.001) return;
+      console.log(`  ${w.padEnd(5)} ${(p*100).toFixed(1).padStart(5)}%  ${bar(p)}`);
+    });
+}
+
+showSampling(1.0,  0,   1.0);   // baseline
+showSampling(0.5,  0,   1.0);   // low temperature (sharper)
+showSampling(2.0,  0,   1.0);   // high temperature (flatter)
+showSampling(1.0,  3,   1.0);   // top-k=3
+showSampling(1.0,  0,   0.9);   // top-p=0.9</pre>
+      <div class="output-area" id="out-sampling"></div>
+    </div>
+
+    <p>Production systems (Claude, GPT-4) combine all three: a moderate temperature, top-p sampling, and sometimes top-k, tuned per use case. Creative writing uses higher temperature; code generation and factual Q&A use lower.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §10 The KV cache -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <span class="section-num">§10</span>
+      <h2>The KV cache</h2>
+    </div>
+
+    <p>In the autoregressive loop, the model re-processes the entire growing context at every step. For a 1,000-token context, step 1,001 computes attention over 1,001 tokens, step 1,002 over 1,002 tokens, and so on. Without optimization this is O(n²) work for n tokens generated.</p>
+
+    <p>The KV cache eliminates almost all of this redundancy. Recall that in attention, the Key and Value matrices for each token are computed from that token's embedding — which never changes once a token is in the context. So we compute them once and cache them. Subsequent steps only compute Q, K, V for the new token, then attend over the cached K and V for all previous tokens.</p>
+
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">Step through generation:</span>
+        <button class="ctrl-btn" onclick="kvStep(-1)">← Reset</button>
+        <button class="ctrl-btn active" id="kv-next" onclick="kvStep(1)">Next token →</button>
+        <span style="font-family:var(--mono);font-size:.78rem;color:var(--muted);margin-left:.5rem;" id="kv-label">Step 0</span>
+      </div>
+      <canvas id="kv-canvas" width="700" height="200"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">kvcache.js — cached vs uncached attention</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('kvcache')">▶ Run</button>
+      </div>
+      <pre id="code-kvcache">// KV cache: store K and V for all past tokens, compute only the new step.
+// Compare operation counts: cached vs naive.
+
+function naiveAttentionCost(seqLen) {
+  // Each step: recompute K,V for ALL tokens (seqLen multiplications each)
+  // Total for generating n tokens from prompt of length p:
+  //   sum_{i=p}^{p+n} i ≈ O(n² + pn)
+  return seqLen * seqLen;  // for one step at seqLen
+}
+
+function cachedAttentionCost(newPos) {
+  // Only compute Q, K, V for the NEW token (constant work)
+  // Then attend over newPos cached K,V pairs
+  const computeNewQKV = 1;         // constant
+  const attendOverCache = newPos;  // linear in sequence length
+  return computeNewQKV + attendOverCache;
+}
+
+// ── Simulate generation cost ──────────────────────────────────────
+const promptLen = 10;
+const genTokens = 20;
+
+console.log('Operation count comparison (prompt=10 tokens, generating 20):');
+console.log('Step | Naive (full recompute) | Cached | Speedup');
+console.log('-----|----------------------|--------|--------');
+
+let naiveTotal = 0, cachedTotal = 0;
+for (let step = 1; step <= genTokens; step++) {
+  const seqLen = promptLen + step;
+  const naive  = naiveAttentionCost(seqLen);
+  const cached = cachedAttentionCost(seqLen);
+  naiveTotal  += naive;
+  cachedTotal += cached;
+  if (step <= 5 || step === genTokens) {
+    const speedup = (naive/cached).toFixed(1);
+    console.log(`  ${String(step).padStart(2)} |   ${String(naive).padStart(6)} ops       |  ${String(cached).padStart(4)} ops | ${speedup}×`);
+  } else if (step === 6) {
+    console.log('  ...');
+  }
+}
+console.log(`\nTotal: naive=${naiveTotal} ops, cached=${cachedTotal} ops`);
+console.log(`Overall speedup: ${(naiveTotal/cachedTotal).toFixed(1)}×`);
+
+// ── Memory cost of the KV cache ───────────────────────────────────
+const layers=12, heads=12, dk=64, contextLen=4096;
+const bytesPerFloat=2;  // fp16
+const cacheSizeBytes = 2 * layers * heads * dk * contextLen * bytesPerFloat;
+const cacheSizeMB = (cacheSizeBytes / 1e6).toFixed(1);
+console.log(`\nKV cache memory (GPT-2 small, 4096 ctx, fp16): ${cacheSizeMB} MB`);
+console.log('(2 = K+V, layers=12, heads=12, dk=64, ctx=4096, 2 bytes/val)');</pre>
+      <div class="output-area" id="out-kvcache"></div>
+    </div>
+
+    <p>The KV cache trades memory for compute — at long context lengths it can consume gigabytes of GPU memory. Systems serving many concurrent users must manage a pool of KV caches, evicting them for idle sessions (similar to how an OS manages physical memory pages). This is one of the central engineering challenges in LLM serving infrastructure.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <!-- §11 RLHF: from predictor to assistant -->
+  <!-- ─────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <span class="section-num">§11</span>
+      <h2>RLHF: from predictor to assistant</h2>
+    </div>
+
+    <p>A pretrained LLM is a next-token predictor. Given "The capital of France is", it will output "Paris" because that is what follows in training data. But it will also complete "How do I pick a lock?" with detailed instructions, because those also appear on the internet. It has no concept of helpfulness, harmlessness, or honesty — only statistical continuation.</p>
+
+    <p>Reinforcement Learning from Human Feedback (RLHF) is the process that shapes a pretrained model into an assistant that follows instructions, declines harmful requests, and gives helpful answers. It is not one algorithm but a pipeline of three stages.</p>
+
+    <h3>Stage 1: Supervised fine-tuning (SFT)</h3>
+    <p>Human contractors write high-quality (prompt, response) pairs demonstrating desired behavior: helpful answers, refusals of harmful requests, honest admissions of uncertainty. The model is fine-tuned on these pairs using standard cross-entropy loss — same as pretraining, just on a small curated dataset (typically 10,000–100,000 examples). This produces a model that can follow instructions but inconsistently.</p>
+
+    <h3>Stage 2: Reward model training</h3>
+    <p>For each prompt, the SFT model generates several responses. Human raters rank them by quality. A separate model — the <em>reward model</em> — is trained to predict these human preference rankings. It takes (prompt, response) pairs as input and outputs a scalar reward score. The reward model learns what "good" looks like from human judgment.</p>
+
+    <h3>Stage 3: RL fine-tuning (PPO)</h3>
+    <p>The SFT model is now called the <em>policy</em> — in reinforcement learning, a policy is simply a function that maps a state (the conversation so far) to an action (the next token to generate). The policy generates responses; the reward model scores them. The policy weights are updated by PPO (Proximal Policy Optimization), a gradient-based algorithm that maximises expected reward while deliberately limiting how large any single update can be — it clips the gradient step if it would change the policy's probabilities by more than a set ratio. This prevents catastrophic updates where one very good or very bad example sends the weights into a poor region. A KL-divergence penalty (KL divergence measures how different two probability distributions are — here, how much the updated policy has drifted from the original SFT model) is added to the loss to prevent "reward hacking": generating text that scores high on the reward model without actually being helpful.</p>
+
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">RLHF pipeline overview</span>
+      </div>
+      <canvas id="rlhf-canvas" width="700" height="220"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">rlhf.js — reward model training (conceptual)</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('rlhf')">▶ Run</button>
+      </div>
+      <pre id="code-rlhf">// Reward model training — the core of Stage 2.
+// A reward model learns to predict human preference between two responses.
+// The Bradley-Terry model: P(A preferred over B) = σ(r(A) - r(B))
+
+function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+// Tiny reward model: scalar dot product with a feature vector
+// In reality this is a full Transformer; here it's a linear model
+// for illustrative purposes.
+function rewardModel(response, weights) {
+  // Features: [length_score, clarity_score, relevance_score, safety_score]
+  const features = extractFeatures(response);
+  return features.reduce((s, f, i) => s + f * weights[i], 0);
+}
+
+function extractFeatures(response) {
+  // Simulated features — in a real system, these come from the Transformer
+  return [
+    Math.min(response.length / 100, 1.0),       // length (normalized)
+    response.includes('because') ? 0.8 : 0.3,   // explanation present
+    response.includes('?') ? 0.2 : 0.6,         // not a question back
+    response.includes('harmful') ? 0.0 : 0.9,   // safety feature
+  ];
+}
+
+// Bradley-Terry loss: maximize P(preferred > rejected)
+function preferenceLoss(rPreferred, rRejected) {
+  return -Math.log(sigmoid(rPreferred - rRejected) + 1e-10);
+}
+
+// Training data: (preferred response, rejected response) pairs
+const preferences = [
+  {
+    preferred: "The capital of France is Paris, because it has been the political center since the 10th century.",
+    rejected:  "Paris I think? Not sure.",
+  },
+  {
+    preferred: "I cannot help with that request as it could cause harm.",
+    rejected:  "Sure, here is how to do something harmful...",
+  },
+  {
+    preferred: "Photosynthesis converts light energy into glucose because chlorophyll absorbs sunlight.",
+    rejected:  "Plants make food?",
+  },
+];
+
+// Initialize reward model weights
+let weights = [0.5, 0.5, 0.5, 0.5];
+const lr = 0.1;
+
+console.log('Training reward model on human preference data:\n');
+for (let epoch = 0; epoch < 30; epoch++) {
+  let totalLoss = 0;
+  const dW = new Array(4).fill(0);
+
+  for (const { preferred, rejected } of preferences) {
+    const rP = rewardModel(preferred, weights);
+    const rR = rewardModel(rejected, weights);
+    const loss = preferenceLoss(rP, rR);
+    totalLoss += loss;
+
+    // Gradient: dLoss/dW = -( 1 - σ(rP-rR) ) * (featP - featR)
+    const grad_factor = -(1 - sigmoid(rP - rR));
+    const featP = extractFeatures(preferred);
+    const featR = extractFeatures(rejected);
+    for (let i=0;i<4;i++) dW[i] += grad_factor * (featP[i] - featR[i]);
+  }
+
+  for (let i=0;i<4;i++) weights[i] -= lr * dW[i] / preferences.length;
+
+  if (epoch % 10 === 0 || epoch === 29)
+    console.log(`Epoch ${String(epoch+1).padStart(2)}: avg loss = ${(totalLoss/preferences.length).toFixed(4)}`);
+}
+
+console.log('\nLearned reward weights:', weights.map(w=>w.toFixed(3)));
+const featureNames = ['length','explains','direct','safe'];
+weights.forEach((w,i) => console.log(`  ${featureNames[i].padEnd(10)} → weight ${w.toFixed(3)}`));
+
+// Score some responses
+console.log('\nReward scores for sample responses:');
+const tests = [
+  "The answer is 42 because the universe requires it.",
+  "I dunno",
+  "I cannot help with anything harmful to users.",
+];
+tests.forEach(r => console.log(`  "${r.slice(0,45)}..." → score ${rewardModel(r,weights).toFixed(3)}`) );</pre>
+      <div class="output-area" id="out-rlhf"></div>
+    </div>
+
+    <div class="callout">
+      <strong>Beyond RLHF:</strong> newer alignment approaches include Constitutional AI (Claude's training method), where a model critiques its own outputs against a set of principles rather than relying solely on human raters; and Direct Preference Optimization (DPO), which reformulates the Stage 3 objective mathematically so that the reward model is eliminated entirely — the policy is trained directly on human preference pairs (A is better than B) using a closed-form loss derived from the same KL-constrained objective that PPO optimises. The field is evolving rapidly.
+    </div>
+
+    <p>After RLHF, the model has shifted from raw next-token predictor to something that follows instructions, acknowledges uncertainty, declines harmful requests, and produces helpful responses. The architecture and the weights from pretraining remain — only the fine-tuned weights and the direction of the probability mass have changed.</p>
+  </div>
+
+  <hr class="section-divider">
+
+  <div style="margin-bottom:3rem;">
+    <p class="kicker">Series complete</p>
+    <p style="font-size:1.05rem;">
+      You have now seen the full picture — from text to tokens, tokens to embeddings, embeddings through attention and feedforward layers into logits, random weights shaped by gradient descent and Adam into a language model, and finally RLHF nudging that model toward helpfulness. Everything from first principles, in pure JavaScript, no libraries.
+    </p>
+    <p style="margin-top:1rem;font-size:.95rem;color:var(--muted);">
+      ← <a href="llm-part1-transformer.html">Part 1: Attention &amp; the Transformer</a>
+    </p>
+  </div>
+
+  <hr class="section-divider">
+
+  <div style="margin-bottom:3rem;">
+    <p class="toc-label">Where to go next</p>
+    <p style="font-size:.95rem;line-height:1.75;color:var(--muted);margin-bottom:1.4rem;">
+      This series gave you the mechanics. These go deeper in complementary directions.
+    </p>
+
+    <table class="prose-table" style="font-size:.85rem;">
+      <thead>
+        <tr><th>What</th><th>Why it matters</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener"><strong>Attention Is All You Need</strong></a> — Vaswani et al., 2017</td>
+          <td>The original Transformer paper. Short, readable, and now that you have the vocabulary you can follow every equation.</td>
+        </tr>
+        <tr>
+          <td><a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener"><strong>Language Models are Few-Shot Learners</strong></a> — Brown et al., 2020 (GPT-3)</td>
+          <td>Establishes the scaling-laws era: same architecture as Part 1, trained at enormous scale. Section 2 (model and architecture) is directly readable after this series.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/karpathy/makemore" target="_blank" rel="noopener"><strong>makemore</strong></a> — Andrej Karpathy</td>
+          <td>Builds a character-level language model from scratch in Python, step by step — the closest real-code equivalent of what this series built in JS. The accompanying YouTube lectures cover backprop through attention in detail.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/karpathy/nanoGPT" target="_blank" rel="noopener"><strong>nanoGPT</strong></a> — Andrej Karpathy</td>
+          <td>A minimal, trainable GPT-2 implementation in ~300 lines of PyTorch. Read it after makemore — the causal mask, weight tying, and training loop you saw here all appear directly.</td>
+        </tr>
+        <tr>
+          <td><a href="https://arxiv.org/abs/2203.02155" target="_blank" rel="noopener"><strong>Training language models to follow instructions…</strong></a> — Ouyang et al., 2022 (InstructGPT)</td>
+          <td>The RLHF paper that underlines Part 2 §11. Section 3 (method) maps directly onto the three stages described here.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    Part of <a href="https://schemer.in/explainers/index.html">Modern Software Tools, Explained</a>
+    · Pure JavaScript, no external dependencies
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- JavaScript                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<script>
+
+// ── Code runner ───────────────────────────────────────────────────────
+function runCode(id) {
+  const codeEl = document.getElementById('code-' + id);
+  const outEl  = document.getElementById('out-' + id);
+  outEl.classList.add('visible');
+  outEl.style.color = '#a8d8a8';
+  const logs = [];
+  const fakeConsole = { log: (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')) };
+  try {
+    const fn = new Function('console', codeEl.textContent);
+    fn(fakeConsole);
+    outEl.textContent = logs.join('\n') || '(no output)';
+  } catch(e) {
+    outEl.style.color = '#f08080';
+    outEl.textContent = '✗ ' + e.message;
+  }
+}
+
+// ── §01 Training loop diagram ─────────────────────────────────────────
+function drawTrainingLoop() {
+  const canvas = document.getElementById('loop-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const steps = [
+    { label: 'Training\ndata', x: 80 },
+    { label: 'Forward\npass', x: 220 },
+    { label: 'Loss\ncompute', x: 360 },
+    { label: 'Backward\npass', x: 500 },
+    { label: 'Optimizer\nupdate', x: 630 },
+  ];
+  const cy = H/2, bw = 100, bh = 56;
+
+  // Draw feedback arrow (bottom arc)
+  ctx.strokeStyle = '#e2ddd8';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(630 + bw/2 - 10, cy + bh/2);
+  ctx.bezierCurveTo(680, cy+70, 30, cy+70, 80 - bw/2 + 10, cy + bh/2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Arrowhead
+  ctx.fillStyle = '#e2ddd8';
+  ctx.beginPath();
+  ctx.moveTo(80 - bw/2 + 10, cy + bh/2);
+  ctx.lineTo(74, cy + bh/2 - 7);
+  ctx.lineTo(74, cy + bh/2 + 7);
+  ctx.fill();
+
+  // Label feedback arrow
+  ctx.fillStyle = '#6b6763';
+  ctx.font = '11px Helvetica Neue, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('update weights', W/2, cy + 85);
+
+  steps.forEach((s, i) => {
+    const x = s.x;
+    // Box
+    const grad = ctx.createLinearGradient(x - bw/2, cy - bh/2, x - bw/2, cy + bh/2);
+    grad.addColorStop(0, '#f3f1ee');
+    grad.addColorStop(1, '#ece9e5');
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = '#d4cfc8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x - bw/2, cy - bh/2, bw, bh, 3);
+    ctx.fill(); ctx.stroke();
+
+    // Text
+    ctx.fillStyle = '#1a1917';
+    ctx.font = '12px Helvetica Neue, sans-serif';
+    ctx.textAlign = 'center';
+    const lines = s.label.split('\n');
+    lines.forEach((ln, li) => ctx.fillText(ln, x, cy - 6 + li * 16));
+
+    // Arrow to next
+    if (i < steps.length - 1) {
+      const nx = steps[i+1].x;
+      ctx.strokeStyle = '#c0392b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + bw/2, cy);
+      ctx.lineTo(nx - bw/2, cy);
+      ctx.stroke();
+      // Arrowhead
+      ctx.fillStyle = '#c0392b';
+      ctx.beginPath();
+      ctx.moveTo(nx - bw/2, cy);
+      ctx.lineTo(nx - bw/2 - 8, cy - 5);
+      ctx.lineTo(nx - bw/2 - 8, cy + 5);
+      ctx.fill();
+    }
+  });
+}
+window.addEventListener('load', drawTrainingLoop);
+
+// ── §03 Loss curve demo ───────────────────────────────────────────────
+function updateLossDemo() {
+  const p = parseInt(document.getElementById('prob-slider').value) / 100;
+  const loss = -Math.log(p);
+  document.getElementById('prob-val').textContent = p.toFixed(2);
+  document.getElementById('loss-val').textContent = loss.toFixed(3);
+  drawLossCurveDemo(p);
+}
+
+function drawLossCurveDemo(highlight) {
+  const canvas = document.getElementById('loss-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const pad = { l:40, r:20, t:10, b:30 };
+  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+
+  // Axes
+  ctx.strokeStyle = '#e2ddd8'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ch);
+  ctx.lineTo(pad.l + cw, pad.t + ch);
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#6b6763'; ctx.font = '11px Menlo, monospace'; ctx.textAlign = 'center';
+  ctx.fillText('P(correct token)', pad.l + cw/2, H - 4);
+  ctx.save(); ctx.translate(12, pad.t + ch/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Loss', 0, 0); ctx.restore();
+  [0.2,0.4,0.6,0.8,1.0].forEach(v => {
+    const x = pad.l + v * cw;
+    ctx.fillText(v.toFixed(1), x, pad.t + ch + 14);
+    ctx.strokeStyle = '#f0ede8'; ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t+ch); ctx.stroke();
+  });
+
+  // Curve: L = -log(p)
+  const maxLoss = 4;
+  ctx.strokeStyle = '#2c7a7b'; ctx.lineWidth = 2; ctx.beginPath();
+  let first = true;
+  for (let px = 1; px <= 100; px++) {
+    const p = px / 100;
+    const l = -Math.log(p);
+    const x = pad.l + p * cw;
+    const y = pad.t + ch - Math.min(l/maxLoss, 1) * ch;
+    if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Highlight point
+  if (highlight > 0 && highlight <= 1) {
+    const l = -Math.log(highlight);
+    const x = pad.l + highlight * cw;
+    const y = pad.t + ch - Math.min(l/maxLoss, 1) * ch;
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
+    // Dashed lines to axes
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, pad.t+ch); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(pad.l, y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+window.addEventListener('load', () => { updateLossDemo(); });
+
+// ── §05 Gradient descent visualization ────────────────────────────────
+let descentAnim = null;
+function runDescent(mode) {
+  if (descentAnim) cancelAnimationFrame(descentAnim);
+  ['slow','good','big','adam'].forEach(m => {
+    document.getElementById('lr-'+m).classList.toggle('active', m === mode);
+  });
+  const canvas = document.getElementById('descent-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Loss surface: L(w) = (w-2)^2 + 0.5*sin(3w)^2
+  function lossF(w) { return (w-2)**2 + 0.3*Math.sin(3*w)**2; }
+  function gradF(w) { return 2*(w-2) + 0.3*2*Math.sin(3*w)*Math.cos(3*w)*3; }
+
+  const wMin = -1, wMax = 5;
+  const pad = {l:50,r:20,t:15,b:30};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+  const lossMin = 0, lossMax = 12;
+
+  function wx(w) { return pad.l + (w-wMin)/(wMax-wMin)*cw; }
+  function ly(l) { return pad.t + ch - (l-lossMin)/(lossMax-lossMin)*ch; }
+
+  // Draw static landscape
+  function drawLandscape() {
+    ctx.clearRect(0,0,W,H);
+    // Fill curve area
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t+ch);
+    for (let i=0; i<=200; i++) {
+      const w = wMin + i/200*(wMax-wMin);
+      ctx.lineTo(wx(w), ly(lossF(w)));
+    }
+    ctx.lineTo(pad.l+cw, pad.t+ch); ctx.closePath();
+    ctx.fillStyle = '#f3f1ee'; ctx.fill();
+    // Curve
+    ctx.beginPath(); ctx.strokeStyle='#d4cfc8'; ctx.lineWidth=2;
+    for (let i=0; i<=200; i++) {
+      const w = wMin + i/200*(wMax-wMin);
+      if (i===0) ctx.moveTo(wx(w),ly(lossF(w))); else ctx.lineTo(wx(w),ly(lossF(w)));
+    }
+    ctx.stroke();
+    // Axes
+    ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+    ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('weight value →', pad.l+cw/2, H-4);
+    ctx.save(); ctx.translate(14,pad.t+ch/2); ctx.rotate(-Math.PI/2); ctx.fillText('loss', 0, 0); ctx.restore();
+  }
+
+  // Trajectory
+  const configs = {
+    slow: { lr:0.05, color:'#2c7a7b', label:'η=0.05 (slow)' },
+    good: { lr:0.3,  color:'#27ae60', label:'η=0.30 (good)' },
+    big:  { lr:1.2,  color:'#c0392b', label:'η=1.20 (diverges)' },
+    adam: { lr:0.3,  color:'#8e44ad', label:'Adam',  isAdam:true },
+  };
+  const cfg = configs[mode];
+
+  let w = 4.0;
+  let m=0, v=0, t=0;
+  const path = [];
+  const maxSteps = mode==='big' ? 18 : 60;
+  let step = 0;
+
+  function animate() {
+    if (step >= maxSteps) return;
+    step++;
+    const g = gradF(w);
+    if (cfg.isAdam) {
+      t++; const b1=0.9,b2=0.999,eps=1e-8;
+      m=b1*m+(1-b1)*g; v=b2*v+(1-b2)*g*g;
+      const mh=m/(1-b1**t), vh=v/(1-b2**t);
+      w -= cfg.lr * mh / (Math.sqrt(vh)+eps);
+    } else {
+      w -= cfg.lr * g;
+    }
+    path.push({ w, l: lossF(w) });
+
+    drawLandscape();
+    // Draw path
+    ctx.strokeStyle = cfg.color; ctx.lineWidth = 2; ctx.setLineDash([]);
+    if (path.length > 1) {
+      ctx.beginPath();
+      path.forEach((pt,i) => {
+        const x=wx(pt.w), y=ly(pt.l);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+    }
+    // Current point
+    const cur = path[path.length-1];
+    ctx.fillStyle = cfg.color;
+    ctx.beginPath(); ctx.arc(wx(cur.w), ly(cur.l), 5, 0, Math.PI*2); ctx.fill();
+    // Label
+    ctx.fillStyle = cfg.color; ctx.font='12px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(`${cfg.label}  step ${step}  loss=${cur.l.toFixed(3)}`, pad.l+4, pad.t+16);
+
+    descentAnim = requestAnimationFrame(animate);
+  }
+
+  drawLandscape();
+  descentAnim = requestAnimationFrame(animate);
+}
+window.addEventListener('load', () => runDescent('slow'));
+
+// ── §07 Train/val loss curves ─────────────────────────────────────────
+function drawLossCurves(mode) {
+  ['good','over','under'].forEach(m =>
+    document.getElementById('fit-'+m).classList.toggle('active', m===mode));
+
+  const canvas = document.getElementById('curves-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const pad = {l:50,r:20,t:20,b:35};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+  const steps = 60;
+
+  // Generate synthetic curves
+  function noisySeries(fn, noise=0.03) {
+    return Array.from({length:steps},(_,i)=>fn(i/steps)+noise*(Math.random()-.5)*2);
+  }
+
+  let trainCurve, valCurve, title;
+  if (mode==='good') {
+    title = 'Good fit — both curves fall together';
+    trainCurve = noisySeries(t => 2.5*Math.exp(-3.5*t)+0.4, 0.04);
+    valCurve   = noisySeries(t => 2.5*Math.exp(-3.0*t)+0.5, 0.05);
+  } else if (mode==='over') {
+    title = 'Overfitting — val loss rises after early stopping point';
+    trainCurve = noisySeries(t => 2.5*Math.exp(-5*t)+0.1, 0.03);
+    valCurve   = noisySeries(t => {
+      if (t < 0.35) return 2.0*Math.exp(-4*t)+0.6;
+      return 0.65 + (t-0.35)*1.8;
+    }, 0.05);
+  } else {
+    title = 'Underfitting — both curves plateau at high loss';
+    trainCurve = noisySeries(t => 2.0*Math.exp(-0.8*t)+1.2, 0.04);
+    valCurve   = noisySeries(t => 2.0*Math.exp(-0.7*t)+1.35, 0.05);
+  }
+
+  const allVals = [...trainCurve, ...valCurve];
+  const yMin = Math.max(0, Math.min(...allVals) - 0.1);
+  const yMax = Math.max(...allVals) + 0.2;
+
+  function xp(i) { return pad.l + i/(steps-1)*cw; }
+  function yp(v) { return pad.t + ch - (v-yMin)/(yMax-yMin)*ch; }
+
+  // Grid
+  ctx.strokeStyle='#f0ede8'; ctx.lineWidth=1;
+  [0.25,0.5,0.75,1].forEach(f=>{
+    const y=pad.t+ch*f;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+  });
+
+  // Draw curves
+  [[trainCurve,'#2c7a7b','Train'],[valCurve,'#c0392b','Validation']].forEach(([curve,color,label])=>{
+    ctx.strokeStyle=color; ctx.lineWidth=2;
+    ctx.beginPath();
+    curve.forEach((v,i)=>{ if(i===0) ctx.moveTo(xp(i),yp(v)); else ctx.lineTo(xp(i),yp(v)); });
+    ctx.stroke();
+  });
+
+  // Early stopping marker for overfitting
+  if (mode==='over') {
+    const sx = xp(Math.round(0.35*steps));
+    ctx.strokeStyle='#e67e22'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(sx,pad.t); ctx.lineTo(sx,pad.t+ch); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#e67e22'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('stop here', sx, pad.t+10);
+  }
+
+  // Axes
+  ctx.strokeStyle='#e2ddd8'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+
+  // Labels
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('training steps →', pad.l+cw/2, H-4);
+  ctx.save(); ctx.translate(14,pad.t+ch/2); ctx.rotate(-Math.PI/2); ctx.fillText('loss', 0, 0); ctx.restore();
+
+  // Legend
+  ctx.textAlign='left';
+  [[0,'#2c7a7b','Train loss'],[1,'#c0392b','Validation loss']].forEach(([i,c,lbl])=>{
+    ctx.fillStyle=c; ctx.fillRect(pad.l+4, pad.t+4+i*18, 18, 3);
+    ctx.fillStyle='#6b6763'; ctx.fillText(lbl, pad.l+26, pad.t+9+i*18);
+  });
+  ctx.fillStyle='#1a1917'; ctx.font='12px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText(title, pad.l+cw/2, pad.t+ch+28);
+}
+window.addEventListener('load', () => drawLossCurves('good'));
+
+// ── §09 Sampler interactive ────────────────────────────────────────────
+const SAMPLER_TOKENS = ['the','cat','sat','ran','mat','dog','on','a'];
+const SAMPLER_LOGITS = [1.2, 2.8, 0.3, -0.5, 1.0, 2.1, 0.8, 1.5];
+
+function updateSampler() {
+  const T    = parseInt(document.getElementById('temp-slider').value)/10;
+  const k    = parseInt(document.getElementById('topk-slider').value);
+  const p    = parseInt(document.getElementById('topp-slider').value)/10;
+  document.getElementById('temp-val').textContent = T.toFixed(1);
+  document.getElementById('topk-val').textContent = k===0 ? '0 (off)' : k;
+  document.getElementById('topp-val').textContent = p>=1.0 ? '1.0 (off)' : p.toFixed(1);
+  drawSampler(T, k, p);
+}
+
+function drawSampler(T, topk, topp) {
+  const canvas = document.getElementById('sampler-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Apply temp
+  const scaled = SAMPLER_LOGITS.map(x=>x/T);
+  const max = Math.max(...scaled);
+  let probs = scaled.map(x=>Math.exp(x-max));
+  let sum = probs.reduce((a,b)=>a+b,0);
+  probs = probs.map(x=>x/sum);
+
+  // Apply top-k
+  if (topk > 0) {
+    const sorted = [...probs].sort((a,b)=>b-a);
+    const threshold = sorted[topk-1] || 0;
+    probs = probs.map(p => p >= threshold ? p : 0);
+    sum = probs.reduce((a,b)=>a+b,0);
+    probs = probs.map(p=>p/sum);
+  }
+
+  // Apply top-p
+  if (topp < 1.0) {
+    const indexed = probs.map((p,i)=>[p,i]).sort((a,b)=>b[0]-a[0]);
+    let cumul=0, cutoff=0;
+    for (const [v] of indexed) { cumul+=v; cutoff++; if(cumul>=topp) break; }
+    const keep = new Set(indexed.slice(0,cutoff).map(([,i])=>i));
+    probs = probs.map((p,i)=>keep.has(i)?p:0);
+    sum = probs.reduce((a,b)=>a+b,0);
+    if (sum>0) probs = probs.map(p=>p/sum);
+  }
+
+  const n = SAMPLER_TOKENS.length;
+  const barW = Math.floor((W-40)/n) - 4;
+  const pad = {l:20, b:36, t:10};
+  const maxH = H - pad.b - pad.t;
+
+  probs.forEach((p,i)=>{
+    const x = pad.l + i*(barW+4) + 2;
+    const bh = Math.round(p*maxH*0.95);
+    const active = p > 0.001;
+
+    if (active) {
+      const alpha = 0.25 + p*0.7;
+      ctx.fillStyle = `rgba(44,122,123,${alpha})`;
+    } else {
+      ctx.fillStyle = '#eee';
+    }
+    ctx.fillRect(x, pad.t + maxH - bh, barW, bh);
+
+    ctx.fillStyle = active ? '#1a1917' : '#ccc';
+    ctx.font = '11px Menlo, monospace'; ctx.textAlign = 'center';
+    ctx.fillText(SAMPLER_TOKENS[i], x+barW/2, H-20);
+    if (active && p > 0.02) {
+      ctx.fillStyle = '#2c7a7b';
+      ctx.fillText((p*100).toFixed(0)+'%', x+barW/2, pad.t+maxH-bh-4);
+    }
+  });
+
+  ctx.fillStyle='#e2ddd8'; ctx.fillRect(pad.l,pad.t+maxH,W-pad.l-20,1);
+}
+window.addEventListener('load', () => updateSampler());
+
+// ── §10 KV cache animation ─────────────────────────────────────────────
+let kvCurrentStep = 0;
+const kvTokens = ['the','cat','sat','on','mat','→'];
+function kvStep(dir) {
+  if (dir === -1) kvCurrentStep = 0;
+  else kvCurrentStep = Math.min(kvCurrentStep + 1, kvTokens.length-1);
+  document.getElementById('kv-label').textContent = `Step ${kvCurrentStep}`;
+  drawKVCache(kvCurrentStep);
+}
+
+function drawKVCache(step) {
+  const canvas = document.getElementById('kv-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const tokens = kvTokens.slice(0, step+1);
+  const n = tokens.length;
+  const cellW = 80, cellH = 32, gap = 6;
+  const startX = 40, cacheY = 60, computeY = 140;
+
+  // Title labels
+  ctx.fillStyle = '#6b6763'; ctx.font = '11px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('KV Cache (stored from previous steps)', startX, 30);
+  ctx.fillText('Current step computation', startX, computeY - 14);
+
+  tokens.forEach((tok, i) => {
+    const x = startX + i*(cellW+gap);
+    const isNew = i === step;
+
+    // Cache entry (K,V)
+    if (i < step) {
+      ctx.fillStyle = '#e8f4f0';
+      ctx.strokeStyle = '#2c7a7b';
+    } else {
+      ctx.fillStyle = '#fff3f3';
+      ctx.strokeStyle = '#c0392b';
+    }
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(x, cacheY, cellW, cellH, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = isNew ? '#c0392b' : '#2c7a7b';
+    ctx.font = `${isNew?'bold ':' '}12px Helvetica Neue,sans-serif`;
+    ctx.textAlign='center';
+    ctx.fillText(`K,V: "${tok}"`, x+cellW/2, cacheY+20);
+
+    // Compute box for new token only
+    if (isNew) {
+      ctx.fillStyle = '#fff3f3'; ctx.strokeStyle='#c0392b'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(x, computeY, cellW, cellH, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#c0392b'; ctx.font='bold 11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Compute Q', x+cellW/2, computeY+13);
+      ctx.fillText('only', x+cellW/2, computeY+26);
+
+      // Arrow to cache
+      ctx.strokeStyle='#c0392b'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(x+cellW/2, computeY); ctx.lineTo(x+cellW/2, cacheY+cellH); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Attend arrows (from new token to all previous)
+    if (step > 0 && i < step) {
+      const newX = startX + step*(cellW+gap) + cellW/2;
+      ctx.strokeStyle='rgba(44,122,123,0.25)'; ctx.lineWidth=1; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(newX, computeY+cellH/2);
+      ctx.lineTo(x+cellW/2, cacheY+cellH);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+
+  // Cost label
+  const cached = step + 1, naive = (step+1)*(step+1);
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='left';
+  ctx.fillText(`Operations this step: cached=${cached}  vs naive recompute=${naive}  (${(naive/cached).toFixed(1)}× saved)`, startX, H-10);
+}
+window.addEventListener('load', () => drawKVCache(0));
+
+// ── §11 RLHF diagram ──────────────────────────────────────────────────
+function drawRLHF() {
+  const canvas = document.getElementById('rlhf-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const stages = [
+    { label:'Pretrained\nmodel', sub:'next-token\npredictor', x:80, color:'#d4cfc8' },
+    { label:'SFT', sub:'curated\nexamples', x:220, color:'#b8ddd4' },
+    { label:'Reward\nmodel', sub:'human\npreferences', x:390, color:'#ddd0b8' },
+    { label:'RL (PPO)', sub:'maximize\nreward', x:560, color:'#c8b8dd' },
+    { label:'Assistant', sub:'helpful,\nharmless', x:670, color:'#b8d4b8' },
+  ];
+
+  const cy = H/2, bw = 110, bh = 64;
+
+  stages.forEach((s,i) => {
+    const x = s.x;
+    ctx.fillStyle = s.color;
+    ctx.strokeStyle = '#bbb'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(x-bw/2, cy-bh/2, bw, bh, 4); ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#1a1917'; ctx.font='bold 12px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+    const ls = s.label.split('\n');
+    ls.forEach((l,li) => ctx.fillText(l, x, cy-8+li*16));
+    ctx.fillStyle='#6b6763'; ctx.font='10px Helvetica Neue,sans-serif';
+    const ss = s.sub.split('\n');
+    ss.forEach((l,li) => ctx.fillText(l, x, cy+26+li*13));
+
+    if (i < stages.length-1) {
+      const nx = stages[i+1].x;
+      ctx.strokeStyle='#c0392b'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(x+bw/2, cy); ctx.lineTo(nx-bw/2, cy); ctx.stroke();
+      ctx.fillStyle='#c0392b';
+      ctx.beginPath(); ctx.moveTo(nx-bw/2,cy); ctx.lineTo(nx-bw/2-8,cy-5); ctx.lineTo(nx-bw/2-8,cy+5); ctx.fill();
+    }
+  });
+
+  // Human rater label
+  ctx.fillStyle='#6b6763'; ctx.font='11px Helvetica Neue,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('↕ human raters rank outputs', 390, cy-bh/2-10);
+}
+window.addEventListener('load', drawRLHF);
+
+</script>
+</body>
+</html>

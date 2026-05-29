@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attention & the Transformer — LLMs from First Principles</title>
+<link href="../shared.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  /* ── LLM-series tokens (extend shared.css) ─── */
+  :root {
+    --accent:    #c0392b;
+    --accent2:   #2c7a7b;
+    --code-bg:   #1e1e1e;
+    --code-text: #d4d4d4;
+    --run-btn:   #2c7a7b;
+    --run-hover: #235f60;
+    --tag-bg:    #ede9e4;
+    --tag-text:  #4a4540;
+    --border:    var(--rule-strong);
+    --text:      var(--ink);
+    --muted:     var(--ink-3);
+    --link:      #c0392b;
+  }
+
+  body { font-family: var(--serif); font-size: 17px; line-height: 1.72; }
+  p { font-size: 1.0625rem; line-height: 1.72; margin-bottom: 1rem; }
+  .callout p, .demo-box p, .summary-card p { font-size: inherit; line-height: inherit; }
+  .page { padding: 0 2rem 6rem; }
+
+  .kicker { font-family: var(--sans); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 3.5rem; margin-bottom: .75rem; }
+  h1.hero { font-family: var(--serif); font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: normal; line-height: 1.15; letter-spacing: -.02em; color: var(--ink); margin-bottom: 1.25rem; max-width: none; }
+  h1.hero em { font-style: italic; color: var(--accent); }
+  .lede { font-size: 1.1rem; line-height: 1.65; color: var(--ink-2); max-width: 620px; margin-bottom: 2.5rem; font-style: italic; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 2.5rem; }
+  .summary-card { background: var(--bg); padding: 1.1rem 1.2rem; }
+  .summary-card .label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .3rem; }
+  .summary-card .value { font-family: var(--sans); font-size: .85rem; font-weight: 600; color: var(--ink); line-height: 1.3; }
+  .summary-card .sub { font-family: var(--sans); font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 3rem; }
+  .tag { font-family: var(--sans); font-size: 11px; letter-spacing: .04em; color: var(--tag-text); background: var(--tag-bg); padding: 3px 9px; border-radius: 2px; }
+
+  /* Override shared.css .toc (grid-of-cards) with list-style TOC */
+  .toc { display: block; grid-template-columns: none; border: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); border-radius: 0; background: none; box-shadow: none; padding: 1.5rem 0; margin: 0 0 4rem; }
+  .toc a { display: flex; padding: .25rem 0; border-right: none; border-bottom: 1px solid transparent; background: none; font-size: .82rem; font-family: var(--sans); color: var(--muted); gap: .6rem; align-items: baseline; transition: color .15s, border-color .15s; }
+  .toc a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .toc-n, .toc-num { display: none; }
+  .toc-label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+  .toc-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: .1rem 2rem; }
+  .toc-list li a .num { font-family: var(--mono); font-size: .72rem; color: var(--accent); flex-shrink: 0; }
+
+  /* Override shared.css .section-header / .section-num */
+  .section-header { align-items: flex-start; gap: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .section-num { font-family: var(--mono); font-size: .72rem; color: var(--accent); letter-spacing: .04em; flex-shrink: 0; margin-top: .35rem; }
+  .section h2 { font-family: var(--serif); font-size: 1.55rem; font-weight: normal; line-height: 1.3; letter-spacing: -.01em; color: var(--ink); }
+  .section h3 { font-family: var(--serif); font-size: 1.1rem; font-weight: normal; font-style: italic; letter-spacing: 0; text-transform: none; margin: 1.5rem 0 .6rem; color: var(--ink); }
+  .section p:last-child { margin-bottom: 0; }
+  .section ul, .section ol { margin: .6rem 0 1rem 1.4rem; font-size: .95rem; line-height: 2; }
+
+  a { color: var(--link); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { color: var(--link); border-bottom-color: var(--link); }
+
+  code { font-family: var(--mono); font-size: .82em; background: var(--surface-muted); border: 1px solid var(--border); padding: 1px 5px; border-radius: 2px; color: var(--ink); }
+
+  .demo-box { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 3px; padding: 1.4rem 1.5rem; margin: 1.5rem 0; }
+  .demo-box .demo-label { font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+  .code-block { margin: 1.5rem 0; border-radius: 3px; overflow: hidden; border: 1px solid #333; }
+  .code-header { background: #2a2a2a; display: flex; align-items: center; padding: .45rem .85rem; gap: .7rem; }
+  .code-filename { font-family: var(--mono); font-size: .75rem; color: #9d9d9d; flex: 1; }
+  .code-lang { font-family: var(--sans); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: #666; }
+  .run-btn { font-family: var(--sans); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; background: var(--run-btn); color: #fff; border: none; padding: 4px 12px; border-radius: 2px; cursor: pointer; transition: background .15s; }
+  .run-btn:hover { background: var(--run-hover); }
+  .code-block pre { background: var(--code-bg); color: var(--code-text); font-family: var(--mono); font-size: .8rem; line-height: 1.6; padding: 1rem; overflow-x: auto; margin: 0; }
+  .output-area { background: #111; color: #a8d8a8; font-family: var(--mono); font-size: .78rem; line-height: 1.6; padding: .8rem 1rem; border-top: 1px solid #333; white-space: pre-wrap; display: none; min-height: 2rem; }
+  .output-area.visible { display: block; }
+
+  .prose-table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: .83rem; margin: 1.5rem 0; }
+  .prose-table th { text-align: left; padding: .5rem .8rem; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
+  .prose-table td { padding: .55rem .8rem; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+  .prose-table tr:last-child td { border-bottom: none; }
+  .prose-table td code { font-size: .8em; }
+
+  /* Override shared.css .callout with LLM teal-accent style */
+  .callout { border-left: 3px solid var(--accent2); border-top: none; border-right: none; border-bottom: none; border-radius: 0; background: #f0f7f7; padding: .9rem 1.2rem; margin: 1.5rem 0; font-size: .93rem; }
+  .callout strong { color: var(--accent2); }
+
+  .anim-wrap { background: #fff; border: 1px solid var(--border); border-radius: 3px; margin: 1.5rem 0; overflow: hidden; }
+  .anim-controls { display: flex; gap: .6rem; padding: .6rem 1rem; background: var(--surface-muted); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+  .anim-controls .ctrl-label { font-family: var(--sans); font-size: .75rem; color: var(--muted); margin-right: .3rem; }
+  .ctrl-btn { font-family: var(--sans); font-size: .72rem; padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 2px; cursor: pointer; color: var(--ink); transition: background .12s; }
+  .ctrl-btn:hover { background: var(--border); }
+  .ctrl-btn.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  canvas { display: block; max-width: 100%; }
+  input[type=range] { accent-color: var(--accent2); cursor: pointer; width: 120px; }
+  input[type=text] { font-family: var(--mono); font-size: .85rem; padding: 5px 8px; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--ink); }
+
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 4rem 0; }
+  footer { border-top: 1px solid var(--border); padding: 2rem 0; font-family: var(--sans); font-size: .8rem; color: var(--muted); text-align: center; }
+  footer a { color: var(--muted); border-bottom: 1px solid var(--border); }
+
+  @media (max-width: 600px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .toc-list { grid-template-columns: 1fr; }
+    h1.hero { font-size: 2rem; }
+  }
+
+  /* ── Site-header (matches other explainers) ── */
+  .site-header { border-bottom: 1px solid #e6e6ea; padding: 1.1rem 2rem; }
+  .site-header-inner { max-width: 52rem; margin: 0 auto; display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap; }
+  a.book-title { font-family: 'Outfit', system-ui, sans-serif; font-size: 0.85rem; font-weight: 400; letter-spacing: 0.01em; color: #3d3d40; text-decoration: none; border-bottom: none; }
+  a.book-title:hover { color: #0a0a0b; border-bottom: none; }
+  .book-nav { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-left: auto; }
+  .book-nav a { font-family: 'Outfit', system-ui, sans-serif; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: #6b6b6f; text-decoration: none; border-bottom: none; transition: color 0.15s; }
+  .book-nav a:hover { color: #0a0a0b; border-bottom: none; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+<div class="site-header-inner">
+<a class="book-title" href="../index.html">Modern Software Tools, Explained</a>
+<nav aria-label="Book navigation" class="book-nav">
+<a href="../index.html">Contents</a>
+</nav>
+</div>
+</header>
+
+<!-- ── Hero ───────────────────────────────────────────────────────────── -->
+<div class="page">
+  <p class="kicker">Machine learning · Language models</p>
+  <h1 class="hero">Attention &amp; the<br><em>Transformer</em></h1>
+  <p class="lede">How text becomes numbers, numbers attend to one another, and a stack of simple matrix operations learns to model language — built from scratch in pure JavaScript, no libraries.</p>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">Core insight</div>
+      <div class="value">Next-token prediction</div>
+      <div class="sub">everything emerges from this</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Key mechanism</div>
+      <div class="value">Scaled dot-product attention</div>
+      <div class="sub">Q · Kᵀ / √d, then softmax</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Dependencies</div>
+      <div class="value">Zero</div>
+      <div class="sub">pure JavaScript, no libraries</div>
+    </div>
+  </div>
+
+  <div class="tags">
+    <span class="tag">Tokenization</span>
+    <span class="tag">Embeddings</span>
+    <span class="tag">Attention</span>
+    <span class="tag">Multi-head attention</span>
+    <span class="tag">Positional encoding</span>
+    <span class="tag">Transformer block</span>
+    <span class="tag">Forward pass</span>
+    <span class="tag">Pure JavaScript</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li><a href="#s1"><span class="num">§01</span> What is a language model?</a></li>
+      <li><a href="#s2"><span class="num">§02</span> Tokenization &amp; vocabulary</a></li>
+      <li><a href="#s3"><span class="num">§03</span> Embeddings</a></li>
+      <li><a href="#s4"><span class="num">§04</span> Matrix operations from scratch</a></li>
+      <li><a href="#s5"><span class="num">§05</span> The attention mechanism</a></li>
+      <li><a href="#s6"><span class="num">§06</span> Multi-head attention</a></li>
+      <li><a href="#s7"><span class="num">§07</span> Positional encoding</a></li>
+      <li><a href="#s8"><span class="num">§08</span> The Transformer block</a></li>
+      <li><a href="#s9"><span class="num">§09</span> Stacking layers</a></li>
+      <li><a href="#s10"><span class="num">§10</span> The full forward pass</a></li>
+    </ul>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §01 What is a language model? -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <span class="section-num">§01</span>
+      <h2>What is a language model?</h2>
+    </div>
+
+    <p>Strip away everything — the chat interface, the RLHF tuning (an alignment step covered in Part 2), the trillion parameters — and a language model is a single function: given a sequence of tokens, produce a probability distribution over the vocabulary for the next token.</p>
+
+    <p>That's it. <code>P(next token | all previous tokens)</code>. The remarkable fact is that training this function on enough text, at enough scale, causes it to develop internal representations that look like knowledge, reasoning, and language understanding — as emergent side-effects.</p>
+
+    <p>Before we can understand how that function is computed, we need to understand how text becomes numbers, because neural networks operate entirely in the realm of vectors and matrices.</p>
+
+    <div class="demo-box">
+      <div class="demo-label">Interactive — predict the next token</div>
+      <p style="font-family:var(--sans);font-size:.85rem;color:var(--muted);margin-bottom:1rem;">A tiny bigram model trained on character frequencies. Not a real LLM — but the same predict-the-next-token loop that underlies GPT-4.</p>
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem;">
+        <input id="lm-input" type="text" value="the cat sat on the " style="font-family:var(--mono);font-size:.85rem;padding:6px 10px;border:1px solid var(--border);border-radius:2px;background:var(--bg);color:var(--text);flex:1;min-width:200px;">
+        <button class="run-btn" onclick="runLM()" style="padding:6px 16px;">Predict →</button>
+      </div>
+      <div id="lm-output" style="font-family:var(--mono);font-size:.82rem;color:var(--muted);"></div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">bigram.js — a minimal language model</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('bigram')">▶ Run</button>
+      </div>
+      <pre id="code-bigram">// A bigram character model: P(next_char | prev_char)
+// This is the simplest possible "language model" —
+// each character prediction depends only on the one before it.
+
+function buildBigram(text) {
+  const counts = {};
+  for (let i = 0; i < text.length - 1; i++) {
+    const key = text[i];
+    if (!counts[key]) counts[key] = {};
+    counts[key][text[i+1]] = (counts[key][text[i+1]] || 0) + 1;
+  }
+  // convert counts to probabilities
+  const model = {};
+  for (const ch in counts) {
+    const total = Object.values(counts[ch]).reduce((a,b) => a+b, 0);
+    model[ch] = {};
+    for (const next in counts[ch])
+      model[ch][next] = counts[ch][next] / total;
+  }
+  return model;
+}
+
+function sample(dist) {
+  const r = Math.random();
+  let cumul = 0;
+  for (const [ch, p] of Object.entries(dist)) {
+    cumul += p;
+    if (r < cumul) return ch;
+  }
+  return Object.keys(dist)[0];
+}
+
+function generate(model, seed, length=80) {
+  let out = seed;
+  let ch = seed[seed.length - 1];
+  for (let i = 0; i < length; i++) {
+    if (!model[ch]) break;
+    ch = sample(model[ch]);
+    out += ch;
+  }
+  return out;
+}
+
+const text = `the cat sat on the mat the cat ate the rat the rat ran from the cat`;
+const model = buildBigram(text);
+console.log("Bigram model trained. Top predictions after 't':");
+const afterT = Object.entries(model['t'] || {})
+  .sort((a,b) => b[1]-a[1]).slice(0,5);
+afterT.forEach(([ch, p]) => console.log(`  P(${JSON.stringify(ch)} | 't') = ${p.toFixed(3)}`));
+console.log("\nGenerated text:");
+console.log(generate(model, "the ", 100));</pre>
+      <div class="output-area" id="out-bigram"></div>
+    </div>
+
+    <p>This bigram model captures almost nothing of real language. A real LLM looks at the entire context — hundreds of thousands of tokens — and its predictions involve hundreds of billions of parameters. But the interface is identical: a probability distribution over the vocabulary.</p>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §02 Tokenization -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <span class="section-num">§02</span>
+      <h2>Tokenization &amp; vocabulary</h2>
+    </div>
+
+    <p>Before text can enter a model, it must become a sequence of integers. A <em>tokenizer</em> splits text into <em>tokens</em> — sub-word units — and maps each to an ID in a fixed vocabulary.</p>
+
+    <p>Why not characters? A character-level model must work too hard: the string <code>"unbelievable"</code> is 12 steps for a character model but a single token for a well-trained tokenizer. Why not words? Vocabulary would explode to millions of entries across all languages, inflections, and compounds, and unseen words become impossible to handle.</p>
+
+    <p>The standard approach is <strong>Byte-Pair Encoding (BPE)</strong>: start with individual bytes, then repeatedly merge the most frequent adjacent pair into a new token. Run this 50,000 times and you get a vocabulary that covers common words whole and breaks rare words into recognizable sub-word pieces.</p>
+
+    <div class="demo-box">
+      <div class="demo-label">Tokenizer demo — enter text to see tokens</div>
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem;">
+        <input id="tok-input" type="text" value="Hello, how are you doing today?" style="font-family:var(--serif);font-size:.9rem;padding:6px 10px;border:1px solid var(--border);border-radius:2px;background:var(--bg);color:var(--text);flex:1;min-width:200px;">
+        <button class="run-btn" onclick="runTokenizer()" style="padding:6px 16px;">Tokenize</button>
+      </div>
+      <div id="tok-output" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:.5rem;"></div>
+      <div id="tok-ids" style="font-family:var(--mono);font-size:.75rem;color:var(--muted);margin-top:.6rem;"></div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">bpe.js — Byte-Pair Encoding from scratch</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('bpe')">▶ Run</button>
+      </div>
+      <pre id="code-bpe">// BPE tokenizer — trained on a tiny corpus, no libraries.
+// In production (GPT-2/4) the same algorithm runs on ~100GB of text.
+
+function getBPEPairs(word) {
+  const pairs = new Set();
+  for (let i = 0; i < word.length - 1; i++)
+    pairs.add(word[i] + '|' + word[i+1]);
+  return pairs;
+}
+
+function countPairs(corpus) {
+  const freq = {};
+  for (const word of corpus) {
+    const tokens = word.split(' ');
+    for (let i = 0; i < tokens.length - 1; i++) {
+      const pair = tokens[i] + '|' + tokens[i+1];
+      freq[pair] = (freq[pair] || 0) + 1;
+    }
+  }
+  return freq;
+}
+
+function mergePair(corpus, pair) {
+  const [a, b] = pair.split('|');
+  return corpus.map(word =>
+    word.split(' ').reduce((out, tok, i, arr) => {
+      if (tok === a && arr[i+1] === b) {
+        out.push(a + b); out._skip = true;
+      } else if (!out._skip) {
+        out.push(tok);
+      } else {
+        delete out._skip;
+      }
+      return out;
+    }, []).join(' ')
+  );
+}
+
+function trainBPE(words, numMerges) {
+  // Start: every character is its own token, marked with space-boundaries
+  let corpus = words.map(w => w.split('').join(' ') + ' </w>');
+  const merges = [];
+  for (let i = 0; i < numMerges; i++) {
+    const freq = countPairs(corpus);
+    if (Object.keys(freq).length === 0) break;
+    const best = Object.entries(freq).sort((a,b) => b[1]-a[1])[0][0];
+    corpus = mergePair(corpus, best);
+    merges.push(best.replace('|', ' + '));
+  }
+  return { corpus, merges };
+}
+
+const words = ['low','lower','newest','widest','low','low','lower','newer'];
+const { corpus, merges } = trainBPE(words, 8);
+console.log('Merge operations learned:');
+merges.forEach((m, i) => console.log(`  ${i+1}. merge: ${m}`));
+console.log('\nFinal tokenized corpus:');
+corpus.forEach((w, i) => console.log(`  "${words[i]}" → [${w}]`));</pre>
+      <div class="output-area" id="out-bpe"></div>
+    </div>
+
+    <p>GPT-4 uses a vocabulary of ~100,000 tokens. The tokenizer is trained once, frozen, and shared between training and inference. A critical practical consequence: the number of tokens in a string depends heavily on the language — English is very efficient; programming languages and non-Latin scripts are less so.</p>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §03 Embeddings -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <span class="section-num">§03</span>
+      <h2>Embeddings</h2>
+    </div>
+
+    <p>A token ID is just an integer — a lookup index. It carries no information about meaning. <em>Embeddings</em> convert each token ID into a dense vector of real numbers, typically 768 to 12,288 dimensions depending on model size.</p>
+
+    <p>The embedding table is a matrix <code>E</code> of shape <code>[vocab_size × d_model]</code>. To embed token <code>42</code>, you simply retrieve row 42 of <code>E</code>. These values start random and are learned during training to encode semantic relationships.</p>
+
+    <p>The remarkable property that emerges: similar meanings end up nearby in this high-dimensional space. The famous result <code>king − man + woman ≈ queen</code> is not programmed in; it emerges from the geometry of embeddings trained with a shallow word-prediction objective (word2vec). In LLMs, the embedding table is trained end-to-end alongside all other parameters, so the geometry is richer and less cleanly arithmetic — but the core idea holds: proximity in embedding space reflects semantic similarity.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">embeddings.js — lookup table and cosine similarity</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('embeddings')">▶ Run</button>
+      </div>
+      <pre id="code-embeddings">// Embedding table: integer token IDs → dense vectors.
+// All pure JavaScript — no libraries.
+
+function makeMatrix(rows, cols, initFn) {
+  return Array.from({length: rows}, (_, i) =>
+    Array.from({length: cols}, (_, j) => initFn(i, j))
+  );
+}
+
+// Tiny example: 8-token vocabulary, 4-dimensional embeddings
+const VOCAB_SIZE = 8;
+const D_MODEL    = 4;
+
+// In reality these are learned. Here we use hand-crafted values
+// to demonstrate the geometry.
+const embeddingTable = [
+  // token:  [dim0,   dim1,  dim2,  dim3]
+  /* 0 the */  [ 0.9,  0.1, -0.2,  0.0],
+  /* 1 cat */  [ 0.2,  0.8,  0.7, -0.1],
+  /* 2 dog */  [ 0.2,  0.7,  0.8,  0.1],
+  /* 3 sat */  [-0.3,  0.1,  0.2,  0.9],
+  /* 4 ran */  [-0.4,  0.1,  0.1,  0.8],
+  /* 5 on  */  [ 0.8,  0.0, -0.3,  0.1],
+  /* 6 mat */  [ 0.3, -0.1, -0.2,  0.7],
+  /* 7 fast*/  [-0.5,  0.2,  0.0,  0.6],
+];
+const vocab = ['the','cat','dog','sat','ran','on','mat','fast'];
+
+function embed(tokenId) {
+  return embeddingTable[tokenId];
+}
+
+function dot(a, b) {
+  return a.reduce((s, v, i) => s + v * b[i], 0);
+}
+
+function norm(v) {
+  return Math.sqrt(v.reduce((s, x) => s + x*x, 0));
+}
+
+function cosineSim(a, b) {
+  return dot(a, b) / (norm(a) * norm(b));
+}
+
+// Compare pairs
+const pairs = [
+  ['cat', 'dog'],   // semantically similar (both animals)
+  ['sat', 'ran'],   // semantically similar (both verbs)
+  ['cat', 'sat'],   // different POS
+  ['the', 'on'],    // both function words
+];
+
+console.log('Cosine similarity between token embeddings:');
+console.log('(higher = more similar in embedding space)\n');
+for (const [a, b] of pairs) {
+  const ia = vocab.indexOf(a), ib = vocab.indexOf(b);
+  const sim = cosineSim(embed(ia), embed(ib));
+  console.log(`  sim("${a}", "${b}") = ${sim.toFixed(4)}`);
+}
+
+// Embed a sentence
+const sentence = 'the cat sat';
+const tokens = sentence.split(' ').map(w => vocab.indexOf(w));
+console.log('\nEmbedding "the cat sat":');
+tokens.forEach(id => {
+  console.log(`  token ${id} ("${vocab[id]}") → [${embed(id).map(x=>x.toFixed(2)).join(', ')}]`);
+});</pre>
+      <div class="output-area" id="out-embeddings"></div>
+    </div>
+
+    <div class="callout">
+      <strong>Key point:</strong> After embedding, a sentence of <em>n</em> tokens becomes a matrix of shape <code>[n × d_model]</code>. All subsequent transformer operations work on this matrix. The model never sees characters or words — only these vectors.
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §04 Matrix operations -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <span class="section-num">§04</span>
+      <h2>Matrix operations from scratch</h2>
+    </div>
+
+    <p>The Transformer is, at its core, a sequence of matrix multiplications, additions, and nonlinearities. Before we can understand attention, we need these primitives in place.</p>
+
+    <p>Here is our complete linear algebra library — 30 lines of JavaScript that are sufficient to implement the entire forward pass:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">linalg.js — the full math library (30 lines)</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('linalg')">▶ Run</button>
+      </div>
+      <pre id="code-linalg">// Pure JavaScript linear algebra. No numpy, no libraries.
+// This 30-line file is sufficient for the entire Transformer forward pass.
+
+const LA = {
+  // Create matrix filled with zeros
+  zeros: (r, c) => Array.from({length:r}, () => new Array(c).fill(0)),
+
+  // Create matrix with random values from N(0, scale)
+  randn: (r, c, scale=0.02) => Array.from({length:r}, () =>
+    Array.from({length:c}, () => {
+      // Box-Muller transform for Gaussian random
+      const u = 1 - Math.random(), v = Math.random();
+      return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v) * scale;
+    })
+  ),
+
+  // Matrix multiply: A[m×k] × B[k×n] → C[m×n]
+  matmul: (A, B) => {
+    const [m,k,n] = [A.length, B.length, B[0].length];
+    const C = LA.zeros(m, n);
+    for (let i=0;i<m;i++) for (let j=0;j<n;j++)
+      for (let p=0;p<k;p++) C[i][j] += A[i][p] * B[p][j];
+    return C;
+  },
+
+  // Transpose: A[m×n] → Aᵀ[n×m]
+  T: A => A[0].map((_, j) => A.map(row => row[j])),
+
+  // Elementwise add (broadcast if b is 1D vector)
+  add: (A, b) => A.map((row, i) =>
+    row.map((v, j) => v + (Array.isArray(b[0]) ? b[i][j] : b[j]))
+  ),
+
+  // Scale every element
+  scale: (A, s) => A.map(row => row.map(v => v * s)),
+
+  // Softmax along last axis (each row independently)
+  softmax: A => A.map(row => {
+    const max = Math.max(...row); // numerical stability
+    const ex = row.map(x => Math.exp(x - max));
+    const s  = ex.reduce((a,b) => a+b, 0);
+    return ex.map(x => x/s);
+  }),
+
+  // Layer norm: normalize each row to mean=0, std=1, then scale+shift
+  layernorm: (A, gamma, beta, eps=1e-5) => A.map(row => {
+    const mean = row.reduce((a,b)=>a+b,0) / row.length;
+    const variance = row.reduce((a,b)=>a+(b-mean)**2,0) / row.length;
+    const std = Math.sqrt(variance + eps);
+    return row.map((x,i) => gamma[i] * (x-mean)/std + beta[i]);
+  }),
+
+  // GELU activation (approximate)
+  gelu: A => A.map(row =>
+    row.map(x => 0.5 * x * (1 + Math.tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x**3))))
+  ),
+};
+
+// ── Tests ──────────────────────────────────────────────────────────
+const A = [[1,2],[3,4]];
+const B = [[5,6],[7,8]];
+console.log('A × B =', LA.matmul(A, B));
+// Expected: [[19,22],[43,50]]
+
+console.log('Aᵀ =', LA.T(A));
+// Expected: [[1,3],[2,4]]
+
+console.log('softmax([[1,2,3]]) =',
+  LA.softmax([[1,2,3]]).map(row => row.map(x=>x.toFixed(4))));
+// ~[0.09, 0.24, 0.67]
+
+const gamma = [1,1,1], beta = [0,0,0];
+console.log('layernorm([[1,2,3]]) =',
+  LA.layernorm([[1,2,3]], gamma, beta).map(r=>r.map(x=>x.toFixed(4))));</pre>
+      <div class="output-area" id="out-linalg"></div>
+    </div>
+
+    <p>From here on, <code>LA</code> is our complete dependency. Every operation in the Transformer — attention, feedforward, layer norm — will be built from these primitives.</p>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §05 The attention mechanism -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <span class="section-num">§05</span>
+      <h2>The attention mechanism</h2>
+    </div>
+
+    <p>Attention is the mechanism that lets every token look at every other token and decide how much to "attend" to each. It is the core innovation of the Transformer — the thing that replaced recurrence and made parallel training over long contexts possible.</p>
+
+    <h3>Queries, Keys, and Values</h3>
+
+    <p>For each token in the sequence, attention computes three vectors by multiplying the embedding by learned weight matrices:</p>
+
+    <ul style="margin:.6rem 0 1rem 1.4rem;font-size:.95rem;line-height:1.8;">
+      <li><strong>Query (Q)</strong> — "what am I looking for?"</li>
+      <li><strong>Key (K)</strong> — "what do I contain?"</li>
+      <li><strong>Value (V)</strong> — "what do I give, if attended to?"</li>
+    </ul>
+
+    <p>The attention score between token <em>i</em> (querying) and token <em>j</em> (being attended to) is the dot product of their query and key vectors: <code>score(i,j) = Q[i] · K[j]</code>. The dot product is the right primitive here because it measures geometric alignment — two vectors with large dot product are pointing in similar directions. After training, tokens that are semantically compatible in the query/key sense end up with weight vectors pointing in similar directions, so the dot product naturally becomes high for relevant pairs and low for irrelevant ones. The output for token <em>i</em> is then the weighted sum of all value vectors, with weights from the softmax of scores.</p>
+
+    <p>The full formula for one attention head:</p>
+
+    <div class="demo-box" style="font-family:var(--mono);font-size:.9rem;text-align:center;padding:1.2rem;">
+      Attention(Q, K, V) = softmax( Q · Kᵀ / √d<sub>k</sub> ) · V
+    </div>
+
+    <p>The <code>√d<sub>k</sub></code> term is a scaling factor to prevent the dot products from growing too large in high-dimensional spaces, which would push softmax into a saturated, near-zero-gradient region. Here is why high-dimensional dot products tend to be large: if Q and K are vectors whose components each have mean 0 and variance 1, then Q·K = Σ QᵢKᵢ is a sum of d<sub>k</sub> independent terms each with variance 1, so the total dot product has variance d<sub>k</sub> — it grows with dimension. Dividing by √d<sub>k</sub> standardises the variance back to 1 regardless of how large d<sub>k</sub> gets, keeping the softmax inputs in a range where the output is spread across many tokens rather than collapsing to a near-one-hot spike.</p>
+
+    <!-- Attention heatmap visualization -->
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">Sentence:</span>
+        <span style="font-family:var(--mono);font-size:.78rem;background:var(--tag-bg);padding:3px 8px;border-radius:2px;">the cat sat on the mat</span>
+        <button class="ctrl-btn" onclick="drawAttention('cat')">Query: cat</button>
+        <button class="ctrl-btn" onclick="drawAttention('sat')">Query: sat</button>
+        <button class="ctrl-btn" onclick="drawAttention('mat')">Query: mat</button>
+        <button class="ctrl-btn" onclick="drawAttention('the2')">Query: the (2nd)</button>
+      </div>
+      <canvas id="attn-canvas" width="700" height="220"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">attention.js — scaled dot-product attention</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('attention')">▶ Run</button>
+      </div>
+      <pre id="code-attention">// Scaled dot-product attention — the heart of every Transformer.
+// Input X: [seq_len × d_model]
+// Wq, Wk, Wv: learned weight matrices [d_model × d_k]
+// causal: if true, apply lower-triangular mask (GPT/decoder style)
+// Returns: output [seq_len × d_v]
+
+function scaledDotProductAttention(Q, K, V, causal = false) {
+  const dk = K[0].length;
+  const seq_len = Q.length;
+
+  // Step 1: compute raw scores — Q · Kᵀ
+  // scores[i][j] = "how much should token i attend to token j?"
+  const scores = LA.matmul(Q, LA.T(K));   // [seq_len × seq_len]
+
+  // Step 2: scale by 1/√dk — keeps variance stable across dimensions
+  const scaled = LA.scale(scores, 1 / Math.sqrt(dk));
+
+  // Step 3: causal mask — tokens cannot attend to future tokens.
+  // Set future positions to -Infinity so softmax gives them weight ≈ 0.
+  // This is what makes GPT "autoregressive": at generation time token i
+  // can only see tokens 0…i, and training must match that constraint.
+  if (causal) {
+    for (let i = 0; i < seq_len; i++)
+      for (let j = i + 1; j < seq_len; j++)
+        scaled[i][j] = -Infinity;
+  }
+
+  // Step 4: softmax over each row — convert scores to probabilities
+  const weights = LA.softmax(scaled);     // [seq_len × seq_len]
+
+  // Step 5: weighted sum of values
+  const output = LA.matmul(weights, V);   // [seq_len × d_v]
+
+  return { output, weights };
+}
+
+// ── Example: 4-token sequence, d_model=4, d_k=3 ───────────────────
+const seq_len=4, d_model=4, d_k=3;
+
+// Simulated embeddings for "the cat sat on"
+const X = [
+  [ 0.9, 0.1, -0.2,  0.0],  // the
+  [ 0.2, 0.8,  0.7, -0.1],  // cat
+  [-0.3, 0.1,  0.2,  0.9],  // sat
+  [ 0.8, 0.0, -0.3,  0.1],  // on
+];
+
+// Random projection weight matrices (would be learned during training)
+const Wq = [[ 0.4,-0.2, 0.7],[-0.1, 0.5, 0.3],[ 0.2,-0.4, 0.6],[ 0.1, 0.3,-0.2]];
+const Wk = [[ 0.3, 0.6,-0.1],[ 0.5,-0.2, 0.4],[-0.3, 0.1, 0.7],[ 0.2, 0.4,-0.3]];
+const Wv = [[ 0.6, 0.1, 0.3,-0.2],[ 0.2, 0.7,-0.1, 0.4],[-0.4, 0.3, 0.5, 0.1],[ 0.1,-0.2, 0.4, 0.6]];
+
+const Q = LA.matmul(X, Wq);
+const K = LA.matmul(X, Wk);
+const V = LA.matmul(X, Wv);
+
+const tokens = ['the', 'cat', 'sat', 'on'];
+
+// ── Bidirectional (BERT-style encoder): every token sees every other ─
+const { output, weights } = scaledDotProductAttention(Q, K, V, false);
+console.log('Bidirectional attention weights (encoder / BERT style):');
+console.log('         ' + tokens.map(t => t.padStart(7)).join(''));
+weights.forEach((row, i) => {
+  console.log(`  ${tokens[i].padEnd(6)} ${row.map(w => w.toFixed(3).padStart(7)).join('')}`);
+});
+
+// ── Causal (GPT-style decoder): each token sees only past and itself ─
+const { weights: cw } = scaledDotProductAttention(Q, K, V, true);
+console.log('\nCausal attention weights (decoder / GPT style — lower-triangular):');
+console.log('         ' + tokens.map(t => t.padStart(7)).join(''));
+cw.forEach((row, i) => {
+  console.log(`  ${tokens[i].padEnd(6)} ${row.map(w => isNaN(w) ? '      0' : w.toFixed(3).padStart(7)).join('')}`);
+});
+console.log('\n"the" attends only to itself. "cat" can see "the" and "cat".');
+console.log('"on" can see all four tokens. No token sees into the future.');</pre>
+      <div class="output-area" id="out-attention"></div>
+    </div>
+
+    <p>Notice that the output vectors are no longer simple embeddings — each one is a <em>contextualized</em> representation that has absorbed information from all other tokens in proportion to the attention weights. "cat" now carries a hint of "sat" and "the". This is what makes Transformers so powerful: every representation is context-aware from the very first layer.</p>
+
+    <p>The two weight tables above reveal the two main Transformer variants. <strong>Bidirectional attention</strong> (BERT-style encoders) lets every token attend to every other — useful when you need a rich representation of a complete input. <strong>Causal attention</strong> (GPT-style decoders) enforces a strict left-to-right constraint: token <em>i</em> can only see tokens 0…<em>i</em>. This is not just a training convenience — it is architecturally required. At generation time the model produces one token at a time, appending each to the sequence before computing the next. Training with the causal mask ensures the model never leaks information from the future into its predictions, exactly matching how it will be used.</p>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §06 Multi-head attention -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <span class="section-num">§06</span>
+      <h2>Multi-head attention</h2>
+    </div>
+
+    <p>A single attention head can only learn one type of relationship at a time. Multi-head attention runs <em>h</em> independent attention heads in parallel, each with its own projection matrices, then concatenates their outputs and projects back to <code>d_model</code>.</p>
+
+    <p>Why? Different heads specialize. In practice, heads learn to capture different aspects of language: one may track syntactic subject–verb agreement, another co-reference, another positional proximity. This specialization is not programmed — it emerges from training.</p>
+
+    <table class="prose-table">
+      <thead><tr><th>Parameter</th><th>Typical GPT-2 small</th><th>GPT-4 (est.)</th></tr></thead>
+      <tbody>
+        <tr><td><code>d_model</code></td><td>768</td><td>~12,288</td></tr>
+        <tr><td><code>n_heads</code></td><td>12</td><td>~96</td></tr>
+        <tr><td><code>d_k = d_model/n_heads</code></td><td>64</td><td>~128</td></tr>
+        <tr><td>Parameters in MHA</td><td>~2.4M</td><td>~600M</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">multihead.js — multi-head attention</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('multihead')">▶ Run</button>
+      </div>
+      <pre id="code-multihead">// Multi-head attention: h parallel attention heads, then concat + project.
+
+function multiHeadAttention(X, Wo, heads) {
+  // heads: array of {Wq, Wk, Wv} — one per head
+  const headOutputs = heads.map(h => {
+    const Q = LA.matmul(X, h.Wq);
+    const K = LA.matmul(X, h.Wk);
+    const V = LA.matmul(X, h.Wv);
+    return scaledDotProductAttention(Q, K, V).output;
+  });
+
+  // Concatenate along the feature dimension: [seq_len × (h * d_v)]
+  const concat = headOutputs[0].map((_, i) =>
+    headOutputs.flatMap(h => h[i])
+  );
+
+  // Final projection Wo: [h*d_v × d_model] — mixes head outputs back into d_model
+  // Each head saw a different projection; Wo learns how to blend their contributions.
+  return LA.matmul(concat, Wo);
+}
+
+// ── Example: 2-head attention on a 4-token sequence ───────────────
+function scaledDotProductAttention(Q, K, V, causal = false) {
+  const dk = K[0].length;
+  const seq_len = Q.length;
+  const scores = LA.matmul(Q, LA.T(K));
+  const scaled = LA.scale(scores, 1 / Math.sqrt(dk));
+  if (causal)
+    for (let i = 0; i < seq_len; i++)
+      for (let j = i + 1; j < seq_len; j++)
+        scaled[i][j] = -Infinity;
+  const weights = LA.softmax(scaled);
+  return { output: LA.matmul(weights, V), weights };
+}
+
+const X2 = [
+  [ 0.9, 0.1, -0.2,  0.0],  // the
+  [ 0.2, 0.8,  0.7, -0.1],  // cat
+  [-0.3, 0.1,  0.2,  0.9],  // sat
+  [ 0.8, 0.0, -0.3,  0.1],  // on
+];
+
+// 2 heads, d_k = d_v = 2 (d_model/n_heads = 4/2)
+const heads = [
+  {
+    Wq: [[.6,-.2],[.1,.5],[.3,.2],[-.1,.4]],
+    Wk: [[.5,.3],[-.2,.6],[.4,-.1],[.2,.3]],
+    Wv: [[.4,.2],[.3,-.1],[.1,.5],[-.2,.3]],
+  },
+  {
+    Wq: [[-.3,.5],[.4,.1],[.2,-.4],[.6,.2]],
+    Wk: [[.2,-.3],[.5,.4],[-.1,.2],[.3,.6]],
+    Wv: [[.3,.5],[-.2,.4],[.6,.1],[.2,-.3]],
+  }
+];
+
+// Wo: [h*d_v × d_model] = [4 × 4] — blends the two heads back into d_model
+const Wo = [
+  [ 0.4, 0.3,-0.2, 0.1],
+  [-0.1, 0.5, 0.3,-0.2],
+  [ 0.2,-0.1, 0.6, 0.4],
+  [ 0.3, 0.2,-0.3, 0.5],
+];
+
+const out = multiHeadAttention(X2, Wo, heads);
+const tokens = ['the', 'cat', 'sat', 'on'];
+console.log('Multi-head attention output (2 heads, d_model=4, with Wo projection):');
+out.forEach((row, i) => {
+  console.log(`  ${tokens[i].padEnd(5)} [${row.map(v=>v.toFixed(3)).join(', ')}]`);
+});</pre>
+      <div class="output-area" id="out-multihead"></div>
+    </div>
+
+    <p>The output has the same shape as the input — <code>[seq_len × d_model]</code> — because Wo maps the concatenated head outputs back to d_model dimensions. Each head independently extracted a different type of relationship; Wo learns a weighted blend of those findings. The shape-preserving property is what makes it straightforward to stack multiple blocks on top of each other.</p>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §07 Positional encoding -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <span class="section-num">§07</span>
+      <h2>Positional encoding</h2>
+    </div>
+
+    <p>Attention is inherently <em>permutation-invariant</em> — the matrix operations are the same regardless of token order. "The cat sat" and "Cat the sat" would produce identical attention outputs without something extra. That something is positional encoding.</p>
+
+    <p>The original Transformer uses sinusoidal encodings: each position gets a unique vector constructed from sine and cosine functions at different frequencies. This is added directly to the token embeddings before the first layer.</p>
+
+    <p>Modern models like GPT-2+ use learned positional embeddings (another lookup table, one row per position) or more sophisticated schemes like RoPE (Rotary Position Embedding). The core idea remains: inject position information into the representation before attention operates on it.</p>
+
+    <div class="anim-wrap">
+      <div class="anim-controls">
+        <span class="ctrl-label">Visualize sinusoidal position encodings:</span>
+        <button class="ctrl-btn active" id="pe-btn-all" onclick="drawPE('all')">All dims</button>
+        <button class="ctrl-btn" id="pe-btn-low" onclick="drawPE('low')">Low freq</button>
+        <button class="ctrl-btn" id="pe-btn-high" onclick="drawPE('high')">High freq</button>
+      </div>
+      <canvas id="pe-canvas" width="700" height="200"></canvas>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">positional.js — sinusoidal encoding</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('positional')">▶ Run</button>
+      </div>
+      <pre id="code-positional">// Sinusoidal positional encoding from "Attention Is All You Need" (Vaswani 2017).
+// PE(pos, 2i)   = sin(pos / 10000^(2i/d_model))
+// PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
+
+function sinusoidalPE(seqLen, dModel) {
+  return Array.from({length: seqLen}, (_, pos) =>
+    Array.from({length: dModel}, (_, i) => {
+      const dim = Math.floor(i / 2);
+      const angle = pos / Math.pow(10000, 2 * dim / dModel);
+      return i % 2 === 0 ? Math.sin(angle) : Math.cos(angle);
+    })
+  );
+}
+
+const seqLen = 6, dModel = 8;
+const PE = sinusoidalPE(seqLen, dModel);
+
+console.log(`Positional encodings [${seqLen} positions × ${dModel} dims]:`);
+console.log('pos  ' + Array.from({length:dModel},(_,i)=>`d${i}`.padStart(7)).join(''));
+PE.forEach((row, pos) => {
+  console.log(`  ${pos}  ${row.map(v => v.toFixed(3).padStart(7)).join('')}`);
+});
+
+// Key property: positions that are close together have similar encodings
+function cosineSim(a, b) {
+  const dot = a.reduce((s,v,i)=>s+v*b[i],0);
+  const na  = Math.sqrt(a.reduce((s,v)=>s+v*v,0));
+  const nb  = Math.sqrt(b.reduce((s,v)=>s+v*v,0));
+  return dot/(na*nb);
+}
+console.log('\nCosine similarity between positional encodings:');
+console.log(`  sim(pos0, pos1) = ${cosineSim(PE[0],PE[1]).toFixed(4)}  (adjacent)`);
+console.log(`  sim(pos0, pos3) = ${cosineSim(PE[0],PE[3]).toFixed(4)}  (3 apart)`);
+console.log(`  sim(pos0, pos5) = ${cosineSim(PE[0],PE[5]).toFixed(4)}  (5 apart)`);</pre>
+      <div class="output-area" id="out-positional"></div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §08 The Transformer block -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <span class="section-num">§08</span>
+      <h2>The Transformer block</h2>
+    </div>
+
+    <p>One Transformer block consists of two sublayers, each wrapped in a residual connection and layer normalization:</p>
+
+    <ol style="margin:.6rem 0 1rem 1.4rem;font-size:.95rem;line-height:2;">
+      <li><strong>Multi-head self-attention</strong> — tokens exchange information</li>
+      <li><strong>Position-wise feedforward network</strong> — each token independently processed</li>
+    </ol>
+
+    <p>The residual connection adds the input back to the sublayer output: <code>output = x + Sublayer(x)</code>. This solves two critical problems: it allows gradients to flow cleanly during backpropagation (the additive path carries gradients directly, bypassing the sublayer's non-linearities), and it lets early layers still contribute to the final output even in very deep networks. The original 2017 Transformer paper applied layer normalisation <em>after</em> the addition (post-norm: <code>LayerNorm(x + Sublayer(x))</code>). GPT-2 and most subsequent models moved it <em>before</em> the sublayer (pre-norm: <code>x + Sublayer(LayerNorm(x))</code>) — this turns out to train more stably at large scale because the residual stream itself remains unnormalised, making it easier for the optimizer to navigate in early training.</p>
+
+    <p>The feedforward network is two linear layers with a GELU activation in between: <code>FFN(x) = GELU(x·W₁ + b₁)·W₂ + b₂</code>. The inner dimension is typically 4× the model dimension — 3,072 for GPT-2 small. This is where most of the model's parameters live.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">transformer_block.js — one complete Transformer block</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('tblock')">▶ Run</button>
+      </div>
+      <pre id="code-tblock">// One complete Transformer block.
+// Implements pre-norm variant (used by GPT-2+):
+//   y = x + Attention(LayerNorm(x))
+//   z = y + FFN(LayerNorm(y))
+
+function transformerBlock(X, params) {
+  const { heads, W1, b1, W2, b2, gamma1, beta1, gamma2, beta2 } = params;
+
+  // ── Sublayer 1: Multi-head self-attention ─────────────────────────
+  const normed1 = LA.layernorm(X, gamma1, beta1);
+
+  // Compute Q, K, V for all heads, run attention, concatenate
+  const attnOutputs = heads.map(h => {
+    const Q = LA.matmul(normed1, h.Wq);
+    const K = LA.matmul(normed1, h.Wk);
+    const V = LA.matmul(normed1, h.Wv);
+    const dk = K[0].length;
+    const scores  = LA.scale(LA.matmul(Q, LA.T(K)), 1/Math.sqrt(dk));
+    const weights = LA.softmax(scores);
+    return LA.matmul(weights, V);
+  });
+  // Concatenate head outputs along feature dimension
+  const concat = attnOutputs[0].map((_, i) =>
+    attnOutputs.flatMap(h => h[i])
+  );
+  // Residual connection
+  const afterAttn = LA.add(X, concat);
+
+  // ── Sublayer 2: Feedforward network ──────────────────────────────
+  const normed2 = LA.layernorm(afterAttn, gamma2, beta2);
+
+  // FFN: x → GELU(x·W1 + b1) → ·W2 + b2
+  const hidden = LA.gelu(LA.add(LA.matmul(normed2, W1), b1));
+  const ffnOut = LA.add(LA.matmul(hidden, W2), b2);
+
+  // Residual connection
+  return LA.add(afterAttn, ffnOut);
+}
+
+// ── Minimal example: 3-token sequence, d_model=4, 2 heads, d_ff=8 ─
+const seq   = [
+  [ 0.9, 0.1, -0.2,  0.0],
+  [ 0.2, 0.8,  0.7, -0.1],
+  [-0.3, 0.1,  0.2,  0.9],
+];
+const d = 4, dff = 8;
+const ones  = new Array(d).fill(1);
+const zeros = new Array(d).fill(0);
+const onesFF  = new Array(dff).fill(1);
+const zerosFF = new Array(dff).fill(0);
+
+const params = {
+  heads: [
+    { Wq: LA.randn(d,2), Wk: LA.randn(d,2), Wv: LA.randn(d,2) },
+    { Wq: LA.randn(d,2), Wk: LA.randn(d,2), Wv: LA.randn(d,2) },
+  ],
+  W1:    LA.randn(d, dff),    b1: [zerosFF],
+  W2:    LA.randn(dff, d),    b2: [zeros],
+  gamma1: ones,  beta1: zeros,
+  gamma2: ones,  beta2: zeros,
+};
+
+const output = transformerBlock(seq, params);
+const tokens = ['the', 'cat', 'sat'];
+console.log('Transformer block output (residual representations):');
+output.forEach((row, i) => {
+  console.log(`  ${tokens[i].padEnd(5)} [${row.map(v=>v.toFixed(4)).join(', ')}]`);
+});
+console.log('\nShape preserved: input', seq.length,'×',seq[0].length,
+  '→ output', output.length,'×',output[0].length);</pre>
+      <div class="output-area" id="out-tblock"></div>
+    </div>
+
+    <div class="callout">
+      <strong>Shape invariant:</strong> a Transformer block takes in <code>[seq_len × d_model]</code> and returns <code>[seq_len × d_model]</code>. The shape never changes. This is what makes stacking layers trivial — the output of one block is identically shaped as the input to the next.
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §09 Stacking layers -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <span class="section-num">§09</span>
+      <h2>Stacking layers</h2>
+    </div>
+
+    <p>A Transformer model is simply N copies of the same block structure stacked vertically. GPT-2 small uses 12 layers; GPT-3 uses 96. Each layer refines the representations produced by the one below.</p>
+
+    <p>There is a useful (if informal) interpretation of what different layers learn: early layers tend to capture syntactic features — part of speech, local phrase structure. Middle layers capture semantic relationships. Later layers capture task-relevant abstractions. This stratification is consistent across models and has been verified with probing classifiers, though the picture is more mixed than this clean story suggests.</p>
+
+    <table class="prose-table">
+      <thead><tr><th>Model</th><th>Layers</th><th>d_model</th><th>Heads</th><th>Parameters</th></tr></thead>
+      <tbody>
+        <tr><td>GPT-2 small</td><td>12</td><td>768</td><td>12</td><td>117M</td></tr>
+        <tr><td>GPT-2 XL</td><td>48</td><td>1600</td><td>25</td><td>1.5B</td></tr>
+        <tr><td>GPT-3</td><td>96</td><td>12,288</td><td>96</td><td>175B</td></tr>
+        <tr><td>LLaMA 3 8B</td><td>32</td><td>4,096</td><td>32</td><td>8B</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">stack.js — stacking N transformer blocks</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('stack')">▶ Run</button>
+      </div>
+      <pre id="code-stack">// Stacking Transformer blocks. The shape [seq_len × d_model] flows
+// unchanged through all N layers.
+
+function makeBlockParams(dModel, nHeads, dFF) {
+  const dK = dModel / nHeads;
+  const ones  = new Array(dModel).fill(1);
+  const zeros = new Array(dModel).fill(0);
+  return {
+    heads: Array.from({length: nHeads}, () => ({
+      Wq: LA.randn(dModel, dK),
+      Wk: LA.randn(dModel, dK),
+      Wv: LA.randn(dModel, dK),
+    })),
+    W1:    LA.randn(dModel, dFF),
+    b1:    [new Array(dFF).fill(0)],
+    W2:    LA.randn(dFF, dModel),
+    b2:    [new Array(dModel).fill(0)],
+    gamma1: ones, beta1: zeros,
+    gamma2: ones, beta2: zeros,
+  };
+}
+
+function transformerStack(X, numLayers, dModel, nHeads, dFF) {
+  let h = X;
+  for (let layer = 0; layer < numLayers; layer++) {
+    const params = makeBlockParams(dModel, nHeads, dFF);
+    h = transformerBlock(h, params);
+    // In a real model, params are fixed after training —
+    // here we reinitialize each time to keep the example self-contained
+  }
+  return h;
+}
+
+// Tiny architecture: 3 layers, d_model=4, 2 heads, d_ff=8
+const input = [
+  [0.9, 0.1, -0.2, 0.0],  // the
+  [0.2, 0.8,  0.7,-0.1],  // cat
+  [-0.3,0.1,  0.2, 0.9],  // sat
+];
+
+console.log('Input shape:', input.length, '×', input[0].length);
+const out3 = transformerStack(input, 3, 4, 2, 8);
+console.log('After 3 layers shape:', out3.length, '×', out3[0].length);
+console.log('\nFinal hidden states:');
+['the','cat','sat'].forEach((tok, i) => {
+  console.log(`  ${tok.padEnd(5)} [${out3[i].map(v=>v.toFixed(4)).join(', ')}]`);
+});
+console.log('\nNote: shape is identical to input — blocks are stackable indefinitely');</pre>
+      <div class="output-area" id="out-stack"></div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- §10 The full forward pass -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <span class="section-num">§10</span>
+      <h2>The full forward pass</h2>
+    </div>
+
+    <p>We now have every piece. A complete GPT-style forward pass is:</p>
+
+    <ol style="margin:.6rem 0 1.2rem 1.4rem;font-size:.95rem;line-height:2.2;">
+      <li>Tokenize input text → sequence of integer IDs</li>
+      <li>Embed each token ID → vector via embedding table</li>
+      <li>Add positional encoding to each embedding vector</li>
+      <li>Pass the resulting matrix through N Transformer blocks</li>
+      <li>Apply a final layer normalization</li>
+      <li>Multiply by the unembedding matrix → <strong>logits</strong> (raw scores, one per vocabulary token, before any normalisation) over vocabulary</li>
+      <li>Apply softmax → probability distribution over next token</li>
+    </ol>
+
+    <p>Step 6 is often called the <em>language model head</em>. The unembedding matrix is typically the transpose of the embedding table — a weight-tying trick that reduces parameters and works well in practice.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">gpt_forward.js — complete forward pass, no libraries</span>
+        <span class="code-lang">JS</span>
+        <button class="run-btn" onclick="runCode('gptfwd')">▶ Run</button>
+      </div>
+      <pre id="code-gptfwd">// Complete GPT-style forward pass, pure JavaScript.
+// Architecture: tiny toy model — vocab=8, d_model=4, 2 layers, 2 heads.
+
+// ── Reuse LA and transformerBlock from previous sections ──────────
+
+// ── Tiny vocabulary ───────────────────────────────────────────────
+const VOCAB  = ['the','cat','dog','sat','ran','on','mat','.'];
+const V_SIZE = VOCAB.length;  // 8
+const D      = 4;             // d_model
+const N_HEADS= 2;
+const N_LAYERS=2;
+const D_FF   = 8;
+
+// ── Embedding table: V_SIZE × D (normally learned; here fixed) ───
+const embTable = [
+  [ 0.9, 0.1,-0.2, 0.0],  // the
+  [ 0.2, 0.8, 0.7,-0.1],  // cat
+  [ 0.2, 0.7, 0.8, 0.1],  // dog
+  [-0.3, 0.1, 0.2, 0.9],  // sat
+  [-0.4, 0.1, 0.1, 0.8],  // ran
+  [ 0.8, 0.0,-0.3, 0.1],  // on
+  [ 0.3,-0.1,-0.2, 0.7],  // mat
+  [ 0.1, 0.1, 0.1, 0.1],  // .
+];
+
+function embed(tokenIds) {
+  return tokenIds.map(id => [...embTable[id]]);
+}
+
+function sinPE(seqLen, d) {
+  return Array.from({length:seqLen},(_,pos)=>
+    Array.from({length:d},(_,i)=>{
+      const dim = Math.floor(i/2);
+      const angle = pos / Math.pow(10000, 2*dim/d);
+      return i%2===0 ? Math.sin(angle) : Math.cos(angle);
+    })
+  );
+}
+
+function gptForward(tokens) {
+  // 1. Embed
+  const ids = tokens.map(t => VOCAB.indexOf(t));
+  const embs = embed(ids);
+
+  // 2. Add positional encodings
+  const pe   = sinPE(tokens.length, D);
+  let   h    = embs.map((row, i) => row.map((v,j) => v + pe[i][j]));
+
+  // 3. N transformer layers
+  for (let l = 0; l < N_LAYERS; l++) {
+    h = transformerBlock(h, makeBlockParams(D, N_HEADS, D_FF));
+  }
+
+  // 4. Final layer norm
+  const ones  = new Array(D).fill(1);
+  const zeros = new Array(D).fill(0);
+  h = LA.layernorm(h, ones, zeros);
+
+  // 5. Language model head: h × Eᵀ → logits [seq_len × vocab_size]
+  const logits = LA.matmul(h, LA.T(embTable));
+
+  // 6. Softmax → probabilities for next token at each position
+  const probs = LA.softmax(logits);
+
+  return { logits, probs };
+}
+
+// ── Run forward pass on "the cat sat on the" ─────────────────────
+const prompt = ['the', 'cat', 'sat', 'on', 'the'];
+const { probs } = gptForward(prompt);
+
+// Look at predictions after the last token ("the")
+const lastProbs = probs[probs.length - 1];
+const ranked = VOCAB.map((w,i) => [w, lastProbs[i]])
+  .sort((a,b) => b[1]-a[1]);
+
+console.log(`Prompt: "${prompt.join(' ')}"`);
+console.log(`\nProbability distribution over next token:`);
+ranked.forEach(([w, p]) => {
+  const bar = '█'.repeat(Math.round(p * 40));
+  console.log(`  ${w.padEnd(5)} ${(p*100).toFixed(1).padStart(5)}%  ${bar}`);
+});
+console.log(`\n(Weights are random — a trained model would give meaningful probs)`);</pre>
+      <div class="output-area" id="out-gptfwd"></div>
+    </div>
+
+    <div class="callout">
+      <strong>What's missing for a real model?</strong> This forward pass is structurally correct but uses random weights. A real GPT-2 has the same architecture with the same matrix shapes — just with 117 million carefully trained numbers instead of random ones. Part 2 of this series covers how those numbers get trained.
+    </div>
+
+    <p>You have now seen the complete forward pass of a language model, built from 30 lines of linear algebra and no external dependencies. The chain is: text → tokens → embeddings → positional encoding → N × (attention + feedforward) → logits → probabilities.</p>
+
+    <p>Every LLM — GPT-4, Claude, Gemini — is this same structure, scaled up. More layers, more heads, larger embedding dimensions, trained on more data with better techniques. But the fundamental computation is what you have just read and run.</p>
+  </div>
+
+  <hr class="section-divider">
+
+  <div style="margin-bottom:3rem;">
+    <p class="kicker">Next in this series</p>
+    <p style="font-size:1.05rem;">
+      <strong>→ <a href="llm-part2-training.html">Part 2: Training &amp; Inference</a></strong> — how the random weights above become
+      meaningful ones. Cross-entropy loss, backpropagation, the training loop, sampling
+      strategies, and how RLHF turns a next-token predictor into a conversational assistant.
+    </p>
+  </div>
+
+  <footer>
+    Part of <a href="https://schemer.in/explainers/index.html">Modern Software Tools, Explained</a>
+    · Pure JavaScript, no external dependencies
+  </footer>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- JavaScript: LA library + code runners + demos                         -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<script>
+
+// ── Linear Algebra library (same as §04, available globally) ──────────
+const LA = {
+  zeros: (r,c) => Array.from({length:r},()=>new Array(c).fill(0)),
+  randn: (r,c,scale=0.02) => Array.from({length:r},()=>
+    Array.from({length:c},()=>{
+      const u=1-Math.random(),v=Math.random();
+      return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)*scale;
+    })
+  ),
+  matmul: (A,B) => {
+    const [m,k,n]=[A.length,B.length,B[0].length];
+    const C=LA.zeros(m,n);
+    for(let i=0;i<m;i++)for(let j=0;j<n;j++)for(let p=0;p<k;p++)C[i][j]+=A[i][p]*B[p][j];
+    return C;
+  },
+  T: A=>A[0].map((_,j)=>A.map(row=>row[j])),
+  add: (A,b)=>A.map((row,i)=>row.map((v,j)=>v+(Array.isArray(b[0])?b[i][j]:b[j]))),
+  scale: (A,s)=>A.map(row=>row.map(v=>v*s)),
+  softmax: A=>A.map(row=>{
+    const max=Math.max(...row);
+    const ex=row.map(x=>Math.exp(x-max));
+    const s=ex.reduce((a,b)=>a+b,0);
+    return ex.map(x=>x/s);
+  }),
+  layernorm: (A,gamma,beta,eps=1e-5)=>A.map(row=>{
+    const mean=row.reduce((a,b)=>a+b,0)/row.length;
+    const variance=row.reduce((a,b)=>a+(b-mean)**2,0)/row.length;
+    const std=Math.sqrt(variance+eps);
+    return row.map((x,i)=>gamma[i]*(x-mean)/std+beta[i]);
+  }),
+  gelu: A=>A.map(row=>row.map(x=>0.5*x*(1+Math.tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x**3))))),
+};
+
+function scaledDotProductAttention(Q,K,V){
+  const dk=K[0].length;
+  const scores=LA.matmul(Q,LA.T(K));
+  const scaled=LA.scale(scores,1/Math.sqrt(dk));
+  const weights=LA.softmax(scaled);
+  return{output:LA.matmul(weights,V),weights};
+}
+
+function makeBlockParams(dModel,nHeads,dFF){
+  const dK=dModel/nHeads;
+  const ones=new Array(dModel).fill(1),zeros=new Array(dModel).fill(0);
+  return{
+    heads:Array.from({length:nHeads},()=>({
+      Wq:LA.randn(dModel,dK),Wk:LA.randn(dModel,dK),Wv:LA.randn(dModel,dK),
+    })),
+    W1:LA.randn(dModel,dFF),b1:[new Array(dFF).fill(0)],
+    W2:LA.randn(dFF,dModel),b2:[new Array(dModel).fill(0)],
+    gamma1:ones,beta1:zeros,gamma2:ones,beta2:zeros,
+  };
+}
+
+function transformerBlock(X,params){
+  const{heads,W1,b1,W2,b2,gamma1,beta1,gamma2,beta2}=params;
+  const normed1=LA.layernorm(X,gamma1,beta1);
+  const attnOutputs=heads.map(h=>{
+    const Q=LA.matmul(normed1,h.Wq);
+    const K=LA.matmul(normed1,h.Wk);
+    const V=LA.matmul(normed1,h.Wv);
+    const dk=K[0].length;
+    const scores=LA.scale(LA.matmul(Q,LA.T(K)),1/Math.sqrt(dk));
+    const weights=LA.softmax(scores);
+    return LA.matmul(weights,V);
+  });
+  const concat=attnOutputs[0].map((_,i)=>attnOutputs.flatMap(h=>h[i]));
+  const afterAttn=LA.add(X,concat);
+  const normed2=LA.layernorm(afterAttn,gamma2,beta2);
+  const hidden=LA.gelu(LA.add(LA.matmul(normed2,W1),b1));
+  const ffnOut=LA.add(LA.matmul(hidden,W2),b2);
+  return LA.add(afterAttn,ffnOut);
+}
+
+// ── Code runner ───────────────────────────────────────────────────────
+function runCode(id) {
+  const codeEl = document.getElementById('code-' + id);
+  const outEl  = document.getElementById('out-' + id);
+  const code   = codeEl.textContent;
+  outEl.classList.add('visible');
+
+  const logs = [];
+  const fakeConsole = { log: (...args) => logs.push(args.map(String).join(' ')) };
+
+  try {
+    const fn = new Function('console', 'LA', 'scaledDotProductAttention',
+      'makeBlockParams', 'transformerBlock', code);
+    fn(fakeConsole, LA, scaledDotProductAttention, makeBlockParams, transformerBlock);
+    outEl.textContent = logs.join('\n');
+  } catch(e) {
+    outEl.style.color = '#f08080';
+    outEl.textContent = '✗ ' + e.message;
+  }
+}
+
+// ── §01 LM demo ────────────────────────────────────────────────────────
+function buildBigram(text){
+  const counts={};
+  for(let i=0;i<text.length-1;i++){
+    const k=text[i];
+    if(!counts[k])counts[k]={};
+    counts[k][text[i+1]]=(counts[k][text[i+1]]||0)+1;
+  }
+  const m={};
+  for(const ch in counts){
+    const t=Object.values(counts[ch]).reduce((a,b)=>a+b,0);
+    m[ch]={};
+    for(const n in counts[ch])m[ch][n]=counts[ch][n]/t;
+  }
+  return m;
+}
+const _bigramCorpus=`the cat sat on the mat the cat ate the rat the rat ran from the cat`;
+const _bigramModel=buildBigram(_bigramCorpus);
+function runLM(){
+  const input=document.getElementById('lm-input').value;
+  const out=document.getElementById('lm-output');
+  if(!input){out.textContent='(type something first)';return;}
+  const lastChar=input[input.length-1];
+  const dist=_bigramModel[lastChar];
+  if(!dist){out.textContent=`No predictions after "${lastChar}" (not in training data)`;return;}
+  const ranked=Object.entries(dist).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  out.innerHTML='Top next characters:<br>'+ranked.map(([ch,p])=>{
+    const bar='█'.repeat(Math.round(p*30));
+    return `<span style="font-family:var(--mono);font-size:.8rem;">${JSON.stringify(ch)} ${(p*100).toFixed(1).padStart(5)}%  <span style="color:var(--accent2)">${bar}</span></span>`;
+  }).join('<br>');
+}
+
+// ── §02 Tokenizer demo ─────────────────────────────────────────────────
+// Simple word-level fallback tokenizer (no real BPE, but illustrates the concept)
+const _tokVocab = {
+  'the':1,'cat':2,'sat':3,'on':4,'mat':5,'a':6,'is':7,'in':8,'and':9,'of':10,
+  'to':11,'it':12,'was':13,'he':14,'she':15,'they':16,'we':17,'you':18,
+  'Hello':19,'hello':20,'how':21,'are':22,'doing':23,'today':24,'good':25,
+  'morning':26,'world':27,'I':28,'am':29,'fine':30,'thanks':31,
+  ',':32,'?':33,'!':34,'.':35
+};
+const _colors=['#fde8e8','#e8f4fd','#e8fde8','#fdf8e8','#f4e8fd','#fde8f4','#e8fdfd'];
+function runTokenizer(){
+  const text=document.getElementById('tok-input').value;
+  const outEl=document.getElementById('tok-output');
+  const idsEl=document.getElementById('tok-ids');
+  // Simple split on word boundaries
+  const rawTokens=text.match(/[a-zA-Z]+|[^\s]/g)||[];
+  outEl.innerHTML='';
+  const ids=[];
+  rawTokens.forEach((tok,i)=>{
+    const id=_tokVocab[tok]||(Object.keys(_tokVocab).length+ids.length+1);
+    ids.push(id);
+    const span=document.createElement('span');
+    span.textContent=tok;
+    span.style.cssText=`background:${_colors[i%_colors.length]};padding:3px 7px;
+      border-radius:3px;font-family:var(--mono);font-size:.8rem;border:1px solid rgba(0,0,0,.08);`;
+    outEl.appendChild(span);
+  });
+  idsEl.textContent='Token IDs: ['+ids.join(', ')+']';
+}
+
+// ── §05 Attention heatmap ──────────────────────────────────────────────
+const _attnTokens=['the','cat','sat','on','the','mat'];
+// Hand-crafted attention weights per query token (illustrative)
+const _attnWeights={
+  'cat':    [0.05, 0.55, 0.20, 0.05, 0.05, 0.10],
+  'sat':    [0.05, 0.35, 0.30, 0.10, 0.05, 0.15],
+  'mat':    [0.10, 0.05, 0.05, 0.15, 0.25, 0.40],
+  'the2':   [0.20, 0.05, 0.05, 0.05, 0.50, 0.15],
+};
+function drawAttention(query){
+  const canvas=document.getElementById('attn-canvas');
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const weights=_attnWeights[query];
+  const n=_attnTokens.length;
+  const cellW=Math.floor((w-160)/n);
+  const barMaxH=130;
+  const startX=80, baseY=180;
+
+  ctx.font='13px Menlo, monospace';
+  ctx.fillStyle='#6b6763';
+  const qLabel=query==='the2'?'the (pos 5)':query;
+  ctx.fillText('Query: "'+qLabel+'"  attends to:', 20, 25);
+
+  weights.forEach((w_,i)=>{
+    const x=startX+i*cellW;
+    const barH=Math.round(w_*barMaxH);
+
+    // bar
+    const alpha=0.2+w_*0.75;
+    ctx.fillStyle=`rgba(44,122,123,${alpha})`;
+    ctx.fillRect(x, baseY-barH, cellW-6, barH);
+
+    // token label
+    ctx.fillStyle='#1a1917';
+    ctx.font='12px Menlo, monospace';
+    ctx.fillText(_attnTokens[i], x+2, baseY+16);
+
+    // weight label
+    ctx.fillStyle='#6b6763';
+    ctx.font='11px Menlo, monospace';
+    ctx.fillText((w_*100).toFixed(0)+'%', x+2, baseY-barH-5);
+  });
+
+  // baseline
+  ctx.strokeStyle='#e2ddd8';
+  ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(startX-10,baseY); ctx.lineTo(startX+n*cellW,baseY); ctx.stroke();
+
+  // update active button
+  document.querySelectorAll('.anim-controls .ctrl-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent.includes(query==='the2'?'the (2nd)':query));
+  });
+}
+window.addEventListener('load',()=>{ drawAttention('cat'); });
+
+// ── §07 Positional encoding visualization ─────────────────────────────
+function sinPE(seqLen, d) {
+  return Array.from({length:seqLen},(_,pos)=>
+    Array.from({length:d},(_,i)=>{
+      const dim=Math.floor(i/2);
+      const angle=pos/Math.pow(10000,2*dim/d);
+      return i%2===0?Math.sin(angle):Math.cos(angle);
+    })
+  );
+}
+function drawPE(mode){
+  const canvas=document.getElementById('pe-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const seqLen=50, d=64;
+  const PE=sinPE(seqLen,d);
+
+  // Heatmap
+  const cellW=Math.floor((W-40)/seqLen);
+  const cellH=Math.floor((H-40)/8);
+
+  // Pick which dimensions to show
+  let dims=[];
+  if(mode==='all') dims=[0,2,4,8,16,32,48,62];
+  else if(mode==='low') dims=[0,2,4,6,8,10,12,14];
+  else dims=[32,34,36,38,48,50,56,62];
+
+  dims.forEach((dim,row)=>{
+    for(let pos=0;pos<seqLen;pos++){
+      const val=PE[pos][dim];
+      const t=(val+1)/2; // 0..1
+      const r=Math.round(44+t*(192-44));
+      const g=Math.round(122+t*(220-122));
+      const b=Math.round(123+t*(150-123));
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      ctx.fillRect(20+pos*cellW, 10+row*cellH, cellW-1, cellH-1);
+    }
+    // dim label
+    ctx.fillStyle='#6b6763';
+    ctx.font='10px Menlo, monospace';
+    ctx.fillText('d'+dim, 2, 10+row*cellH+cellH/2+3);
+  });
+
+  // pos labels
+  ctx.fillStyle='#6b6763';
+  ctx.font='10px sans-serif';
+  [0,10,20,30,40,49].forEach(p=>{
+    ctx.fillText(p, 20+p*cellW, H-2);
+  });
+
+  // update buttons
+  document.querySelectorAll('#pe-btn-all,#pe-btn-low,#pe-btn-high')
+    .forEach(b=>b.classList.remove('active'));
+  document.getElementById('pe-btn-'+mode).classList.add('active');
+}
+window.addEventListener('load',()=>{ drawPE('all'); });
+
+</script>
+</body>
+</html>
