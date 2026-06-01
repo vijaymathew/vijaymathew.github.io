@@ -409,20 +409,29 @@ function perceptron(inputs, weights, bias) {
 }
 
 function trainPerceptron(data, lr=0.1, maxEpochs=100) {
+  // Weights and bias start at zero; the algorithm discovers their values purely
+  // from mistakes — no prior knowledge of the problem is baked in.
   let weights = [0, 0];
   let bias    = 0;
 
+  // One epoch = one full pass through every training example.
   for (let epoch = 0; epoch < maxEpochs; epoch++) {
     let errors = 0;
     for (const [x, y] of data) {
       const pred = perceptron(x, weights, bias);
       if (pred !== y) {
-        // Update rule: w += lr * (y - pred) * x
+        // We were wrong. (y - pred) is ±2:
+        //   predicted -1, truth +1  →  y-pred = +2  →  weights grow toward x
+        //   predicted +1, truth -1  →  y-pred = -2  →  weights shrink away from x
+        // lr scales how large a step we take; a full ±2 step would overshoot.
         weights = weights.map((w,i) => w + lr * (y-pred) * x[i]);
         bias   += lr * (y - pred);
         errors++;
       }
     }
+    // A full epoch with zero mistakes means the weights now separate every
+    // example correctly — the perceptron convergence theorem guarantees this
+    // happens in finite epochs *if* the data is linearly separable.
     if (errors === 0) return { weights, bias, epochs: epoch+1, converged: true };
   }
   return { weights, bias, epochs: maxEpochs, converged: false };
@@ -455,6 +464,109 @@ console.log('\nThe perceptron cannot learn XOR — it requires a nonlinear decis
 console.log('Minsky & Papert, 1969: this single observation froze AI funding for 15 years.');</pre>
           <div class="output-area" id="out-perceptron"></div>
         </div>
+
+        <!-- Linear separability diagram -->
+        <div style="margin:1.5rem 0 0;">
+          <div style="font-family:var(--sans);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem;">
+            Why AND succeeds and XOR fails — plotting the four inputs
+          </div>
+          <svg viewBox="0 0 420 215" width="100%" style="max-width:500px;display:block;overflow:visible;"
+               aria-label="Two scatter plots: AND is linearly separable, XOR is not">
+            <defs>
+              <marker id="arr" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                <polygon points="0 0,6 2,0 4" fill="#ccc"/>
+              </marker>
+            </defs>
+
+            <!-- ── AND plot ── -->
+            <g transform="translate(10,10)">
+              <text x="80" y="14" text-anchor="middle"
+                    style="font:600 10px var(--sans,sans-serif);letter-spacing:.06em;text-transform:uppercase;fill:#2c7a7b;">
+                AND — converges ✓
+              </text>
+
+              <!-- axes -->
+              <line x1="30" y1="170" x2="162" y2="170" stroke="#ccc" stroke-width="1" marker-end="url(#arr)"/>
+              <line x1="30" y1="170" x2="30"  y2="24"  stroke="#ccc" stroke-width="1" marker-end="url(#arr)"/>
+              <text x="166" y="174" style="font:12px var(--mono,monospace);fill:#aaa;">x₁</text>
+              <text x="22"  y="22"  style="font:12px var(--mono,monospace);fill:#aaa;">x₂</text>
+
+              <!-- ticks -->
+              <line x1="30"  y1="170" x2="30"  y2="176" stroke="#bbb" stroke-width="1"/>
+              <text x="30"   y="188"  text-anchor="middle" style="font:11px var(--mono,monospace);fill:#888;">0</text>
+              <line x1="130" y1="170" x2="130" y2="176" stroke="#bbb" stroke-width="1"/>
+              <text x="130"  y="188"  text-anchor="middle" style="font:11px var(--mono,monospace);fill:#888;">1</text>
+              <line x1="30" y1="170" x2="24" y2="170" stroke="#bbb" stroke-width="1"/>
+              <text x="22"  y="174"  text-anchor="end" style="font:11px var(--mono,monospace);fill:#888;">0</text>
+              <line x1="30" y1="70"  x2="24" y2="70"  stroke="#bbb" stroke-width="1"/>
+              <text x="22"  y="74"   text-anchor="end" style="font:11px var(--mono,monospace);fill:#888;">1</text>
+
+              <!-- decision boundary: x₁+x₂=1.5, maps to px_x−px_y=10 in these coords -->
+              <!-- visible segment runs from (40,30) to (160,150); extended slightly for clarity -->
+              <line x1="38" y1="28" x2="162" y2="152"
+                    stroke="#2c7a7b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.75"/>
+              <text x="148" y="152" style="font:italic 10px var(--sans,sans-serif);fill:#2c7a7b;">← boundary</text>
+
+              <!-- points: ○ = −1, ● = +1 -->
+              <!-- (0,0)→−1 at (30,170) -->
+              <circle cx="30"  cy="170" r="8" fill="white"    stroke="#999" stroke-width="2"/>
+              <!-- (0,1)→−1 at (30,70)  -->
+              <circle cx="30"  cy="70"  r="8" fill="white"    stroke="#999" stroke-width="2"/>
+              <!-- (1,0)→−1 at (130,170) -->
+              <circle cx="130" cy="170" r="8" fill="white"    stroke="#999" stroke-width="2"/>
+              <!-- (1,1)→+1 at (130,70)  -->
+              <circle cx="130" cy="70"  r="9" fill="#c0392b"  stroke="#c0392b" stroke-width="1"/>
+            </g>
+
+            <!-- ── XOR plot ── -->
+            <g transform="translate(220,10)">
+              <text x="80" y="14" text-anchor="middle"
+                    style="font:600 10px var(--sans,sans-serif);letter-spacing:.06em;text-transform:uppercase;fill:#c0392b;">
+                XOR — never converges ✗
+              </text>
+
+              <!-- axes -->
+              <line x1="30" y1="170" x2="162" y2="170" stroke="#ccc" stroke-width="1" marker-end="url(#arr)"/>
+              <line x1="30" y1="170" x2="30"  y2="24"  stroke="#ccc" stroke-width="1" marker-end="url(#arr)"/>
+              <text x="166" y="174" style="font:12px var(--mono,monospace);fill:#aaa;">x₁</text>
+              <text x="22"  y="22"  style="font:12px var(--mono,monospace);fill:#aaa;">x₂</text>
+
+              <!-- ticks -->
+              <line x1="30"  y1="170" x2="30"  y2="176" stroke="#bbb" stroke-width="1"/>
+              <text x="30"   y="188"  text-anchor="middle" style="font:11px var(--mono,monospace);fill:#888;">0</text>
+              <line x1="130" y1="170" x2="130" y2="176" stroke="#bbb" stroke-width="1"/>
+              <text x="130"  y="188"  text-anchor="middle" style="font:11px var(--mono,monospace);fill:#888;">1</text>
+              <line x1="30" y1="170" x2="24" y2="170" stroke="#bbb" stroke-width="1"/>
+              <text x="22"  y="174"  text-anchor="end" style="font:11px var(--mono,monospace);fill:#888;">0</text>
+              <line x1="30" y1="70"  x2="24" y2="70"  stroke="#bbb" stroke-width="1"/>
+              <text x="22"  y="74"   text-anchor="end" style="font:11px var(--mono,monospace);fill:#888;">1</text>
+
+              <!-- XOR points: +1 at (0,1) and (1,0) — opposite corners — impossible to separate -->
+              <!-- (0,0)→−1 at (30,170) -->
+              <circle cx="30"  cy="170" r="8" fill="white"   stroke="#999"    stroke-width="2"/>
+              <!-- (0,1)→+1 at (30,70)  -->
+              <circle cx="30"  cy="70"  r="9" fill="#c0392b" stroke="#c0392b" stroke-width="1"/>
+              <!-- (1,0)→+1 at (130,170) -->
+              <circle cx="130" cy="170" r="9" fill="#c0392b" stroke="#c0392b" stroke-width="1"/>
+              <!-- (1,1)→−1 at (130,70)  -->
+              <circle cx="130" cy="70"  r="8" fill="white"   stroke="#999"    stroke-width="2"/>
+
+              <!-- annotation -->
+              <text x="80" y="128" text-anchor="middle"
+                    style="font:italic 11px var(--sans,sans-serif);fill:#c0392b;">no straight line</text>
+              <text x="80" y="144" text-anchor="middle"
+                    style="font:italic 11px var(--sans,sans-serif);fill:#c0392b;">can separate ● from ○</text>
+            </g>
+
+            <!-- legend -->
+            <g transform="translate(10,202)">
+              <circle cx="7" cy="5" r="6" fill="#c0392b"/>
+              <text x="17" y="9" style="font:11px var(--sans,sans-serif);fill:#666;">output +1</text>
+              <circle cx="88" cy="5" r="6" fill="white" stroke="#999" stroke-width="2"/>
+              <text x="98" y="9" style="font:11px var(--sans,sans-serif);fill:#666;">output −1</text>
+            </g>
+          </svg>
+        </div>
       </div>
     </div>
   </div>
@@ -470,7 +582,7 @@ console.log('Minsky & Papert, 1969: this single observation froze AI funding for
           <h2><span class="year-badge">1986</span>Backpropagation &amp; the revival <span class="breakthrough">key unlock</span></h2>
         </div>
 
-        <p>The answer to XOR had been known since the 1960s: add a hidden layer. A two-layer network can learn any nonlinear boundary in principle. The problem was training it — how do you adjust the weights of a hidden layer that has no direct output to measure against?</p>
+        <p>The answer to XOR had been known since the 1960s: add a hidden layer. A <em>layer</em> is a set of nodes that each compute a weighted sum of their inputs and pass the result through a nonlinear function — the sigmoid, for instance, squashes any number into the range (0, 1). A single-layer perceptron can only draw one straight boundary; add a second layer and each node in it combines several of those boundaries, producing curves and kinks. A two-layer network can therefore learn any nonlinear boundary in principle. The problem was training it — how do you adjust the weights of a hidden layer that has no direct output to measure against?</p>
 
         <p>The chain rule of calculus answers this: differentiate the loss with respect to each weight, following the computation graph backwards from output to input. This had been discovered and forgotten several times before Rumelhart, Hinton, and Williams published their landmark 1986 paper <em>Learning representations by back-propagating errors</em> — the version that finally stuck, because it came with compelling experiments on language, perception, and logic tasks.</p>
 
@@ -522,17 +634,17 @@ function trainStep(data, lr=0.5) {
     const delta1 = z1.map((_,i) => W2[0][i]*delta2[0] * sigmoidGrad(z1[i]));
 
     // Accumulate gradients
-    W2[0].forEach((_,j) => dW2[0][j] += delta2[0]*a1[j]);
+    W2[0].forEach((_,j) => { dW2[0][j] += delta2[0]*a1[j]; });
     db2[0] += delta2[0];
-    W1.forEach((row,i) => row.forEach((_,j) => dW1[i][j] += delta1[i]*x[j]));
-    delta1.forEach((d,i) => db1[i] += d);
+    W1.forEach((row,i) => row.forEach((_,j) => { dW1[i][j] += delta1[i]*x[j]; }));
+    delta1.forEach((d,i) => { db1[i] += d; });
   }
 
   // Update weights
   W1.forEach((row,i) => row.forEach((_,j) => { W1[i][j]-=lr*dW1[i][j]; }));
-  b1.forEach((_,i) => b1[i]-=lr*db1[i]);
+  b1.forEach((_,i) => { b1[i]-=lr*db1[i]; });
   W2.forEach((row,i) => row.forEach((_,j) => { W2[i][j]-=lr*dW2[i][j]; }));
-  b2.forEach((_,i) => b2[i]-=lr*db2[i]);
+  b2.forEach((_,i) => { b2[i]-=lr*db2[i]; });
 
   return totalLoss/data.length;
 }
@@ -540,7 +652,7 @@ function trainStep(data, lr=0.5) {
 const XOR = [[[0,0],0],[[0,1],1],[[1,0],1],[[1,1],0]];
 
 let loss;
-for (let ep=0; ep<5000; ep++) loss = trainStep(XOR);
+for (let ep=0; ep&lt;5000; ep++) loss = trainStep(XOR);
 
 console.log('Two-layer network trained on XOR with backpropagation:\n');
 XOR.forEach(([x,y]) => {
@@ -617,7 +729,7 @@ class VanillaRNN {
 }
 
 // ── Demo: process "the cat sat" token by token ───────────────────
-const VOCAB = ['<pad>','the','cat','sat','on','mat','dog','ran'];
+const VOCAB = ['&lt;pad>','the','cat','sat','on','mat','dog','ran'];
 const V = VOCAB.length;
 
 // One-hot encode tokens
@@ -934,20 +1046,20 @@ function trainStep(centerIdx, contextIdx, k=5, lr=0.05) {
   const dCtx    = W[centerIdx].map(v => (posScore-1)*v);
 
   // Negative samples
-  for (let n=0; n<k; n++) {
+  for (let n=0; n&lt;k; n++) {
     let negIdx = Math.floor(Math.random()*V);
     while (negIdx===contextIdx) negIdx=Math.floor(Math.random()*V);
     const negScore = sigmoid(dot(W[centerIdx], C[negIdx]));
-    dCenter.forEach((_,d) => dCenter[d] += negScore*C[negIdx][d]);
-    C[negIdx].forEach((_,d) => C[negIdx][d] -= lr*negScore*W[centerIdx][d]);
+    dCenter.forEach((_,d) => { dCenter[d] += negScore*C[negIdx][d]; });
+    C[negIdx].forEach((_,d) => { C[negIdx][d] -= lr*negScore*W[centerIdx][d]; });
   }
 
-  W[centerIdx].forEach((_,d) => W[centerIdx][d] -= lr*dCenter[d]);
-  C[contextIdx].forEach((_,d) => C[contextIdx][d] -= lr*dCtx[d]);
+  W[centerIdx].forEach((_,d) => { W[centerIdx][d] -= lr*dCenter[d]; });
+  C[contextIdx].forEach((_,d) => { C[contextIdx][d] -= lr*dCtx[d]; });
 }
 
 // Train
-for (let epoch=0; epoch<800; epoch++)
+for (let epoch=0; epoch&lt;800; epoch++)
   for (const [c,ctx] of pairs) trainStep(c, ctx);
 
 // Evaluate geometric properties
@@ -1045,7 +1157,7 @@ function infoSurvival(seqLen, hidSize=4) {
   // For each position, get the hidden state at that point
   const survivals = [];
   let h = new Array(hidSize).fill(0);
-  for (let t=0; t<seqLen; t++) {
+  for (let t=0; t&lt;seqLen; t++) {
     h = Array.from({length:hidSize},(_,i)=>
       tanh(Wh[i].reduce((s,w,j)=>s+w*h[j],0)+Wx[i].reduce((s,w,j)=>s+w*seq[t][j],0)+b[i])
     );
