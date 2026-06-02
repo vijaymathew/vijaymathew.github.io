@@ -123,7 +123,7 @@
     <h1 class="opener-title">Inheritance and Polymorphism</h1>
   </div>
   <div class="prose">
-<p>Chapter 12 established that a class should model one concept well. Sometimes concepts form families — a <code>Savings_Account</code> and a <code>Current_Account</code> are both bank accounts; a <code>Circle</code> and a <code>Rectangle</code> are both shapes. These families share common behaviour while differing in specifics. Inheritance is the mechanism for expressing that relationship in code.</p>
+<p>Chapter 13 established that a class should model one concept well. Sometimes concepts form families — a <code>Savings_Account</code> and a <code>Current_Account</code> are both bank accounts; a <code>Circle</code> and a <code>Rectangle</code> are both shapes. These families share common behaviour while differing in specifics. Inheritance is the mechanism for expressing that relationship in code.</p>
 <section class="level2" data-number="15.1" id="what-inheritance-is">
 <h2 class="anchored" data-anchor-id="what-inheritance-is" data-number="15.1"> What Inheritance Is</h2>
 <p>Inheritance allows one class — the <em>subclass</em> — to extend another — the <em>superclass</em>. The subclass inherits all the fields and methods of the superclass and can add new ones or override existing ones.</p>
@@ -356,8 +356,53 @@ nex&gt; across accounts as acc do
 "Carol: 200.0 (overdraft limit: 500.0)"</code></pre>
 <p>Each account type inherits <code>deposit</code> and <code>get_balance</code> from <code>Account</code>. <code>Savings_Account</code> adds <code>apply_interest</code>. <code>Overdraft_Account</code> overrides <code>withdraw</code> to permit negative balances within the limit. Both override <code>describe</code> using <code>Account.describe</code> to build on the base description. The array holds all three as <code>Account</code>; <code>describe</code> dispatches polymorphically.</p>
 </section>
-<section class="level2" data-number="15.8" id="sealed-classes-and-closed-hierarchies">
-<h2 class="anchored" data-anchor-id="sealed-classes-and-closed-hierarchies" data-number="15.8"> Sealed Classes and Closed Hierarchies</h2>
+<section class="level2" data-number="15.8" id="deferred-classes">
+<h2 class="anchored" data-anchor-id="deferred-classes" data-number="15.8"> Deferred Classes</h2>
+<p>Sometimes a class exists to define a common interface that subclasses must fill in. The superclass itself has no meaningful implementation for certain methods — only its subclasses do. Nex captures this with the <code>deferred</code> modifier.</p>
+<p>A <code>deferred class</code> cannot be instantiated directly. It exists to be inherited:</p>
+<pre><code>deferred class Shape
+  feature
+    colour: String
+    area(): Real deferred
+    perimeter(): Real deferred
+    describe(): String do
+      result := "A " + colour + " shape with area " + area.to_string
+    end
+end</code></pre>
+<p><code>area</code> and <code>perimeter</code> are declared with the <code>deferred</code> keyword in place of a body. These are <em>deferred features</em>: the class announces what every shape can do, but leaves the how to each subclass. <code>describe</code> has a body and is inherited as-is; it calls <code>area</code>, which will dispatch to the subclass implementation at runtime.</p>
+<p>Any concrete subclass must implement all deferred features:</p>
+<pre><code>class Circle
+  inherit Shape
+  create
+    make(c: String, r: Real) do
+      colour := c
+      radius := r
+    end
+  feature
+    radius: Real
+    area(): Real do
+      result := 3.14159 * radius * radius
+    end
+    perimeter(): Real do
+      result := 2.0 * 3.14159 * radius
+    end
+end
+
+nex&gt; let c := create Circle.make("red", 5.0)
+nex&gt; c.describe
+"A red shape with area 78.53975"</code></pre>
+<p><code>Circle</code> provides <code>area</code> and <code>perimeter</code>, so it is concrete and can be instantiated. If it omitted either, the compiler would report an error. A subclass that does not implement all deferred features must itself be declared <code>deferred</code>.</p>
+<p>Attempting to instantiate a deferred class directly is a compile-time error:</p>
+<pre><code>let s: Shape := create Shape.make(...)   -- error: cannot instantiate deferred class</code></pre>
+<p>The value of <code>deferred</code> is polymorphism without a misleading default. Compare it to the feature-override approach from section 15.6: there, <code>area</code> returned <code>0.0</code> as a fallback — a silent wrong answer that compiles and runs. With <code>deferred</code>, the compiler enforces that every concrete subclass provides a real implementation. A missing override is a compile-time error, not a runtime surprise.</p>
+<p><code>deferred</code> is the right choice when:</p>
+<p><strong>The concept is meaningful but has no implementation at the abstract level.</strong> A shape has an area; "the area of a shape in general" has no formula.</p>
+<p><strong>Every subclass must override a method, and a default would be misleading or dangerous.</strong> A default <code>withdraw</code> that always succeeds, a default <code>authenticate</code> that always returns <code>true</code> — these are traps. <code>deferred</code> removes the trap.</p>
+<p><strong>You want the compiler to enforce completeness.</strong> Each new subclass is checked at compile time. No subclass can slip through without satisfying the contract.</p>
+<p>When the set of subclasses is also fixed and known, <code>deferred</code> can be combined with <code>sealed</code> to close the hierarchy entirely — that is the subject of the next section.</p>
+</section>
+<section class="level2" data-number="15.9" id="sealed-classes-and-closed-hierarchies">
+<h2 class="anchored" data-anchor-id="sealed-classes-and-closed-hierarchies" data-number="15.9"> Sealed Classes and Closed Hierarchies</h2>
 <p>Ordinary inheritance is open: anyone can add a new subclass. Sometimes that is exactly right. Other times, a hierarchy is meant to be complete — there are exactly two kinds of result, exactly three kinds of network event — and allowing arbitrary extension would break every routine that handles them.</p>
 <p>The <code>sealed</code> modifier closes a hierarchy. A <code>sealed deferred</code> class cannot be instantiated and cannot be extended outside the scope where it and its known subclasses are defined:</p>
 <pre><code>sealed deferred class Result
@@ -394,8 +439,8 @@ end</code></pre>
 end</code></pre>
 <p>Sealed hierarchies work well for any situation where the set of cases is fixed by design: operation results, state machine transitions, event tags, or domain types with a known, finite structure.</p>
 </section>
-<section class="level2" data-number="15.9" id="once-fields">
-<h2 class="anchored" data-anchor-id="once-fields" data-number="15.9"> Once Fields</h2>
+<section class="level2" data-number="15.10" id="once-fields">
+<h2 class="anchored" data-anchor-id="once-fields" data-number="15.10"> Once Fields</h2>
 <p>A class field is normally writable throughout the lifetime of an object: any method can reassign it. Sometimes that is too permissive. An identifier assigned once in the constructor and never changed afterward is a common design — think of a database primary key, a file path, or a UUID. Nex captures this intent with the <code>once</code> field modifier.</p>
 <pre><code>class Point
   feature
@@ -437,8 +482,8 @@ end</code></pre>
 <p><code>once</code> is weaker than a constant: a constant requires its value at the point of declaration; a <code>once</code> field is computed by the constructor and fixed from that moment. This makes <code>once</code> the right choice whenever the value is not known until the object is created.</p>
 <p>The modifier interacts naturally with invariants. An invariant expressing that a field never changes is a runtime assertion at every method boundary; a <code>once</code> modifier is a structural, compile-time guarantee. Prefer the modifier when immutability is the design intent, and use the invariant to express additional value constraints on top of it.</p>
 </section>
-<section class="level2" data-number="15.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="15.10"> Summary</h2>
+<section class="level2" data-number="15.11" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="15.11"> Summary</h2>
 <ul>
 <li><code>class SubClass inherit SuperClass</code> declares the relationship; the subclass inherits all fields and methods</li>
 <li><code>SuperClass.constructor_name(   )</code> calls the superclass constructor from the subclass constructor</li>
@@ -448,12 +493,13 @@ end</code></pre>
 <li>The template method pattern: a superclass method calls an overridable method; the superclass defines structure, subclasses fill in details via override</li>
 <li>Overriding methods must honour the superclass contract; preconditions should not be strengthened, postconditions should not be weakened</li>
 <li>Use inheritance for genuine is-a relationships and polymorphism; use composition for has-a relationships or code reuse without a conceptual relationship</li>
+<li>A <code>deferred class</code> cannot be instantiated; subclasses must implement all deferred features or themselves be declared <code>deferred</code> — the compiler enforces completeness</li>
 <li>A <code>sealed deferred</code> class closes the hierarchy — only defined subclasses may extend it; the typechecker enforces exhaustive handling in <code>match</code></li>
 <li>A <code>once</code> field can be assigned in any constructor but never reassigned afterward — a structural, compile-time immutability guarantee</li>
 </ul>
 </section>
-<section class="level2" data-number="15.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="15.11"> Exercises</h2>
+<section class="level2" data-number="15.12" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="15.12"> Exercises</h2>
 <p><strong>1.</strong> Define a class <code>Animal</code> with a field <code>name: String</code>, a constructor <code>make</code>, and a method <code>sound(): String</code> that returns <code>"..."</code> by default. Define subclasses <code>Dog</code>, <code>Cat</code>, and <code>Cow</code> each overriding <code>sound</code>. Create an <code>Array[Animal]</code>, add one of each, and print each animal’s name and sound.</p>
 <p><strong>2.</strong> Add a method <code>perimeter(): Real</code> to the <code>Shape</code> class with a default return of <code>0.0</code>. Override it in <code>Circle</code> (<code>2 * 3.14159 * radius</code>) and <code>Rectangle</code> (<code>2 * (width + height)</code>). Update <code>describe</code> in <code>Shape</code> to report both area and perimeter.</p>
 <p><strong>3.</strong> The <code>withdraw</code> method in <code>Overdraft_Account</code> overrides the one in <code>Account</code>. Does the override honour the Liskov Substitution Principle — that is, can an <code>Overdraft_Account</code> be used anywhere an <code>Account</code> is expected without surprising the caller? Does it accept the same inputs? Does it make the same kind of promise — returning <code>true</code> on success and <code>false</code> on failure? What does a caller of <code>Account</code> need to know about <code>Overdraft_Account.withdraw</code>?</p>
