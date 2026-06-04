@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Designed for Correctness — Nex</title>
+  <meta name="description" content="Why Nex makes Design by Contract a language primitive, how it gets Liskov substitution right automatically, and why a contract-first language is a strong foundation for teaching and for verifying machine-generated code.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --paper:     #fbfbfc;
+      --ink:       #0a0a0b;
+      --ink-mid:   #3d3d40;
+      --ink-faint: #6b6b6f;
+      --rule:      #e6e6ea;
+      --accent:    #3b6fd4;
+      --code-bg:   #e9ebf2;
+      --code-border: #c8cdd8;
+      --font-body: 'EB Garamond', Georgia, serif;
+      --font-ui:   'Outfit', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --text-xs:   0.72rem;
+      --text-sm:   0.85rem;
+      --text-base: 1.175rem;
+      --text-md:   1.32rem;
+      --text-lg:   1.65rem;
+      --text-xl:   2rem;
+      --text-2xl:  2.8rem;
+      --lh-body:   1.76;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--lh-body);
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+
+    /* ── header ── */
+
+    .site-header { border-bottom: 1px solid var(--rule); padding: 1.1rem 2rem; }
+    .site-header-inner { max-width: 52rem; margin: 0 auto; display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap; }
+    a.site-name { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; letter-spacing: 0.01em; color: var(--ink-mid); text-decoration: none; transition: color 0.15s; }
+    a.site-name:hover { color: var(--ink); }
+    .header-nav { display: flex; gap: 1.5rem; margin-left: auto; }
+    .header-nav a { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-decoration: none; transition: color 0.15s; }
+    .header-nav a:hover { color: var(--ink); }
+
+    /* ── page ── */
+
+    .page { max-width: 44rem; margin: 0 auto; padding: 5rem 2rem 8rem; }
+
+    .page-header { margin-bottom: 3rem; padding-bottom: 2.5rem; border-bottom: 1px solid var(--rule); }
+    .page-eyebrow { display: block; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.75rem; }
+    h1.page-title { font-family: var(--font-body); font-size: var(--text-2xl); font-weight: 400; line-height: 1.08; letter-spacing: -0.01em; color: var(--ink); }
+    .page-subtitle { margin-top: 0.9rem; font-size: var(--text-md); font-style: italic; color: var(--ink-mid); line-height: 1.45; }
+
+    /* ── article ── */
+
+    .lead { font-size: var(--text-md); color: var(--ink-mid); line-height: 1.55; margin-bottom: 2.5rem; }
+
+    article h2 {
+      font-family: var(--font-body);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      line-height: 1.18;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin: 3.25rem 0 0.4rem;
+    }
+
+    article h2 .h2-num {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      margin-right: 0.6rem;
+    }
+
+    article h3 {
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin: 2rem 0 0.6rem;
+    }
+
+    article p { margin-bottom: 1.15rem; color: var(--ink-mid); }
+    article p.tight { margin-bottom: 0.5rem; }
+
+    article strong { color: var(--ink); font-weight: 500; }
+    article em { font-style: italic; }
+
+    article ul { margin: 0 0 1.15rem 1.4rem; color: var(--ink-mid); }
+    article li { margin-bottom: 0.45rem; }
+
+    article a {
+      color: var(--ink);
+      text-decoration: underline;
+      text-decoration-color: var(--rule);
+      text-underline-offset: 3px;
+      transition: text-decoration-color 0.15s;
+    }
+    article a:hover { text-decoration-color: var(--accent); }
+
+    .principle {
+      border-left: 2px solid var(--accent);
+      padding: 0.25rem 0 0.25rem 1.25rem;
+      margin: 1.5rem 0 1.75rem;
+      font-style: italic;
+      color: var(--ink);
+      font-size: var(--text-md);
+      line-height: 1.5;
+    }
+
+    p code, li code {
+      font-family: var(--font-mono);
+      font-size: 0.8em;
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 3px;
+      padding: 0.1em 0.35em;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      margin: 0.75rem 0 1.75rem;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      background: none;
+      border: none;
+      padding: 0;
+      border-radius: 0;
+      color: var(--ink);
+    }
+
+    .pre-caption { font-size: var(--text-sm); color: var(--ink-faint); margin: -1.25rem 0 1.9rem; font-style: italic; }
+
+    .article-footer {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      font-family: var(--font-ui);
+      font-size: var(--text-sm);
+      color: var(--ink-faint);
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .article-footer a { color: var(--ink-mid); text-decoration: none; }
+    .article-footer a:hover { color: var(--accent); }
+
+    @media (max-width: 640px) {
+      .page { padding: 3rem 1.25rem 5rem; }
+      .site-header { padding: 1rem 1.25rem; }
+      .header-nav { display: none; }
+      h1.page-title { font-size: var(--text-xl); }
+      article h2 { font-size: var(--text-lg); }
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-name" href="../nex.html">Nex</a>
+    <nav class="header-nav">
+      <a href="tutorial.html">15 Minutes</a>
+      <a href="syntax.html">Syntax</a>
+      <a href="docs/programming-with-nex/cover.html">Book</a>
+      <a href="../index.html">Vijay Mathew</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+
+  <div class="page-header">
+    <h1 class="page-title">Designed for Correctness</h1>
+    <p class="page-subtitle">Why Nex makes contracts a language primitive — and why that turns out to be the right foundation for teaching, for sound inheritance, and for the age of machine-written code.</p>
+  </div>
+
+  <article>
+
+    <p class="lead">Most modern languages are very good at telling you that a program is <em>well-formed</em>. They are far less interested in whether it is <em>correct</em>. A type checker confirms that you passed an <code>Integer</code> where an <code>Integer</code> was expected; it has nothing to say about whether the integer should have been positive, whether the account had sufficient balance, or whether the list was supposed to stay sorted. That gap — between “it compiles” and “it does what it promised” — is where most real defects live. Nex is built around closing it.</p>
+
+    <h2><span class="h2-num">1</span>Contracts as a language primitive, not a library</h2>
+
+    <p>A <em>contract</em> is a precise, checkable statement of what a routine expects and what it guarantees. In Nex you write it directly in the declaration of the routine, not in a comment and not in a separate test file:</p>
+
+<pre><code>class Account
+feature
+  balance: Integer
+create
+  make() do balance := 0 end
+feature
+  deposit(amount: Integer)
+    require
+      positive: amount &gt; 0
+    do
+      balance := balance + amount
+    ensure
+      grew: balance = old balance + amount
+    end
+end</code></pre>
+    <p class="pre-caption">A precondition (<code>require</code>), an implementation, and a postcondition (<code>ensure</code>) — one artifact.</p>
+
+    <p>The <code>require</code> block states the caller’s obligations; the <code>ensure</code> block states the routine’s guarantees. The keyword <code>old</code> refers to a value <em>as it was on entry</em>, so a postcondition can talk about change, not just final state. Classes carry <code>invariant</code> blocks for properties that must hold between calls, and loops carry <code>variant</code> clauses that must strictly decrease — a built-in proof that the loop terminates.</p>
+
+    <p>These are not assertions bolted on by a library. They are part of the grammar, and that distinction is the whole point. Because contracts are first-class, the language can do things a library never could:</p>
+
+    <ul>
+      <li><strong>Violations are precise and named.</strong> Calling <code>deposit(-5)</code> does not produce a generic stack trace; it reports <code>Precondition violation: positive</code>. The blame is assigned correctly — to the caller — and labelled with the exact clause that failed.</li>
+      <li><strong>The pre-state is available.</strong> <code>old balance</code> is meaningful only because the runtime captures it before the body runs. A library assertion cannot reach back in time.</li>
+      <li><strong>Contracts are the documentation.</strong> The signature plus its contract <em>is</em> the specification. It cannot drift out of date the way a comment can, because it is executed.</li>
+      <li><strong>They compose with inheritance correctly</strong> — which is the subject of the next section, and the place where “a library could do this” finally breaks down completely.</li>
+    </ul>
+
+    <div class="principle">A contract written in the language is an executable specification: the documentation, the test oracle, and the first responder in the debugger, all the same line of code.</div>
+
+    <h2><span class="h2-num">2</span>Liskov substitution, done right — and done automatically</h2>
+
+    <p>The Liskov Substitution Principle says that an object of a subclass must be usable anywhere its parent is expected, without surprises. Stated as a rule about contracts, it is exact:</p>
+
+    <ul>
+      <li>A subclass may <strong>weaken</strong> a precondition (accept <em>more</em>), never strengthen it. A caller who satisfied the parent must still be served.</li>
+      <li>A subclass may <strong>strengthen</strong> a postcondition (promise <em>more</em>), never weaken it. A caller who relied on the parent’s guarantee must still get it.</li>
+      <li>A subclass is bound by all of its ancestors’ invariants, plus its own.</li>
+    </ul>
+
+    <p>Eiffel, where Design by Contract originates, asks you to opt into this with special syntax (<code>require else</code>, <code>ensure then</code>). Nex takes a stronger position: it makes substitutability the <em>default and only</em> behaviour, by combining contracts down the hierarchy automatically. When a method is resolved, its <em>effective</em> contract is computed as:</p>
+
+    <ul>
+      <li><strong>effective precondition = parent precondition <em>or</em> child precondition.</strong> The set of acceptable calls can only grow as you descend. You cannot accidentally narrow it.</li>
+      <li><strong>effective postcondition = parent postcondition <em>and</em> child postcondition.</strong> Every guarantee an ancestor made is still enforced on the override.</li>
+      <li><strong>effective invariant = the conjunction of every invariant from the root down.</strong></li>
+    </ul>
+
+    <p>The consequence is that you cannot write a subclass that quietly betrays its parent’s promises. Suppose someone overrides <code>deposit</code> with a buggy body and no postcondition of its own:</p>
+
+<pre><code>class BuggyAccount
+inherit
+  Account
+feature
+  deposit(amount: Integer)
+    do
+      balance := balance + amount + 1   -- wrong
+    end
+end</code></pre>
+
+    <p>The override declares no <code>ensure</code> clause at all. It does not matter. The parent’s postcondition is part of the <em>effective</em> contract, so the call fails exactly where it should:</p>
+
+<pre><code>Error: Postcondition violation: grew</code></pre>
+
+    <p>This is the difference between subtyping that is merely <em>type-sound</em> and subtyping that is <em>behaviourally sound</em>. A type checker would happily accept <code>BuggyAccount</code> — the signatures match. Nex rejects the <em>behaviour</em>, because the contract travels with the method. Inheritance stops being a place where guarantees leak away and becomes a place where they accumulate.</p>
+
+    <div class="principle">In Nex, a subclass can promise more and demand less, but never the reverse — and you get that guarantee without writing a single extra keyword.</div>
+
+    <h2><span class="h2-num">3</span>Interfaces you can trust: uniform access and command–query separation</h2>
+
+    <p>Contracts describe what individual routines do. Two further principles, both built into how Nex is taught and designed, describe how a whole <em>interface</em> should behave — and they reinforce each other.</p>
+
+    <h3>Uniform access</h3>
+
+    <p>In Nex, reading a stored field and calling a computed method use identical syntax:</p>
+
+<pre><code>p.x                      -- reads a stored field
+p.distance_from_origin   -- calls a computed method</code></pre>
+
+    <p>The caller cannot tell, and does not need to tell, which is which. This is the <em>Uniform Access Principle</em>, and its payoff is representation independence: a class can turn a stored field into a computed one — or the reverse, caching for performance — without breaking a single line of calling code. The interface is a set of <em>questions the object answers</em>, not a list of how it happens to store its data today.</p>
+
+    <h3>Command–query separation</h3>
+
+    <p>Uniform access is only <em>safe</em> if asking a question never changes the answer. That is the second principle: a <strong>command</strong> changes an object’s state; a <strong>query</strong> reports something about it; and a well-designed routine does one or the other, not both.</p>
+
+    <p class="tight">Consider a counter whose “query” secretly mutates:</p>
+
+<pre><code>next_value(): Integer do
+  value := value + 1   -- a question that changes the answer
+  result := value
+end</code></pre>
+
+    <p>The name sounds like an observation, but every call advances the counter. A reader cannot tell from the call site whether <code>obj.next_value</code> is safe to evaluate twice. The disciplined design splits the two roles:</p>
+
+<pre><code>class Counter
+private feature
+  value: Integer
+feature
+  increment() do
+    value := value + 1
+  end
+  current(): Integer do
+    result := value
+  end
+end</code></pre>
+
+    <p>Now <code>increment</code> is a command and <code>current</code> is a query, and the interface says exactly what happens. A caller can read <code>current</code> as many times as it likes without disturbing the object, and can advance the counter without pretending to ask a question.</p>
+
+    <p>Put the three ideas together and a coherent design philosophy appears. <strong>Command–query separation</strong> guarantees that queries are side-effect-free; <strong>uniform access</strong> then lets you treat any query as interchangeable with a stored value; and <strong>contracts</strong> pin down precisely what each command and query promises. A caller can read any feature without fear, reason about it locally, and depend only on its contract — never on its implementation. That is what “good interface design” means in concrete, mechanical terms, rather than as advice.</p>
+
+    <h2><span class="h2-num">4</span>A correctness-first language for learning</h2>
+
+    <p>This is why Nex makes a good <em>first</em> language, and it is a deliberate inversion of how programming is usually taught. The conventional path introduces syntax first and correctness last — if at all — once a separate testing framework is bolted on much later. The implicit lesson is that getting code to run is the real work and reasoning about whether it is right is an optional, advanced topic.</p>
+
+    <p>Nex reverses the order. Stating what a routine requires and ensures is not an advanced technique here; it is how you write the routine in the first place. A learner is nudged, by the shape of the language, to ask the questions a good engineer asks before trusting any piece of code: <em>What must be true for this to make sense? What will be true once it finishes? What never changes?</em> Those questions are problem decomposition, interface design, and invariant-finding — the actual content of software engineering — and Nex puts them at the centre of the page instead of in an appendix.</p>
+
+    <p>The mainstream industrial languages cannot easily play this role, and not by accident: their complexity exists to serve the demands of their real users, and that complexity cannot simply be set aside for newcomers. A first language has a different job. Its job is to make good habits unavoidable, and good habits are exactly what a contract makes explicit.</p>
+
+    <h2><span class="h2-num">5</span>Small enough to understand</h2>
+
+    <p>A correctness-first language only helps a learner who can actually reach the contracts — if the rest of the language stands in the way, the lesson never lands. Nex is built so that it does not. It was designed to be <em>small enough to understand, disciplined enough to teach sound habits, and practical enough to support real programs</em>. Four properties carry most of that weight, and each earns its place by removing an obstacle between a newcomer and the ideas.</p>
+
+    <p><strong>A small core.</strong> The grammar is kept small enough that its semantics can be explained without hand-waving. New conveniences — extra operations, host integrations, whole libraries — live outside the language rather than arriving as fresh keywords, so the kernel never grows unintelligible by accumulation. A learner can hold the whole language in their head, and nothing in it is magic to be explained away "later."</p>
+
+    <p><strong>Clear syntax.</strong> Nex reads like structured English rather than a thicket of symbols. Blocks open and close with words — <code>do … end</code>, <code>feature</code>, <code>require</code>, <code>ensure</code> — and the notation neither hides intent behind punctuation nor buries it under ceremony. A first language's syntax should get out of the way of the idea; this one does, erring toward neither the cryptic nor the verbose.</p>
+
+    <p><strong>Static typing with inference.</strong> Types are checked before a program runs, so a mistake arrives as an explanation rather than as a crash partway through execution — the same early, localised feedback that makes contracts valuable. Annotations double as documentation of intent, yet in the REPL they are optional, so exploration stays light while finished code stays explicit.</p>
+
+    <p><strong>Objects and functions, without friction.</strong> A student meets the two dominant styles of programming — object-oriented and functional — inside one coherent language, each used where it fits: a class may use a function internally, and a function may manipulate objects. Nex makes no ideological commitment to either, so a beginner learns <em>concepts</em> rather than tribal allegiances, and never pays a tax to move between them.</p>
+
+    <p>None of these is remarkable on its own — every language claims a clean syntax and a small core. What matters is the combination and what it is <em>for</em>: together they clear away the reasons a newcomer might stall before reaching the part of Nex that actually teaches engineering — the discipline of stating what code must do, and having the language check it.</p>
+
+    <h2><span class="h2-num">6</span>Why this matters even more in the age of generated code</h2>
+
+    <p>Large language models have made it cheap to <em>produce</em> plausible code. They have done nothing to make it cheap to <em>trust</em> it. A model emits a function that looks right; the burden of deciding whether it actually meets its intent falls back on the human — and reading code to confirm intent is exactly the slow, error-prone task the model was supposed to relieve.</p>
+
+    <p>A Design-by-Contract language changes the shape of that problem, because a contract is a <em>machine-checkable statement of intent</em> that is separate from the implementation. That separation is precisely what generated code lacks and most needs:</p>
+
+    <ul>
+      <li><strong>The specification can be written independently of the code.</strong> A person — or a model acting as the specifier — states the <code>require</code>/<code>ensure</code>/<code>invariant</code>: the <em>what</em>. Any implementation, hand-written or generated, is then checked against it the moment it runs. The contract becomes the target the generator must hit and the grader that says whether it did.</li>
+      <li><strong>Failures are localised and named.</strong> When generated code is wrong, a violated postcondition points at the offending routine and the specific clause it broke — far more actionable for an automated repair loop than a distant, mislabelled crash.</li>
+      <li><strong>Contracts are superb context for a model reading code.</strong> They state intent more precisely than comments and cannot have rotted, so a contract-annotated codebase is one a model can extend with far less guesswork about what each piece is <em>for</em>.</li>
+    </ul>
+
+    <p>It is worth being precise about the limits. Runtime contracts are not proofs; they catch a violation when the offending path is actually exercised, not before. But that is exactly the verification layer that generated software most conspicuously lacks today — an executable, checkable boundary around each unit of intent. In a world where more and more code is written by something that does not understand what it wrote, a language whose central feature is <em>stating and checking what code is supposed to do</em> is not a historical curiosity. It is ahead of the problem.</p>
+
+    <h2><span class="h2-num">7</span>The bet</h2>
+
+    <p>Nex is not trying to out-compete Rust on memory safety or Haskell on purity or TypeScript on ecosystem. Those are battles fought on other languages’ terms. Its bet is narrower and, I think, more durable: that the foundation of good software — whether you are a student learning to think rigorously, an engineer designing an interface meant to outlive its first implementation, or a system supervising code that a machine produced — is the ability to <em>state what a program must do and have that statement checked</em>. Nex makes that the first thing you learn and the last thing you can forget.</p>
+
+    <div class="article-footer">
+      <a href="tutorial.html">→ Nex in 15 Minutes</a>
+      <a href="syntax.html">→ Syntax Postcards</a>
+      <a href="docs/programming-with-nex/cover.html">→ Programming with Nex (book)</a>
+    </div>
+
+  </article>
+
+</div><!-- .page -->
+
+</body>
+</html>
