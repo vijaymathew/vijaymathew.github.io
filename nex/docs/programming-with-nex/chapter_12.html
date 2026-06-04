@@ -350,8 +350,31 @@ nex&gt; account.withdraw(200.0)
 nex&gt; account.describe
 "Alice: 1300.0"</code></pre>
 </section>
-<section class="level2" data-number="13.7" id="the-this-reference">
-<h2 class="anchored" data-anchor-id="the-this-reference" data-number="13.7"> The <code>this</code> Reference</h2>
+<section class="level2" data-number="13.7" id="optional-arguments-and-method-overloading">
+<h2 class="anchored" data-anchor-id="optional-arguments-and-method-overloading" data-number="13.7"> Optional Arguments and Method Overloading</h2>
+<p>Sometimes you want a method that callers can use with or without an extra piece of information. Many languages solve this with <em>default argument values</em>. Nex does not have them: a call must always pass exactly as many arguments as the method declares.</p>
+<p>Instead, a class may define several methods that share a name but take different numbers of parameters. This is called <em>overloading</em>. When the method is called, Nex selects the version whose parameter count matches the number of arguments you supplied.</p>
+<p>A common pattern is to write the shorter version so that it forwards to the longer one, filling in a sensible default:</p>
+<pre><code>nex&gt; class Greeter
+       feature
+         greet(name: String): String do
+           result := greet(name, "!")
+         end
+         greet(name: String, punct: String): String do
+           result := "Hello, " + name + punct
+         end
+     end
+
+nex&gt; let g := create Greeter
+nex&gt; g.greet("Ann")
+"Hello, Ann!"
+nex&gt; g.greet("Bob", ".")
+"Hello, Bob."</code></pre>
+<p>The one-argument <code>greet</code> repeats no logic; it simply calls the two-argument version with a default punctuation mark. Callers get the convenience of an optional argument, and the real work lives in a single place.</p>
+<p>Two limitations are worth remembering. First, overloads are distinguished only by the <em>number</em> of parameters, not by their types — you cannot define two methods with the same name and the same number of parameters that differ only in parameter type. Second, this applies to <em>methods</em> only. Plain top-level functions cannot be overloaded: each function name must be unique, so if you need function variants, give them distinct names.</p>
+</section>
+<section class="level2" data-number="13.8" id="the-this-reference">
+<h2 class="anchored" data-anchor-id="the-this-reference" data-number="13.8"> The <code>this</code> Reference</h2>
 <p>Inside a method, <code>this</code> refers to the object on which the method was called. Most of the time you do not need it — fields and other methods are accessible directly by name. <code>this</code> is needed when a parameter name shadows a field name:</p>
 <pre><code>nex&gt; class Point
        create
@@ -387,8 +410,8 @@ nex&gt; p1.distance_to(p2)
 5.0</code></pre>
 <p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the fields of the object the method was called on (<code>p1</code>), while <code>other.x</code> and <code>other.y</code> refer to the argument (<code>p2</code>).</p>
 </section>
-<section class="level2" data-number="13.8" id="uniform-access">
-<h2 class="anchored" data-anchor-id="uniform-access" data-number="13.8"> Uniform Access</h2>
+<section class="level2" data-number="13.9" id="uniform-access">
+<h2 class="anchored" data-anchor-id="uniform-access" data-number="13.9"> Uniform Access</h2>
 <p>Field reads and method calls use identical syntax:</p>
 <pre><code>nex&gt; p.x                      -- reads a field
 3.0
@@ -420,8 +443,8 @@ nex&gt; c.diameter
 10.0</code></pre>
 <p><code>c.radius</code> reads a stored field. <code>c.diameter</code> calls a computation. Both look identical at the call site. If the implementation later changes — storing <code>diameter</code> directly and computing <code>radius</code> — no call site changes.</p>
 </section>
-<section class="level2" data-number="13.9" id="a-worked-example-a-simple-stack">
-<h2 class="anchored" data-anchor-id="a-worked-example-a-simple-stack" data-number="13.9"> A Worked Example: A Simple Stack</h2>
+<section class="level2" data-number="13.10" id="a-worked-example-a-simple-stack">
+<h2 class="anchored" data-anchor-id="a-worked-example-a-simple-stack" data-number="13.10"> A Worked Example: A Simple Stack</h2>
 <pre><code>nex&gt; class Stack
        create
          make() do
@@ -463,8 +486,8 @@ nex&gt; s.size
 1</code></pre>
 <p><code>Stack</code> wraps an <code>Array[Integer]</code> and exposes only push, pop, peek, and size. The array is an implementation detail; the four methods are the interface. This is the essential move that classes make: bundle data with its governing operations and present a clean surface to the outside world.</p>
 </section>
-<section class="level2" data-number="13.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="13.10"> Summary</h2>
+<section class="level2" data-number="13.11" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="13.11"> Summary</h2>
 <ul>
 <li>A class has a <code>create</code> block (constructors) and a <code>feature</code> block (fields and methods)</li>
 <li>Constructors are named; <code>create ClassName.constructor_name(args)</code> creates an instance</li>
@@ -476,8 +499,8 @@ nex&gt; s.size
 <li>Uniform access: field reads and method calls use identical <code>obj.name</code> syntax</li>
 </ul>
 </section>
-<section class="level2" data-number="13.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="13.11"> Exercises</h2>
+<section class="level2" data-number="13.12" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="13.12"> Exercises</h2>
 <p><strong>1.</strong> Define a class <code>Rectangle</code> with fields <code>width</code> and <code>height</code> (both <code>Real</code>) and a constructor <code>make</code>. Add methods <code>area(): Real</code>, <code>perimeter(): Real</code>, and <code>is_square(): Boolean</code>. Test with a 4.0 x 6.0 rectangle and a 5.0 x 5.0 square.</p>
 <p><strong>2.</strong> Define a class <code>Temperature</code> with a single field <code>celsius: Real</code>. Add methods <code>fahrenheit(): Real</code> and <code>kelvin(): Real</code>. Add <code>describe(): String</code> returning <code>"freezing"</code>, <code>"cold"</code>, <code>"mild"</code>, or <code>"warm"</code>. All derived values should be computed methods, not stored fields.</p>
 <p><strong>3.</strong> Define a class <code>String_Stack</code> that behaves like <code>Stack</code> but holds <code>String</code> values. Use it to reverse a string by pushing each character and popping them all off.</p>
