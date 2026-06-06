@@ -338,6 +338,40 @@ end</code></pre>
 <p><code>&lt;base-feature-ensure&gt; and &lt;local-feature-ensure&gt;</code></p>
 <p>The practical meaning is that a child class may <em>strengthen</em> the postcondition, but it may not drop promises that the parent already made. If one side is absent, the other side remains in force. In particular, omitting a local <code>ensure</code> does not remove the inherited postcondition.</p>
 <p>If a parent routine promises that <code>area &gt;= 0.0</code>, then every child implementation must still guarantee <code>area &gt;= 0.0</code>. A child may add a stronger fact, but not a weaker one.</p>
+<p>For example:</p>
+<pre class="text"><code>class Account
+feature
+  balance: Real
+  set_balance(new_balance: Real) do
+    balance := new_balance
+  end
+  deposit(amount: Real)
+    require
+      positive: amount &gt; 0.0
+    do
+      set_balance(balance + amount)
+    ensure
+      increased: balance &gt; old balance
+    end
+  create
+    make(balance: Real) do this.balance := balance end
+end
+
+class Bonus_Account
+inherit Account
+feature
+  deposit(amount: Real)
+    do
+      Account.deposit(amount)
+    ensure
+      exact_credit: balance = old balance + amount
+    end
+  create
+    make(balance: Real) do Account.make(balance) end
+end</code></pre>
+<p>The effective postcondition of <code>Bonus_Account.deposit</code> is:</p>
+<p><code>(balance &gt; old balance) and (balance = old balance + amount)</code></p>
+<p>The child <em>strengthens</em> the guarantee by adding <code>exact_credit</code>, but it cannot drop the inherited <code>increased</code> promise. Even a child override that supplies no local <code>ensure</code> must still leave the balance larger than before; otherwise Nex reports <code>Postcondition violation: increased</code> when the routine returns.</p>
 </section>
 <section class="level3" data-number="21.9.3" id="invariant-inheritance">
 <h3 class="anchored" data-anchor-id="invariant-inheritance" data-number="21.9.3"> Invariant Inheritance</h3>

@@ -208,31 +208,29 @@ Error: Class invariant violation: never_negative</code></pre>
 <section class="level2" data-number="19.5" id="invariants-and-mutating-routines">
 <h2 class="anchored" data-anchor-id="invariants-and-mutating-routines" data-number="19.5"> Invariants and Mutating Routines</h2>
 <p>Inside a routine body, a class may temporarily violate its own invariant while it is rearranging state. What matters is that the invariant is restored by the time the routine finishes.</p>
-<p>For example, imagine a class storing a sum and a count:</p>
-<pre><code>nex&gt; class Running_Average
+<p>For example, imagine a class that splits a fixed number of units between an <code>on_hand</code> amount and a <code>reserved</code> amount:</p>
+<pre><code>nex&gt; class Inventory_Split
        create
-         make() do
-           total := 0.0
-           count := 0
+         make(units: Integer) do
+           total := units
+           on_hand := units
+           reserved := 0
          end
        feature
-         total: Real
-         count: Integer
-         add(value: Real)
-           do
-             total := total + value
-             count := count + 1
-           end
-         average(): Real
+         total: Integer
+         on_hand: Integer
+         reserved: Integer
+         reserve(n: Integer)
            require
-             has_values: count &gt; 0
+             available: n &lt;= on_hand
            do
-             result := total / count
+             on_hand := on_hand - n
+             reserved := reserved + n
            end
        invariant
-         count_non_negative: count &gt;= 0
+         conserved: on_hand + reserved = total
      end</code></pre>
-<p>If <code>add</code> updates <code>total</code> first and <code>count</code> second, there is a brief moment in the middle when the object is only partially updated. That is acceptable. The invariant is about stable states at routine boundaries, not every intermediate machine step.</p>
+<p>The invariant <code>conserved</code> says that <code>on_hand</code> and <code>reserved</code> must always add up to <code>total</code>. Inside <code>reserve</code>, the first assignment decreases <code>on_hand</code> but has not yet increased <code>reserved</code>, so for a brief moment the two no longer sum to <code>total</code> and the invariant genuinely does not hold. The second assignment restores it. That is acceptable: the invariant constrains the stable states at routine boundaries, not every intermediate machine step. Nex checks invariants on entry to and exit from a routine, so this temporary imbalance is never observed from outside.</p>
 </section>
 <section class="level2" data-number="19.6" id="invariants-and-collaboration">
 <h2 class="anchored" data-anchor-id="invariants-and-collaboration" data-number="19.6"> Invariants and Collaboration</h2>
