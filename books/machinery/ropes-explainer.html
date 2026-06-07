@@ -574,7 +574,7 @@ textarea.editor-input:focus { border-color: var(--rule2); }
 <p>Open a 10 MB source file in VS Code and start editing. Every character you type, every delete, every paste — the editor must handle each as a near-instant operation. No perceptible lag. No stuttering. And after ten thousand edits, undo must still work.</p>
 <p>The challenge is that text editing is a sequence of <strong>small, frequent mutations</strong> to an arbitrarily large buffer. Insert one character at position 50,000. Delete three characters at position 120,000. Paste 400 characters at position 8. These operations must each complete in microseconds, not milliseconds.</p>
 <div class="pull">The naive approach — storing text as a single contiguous string — turns every insert into an O(n) memory copy. For a 10 MB file, inserting a single character near the start means shifting ~10 million bytes. At 120 Hz, that’s not going to work.</div>
-<p>The solution is to <strong>stop thinking about the text as a single object</strong> and start thinking about it as a set of <em>references</em> to immutable fragments. Real editors use a small handful of specialized text-buffer structures; this explainer focuses on two influential ones: the <strong>rope</strong> and the <strong>piece table</strong>.</p>
+<p>The solution is to <strong>stop thinking about the text as a single object</strong> and start thinking about it as a set of <em>references</em> to immutable fragments. Real editors use a small handful of specialized text-buffer structures; this chapter focuses on two influential ones: the <strong>rope</strong> and the <strong>piece table</strong>.</p>
 <div class="demo">
 <div class="demo-lbl"><span class="fig-num">Figure 2.1</span> · The scale of the problem — adjust file size and see the cost of a naive insert</div>
 <div class="slider-row">
@@ -989,7 +989,7 @@ console.log(<span class="str">"(original buffer never modified)"</span>);</pre>
 <h3>Rendering a line</h3>
 <p>To render line 5000, the editor needs the character range for that line. VS Code additionally caches <strong>line feed counts</strong> in the tree — each piece node stores how many <code>\n</code> characters are in its left subtree. A binary search on these counts locates the right piece in O(log n), then scans within the piece for the line boundary.</p>
 <h3>Undo and redo</h3>
-<p>Undo is the killer feature of the piece table. Because the add buffer is append-only and pieces are small structs, the undo history can store either edit records or <em>piece list snapshots</em>. This explainer uses snapshots of the piece list. That is still much cheaper than copying the whole document, because the original and add buffers remain immutable and shared.</p>
+<p>Undo is the killer feature of the piece table. Because the add buffer is append-only and pieces are small structs, the undo history can store either edit records or <em>piece list snapshots</em>. This chapter uses snapshots of the piece list. That is still much cheaper than copying the whole document, because the original and add buffers remain immutable and shared.</p>
 <div class="demo">
 <div class="demo-lbl"><span class="fig-num">Figure 2.6</span> · Interactive piece table — type in the editor to watch pieces update live</div>
 <div class="editor-wrap">
