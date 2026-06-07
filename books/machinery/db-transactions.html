@@ -236,17 +236,9 @@ button.btn.blue{background:var(--blue-bg);color:var(--blue);border-color:var(--b
 </header><div class="page">
 <!-- HERO -->
 <header class="hero">
-<div class="hero-kicker">Interactive explainer · Database internals</div>
+<p class="chapter-meta">Part Two · Chapter 8</p>
 <h1>Transaction Control<br/><em>from first principles</em></h1>
 <p class="hero-sub">How does a database stay correct when a thousand transactions run at once — and a server crashes mid-write? Five mechanisms, one coherent story: isolation, durability, and distributed atomicity.</p>
-<div class="arc-row">
-<div class="arc-cell"><div class="arc-label">Isolation</div><div class="arc-name">2PL</div><div class="arc-techs">pessimistic locking</div></div>
-<div class="arc-cell"><div class="arc-label">Isolation</div><div class="arc-name">OCC</div><div class="arc-techs">optimistic, validate on commit</div></div>
-<div class="arc-cell"><div class="arc-label">Isolation</div><div class="arc-name">MVCC</div><div class="arc-techs">snapshot reads, no read locks</div></div>
-<div class="arc-cell"><div class="arc-label">Durability</div><div class="arc-name">WAL</div><div class="arc-techs">write-ahead logging</div></div>
-<div class="arc-cell"><div class="arc-label">Distributed</div><div class="arc-name">2PC / 3PC</div><div class="arc-techs">atomic commit across nodes</div></div>
-</div>
-<div class="hero-note acid-note">ACID = Atomicity · Consistency · Isolation · Durability</div>
 </header>
 <!-- TOC -->
 <nav class="toc">
@@ -264,7 +256,7 @@ button.btn.blue{background:var(--blue-bg);color:var(--blue);border-color:var(--b
 <div class="sec-head"><span class="sec-n">§01</span><h2>The problem: concurrency anomalies</h2></div>
 <p>Without any concurrency control, concurrent transactions produce incorrect results. The four anomalies below are the classic starting point, but they are not the whole story. Real isolation levels are ultimately judged by whether they permit <strong>serialization anomalies</strong> such as write skew, not just by this short list.</p>
 <div class="demo">
-<div class="demo-lbl">Anomaly explorer — click each to see what goes wrong</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.1</span> · Anomaly explorer — click each to see what goes wrong</div>
 <div class="btn-row">
 <button class="btn act" onclick="showAnomaly('dirty',this)">Dirty read</button>
 <button class="btn" onclick="showAnomaly('nonrep',this)">Non-repeatable read</button>
@@ -344,7 +336,7 @@ levels.forEach(l =&gt;
 <p>2PL is the classic pessimistic approach. Every transaction must acquire a <strong>shared lock (S)</strong> before reading a resource and an <strong>exclusive lock (X)</strong> before writing. The "two phases" are: a <em>growing phase</em> where locks are only acquired, and a <em>shrinking phase</em> where locks are only released. Once you release any lock, you can't acquire new ones.</p>
 <p>This strict ordering guarantees serializability — the execution is equivalent to some serial order. The cost: <strong>deadlocks</strong>. If T1 holds X on A and waits for B, while T2 holds X on B and waits for A, neither can proceed. The database must detect and break the cycle by aborting one transaction.</p>
 <div class="demo">
-<div class="demo-lbl">2PL lock manager — step through a scenario</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.2</span> · 2PL lock manager — step through a scenario</div>
 <div class="step-nav">
 <button class="step-btn act" onclick="show2PL(0,this)">T1 reads A</button>
 <button class="step-btn" onclick="show2PL(1,this)">T2 reads A</button>
@@ -454,7 +446,7 @@ console.log(<span class="str">`Deadlock detected: ${lm2.detectDeadlock()} → ab
 <p>OCC assumes conflicts are <em>rare</em>. Instead of blocking on locks, every transaction executes freely — reads and writes go to a private workspace. At commit time, a <strong>validation phase</strong> checks whether any conflicts actually occurred. If not, the writes are installed. If yes, the transaction is aborted and retried.</p>
 <p>OCC has three phases: <strong>Read</strong> (execute freely, track read-set and write-set), <strong>Validate</strong> (check for conflicts with recently committed transactions), <strong>Write</strong> (install changes atomically if validation passes). A correct validator must reject both read/write conflicts and write/write conflicts that would otherwise collapse into last-writer-wins.</p>
 <div class="demo">
-<div class="demo-lbl">OCC validation — run transactions and see which pass</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.3</span> · OCC validation — run transactions and see which pass</div>
 <div class="btn-row">
 <button class="btn blue" onclick="runOCC()">▶ Run new transactions</button>
 <button class="btn" onclick="resetOCC()">Reset</button>
@@ -549,7 +541,7 @@ occ2.<span class="fn">commit</span>(tb); <span class="cmt">// tb: ta wrote 'stoc
 <p>The result: <strong>readers never block writers, and writers never block readers</strong>. A long-running read-only query never holds up a write transaction. The cost is version storage — old versions must eventually be garbage-collected (PostgreSQL calls this <code>VACUUM</code>). Snapshot-based MVCC is great for read concurrency, but it is <strong>not automatically serializable</strong>; write skew is the classic counterexample.</p>
 <div class="callout green">Snapshot isolation prevents many familiar anomalies, but two transactions can still each read an old consistent snapshot, make different writes, and jointly violate a business rule. That is why systems like PostgreSQL still distinguish <code>REPEATABLE READ</code> from true <code>SERIALIZABLE</code>.</div>
 <div class="demo">
-<div class="demo-lbl">MVCC version chain — click a transaction to see what it reads</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.4</span> · MVCC version chain — click a transaction to see what it reads</div>
 <div id="mvcc-viz"></div>
 </div>
 <div class="cb">
@@ -644,7 +636,7 @@ db.<span class="fn">vacuum</span>(<span class="num">3</span>); <span class="cmt"
 <div class="callout blue"><strong>Before any data page is written to disk, its log record must be written to disk first.</strong> On crash, replaying the log recovers any committed transaction that hadn't yet reached the data pages.</div>
 <p>Every change is first appended to a sequential log file (fast sequential I/O), with each record assigned a monotonically increasing <strong>Log Sequence Number (LSN)</strong>. At commit, only the log needs to be flushed — the data pages can be written lazily in the background. Recovery logic varies by engine: ARIES is one important design (<em>Analysis</em> → <em>Redo</em> → <em>Undo</em>), while other systems describe crash recovery more simply as replaying WAL from the last checkpoint and consulting transaction status.</p>
 <div class="demo">
-<div class="demo-lbl">WAL log — simulate writes, crash, and recovery</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.5</span> · WAL log — simulate writes, crash, and recovery</div>
 <div class="btn-row">
 <button class="btn blue" onclick="walAction('begin',1)">Begin T1</button>
 <button class="btn blue" onclick="walAction('begin',2)">Begin T2</button>
@@ -762,7 +754,7 @@ console.log(<span class="str">"\n*** SERVER CRASHES (T2 never committed) ***"</s
 <p>Phase 1 (<em>Prepare</em>): coordinator sends "prepare to commit" to all participants. Each participant durably writes its work to its WAL and replies "vote YES" (I'm ready) or "vote NO" (I can't). Phase 2 (<em>Commit/Abort</em>): if all voted YES, coordinator sends "COMMIT" to all. If any voted NO, it sends "ABORT" to all.</p>
 <div class="callout red">The fatal flaw of 2PC: if the coordinator crashes <em>after</em> participants vote YES but <em>before</em> the coordinator's COMMIT reaches them, participants are stuck in the "prepared" state — holding locks, unable to proceed, waiting forever for a decision that may never come. This is called the <strong>blocking problem</strong>.</div>
 <div class="demo">
-<div class="demo-lbl">2PC step-by-step — choose a scenario</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.6</span> · 2PC step-by-step — choose a scenario</div>
 <div class="step-nav" id="tpc-nav"></div>
 <div id="tpc-viz"></div>
 </div>
@@ -848,7 +840,7 @@ console.log(<span class="str">"Resolution: wait for coordinator recovery, or con
 <p>Phase 1 (<em>CanCommit</em>): coordinator asks "can you commit?". Phase 2 (<em>PreCommit</em>): if all say yes, coordinator sends "prepare to commit" — this is new. Now every participant knows all others have voted YES. Phase 3 (<em>DoCommit</em>): coordinator sends actual commit. If the coordinator crashes during Phase 3, any participant can take over — they know every participant is in pre-committed state, so committing is safe.</p>
 <div class="callout amber">3PC solves the blocking problem but assumes a <em>synchronous network with bounded delays</em>. In practice, network partitions make this assumption invalid — a partitioned participant can't distinguish "coordinator crashed" from "message delayed". This is why 3PC is rarely used in real systems. Modern systems use Paxos or Raft instead.</div>
 <div class="demo">
-<div class="demo-lbl">2PC vs 3PC — which states can a participant be in on coordinator failure?</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.7</span> · 2PC vs 3PC — which states can a participant be in on coordinator failure?</div>
 <div class="btn-row">
 <button class="btn act" onclick="showProtocol('2pc',this)">2PC</button>
 <button class="btn" onclick="showProtocol('3pc',this)">3PC</button>
@@ -972,7 +964,7 @@ console.log(<span class="str">"Both committed without coordinator — non-blocki
 </div>
 <h3>How isolation protocols compare under contention</h3>
 <div class="demo">
-<div class="demo-lbl">Throughput under varying contention — adjust conflict rate</div>
+<div class="demo-lbl"><span class="fig-num">Figure 8.8</span> · Throughput under varying contention — adjust conflict rate</div>
 <div class="slider-row">
 <label>Conflict rate</label>
 <input id="conflict-sl" max="100" min="0" oninput="updateThroughput()" step="5" type="range" value="20"/>
@@ -983,6 +975,10 @@ console.log(<span class="str">"Both committed without coordinator — non-blocki
 </div>
 <div class="callout purple">A safer summary: most serious OLTP databases combine <strong>some isolation scheme + WAL durability</strong>, but the exact isolation mix differs a lot by engine. PostgreSQL, InnoDB, Oracle, and SQL Server do not all implement the same concurrency recipe. For distributed transactions, 2PC remains common when you already have a trusted coordinator, while Paxos/Raft-based systems (Spanner, CockroachDB) fold atomicity into replicated consensus.</div>
 </section>
+<nav class="chapter-nav" aria-label="Chapter navigation">
+<a class="nav-prev" href="./lsm-explainer.html"><span class="nav-dir">Previous</span>The Write-Heavy Problem</a>
+<a class="nav-next" href="./practical-champion-explainer.html"><span class="nav-dir">Next</span>The Practical Champion</a>
+</nav>
 </div>
 <script>
 /* ── RUNNER ── */

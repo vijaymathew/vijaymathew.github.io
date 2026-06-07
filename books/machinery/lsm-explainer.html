@@ -424,15 +424,9 @@ a{color:var(--steel)}
 </div>
 </header><div class="page">
 <header class="hero">
-<div class="hero-kicker">Storage Engines</div>
+<p class="chapter-meta">Part Two · Chapter 7</p>
 <h1>The <em>Write-Heavy Problem</em> - LSM Trees</h1>
 <p>Once a key-value store gets serious write traffic, the bottleneck is often no longer hashing or indexing. It is the physical act of rewriting scattered pages on disk. LSM trees change the game by making the write path almost entirely sequential, then paying the cleanup bill later through compaction.</p>
-<div class="pill-row">
-<span class="pill"><b>Sequential</b> write path</span>
-<span class="pill"><b>MemTable</b> and SSTables</span>
-<span class="pill"><b>Bloom filters</b> as a common file feature</span>
-<span class="pill">LevelDB, RocksDB, Cassandra</span>
-</div>
 </header>
 <nav class="toc">
 <a href="#s1"><span class="toc-n">01</span>Why in-place updates hurt</a>
@@ -448,7 +442,7 @@ a{color:var(--steel)}
 <p>The pain is not that B-trees are bad. The pain is that <strong>updating in place creates write amplification</strong>. A 40-byte value update can force kilobytes of page traffic, plus random I/O that is much harder for storage hardware to batch efficiently than a single append stream.</p>
 <div class="callout warn">The core LSM argument is physical, not abstract: if random page rewrites are your bottleneck, stop rewriting pages on every write.</div>
 <div class="demo">
-<div class="demo-lbl">Same logical writes, different physical behavior</div>
+<div class="demo-lbl"><span class="fig-num">Figure 7.1</span> · Same logical writes, different physical behavior</div>
 <div class="btn-row">
 <button class="btn" onclick="stepWriteModel(1)">One write</button>
 <button class="btn" onclick="stepWriteModel(4)">Four writes</button>
@@ -496,7 +490,7 @@ a{color:var(--steel)}
 <p>That means writes are cheap right now, but reads now have to consult multiple places: the MemTable, maybe a recently frozen MemTable, and several SSTables on disk. The system accepts that temporary disorder because compaction will later merge those files into larger, cleaner levels.</p>
 <div class="callout">An LSM tree is really a promise: "I will not overwrite old data in place. I will accumulate sorted runs, then reconcile them in the background."</div>
 <div class="demo">
-<div class="demo-lbl">MemTable flush pipeline</div>
+<div class="demo-lbl"><span class="fig-num">Figure 7.2</span> · MemTable flush pipeline</div>
 <div class="btn-row">
 <button class="btn" onclick="appendPipelineWrites(1)">Add one write</button>
 <button class="btn" onclick="appendPipelineWrites(3)">Add three writes</button>
@@ -530,7 +524,7 @@ a{color:var(--steel)}
 <p>Deletion works the same way. Because old SSTables are immutable, the system cannot erase a key in place. Instead it writes a <strong>tombstone</strong>, which is a special record meaning “this key was deleted.” Reads treat a tombstone as stronger than any older value they may still find deeper in the tree. Later, once compaction has merged through the relevant older files and knows there is no older live version left to hide, it can drop both the tombstone and the obsolete value entirely.</p>
 <div class="callout good">The LSM trade is explicit: lower write latency and higher write throughput now, background rewrite work later.</div>
 <div class="demo">
-<div class="demo-lbl">Compaction cascade</div>
+<div class="demo-lbl"><span class="fig-num">Figure 7.3</span> · Compaction cascade</div>
 <div class="btn-row">
 <button class="btn" onclick="addCompactionBatch()">Write batch</button>
 <button class="btn" onclick="compactCascade()">Compact</button>
@@ -558,7 +552,7 @@ a{color:var(--steel)}
 <p>Many LSM systems attach a compact probabilistic summary to each SSTable or data block. On lookup, the filter can say either <strong>definitely not here</strong> or <strong>maybe here</strong>. That means many negative lookups can skip opening the data file entirely. The only tolerated mistake is a false positive, never a false negative.</p>
 <div class="callout">Bloom filters are a very common SSTable feature, but not a universal law of the data structure. LevelDB, for example, exposes them through an optional filter policy. This explainer treats them as first-class because they matter so much for point reads.</div>
 <div class="demo">
-<div class="demo-lbl">One query across several SSTables</div>
+<div class="demo-lbl"><span class="fig-num">Figure 7.4</span> · One query across several SSTables</div>
 <div class="btn-row" id="bloom-query-buttons">
 <button class="btn act" data-bloom-key="mango" onclick="setBloomKey('mango')">mango</button>
 <button class="btn" data-bloom-key="papaya" onclick="setBloomKey('papaya')">papaya</button>
@@ -604,6 +598,10 @@ a{color:var(--steel)}
 <a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/compaction/lcs.html">Cassandra leveled compaction</a>
 </div>
 </section>
+<nav class="chapter-nav" aria-label="Chapter navigation">
+<a class="nav-prev" href="./probabilistic-data-structures-explainer.html"><span class="nav-dir">Previous</span>Good Enough Answers</a>
+<a class="nav-next" href="./db-transactions.html"><span class="nav-dir">Next</span>Transaction Control from First Principles</a>
+</nav>
 </div>
 <script>
 const CODE_SNIPPETS = {
