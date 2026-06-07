@@ -7,6 +7,7 @@
 <title>The Editor's Data Structure — Ropes and Piece Tables</title>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300;1,6..72,500&amp;family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&amp;family=Inter:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="./shared.css" rel="stylesheet"/>
 <style>
 :root {
   --ink:#0a0a0b;
@@ -117,49 +118,6 @@ body {
   max-width: 560px;
   font-family: var(--serif);
 }
-.hero-meta {
-  display: flex;
-  gap: 2rem;
-  margin-top: 2rem;
-  padding-top: 1.4rem;
-  border-top: 1px solid var(--rule);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink3);
-  letter-spacing: .06em;
-}
-.hero-meta span b { color: var(--ink); font-weight: 500; }
-
-/* TOC */
-.toc {
-  margin: 2.5rem 0 3rem;
-  padding: 1.4rem 1.6rem;
-  border: 1px solid var(--rule2);
-  border-left: 3px solid var(--ink);
-  background: var(--paper2);
-}
-.toc-heading {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--ink3);
-  margin-bottom: .9rem;
-}
-.toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-.toc a {
-  display: flex;
-  gap: 10px;
-  padding: 5px 0;
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--ink2);
-  text-decoration: none;
-  border-bottom: 1px solid var(--rule);
-  transition: color .12s;
-}
-.toc a:hover { color: var(--ink); }
-.toc-n { color: var(--ink3); min-width: 20px; }
 
 /* SECTIONS */
 .section { margin-bottom: 4.5rem; scroll-margin-top: 2rem; }
@@ -596,20 +554,12 @@ textarea.editor-input:focus { border-color: var(--rule2); }
 </header><div class="page">
 <!-- HERO -->
 <header class="hero">
-<div class="hero-label">Data structures in practice</div>
+<p class="chapter-meta">Part One · Chapter 2</p>
 <h1><em>Ropes</em> and <strong>Piece Tables</strong><br/>— the editor’s data structure</h1>
 <p class="hero-deck">How does a code editor handle a 10 MB file where every keystroke mutates the text? The answer isn’t a string.</p>
-<div class="hero-meta">
-<span><b>Sections</b>  7</span>
-<span><b>Runnable demos</b>  6</span>
-<span><b>Libraries</b>  none</span>
-<span><b>Examples</b>  VS Code, Xi, Emacs, AbiWord</span>
-</div>
 </header>
 <!-- TOC -->
 <nav class="toc">
-<div class="toc-heading">Contents</div>
-<div class="toc-grid">
 <a href="#s1"><span class="toc-n">01</span>The keystroke problem</a>
 <a href="#s2"><span class="toc-n">02</span>Why strings fail</a>
 <a href="#s3"><span class="toc-n">03</span>Ropes</a>
@@ -617,7 +567,6 @@ textarea.editor-input:focus { border-color: var(--rule2); }
 <a href="#s5"><span class="toc-n">05</span>Operations in detail</a>
 <a href="#s6"><span class="toc-n">06</span>Full implementation</a>
 <a href="#s7"><span class="toc-n">07</span>Further reading</a>
-</div>
 </nav>
 <!-- ===== S1: THE KEYSTROKE PROBLEM ===== -->
 <section class="section" id="s1">
@@ -627,7 +576,7 @@ textarea.editor-input:focus { border-color: var(--rule2); }
 <div class="pull">The naive approach — storing text as a single contiguous string — turns every insert into an O(n) memory copy. For a 10 MB file, inserting a single character near the start means shifting ~10 million bytes. At 120 Hz, that’s not going to work.</div>
 <p>The solution is to <strong>stop thinking about the text as a single object</strong> and start thinking about it as a set of <em>references</em> to immutable fragments. Real editors use a small handful of specialized text-buffer structures; this explainer focuses on two influential ones: the <strong>rope</strong> and the <strong>piece table</strong>.</p>
 <div class="demo">
-<div class="demo-lbl">The scale of the problem — adjust file size and see the cost of a naive insert</div>
+<div class="demo-lbl"><span class="fig-num">Figure 2.1</span> · The scale of the problem — adjust file size and see the cost of a naive insert</div>
 <div class="slider-row">
 <label>File size</label>
 <input id="size-sl" max="100" min="1" oninput="updateCostDemo()" step="1" type="range" value="10"/>
@@ -733,7 +682,7 @@ console.log(<span class="str">""</span>);
 </div>
 <p>Watch what happens when you insert a character into a plain array at position 3 — every element after it must shift right by one slot:</p>
 <div class="demo">
-<div class="demo-lbl">Array insert — visualise the shift cost</div>
+<div class="demo-lbl"><span class="fig-num">Figure 2.2</span> · Array insert — visualise the shift cost</div>
 <div class="btn-row">
 <button class="btn primary" onclick="animateInsert()">Insert ‘X’ at position 3</button>
 <button class="btn" onclick="resetInsert()">Reset</button>
@@ -818,12 +767,12 @@ console.log(<span class="str">"Gap must travel from position 9 to 0 — O(n) shi
 <p>Edits work by <strong>cutting and rejoining tree boundaries</strong>, not by moving characters around in memory. To insert at position <em>p</em>, split the rope into <code>[0,p)</code> and <code>[p,n)</code>, build a small rope for the inserted text, then concatenate <code>left + inserted + right</code>. To delete <code>[start,end)</code>, split once at <code>start</code>, split the remainder again at <code>end - start</code>, discard the middle piece, and concatenate the two outer pieces. In a <strong>balanced</strong> rope, both are O(log n); without rebalancing, repeated edits can make the tree taller and degrade performance.</p>
 <div class="pull note">Ropes are <em>persistent</em> by nature. Because you’re building new tree nodes rather than mutating old ones, old versions of the rope remain valid. Undo is just keeping a pointer to the old root — no copy needed.</div>
 <div class="demo">
-<div class="demo-lbl">Rope structure — click a node to inspect it</div>
+<div class="demo-lbl"><span class="fig-num">Figure 2.3</span> · Rope structure — click a node to inspect it</div>
 <div id="rope-canvas"></div>
 <div id="rope-info" style="font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:.6rem;min-height:20px"></div>
 </div>
 <div class="demo">
-<div class="demo-lbl">Rope edits — insert and delete as split + concat</div>
+<div class="demo-lbl"><span class="fig-num">Figure 2.4</span> · Rope edits — insert and delete as split + concat</div>
 <div class="btn-row">
 <button class="btn act" data-rope-edit="insert" onclick="showRopeEdit('insert', this)">Insert</button>
 <button class="btn" data-rope-edit="delete" onclick="showRopeEdit('delete', this)">Delete</button>
@@ -938,7 +887,7 @@ console.log(<span class="str">"  Both refer to the same leaf objects — no copy
 <p>The core insight: <strong>keep two buffers</strong> — the <em>original</em> buffer (the file as loaded, immutable) and the <em>add</em> buffer (an append-only log of all inserted text). Then represent the document as an ordered list of <em>pieces</em>, each specifying: which buffer, at what offset, for how many characters.</p>
 <div class="pull">No text is ever deleted or modified in the buffers. To “delete” text, you split the piece that contains it and discard the middle piece. The buffer content itself never changes — making crash recovery trivial.</div>
 <div class="demo">
-<div class="demo-lbl">Piece table — step through building a document from edits</div>
+<div class="demo-lbl"><span class="fig-num">Figure 2.5</span> · Piece table — step through building a document from edits</div>
 <div class="step-nav">
 <button class="step-btn act" onclick="showPTStep(0,this)">Load file</button>
 <button class="step-btn" onclick="showPTStep(1,this)">Insert "big "</button>
@@ -1042,7 +991,7 @@ console.log(<span class="str">"(original buffer never modified)"</span>);</pre>
 <h3>Undo and redo</h3>
 <p>Undo is the killer feature of the piece table. Because the add buffer is append-only and pieces are small structs, the undo history can store either edit records or <em>piece list snapshots</em>. This explainer uses snapshots of the piece list. That is still much cheaper than copying the whole document, because the original and add buffers remain immutable and shared.</p>
 <div class="demo">
-<div class="demo-lbl">Interactive piece table — type in the editor to watch pieces update live</div>
+<div class="demo-lbl"><span class="fig-num">Figure 2.6</span> · Interactive piece table — type in the editor to watch pieces update live</div>
 <div class="editor-wrap">
 <div class="editor-toolbar">
 <span>piece table editor</span>
@@ -1337,8 +1286,12 @@ console.log(<span class="str">"Add buffer still holds all text: "</span> + <span
 <a href="https://www.catch22.net/tuts/neatpad/piece-chains/">Piece Chains — a practical piece table guide with diagrams</a>
 <a href="https://ecc-comp.blogspot.com/2015/05/a-brief-glance-at-how-5-text-editors.html">How 5 text editors store their data — survey of real-world choices</a>
 </div>
-<p class="footer-note" style="margin-top:1.4rem">The piece-table code in §06 is original JavaScript written for this explainer. The rope demo is a small educational implementation inspired by the 1995 Boehm et al. paper. Neither is a port of any existing codebase.</p>
+<p class="footer-note" style="margin-top:1.4rem">The rope demo is a small educational implementation inspired by the 1995 Boehm et al. paper.</p>
 </section>
+<nav class="chapter-nav" aria-label="Chapter navigation">
+<a class="nav-prev" href="./array-programming.html"><span class="nav-dir">Previous</span>Think in Arrays, Not in Loops</a>
+<a class="nav-next" href="./btree-explainer.html"><span class="nav-dir">Next</span>Filesystems and B-Trees</a>
+</nav>
 </div>
 <script>
 /* ============ CODE RUNNER ============ */

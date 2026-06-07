@@ -284,23 +284,9 @@ button.btn.red{background:#f8dddd;color:#8b1f1f;border-color:#cc7d7d}
 </header><div class="page">
 <!-- HERO -->
 <header class="hero">
-<div class="hero-kicker">Distributed systems · Consensus algorithms</div>
+<p class="chapter-meta">Part Six · Chapter 21</p>
 <h1>The <em>Raft</em> consensus<br/>algorithm</h1>
 <p class="hero-sub">How do five servers scattered across data centres all agree on the same sequence of events — even when some crash, networks partition, and messages arrive late or out of order? That is the consensus problem, and Raft is its most understandable solution.</p>
-<div class="concept-row">
-<div class="cr-cell"><div class="cr-label">Problem</div><div class="cr-name">Distributed agreement</div><div class="cr-desc">multiple nodes, one truth</div></div>
-<div class="cr-cell"><div class="cr-label">Approach</div><div class="cr-name">Strong leader</div><div class="cr-desc">one node coordinates all writes</div></div>
-<div class="cr-cell"><div class="cr-label">Key mechanism</div><div class="cr-name">Leader election</div><div class="cr-desc">randomised timeouts + terms</div></div>
-<div class="cr-cell"><div class="cr-label">Correctness</div><div class="cr-name">Log replication</div><div class="cr-desc">majority quorum commits</div></div>
-<div class="cr-cell"><div class="cr-label">Fault tolerance</div><div class="cr-name">⌊n−1⌋/2 failures</div><div class="cr-desc">5 nodes survive 2 crashes</div></div>
-</div>
-<div class="hero-pills">
-<span class="pill">Leader election</span>
-<span class="pill">Log replication</span>
-<span class="pill">Safety</span>
-<span class="pill">Majority quorum</span>
-<span class="pill">etcd · CockroachDB · TiKV</span>
-</div>
 </header>
 <!-- TOC -->
 <nav class="toc">
@@ -322,7 +308,7 @@ button.btn.red{background:#f8dddd;color:#8b1f1f;border-color:#cc7d7d}
 <p>These are not edge cases. They are the normal operating conditions of any distributed system. <strong>The consensus problem</strong> asks: can we make a set of servers agree on a single sequence of values — a log — even when some servers crash or messages are lost?</p>
 <div class="callout red">Without consensus, you get <strong>split-brain</strong>: two parts of your cluster independently think they're in charge. Both accept writes. When connectivity restores, you have two different "truths" with no way to automatically reconcile them. Every distributed database, coordination service, and replicated log needs to solve this.</div>
 <div class="demo">
-<div class="demo-lbl">What can go wrong — click a failure scenario</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.1</span> · What can go wrong — click a failure scenario</div>
 <div class="btn-row">
 <button class="btn act" onclick="showFailure('crash',this)">Node crash</button>
 <button class="btn" onclick="showFailure('partition',this)">Network partition</button>
@@ -396,7 +382,7 @@ console.log(<span class="str">"  3. Termination: all live nodes eventually decid
 <p>Consensus in practice is almost always framed as the <strong>replicated state machine (RSM)</strong> model. The idea: if every node starts in the same state and applies the same sequence of commands in the same order, they will always arrive at the same state — no matter when or how each command is processed.</p>
 <p>The challenge reduces to ensuring every node agrees on a single ordered log of commands. Raft does exactly this: it is a protocol for maintaining a replicated log. The state machine (a key-value store, a lock service, a configuration database) sits on top and is incidental to Raft itself.</p>
 <div class="demo">
-<div class="demo-lbl">State machine determinism — same commands, same order → same result</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.2</span> · State machine determinism — same commands, same order → same result</div>
 <div id="rsm-viz"></div>
 </div>
 <div class="cb">
@@ -467,7 +453,7 @@ console.log(<span class="str">"Key insight: Raft's only job is to maintain this 
 <p>In Raft, <em>all</em> log entries flow through the leader. Clients send commands only to the leader. The leader appends entries to its log, replicates them to followers, and only once a majority have acknowledged does it commit. Followers are completely passive — they accept what the leader sends.</p>
 <div class="callout orange">The strong leader assumption is a deliberate trade-off. It eliminates whole classes of consistency problems (concurrent writes, log divergence, speculative execution) at the cost of throughput: all writes go through one node. For most coordination workloads this is the right trade-off. Paxos allows multiple concurrent proposers — more complex to implement correctly.</div>
 <div class="demo">
-<div class="demo-lbl">Raft's three sub-problems and their solutions</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.3</span> · Raft's three sub-problems and their solutions</div>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-family:var(--mono);font-size:12px">
 <div style="border:1px solid var(--orange-bdr);background:var(--orange-bg);border-radius:5px;padding:.8rem">
 <div style="color:var(--orange);font-weight:500;margin-bottom:.4rem">Leader Election</div>
@@ -490,7 +476,7 @@ console.log(<span class="str">"Key insight: Raft's only job is to maintain this 
 <p>Every Raft node is always in one of three states: <strong>follower</strong>, <strong>candidate</strong>, or <strong>leader</strong>. All nodes start as followers. Raft uses a notion of logical time called <strong>terms</strong> — monotonically increasing integers, each beginning with an election.</p>
 <p>The key mechanism is the <strong>election timeout</strong>: each follower waits a random duration (typically 150–300ms) for a heartbeat from the current leader. If no heartbeat arrives in time, the follower converts to candidate, increments its term, and sends <code>RequestVote</code> RPCs to all other nodes. The first candidate to receive votes from a majority wins.</p>
 <div class="demo">
-<div class="demo-lbl">Interactive cluster — crash the leader and watch a new election</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.4</span> · Interactive cluster — crash the leader and watch a new election</div>
 <div class="btn-row" id="election-btns">
 <button class="btn act" onclick="electionSim('start')">Start cluster</button>
 <button class="btn red" onclick="electionSim('crash')">Crash leader</button>
@@ -506,7 +492,7 @@ console.log(<span class="str">"Key insight: Raft's only job is to maintain this 
 <p>If all nodes used the same timeout, they would all start elections simultaneously — and since each votes for itself, no one would get a majority. Randomising the timeout means one node almost always times out first, starts the election, and wins before others even wake up. The probability of ties is negligible and they self-resolve in the next term.</p>
 <p>The animated cluster above shows the mechanics of one election. The timeline below serves a different purpose: it compresses many seconds or minutes of cluster life into one strip, so you can see that most of Raft is boring stable leadership, with brief election windows only when something goes wrong.</p>
 <div class="demo">
-<div class="demo-lbl">Macro timeline — long steady terms, short election windows</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.5</span> · Macro timeline — long steady terms, short election windows</div>
 <div class="term-strip">
 <div class="term-seg election" style="flex:1">Term 1<br/><span style="font-size:8px">election</span></div>
 <div class="term-seg leader1" style="flex:5">Term 1: Node A is leader<br/><span style="font-size:8px">normal operation, heartbeats</span></div>
@@ -615,7 +601,7 @@ cluster[<span class="num">3</span>].<span class="fn">startElection</span>();</pr
 <p>Once a leader is elected, it handles all client requests. When a client sends a command, the leader: (1) appends the entry to its own log with the current term, (2) sends <code>AppendEntries</code> RPCs to all followers in parallel, (3) once a <strong>majority</strong> of nodes have written the entry, marks it as <em>committed</em>, (4) applies it to its state machine, (5) replies to the client, (6) notifies followers of the commit in subsequent RPCs.</p>
 <div class="callout blue">A <strong>majority quorum</strong> is any set of nodes containing more than half the cluster: in a 5-node cluster, majority = 3. This ensures any two majorities overlap by at least one node — which guarantees the new leader will always see the latest committed entries.</div>
 <div class="demo">
-<div class="demo-lbl">Log replication — step through appending an entry</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.6</span> · Log replication — step through appending an entry</div>
 <div class="step-nav" id="repl-step-nav">
 <button class="step-btn act" onclick="showReplication(0,this)">Client request</button>
 <button class="step-btn" onclick="showReplication(1,this)">Leader appends</button>
@@ -721,7 +707,7 @@ followers.push(deadFollower);</pre>
 </div>
 <p>A different problem arises when a follower falls behind. Raft does not need to stop the cluster or copy the entire log from scratch. The leader keeps a <code>nextIndex[follower]</code> pointer saying “the next log entry I think this follower needs.” If an <code>AppendEntries</code> attempt is rejected because <code>prevLogIndex</code>/<code>prevLogTerm</code> does not match, the leader moves <code>nextIndex</code> backward and retries with an earlier prefix. Once it finds a matching point, it sends the missing suffix and the follower catches up.</p>
 <div class="demo">
-<div class="demo-lbl">How a stale follower catches up</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.7</span> · How a stale follower catches up</div>
 <div class="step-nav" id="catchup-step-nav">
 <button class="step-btn act" onclick="showCatchup(0,this)">Mismatch</button>
 <button class="step-btn" onclick="showCatchup(1,this)">Back up</button>
@@ -737,7 +723,7 @@ followers.push(deadFollower);</pre>
 <p>Raft's most critical property is the <strong>Leader Completeness property</strong>: if an entry is committed in some term, it will be present in the logs of all future leaders. This ensures the state machine never sees a committed entry go missing.</p>
 <p>The mechanism is the vote restriction: a candidate can only receive a vote from a node if the candidate's log is <em>at least as up-to-date</em> as the voter's log. Since any committed entry was acknowledged by a majority, and any winning candidate must receive votes from a majority, those two majorities must overlap — so the winner must have seen the committed entry.</p>
 <div class="demo">
-<div class="demo-lbl">Why the vote restriction prevents data loss — a safety scenario</div>
+<div class="demo-lbl"><span class="fig-num">Figure 21.8</span> · Why the vote restriction prevents data loss — a safety scenario</div>
 <div id="safety-viz"></div>
 </div>
 <div class="cb">
@@ -1020,9 +1006,13 @@ survivor.<span class="fn">startElection</span>();
 <a href="https://github.com/etcd-io/raft">etcd/raft — production Raft library in Go (read the source)</a>
 <a href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf">Lamport (2001) — Paxos Made Simple (for comparison)</a>
 <a href="https://jepsen.io/analyses">Jepsen analyses — how real Raft systems fail under network faults</a>
-<div class="footer-note">All code is original JavaScript written for this explainer. The implementation covers the core Raft algorithm but omits production concerns: log compaction/snapshots, membership changes, persistent state, and the actual network layer.</div>
+<div class="footer-note">The implementation covers the core Raft algorithm but omits production concerns: log compaction/snapshots, membership changes, persistent state, and the actual network layer.</div>
 </footer>
 </section>
+<nav class="chapter-nav" aria-label="Chapter navigation">
+<a class="nav-prev" href="./gui-history.html"><span class="nav-dir">Previous</span>The Great GUI Ideas</a>
+<a class="nav-next" href="./llm/llm-part0-history.html"><span class="nav-dir">Next</span>LLMs from First Principles</a>
+</nav>
 </div>
 <script>
 /* ── RUNNER ── */
