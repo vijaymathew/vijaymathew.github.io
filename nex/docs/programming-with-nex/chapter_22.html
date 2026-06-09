@@ -128,18 +128,14 @@
 <section class="level2" data-number="23.1" id="distinguishing-kinds-of-failure">
 <h2 class="anchored" data-anchor-id="distinguishing-kinds-of-failure" data-number="23.1"> Distinguishing Kinds of Failure</h2>
 <p>Most failures in a program fall into one of three categories. Naming the category is often the first step toward the correct design.</p>
-<p>Caller mistakes.</p>
-<p>These are contract violations. The caller passed an invalid argument or called a routine in the wrong state. Use <code>require</code>.</p>
-<p>Routine bugs.</p>
-<p>These appear as violated postconditions or invariants. They are defects in the implementation or design.</p>
-<p>Environmental failures.</p>
-<p>These come from the outside world: missing files, unavailable services, corrupt input, exhausted resources. Use exceptions, recovery logic, or propagation.</p>
-<p>A robust design keeps these categories separate.</p>
+<p><em>Caller mistakes</em> are contract violations: the caller passed an invalid argument, or called a routine in the wrong state. The right response is <code>require</code>.</p>
+<p><em>Routine bugs</em> show up as violated postconditions or invariants; they are defects in the implementation or in the design itself.</p>
+<p><em>Environmental failures</em> come from the outside world — missing files, unavailable services, corrupt input, exhausted resources — and call for exceptions, recovery logic, or propagation.</p>
+<p>A robust design keeps these three categories separate, because each calls for a different response and confusing them is how error handling usually goes wrong.</p>
 </section>
 <section class="level2" data-number="23.2" id="fail-fast-on-programmer-errors">
 <h2 class="anchored" data-anchor-id="fail-fast-on-programmer-errors" data-number="23.2"> Fail Fast on Programmer Errors</h2>
-<p>When a routine is called incorrectly, the worst response is often to continue.</p>
-<p>Suppose a stack <code>pop</code> is called on an empty stack. Returning a special fake value may let the program continue for a while, but it has also hidden the original mistake. The program now contains both the original bug and whatever secondary damage the fake value causes later.</p>
+<p>When a routine is called incorrectly, the worst response is often to continue as if nothing were wrong. Suppose a stack <code>pop</code> is called on an empty stack. Returning a special fake value may let the program continue for a while, but it has also hidden the original mistake — the program now carries both the original bug and whatever secondary damage the fake value causes later.</p>
 <p>A precondition is the correct response:</p>
 <pre><code>pop(): G
   require
@@ -152,8 +148,7 @@
 </section>
 <section class="level2" data-number="23.3" id="be-tolerant-at-the-system-boundary">
 <h2 class="anchored" data-anchor-id="be-tolerant-at-the-system-boundary" data-number="23.3"> Be Tolerant at the System Boundary</h2>
-<p>At the edge of the program, the world is uncertain.</p>
-<p>A user may type bad data. A file may be absent. A request may time out. The program should often handle these situations gracefully because they are part of normal operation, not evidence that the programmer misunderstood the interface.</p>
+<p>At the edge of the program, the world is uncertain. A user may type bad data, a file may be absent, a request may time out; the program should usually handle these situations gracefully, because they are part of normal operation rather than evidence that the programmer misunderstood the interface.</p>
 <p>The pattern is:</p>
 <ol type="1">
 <li>inspect uncertain input at the boundary</li>
@@ -207,17 +202,12 @@ end</code></pre>
 </section>
 <section class="level2" data-number="23.6" id="simple-defensive-patterns">
 <h2 class="anchored" data-anchor-id="simple-defensive-patterns" data-number="23.6"> Simple Defensive Patterns</h2>
-<p>Several habits make Nex programs more robust.</p>
-<p>Normalize inputs early.</p>
-<p>Convert text to structured values near the boundary.</p>
-<p>Keep contracts sharp.</p>
-<p>Do not blur caller errors and runtime failures.</p>
-<p>Use detachable types only when absence is meaningful.</p>
-<p>Do not use <code>?Type</code> merely to avoid deciding what should really be required.</p>
-<p>Make invalid states unrepresentable where possible.</p>
-<p>A class with a strong invariant reduces the space of possible bugs.</p>
-<p>Prefer small routines.</p>
-<p>A short routine with one purpose is easier to specify and recover around than a long routine with mixed responsibilities.</p>
+<p>A handful of habits make Nex programs markedly more robust.</p>
+<p><em>Normalize inputs early</em>: convert text into structured values near the boundary, so that everything further in works with clean data.</p>
+<p><em>Keep contracts sharp</em>: do not blur the line between caller errors and runtime failures.</p>
+<p><em>Use detachable types only when absence is meaningful</em>, never reaching for <code>?Type</code> merely to avoid deciding what should really be required.</p>
+<p><em>Make invalid states unrepresentable where possible</em>: a class with a strong invariant shrinks the space of bugs that can occur at all.</p>
+<p><em>Prefer small routines</em>: a short routine with one purpose is far easier to specify, and to recover around, than a long one with mixed responsibilities.</p>
 </section>
 <section class="level2" data-number="23.7" id="using-result-objects-instead-of-exceptions">
 <h2 class="anchored" data-anchor-id="using-result-objects-instead-of-exceptions" data-number="23.7"> Using Result Objects Instead of Exceptions</h2>

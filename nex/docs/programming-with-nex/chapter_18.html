@@ -123,9 +123,8 @@
     <h1 class="opener-title">Invariants</h1>
   </div>
   <div class="prose">
-<p>Preconditions describe what must hold before a routine call. Postconditions describe what must hold after it. But some properties are not tied to one routine. They must hold for an object throughout its entire useful life.</p>
-<p>Such a property is an <em>invariant</em>.</p>
-<p>An invariant captures the essential consistency of a class. If the invariant fails, the object is no longer in a valid state. That makes invariants the deepest contracts in object-oriented design.</p>
+<p>Preconditions describe what must hold before a routine call, and postconditions describe what must hold after it. But some properties are not tied to any single routine: they must hold for an object throughout its entire useful life. Such a property is an <em>invariant</em>.</p>
+<p>An invariant captures the essential consistency of a class. If the invariant fails, the object is no longer in a valid state — and that is what makes invariants the deepest contracts in object-oriented design.</p>
 <section class="level2" data-number="19.1" id="a-simple-example">
 <h2 class="anchored" data-anchor-id="a-simple-example" data-number="19.1"> A Simple Example</h2>
 <p>Consider a bank account:</p>
@@ -157,13 +156,12 @@
 </section>
 <section class="level2" data-number="19.2" id="what-an-invariant-means">
 <h2 class="anchored" data-anchor-id="what-an-invariant-means" data-number="19.2"> What an Invariant Means</h2>
-<p>An invariant is not checked once and forgotten. It is part of the class contract.</p>
-<p>Informally:</p>
+<p>An invariant is not checked once and then forgotten — it is a standing part of the class contract. Informally:</p>
 <ul>
 <li>a constructor must establish the invariant</li>
 <li>every exported routine must preserve it</li>
 </ul>
-<p>That means an object begins life valid and remains valid after every routine call.</p>
+<p>That means an object begins life valid, the moment its constructor completes, and remains valid after every routine call thereafter.</p>
 <p>Suppose a bad constructor creates an invalid account:</p>
 <pre><code>nex&gt; let a := create Bank_Account.make(-10.0)
 Error: Class invariant violation: never_negative</code></pre>
@@ -171,7 +169,7 @@ Error: Class invariant violation: never_negative</code></pre>
 </section>
 <section class="level2" data-number="19.3" id="invariants-express-class-meaning">
 <h2 class="anchored" data-anchor-id="invariants-express-class-meaning" data-number="19.3"> Invariants Express Class Meaning</h2>
-<p>Well-chosen invariants capture the meaning of a class.</p>
+<p>Well-chosen invariants capture the very meaning of a class — the conditions that make an object of that type coherent in the first place.</p>
 <p>For a <code>Rectangle</code>, the invariant might be:</p>
 <ul>
 <li>width is non-negative</li>
@@ -187,8 +185,7 @@ Error: Class invariant violation: never_negative</code></pre>
 <li><code>items</code> is not <code>nil</code></li>
 <li><code>items.length &lt;= capacity</code></li>
 </ul>
-<p>Notice that these are not accidental properties. They are the rules without which the object would stop making sense.</p>
-<p>If a supposed invariant could be removed without changing the class’s concept, it may not belong there.</p>
+<p>Notice that these are not accidental properties; they are the rules without which the object would stop making sense. A useful test follows from this: if a supposed invariant could be removed without changing the class’s concept, it probably does not belong there.</p>
 </section>
 <section class="level2" data-number="19.4" id="avoiding-trivial-invariants">
 <h2 class="anchored" data-anchor-id="avoiding-trivial-invariants" data-number="19.4"> Avoiding Trivial Invariants</h2>
@@ -203,7 +200,7 @@ Error: Class invariant violation: never_negative</code></pre>
   items_exist: items /= nil
   capacity_non_negative: capacity &gt;= 0
   size_in_range: items.length &lt;= capacity</code></pre>
-<p>Together these describe a coherent state.</p>
+<p>Together these describe a coherent state: a real array exists, the capacity is meaningful, and the logical size never exceeds it.</p>
 </section>
 <section class="level2" data-number="19.5" id="invariants-and-mutating-routines">
 <h2 class="anchored" data-anchor-id="invariants-and-mutating-routines" data-number="19.5"> Invariants and Mutating Routines</h2>
@@ -234,8 +231,7 @@ Error: Class invariant violation: never_negative</code></pre>
 </section>
 <section class="level2" data-number="19.6" id="invariants-and-collaboration">
 <h2 class="anchored" data-anchor-id="invariants-and-collaboration" data-number="19.6"> Invariants and Collaboration</h2>
-<p>One class often holds references to other objects. Then invariants become more interesting.</p>
-<p>Consider a library loan:</p>
+<p>One class often holds references to other objects, and there invariants become more interesting. Consider a library loan:</p>
 <pre><code>nex&gt; class Loan
        create
          make(book_title, borrower_name: String) do
@@ -260,11 +256,7 @@ Error: Class invariant violation: never_negative</code></pre>
 </section>
 <section class="level2" data-number="19.7" id="how-invariants-relate-to-preconditions-and-postconditions">
 <h2 class="anchored" data-anchor-id="how-invariants-relate-to-preconditions-and-postconditions" data-number="19.7"> How Invariants Relate to Preconditions and Postconditions</h2>
-<p>The three kinds of contracts fit together.</p>
-<p>The invariant is the stable truth about the class.</p>
-<p>The precondition says when a routine may begin.</p>
-<p>The postcondition says what the routine must ensure when it ends.</p>
-<p>In practice:</p>
+<p>The three kinds of contract fit together into a single picture. The invariant is the stable truth about the class; the precondition says when a routine may begin; and the postcondition says what the routine must ensure by the time it ends. In practice:</p>
 <ul>
 <li>preconditions may assume the invariant already holds</li>
 <li>routine bodies may rely on both the invariant and the precondition</li>
@@ -278,7 +270,7 @@ Error: Class invariant violation: never_negative</code></pre>
 <li>the postcondition states the exact change</li>
 <li>the invariant confirms the object remains valid</li>
 </ul>
-<p>That is a complete chain of reasoning.</p>
+<p>That is a complete chain of reasoning, running from the object’s standing guarantees through the call and back to them again.</p>
 </section>
 <section class="level2" data-number="19.8" id="a-worked-example-a-bounded-counter">
 <h2 class="anchored" data-anchor-id="a-worked-example-a-bounded-counter" data-number="19.8"> A Worked Example: A Bounded Counter</h2>
@@ -317,7 +309,7 @@ Error: Class invariant violation: never_negative</code></pre>
 <li><code>increment</code> requires room to advance</li>
 <li><code>reset</code> returns to the lower bound</li>
 </ul>
-<p>The class design is sound because its contracts align with its concept.</p>
+<p>The class design is sound because its contracts align with its concept: the invariant names what the counter is, and each routine is simply a move that respects that boundary.</p>
 </section>
 <section class="level2" data-number="19.9" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="19.9"> Summary</h2>
