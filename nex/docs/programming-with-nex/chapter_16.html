@@ -124,8 +124,7 @@
   </div>
   <div class="prose">
 <p>Up to this point, many of our routines have relied on silent assumptions. A stack’s <code>pop</code> routine assumes the stack is non-empty. A withdrawal routine assumes the amount is positive and not larger than the balance. A search routine that begins with <code>items.get(0)</code> assumes the array is not empty.</p>
-<p>Until now, those assumptions were informal. Now they become part of the program.</p>
-<p>A <em>precondition</em> states what must be true before a routine is called. If the precondition is not satisfied, the caller is wrong. The routine is not required to continue, recover, or guess what was meant. It may stop immediately with a contract violation.</p>
+<p>Until now, those assumptions have been informal — understood by the author, perhaps noted in a comment, but invisible to the program itself. A <em>precondition</em> turns such an assumption into part of the program. It states what must be true before a routine is called, and if that condition is not satisfied, the caller is the one at fault. The routine is not required to continue, to recover, or to guess what was meant; it may stop immediately with a contract violation.</p>
 <section class="level2" data-number="17.1" id="the-idea">
 <h2 class="anchored" data-anchor-id="the-idea" data-number="17.1"> The Idea</h2>
 <p>Consider a small <code>Wallet</code> class:</p>
@@ -162,7 +161,7 @@
 <li>what it requires of the caller</li>
 <li>what computation it performs once those requirements are met</li>
 </ul>
-<p>That separation is the beginning of disciplined software design.</p>
+<p>That separation — between the conditions a routine demands and the work it performs once they hold — is the beginning of disciplined software design. The contract and the computation are no longer tangled together, and each can be read on its own terms.</p>
 </section>
 <section class="level2" data-number="17.2" id="reading-a-precondition">
 <h2 class="anchored" data-anchor-id="reading-a-precondition" data-number="17.2"> Reading a Precondition</h2>
@@ -192,8 +191,7 @@
 </section>
 <section class="level2" data-number="17.3" id="caller-responsibility">
 <h2 class="anchored" data-anchor-id="caller-responsibility" data-number="17.3"> Caller Responsibility</h2>
-<p>When a routine has a precondition, satisfying it is the caller’s job.</p>
-<p>That point is easy to say and easy to forget. Many beginners write routines that both require something and also try to defend themselves against the caller violating it:</p>
+<p>When a routine has a precondition, satisfying it is the caller’s job — a point that is easy to state and easy to forget. Many beginners write routines that both require something and then, inside the body, also try to defend themselves against the caller violating that same requirement:</p>
 <pre><code>withdraw(amount: Real): Boolean
   require
     enough: amount &lt;= balance
@@ -240,10 +238,7 @@ Error: Precondition violation: not_empty</code></pre>
 </section>
 <section class="level2" data-number="17.5" id="preconditions-are-not-input-validation">
 <h2 class="anchored" data-anchor-id="preconditions-are-not-input-validation" data-number="17.5"> Preconditions Are Not Input Validation</h2>
-<p>It is important to distinguish two different situations.</p>
-<p>Situation 1: the caller has made a programming error.</p>
-<p>Situation 2: the outside world has provided uncertain data.</p>
-<p>Preconditions are for the first case. They describe the obligations between one routine and another inside a program.</p>
+<p>It is important to distinguish two different situations. In the first, the caller has made a programming error: it invoked a routine without meeting the rules that routine plainly depends on. In the second, the outside world has handed the program uncertain data — a value read from a file, a field typed by a user, a message arriving over the network. Preconditions are for the first case. They describe the obligations between one routine and another inside a program, where both sides are code under the author’s control.</p>
 <p>Suppose a routine computes the square root of a number:</p>
 <pre><code>nex&gt; function positive_root(x: Real): Real
      require
@@ -251,8 +246,7 @@ Error: Precondition violation: not_empty</code></pre>
      do
        result := x ^ 0.5
      end</code></pre>
-<p>This is appropriate if <code>positive_root</code> is an internal routine in a program whose callers are expected to know the rule.</p>
-<p>But if the number came from a file, a network request, or a user typing at a prompt, that is not a contract problem yet. The program must inspect the external data and decide what to do. The uncertainty belongs at the program boundary. Once the data has been accepted, internal routines can rely on contracts.</p>
+<p>This is appropriate if <code>positive_root</code> is an internal routine in a program whose callers are expected to know the rule. But if the number came from a file, a network request, or a user typing at a prompt, that is not a contract problem yet. The program must first inspect the external data and decide what to do with it, because the uncertainty belongs at the program boundary. Only once the data has been accepted and checked can the internal routines downstream rely on contracts.</p>
 <p>In short:</p>
 <ul>
 <li>use <code>require</code> for programmer obligations</li>
@@ -293,10 +287,7 @@ Error: Precondition violation: not_empty</code></pre>
 </section>
 <section class="level2" data-number="17.7" id="writing-good-preconditions">
 <h2 class="anchored" data-anchor-id="writing-good-preconditions" data-number="17.7"> Writing Good Preconditions</h2>
-<p>A good precondition has three properties.</p>
-<p>It is necessary. Do not require more than the routine actually needs.</p>
-<p>It is precise. Avoid vague conditions such as <code>valid_input: true</code>.</p>
-<p>It is checkable. The caller should be able to know whether the obligation is satisfied.</p>
+<p>A good precondition has three properties. It is <em>necessary</em>: it requires no more than the routine actually needs, so callers are not burdened with obligations that do not matter to the computation. It is <em>precise</em>: it states a definite, inspectable rule rather than a vague gesture such as <code>valid_input: true</code>. And it is <em>checkable</em>: the caller can actually tell, before making the call, whether the obligation has been met.</p>
 <p>For example, this precondition is too weak:</p>
 <pre><code>require
   okay: amount /= 0.0</code></pre>
@@ -304,8 +295,7 @@ Error: Precondition violation: not_empty</code></pre>
 <pre><code>require
   positive_amount: amount &gt; 0.0
   enough: amount &lt;= balance</code></pre>
-<p>The second version says exactly what the routine needs and nothing more.</p>
-<p>Another common mistake is to require a consequence instead of a cause. If a routine sorts an array, the precondition should not be <code>array_is_sorted</code>. That would describe the result, not the starting obligation. Preconditions talk about the state before execution.</p>
+<p>The second version says exactly what the routine needs and nothing more. A related mistake is to require a consequence instead of a cause. If a routine sorts an array, its precondition should not be <code>array_is_sorted</code> — that describes the result the routine is supposed to produce, not the obligation the caller must satisfy beforehand. Preconditions talk about the state that must hold before execution begins, never about the state the routine itself will go on to establish.</p>
 </section>
 <section class="level2" data-number="17.8" id="a-worked-example-transfer-between-accounts">
 <h2 class="anchored" data-anchor-id="a-worked-example-transfer-between-accounts" data-number="17.8"> A Worked Example: Transfer Between Accounts</h2>
@@ -358,7 +348,7 @@ nex&gt; checking.balance
 
 nex&gt; savings.balance
 130.0</code></pre>
-<p>The routine is short because the contract does most of the explanatory work.</p>
+<p>The routine is short because the contract does most of the explanatory work. Anyone reading <code>transfer_to</code> learns its rules from the <code>require</code> clause rather than from defensive checks scattered through the body.</p>
 </section>
 <section class="level2" data-number="17.9" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="17.9"> Summary</h2>

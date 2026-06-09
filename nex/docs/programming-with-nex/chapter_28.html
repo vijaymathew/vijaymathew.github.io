@@ -123,144 +123,321 @@
     <h1 class="opener-title">Concurrency with Tasks and Channels</h1>
   </div>
   <div class="prose">
-<p>This book has been an introduction, not an ending.</p>
-<p>If you have worked through the chapters, typed the examples, and solved some exercises, you now have more than a list of language features. You have seen a style of programming:</p>
+<p>So far the tutorial has treated a Nex program as one thread of control: a function calls another, a method updates an object, and the next statement waits for the previous one to finish. Many real systems do not have that luxury. A server may need to wait for incoming requests while also writing logs. A pipeline may need one stage to produce data while another stage consumes it. A user interface may need background work without freezing the screen.</p>
+<p>Nex approaches concurrency with a small set of explicit tools:</p>
 <ul>
-<li>program by stating obligations and guarantees</li>
-<li>design classes around stable meanings</li>
-<li>separate system boundaries from core logic</li>
-<li>make correctness an everyday concern rather than an afterthought</li>
+<li><code>spawn</code> starts a task</li>
+<li><code>Task</code> represents work in progress</li>
+<li><code>Channel[T]</code> moves values between tasks</li>
+<li><code>select</code> waits for whichever communication or task completion becomes ready first</li>
 </ul>
-<p>The next step is not to abandon that style, but to see where it appears elsewhere and how other writers develop it further.</p>
-<section class="level2" data-number="30.1" id="where-the-main-ideas-came-from">
-<h2 class="anchored" data-anchor-id="where-the-main-ideas-came-from" data-number="30.1"> Where the Main Ideas Came From</h2>
-<p>Nex brings together ideas that appear across several traditions. Reading outside the language helps separate what is essential from what is merely syntactic.</p>
-<p>From procedural programming:</p>
+<p>The design goal is clarity. Concurrency is difficult enough already. The language should help you say what is running concurrently, how results are collected, and where coordination happens.</p>
+<section class="level2" data-number="29.1" id="why-tasks-instead-of-shared-objects">
+<h2 class="anchored" data-anchor-id="why-tasks-instead-of-shared-objects" data-number="29.1"> Why Tasks Instead of Shared Objects</h2>
+<p>There are two broad ways to structure concurrent programs.</p>
+<p>One style shares mutable objects and synchronises access with locks, monitors, or similar mechanisms. That can work, but it pushes a great deal of reasoning burden onto the programmer. Every shared variable becomes a potential source of races, stale reads, or deadlocks.</p>
+<p>Nex takes a different starting point:</p>
 <ul>
-<li>clear control flow</li>
-<li>small routines</li>
-<li>careful treatment of state</li>
+<li>start work in explicit tasks</li>
+<li>communicate through channels</li>
+<li>wait at explicit coordination points</li>
 </ul>
-<p>From object-oriented design:</p>
-<ul>
-<li>classes as models of concepts</li>
-<li>invariants</li>
-<li>interface-based reasoning</li>
-</ul>
-<p>From formal methods:</p>
-<ul>
-<li>preconditions</li>
-<li>postconditions</li>
-<li>the habit of specifying before implementing</li>
-</ul>
-<p>From practical software engineering:</p>
-<ul>
-<li>modularity</li>
-<li>tests</li>
-<li>explicit boundaries</li>
-</ul>
-<p>Studying those traditions separately will deepen what you have learned here.</p>
+<p>This does not remove all concurrency problems, but it keeps the structure visible. When you read the code, you can see where work is launched and where data crosses from one task to another.</p>
 </section>
-<section class="level2" data-number="30.2" id="design-by-contract-and-meyer">
-<h2 class="anchored" data-anchor-id="design-by-contract-and-meyer" data-number="30.2"> Design by Contract and Meyer</h2>
-<p>If the contract chapters interested you most, the obvious next author is Bertrand Meyer.</p>
-<p>The central references are:</p>
-<ul>
-<li><em>Object-Oriented Software Construction</em></li>
-<li><em>Touch of Class</em></li>
-</ul>
-<p>These works develop Design by Contract far beyond the introductory level. They show how contracts affect inheritance, module boundaries, exception design, and the architecture of large systems.</p>
-<p>Read them slowly. They are not quick books, but they repay serious study.</p>
+<section class="level2" data-number="29.2" id="starting-a-task-with-spawn">
+<h2 class="anchored" data-anchor-id="starting-a-task-with-spawn" data-number="29.2"> Starting a Task with <code>spawn</code></h2>
+<p><code>spawn do ... end</code> starts a new task and returns a <code>Task</code> value.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  result := 40 + 2
+end
+
+print(t.await)</code></pre>
+<p>The body of the task runs concurrently with the caller. If the body assigns to <code>result</code>, the task has a result type such as <code>Task[Integer]</code>. If the body does not assign to <code>result</code>, the type is just <code>Task</code>.</p>
+<pre><code>let t: Task := spawn do
+  print("background work")
+end
+
+t.await</code></pre>
+<p>A task is a value. You can store it in a variable, return it from a routine, place it in an array, or pass it to another routine. That matters because concurrency should compose. We do not want a special hidden execution model that only works in toy cases.</p>
 </section>
-<section class="level2" data-number="30.3" id="programming-as-a-teachable-discipline">
-<h2 class="anchored" data-anchor-id="programming-as-a-teachable-discipline" data-number="30.3"> Programming as a Teachable Discipline</h2>
-<p>If you appreciated the tutorial style of building ideas step by step, two books are especially valuable:</p>
-<ul>
-<li><em>How to Design Programs</em> by Felleisen, Findler, Flatt, and Krishnamurthi</li>
-<li><em>Think Python</em> by Allen Downey</li>
-</ul>
-<p>Both are excellent on the craft of constructing programs from small parts and using examples to shape design.</p>
-<p><em>The C Programming Language</em> by Kernighan and Ritchie remains worth reading for another reason: economy. It is a model of concise technical writing. Even when the language differs, the style of explanation is instructive.</p>
+<section class="level2" data-number="29.3" id="what-await-means">
+<h2 class="anchored" data-anchor-id="what-await-means" data-number="29.3"> What <code>await</code> Means</h2>
+<p><code>await</code> is the point where the caller synchronises with a task.</p>
+<pre><code>let t: Task[String] := spawn do
+  result := "report ready"
+end
+
+print(t.await)</code></pre>
+<p>A few points are important here. First, <code>await</code> blocks until the task finishes, unless you use the timeout form that we will see later.</p>
+<p>Second, if the task failed by raising an exception, <code>await</code> re-raises that failure. The error is not lost just because the work happened concurrently.</p>
+<p>Third, <code>await</code> is an explicit boundary. Before it, the task may still be running. After it, the task has either completed successfully or failed.</p>
+<p>That explicit boundary is one of the central design ideas in Nex concurrency. Synchronisation should be visible in the source code.</p>
 </section>
-<section class="level2" data-number="30.4" id="functional-ideas-and-sicp">
-<h2 class="anchored" data-anchor-id="functional-ideas-and-sicp" data-number="30.4"> Functional Ideas and SICP</h2>
-<p>If you want a deeper treatment of abstraction, program structure, and the relation between procedures and data, read:</p>
-<ul>
-<li><em>Structure and Interpretation of Computer Programs</em></li>
-</ul>
-<p>SICP is not a Nex book, nor is it a contract-first book, but it trains the same underlying muscles:</p>
-<ul>
-<li>describing processes precisely</li>
-<li>separating mechanisms from interfaces</li>
-<li>seeing common patterns beneath specific code</li>
-</ul>
-<p>It rewards rereading.</p>
+<section class="level2" data-number="29.4" id="checking-task-state">
+<h2 class="anchored" data-anchor-id="checking-task-state" data-number="29.4"> Checking Task State</h2>
+<p>Tasks also support status queries.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  result := 10 * 10
+end
+
+print(t.is_done)
+print(t.await)
+print(t.is_done)</code></pre>
+<p>In real code, <code>is_done</code> is most useful when combined with <code>select</code>, or when you need a non-blocking readiness test before choosing the next step.</p>
+<p>Tasks can also be cancelled:</p>
+<pre><code>let t: Task := spawn do
+  sleep(10000)
+end
+
+print(t.cancel)
+print(t.is_cancelled)</code></pre>
+<p>Cancellation is a request, not magic. It tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
+<p>If a cancelled task is later awaited, <code>await</code> raises a task-cancelled failure rather than returning a normal result.</p>
 </section>
-<section class="level2" data-number="30.5" id="algorithms-and-data-structures">
-<h2 class="anchored" data-anchor-id="algorithms-and-data-structures" data-number="30.5"> Algorithms and Data Structures</h2>
-<p>This book introduced arrays, maps, recursion, and a few classical loop patterns, but it has not tried to be a full algorithms text.</p>
-<p>For that, read:</p>
+<section class="level2" data-number="29.5" id="waiting-with-a-timeout">
+<h2 class="anchored" data-anchor-id="waiting-with-a-timeout" data-number="29.5"> Waiting with a Timeout</h2>
+<p>Sometimes indefinite waiting is not acceptable. A program may want to give up after a bounded interval.</p>
+<p>Tasks support a timed form of <code>await</code>:</p>
+<pre><code>let t: Task[Integer] := spawn do
+  sleep(5000)
+  result := 7
+end
+
+print(t.await(100))
+print(t.await(5000))</code></pre>
+<p>If the task completes within the timeout, <code>await(ms)</code> returns the task result. If it does not, it returns <code>nil</code>.</p>
+<p>This design keeps the meaning simple:</p>
 <ul>
-<li><em>Algorithms</em> by Robert Sedgewick and Kevin Wayne</li>
-<li><em>Introduction to Algorithms</em> by Cormen, Leiserson, Rivest, and Stein</li>
+<li><code>await()</code> means wait as long as needed</li>
+<li><code>await(ms)</code> means wait up to <code>ms</code> milliseconds</li>
 </ul>
-<p>Sedgewick and Wayne are often the gentler next step. CLRS is broader and more formal.</p>
-<p>As you read algorithm books, keep bringing the Nex discipline with you. Ask not only whether an algorithm works, but also:</p>
+<p>The timeout form is especially useful at system boundaries, where a stalled background action should not block the entire program indefinitely.</p>
+</section>
+<section class="level2" data-number="29.6" id="channels-communication-between-tasks">
+<h2 class="anchored" data-anchor-id="channels-communication-between-tasks" data-number="29.6"> Channels: Communication Between Tasks</h2>
+<p>Launching tasks is only half of the problem; the other half is communication, and Nex uses typed channels for that purpose.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer]
+
+let producer: Task := spawn do
+  ch.send(42)
+end
+
+print(ch.receive)
+producer.await</code></pre>
+<p>A <code>Channel[T]</code> carries values of type <code>T</code>.</p>
+<p>In the example above:</p>
 <ul>
-<li>what are its preconditions?</li>
-<li>what loop invariants explain it?</li>
-<li>what data model makes its correctness easiest to state?</li>
+<li>the producer task sends an integer</li>
+<li>the main thread receives it</li>
+<li>both sides agree on the element type because the channel itself is typed</li>
+</ul>
+<p>That type information matters. Concurrency already adds one level of indirection. The language should not also force the programmer to guess what kind of value may arrive.</p>
+</section>
+<section class="level2" data-number="29.7" id="unbuffered-and-buffered-channels">
+<h2 class="anchored" data-anchor-id="unbuffered-and-buffered-channels" data-number="29.7"> Unbuffered and Buffered Channels</h2>
+<p>The default constructor creates an unbuffered channel:</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer]</code></pre>
+<p>An unbuffered channel is a rendezvous point:</p>
+<ul>
+<li><code>send</code> waits until some receiver is ready</li>
+<li><code>receive</code> waits until some sender is ready</li>
+</ul>
+<p>This is a very strong coordination mechanism. The send and the receive meet at one point in time.</p>
+<p>Sometimes that is too strict. One side may need to run ahead a little. For that, Nex supports buffered channels:</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(10)
+ch.send(20)
+print(ch.size)
+print(ch.capacity)</code></pre>
+<p>For a buffered channel:</p>
+<ul>
+<li><code>send</code> succeeds immediately when the buffer has space</li>
+<li><code>send</code> waits only when the buffer is full</li>
+<li><code>receive</code> succeeds immediately when a buffered value exists</li>
+<li><code>receive</code> waits only when the buffer is empty</li>
+</ul>
+<p>This gives you a controlled queue between tasks.</p>
+</section>
+<section class="level2" data-number="29.8" id="non-blocking-channel-operations">
+<h2 class="anchored" data-anchor-id="non-blocking-channel-operations" data-number="29.8"> Non-Blocking Channel Operations</h2>
+<p>Blocking is sometimes right and sometimes not. When you need to probe a channel without waiting, Nex provides <code>try_send</code> and <code>try_receive</code>.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(1)
+print(ch.try_send(5))
+print(ch.try_send(6))
+print(ch.try_receive)
+print(ch.try_receive)</code></pre>
+<p>The meaning is:</p>
+<ul>
+<li><code>try_send(v)</code> returns <code>true</code> if the value was sent immediately, otherwise <code>false</code></li>
+<li><code>try_receive</code> returns a value if one is immediately available, otherwise <code>nil</code></li>
+</ul>
+<p>These operations are the building blocks for more flexible coordination logic, including <code>select</code>.</p>
+</section>
+<section class="level2" data-number="29.9" id="closing-a-channel">
+<h2 class="anchored" data-anchor-id="closing-a-channel" data-number="29.9"> Closing a Channel</h2>
+<p>Channels can be closed.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(1)
+ch.close
+print(ch.is_closed)
+print(ch.receive)</code></pre>
+<p>After <code>close</code>:</p>
+<ul>
+<li>future sends are rejected</li>
+<li>buffered values, if any, can still be received</li>
+<li>once a closed channel is drained, later <code>receive</code> attempts fail</li>
+</ul>
+<p>Closing matters because streams of values are rarely infinite in practice. A reader often needs a definite signal that no more messages are coming.</p>
+</section>
+<section class="level2" data-number="29.10" id="coordinating-several-tasks-with-await_any-and-await_all">
+<h2 class="anchored" data-anchor-id="coordinating-several-tasks-with-await_any-and-await_all" data-number="29.10"> Coordinating Several Tasks with <code>await_any</code> and <code>await_all</code></h2>
+<p>A single task is useful, but real programs often launch groups of related tasks.</p>
+<p><code>await_any</code> waits for the first task in a group to complete:</p>
+<pre><code>let slow: Task[Integer] := spawn do
+  sleep(20000)
+  result := 10
+end
+
+let fast: Task[Integer] := spawn do
+  result := 20
+end
+
+print(await_any([slow, fast]))</code></pre>
+<p><code>await_all</code> waits for every task and returns their results in input order:</p>
+<pre><code>let a: Task[Integer] := spawn do
+  result := 1
+end
+
+let b: Task[Integer] := spawn do
+  result := 2
+end
+
+let results: Array[Integer] := await_all([a, b])
+print(results.get(0))
+print(results.get(1))</code></pre>
+<p>These operations keep the coordination logic explicit without forcing the programmer to hand-write loops over task arrays every time.</p>
+</section>
+<section class="level2" data-number="29.11" id="select-waiting-for-whatever-becomes-ready">
+<h2 class="anchored" data-anchor-id="select-waiting-for-whatever-becomes-ready" data-number="29.11"> <code>select</code>: Waiting for Whatever Becomes Ready</h2>
+<p>When several channels or tasks may become ready, the right tool is <code>select</code>.</p>
+<pre><code>let ch: Channel[String] := create Channel[String].with_capacity(1)
+ch.send("done")
+
+select
+  when ch.receive as msg then
+    print(msg)
+  else
+    print("nothing ready")
+end</code></pre>
+<p>A <code>select</code> statement probes its clauses in order and chooses one that is ready. If several clauses are ready at the same time, the earlier clause wins, so clause order expresses priority, not merely layout.</p>
+<p>For channels:</p>
+<ul>
+<li><code>when ch.receive as x then ...</code> fires when a value can be received immediately</li>
+<li><code>when ch.send(v) then ...</code> fires when the send can proceed immediately</li>
+</ul>
+<p>For tasks:</p>
+<ul>
+<li><code>when task.await as x then ...</code> fires only when the task is already done</li>
+</ul>
+<p>This last point is important. A task clause in <code>select</code> is a readiness check, not a blocking wait hidden inside the clause. The clause is eligible only when the task has completed.</p>
+<p>That keeps the logic of <code>select</code> consistent: it chooses among ready operations.</p>
+</section>
+<section class="level2" data-number="29.12" id="select-with-timeout">
+<h2 class="anchored" data-anchor-id="select-with-timeout" data-number="29.12"> <code>select</code> with <code>timeout</code></h2>
+<p>A <code>select</code> can also wait up to a bounded interval.</p>
+<pre><code>let ch: Channel[String] := create Channel[String]
+
+select
+  when ch.receive as msg then
+    print(msg)
+  timeout 5 then
+    print("timed out")
+end</code></pre>
+<p>This means:</p>
+<ul>
+<li>if some clause becomes ready before the timeout, run it</li>
+<li>otherwise run the timeout branch</li>
+</ul>
+<p>A timeout branch is different from <code>else</code>.</p>
+<ul>
+<li><code>else</code> means do not wait at all</li>
+<li><code>timeout n</code> means wait up to <code>n</code> milliseconds</li>
+</ul>
+<p>That distinction matters. One is a non-blocking probe. The other is a bounded wait.</p>
+</section>
+<section class="level2" data-number="29.13" id="a-small-pipeline-example">
+<h2 class="anchored" data-anchor-id="a-small-pipeline-example" data-number="29.13"> A Small Pipeline Example</h2>
+<p>The following example shows tasks and channels working together.</p>
+<pre><code>let input: Channel[Integer] := create Channel[Integer].with_capacity(4)
+let output: Channel[Integer] := create Channel[Integer].with_capacity(4)
+
+let worker: Task := spawn do
+  let v: Integer := input.receive
+  output.send(v * v)
+end
+
+input.send(9)
+print(output.receive)
+worker.await</code></pre>
+<p>Even in this tiny example, the roles are clear:</p>
+<ul>
+<li>the channel defines how values move</li>
+<li>the task defines what work happens concurrently</li>
+<li>the main thread decides when to send, receive, and await completion</li>
+</ul>
+<p>That is the kind of clarity we want in larger programs too.</p>
+<p>For a longer-running pipeline, <code>close</code> is usually part of the design as well. One stage eventually needs to signal that no more values will be sent, so downstream stages know when to stop receiving.</p>
+</section>
+<section class="level2" data-number="29.14" id="designing-with-concurrency-in-mind">
+<h2 class="anchored" data-anchor-id="designing-with-concurrency-in-mind" data-number="29.14"> Designing with Concurrency in Mind</h2>
+<p>A few design habits help immediately.</p>
+<p><em>Prefer message passing to shared mutable state.</em> If two tasks need to coordinate, a channel is usually clearer than a shared object updated from both sides.</p>
+<p><em>Keep task boundaries meaningful.</em> Do not spawn tasks for tiny operations that would be simpler inline; concurrency has overhead, so use it where there is real independent work or waiting.</p>
+<p><em>Make waiting points explicit.</em> A call to <code>await</code>, <code>receive</code>, or <code>select</code> is a design decision that says where control may pause.</p>
+<p><em>Use timeouts at boundaries.</em> Background work, I/O-like coordination, and external services are common places where bounded waiting is healthier than waiting forever.</p>
+<p><em>Test concurrency in small pieces.</em> A small producer-consumer example is easier to trust than a large concurrent design written in one pass.</p>
+</section>
+<section class="level2" data-number="29.15" id="target-semantics">
+<h2 class="anchored" data-anchor-id="target-semantics" data-number="29.15"> Target Semantics</h2>
+<p>The Nex source syntax is the same across targets, but the implementation strategy differs.</p>
+<p>On the JVM:</p>
+<ul>
+<li><code>spawn</code> uses an executor-backed task runtime</li>
+<li><code>await</code> can block normally</li>
+<li>channels use blocking coordination underneath</li>
+</ul>
+<p>In generated JavaScript:</p>
+<ul>
+<li>tasks and channels are implemented with Promise-based semantics</li>
+<li>generated JavaScript lowers concurrency operations to <code>async</code> and <code>await</code></li>
+<li>the language-level meaning remains the same, even though JavaScript itself does not support ordinary blocking threads</li>
+</ul>
+<p>This is a useful example of a general Nex idea: keep the source model stable while allowing the runtime implementation to fit the host platform.</p>
+<p>What stays stable is the source-level meaning of the operations. Timing, scheduling, fairness, and timeout precision remain runtime concerns rather than guarantees of the language surface.</p>
+<p>For a fuller discussion of the semantics and implementation details, see the repository’s concurrency guide in <code>docs/md/CONCURRENCY.md</code>.</p>
+</section>
+<section class="level2" data-number="29.16" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="29.16"> Summary</h2>
+<ul>
+<li><code>spawn</code> starts explicit concurrent work and returns a <code>Task</code></li>
+<li><code>await</code> is the explicit point where a caller synchronises with a task</li>
+<li><code>Channel[T]</code> moves typed values between concurrent activities</li>
+<li>unbuffered channels rendezvous; buffered channels decouple producers and consumers</li>
+<li><code>try_send</code> and <code>try_receive</code> support non-blocking coordination</li>
+<li><code>await_any</code> and <code>await_all</code> coordinate groups of tasks</li>
+<li><code>select</code> chooses among ready task and channel operations</li>
+<li><code>else</code> means no waiting; <code>timeout</code> means bounded waiting</li>
+<li>Nex keeps the source model stable across JVM and JavaScript targets</li>
 </ul>
 </section>
-<section class="level2" data-number="30.6" id="logic-proof-and-program-correctness">
-<h2 class="anchored" data-anchor-id="logic-proof-and-program-correctness" data-number="30.6"> Logic, Proof, and Program Correctness</h2>
-<p>Contracts are closely related to a broader body of thought about proving programs correct.</p>
-<p>If that direction interests you, start with Hoare’s classic paper on axiomatic programming. It is short and foundational. Even if you do not go fully into formal verification, it clarifies the relation between assertions and program reasoning.</p>
-<p>Wirth’s <em>Programming in Oberon</em> is also worth your time for its style: restrained, exact, and close to the machine without losing sight of design.</p>
-</section>
-<section class="level2" data-number="30.7" id="beyond-the-language">
-<h2 class="anchored" data-anchor-id="beyond-the-language" data-number="30.7"> Beyond the Language</h2>
-<p>A good language can encourage good habits, but it cannot replace them. Keep building the habits directly:</p>
-<ul>
-<li>write the contract before the body when the routine matters</li>
-<li>give every class one clear responsibility</li>
-<li>separate pure logic from environmental code</li>
-<li>test boundaries and edge cases</li>
-<li>refactor when names or file boundaries become muddy</li>
-</ul>
-<p>These are language-independent skills. Nex is one place to practice them deliberately.</p>
-</section>
-<section class="level2" data-number="30.8" id="final-advice">
-<h2 class="anchored" data-anchor-id="final-advice" data-number="30.8"> Final Advice</h2>
-<p>Do not try to race through many advanced books at once. That usually produces a shelf of half-read ideas and very little working understanding.</p>
-<p>Pick one direction based on what most interested you here:</p>
-<ul>
-<li>contracts and software design</li>
-<li>program construction and pedagogy</li>
-<li>algorithms</li>
-<li>abstraction and language ideas</li>
-</ul>
-<p>Then write programs while you read. Passive reading creates the illusion of understanding. Working code reveals whether the understanding is real.</p>
-</section>
-<section class="level2" data-number="30.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="30.9"> Summary</h2>
-<ul>
-<li>Nex sits at the intersection of procedural clarity, object-oriented design, and formal reasoning</li>
-<li>Meyer’s books are the natural next step for Design by Contract</li>
-<li>HtDP, Think Python, and K&amp;R are models of instructional programming writing</li>
-<li>SICP deepens abstraction and program structure</li>
-<li>Sedgewick and CLRS deepen algorithms and data structures</li>
-<li>Hoare and Wirth connect program construction with correctness and precision</li>
-<li>The important next step is continued practice, not only more reading</li>
-</ul>
-</section>
-<section class="level2" data-number="30.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="30.10"> Exercises</h2>
-<p><strong>1.</strong> Choose one of the books named in this chapter and write a short paragraph on why it is the best next step for your current level and interests.</p>
-<p><strong>2.</strong> Revisit one program from earlier in the tutorial and identify which outside book would help you improve it most: a design book, an algorithms book, or a programming-methods book.</p>
-<p><strong>3.</strong> Pick one routine from Chapters 16 through 27 and restate it in Hoare-style language: what must be true before it runs, and what will be true after it runs?</p>
-<p><strong>4.</strong> Write a reading plan of three stages: one book for design, one for algorithms, and one for broader programming ideas.</p>
-<p><strong>5.*</strong> Build one small original project in Nex after finishing the tutorial. Before writing code, list the contracts, classes, files, and tests you expect it to need. Then compare that plan with the final result.</p>
+<section class="level2" data-number="29.17" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="29.17"> Exercises</h2>
+<p><strong>1.</strong> Write a task that computes the sum of the integers from <code>1</code> to <code>100</code>, returns the answer through <code>result</code>, and print it using <code>await</code>.</p>
+<p><strong>2.</strong> Create a buffered <code>Channel[String]</code> with capacity <code>3</code>. Send three words into it, print <code>size</code>, then receive and print the words in order.</p>
+<p><strong>3.</strong> Write two tasks that each send a message on a channel. Use <code>select</code> to receive whichever message becomes ready first.</p>
+<p><strong>4.</strong> Write a small example that uses <code>await_all</code> to collect three independent computations.</p>
+<p><strong>5.</strong> Extend the pipeline example so that it processes several values rather than one. Decide where <code>close</code> should happen and how the receiving side knows when to stop.</p>
+<p><strong>6.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
 </section>
 
   </div>
