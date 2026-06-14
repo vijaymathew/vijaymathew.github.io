@@ -305,7 +305,7 @@ nex&gt; double(5)
 10</code></pre>
 <p>An anonymous function is a value — it can be assigned to a variable, passed as an argument, or returned from another function. The syntax is the same as a named function, with <code>fn</code> replacing <code>function</code> and no name between <code>fn</code> and the parameter list.</p>
 <p>Anonymous functions are most useful when a function needs to be passed to another function as an argument. Suppose you wanted a function that applies any integer transformation twice:</p>
-<pre><code>nex&gt; function apply_twice(f: Function, n: Integer): Integer 
+<pre><code>nex&gt; function apply_twice(f: Function(n: Integer): Integer, n: Integer): Integer
      do
        result := f(f(n))
      end
@@ -314,6 +314,33 @@ nex&gt; apply_twice(fn (n: Integer): Integer do result := n + 3 end, 10)
 16</code></pre>
 <p>The anonymous function <code>fn (n: Integer): Integer do result := n + 3 end</code> adds 3 to its argument. <code>apply_twice</code> calls it twice, so <code>10</code> becomes <code>13</code> and then <code>16</code>.</p>
 <p>This style — passing functions as arguments — becomes more powerful as programs grow. We return to it in Chapter 7.</p>
+<section class="level3" id="function-type-signatures">
+<h3 class="anchored" data-anchor-id="function-type-signatures">Function type signatures</h3>
+<p>When a variable holds a function, the type annotation can spell out exactly which function shape it expects. Instead of just <code>Function</code>, you write <code>Function(param: Type, ...): ReturnType</code>:</p>
+<pre class="nex"><code>let double: Function(n: Integer): Integer :=
+  fn (n: Integer): Integer do result := n * 2 end</code></pre>
+<p>The parameter names in the annotation are optional. The positional form works too:</p>
+<pre class="nex"><code>let add: Function(Integer, Integer): Integer :=
+  fn (a, b: Integer): Integer do result := a + b end</code></pre>
+<p>A typed function value is compatible with any parameter that expects the same or a broader shape. A bare <code>Function</code> annotation accepts any function value; a typed annotation documents the expected contract.</p>
+</section>
+<section class="level3" id="naming-function-types-with-declare-type">
+<h3 class="anchored" data-anchor-id="naming-function-types-with-declare-type">Naming function types with <code>declare type</code></h3>
+<p>If the same function shape appears in several places, repeating the full annotation becomes noise. <code>declare type</code> gives a name to any type expression:</p>
+<pre class="nex"><code>declare type Transformer = Function(n: Integer): Integer</code></pre>
+<p>After this declaration, <code>Transformer</code> is an alias for <code>Function(n: Integer): Integer</code> and can be used anywhere a type is expected:</p>
+<pre class="nex"><code>let double: Transformer := fn (n: Integer): Integer do result := n * 2 end
+let square: Transformer := fn (n: Integer): Integer do result := n * n end
+
+function apply_twice(f: Transformer, n: Integer): Integer do
+  result := f(f(n))
+end</code></pre>
+<p><code>declare type</code> works for any type, not only function types:</p>
+<pre class="nex"><code>declare type IntList = Array[Integer]
+
+let scores: IntList := [10, 20, 30]</code></pre>
+<p>Type aliases are resolved at compile time — they add clarity without any runtime cost.</p>
+</section>
 </section>
 <section class="level2" data-number="7.8" id="when-to-write-a-function">
 <h2 class="anchored" data-anchor-id="when-to-write-a-function" data-number="7.8"> When to Write a Function</h2>
@@ -380,6 +407,8 @@ nex&gt; describe_temperature(body_temp_c)
 <li>The return value is assigned to the special variable <code>result</code>; the function returns whatever <code>result</code> holds when the body finishes</li>
 <li>A function with no <code>result</code> assignment returns the default value of its declared return type (e.g., <code>0</code> for <code>Integer</code>), or <code>nil</code> if no return type is specified</li>
 <li>Anonymous functions are defined with <code>fn</code> and can be assigned to variables or passed as arguments</li>
+<li>Function-typed variables can carry a full signature annotation: <code>let f: Function(n: Integer): Integer := ...</code></li>
+<li><code>declare type Name = TypeExpression</code> gives a compile-time alias to any type, most commonly used to name a function signature for reuse</li>
 <li>Write a function when a computation has a name, when it is used in more than one place, or when naming it makes the code that calls it clearer</li>
 <li>Functions calling other functions is natural and encouraged; decomposition is how manageable programs are built from simple pieces</li>
 </ul>
@@ -390,7 +419,7 @@ nex&gt; describe_temperature(body_temp_c)
 <p><strong>2.</strong> Define a function <code>is_leap_year(year: Integer): Boolean</code> that returns <code>true</code> if <code>year</code> is a leap year. A year is a leap year if it is divisible by 4, except that years divisible by 100 are not leap years, unless they are also divisible by 400. Test with 2000 (true), 1900 (false), 2024 (true), and 2023 (false).</p>
 <p><strong>3.</strong> Define a function <code>digit_sum(n: Integer): Integer</code> that returns the sum of the digits of a non-negative integer. For example, <code>digit_sum(123)</code> should return <code>6</code>. Hint: use <code>%</code> to extract the last digit and <code>/</code> to remove it, repeating until the number is zero.</p>
 <p><strong>4.</strong> Define two functions: <code>min3(a, b, c: Integer): Integer</code> that returns the smallest of three integers, and <code>max3(a, b, c: Integer): Integer</code> that returns the largest. Then define <code>range3(a, b, c: Integer): Integer</code> that returns <code>max3 - min3</code> for the same three values. Write <code>range3</code> by calling <code>min3</code> and <code>max3</code> rather than duplicating their logic.</p>
-<p><strong>5.*</strong> An anonymous function can be stored in a variable and called through that variable. Define a variable <code>transform</code> that holds an anonymous function from <code>Integer</code> to <code>Integer</code>. Assign it first to a doubling function, call it with several values, then reassign it to a squaring function and call it again with the same values. What does this demonstrate about functions as values?</p>
+<p><strong>5.*</strong> An anonymous function can be stored in a variable and called through that variable. Define a variable <code>transform</code> with the type annotation <code>Function(n: Integer): Integer</code> and assign it first to a doubling function, call it with several values, then reassign it to a squaring function and call it again with the same values. What does this demonstrate about functions as values?</p>
 </section>
 
   </div>
