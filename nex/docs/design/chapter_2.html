@@ -395,7 +395,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#the-parser-layer" id="toc-the-parser-layer" class="nav-link" data-scroll-target="#the-parser-layer"><span class="header-section-number">2.2</span> 2.2 The Parser Layer</a></li>
   <li><a href="#the-walker-from-grammar-trees-to-semantic-asts" id="toc-the-walker-from-grammar-trees-to-semantic-asts" class="nav-link" data-scroll-target="#the-walker-from-grammar-trees-to-semantic-asts"><span class="header-section-number">2.3</span> 2.3 The Walker: From Grammar Trees to Semantic ASTs</a></li>
   <li><a href="#the-ast-as-plain-data" id="toc-the-ast-as-plain-data" class="nav-link" data-scroll-target="#the-ast-as-plain-data"><span class="header-section-number">2.4</span> 2.4 The AST as Plain Data</a></li>
-  <li><a href="#the-program-node" id="toc-the-program-node" class="nav-link" data-scroll-target="#the-program-node"><span class="header-section-number">2.5</span> 2.5 The <code>:program</code> Node</a></li>
+  <li><a href="#the-program-node" id="toc-the-program-node" class="nav-link" data-scroll-target="#the-program-node"><span class="header-section-number">2.5</span> 2.5 The <code>:program</code> Node</a>
+  <ul class="collapse">
+  <li><a href="#declaration-forms" id="toc-declaration-forms" class="nav-link" data-scroll-target="#declaration-forms"><span class="header-section-number">2.5.1</span> Declaration Forms Beyond Classes and Functions</a></li>
+  </ul></li>
   <li><a href="#the-runtime-context" id="toc-the-runtime-context" class="nav-link" data-scroll-target="#the-runtime-context"><span class="header-section-number">2.6</span> 2.6 The Runtime Context</a>
   <ul class="collapse">
   <li><a href="#make-context" id="toc-make-context" class="nav-link" data-scroll-target="#make-context"><span class="header-section-number">2.6.1</span> <code>make-context</code></a></li>
@@ -454,7 +457,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>That path takes you from source text to executable meaning with very little indirection.</p>
 <section id="the-grammar" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="the-grammar"><span class="header-section-number">2.1</span> 2.1 The Grammar</h2>
-<p>The ANTLR grammar defines the concrete syntax of Nex — what strings of characters constitute valid programs. It covers class declarations, functions and anonymous functions, generic parameters, contracts, array and map and set literals, <code>intern</code> and <code>import</code>, <code>spawn</code> and <code>select</code>.</p>
+<p>The ANTLR grammar defines the concrete syntax of Nex — what strings of characters constitute valid programs. It covers class declarations (including <code>sealed</code> classes and <code>once</code> fields), functions and anonymous functions, type aliases and forward declarations (<code>declare type</code> / <code>declare function</code>), generic parameters, function types, contracts, array and map and set literals, <code>intern</code> and <code>import</code>, <code>spawn</code> and <code>select</code>.</p>
 <p>The grammar’s job is narrow on purpose: answer whether a given string is syntactically well-formed. It should not know whether a call is type-correct, whether an inheritance relation is legal, or whether a contract is meaningful. Those are later questions, and forcing them into the grammar would make it harder to evolve and harder to reason about. A grammar that tries to solve semantic problems is not a grammar any more — it is a grammar with hidden semantics scattered through it.</p>
 <p>For a contributor, the practical consequence is simple: when a feature change is really a syntax change, start in the grammar. If it is not a syntax change, do not force it there.</p>
 </section>
@@ -515,12 +518,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>imports</li>
 <li>interns</li>
+<li>type aliases</li>
 <li>classes</li>
 <li>functions</li>
 <li>statements</li>
 <li>calls</li>
 </ul>
 <p>This structure encodes an important distinction: declarations and executable statements are separated, not interleaved. That separation drives both typechecking order and interpretation order. Classes can reference each other regardless of source position; top-level statements execute after the static world is fully loaded. The <code>:program</code> shape is what makes both of those properties straightforward to implement.</p>
+<section id="declaration-forms" class="level3" data-number="2.5.1">
+<h3 data-number="2.5.1" class="anchored" data-anchor-id="declaration-forms"><span class="header-section-number">2.5.1</span> 2.5.1 Declaration Forms Beyond Classes and Functions</h3>
+<p>Four declaration forms shape the static world without producing executable statements. Each is recognised by its own grammar production and turned into a distinct AST node, so the rest of the front end can treat it uniformly.</p>
+<p><strong>Type aliases.</strong> <code>declare type Name = T</code> binds a name to any type expression — a generic instantiation, a function type, or another alias. The production <code>declareTypeDecl : DECLARE TYPE_KW IDENTIFIER EQUAL type</code> produces a <code>:type-alias</code> node <code>{:type :type-alias, :name "Name", :type-expr T}</code>, which the walker gathers into the program's <code>:type-aliases</code> bucket. Aliases are purely a checking-time convenience: they carry no runtime representation and are gone before any backend runs (see Section 3.2).</p>
+<pre class="nex"><code>declare type Transformer = Function(n: Integer): Integer
+declare type Matrix      = Array[Array[Real]]</code></pre>
+<p><strong>Forward function declarations.</strong> <code>declare function f(...): T</code> introduces a function's signature ahead of its definition, so mutually recursive top-level functions can reference one another regardless of source order. It shares the function grammar but produces a function node carrying <code>:declaration-only? true</code> and no body. The typechecker registers the signature; every backend filters declaration-only nodes out before code generation, since they describe a promise rather than code.</p>
+<p><strong>Sealed classes.</strong> The <code>SEALED?</code> prefix on a class declaration sets <code>:sealed?</code> on the <code>:class</code> node, alongside the existing <code>:deferred?</code> flag. A sealed class closes its hierarchy: only classes declared with it may inherit from it, which lets the typechecker know the complete set of variants and verify that a <code>match</code> handles them all. The grammar accepts the two prefixes independently, but the typechecker requires a sealed class to also be deferred (Section 3.2): if a sealed class could be instantiated, a bare instance of the parent would be a runtime value that an exhaustive match over its subclasses does not cover, quietly defeating the guarantee. A sealed class therefore has no instantiation path of its own.</p>
+<p><strong>Once fields.</strong> The <code>ONCE?</code> prefix on a field declaration sets <code>:once?</code> on the <code>:field</code> node. A once field may be assigned inside a constructor but never afterwards — an immutable-after-construction slot whose value can still be computed rather than constant. Structurally it is an ordinary field; the restriction is a rule the checker and interpreter enforce, not a different shape (see Sections 3.2 and 5.7).</p>
+</section>
 </section>
 <section id="the-runtime-context" class="level2" data-number="2.6">
 <h2 data-number="2.6" class="anchored" data-anchor-id="the-runtime-context"><span class="header-section-number">2.6</span> 2.6 The Runtime Context</h2>

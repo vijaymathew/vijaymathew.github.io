@@ -408,6 +408,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#super" id="toc-super" class="nav-link" data-scroll-target="#super"><span class="header-section-number">5.7.5</span> <code>super</code></a></li>
   <li><a href="#deferred-classes" id="toc-deferred-classes" class="nav-link" data-scroll-target="#deferred-classes"><span class="header-section-number">5.7.6</span> Deferred Classes</a></li>
   <li><a href="#invariants" id="toc-invariants" class="nav-link" data-scroll-target="#invariants"><span class="header-section-number">5.7.7</span> Invariants</a></li>
+  <li><a href="#once-fields" id="toc-once-fields" class="nav-link" data-scroll-target="#once-fields"><span class="header-section-number">5.7.8</span> Once Fields</a></li>
   </ul></li>
   <li><a href="#contracts-and-exceptions" id="toc-contracts-and-exceptions" class="nav-link" data-scroll-target="#contracts-and-exceptions"><span class="header-section-number">5.8</span> 5.8 Contracts and Exceptions</a>
   <ul class="collapse">
@@ -515,6 +516,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="typecheck" class="level3" data-number="5.2.2">
 <h3 data-number="5.2.2" class="anchored" data-anchor-id="typecheck"><span class="header-section-number">5.2.2</span> Typecheck</h3>
 <p>Typechecking still belongs to the shared typechecker, not to the JVM backend. This matters because the compiler is not the owner of the language semantics; it is a consumer of the typed AST.</p>
+<p>This stage also erases the declarations that exist only to help checking. Type aliases have already been expanded to the concrete types they name, and forward (<code>declaration-only</code>) function nodes are filtered out. The lowering stage therefore never encounters an alias or a bodyless function; it sees only concrete types and real code.</p>
 </section>
 <section id="lowering" class="level3" data-number="5.2.3">
 <h3 data-number="5.2.3" class="anchored" data-anchor-id="lowering"><span class="header-section-number">5.2.3</span> Lowering</h3>
@@ -760,10 +762,15 @@ ul.task-list li input[type="checkbox"] {
 <section id="deferred-classes" class="level3" data-number="5.7.6">
 <h3 data-number="5.7.6" class="anchored" data-anchor-id="deferred-classes"><span class="header-section-number">5.7.6</span> Deferred Classes</h3>
 <p>Deferred classes are compiled as abstract JVM classes where appropriate, but the important semantic layer remains the Nex class model and parent metadata, not raw JVM inheritance.</p>
+<p>A <code>sealed</code> class is always deferred (the typechecker requires it, Section 3.2), so it compiles as an abstract class exactly as above. Sealing closes the hierarchy so the typechecker can verify exhaustive <code>match</code> coverage, but it carries no distinct code-generation consequence: nothing in the generated class marks it as sealed.</p>
 </section>
 <section id="invariants" class="level3" data-number="5.7.7">
 <h3 data-number="5.7.7" class="anchored" data-anchor-id="invariants"><span class="header-section-number">5.7.7</span> Invariants</h3>
 <p>Class invariants are enforced on the compiled path through runtime validation hooks. The backend does not pretend invariants are optional because code is compiled.</p>
+</section>
+<section id="once-fields" class="level3" data-number="5.7.8">
+<h3 data-number="5.7.8" class="anchored" data-anchor-id="once-fields"><span class="header-section-number">5.7.8</span> Once Fields</h3>
+<p>A <code>once</code> field emits exactly like an ordinary instance field. There is no special slot, lazy thunk, or guard word in the generated class. Its single-assignment property is established entirely before the backend runs: the typechecker rejects any assignment outside a constructor, and the interpreter enforces the same rule on its path. By the time code is generated, every surviving write to a once field is a normal field store inside a constructor, so it lowers as exactly that. This is why Appendix A lists no separate pattern for once fields — they are field writes (Section A.7.2) that the front end has already proven occur only during construction.</p>
 </section>
 </section>
 <section id="contracts-and-exceptions" class="level2" data-number="5.8">
