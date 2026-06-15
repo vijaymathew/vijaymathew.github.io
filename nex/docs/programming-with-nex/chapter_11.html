@@ -396,8 +396,67 @@ nex&gt; when convert expenses.get("children") to children: Array[Map[String, Any
 3150</code></pre>
 <p>The function is concise because the recursive structure of the data and the recursive structure of the function align perfectly. Each node’s total is its own amount plus the sum of its children’s totals — and that is exactly what the function computes.</p>
 </section>
-<section class="level2" data-number="12.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="12.10"> Summary</h2>
+<section class="level2" data-number="12.10" id="iterating-your-own-types">
+<h2 class="anchored" data-anchor-id="iterating-your-own-types" data-number="12.10"> Iterating Over Your Own Types</h2>
+<p>So far <code>across</code> has iterated over built-in collections — arrays, maps, and the nested structures built from them. But <code>across</code> is not limited to built-in types. It works with <em>any</em> object that knows how to produce a <em>cursor</em>: a small helper that visits the elements one at a time. By giving a class a <code>cursor</code> method you make your own composite type iterable, so client code can loop over it with the same <code>across</code> it uses for an array.</p>
+<p>A cursor is an object that implements four features — the <code>Cursor</code> protocol:</p>
+<ul>
+<li><code>start</code> — position the cursor at the first element</li>
+<li><code>item</code> — return the element at the current position</li>
+<li><code>next</code> — advance to the following element</li>
+<li><code>at_end</code> — report whether the traversal is finished</li>
+</ul>
+<p>When you write <code>across some_object as x do … end</code>, Nex calls <code>some_object.cursor</code> to obtain a cursor, then drives that cursor: it calls <code>start</code> once, and repeats <code>item</code> / <code>next</code> until <code>at_end</code> becomes true. The built-in collections work exactly this way — an array hands back an <code>ArrayCursor</code>, a map a <code>MapCursor</code> — which is why one loop form works uniformly across all of them.</p>
+<p>Consider an <code>Interval</code> — an inclusive range of integers — that does not store its values in an array at all, but generates them on demand. First the cursor that walks the range:</p>
+<pre><code>nex&gt; class Interval_Cursor
+       create
+         make(lo, hi: Integer) do current := lo  last := hi end
+       feature
+         current: Integer
+         last: Integer
+         start()           do end
+         item(): Integer   do result := current end
+         next()            do current := current + 1 end
+         at_end(): Boolean do result := current &gt; last end
+     end</code></pre>
+<p>The cursor holds its own position in <code>current</code>. It starts already on the first element, so <code>start</code> has nothing to do; <code>item</code> reads the current value; <code>next</code> moves forward; and <code>at_end</code> is true once it has stepped past <code>last</code>. Now the <code>Interval</code> itself, whose only job is to hand out a fresh cursor:</p>
+<pre><code>nex&gt; class Interval
+       create
+         make(lo, hi: Integer)
+           require ordered: lo &lt;= hi
+           do low := lo  high := hi end
+       feature
+         low: Integer
+         high: Integer
+         cursor(): Interval_Cursor
+           do result := create Interval_Cursor.make(low, high) end
+     end</code></pre>
+<p>That is all it takes. An <code>Interval</code> is now a first-class iterable:</p>
+<pre><code>nex&gt; let week := create Interval.make(1, 7)
+nex&gt; across week as day do
+       print(day)
+     end
+1
+2
+3
+4
+5
+6
+7</code></pre>
+<p>Each <code>cursor</code> call returns a new, independent cursor, so the same <code>Interval</code> can be iterated more than once, and even nested inside another loop over itself, without the traversals interfering.</p>
+<p>One detail carries over from <a href="#the-convert-expression">Section 11.2</a>. Because a user-defined cursor can yield elements of any type, the loop variable for a custom iterable comes through as <code>Any</code>. When you only print it, that is fine — <code>print</code> and <code>to_string</code> accept <code>Any</code>. But to use it as a number you narrow it with <code>convert</code>, exactly as you would a value pulled from a map of <code>Any</code>:</p>
+<pre><code>nex&gt; let total := 0
+nex&gt; across (create Interval.make(1, 100)) as n do
+       if convert n to value: Integer then
+          total := total + value
+       end
+     end
+nex&gt; total
+5050</code></pre>
+<p>The lesson generalises beyond ranges. Any class that models a collection — a ring buffer, a linked list, a tree with a chosen traversal order — becomes usable with <code>across</code> the moment it can produce a cursor. The iteration protocol is the seam: clients write one familiar loop, while each type decides privately how its elements are stored and produced.</p>
+</section>
+<section class="level2" data-number="12.11" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="12.11"> Summary</h2>
 <ul>
 <li>Arrays of maps model sequences of records; each element is a map of named fields</li>
 <li>Maps of arrays model grouped data; each value is a list of items under a key</li>
@@ -407,15 +466,18 @@ nex&gt; when convert expenses.get("children") to children: Array[Map[String, Any
 <li>Trees are represented as maps with a children field containing an array of child nodes</li>
 <li>Tree traversal and search are naturally recursive: process the current node, recurse on each child; the base case is an empty children array</li>
 <li>Detachable return types (<code>?Type</code>) are the right way to signal “not found” from a search function</li>
+<li>Any class becomes usable with <code>across</code> by giving it a <code>cursor</code> method that returns an object implementing the <code>Cursor</code> protocol — <code>start</code>, <code>item</code>, <code>next</code>, <code>at_end</code> — which is how the built-in collections work too; narrow the <code>Any</code> loop variable with <code>convert</code> when you need its concrete type</li>
 </ul>
 </section>
-<section class="level2" data-number="12.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="12.11"> Exercises</h2>
+<section class="level2" data-number="12.12" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="12.12"> Exercises</h2>
 <p><strong>1.</strong> Given the <code>books</code> array from Section 11.1, write a function <code>books_by_author(books: Array[Map[String, Any]], author: String): Array[Map[String, Any]]</code> that returns a new array containing only the books by the given author. Test it by finding all books by a specific author in a list that includes duplicates.</p>
 <p><strong>2.</strong> Write a function <code>invert_index(books: Array[Map[String, Any]]): Map[String, Array[String]]</code> that takes the books array and returns a map from each author to an array of their book titles. For example, if Herbert wrote two books, <code>result.get("Frank Herbert")</code> should return an array of both titles.</p>
 <p><strong>3.</strong> Using the filesystem tree from Section 11.6, write a function <code>count_files(node: Map[String, Any]): Integer</code> that recursively counts the total number of file nodes (nodes whose <code>"type"</code> is <code>"file"</code>). Verify that <code>count_files(filesystem)</code> returns 3.</p>
 <p><strong>4.</strong> Write a function <code>tree_depth(node: Map[String, Any]): Integer</code> that returns the maximum depth of the tree rooted at <code>node</code>. A leaf node (empty children) has depth 0. A node with children has depth equal to 1 plus the maximum depth of its children. Test it on the filesystem tree (expected depth: 2) and a single-node tree (expected depth: 0).</p>
 <p><strong>5.*</strong> Write a function <code>flatten(node: Map[String, Any]): Array[String]</code> that returns an array of the names of all nodes in the tree in depth-first order — that is, a node appears before its children, and children are listed in order. For the filesystem tree the result should be <code>["root", "documents", "report.txt", "notes.txt", "pictures", "photo.jpg"]</code>. Then write a second function <code>flatten_leaves(node: Map[String, Any]): Array[String]</code> that returns only the leaf nodes (files). Use <code>flatten</code> or the same recursive pattern as a starting point.</p>
+<p><strong>6.</strong> Following the <code>Interval</code> example from Section 11.10, write a class <code>Countdown</code> whose constructor takes a positive integer <code>n</code> and that, when iterated with <code>across</code>, yields <code>n, n-1, …, 1</code>. Give it a cursor implementing <code>start</code>, <code>item</code>, <code>next</code>, and <code>at_end</code>, and a <code>cursor</code> method that returns a fresh one. Verify that <code>across (create Countdown.make(5)) as k do print(k) end</code> prints 5 down to 1, and that iterating the same object twice produces the full sequence both times.</p>
+<p><strong>7.*</strong> Make the <code>Stack[T]</code> class from the standard library example iterable from top to bottom by adding a <code>cursor</code> method, without exposing its underlying array. Then write a loop that uses <code>convert</code> to total the elements of a <code>Stack[Integer]</code>, and explain why the loop variable arrives as <code>Any</code>.</p>
 </section>
 
   </div>
