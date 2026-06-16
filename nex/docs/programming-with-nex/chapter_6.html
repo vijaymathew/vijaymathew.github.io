@@ -323,6 +323,14 @@ nex&gt; apply_twice(fn (n: Integer): Integer do result := n + 3 end, 10)
 <pre class="nex"><code>let add: Function(Integer, Integer): Integer :=
   fn (a, b: Integer): Integer do result := a + b end</code></pre>
 <p>A typed function value is compatible with any parameter that expects the same or a broader shape. A bare <code>Function</code> annotation accepts any function value; a typed annotation documents the expected contract.</p>
+<p>What counts as a &ldquo;broader shape&rdquo; follows a precise rule, and it is worth knowing because it runs opposite to first intuition. A function value fits a slot when it <strong>accepts at least</strong> the arguments the slot will pass and <strong>returns at most</strong> what the slot promises. So its parameter types may be <em>more general</em> than the slot&rsquo;s, and its return type <em>more specific</em>. In the usual jargon, parameters are <em>contravariant</em> and the return type is <em>covariant</em>.</p>
+<p>Concretely, suppose <code>Dog</code> inherits <code>Animal</code>. A value of type <code>Function(a: Animal): String</code> may be stored where a <code>Function(a: Dog): String</code> is expected &mdash; a function that handles any animal certainly handles a dog:</p>
+<pre class="nex"><code>let any_animal: Function(a: Animal): String :=
+  fn (a: Animal): String do result := a.name end
+
+-- OK: a handler for any Animal can fill a Dog-handler slot
+let dog_handler: Function(d: Dog): String := any_animal</code></pre>
+<p>The reverse is rejected: a dog-only function cannot stand in where any animal might be passed, because it could then be handed a value it was not written to accept. This is the same rule that governs overriding a method in a subclass (Chapter 14): an override may widen a parameter and narrow a return, never the reverse.</p>
 </section>
 <section class="level3" id="naming-function-types-with-declare-type">
 <h3 class="anchored" data-anchor-id="naming-function-types-with-declare-type">Naming function types with <code>declare type</code></h3>
