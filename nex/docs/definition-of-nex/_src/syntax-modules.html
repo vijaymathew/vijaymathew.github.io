@@ -1,0 +1,226 @@
+<p class="opener-lede">A Nex program is more than a block of statements. It is a collection of
+classes&mdash;each bundling data, behaviour, and the contracts that govern
+them&mdash;together with free functions, module links, and the top-level
+statements that set the whole in motion. This chapter gives the grammar of that
+larger structure.</p>
+
+<h2><span class="secno">3.1</span>Programs and Compilation Units</h2>
+
+<p>A program is a sequence of top-level items: import and intern declarations,
+class declarations, function declarations and definitions, type declarations,
+and statements.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">program</td><td class="op">::=</td><td><span class="nt">topitem</span><sup>*</sup></td></tr>
+<tr><td class="nt">topitem</td><td class="op">::=</td><td><span class="nt">import</span> <span class="op">|</span> <span class="nt">intern</span></td><td class="cmt">&mdash; module links</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">classdec</span></td><td class="cmt">&mdash; class declaration</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">fundec</span> <span class="op">|</span> <span class="nt">funsig</span></td><td class="cmt">&mdash; function definition / declaration</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">tydec</span></td><td class="cmt">&mdash; type alias</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">stmt</span></td><td class="cmt">&mdash; top-level statement</td></tr>
+</table>
+</div>
+
+<p>Although the items may be written in any order, they do not all take effect
+at once. The grammar&rsquo;s order is not the order of execution: the
+<em>declarations</em>&mdash;classes, functions, and type aliases&mdash;constitute
+the <em>static world</em> of the program and are elaborated first, as a whole,
+so that they may refer to one another regardless of textual position; the
+top-level <em>statements</em> constitute the <em>dynamic world</em> and are
+executed afterwards, in source order, against the static world so established.
+This separation is made precise in Chapter&nbsp;7.</p>
+
+<h2><span class="secno">3.2</span>Class Declarations</h2>
+
+<p>A class declaration introduces a class: a named family of objects sharing a
+set of features and obeying a set of invariants.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">classdec</td><td class="op">::=</td><td>&langle;<span class="lit">sealed</span>&rangle; &langle;<span class="lit">deferred</span>&rangle; <span class="lit">class</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle;</td></tr>
+<tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">note</span>&rangle; &langle;<span class="nt">inherit</span>&rangle;</td></tr>
+<tr><td></td><td></td><td>&nbsp;&nbsp;<span class="nt">classbody</span></td></tr>
+<tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">invariant</span>&rangle; <span class="lit">end</span></td></tr>
+<tr><td class="nt">inherit</td><td class="op">::=</td><td><span class="lit">inherit</span> <span class="nt">parent</span> (<span class="lit">,</span> <span class="nt">parent</span>)<sup>*</sup></td></tr>
+<tr><td class="nt">parent</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="nt">tyargs</span>&rangle;</td></tr>
+<tr><td class="nt">classbody</td><td class="op">::=</td><td>(<span class="nt">featuresec</span> <span class="op">|</span> <span class="nt">createsec</span>)<sup>*</sup></td></tr>
+<tr><td class="nt">invariant</td><td class="op">::=</td><td><span class="lit">invariant</span> <span class="nt">assertion</span><sup>+</sup></td></tr>
+<tr><td class="nt">note</td><td class="op">::=</td><td><span class="lit">note</span> <span class="nt">string</span></td></tr>
+</table>
+</div>
+
+<p>The two modifiers control instantiation and extension. A
+<code>deferred</code> class may not be instantiated; it serves as an interface
+or partial implementation, to be completed by its heirs. A <code>sealed</code>
+class closes its hierarchy: only classes declared in the same program may
+inherit from it, and so the complete set of its descendants is known statically.
+A sealed class must also be deferred (Section&nbsp;4.9), which is why the two
+modifiers so often appear together.</p>
+
+<h3><span class="secno">3.2.1</span>Generic Parameters</h3>
+
+<p>A class or routine may be parameterised by one or more type variables, given
+in square brackets after the name. A parameter may carry a single constraint,
+written with <code>-&gt;</code>, naming a class that any actual type argument must
+conform to; and it may be marked with a leading <code>?</code> to admit
+<code>nil</code> as an argument.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">gen</td><td class="op">::=</td><td><span class="lit">[</span> <span class="nt">genparam</span> (<span class="lit">,</span> <span class="nt">genparam</span>)<sup>*</sup> <span class="lit">]</span></td></tr>
+<tr><td class="nt">genparam</td><td class="op">::=</td><td>&langle;<span class="lit">?</span>&rangle; <span class="nt">id</span> &langle;<span class="lit">-&gt;</span> <span class="nt">id</span>&rangle;</td><td class="cmt">&mdash; name, optional constraint</td></tr>
+<tr><td class="nt">tyargs</td><td class="op">::=</td><td><span class="lit">[</span> <span class="nt">ty</span> (<span class="lit">,</span> <span class="nt">ty</span>)<sup>*</sup> <span class="lit">]</span></td></tr>
+</table>
+</div>
+
+<p>Generics are ordinary types, not a notational convenience layered over an
+untyped core; their elaboration is given in Section&nbsp;4.7.</p>
+
+<h2><span class="secno">3.3</span>Features</h2>
+
+<p>The body of a class is a sequence of <em>feature sections</em> and
+<em>creation sections</em>. A feature section introduces fields and routines; it
+may be marked <code>private</code>, in which case its members are accessible
+only from within the class.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">featuresec</td><td class="op">::=</td><td>&langle;<span class="lit">private</span>&rangle; <span class="lit">feature</span> <span class="nt">member</span><sup>+</sup></td></tr>
+<tr><td class="nt">member</td><td class="op">::=</td><td><span class="nt">field</span> <span class="op">|</span> <span class="nt">method</span></td></tr>
+<tr><td class="nt">field</td><td class="op">::=</td><td>&langle;<span class="lit">once</span>&rangle; <span class="nt">id</span> <span class="lit">:</span> <span class="nt">ty</span> &langle;<span class="lit">:=</span> <span class="nt">exp</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">:=</span> <span class="nt">exp</span> &langle;<span class="nt">note</span>&rangle;</td><td class="cmt">&mdash; field with inferred type</td></tr>
+</table>
+</div>
+
+<p>A field declares an attribute of every instance. Its initialiser, if present,
+gives the value the field holds in a freshly created object before any
+constructor runs. A field marked <code>once</code> may be assigned within a
+constructor but never afterwards; an attempt to assign it elsewhere is rejected
+statically (Section&nbsp;4.4).</p>
+
+<h2><span class="secno">3.4</span>Routines and Contracts</h2>
+
+<p>A <em>routine</em> is a method, a constructor, or a free function. All three
+share one anatomy: an optional parameter list, an optional return type, an
+optional precondition, a body, an optional postcondition, and an optional rescue
+clause.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">method</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span>&rangle; &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
+<tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">require</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="nt">ensure</span>&rangle; &langle;<span class="nt">rescue</span>&rangle; <span class="lit">end</span></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle; &langle;<span class="lit">deferred</span>&rangle;</td><td class="cmt">&mdash; deferred signature</td></tr>
+<tr><td class="nt">createsec</td><td class="op">::=</td><td><span class="lit">create</span> <span class="nt">constructor</span><sup>+</sup></td></tr>
+<tr><td class="nt">constructor</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span>&rangle; &langle;<span class="nt">require</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="nt">ensure</span>&rangle; &langle;<span class="nt">rescue</span>&rangle; <span class="lit">end</span></td></tr>
+<tr><td class="nt">fundec</td><td class="op">::=</td><td><span class="lit">function</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle; <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
+<tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">require</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="nt">ensure</span>&rangle; &langle;<span class="nt">rescue</span>&rangle; <span class="lit">end</span></td></tr>
+<tr><td class="nt">funsig</td><td class="op">::=</td><td><span class="lit">declare</span> <span class="lit">function</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle; <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
+<tr><td class="nt">params</td><td class="op">::=</td><td><span class="nt">param</span> (<span class="lit">,</span> <span class="nt">param</span>)<sup>*</sup></td></tr>
+<tr><td class="nt">param</td><td class="op">::=</td><td><span class="nt">id</span> (<span class="lit">,</span> <span class="nt">id</span>)<sup>*</sup> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle;</td><td class="cmt">&mdash; several names may share one type</td></tr>
+<tr><td class="nt">require</td><td class="op">::=</td><td><span class="lit">require</span> <span class="nt">assertion</span><sup>+</sup></td></tr>
+<tr><td class="nt">ensure</td><td class="op">::=</td><td><span class="lit">ensure</span> <span class="nt">assertion</span><sup>+</sup></td></tr>
+<tr><td class="nt">rescue</td><td class="op">::=</td><td><span class="lit">rescue</span> <span class="nt">block</span></td></tr>
+<tr><td class="nt">assertion</td><td class="op">::=</td><td><span class="nt">id</span> <span class="lit">:</span> <span class="nt">exp</span></td><td class="cmt">&mdash; a named boolean condition</td></tr>
+</table>
+</div>
+
+<p>An <strong>assertion</strong> is a named boolean expression. The name has no
+effect on meaning; it is the label by which a violation is reported. A
+<code>require</code> clause states a <em>precondition</em>&mdash;an obligation on
+the caller, checked on entry. An <code>ensure</code> clause states a
+<em>postcondition</em>&mdash;a guarantee to the caller, checked on exit. A class
+<code>invariant</code> states a condition every instance must satisfy whenever it
+is observable from outside (Section&nbsp;5.6). Together these are Nex&rsquo;s
+realisation of Design by Contract.</p>
+
+<p>Within a postcondition, the form <code>old e</code> denotes the value that the
+field <code>e</code> held when the routine was entered, allowing a guarantee to
+relate the final state to the initial one, as in
+<code>money = old money - amount</code>. A routine that declares a return type
+delivers its result through the cell <code>result</code>, whose value when the
+body finishes is the value of the call.</p>
+
+<div class="note">
+  <span class="note-label">A deferred routine has no body</span>
+  The second form of <code>method</code> above&mdash;a signature followed by
+  <code>deferred</code> and no <code>do</code>&hellip;<code>end</code>&mdash;declares
+  a routine whose implementation is supplied by heirs. It may appear only in a
+  deferred class. The <code>declare function</code> form plays the analogous role
+  for free functions: it announces a signature whose definition follows later,
+  which is how mutually recursive functions are written (Section&nbsp;3.6).
+</div>
+
+<h2><span class="secno">3.5</span>Type Expressions</h2>
+
+<p>A type expression denotes a type. The built-in scalar types and
+<code>Function</code> are reserved names; a class name, possibly applied to type
+arguments, denotes the corresponding class type; a leading <code>?</code> forms
+the <em>optional</em> type that additionally admits <code>nil</code>.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">ty</td><td class="op">::=</td><td><span class="lit">Integer</span> <span class="op">|</span> <span class="lit">Integer64</span> <span class="op">|</span> <span class="lit">Real</span> <span class="op">|</span> <span class="lit">Decimal</span></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">Char</span> <span class="op">|</span> <span class="lit">Boolean</span> <span class="op">|</span> <span class="lit">String</span></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span> &langle;<span class="nt">tyargs</span>&rangle;</td><td class="cmt">&mdash; class type, possibly generic</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">?</span> <span class="nt">ty</span></td><td class="cmt">&mdash; optional (nilable) type</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">funty</span></td><td class="cmt">&mdash; function type</td></tr>
+<tr><td class="nt">funty</td><td class="op">::=</td><td><span class="lit">Function</span> &langle;<span class="lit">(</span> &langle;<span class="nt">funtyparams</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle;&rangle;</td></tr>
+<tr><td class="nt">funtyparams</td><td class="op">::=</td><td><span class="nt">funtyparam</span> (<span class="lit">,</span> <span class="nt">funtyparam</span>)<sup>*</sup></td></tr>
+<tr><td class="nt">funtyparam</td><td class="op">::=</td><td><span class="nt">id</span> <span class="lit">:</span> <span class="nt">ty</span> <span class="op">|</span> <span class="nt">ty</span></td><td class="cmt">&mdash; named or positional</td></tr>
+<tr><td class="nt">tydec</td><td class="op">::=</td><td><span class="lit">declare</span> <span class="lit">type</span> <span class="nt">id</span> <span class="lit">=</span> <span class="nt">ty</span></td><td class="cmt">&mdash; type alias</td></tr>
+</table>
+</div>
+
+<p>The bare type <code>Function</code>, written without a signature, is the
+unconstrained function type, compatible with any function value. A
+<code>declare type</code> declaration binds a name to a type expression; the name
+is thereafter interchangeable with that expression. Type aliases are most often
+used to name a function signature, but any type may be aliased, as in
+<code>declare type Matrix = Array[Array[Real]]</code>.</p>
+
+<h2><span class="secno">3.6</span>Modules</h2>
+
+<p>Nex keeps its core grammar small and pushes growth into libraries. Two
+declarations connect a program to code outside it.</p>
+
+<p>An <strong>intern</strong> declaration loads another Nex source unit,
+identified by a slash-separated path, optionally renaming it with
+<code>as</code>. The named unit&rsquo;s declarations become available to the
+current program. An <strong>import</strong> declaration brings in a class from
+the host platform&mdash;the Java virtual machine or the JavaScript
+runtime&mdash;named by a dotted path and an optional source string.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">intern</td><td class="op">::=</td><td><span class="lit">intern</span> <span class="nt">id</span> (<span class="lit">/</span> <span class="nt">id</span>)<sup>*</sup> &langle;<span class="lit">as</span> <span class="nt">id</span>&rangle;</td></tr>
+<tr><td class="nt">import</td><td class="op">::=</td><td><span class="lit">import</span> <span class="nt">id</span> (<span class="lit">.</span> <span class="nt">id</span>)<sup>*</sup> &langle;<span class="lit">from</span> <span class="nt">string</span>&rangle;</td></tr>
+</table>
+</div>
+
+<p>The <code>intern</code> mechanism is what allows the vocabulary of Nex to grow
+without the grammar growing: new operations and conveniences live in library
+units loaded by <code>intern</code>, not in new keywords. The meaning of these
+declarations&mdash;which is, in essence, the elaboration of the named unit in the
+current environment&mdash;is given in Chapter&nbsp;7.</p>
+
+<h2><span class="secno">3.7</span>Syntactic Restrictions</h2>
+
+<ul>
+  <li>A <code>sealed</code> class must also be <code>deferred</code>
+  (Section&nbsp;4.9 explains why this is required rather than merely advised).</li>
+  <li>A field declared <code>once</code> must give an explicit type; the
+  inferred-type form of <code>field</code> may not be marked <code>once</code>.</li>
+  <li>A deferred routine signature, and the <code>declare function</code> form,
+  may not carry <code>require</code>, <code>ensure</code>, or a body.</li>
+  <li>A class may not inherit from itself, directly or through a cycle of
+  parents; the inheritance relation must be a partial order (Section&nbsp;4.5).</li>
+  <li>The body of a constructor named in a <code>create</code> section may assign
+  the <code>once</code> fields of its class; no other routine may.</li>
+  <li>A later <code>function</code> definition must match its earlier
+  <code>declare function</code> signature exactly in name, generic parameters,
+  parameter types, and return type.</li>
+  <li>Free function names are intended to be unique: a free function, unlike a
+  method, may not be overloaded by arity. (The current implementation does not
+  enforce this; a repeated name silently supersedes the earlier definition. See
+  the note on enforcement gaps in Section&nbsp;4.9.)</li>
+</ul>

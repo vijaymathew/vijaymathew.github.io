@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynamic Semantics — The Definition of Nex</title>
+<meta name="description" content="Values, objects, evaluation of expressions and statements, and contract checking.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']],
+    macros: {
+      llbracket: ["[\\mkern-3mu[", 0],
+      rrbracket: ["]\\mkern-3mu]", 0]
+    }
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">The Definition of Nex</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="syntax-core.html">Core</a><a href="static.html">Static</a><a href="dynamic.html" class="active">Dynamic</a><a href="appendix-grammar.html">Grammar</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 5</span>
+<h1 class="opener-title">Dynamic Semantics</h1>
+</div>
+<article class="prose">
+<p class="opener-lede">The dynamic semantics describes what a statically valid program does when it is
+evaluated. Its judgements relate a phrase, against a background of bindings and a
+store, to the value it produces and the store it leaves behind. Where the static
+semantics abstracted away from values and kept only their types, here the types
+fall away and the values themselves take the stage.</p>
+
+<h2><span class="secno">5.1</span>Values and Objects</h2>
+
+<p>A <em>value</em> is what an expression evaluates to. The values of Nex are:</p>
+
+<ul>
+  <li><strong>scalars</strong>&mdash;integers, reals, decimals, characters,
+  booleans, and strings&mdash;each an immutable value of the corresponding
+  scalar class;</li>
+  <li><strong>the null reference</strong> <code>nil</code>;</li>
+  <li><strong>object references</strong>, written \(\ell\): pointers into the
+  store at which mutable objects&mdash;instances of user classes, arrays, maps,
+  sets, tasks, and channels&mdash;reside;</li>
+  <li><strong>closures</strong>, the values of anonymous and named functions,
+  pairing a parameter list and body with the bindings of definition.</li>
+</ul>
+
+<p>An <em>object</em> is a mutable record held in the store. It carries its
+<em>class</em>&mdash;needed for dynamic dispatch, for <code>match</code>, and for
+<code>convert</code>&mdash;and a map from field names to values. Scalars and
+<code>nil</code> are not objects and are not stored; two scalar values are
+identical exactly when they are equal, which is why <code>==</code> and
+<code>=</code> coincide on them (Section&nbsp;5.4).</p>
+
+<h2><span class="secno">5.2</span>The Dynamic Environment</h2>
+
+<p>Evaluation takes place against a dynamic environment consisting of</p>
+
+<ul>
+  <li>a set of <strong>bindings</strong> \(E\), mapping each identifier in scope to
+  a value (or, for an assignable local or field, to the value it currently
+  holds); these bindings also record the current object, the value of
+  <code>this</code>, and within a routine with a result, the cell
+  <code>result</code>;</li>
+  <li>a <strong>store</strong> \(s\), mapping object references to objects.</li>
+</ul>
+
+<p>We write \(E(x)\) for the value bound to \(x\), \(E\langle x \mapsto v\rangle\)
+for \(E\) with \(x\) rebound to \(v\), and \(E + \{x \mapsto v\}\) for \(E\)
+extended with a new binding. For the store, \(s(\ell)\) is the object at
+\(\ell\); \(s\langle \ell.f \mapsto v\rangle\) is \(s\) with the field \(f\) of
+that object updated to \(v\); and \(s + \{\ell \mapsto o\}\), for \(\ell\) fresh,
+is \(s\) extended with a new object \(o\).</p>
+
+<p>The principal judgement of the chapter is</p>
+
+<div class="note" style="background:transparent;border-left-color:var(--rule2);">
+  \[ s,\,E \vdash e \;\Rightarrow\; v,\, s' \]
+  &ldquo;in the bindings \(E\) and store \(s\), the expression \(e\) evaluates to
+  the value \(v\), leaving the store \(s'\).&rdquo;
+</div>
+
+<p>Statements are evaluated by the analogous judgement \(s, E \vdash
+\mathit{stmt} \Rightarrow E', s'\), which may extend the bindings (with a new
+local) and alters the store. Evaluation may also <em>terminate
+exceptionally</em>; that mode is treated in Section&nbsp;5.7. Because Nex is
+deterministic and sequential apart from explicit tasks (Chapter&nbsp;6), the
+store is threaded strictly left to right through every rule.</p>
+
+<h2><span class="secno">5.3</span>Evaluation of Expressions</h2>
+
+<h4>Constants, variables, and the current object</h4>
+<div class="rule-block">
+\[ s, E \vdash \mathit{scon} \Rightarrow \mathcal{V}(\mathit{scon}),\, s \tag{5.1} \]
+\[ \frac{E(x) = v}{s, E \vdash x \Rightarrow v,\, s} \tag{5.2} \qquad s, E \vdash \texttt{this} \Rightarrow E(\texttt{this}),\, s \tag{5.3} \]
+</div>
+
+<p>Here \(\mathcal{V}\) maps a special constant to the value it denotes; a
+constant has no effect on the store. A variable is looked up in the bindings;
+the lookup walks the chain of enclosing scopes, so that a name resolves to its
+nearest binding (Section&nbsp;5.8 on shadowing).</p>
+
+<h4>Operators</h4>
+<p>An arithmetic or comparison operator evaluates its operands left to right and
+then applies the operation of the operands&rsquo; class. Equality comes in two
+kinds. <em>Value</em> equality \(=\) compares contents: two collections are
+equal when their elements are equal; two objects, by the <code>equals</code>
+routine of their class, which user classes may override. <em>Identity</em>
+equality \(==\) compares references: two object values are identical exactly when
+they are the same reference \(\ell\). On scalars the two kinds agree.</p>
+
+<div class="rule-block">
+\[ \frac{s, E \vdash e_1 \Rightarrow v_1, s_1 \quad s_1, E \vdash e_2 \Rightarrow v_2, s_2}{s, E \vdash e_1 \odot e_2 \Rightarrow v_1 \mathbin{\widehat\odot} v_2,\, s_2} \tag{5.4} \]
+</div>
+
+<p>where \(\widehat\odot\) is the operation the environment associates with \(\odot\)
+on the classes of \(v_1\) and \(v_2\).</p>
+
+<h4>Short-circuit conjunction and disjunction</h4>
+<p>The operators <code>and</code> and <code>or</code> are <em>not</em> evaluated
+by (5.4): their second operand is evaluated only conditionally. This holds in
+every back end of Nex and is part of the language&rsquo;s definition, not an
+optimisation.</p>
+
+<div class="rule-block">
+\[ \frac{s, E \vdash e_1 \Rightarrow \mathsf{false}, s_1}{s, E \vdash e_1 \;\texttt{and}\; e_2 \Rightarrow \mathsf{false},\, s_1} \tag{5.5} \qquad \frac{s, E \vdash e_1 \Rightarrow \mathsf{true}, s_1 \quad s_1, E \vdash e_2 \Rightarrow v, s_2}{s, E \vdash e_1 \;\texttt{and}\; e_2 \Rightarrow v,\, s_2} \tag{5.6} \]
+</div>
+
+<p>Disjunction is dual: in \(e_1\) <code>or</code> \(e_2\), the operand \(e_2\) is
+evaluated only when \(e_1\) is <code>false</code>. A consequence is that a guard
+such as <code>x /= nil and x.f</code> never evaluates <code>x.f</code> when
+<code>x</code> is <code>nil</code>, and is therefore safe.</p>
+
+<h4>Member access and the safe access</h4>
+<div class="rule-block">
+\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad s_1(\ell) = o \quad o.f = v}{s, E \vdash e.f \Rightarrow v,\, s_1} \tag{5.7} \]
+\[ \frac{s, E \vdash e \Rightarrow \texttt{nil}, s_1}{s, E \vdash e\,?.f \Rightarrow \texttt{nil},\, s_1} \tag{5.8} \qquad \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad \ell \ne \texttt{nil}}{s, E \vdash e\,?.f \Rightarrow s_1(\ell).f,\, s_1} \tag{5.9} \]
+</div>
+
+<p>An ordinary access \(e.f\) on a <code>nil</code> receiver has no rule: it
+raises an exception (Section&nbsp;5.7). The safe access \(e\,?.f\) instead yields
+<code>nil</code>, which is why its static type is optional (Section&nbsp;4.4).</p>
+
+<h2><span class="secno">5.4</span>Calls and Dynamic Dispatch</h2>
+
+<p>A method call evaluates the receiver and the arguments, selects the routine by
+the <em>runtime</em> class of the receiver and the number of arguments, and
+evaluates its body in fresh bindings for the parameters and
+<code>this</code>.</p>
+
+<div class="rule-block">
+\[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
+</div>
+
+<p>Three features of this rule deserve note. The routine is chosen by
+\(\mathit{class}(o)\), the class of the actual object, not by the static type of
+\(e\): this is dynamic dispatch, and is how an overriding routine in a subclass
+takes effect. The selection also depends on \(n\), realising overloading by
+arity (Section&nbsp;4.4). And \(E_0\) is the bindings of the routine&rsquo;s
+<em>definition</em> extended with the parameter bindings&mdash;not the
+caller&rsquo;s bindings&mdash;so a routine sees the fields of its object and
+its own parameters, and nothing of the caller&rsquo;s locals.</p>
+
+<p>The return value \(\mathit{ret}\) is the final contents of the
+<code>result</code> cell for a routine that declares a result, and the
+distinguished void value otherwise. A free-function call \(m(e_1,\dots,e_n)\)
+and the application of a closure are evaluated likewise, the closure supplying
+its captured bindings in place of \(E_0\).</p>
+
+<div class="note">
+  <span class="note-label">Argument checks survive into evaluation</span>
+  Because conformance for function types is covariant (Section&nbsp;4.3), the
+  static check does not by itself guarantee that an argument&rsquo;s runtime
+  class fits the parameter of the selected routine. Rule (5.10) is therefore
+  understood to check each \(v_i\) against the parameter type, raising an
+  exception on a mismatch. This is the residual dynamic check that pays for the
+  convenience of covariance.
+</div>
+
+<h2><span class="secno">5.5</span>Object Creation and Constructors</h2>
+
+<p>Creation allocates a fresh object, gives each field its initial value, runs the
+named constructor, checks the precondition of the constructor and the class
+invariant, and yields the new reference. The initial value of a field is its
+declared initialiser if it has one; otherwise <code>nil</code> for an optional
+field, and the zero value for a field of scalar type. A non-optional
+<em>reference</em> field has no such default: by the attachment rule of
+Section&nbsp;4.9 the constructor must itself assign it, so that the object is
+fully attached when creation completes.</p>
+
+<div class="rule-block">
+\[ \frac{\begin{array}{c} \ell \;\text{fresh} \quad o_0 = \mathit{initial}(A[\bar\tau]) \quad s_0 = s + \{\ell \mapsto o_0\} \\ s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(A) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \\ \mathit{check}(\mathit{post}) \quad \mathit{check}(\mathit{invariant}(A)\;\text{at}\;\ell) \end{array}}{s, E \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow \ell,\, s'} \tag{5.11} \]
+</div>
+
+<p>A constructor may assign the <code>once</code> fields of its class; once the
+constructor returns, those fields are fixed for the life of the object
+(Section&nbsp;4.5 enforces this statically, and the store offers no rule to
+reassign them). When the <code>create</code> form names no constructor, an object
+with default field values is produced and only the invariant is checked.</p>
+
+<h2><span class="secno">5.6</span>Contract Checking</h2>
+
+<p>Contracts are checked as the program runs, and their violation is an
+exceptional event distinct from an ordinary error. The auxiliary
+\(\mathit{check}(a)\) evaluates the assertion \(a\); if it yields
+<code>true</code>, evaluation proceeds; if <code>false</code>, a
+<em>contract-violation</em> exception is raised, carrying the assertion&rsquo;s
+label and its position so that the failure can be reported as <em>which</em>
+condition failed on <em>which</em> line.</p>
+
+<p>For a routine \(m\) with precondition \(\mathit{pre}\), postcondition
+\(\mathit{post}\), and enclosing class invariant \(I\):</p>
+
+<ul>
+  <li>\(\mathit{pre}\) is checked on entry, after the parameters are bound but
+  before the body runs; a failed precondition is the caller&rsquo;s fault.</li>
+  <li>The <code>old</code> expressions of \(\mathit{post}\) are snapshotted on
+  entry: for each <code>old</code> \(f\) the current value of the field \(f\) is
+  recorded, to be supplied when \(\mathit{post}\) is later evaluated.</li>
+  <li>\(\mathit{post}\) is checked on normal exit, with <code>result</code>
+  bound and the recorded <code>old</code> values in scope; a failed
+  postcondition is the routine&rsquo;s fault.</li>
+  <li>\(I\) is checked on exit from every routine and constructor that can be
+  called from outside the object, so that an instance is consistent whenever it
+  is observable.</li>
+</ul>
+
+<div class="note">
+  <span class="note-label">What <code>old</code> captures</span>
+  The snapshot of <code>old</code> \(f\) records the <em>value</em> the field
+  held on entry. For a field of scalar or reference type this is exactly the
+  pre-state value; but for a mutable object reached <em>through</em> the field,
+  the snapshot is the reference, not a copy, so a later mutation of that object
+  is visible through <code>old</code>. A postcondition that must speak of the
+  prior <em>size</em> of a mutable collection should therefore record that size
+  in a field of its own, and refer to <code>old</code> of that field. This is a
+  consequence of (5.7) and the reference nature of objects, not a special rule.
+</div>
+
+<h2><span class="secno">5.7</span>Exceptions: <code>raise</code>, <code>rescue</code>, <code>retry</code></h2>
+
+<p>Evaluation of a phrase either completes normally, yielding a value and a
+store, or terminates <em>exceptionally</em>, carrying an exception value and a
+store. An exception propagates outward through enclosing phrases&mdash;abandoning
+their pending work&mdash;until a <code>rescue</code> clause catches it. We write
+the exceptional outcome \(s, E \vdash e \Rightarrow \mathbf{raise}\;w,\, s'\).</p>
+
+<p>The statement <code>raise</code> \(e\) evaluates \(e\) to a value \(w\) and
+raises it. A <code>nil</code> dereference, a failed contract, a failed runtime
+argument check, and a failed <code>convert</code> in a context requiring success
+all raise built-in exception values by the same mechanism.</p>
+
+<div class="rule-block">
+\[ \frac{s, E \vdash e \Rightarrow w, s_1}{s, E \vdash \texttt{raise}\; e \Rightarrow \mathbf{raise}\;w,\, s_1} \tag{5.12} \]
+</div>
+
+<p>A scoped block <code>do</code> \(\mathit{block}_1\) <code>rescue</code>
+\(\mathit{block}_2\) <code>end</code> runs \(\mathit{block}_1\); if it completes
+normally, the <code>rescue</code> is ignored; if it raises \(w\), the handler
+\(\mathit{block}_2\) is run with <code>exception</code> bound to \(w\).</p>
+
+<div class="rule-block">
+\[ \frac{s, E \vdash \mathit{block}_1 \Rightarrow E_1, s_1}{s, E \vdash \texttt{do}\;\mathit{block}_1\;\texttt{rescue}\;\mathit{block}_2\;\texttt{end} \Rightarrow E, s_1} \tag{5.13} \]
+\[ \frac{s, E \vdash \mathit{block}_1 \Rightarrow \mathbf{raise}\;w, s_1 \quad s_1, E[\texttt{exception} \mapsto w] \vdash \mathit{block}_2 \Rightarrow E_2, s_2}{s, E \vdash \texttt{do}\;\mathit{block}_1\;\texttt{rescue}\;\mathit{block}_2\;\texttt{end} \Rightarrow E, s_2} \tag{5.14} \]
+</div>
+
+<p>Within a handler, the statement <code>retry</code> abandons the handler and
+re-runs \(\mathit{block}_1\) from the top, against the current store. This is the
+idiom for bounded retry: a handler that counts attempts and either
+<code>retry</code>s or gives up. <code>retry</code> has meaning only inside a
+<code>rescue</code> block (Section&nbsp;2.9); elsewhere it is a static error.</p>
+
+<div class="rule-block">
+\[ \frac{s, E[\texttt{exception} \mapsto w] \vdash \texttt{do}\;\mathit{block}_1\;\texttt{rescue}\;\mathit{block}_2\;\texttt{end} \Rightarrow R, s'}{s, E[\texttt{exception} \mapsto w] \vdash \texttt{retry} \;\text{within}\; \mathit{block}_2 \Rightarrow R, s'} \tag{5.15} \]
+</div>
+
+<p>If a handler completes without <code>retry</code>, the scoped block completes
+normally and execution continues after it; an exception raised by the handler
+itself propagates outward in the ordinary way.</p>
+
+<h2><span class="secno">5.8</span>Statements and Control Flow</h2>
+
+<h4>Local declaration, assignment, and scope</h4>
+<div class="rule-block">
+\[ \frac{s, E \vdash e \Rightarrow v, s_1}{s, E \vdash \texttt{let}\; x := e \Rightarrow E + \{x \mapsto v\},\, s_1} \tag{5.16} \]
+\[ \frac{s, E \vdash e \Rightarrow v, s_1}{s, E \vdash x := e \Rightarrow E\langle x \mapsto v\rangle,\, s_1} \tag{5.17} \]
+\[ \frac{s, E \vdash e_1 \Rightarrow \ell, s_1 \quad s_1, E \vdash e_2 \Rightarrow v, s_2}{s, E \vdash e_1.f := e_2 \Rightarrow E,\; s_2\langle \ell.f \mapsto v\rangle} \tag{5.18} \]
+</div>
+
+<p>A <code>let</code> introduces a new binding in a fresh scope; an assignment
+updates an existing one. A scoped block <code>do</code>&hellip;<code>end</code>
+evaluates its statements in bindings that extend the enclosing ones, so
+that a <code>let</code> inside the block <em>shadows</em> an outer binding of the
+same name and the outer binding is restored on exit&mdash;the bindings made
+inside a block do not escape it.</p>
+
+<h4>Conditionals and loops</h4>
+<p>The <code>if</code> statement evaluates its condition and runs the
+corresponding branch; the conditional expression <code>when</code>&hellip; is its
+value-producing analogue. The general loop runs its <code>from</code> block once,
+then repeatedly tests the <code>until</code> condition, running the body while the
+condition is false.</p>
+
+<div class="rule-block">
+\[ \frac{s, E \vdash \mathit{init} \Rightarrow E_1, s_1 \quad s_1, E_1 \vdash \texttt{loop}_{u,b} \Rightarrow E', s'}{s, E \vdash \texttt{from}\;\mathit{init}\;\texttt{until}\;u\;\texttt{do}\;b\;\texttt{end} \Rightarrow E', s'} \tag{5.19} \]
+\[ \frac{s, E \vdash u \Rightarrow \mathsf{true}, s_1}{s, E \vdash \texttt{loop}_{u,b} \Rightarrow E, s_1} \qquad \frac{s, E \vdash u \Rightarrow \mathsf{false}, s_1 \quad s_1, E \vdash b \Rightarrow E_2, s_2 \quad s_2, E_2 \vdash \texttt{loop}_{u,b} \Rightarrow E', s'}{s, E \vdash \texttt{loop}_{u,b} \Rightarrow E', s'} \tag{5.20} \]
+</div>
+
+<p>A loop may carry an <code>invariant</code>, checked before the body on each
+iteration, and a <code>variant</code>&mdash;an integer expression that must
+strictly decrease and stay non-negative across iterations, checked likewise.
+These are contracts on the loop: a violated loop invariant or a non-decreasing
+variant raises a contract-violation exception. The counted loop
+<code>repeat</code> \(n\) <code>do</code> \(b\) and the cursor loop
+<code>across</code> \(e\) <code>as</code> \(x\) <code>do</code> \(b\) are derived
+forms, expanded in Appendix&nbsp;C: the former into a general loop over a counter,
+the latter into iteration driven by the <code>start</code>/<code>item</code>/<code>next</code>/<code>at_end</code>
+protocol of the <code>Cursor</code> class (Appendix&nbsp;B).</p>
+
+<h4>Dispatch statements</h4>
+<p>The <code>case</code> statement compares the value of its scrutinee against the
+constants of each clause, by value equality, and runs the first matching clause,
+or the <code>else</code> clause if none matches. The <code>match</code> statement
+inspects the runtime class of its scrutinee and runs the clause whose class the
+object conforms to, binding the clause variable to the object; its
+exhaustiveness over a sealed class was guaranteed statically (4.19). The
+<code>convert</code> form attempts a cast and binds its variable to the converted
+value or to <code>nil</code>, yielding the boolean that the surrounding context
+(an <code>if</code>, say) may test.</p>
+
+<h2><span class="secno">5.9</span>Termination</h2>
+
+<p>A normal evaluation of a phrase yields a value and a store; an exceptional one
+yields a raised value and a store; a non-terminating one&mdash;a loop that never
+satisfies its <code>until</code>, an unbounded recursion&mdash;yields nothing,
+and the judgement simply has no derivation. The Definition makes no claim that
+evaluation terminates; it says only what the result is when it does. The
+remaining construct of the statement grammar, <code>spawn</code>, begins a
+concurrent evaluation and is the subject of Chapter&nbsp;6.</p>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="static.html"><span class="label">&larr; Chapter 4</span><span class="ttl">Static Semantics</span></a></div><div class="next"><a href="concurrency.html"><span class="label">Chapter 6 &rarr;</span><span class="ttl">Concurrency</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  if (pre.closest('.grammar')) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

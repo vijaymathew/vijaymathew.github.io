@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Derived Forms — The Definition of Nex</title>
+<meta name="description" content="Surface forms defined by translation into the bare language.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']],
+    macros: {
+      llbracket: ["[\\mkern-3mu[", 0],
+      rrbracket: ["]\\mkern-3mu]", 0]
+    }
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">The Definition of Nex</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="syntax-core.html">Core</a><a href="static.html">Static</a><a href="dynamic.html">Dynamic</a><a href="appendix-grammar.html">Grammar</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix C</span>
+<h1 class="opener-title">Derived Forms</h1>
+</div>
+<article class="prose">
+<p class="opener-lede">A number of Nex&rsquo;s surface forms are conveniences: they add no expressive
+power and are explained by translation into a smaller <em>bare</em> language.
+Defining them this way keeps the semantic rules of Chapters&nbsp;4 and&nbsp;5
+few, since a derived form inherits its meaning from its translation. This
+appendix gives those translations.</p>
+
+<p>We write \(\llbracket \phi \rrbracket\) for the bare form into which the
+surface phrase \(\phi\) is translated. A translation is performed before
+elaboration; the static and dynamic semantics see only the bare form. Fresh
+identifiers introduced by a translation (written \(\_i\), \(\_c\), and the like)
+are chosen distinct from every identifier in the program.</p>
+
+<h2><span class="secno">C.1</span>Collection Displays</h2>
+
+<p>The array, map, and set displays abbreviate a creation followed by a sequence
+of insertions.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>[e₁, …, eₙ]</code> \(\rrbracket\)</td><td class="op">=</td><td><code>do let _a := create Array; _a.add(e₁); … ; _a.add(eₙ); _a end</code></td></tr>
+<tr><td>\(\llbracket\) <code>{k₁: v₁, …, kₙ: vₙ}</code> \(\rrbracket\)</td><td class="op">=</td><td><code>do let _m := create Map; _m.put(k₁, v₁); … ; _m end</code></td></tr>
+<tr><td>\(\llbracket\) <code>{}</code> \(\rrbracket\)</td><td class="op">=</td><td><code>create Map</code></td></tr>
+<tr><td>\(\llbracket\) <code>#{e₁, …, eₙ}</code> \(\rrbracket\)</td><td class="op">=</td><td><code>do let _s := create Set; _s.add(e₁); … ; _s end</code></td></tr>
+<tr><td>\(\llbracket\) <code>#{}</code> \(\rrbracket\)</td><td class="op">=</td><td><code>create Set</code></td></tr>
+</table>
+</div>
+
+<p>The element type of the created collection is inferred from the display, or
+taken from the annotation of the surrounding <code>let</code> or parameter when
+the display is empty. The empty set must be written <code>#{}</code> and not
+<code>{}</code>: the latter is the empty map. (A <code>do</code>&hellip;<code>end</code>
+used here is the block-as-expression whose value is its final expression; the
+displays are the one place the bare language needs it, and it may be read simply
+as &ldquo;build the collection and yield it.&rdquo;)</p>
+
+<h2><span class="secno">C.2</span>The Counted Loop</h2>
+
+<p>The <code>repeat</code> loop runs its body a fixed number of times. It
+translates into a general loop over a fresh counter.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>repeat e do b end</code> \(\rrbracket\)</td><td class="op">=</td><td></td></tr>
+<tr><td colspan="3"><code>do let _n := e; from let _i := 0 until _i >= _n do b ; _i := _i + 1 end end</code></td></tr>
+</table>
+</div>
+
+<p>The bound \(e\) is evaluated once, before the first iteration; a later change
+to any variable occurring in \(e\) does not alter the number of repetitions.</p>
+
+<h2><span class="secno">C.3</span>The Cursor Loop</h2>
+
+<p>The <code>across</code> loop traverses any value that supplies the
+<code>Cursor</code> protocol of Appendix&nbsp;B. It translates into a general loop
+driven by that protocol.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>across e as x do b end</code> \(\rrbracket\)</td><td class="op">=</td><td></td></tr>
+<tr><td colspan="3"><code>do let _c := e.cursor; _c.start;</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;<code>from until _c.at_end do let x := _c.item ; b ; _c.next end end</code></td></tr>
+</table>
+</div>
+
+<p>The cursor variable <code>x</code> is bound afresh on each iteration to the
+current item, and is in scope only within the body. An <code>Array</code> yields
+its elements in order, a <code>String</code> its characters, and a
+<code>Map</code> its entries as <code>[key, value]</code> pairs
+(Section&nbsp;2.8 and Appendix&nbsp;B).</p>
+
+<h2><span class="secno">C.4</span>Cascaded Conditionals</h2>
+
+<p>The <code>elseif</code> chain abbreviates nested conditionals.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>if e₁ then b₁ elseif e₂ then b₂ else b₃ end</code> \(\rrbracket\)</td><td class="op">=</td><td></td></tr>
+<tr><td colspan="3"><code>if e₁ then b₁ else (if e₂ then b₂ else b₃ end) end</code></td></tr>
+</table>
+</div>
+
+<h2><span class="secno">C.5</span>Shared Parameter Types</h2>
+
+<p>Several parameters may share a single type annotation; this abbreviates the
+fully annotated list.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>(a, b: T)</code> \(\rrbracket\)</td><td class="op">=</td><td><code>(a: T, b: T)</code></td></tr>
+</table>
+</div>
+
+<h2><span class="secno">C.6</span>What Is Not Derived</h2>
+
+<p>It is worth saying which apparent conveniences are <em>not</em> derived forms,
+but primitive constructs with rules of their own. The conditional expression
+<code>when</code>&hellip;<code>then</code>&hellip;<code>else</code> is primitive
+(rule&nbsp;4.14), not an abbreviation for an <code>if</code> statement, because it
+yields a value. The short-circuit operators <code>and</code> and <code>or</code>
+are primitive (rules&nbsp;5.5&ndash;5.6), not abbreviations for conditionals,
+because their evaluation order is part of the language&rsquo;s definition. The
+safe access <code>?.</code> is primitive (rules&nbsp;5.8&ndash;5.9). And the
+contract clauses, though they could in principle be expanded into explicit checks
+and raises, are treated as primitive so that the Definition can speak of
+preconditions, postconditions, and invariants as first-class notions
+(Section&nbsp;5.6) rather than as a particular pattern of generated code.</p>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="appendix-basis.html"><span class="label">&larr; Appendix B</span><span class="ttl">The Standard Environment</span></a></div><div class="next"><a href="references.html"><span class="label">Appendix D &rarr;</span><span class="ttl">References</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  if (pre.closest('.grammar')) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+
+</body>
+</html>
