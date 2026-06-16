@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Standard Environment — The Definition of Nex</title>
+<meta name="description" content="The classes and values present before any user code is loaded.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']],
+    macros: {
+      llbracket: ["[\\mkern-3mu[", 0],
+      rrbracket: ["]\\mkern-3mu]", 0]
+    }
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">The Definition of Nex</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="syntax-core.html">Core</a><a href="static.html">Static</a><a href="dynamic.html">Dynamic</a><a href="appendix-grammar.html">Grammar</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix B</span>
+<h1 class="opener-title">The Standard Environment</h1>
+</div>
+<article class="prose">
+<p class="opener-lede">Before any user code is elaborated, an environment already exists: a collection of
+classes and values that the Definition presupposes and every program may use.
+This appendix records that <em>standard environment</em>, \(E_0\). It is not a complete
+library reference&mdash;for that, see the <em>Nex Reference</em>&mdash;but the part
+of the standard environment on which the semantics of earlier chapters depends.</p>
+
+<h2><span class="secno">B.1</span>The Root and the Foundational Classes</h2>
+
+<p>Every class conforms ultimately to <code>Any</code>, the root of the class
+hierarchy and the elaborated form of the type \(\mathsf{Any}\)
+(Section&nbsp;4.1). A user class may write <code>inherit Any</code> explicitly,
+but does so implicitly in any case.</p>
+
+<table>
+<thead><tr><th>Class</th><th>Routine</th><th>Signature</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Any</code></td><td><code>to_string</code></td><td>\(\to\) <code>String</code></td><td>user-facing rendering</td></tr>
+<tr><td></td><td><code>equals</code></td><td><code>Any</code> \(\to\) <code>Boolean</code></td><td>value equality, used by <code>=</code>; overridable</td></tr>
+<tr><td></td><td><code>clone</code></td><td>\(\to\) <code>Any</code></td><td>copy; collections override with deep copy</td></tr>
+</tbody>
+</table>
+
+<p>Four further foundational classes are present in \(E_0\):</p>
+
+<ul>
+  <li><code>Function</code>&mdash;the base class of all closures, and the
+  elaborated form of the bare type \(\mathsf{Fun}\). It supplies the invocation
+  protocol <code>call0</code>, <code>call1</code>, &hellip;, by which a closure of
+  any arity up to a fixed bound is applied.</li>
+  <li><code>Cursor</code>&mdash;the abstract iteration interface, with routines
+  <code>start</code>, <code>item</code>, <code>next</code>, and
+  <code>at_end</code>. The <code>across</code> loop is defined in terms of this
+  protocol (Appendix&nbsp;C).</li>
+  <li><code>Comparable</code> (deferred)&mdash;with <code>compare</code>:
+  <code>Any</code> \(\to\) <code>Integer</code>, returning a negative, zero, or
+  positive ordering result, the basis of the comparison operators on ordered
+  values.</li>
+  <li><code>Hashable</code> (deferred)&mdash;with <code>hash</code> \(\to\)
+  <code>Integer</code>, returning a stable hash code, on which the <code>Map</code>
+  and <code>Set</code> classes rely.</li>
+</ul>
+
+<h2><span class="secno">B.2</span>Scalar Classes</h2>
+
+<p>The lexically reserved type names denote classes of the standard environment. They
+are <code>Comparable</code> and <code>Hashable</code>, and support the arithmetic
+and comparison through which the operators of Section&nbsp;2.6 are given
+meaning.</p>
+
+<table>
+<thead><tr><th>Type</th><th>Values</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>Integer</code></td><td>machine integers</td><td>literals of <span class="nt">int</span> form; default numeric type</td></tr>
+<tr><td><code>Integer64</code></td><td>64-bit integers</td><td>for explicit width</td></tr>
+<tr><td><code>Real</code></td><td>floating-point</td><td>literals of <span class="nt">real</span> form; <code>Real / Integer</code> yields <code>Real</code></td></tr>
+<tr><td><code>Decimal</code></td><td>exact decimals</td><td>for arithmetic without rounding error</td></tr>
+<tr><td><code>Char</code></td><td>characters</td><td>literals of <span class="nt">char</span> form</td></tr>
+<tr><td><code>Boolean</code></td><td><code>true</code>, <code>false</code></td><td>operand and result of the logical operators</td></tr>
+<tr><td><code>String</code></td><td>text</td><td>literals of <span class="nt">string</span> form; iterates by character</td></tr>
+</tbody>
+</table>
+
+<p>The arithmetic operators apply to numeric operands, returning the wider type
+(Section&nbsp;4.4); an integer operand is admitted where a real is required, so
+that <code>total / count</code> with <code>total</code> of type <code>Real</code>
+yields a <code>Real</code>. The comparison operators apply to
+<code>Comparable</code> operands through <code>compare</code>. Scalars are
+immutable and unstored, so identity equality <code>==</code> coincides with value
+equality <code>=</code> upon them (Section&nbsp;5.3).</p>
+
+<h2><span class="secno">B.3</span>Scalar Value Spaces</h2>
+
+<p>The previous section names the scalar classes; this one fixes the
+<em>value spaces</em> they denote&mdash;their ranges, their numeric formats, and
+the character model of <code>Char</code> and <code>String</code>. The
+guiding decision of the Definition here is deliberate and worth stating plainly:
+<strong>the Definition fixes the abstract value space and a guaranteed minimum
+for each scalar type, but leaves exact bounds, overflow behaviour, and rounding
+to the host.</strong> Nex compiles to more than one platform&mdash;the Java
+virtual machine and JavaScript at present&mdash;and those platforms do not agree
+on the size of an integer or the realisation of an exact decimal. Rather than
+impose a single width and so constrain or penalise one back end, the Definition
+specifies what every conforming implementation must provide and marks the rest as
+<em>host-defined</em>. A program that stays within the guaranteed range and does
+not depend on overflow behaviour means the same thing on every platform; a
+program that relies on a host-defined property means what that host says, and the
+Definition assigns it no portable meaning.</p>
+
+<h4>Integer types</h4>
+<p><code>Integer</code> is a signed two&rsquo;s-complement integer of
+<strong>at least 32 bits</strong>. Its exact width is host-defined: on the JVM
+an <code>Integer</code> is carried with 64-bit range; on JavaScript it is a
+double-precision number, exact for magnitudes up to \(2^{53}-1\). A program may
+rely on the range \([-2^{31},\, 2^{31}-1]\) on every platform, and no more. The
+result of an operation that exceeds the host range is host-defined: it may raise
+an error, wrap, widen, or lose precision, so portable code must not depend on it.
+The JVM back end performs <em>checked</em> arithmetic, raising an overflow error
+rather than wrapping silently when an integer operation leaves the host range.
+<code>Integer64</code> is a signed two&rsquo;s-complement integer of exactly
+<strong>64 bits</strong>, range \([-2^{63},\, 2^{63}-1]\), on every platform; it
+exists precisely so that a program needing a definite 64-bit width need not rely
+on the host width of <code>Integer</code>.</p>
+
+<p>The <em>bitwise</em> operations of <code>Integer</code>
+(<code>bitwise_left_shift</code> and its companions) operate on the low
+<strong>32 bits</strong>, with bit&nbsp;0 the least significant, independently of
+the host width. Whether an integer literal that does not fit the host range is
+accepted is host-defined (Section&nbsp;2.2).</p>
+
+<h4>Real and Decimal</h4>
+<p><code>Real</code> is represented as an <strong>IEEE&nbsp;754
+double-precision binary</strong> floating-point value on every platform: a real
+literal denotes the nearest representable double, which may not be the decimal
+written, so that <code>0.1 + 0.2</code> evaluates to
+<code>0.30000000000000004</code> and not to <code>0.3</code>. The
+<em>representation</em> is thus pinned down tightly, because both hosts provide
+IEEE&nbsp;754 and agreement costs nothing.</p>
+
+<p>The <em>arithmetic</em>, however, does not follow IEEE&nbsp;754 in every
+respect. In particular, division by zero does not yield an infinity or a
+not-a-number value: <code>1.0 / 0.0</code> and <code>0.0 / 0.0</code> both
+<strong>raise</strong> a division-by-zero error. Consequently the special values
+\(\pm\infty\) and <code>NaN</code> are not produced by ordinary division, and a
+program cannot rely on the IEEE behaviour of <code>NaN</code> (such as its being
+unequal to itself) arising from arithmetic. Whether such values can be obtained
+by other means, and how they then compare, is host-defined.</p>
+
+<p><code>Decimal</code> is an <strong>exact base-ten</strong> number, free of the
+binary rounding error of <code>Real</code>; it is the type to use for money and
+for any quantity where a written decimal must be represented faithfully. Its
+realisation is host-defined: on the JVM it is an arbitrary-precision
+<code>BigDecimal</code>, so neither magnitude nor number of fractional digits is
+bounded in practice; on other hosts the available precision and the rule for
+rounding an inexact result are host-defined. A program may rely on
+<code>Decimal</code> to represent any decimal literal it writes exactly, and on
+exact results for addition, subtraction, and multiplication; the precision of a
+division that does not terminate, and any rounding it entails, are host-defined.</p>
+
+<h4>Boolean and the character model</h4>
+<p><code>Boolean</code> has exactly the two values <code>true</code> and
+<code>false</code>.</p>
+
+<p>A <code>Char</code> is a single <strong>Unicode code point</strong>. A
+character constant may be written as a literal character, as one of the named
+characters of Section&nbsp;2.2, or as a decimal code point after <code>#</code>,
+so that <code>#65</code> denotes the same character as <code>#A</code>. A
+<code>String</code> is a finite sequence of characters; its <code>length</code>
+is the number of characters, it iterates character by character
+(Section&nbsp;2.8), and <code>char_at</code> and <code>chars</code> address it by
+character position. The <em>encoding</em> of a string is exposed only through
+<code>to_bytes</code>, which yields the <strong>UTF-8</strong> bytes of the
+string as integers in the range \([0, 255]\), on every platform; the internal
+representation by which a host stores a string, and the relation between a
+character index and any underlying code-unit index, are host-defined and not
+observable except through <code>to_bytes</code>. There are no escape sequences in
+string literals (Section&nbsp;2.2); a control character is written with its
+character constant or obtained from the standard environment.</p>
+
+<table>
+<thead><tr><th>Type</th><th>Guaranteed by the Definition</th><th>Host-defined</th></tr></thead>
+<tbody>
+<tr><td><code>Integer</code></td><td>signed, &ge; 32 bits; range \([-2^{31}, 2^{31}-1]\) portable; bitwise on low 32 bits</td><td>exact width; out-of-range and overflow behaviour</td></tr>
+<tr><td><code>Integer64</code></td><td>signed 64-bit, range \([-2^{63}, 2^{63}-1]\)</td><td>&mdash;</td></tr>
+<tr><td><code>Real</code></td><td>IEEE&nbsp;754 double <em>representation</em>; literal rounds to nearest double</td><td>division by zero raises; availability and comparison of \(\pm\infty\) / <code>NaN</code></td></tr>
+<tr><td><code>Decimal</code></td><td>exact base-ten; literals and +, &minus;, &times; exact</td><td>precision bound; rounding of non-terminating division</td></tr>
+<tr><td><code>Char</code></td><td>a Unicode code point</td><td>internal representation</td></tr>
+<tr><td><code>String</code></td><td>sequence of characters; <code>length</code> in characters; <code>to_bytes</code> is UTF-8 in \([0,255]\)</td><td>internal encoding; character-to-code-unit mapping</td></tr>
+</tbody>
+</table>
+
+<h2><span class="secno">B.4</span>Collection Classes</h2>
+
+<p>Three generic collection classes are present in \(E_0\), each a
+<code>Cursor</code> source so that <code>across</code> may traverse it.</p>
+
+<h4><code>Array[T]</code></h4>
+<p>An ordered, growable sequence. The display <code>[e₁, …, eₙ]</code> is a
+derived form constructing an <code>Array</code> (Appendix&nbsp;C). Representative
+routines: <code>get(i)</code> \(\to\) <code>T</code>, <code>add(x)</code> to
+append, <code>length</code> \(\to\) <code>Integer</code>.</p>
+
+<h4><code>Map[K, V]</code></h4>
+<p>An association of keys to values. The display
+<code>{k₁: v₁, …}</code> is a derived form; <code>{}</code> is the empty map.
+Representative routines: <code>get(k)</code> \(\to\) <code>V</code>,
+<code>put(k, v)</code>, iteration yielding <code>[key, value]</code> pairs.</p>
+
+<h4><code>Set[T]</code></h4>
+<p>An unordered collection of distinct values. The display
+<code>#{e₁, …}</code> is a derived form; <code>#{}</code> is the empty set, which
+must be written with the explicit set-display syntax to distinguish it from the
+empty map. The constructor <code>from_array</code> builds a set from an array,
+discarding duplicates; the routines <code>union</code>, <code>intersection</code>,
+<code>difference</code>, <code>contains</code>, and <code>size</code> provide the
+usual set algebra.</p>
+
+<h2><span class="secno">B.5</span>Concurrency Classes</h2>
+
+<p>The classes underlying Chapter&nbsp;6 are part of the standard environment.</p>
+
+<table>
+<thead><tr><th>Class</th><th>Routine</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Task[T]</code></td><td><code>await</code></td><td>block until done; yield result of type <code>T</code></td></tr>
+<tr><td></td><td><code>await(ms)</code></td><td>timed await; <code>nil</code> on timeout</td></tr>
+<tr><td></td><td><code>is_done</code>, <code>is_cancelled</code></td><td>completion and cancellation state</td></tr>
+<tr><td></td><td><code>cancel</code></td><td>request cancellation</td></tr>
+<tr><td></td><td><code>await_any</code>, <code>await_all</code></td><td>(class methods) wait on a collection of tasks</td></tr>
+<tr><td><code>Channel[T]</code></td><td><code>send(v)</code>, <code>receive</code></td><td>blocking communication (Section&nbsp;6.2)</td></tr>
+<tr><td></td><td><code>try_send</code>, <code>try_receive</code></td><td>non-blocking variants used by <code>select</code></td></tr>
+<tr><td></td><td><code>with_capacity(n)</code></td><td>(constructor) a buffered channel</td></tr>
+<tr><td></td><td><code>close</code>, <code>is_closed</code>, <code>size</code>, <code>capacity</code></td><td>channel state</td></tr>
+</tbody>
+</table>
+
+<p>A <code>spawn</code> whose block assigns <code>result</code> of type \(T\)
+yields a <code>Task[T]</code>; one that does not yields a plain
+<code>Task</code>.</p>
+
+<h2><span class="secno">B.6</span>Built-in Values and Effects</h2>
+
+<p>A handful of values are bound in the top-level bindings of \(E_0\). Chief
+among them is <code>print</code>, which renders its argument (via
+<code>to_string</code>) and writes it to the standard output&mdash;a host effect,
+and the principal observable behaviour of many programs. The <code>Console</code>
+class provides finer output control, including <code>new_line</code>; because
+string literals do not interpret escapes (Section&nbsp;2.2), a line break in
+output is produced with <code>Console.new_line</code> or the character constant
+<code>#newline</code> rather than with a backslash escape.</p>
+
+<p>The exception values raised by the language itself&mdash;on a <code>nil</code>
+dereference, a failed contract, a failed runtime argument check, an out-of-range
+collection access&mdash;are also part of the environment, and are the values a
+<code>rescue</code> block receives in <code>exception</code> (Section&nbsp;5.7).</p>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="appendix-grammar.html"><span class="label">&larr; Appendix A</span><span class="ttl">The Full Grammar</span></a></div><div class="next"><a href="appendix-derived.html"><span class="label">Appendix C &rarr;</span><span class="ttl">Derived Forms</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  if (pre.closest('.grammar')) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

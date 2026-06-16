@@ -1,0 +1,323 @@
+<p class="opener-lede">This chapter defines the lexical structure of Nex and the grammar of its core:
+the expressions and statements from which the body of every routine is built.
+The structure peculiar to classes and modules is deferred to Chapter&nbsp;3.</p>
+
+<p>The grammar is presented in a variant of Backus&ndash;Naur form. Nonterminals
+are set in <em>slanted</em> type and terminals&mdash;reserved words and
+symbols&mdash;in <code>typewriter</code> type. Angle brackets
+\(\langle\,\cdot\,\rangle\) enclose an optional phrase; a phrase followed by a
+superscript asterisk may be repeated zero or more times, and one followed by a
+superscript plus, one or more times. Where a production is a derived form,
+explained by translation into a simpler one, it is so marked and the
+translation appears in Appendix&nbsp;C.</p>
+
+<h2><span class="secno">2.1</span>Reserved Words</h2>
+
+<p>The following are the reserved words of Nex. They may not be used as
+identifiers.</p>
+
+<div class="grammar" style="white-space:normal;">
+<code>and</code> <code>across</code> <code>as</code> <code>case</code>
+<code>class</code> <code>convert</code> <code>create</code> <code>declare</code>
+<code>deferred</code> <code>do</code> <code>else</code> <code>elseif</code>
+<code>end</code> <code>ensure</code> <code>feature</code> <code>fn</code>
+<code>from</code> <code>function</code> <code>if</code> <code>import</code>
+<code>inherit</code> <code>intern</code> <code>invariant</code> <code>let</code>
+<code>match</code> <code>nil</code> <code>not</code> <code>note</code>
+<code>of</code> <code>old</code> <code>once</code> <code>or</code>
+<code>private</code> <code>raise</code> <code>repeat</code> <code>require</code>
+<code>rescue</code> <code>result</code> <code>retry</code> <code>sealed</code>
+<code>select</code> <code>spawn</code> <code>then</code> <code>this</code>
+<code>timeout</code> <code>to</code> <code>type</code> <code>until</code>
+<code>variant</code> <code>when</code> <code>with</code>
+</div>
+
+<p>The boolean constants <code>true</code> and <code>false</code> and the
+built-in type names <code>Integer</code>, <code>Integer64</code>,
+<code>Real</code>, <code>Decimal</code>, <code>Char</code>,
+<code>Boolean</code>, <code>String</code>, and <code>Function</code> are also
+recognised by the lexer. They are not, strictly, keywords usable in arbitrary
+positions; they denote particular constants and classes of the standard environment
+(Appendix&nbsp;B), and a program may not redefine them.</p>
+
+<p>The identifier <code>result</code> is reserved within the body of a routine
+that declares a return type: it names the cell whose final contents become the
+routine&rsquo;s result (Section&nbsp;3.4). The identifier <code>exception</code>
+is bound, within a <code>rescue</code> block, to the value being handled
+(Section&nbsp;5.7).</p>
+
+<h2><span class="secno">2.2</span>Special Constants</h2>
+
+<p>A <em>special constant</em> is an integer, real, character, string, or
+boolean literal, or the constant <code>nil</code>.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">scon</td><td class="op">::=</td><td><span class="nt">int</span></td><td class="cmt">&mdash; integer constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">real</span></td><td class="cmt">&mdash; real constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">char</span></td><td class="cmt">&mdash; character constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">string</span></td><td class="cmt">&mdash; string constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">true</span> <span class="op">|</span> <span class="lit">false</span></td><td class="cmt">&mdash; boolean constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">nil</span></td><td class="cmt">&mdash; the null reference</td></tr>
+</table>
+</div>
+
+<h4>Integer constants</h4>
+<p>An integer constant is a non-empty sequence of decimal digits, or a based
+literal introduced by <code>0b</code> (binary), <code>0o</code> (octal), or
+<code>0x</code> (hexadecimal). An underscore may appear between two digits as a
+visual separator and has no other significance. There is no sign: a leading
+minus is the unary operator of Section&nbsp;2.6, not part of the constant.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">int</td><td class="op">::=</td><td><span class="nt">digit</span><sup>+</sup></td><td class="cmt">&mdash; decimal</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">0b</span> <span class="nt">bit</span><sup>+</sup></td><td class="cmt">&mdash; e.g. <code>0b1111_0000</code></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">0o</span> <span class="nt">odigit</span><sup>+</sup></td><td class="cmt">&mdash; e.g. <code>0o755</code></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">0x</span> <span class="nt">hdigit</span><sup>+</sup></td><td class="cmt">&mdash; e.g. <code>0xFF_AA_33</code></td></tr>
+</table>
+</div>
+
+<p>A decimal integer constant has type <code>Integer</code>. The range of
+<code>Integer</code> is guaranteed to at least 32 bits but is otherwise
+host-defined, as is whether a constant exceeding the host range is accepted; the
+guaranteed and host-defined parts of every scalar value space&mdash;integer
+ranges, the IEEE&nbsp;754 format of <code>Real</code>, the precision of
+<code>Decimal</code>, and the Unicode character model of <code>Char</code> and
+<code>String</code>&mdash;are set out in Appendix&nbsp;B, &sect;B.3.</p>
+
+<h4>Real constants</h4>
+<p>A real constant has an optional integer part, a mandatory decimal point, a
+mandatory fractional part of at least one digit, and an optional exponent. Thus
+<code>4.5</code>, <code>10.0</code>, <code>.5</code>, and <code>12.0e-3</code>
+are real constants, while <code>10.</code> and <code>12.e-3</code> are
+<em>not</em>: a real constant may not end at the point. A real constant has type
+<code>Real</code>.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">real</td><td class="op">::=</td><td>&langle;<span class="nt">digit</span><sup>+</sup>&rangle; <span class="lit">.</span> <span class="nt">digit</span><sup>+</sup> &langle;<span class="nt">exp</span>&rangle;</td></tr>
+<tr><td class="nt">exp</td><td class="op">::=</td><td>(<span class="lit">e</span><span class="op">|</span><span class="lit">E</span>) &langle;<span class="lit">+</span><span class="op">|</span><span class="lit">-</span>&rangle; <span class="nt">digit</span><sup>+</sup></td></tr>
+</table>
+</div>
+
+<h4>Character constants</h4>
+<p>A character constant is a <code>#</code> followed either by a single
+character other than a digit or whitespace, by a decimal code point, or by one
+of the named characters <code>#nul</code>, <code>#space</code>,
+<code>#newline</code>, <code>#tab</code>, <code>#return</code>. Thus
+<code>#A</code>, <code>#b</code>, and <code>#65</code> are character constants. A
+character constant has type <code>Char</code>.</p>
+
+<h4>String constants</h4>
+<p>A string constant is a sequence of characters enclosed in double quotes
+<code>"</code>&hellip;<code>"</code> or single quotes
+<code>'</code>&hellip;<code>'</code>. A string constant has type
+<code>String</code>.</p>
+
+<div class="note">
+  <span class="note-label">No escape interpretation</span>
+  Nex string literals do <em>not</em> interpret backslash escapes: in a string
+  constant <code>"\n"</code> denotes the two characters backslash and
+  <code>n</code>, not a newline. Control characters are written with the
+  corresponding character constants (<code>#newline</code>, <code>#tab</code>)
+  or obtained from the standard environment. The only role of the backslash in the
+  lexer is to allow a quote character to appear within a string delimited by
+  that same quote.
+</div>
+
+<h2><span class="secno">2.3</span>Comments</h2>
+
+<p>A comment is introduced by two hyphens <code>--</code> and extends to the end
+of the line. Comments do not nest&mdash;there being no closing delimiter&mdash;and
+are discarded by the lexer. A comment is equivalent to a single space.</p>
+
+<h2><span class="secno">2.4</span>Identifiers</h2>
+
+<p>An identifier begins with a letter or underscore and continues with letters,
+underscores, and digits. Identifiers are case-sensitive. By convention&mdash;and
+only by convention&mdash;class names begin with an upper-case letter and the
+names of variables, fields, routines, and parameters with a lower-case letter;
+the grammar does not enforce this.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">id</td><td class="op">::=</td><td>(<span class="nt">letter</span><span class="op">|</span><span class="lit">_</span>) (<span class="nt">letter</span><span class="op">|</span><span class="lit">_</span><span class="op">|</span><span class="nt">digit</span>)<sup>*</sup></td></tr>
+</table>
+</div>
+
+<p>An identifier that coincides with a reserved word is not an identifier but
+that reserved word. The longest-match rule (Section&nbsp;2.5) applies, so
+<code>classes</code> is a single identifier and not the keyword
+<code>class</code> followed by <code>es</code>.</p>
+
+<h2><span class="secno">2.5</span>Lexical Analysis</h2>
+
+<p>The character stream is converted to a stream of tokens by the following
+rules. Whitespace&mdash;spaces, tabs, carriage returns, and line feeds&mdash;and
+comments separate tokens but are otherwise insignificant; Nex is not an
+indentation-sensitive language. Each token is the longest sequence of characters
+that can begin a token at the current position (the <em>maximal munch</em>
+rule). Thus <code>&lt;=</code> is one token and not two, and <code>:=</code> is
+the assignment operator and not a colon followed by an equals sign.</p>
+
+<p>The reserved words, the operator and punctuation symbols, the special
+constants, and the identifiers are the tokens of the language. The symbol
+<code>#{</code> is a single token opening a set display (Section&nbsp;3 and
+Appendix&nbsp;C); it must be distinguished by maximal munch from the character
+constant introducer <code>#</code>.</p>
+
+<h2><span class="secno">2.6</span>Operators and Precedence</h2>
+
+<p>Nex has a fixed set of infix and prefix operators; the programmer cannot
+declare new ones or alter their precedence. The operators are listed below from
+lowest to highest binding power. All binary operators are left-associative
+except exponentiation <code>^</code>, which is right-associative. The prefix
+operators are unary minus <code>-</code> and logical <code>not</code>.</p>
+
+<table>
+<thead><tr><th>Level</th><th>Operators</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td>1 (lowest)</td><td><code>or</code></td><td>logical disjunction (short-circuit)</td></tr>
+<tr><td>2</td><td><code>and</code></td><td>logical conjunction (short-circuit)</td></tr>
+<tr><td>3</td><td><code>=</code> <code>/=</code> <code>==</code> <code>!=</code></td><td>value and identity (in)equality</td></tr>
+<tr><td>4</td><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>ordering comparison</td></tr>
+<tr><td>5</td><td><code>+</code> <code>-</code></td><td>addition, subtraction</td></tr>
+<tr><td>6</td><td><code>*</code> <code>/</code> <code>%</code> <code>^</code></td><td>multiplication, division, remainder, power</td></tr>
+<tr><td>7 (highest)</td><td><code>-</code> <code>not</code></td><td>prefix negation</td></tr>
+</tbody>
+</table>
+
+<p>Operators are not first-class and do not denote methods directly at the
+surface; an expression such as <code>a + b</code> is evaluated by the rules of
+Chapter&nbsp;5, which appeal to the arithmetic of the operands&rsquo; classes.
+Application&mdash;a call or member access&mdash;and parentheses bind more tightly
+than any operator.</p>
+
+<div class="note">
+  <span class="note-label">Short-circuit conjunction and disjunction</span>
+  <code>and</code> and <code>or</code> are <em>short-circuiting</em> in every
+  back end: in <code>e₁ and e₂</code> the operand <code>e₂</code> is evaluated
+  only if <code>e₁</code> is true, and in <code>e₁ or e₂</code> only if
+  <code>e₁</code> is false. There are no separate <code>and then</code> /
+  <code>or else</code> forms; the plain operators <em>are</em> the
+  short-circuit forms. Consequently <code>x /= nil and x.f</code> is a safe
+  guard. This is a property of the dynamic semantics
+  (Section&nbsp;5.4) and is recorded here because it affects how an expression
+  is read.
+</div>
+
+<h2><span class="secno">2.7</span>The Grammar of Expressions</h2>
+
+<p>An <em>expression</em> denotes a value. The expression grammar is layered by
+the precedence of Section&nbsp;2.6; we present it here in collapsed form, taking
+the precedence and associativity as given, and exhibit the layered productions
+in Appendix&nbsp;A.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">exp</td><td class="op">::=</td><td><span class="nt">scon</span></td><td class="cmt">&mdash; special constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span></td><td class="cmt">&mdash; variable or field</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">this</span></td><td class="cmt">&mdash; the current object</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">result</span></td><td class="cmt">&mdash; the result cell</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">(</span> <span class="nt">exp</span> <span class="lit">)</span></td><td class="cmt">&mdash; parenthesised</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">exp</span> <span class="nt">binop</span> <span class="nt">exp</span></td><td class="cmt">&mdash; infix application</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">unop</span> <span class="nt">exp</span></td><td class="cmt">&mdash; prefix application</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">exp</span> <span class="lit">.</span> <span class="nt">id</span> &langle;<span class="lit">(</span> <span class="nt">args</span> <span class="lit">)</span>&rangle;</td><td class="cmt">&mdash; member access / method call</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">exp</span> <span class="lit">?</span> <span class="lit">.</span> <span class="nt">id</span> &langle;<span class="lit">(</span> <span class="nt">args</span> <span class="lit">)</span>&rangle;</td><td class="cmt">&mdash; safe member access</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">(</span> <span class="nt">args</span> <span class="lit">)</span></td><td class="cmt">&mdash; function or local call</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">create</span> <span class="nt">id</span> &langle;<span class="nt">tyargs</span>&rangle; &langle;<span class="lit">.</span> <span class="nt">id</span> &langle;<span class="lit">(</span> <span class="nt">args</span> <span class="lit">)</span>&rangle;&rangle;</td><td class="cmt">&mdash; object creation</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">when</span> <span class="nt">exp</span> <span class="lit">then</span> <span class="nt">exp</span> <span class="lit">else</span> <span class="nt">exp</span> <span class="lit">end</span></td><td class="cmt">&mdash; conditional expression</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">fn</span> &langle;<span class="nt">gen</span>&rangle; <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> <span class="lit">end</span></td><td class="cmt">&mdash; anonymous function</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">spawn</span> <span class="lit">do</span> <span class="nt">block</span> <span class="lit">end</span></td><td class="cmt">&mdash; task creation</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">old</span> <span class="nt">exp</span></td><td class="cmt">&mdash; pre-state snapshot (in <code>ensure</code> only)</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">arraylit</span> <span class="op">|</span> <span class="nt">maplit</span> <span class="op">|</span> <span class="nt">setlit</span></td><td class="cmt">&mdash; collection displays (Appendix&nbsp;C)</td></tr>
+</table>
+</div>
+
+<p>The <em>argument list</em> and the collection displays have the obvious
+forms:</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">args</td><td class="op">::=</td><td>&langle;<span class="nt">exp</span> (<span class="lit">,</span> <span class="nt">exp</span>)<sup>*</sup>&rangle;</td></tr>
+<tr><td class="nt">arraylit</td><td class="op">::=</td><td><span class="lit">[</span> &langle;<span class="nt">exp</span> (<span class="lit">,</span> <span class="nt">exp</span>)<sup>*</sup>&rangle; <span class="lit">]</span></td></tr>
+<tr><td class="nt">maplit</td><td class="op">::=</td><td><span class="lit">{</span> &langle;<span class="nt">exp</span> <span class="lit">:</span> <span class="nt">exp</span> (<span class="lit">,</span> <span class="nt">exp</span> <span class="lit">:</span> <span class="nt">exp</span>)<sup>*</sup>&rangle; <span class="lit">}</span></td></tr>
+<tr><td class="nt">setlit</td><td class="op">::=</td><td><span class="lit">#{</span> &langle;<span class="nt">exp</span> (<span class="lit">,</span> <span class="nt">exp</span>)<sup>*</sup>&rangle; <span class="lit">}</span></td></tr>
+</table>
+</div>
+
+<p>The empty braces <code>{}</code> denote the empty map; the empty set is
+written <code>#{}</code>. These displays are derived forms, expanded into
+creations and a sequence of insertions in Appendix&nbsp;C.</p>
+
+<h2><span class="secno">2.8</span>The Grammar of Statements</h2>
+
+<p>A <em>statement</em> is executed for its effect. A <em>block</em> is a
+sequence of statements, executed in order. An expression standing alone is a
+statement, executed for its effect and its value discarded.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">block</td><td class="op">::=</td><td><span class="nt">stmt</span><sup>*</sup></td></tr>
+<tr><td class="nt">stmt</td><td class="op">::=</td><td><span class="nt">id</span> <span class="lit">:=</span> <span class="nt">exp</span></td><td class="cmt">&mdash; assignment to a variable or field</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">exp</span> <span class="lit">.</span> <span class="nt">id</span> <span class="lit">:=</span> <span class="nt">exp</span></td><td class="cmt">&mdash; assignment to a field</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">let</span> <span class="nt">id</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; <span class="lit">:=</span> <span class="nt">exp</span></td><td class="cmt">&mdash; local declaration</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">if</span> <span class="nt">exp</span> <span class="lit">then</span> <span class="nt">block</span> (<span class="lit">elseif</span> <span class="nt">exp</span> <span class="lit">then</span> <span class="nt">block</span>)<sup>*</sup> &langle;<span class="lit">else</span> <span class="nt">block</span>&rangle; <span class="lit">end</span></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">from</span> <span class="nt">block</span> &langle;<span class="nt">inv</span>&rangle; &langle;<span class="nt">var</span>&rangle; <span class="lit">until</span> <span class="nt">exp</span> <span class="lit">do</span> <span class="nt">block</span> <span class="lit">end</span></td><td class="cmt">&mdash; general loop</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">repeat</span> <span class="nt">exp</span> <span class="lit">do</span> <span class="nt">block</span> <span class="lit">end</span></td><td class="cmt">&mdash; counted loop</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">across</span> <span class="nt">exp</span> <span class="lit">as</span> <span class="nt">id</span> <span class="lit">do</span> <span class="nt">block</span> <span class="lit">end</span></td><td class="cmt">&mdash; cursor loop</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">case</span> <span class="nt">exp</span> <span class="lit">of</span> <span class="nt">caseclause</span><sup>+</sup> &langle;<span class="lit">else</span> <span class="nt">stmt</span>&rangle; <span class="lit">end</span></td><td class="cmt">&mdash; constant dispatch</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">match</span> <span class="nt">exp</span> <span class="lit">of</span> <span class="nt">matchclause</span><sup>+</sup> &langle;<span class="lit">else</span> <span class="nt">block</span>&rangle; <span class="lit">end</span></td><td class="cmt">&mdash; type dispatch</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">select</span> <span class="nt">selectclause</span><sup>+</sup> &langle;<span class="nt">timeout</span>&rangle; &langle;<span class="lit">else</span> <span class="nt">block</span>&rangle; <span class="lit">end</span></td><td class="cmt">&mdash; communication (Chapter&nbsp;6)</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">do</span> <span class="nt">block</span> &langle;<span class="lit">rescue</span> <span class="nt">block</span>&rangle; <span class="lit">end</span></td><td class="cmt">&mdash; scoped block</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">with</span> <span class="nt">string</span> <span class="lit">do</span> <span class="nt">block</span> <span class="lit">end</span></td><td class="cmt">&mdash; resource block</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">raise</span> <span class="nt">exp</span></td><td class="cmt">&mdash; raise an exception</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">retry</span></td><td class="cmt">&mdash; restart the enclosing <code>do</code></td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">exp</span></td><td class="cmt">&mdash; expression statement</td></tr>
+</table>
+</div>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">caseclause</td><td class="op">::=</td><td><span class="nt">scon</span> (<span class="lit">,</span> <span class="nt">scon</span>)<sup>*</sup> <span class="lit">then</span> <span class="nt">stmt</span></td></tr>
+<tr><td class="nt">matchclause</td><td class="op">::=</td><td><span class="lit">when</span> <span class="nt">id</span> &langle;<span class="nt">tyargs</span>&rangle; <span class="lit">as</span> <span class="nt">id</span> <span class="lit">then</span> <span class="nt">block</span></td></tr>
+<tr><td class="nt">inv</td><td class="op">::=</td><td><span class="lit">invariant</span> <span class="nt">assertion</span><sup>+</sup></td></tr>
+<tr><td class="nt">var</td><td class="op">::=</td><td><span class="lit">variant</span> <span class="nt">exp</span></td></tr>
+</table>
+</div>
+
+<p>The forms governing concurrency&mdash;<code>spawn</code>,
+<code>select</code>, the timeout clause&mdash;are listed here for completeness but
+their meaning is given in Chapter&nbsp;6. The resource block <code>with</code>
+and the loop invariant and variant are explained in Chapters&nbsp;5
+and&nbsp;3 respectively.</p>
+
+<h2><span class="secno">2.9</span>Syntactic Restrictions</h2>
+
+<p>Certain conditions, though expressible in the grammar, are forbidden. They
+are checked before elaboration and a violation is a compile-time error.</p>
+
+<ul>
+  <li>No two parameters of one routine, nor two fields of one class, nor two
+  local declarations in scope at the same point, may bind the same identifier.
+  An inner <code>let</code> may, however, <em>shadow</em> an outer binding of the
+  same name in a nested block.</li>
+  <li>The expression <code>old e</code> may occur only within an
+  <code>ensure</code> clause, and <code>e</code> must there denote a field of the
+  current object (Section&nbsp;3.4). It may not be applied to a parameter.</li>
+  <li>The identifier <code>result</code> may be read or assigned only within a
+  routine that declares a return type.</li>
+  <li>The cursor variable of an <code>across</code> loop, the bound variable of a
+  <code>match</code> clause, and the local of a <code>convert</code> are in
+  scope only within the body they introduce.</li>
+  <li>A routine has at most one <code>require</code> clause and at most one
+  <code>ensure</code> clause; multiple conditions are written as named
+  assertions within the single clause (Section&nbsp;3.4).</li>
+  <li><code>retry</code> may occur only within a <code>rescue</code> block.</li>
+</ul>
+
+<p>Further restrictions that depend on types or on the class hierarchy&mdash;the
+exhaustiveness of a <code>match</code> on a sealed class, the conformance of an
+overriding routine, the immutability of a <code>once</code> field&mdash;belong to
+the static semantics and are stated in Chapter&nbsp;4.</p>

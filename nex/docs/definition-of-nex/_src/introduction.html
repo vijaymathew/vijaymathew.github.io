@@ -1,0 +1,131 @@
+<p class="opener-lede">A precise description of a programming language is a prerequisite for its
+implementation and for its use. This document is such a description for Nex:
+a formal account of both the <em>grammar</em> and the <em>meaning</em> of the
+language.</p>
+
+<p>A language description can take many forms. The most common is the reference
+manual: a careful narrative of what each construction does, usually backed by a
+grammar in Backus&ndash;Naur form. That is enough for many purposes, and Nex has
+such a manual. But a reference manual is ill-suited to the reader who must
+implement the language, who wishes to state laws for the equivalence of
+programs, or who wants to reason about a program with mathematical rigour. For
+those readers a different kind of document is needed, in which the meaning of a
+program is not described but <em>defined</em>.</p>
+
+<p>This Definition aims to be that document. It does not replace the tutorial or
+the reference; it underwrites them. Where the tutorial says what a construct is
+<em>for</em>, the Definition says what it <em>is</em>.</p>
+
+<h2><span class="secno">1.1</span>Nex</h2>
+
+<p>Nex is a small object-oriented language with first-class functions, designed
+to keep the discipline of software engineering visible in ordinary code. It
+draws its structural vocabulary&mdash;classes, features, inheritance, and
+contracts&mdash;from Eiffel; its conviction that a small, regular core scales
+further than a large feature set from Scheme; the roots of its type discipline
+from ML; and its concurrency model&mdash;lightweight tasks communicating over
+channels&mdash;from CSP and its descendants.</p>
+
+<p>Four commitments shape the language, and the tension between them gives it
+its character.</p>
+
+<ul>
+  <li><strong>Correctness is part of ordinary programming.</strong> Preconditions,
+  postconditions, and class invariants are written in the program itself, checked
+  as it runs, and reported by name when they fail. They are not a separate proof
+  obligation in another file; they are <em>Design by Contract</em>, carried
+  forward from Eiffel.</li>
+  <li><strong>Readability must survive growth.</strong> A language that is clean at
+  ten lines and illegible at ten thousand has solved the wrong problem. The core
+  grammar is kept small enough that its meaning can be stated without
+  hand-waving&mdash;which is precisely what makes a document like this one
+  possible.</li>
+  <li><strong>Objects and functions cooperate.</strong> Classes, inheritance, and
+  contracts model the stateful parts of a system; pure functions and immutable
+  values handle the rest. Neither is treated as the privileged paradigm.</li>
+  <li><strong>Theory shows up as design, not as notation.</strong> The contract
+  system has roots in Hoare logic, the type system in ML, the concurrency model
+  in CSP. None of this is required of the programmer. The theory pays for itself
+  in the regularity of the surface.</li>
+</ul>
+
+<p>It is the third and fourth commitments that make Nex worth defining formally,
+and the second that makes it feasible.</p>
+
+<h2><span class="secno">1.2</span>The Form of the Definition</h2>
+
+<p>Every programming language presents its own conceptual view of computation.
+This view is indicated by the words the language uses for its phrase
+classes&mdash;<em>class</em>, <em>feature</em>, <em>contract</em>,
+<em>task</em>, <em>channel</em>&mdash;but those words also have abstract
+counterparts, which are what people really have in mind when they use the
+language. These abstract counterparts we call <em>semantic objects</em>; it is
+they, not the syntax, that carry the character of a language. A definition of
+Nex must therefore be given in terms of such objects.</p>
+
+<p>Following the tradition established by <em>The Definition of Standard ML</em>,
+we factor the task in two ways.</p>
+
+<p>First, we separate <strong>syntax</strong> from <strong>semantics</strong>.
+Chapters&nbsp;2 and&nbsp;3 give the grammar: the rules that decide which strings
+of characters are Nex programs. The remaining chapters give the meaning of the
+programs so admitted.</p>
+
+<p>Second, we separate the <strong>static</strong> semantics from the
+<strong>dynamic</strong> semantics. The static semantics
+(Chapter&nbsp;4) describes what can be determined about a program before it
+runs&mdash;the types of its expressions, the conformance of its classes, the
+well-formedness of its contracts. The dynamic semantics (Chapter&nbsp;5)
+describes what happens when the program is evaluated. This factoring mirrors the
+implementation, which checks a program statically and then either interprets or
+compiles it; and it mirrors the experience of the programmer, for whom a type
+error and a contract violation are events of two quite different kinds.</p>
+
+<div class="note">
+  <span class="note-label">The shape of an assertion</span>
+  The keystone of the method is a certain kind of assertion about evaluation. It
+  takes the form
+  \[ B \vdash \mathit{phrase} \Rightarrow A \]
+  and may be read: <em>against the background</em> \(B\), <em>the phrase
+  evaluates to</em> \(A\). The background \(B\) is itself a semantic
+  object&mdash;a distillation of the meanings established by earlier phrases
+  (the classes in scope, the variables bound, the current object). In the static
+  semantics \(A\) is a type and \(B\) is a collection of typing assumptions; in
+  the dynamic semantics \(A\) is a value and \(B\) is a collection of bindings.
+  The same shape of rule serves both.
+</div>
+
+<h2><span class="secno">1.3</span>The Status of the Interpreter</h2>
+
+<p>Nex is defined here in mathematical notation that is independent of any
+implementation. But Nex also has a reference implementation: a tree-walking
+interpreter that reads the abstract syntax and evaluates it directly. That
+interpreter is, by the project&rsquo;s own convention, the authoritative
+statement of what the language means; the bytecode and JavaScript back ends are
+correct exactly when they agree with it.</p>
+
+<p>This Definition and that interpreter are intended to describe the same
+language. Where they agree, the Definition explains the interpreter and the
+interpreter exhibits the Definition. Where they disagree, one of them is in
+error, and the disagreement is a defect to be repaired rather than a matter of
+taste. The Definition does not silently extend the language; if it appears to,
+that is a bug in the Definition.</p>
+
+<h2><span class="secno">1.4</span>How to Read This Document</h2>
+
+<p>The reader who wants only the grammar may read Chapters&nbsp;2 and&nbsp;3 and
+stop. The reader implementing a checker will want Chapter&nbsp;4; the one
+implementing an evaluator, Chapter&nbsp;5. The appendices collect the full
+grammar (Appendix&nbsp;A), the classes and values that exist before any user
+code is loaded (Appendix&nbsp;B, <em>the standard environment</em>), and the derived
+forms&mdash;surface conveniences explained by translation into a smaller bare
+language (Appendix&nbsp;C).</p>
+
+<p>Throughout, a few notational conventions are observed. Nex source text is
+set in a monospaced face: <code>class</code>, <code>require</code>,
+<code>spawn</code>. Nonterminals of the grammar are set in slanted type:
+<em>exp</em>, <em>dec</em>, <em>ty</em>. Semantic objects and the judgements
+relating them are set in mathematics. The symbol \(\Rightarrow\) is reserved for
+evaluation; \(\vdash\) for &ldquo;elaborates&rdquo; or &ldquo;evaluates&rdquo;
+in a context; and \(\preceq\) for the conformance relation between types
+introduced in Chapter&nbsp;4.</p>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programs — The Definition of Nex</title>
+<meta name="description" content="Top-level elaboration and the execution of a whole program.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']],
+    macros: {
+      llbracket: ["[\\mkern-3mu[", 0],
+      rrbracket: ["]\\mkern-3mu]", 0]
+    }
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">The Definition of Nex</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="syntax-core.html">Core</a><a href="static.html">Static</a><a href="dynamic.html">Dynamic</a><a href="appendix-grammar.html">Grammar</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 7</span>
+<h1 class="opener-title">Programs</h1>
+</div>
+<article class="prose">
+<p class="opener-lede">The preceding chapters define the elaboration and evaluation of the phrases of
+Nex. This short chapter assembles them into the meaning of a whole program: how
+its declarations and statements are processed, and in what order.</p>
+
+<h2><span class="secno">7.1</span>The Two Worlds of a Program</h2>
+
+<p>Recall from Section&nbsp;3.1 that a program is a sequence of top-level items in
+any order, and that these fall into two kinds. The <em>declarations</em>&mdash;the
+classes, free functions, and type aliases, together with the module links that
+bring further declarations into scope&mdash;form the <strong>static world</strong>.
+The top-level <em>statements</em> form the <strong>dynamic world</strong>. A
+program is processed by first building the static world in full, and then
+executing the dynamic world against it.</p>
+
+<p>This order is not the textual order of the items but a reordering imposed by
+the Definition: every declaration is in scope throughout every other, so that
+classes and functions may refer to one another freely, while a top-level
+statement runs only after the entire static world exists. The benefit is that
+the programmer need not arrange declarations in dependency order, and that
+forward reference among classes and functions is always available.</p>
+
+<h2><span class="secno">7.2</span>Building the Static World</h2>
+
+<p>The static world is built in stages, against the <em>standard environment</em>
+\(E_0\) of Appendix&nbsp;B&mdash;the classes and values that exist before any
+user code.</p>
+
+<ol>
+  <li><strong>Module links.</strong> Each <code>import</code> declaration adds a
+  host class to the environment; each <code>intern</code> declaration elaborates the
+  named unit&mdash;recursively, by this same procedure&mdash;and adds its
+  declarations under the given name or alias. A unit is elaborated once however
+  often it is interned.</li>
+  <li><strong>Class and function registration.</strong> The names of all classes
+  and all functions (including the signatures announced by <code>declare</code>)
+  are entered into the class bindings \(\Sigma\), so that every later step
+  sees every name.</li>
+  <li><strong>Elaboration.</strong> Each class is elaborated&mdash;its parents
+  resolved, its fields and routines typed, its contracts checked for
+  well-formedness&mdash;and each function body is typed against the registered
+  signatures. The class well-formedness conditions of Section&nbsp;4.9 (acyclic
+  inheritance, conformant overriding, complete deferral, sealed-implies-deferred)
+  are verified here.</li>
+</ol>
+
+<p>If any step fails, the program is rejected and nothing is executed. A program
+that survives all three stages is statically valid, and yields a static environment
+\(C\) together with the initial dynamic bindings \(E_1\) and store \(s_0\), extending
+the standard environment \(E_0\) with the elaborated classes and the function and
+constructor closures.</p>
+
+<h2><span class="secno">7.3</span>Executing the Dynamic World</h2>
+
+<p>The top-level statements are then evaluated in source order, against \(E_1\),
+by the statement judgement of Chapter&nbsp;5. The bindings thread from one
+statement to the next, so a top-level <code>let</code> is visible to the
+statements that follow it; the store threads likewise. The program&rsquo;s
+observable behaviour&mdash;its output, the host effects of its <code>import</code>ed
+classes, the final store&mdash;is the cumulative effect of this evaluation.</p>
+
+<div class="rule-block">
+\[ \frac{\vdash \mathit{decs} \;\leadsto\; C, E_1 \quad s_0, E_1 \vdash \mathit{stmts} \Rightarrow E', s'}{\vdash \mathit{program} \;\Downarrow\; s'} \tag{7.1} \]
+</div>
+
+<p>Here \(\mathit{decs}\) are the declarations of the program and
+\(\mathit{stmts}\) its top-level statements; the relation \(\leadsto\) is the
+construction of Section&nbsp;7.2, \(E_1\) and \(s_0\) the initial dynamic bindings
+and store, and \(\Downarrow\) the evaluation of the whole program to
+a final store.</p>
+
+<p>An uncaught exception raised by a top-level statement terminates the program;
+its value and position are reported, and no further statement runs. A program
+that spawns tasks (Chapter&nbsp;6) completes when its top-level statements have
+been evaluated and the policy of the host for outstanding tasks has been
+applied; the Definition fixes the meaning of each communication but, as in
+Section&nbsp;6.4, leaves the disposal of unawaited tasks to the realisation.</p>
+
+<h2><span class="secno">7.4</span>The Definition and the Implementation</h2>
+
+<p>The procedure of this chapter mirrors the reference interpreter, which
+registers imports and interns, then classes, then functions, and only then
+executes the top-level statements&mdash;loading the static world before running
+the dynamic one. That correspondence is intentional: the Definition is meant to
+describe the same language the interpreter implements. Where the bytecode and
+JavaScript back ends are concerned, they are required to reproduce the behaviour
+defined here; a back end that diverges is, by the project&rsquo;s own rule, in
+error, and the divergence is a defect to be repaired rather than a second
+meaning to be admitted.</p>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="concurrency.html"><span class="label">&larr; Chapter 6</span><span class="ttl">Concurrency</span></a></div><div class="next"><a href="appendix-grammar.html"><span class="label">Appendix A &rarr;</span><span class="ttl">The Full Grammar</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  if (pre.closest('.grammar')) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+
+</body>
+</html>
