@@ -110,37 +110,38 @@ with <code>nil</code>. Hence \(\tau\) conforms to \(\tau\,?\), and
 </div>
 
 <h4>Function types</h4>
-<p>Nex follows the Eiffel tradition in admitting <em>covariant</em> refinement
-of both parameter and result types of a function. A function type conforms to
-another when it accepts arguments of conforming type and returns a conforming
-result, with variance in the same direction throughout. The unconstrained type
-\(\mathsf{Fun}\) is a supertype of every function type.</p>
+<p>A function type conforms to another when it accepts <em>at least</em> the
+arguments the other accepts and returns <em>at most</em> what the other promises:
+its parameters vary <strong>contravariantly</strong> and its result
+<strong>covariantly</strong>. The unconstrained type \(\mathsf{Fun}\) is a
+supertype of every function type.</p>
 
 <div class="rule-block">
-\[ \frac{\sigma_i \preceq \tau_i \;(1 \le i \le n) \quad \sigma \preceq \tau}{\sigma_1 \times \cdots \times \sigma_n \to \sigma \;\preceq\; \tau_1 \times \cdots \times \tau_n \to \tau} \tag{C-Fun} \]
+\[ \frac{\tau_i \preceq \sigma_i \;(1 \le i \le n) \quad \sigma \preceq \tau}{\sigma_1 \times \cdots \times \sigma_n \to \sigma \;\preceq\; \tau_1 \times \cdots \times \tau_n \to \tau} \tag{C-Fun} \]
 \[ (\tau_1 \times \cdots \times \tau_n \to \tau) \preceq \mathsf{Fun} \tag{C-FunTop} \]
 </div>
 
+<p>Note the directions in (C-Fun): for the subtype on the left, each parameter
+type \(\sigma_i\) must be a <em>supertype</em> of the corresponding \(\tau_i\)
+(\(\tau_i \preceq \sigma_i\)), while the result \(\sigma\) must be a
+<em>subtype</em> of \(\tau\). Thus a <code>Function(a: Animal)</code> conforms to
+a <code>Function(a: Dog)</code> &mdash; a handler for any animal may stand in
+wherever a dog-handler is wanted &mdash; but not the reverse.</p>
+
 <div class="note">
-  <span class="note-label">Covariance is deliberate, and unsound as a relation</span>
-  Rule (C-Fun) makes both parameters and result covariant, matching the rule
-  stated for function values in the reference: a
-  <code>Function(a: B)</code> satisfies a <code>Function(a: A)</code> when
-  \(B\) conforms to \(A\). This is convenient and intuitive but, like Eiffel&rsquo;s
-  covariant redefinition, it is unsound <em>as a typing relation</em>: a value
-  typed to accept any \(A\) may in fact handle only some \(B\), so conformance
-  alone does not make a call safe (the classic &ldquo;catcall&rdquo;). Soundness
-  is recovered not by the relation but by a separate, whole-program check in the
-  elaborator: a call that could dispatch to a covariantly-narrowed routine is
-  rejected at <em>compile</em> time unless the argument is provably of the
-  narrowed type, the elaborator tracking concrete types through assignments and
-  conservatively refusing the rest. The safety of covariance is therefore a
-  property of this analysis, not of (C-Fun); the price is that the check is
-  non-modular, that it rejects some safe programs, and that its diagnostics
-  surface inside the callee rather than at the offending value. The Definition
-  records the conformance rule the language actually uses, and notes that its
-  soundness rests on the elaborator&rsquo;s analysis rather than on the rule
-  itself.
+  <span class="note-label">Why contravariant, and why it is sound</span>
+  Contravariance is what makes conformance a <em>local</em> guarantee. A value
+  that conforms to <code>Function(a: A)</code> genuinely accepts every \(A\), so
+  a call through that type cannot go wrong &mdash; there is no &ldquo;catcall&rdquo;
+  to chase down later. This is the opposite of the Eiffel tradition, which makes
+  parameters covariant and so admits an unsound relation that must be rescued by
+  a separate whole-program analysis; Nex instead rejects the unsafe direction at
+  the point of conformance, with a diagnostic at the offending value. The same
+  rule governs method redefinition (Section&nbsp;4.9): an overriding routine may
+  <em>widen</em> a parameter and <em>narrow</em> a return, but not the reverse.
+  The contravariant parameter rule also aligns with the Design-by-Contract
+  substitution principle the language follows elsewhere &mdash; an heir may
+  weaken what it demands and strengthen what it guarantees.
 </div>
 
 <h2><span class="secno">4.4</span>Elaboration of Expressions</h2>
@@ -359,11 +360,13 @@ class structure. These are checked once, over the whole static world.</p>
   (Section&nbsp;5.3) a guarantee rather than a hazard: a non-optional reference is
   never observed to be <code>nil</code>.</li>
   <li><strong>Conformant overriding.</strong> When \(A\) inherits \(B\) and
-  redefines a routine \(m\) of \(B\), the signature of \(A\)&rsquo;s \(m\) is
-  intended to conform to that of \(B\)&rsquo;s \(m\) under (C-Fun), and a field of
-  \(B\) may not be redeclared with a non-conforming type. See, however, the
-  implementation note below: the conformance of an overriding routine&rsquo;s
-  <em>return type</em> is not at present enforced at the override.</li>
+  redefines a routine \(m\) of \(B\), the signature of \(A\)&rsquo;s \(m\) must
+  conform to that of \(B\)&rsquo;s \(m\) under (C-Fun): each parameter may be
+  <em>widened</em> but not narrowed (contravariant), and the return may be
+  <em>narrowed</em> but not widened (covariant). A field of \(B\) may not be
+  redeclared with a non-conforming type. This is checked at the override; a
+  routine that narrows a parameter or returns a non-conforming type is rejected
+  there, naming the routine and the offending position.</li>
   <li><strong>Complete deferral.</strong> A non-deferred class must supply a
   body for every routine declared <code>deferred</code> in any of its ancestors;
   a class with an unimplemented deferred routine is itself deferred and may not
@@ -378,18 +381,16 @@ class structure. These are checked once, over the whole static world.</p>
 </ul>
 
 <div class="note">
-  <span class="note-label">Known enforcement gaps</span>
-  Two checks that this Definition states are, in the current implementation, not
-  performed where described. First, the conformance of an <em>overriding</em>
-  routine&rsquo;s return type (the &ldquo;Conformant overriding&rdquo; condition
-  above) is not verified at the override: a class may redefine a routine with an
-  unrelated return type and elaborate without complaint, the resulting
-  unsoundness surfacing only at a use site. Second, the uniqueness of free
-  function names (Section&nbsp;4.8) is not enforced: a second definition of a name
+  <span class="note-label">Known enforcement gap</span>
+  One check this Definition states is, in the current implementation, not yet
+  performed where described: the uniqueness of free function names
+  (Section&nbsp;4.8) is not enforced &mdash; a second definition of a name
   silently supersedes the first rather than being rejected. Because the
   interpreter is the authoritative account of the language (Section&nbsp;1.3),
-  these are recorded here as gaps between the intended static semantics and the
-  implementation, to be closed in one or the other.
+  this is recorded as a gap between the intended static semantics and the
+  implementation, to be closed in one or the other. (The conformance of an
+  overriding routine&rsquo;s parameters and return type, once a separate gap, is
+  now checked at the override.)
 </div>
 
 <p>A program all of whose phrases elaborate, and all of whose classes are
