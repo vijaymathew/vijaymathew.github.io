@@ -50,10 +50,8 @@ meaning.</p>
 <table>
 <thead><tr><th>Type</th><th>Values</th><th>Notes</th></tr></thead>
 <tbody>
-<tr><td><code>Integer</code></td><td>machine integers</td><td>literals of <span class="nt">int</span> form; default numeric type</td></tr>
-<tr><td><code>Integer64</code></td><td>64-bit integers</td><td>for explicit width</td></tr>
+<tr><td><code>Integer</code></td><td>64-bit integers</td><td>literals of <span class="nt">int</span> form; default numeric type</td></tr>
 <tr><td><code>Real</code></td><td>floating-point</td><td>literals of <span class="nt">real</span> form; <code>Real / Integer</code> yields <code>Real</code></td></tr>
-<tr><td><code>Decimal</code></td><td>exact decimals</td><td>for arithmetic without rounding error</td></tr>
 <tr><td><code>Char</code></td><td>characters</td><td>literals of <span class="nt">char</span> form</td></tr>
 <tr><td><code>Boolean</code></td><td><code>true</code>, <code>false</code></td><td>operand and result of the logical operators</td></tr>
 <tr><td><code>String</code></td><td>text</td><td>literals of <span class="nt">string</span> form; iterates by character</td></tr>
@@ -74,67 +72,63 @@ equality <code>=</code> upon them (Section&nbsp;5.3).</p>
 <em>value spaces</em> they denote&mdash;their ranges, their numeric formats, and
 the character model of <code>Char</code> and <code>String</code>. The
 guiding decision of the Definition here is deliberate and worth stating plainly:
-<strong>the Definition fixes the abstract value space and a guaranteed minimum
-for each scalar type, but leaves exact bounds, overflow behaviour, and rounding
-to the host.</strong> Nex compiles to more than one platform&mdash;the Java
-virtual machine and JavaScript at present&mdash;and those platforms do not agree
-on the size of an integer or the realisation of an exact decimal. Rather than
-impose a single width and so constrain or penalise one back end, the Definition
-specifies what every conforming implementation must provide and marks the rest as
-<em>host-defined</em>. A program that stays within the guaranteed range and does
-not depend on overflow behaviour means the same thing on every platform; a
-program that relies on a host-defined property means what that host says, and the
-Definition assigns it no portable meaning.</p>
+<strong>the numeric tower is pinned down exactly and identically on every
+platform.</strong> The width of an integer, the behaviour of arithmetic on
+overflow, the format of a floating-point number, and the result of division are
+fixed by this Definition, not left to the host. Nex compiles to more than one
+platform&mdash;the Java virtual machine and JavaScript at present&mdash;and an
+earlier edition left the integer width and overflow behaviour host-defined, so
+that the same program could denote different values on different back ends. That
+latitude is withdrawn: a program&rsquo;s arithmetic now means one thing on every
+conforming implementation, and a program may rely on it. What remains
+host-defined is only what is genuinely internal and unobservable through the
+language&mdash;how a host stores a string, and the relation between a character
+index and any underlying code unit&mdash;never the result of an arithmetic
+operation.</p>
 
-<h4>Integer types</h4>
-<p><code>Integer</code> is a signed two&rsquo;s-complement integer of
-<strong>at least 32 bits</strong>. Its exact width is host-defined: on the JVM
-an <code>Integer</code> is carried with 64-bit range; on JavaScript it is a
-double-precision number, exact for magnitudes up to \(2^{53}-1\). A program may
-rely on the range \([-2^{31},\, 2^{31}-1]\) on every platform, and no more. The
-result of an operation that exceeds the host range is host-defined: it may raise
-an error, wrap, widen, or lose precision, so portable code must not depend on it.
-The JVM back end performs <em>checked</em> arithmetic, raising an overflow error
-rather than wrapping silently when an integer operation leaves the host range.
-<code>Integer64</code> is a signed two&rsquo;s-complement integer of exactly
-<strong>64 bits</strong>, range \([-2^{63},\, 2^{63}-1]\), on every platform; it
-exists precisely so that a program needing a definite 64-bit width need not rely
-on the host width of <code>Integer</code>.</p>
+<h4>Integer</h4>
+<p><code>Integer</code> is a signed two&rsquo;s-complement integer of exactly
+<strong>64 bits</strong>, with range \([-2^{63},\, 2^{63}-1]\), on every
+platform. Its arithmetic is <em>checked</em>: an operation
+(<code>+</code>,&nbsp;<code>-</code>,&nbsp;<code>*</code>, unary
+<code>-</code>, or <code>^</code>) whose mathematical result lies outside that
+range does not wrap, widen, or lose precision&mdash;it
+<strong>raises</strong> an <code>Arithmetic_Overflow</code> exception. Integer
+division <code>/</code> and remainder <code>%</code> by zero have no integer
+result and <strong>raise</strong> a <code>Division_by_Zero</code> exception. This
+is uniform across back ends: where a host&rsquo;s native integers are wider or
+narrower than 64 bits, the implementation carries <code>Integer</code> as a
+64-bit value and checks each operation, so that a program&rsquo;s integer
+arithmetic denotes the same value, or raises the same exception, everywhere.</p>
 
 <p>The <em>bitwise</em> operations of <code>Integer</code>
 (<code>bitwise_left_shift</code> and its companions) operate on the low
-<strong>32 bits</strong>, with bit&nbsp;0 the least significant, independently of
-the host width. Whether an integer literal that does not fit the host range is
-accepted is host-defined (Section&nbsp;2.2).</p>
+<strong>32 bits</strong>, with bit&nbsp;0 the least significant; they are the one
+part of the integer model that is not 64-bit, and they too behave identically on
+every platform. An integer literal that does not fit the 64-bit range is rejected
+(Section&nbsp;2.2).</p>
 
-<h4>Real and Decimal</h4>
-<p><code>Real</code> is represented as an <strong>IEEE&nbsp;754
-double-precision binary</strong> floating-point value on every platform: a real
-literal denotes the nearest representable double, which may not be the decimal
-written, so that <code>0.1 + 0.2</code> evaluates to
-<code>0.30000000000000004</code> and not to <code>0.3</code>. The
-<em>representation</em> is thus pinned down tightly, because both hosts provide
-IEEE&nbsp;754 and agreement costs nothing.</p>
+<h4>Real</h4>
+<p><code>Real</code> is an <strong>IEEE&nbsp;754 double-precision binary</strong>
+floating-point value on every platform, in <em>both</em> its representation and
+its arithmetic. A real literal denotes the nearest representable double, which may
+not be the decimal written, so that <code>0.1 + 0.2</code> evaluates to
+<code>0.30000000000000004</code> and not to <code>0.3</code>.</p>
 
-<p>The <em>arithmetic</em>, however, does not follow IEEE&nbsp;754 in every
-respect. In particular, division by zero does not yield an infinity or a
-not-a-number value: <code>1.0 / 0.0</code> and <code>0.0 / 0.0</code> both
-<strong>raise</strong> a division-by-zero error. Consequently the special values
-\(\pm\infty\) and <code>NaN</code> are not produced by ordinary division, and a
-program cannot rely on the IEEE behaviour of <code>NaN</code> (such as its being
-unequal to itself) arising from arithmetic. Whether such values can be obtained
-by other means, and how they then compare, is host-defined.</p>
+<p>Division follows IEEE&nbsp;754: <code>1.0 / 0.0</code> yields \(+\infty\),
+<code>-1.0 / 0.0</code> yields \(-\infty\), and <code>0.0 / 0.0</code> yields
+<code>NaN</code>; none of these raises. The special values \(\pm\infty\) and
+<code>NaN</code> are ordinary <code>Real</code> values, produced by arithmetic
+and compared by the IEEE rules&mdash;<code>NaN</code> is unequal to every value
+including itself&mdash;and the standard environment provides
+<code>is_nan</code>, <code>is_infinite</code>, and <code>is_finite</code> to
+inspect them.</p>
 
-<p><code>Decimal</code> is an <strong>exact base-ten</strong> number, free of the
-binary rounding error of <code>Real</code>; it is the type to use for money and
-for any quantity where a written decimal must be represented faithfully. Its
-realisation is host-defined: on the JVM it is an arbitrary-precision
-<code>BigDecimal</code>, so neither magnitude nor number of fractional digits is
-bounded in practice; on other hosts the available precision and the rule for
-rounding an inexact result are host-defined. A program may rely on
-<code>Decimal</code> to represent any decimal literal it writes exactly, and on
-exact results for addition, subtraction, and multiplication; the precision of a
-division that does not terminate, and any rounding it entails, are host-defined.</p>
+<p>This is the deliberate <em>asymmetry</em> of the numeric tower: integer
+division by zero raises, because there is no integer to return, while real
+division by zero is the IEEE value. It is the split drawn by most languages that
+carry both an integral and a binary floating type, and it is fixed here on every
+platform rather than left to the host.</p>
 
 <h4>Boolean and the character model</h4>
 <p><code>Boolean</code> has exactly the two values <code>true</code> and
@@ -159,10 +153,8 @@ character constant or obtained from the standard environment.</p>
 <table>
 <thead><tr><th>Type</th><th>Guaranteed by the Definition</th><th>Host-defined</th></tr></thead>
 <tbody>
-<tr><td><code>Integer</code></td><td>signed, &ge; 32 bits; range \([-2^{31}, 2^{31}-1]\) portable; bitwise on low 32 bits</td><td>exact width; out-of-range and overflow behaviour</td></tr>
-<tr><td><code>Integer64</code></td><td>signed 64-bit, range \([-2^{63}, 2^{63}-1]\)</td><td>&mdash;</td></tr>
-<tr><td><code>Real</code></td><td>IEEE&nbsp;754 double <em>representation</em>; literal rounds to nearest double</td><td>division by zero raises; availability and comparison of \(\pm\infty\) / <code>NaN</code></td></tr>
-<tr><td><code>Decimal</code></td><td>exact base-ten; literals and +, &minus;, &times; exact</td><td>precision bound; rounding of non-terminating division</td></tr>
+<tr><td><code>Integer</code></td><td>signed 64-bit two&rsquo;s-complement, range \([-2^{63}, 2^{63}-1]\), on every platform; checked&mdash;overflow and division by zero raise; bitwise on low 32 bits</td><td>&mdash;</td></tr>
+<tr><td><code>Real</code></td><td>IEEE&nbsp;754 double, in representation <em>and</em> arithmetic; division by zero yields \(\pm\infty\) / <code>NaN</code> per IEEE</td><td>&mdash;</td></tr>
 <tr><td><code>Char</code></td><td>a Unicode code point</td><td>internal representation</td></tr>
 <tr><td><code>String</code></td><td>sequence of characters; <code>length</code> in characters; <code>to_bytes</code> is UTF-8 in \([0,255]\)</td><td>internal encoding; character-to-code-unit mapping</td></tr>
 </tbody>
