@@ -35,7 +35,9 @@ PAGES = [
         "The classes and values present before any user code is loaded."),
     ("appendix-derived","Appendix C","Derived Forms",
         "Surface forms defined by translation into the bare language."),
-    ("references",      "Appendix D","References",
+    ("appendix-rules",  "Appendix D","The Inference Rules in Full",
+        "Every typing and evaluation rule of Chapters 4-5, gathered in one place."),
+    ("references",      "Appendix E","References",
         "The works on whose ideas Nex and this Definition draw."),
 ]
 
@@ -46,6 +48,7 @@ NAV = [
     ("Static", "static.html"),
     ("Dynamic", "dynamic.html"),
     ("Grammar", "appendix-grammar.html"),
+    ("Rules", "appendix-rules.html"),
 ]
 
 MATHJAX = """
