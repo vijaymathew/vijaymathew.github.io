@@ -28,7 +28,7 @@ window.MathJax = {
 <body>
 <header class="site-header"><div class="site-header-inner">
 <a class="book-title" href="cover.html">The Definition of Nex</a>
-<nav class="book-nav"><a href="index.html">Contents</a><a href="syntax-core.html">Core</a><a href="static.html" class="active">Static</a><a href="dynamic.html">Dynamic</a><a href="appendix-grammar.html">Grammar</a></nav>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="syntax-core.html">Core</a><a href="static.html" class="active">Static</a><a href="dynamic.html">Dynamic</a><a href="appendix-grammar.html">Grammar</a><a href="appendix-rules.html">Rules</a></nav>
 </div></header>
 <main class="page">
 <div class="opener">
@@ -110,22 +110,39 @@ same name.</p>
 <p>The central relation of the static semantics is <em>conformance</em>, written
 \(\tau \preceq \tau'\) and read &ldquo;\(\tau\) conforms to \(\tau'\)&rdquo; or
 &ldquo;\(\tau\) is a subtype of \(\tau'\).&rdquo; A value of a conforming type
-may be used wherever the wider type is expected. Conformance is the reflexive,
-transitive closure of the rules below.</p>
-
-<div class="rule-block">
-\[ \tau \preceq \tau \tag{C-Refl} \]
-\[ \frac{\tau \preceq \tau' \quad \tau' \preceq \tau''}{\tau \preceq \tau''} \tag{C-Trans} \]
-\[ \tau \preceq \mathsf{Any} \tag{C-Top} \]
-</div>
-
-<p>A class type conforms to its parents, with type arguments substituted through
-the inheritance clause. If \(A\) is declared <code>inherit</code> \(B[\sigma_1,
-\dots]\) under generic parameters \(\alpha_1,\dots,\alpha_n\), then</p>
+may be used wherever the wider type is expected. Conformance is reflexive and
+transitive, and makes \(\mathsf{Any}\) a top to which every type conforms (rules
+C-Refl, C-Trans, C-Top in Appendix&nbsp;D). Its one substantive rule is
+<em>inheritance</em>: a class type conforms to its parents, with type arguments
+substituted through the inheritance clause. If \(A\) is declared
+<code>inherit</code> \(B[\sigma_1,\dots]\) under generic parameters
+\(\alpha_1,\dots,\alpha_n\), then</p>
 
 <div class="rule-block">
 \[ \frac{A[\alpha_1,\dots,\alpha_n] \;\text{inherits}\; B[\sigma_1,\dots,\sigma_m]}{A[\tau_1,\dots,\tau_n] \preceq B[\sigma_1,\dots,\sigma_m][\tau_i/\alpha_i]} \tag{C-Inherit} \]
 </div>
+
+<pre><code>class Animal
+  create make() do end
+  feature
+    speak(): String do result := "..." end
+end
+
+class Dog
+  inherit Animal
+  create make() do end
+  feature
+    speak(): String do result := "woof" end
+end
+
+let a: Animal := create Dog.make()
+print(a.speak())</code></pre>
+
+<p>The binding type-checks because <code>Dog</code> conforms to
+<code>Animal</code> by (C-Inherit), so a <code>Dog</code> may stand where an
+<code>Animal</code> is expected; the access <code>a.speak()</code> elaborates to
+<code>String</code>. (At run time it prints <code>woof</code>: the call dispatches
+on the object&rsquo;s actual class, Section&nbsp;5.4.)</p>
 
 <p>There are exactly two numeric types, \(\texttt{Integer}\) and
 \(\texttt{Real}\), and a widening chain \(\texttt{Integer} \preceq
@@ -141,31 +158,19 @@ operators in Appendix&nbsp;B rather than as a conformance.</p>
 <p>An optional type \(\tau\,?\) is inhabited by the values of \(\tau\) together
 with <code>nil</code>. Hence \(\tau\) conforms to \(\tau\,?\), and
 \(\mathsf{Nil}\) conforms to every optional type; but \(\tau\,?\) does
-<em>not</em> conform to \(\tau\).</p>
-
-<div class="rule-block">
-\[ \tau \preceq \tau\,? \tag{C-Opt} \]
-\[ \mathsf{Nil} \preceq \tau\,? \tag{C-Nil} \]
-\[ \frac{\tau \preceq \tau'}{\tau\,? \preceq \tau'\,?} \tag{C-OptMono} \]
-</div>
+<em>not</em> conform to \(\tau\) (rules C-Opt, C-Nil, C-OptMono in
+Appendix&nbsp;D).</p>
 
 <h4>Function types</h4>
 <p>A function type conforms to another when it accepts <em>at least</em> the
 arguments the other accepts and returns <em>at most</em> what the other promises:
 its parameters vary <strong>contravariantly</strong> and its result
-<strong>covariantly</strong>. The unconstrained type \(\mathsf{Fun}\) is a
-supertype of every function type.</p>
-
-<div class="rule-block">
-\[ \frac{\tau_i \preceq \sigma_i \;(1 \le i \le n) \quad \sigma \preceq \tau}{\sigma_1 \times \cdots \times \sigma_n \to \sigma \;\preceq\; \tau_1 \times \cdots \times \tau_n \to \tau} \tag{C-Fun} \]
-\[ (\tau_1 \times \cdots \times \tau_n \to \tau) \preceq \mathsf{Fun} \tag{C-FunTop} \]
-</div>
-
-<p>Note the directions in (C-Fun): for the subtype on the left, each parameter
-type \(\sigma_i\) must be a <em>supertype</em> of the corresponding \(\tau_i\)
-(\(\tau_i \preceq \sigma_i\)), while the result \(\sigma\) must be a
-<em>subtype</em> of \(\tau\). Thus a <code>Function(a: Animal)</code> conforms to
-a <code>Function(a: Dog)</code> &mdash; a handler for any animal may stand in
+<strong>covariantly</strong>, and the unconstrained type \(\mathsf{Fun}\) is a
+supertype of every function type (rules C-Fun, C-FunTop in Appendix&nbsp;D). The
+direction is the crux: for the subtype, each parameter type must be a
+<em>supertype</em> of the other&rsquo;s, while the result must be a
+<em>subtype</em>. Thus a <code>Function(a: Animal)</code> conforms to a
+<code>Function(a: Dog)</code> &mdash; a handler for any animal may stand in
 wherever a dog-handler is wanted &mdash; but not the reverse.</p>
 
 <div class="note">
@@ -191,17 +196,11 @@ environment \(C\), the expression \(e\) is well-typed with type \(\tau\). The ru
 follow the grammar of Section&nbsp;2.7.</p>
 
 <h4>Constants and variables</h4>
-<div class="rule-block">
-\[ C \vdash \mathit{int} \Rightarrow \texttt{Integer} \tag{4.1} \]
-\[ C \vdash \mathit{real} \Rightarrow \texttt{Real} \tag{4.2} \]
-\[ C \vdash \mathit{string} \Rightarrow \texttt{String} \tag{4.3} \]
-\[ C \vdash \mathit{char} \Rightarrow \texttt{Char} \tag{4.4} \]
-\[ C \vdash \texttt{true} \Rightarrow \texttt{Boolean} \qquad C \vdash \texttt{false} \Rightarrow \texttt{Boolean} \tag{4.5} \]
-\[ C \vdash \texttt{nil} \Rightarrow \mathsf{Nil} \tag{4.6} \]
-\[ \frac{C(x) = \tau}{C \vdash x \Rightarrow \tau} \tag{4.7} \]
-</div>
-
-<p>The constant <code>this</code> has the type of the current class, available in
+<p>A literal takes the type of its scalar class &mdash; an integer literal is
+<code>Integer</code>, a real <code>Real</code>, and so for <code>String</code>,
+<code>Char</code>, and <code>Boolean</code>; <code>nil</code> has the type
+\(\mathsf{Nil}\); and a variable has the type \(C\) records for it (rules
+4.1&ndash;4.7 in Appendix&nbsp;D). The constant <code>this</code> has the type of the current class, available in
 \(C\) within the body of a routine; <code>result</code> has the declared return
 type of the enclosing routine, and is in \(C\) only there (Section&nbsp;2.9).</p>
 
@@ -213,17 +212,10 @@ operator \(\odot\) &mdash; one of <code>+ - * / % ^</code> &mdash; on numeric op
 the wider of the two operand types; comparison operators yield
 <code>Boolean</code>; the equality operators \(=\), \(/\!=\), \(==\), \(!\!=\)
 yield <code>Boolean</code> for any operands of conforming type; and the logical
-operators require and yield <code>Boolean</code>.</p>
-
-<div class="rule-block">
-\[ \frac{C \vdash e_1 \Rightarrow \tau_1 \quad C \vdash e_2 \Rightarrow \tau_2 \quad \tau_1,\tau_2 \;\text{numeric}}{C \vdash e_1 \odot e_2 \Rightarrow \tau_1 \sqcup \tau_2} \tag{4.8} \]
-\[ \frac{C \vdash e_1 \Rightarrow \tau_1 \quad C \vdash e_2 \Rightarrow \tau_2 \quad (\tau_1 \preceq \tau_2 \;\text{or}\; \tau_2 \preceq \tau_1)}{C \vdash e_1 = e_2 \Rightarrow \texttt{Boolean}} \tag{4.9} \]
-\[ \frac{C \vdash e_1 \Rightarrow \texttt{Boolean} \quad C \vdash e_2 \Rightarrow \texttt{Boolean}}{C \vdash e_1 \;\texttt{and}\; e_2 \Rightarrow \texttt{Boolean}} \tag{4.10} \]
-</div>
-
-<p>Here \(\tau_1 \sqcup \tau_2\) is the wider of two numeric types. Rule (4.10)
-stands for the conjunction; disjunction (<code>or</code>) and negation
-(<code>not</code>) are analogous.</p>
+operators require and yield <code>Boolean</code>. Formally these are rules
+4.8&ndash;4.10 of Appendix&nbsp;D, where \(\tau_1 \sqcup \tau_2\) is the wider of
+two numeric types; disjunction and negation are analogous to the conjunction
+rule.</p>
 
 <h4>Member access and calls</h4>
 <p>A member access \(e.f\) requires that the static type of \(e\) be a class
@@ -232,10 +224,28 @@ its type is the result; if \(f\) is a nullary routine, its return type is the
 result; if \(f\) is applied to arguments, the argument types must conform to the
 parameter types of the routine.</p>
 
+<p>Field access \(e.f\) has the field&rsquo;s type (rule 4.11 in Appendix&nbsp;D);
+the call rule is the keystone of the chapter:</p>
+
 <div class="rule-block">
-\[ \frac{C \vdash e \Rightarrow A[\bar\tau] \quad f : \sigma \in \mathit{fields}(C, A[\bar\tau])}{C \vdash e.f \Rightarrow \sigma} \tag{4.11} \]
 \[ \frac{\begin{array}{c}C \vdash e \Rightarrow A[\bar\tau] \quad \mathit{routine}(C, A[\bar\tau], m) = (\sigma_1 \times \cdots \times \sigma_n \to \sigma) \\ C \vdash e_i \Rightarrow \rho_i \quad \rho_i \preceq \sigma_i \;\; (1 \le i \le n)\end{array}}{C \vdash e.m(e_1,\dots,e_n) \Rightarrow \sigma} \tag{4.12} \]
 </div>
+
+<pre><code>class Counter
+  create make() do count := 0 end
+  feature
+    count: Integer
+    bump(n: Integer): Integer do result := count + n end
+end
+
+let c := create Counter.make()
+print(c.bump(5))</code></pre>
+
+<p>The receiver <code>c</code> has type <code>Counter</code>, the routine
+<code>bump</code> takes one <code>Integer</code> and returns one, and the argument
+<code>5</code> conforms; so by (4.12) the call <code>c.bump(5)</code> elaborates to
+<code>Integer</code> (and evaluates to <code>5</code>). An argument of the wrong
+type, or the wrong number of arguments, is rejected here.</p>
 
 <p>The accessibility condition is that \(f\) is not declared in a
 <code>private</code> feature section of \(A\), unless the access occurs textually
@@ -259,22 +269,16 @@ call of the free function \(m\) (Section&nbsp;4.8).</p>
 that \(A\) be a non-deferred class, that \(k\) be one of its constructors, and
 that the arguments conform to \(k\)&rsquo;s parameters; its type is
 \(A[\bar\tau]\). When the constructor and argument list are omitted, \(A\) must
-have a constructor taking no arguments, or none at all.</p>
-
-<div class="rule-block">
-\[ \frac{\begin{array}{c} A \;\text{not deferred} \quad k \in \mathit{constructors}(C, A) \quad k : \sigma_1 \times \cdots \times \sigma_n \to A[\bar\tau] \\ C \vdash e_i \Rightarrow \rho_i \quad \rho_i \preceq \sigma_i \;\;(1 \le i \le n) \end{array}}{C \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow A[\bar\tau]} \tag{4.13} \]
-</div>
+have a constructor taking no arguments, or none at all. The type of the
+expression is the class type created (rule 4.13 in Appendix&nbsp;D).</p>
 
 <h4>Conditional and anonymous-function expressions</h4>
 <p>The conditional expression requires a boolean condition and two branches; its
 type is the join&mdash;the least common supertype&mdash;of the branch types,
 written \(\tau_1 \sqcup \tau_2\) and always defined because \(\mathsf{Any}\) is a
-top.</p>
-
-<div class="rule-block">
-\[ \frac{C \vdash e \Rightarrow \texttt{Boolean} \quad C \vdash e_1 \Rightarrow \tau_1 \quad C \vdash e_2 \Rightarrow \tau_2}{C \vdash \texttt{when}\; e \;\texttt{then}\; e_1 \;\texttt{else}\; e_2 \;\texttt{end} \Rightarrow \tau_1 \sqcup \tau_2} \tag{4.14} \]
-\[ \frac{C \oplus \{x_i : \sigma_i\} \vdash \mathit{block} : \sigma}{C \vdash \texttt{fn}\,(x_1{:}\sigma_1,\dots,x_n{:}\sigma_n){:}\sigma\;\texttt{do}\;\mathit{block}\;\texttt{end} \Rightarrow \sigma_1 \times \cdots \times \sigma_n \to \sigma} \tag{4.15} \]
-</div>
+top. An anonymous function <code>fn</code>&hellip; has the function type built from
+its parameter and result types, its body checked under the parameters
+(rules 4.14&ndash;4.15 in Appendix&nbsp;D).</p>
 
 <h2><span class="secno">4.5</span>Elaboration of Statements</h2>
 
@@ -285,9 +289,23 @@ the environment through its statements.</p>
 
 <div class="rule-block">
 \[ \frac{C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x : \notin C}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16} \]
-\[ \frac{C(x) = \sigma \quad C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \;\text{not a}\; \texttt{once}\;\text{field outside a constructor}}{C \vdash x := e \Rightarrow C} \tag{4.17} \]
-\[ \frac{C \vdash e \Rightarrow \texttt{Boolean} \quad C \vdash \mathit{block}_1 : C \quad C \vdash \mathit{block}_2 : C}{C \vdash \texttt{if}\; e \;\texttt{then}\; \mathit{block}_1 \;\texttt{else}\; \mathit{block}_2 \;\texttt{end} \Rightarrow C} \tag{4.18} \]
 </div>
+
+<pre><code>let x: Integer := 10
+if x > 5 then
+  let y: Integer := x * 2
+  print(y)
+else
+  print(0)
+end</code></pre>
+
+<p>The <code>let</code> extends the environment with \(x : \texttt{Integer}\) by
+(4.16), and that environment is threaded into the <code>if</code>; the
+<code>then</code> block extends it further with \(y\), which is in scope only
+within the block (it does not leak to the statements after the <code>if</code>).
+Assignment requires the value to conform to the variable&rsquo;s type and leaves
+the environment unchanged; the <code>if</code> checks each branch under the
+environment it is given (rules 4.17&ndash;4.18 in Appendix&nbsp;D).</p>
 
 <p>A <code>let</code> with no type annotation takes \(\sigma\) to be the inferred
 type \(\tau\) of its initialiser. The premise &ldquo;\(x\) not a <code>once</code>
@@ -304,11 +322,7 @@ its locals to the statements that follow it.</p>
 <p>A <code>match</code> on an expression of class type \(A\) dispatches on the
 runtime class. Each clause <code>when</code> \(B\) <code>as</code> \(x\)
 <code>then</code> \(\mathit{block}\) requires \(B \preceq A\) and elaborates its
-block with \(x\) bound to \(B\).</p>
-
-<div class="rule-block">
-\[ \frac{\begin{array}{c} C \vdash e \Rightarrow A \quad B_j \preceq A \quad C \oplus \{x_j : B_j\} \vdash \mathit{block}_j : C \;\;(1 \le j \le k)\\ A \;\text{sealed} \;\Rightarrow\; \{B_1,\dots,B_k\} = \mathit{subclasses}(C, A) \;\;\text{or an}\; \texttt{else}\;\text{clause is present} \end{array}}{C \vdash \texttt{match}\; e \;\texttt{of}\; \overline{\texttt{when}\,B_j\,\texttt{as}\,x_j\,\texttt{then}\,\mathit{block}_j}\; \texttt{end} \Rightarrow C} \tag{4.19} \]
-</div>
+block with \(x\) bound to \(B\) (rule 4.19 in Appendix&nbsp;D).</p>
 
 <p>When \(A\) is sealed, the set of clause classes must exhaust
 \(\mathit{subclasses}(C, A)\), unless an <code>else</code> clause is present to
@@ -322,11 +336,8 @@ expression that attempts a downward or upward cast: it succeeds, binding \(x\) o
 type \(\sigma\), when the runtime type of \(e\) is related to \(\sigma\) (a
 supertype or subtype), and otherwise yields <code>false</code> with \(x\) bound
 to <code>nil</code>. Statically it requires that the type of \(e\) and \(\sigma\)
-be related by conformance in one direction or the other.</p>
-
-<div class="rule-block">
-\[ \frac{C \vdash e \Rightarrow \tau \quad (\tau \preceq \sigma \;\text{or}\; \sigma \preceq \tau)}{C \vdash \texttt{convert}\; e \;\texttt{to}\; x{:}\sigma \Rightarrow \texttt{Boolean},\;\; C \oplus \{x : \sigma\,?\}} \tag{4.20} \]
-</div>
+be related by conformance in one direction or the other; the form has type
+<code>Boolean</code> and binds \(x : \sigma\,?\) (rule 4.20 in Appendix&nbsp;D).</p>
 
 <h2><span class="secno">4.6</span>Contract Formation</h2>
 
@@ -337,10 +348,37 @@ routine&rsquo;s entry (parameters and fields in scope); a postcondition in that
 environment extended with <code>result</code> and with the <code>old</code> forms; an
 invariant in the environment of the class&rsquo;s fields.</p>
 
+<p>Every assertion must elaborate to <code>Boolean</code> (rule 4.21 in
+Appendix&nbsp;D). The keystone is the typing of <code>old</code>, which is
+admitted only in a postcondition and only on a field of the current object:</p>
+
 <div class="rule-block">
-\[ \frac{C \vdash e \Rightarrow \texttt{Boolean}}{C \vdash (\mathit{label} : e) \;\mathbf{assertion}} \tag{4.21} \]
 \[ \frac{C \vdash f \Rightarrow \tau \quad f \in \mathit{fields}(C, \text{current class})}{C^{\mathsf{ensure}} \vdash \texttt{old}\; f \Rightarrow \tau} \tag{4.22} \]
 </div>
+
+<pre><code>class Counter
+  create make() do count := 0 end
+  feature
+    count: Integer
+    bump()
+    do
+      count := count + 1
+    ensure
+      advanced: count = old count + 1
+    end
+end
+
+let c := create Counter.make()
+c.bump()
+print(c.count)</code></pre>
+
+<p>The postcondition <code>advanced</code> elaborates because <code>count</code> is
+a field of the current class, so <code>old count</code> has type
+<code>Integer</code> by (4.22); the assertion as a whole is <code>Boolean</code> by
+(4.21). At run time <code>old count</code> is the value held on entry, so after one
+<code>bump</code> the count is <code>1</code> and the postcondition holds. Writing
+<code>old</code> on a parameter, or outside an <code>ensure</code>, is a
+compile-time error.</p>
 
 <p>Rule (4.22) records the restriction of Section&nbsp;2.9: <code>old</code>
 applies only to a field of the current object, and only within a postcondition
@@ -361,6 +399,22 @@ with \(\tau_i\) substituted for \(\alpha_i\) throughout.</p>
 \[ \frac{A[\alpha_1{\to}K_1,\dots,\alpha_n{\to}K_n] \in \Sigma \quad \tau_i \preceq K_i \;\;(1 \le i \le n)}{C \vdash A[\tau_1,\dots,\tau_n] \;\mathbf{type}} \tag{4.23} \]
 </div>
 
+<pre><code>class Box [G]
+  create make(x: G) do value := x end
+  feature
+    value: G
+    get(): G do result := value end
+end
+
+let b: Box[Integer] := create Box.make(42)
+print(b.get())</code></pre>
+
+<p>The application <code>Box[Integer]</code> is a well-formed type by (4.23) &mdash;
+the unconstrained parameter <code>G</code> admits any argument &mdash; and within
+it <code>G</code> stands for <code>Integer</code>, so <code>get()</code> returns an
+<code>Integer</code>. Had <code>G</code> carried a constraint such as
+<code>[G -&gt; Comparable]</code>, the argument would have to conform to it.</p>
+
 <p>A parameter written \(?\alpha\) additionally permits \(\mathsf{Nil}\) as an
 argument. A generic routine is elaborated in the same way, its type parameters
 local to the routine. Because elaboration substitutes rather than erases,
@@ -379,8 +433,9 @@ is seen, which is how mutual recursion is admitted (Section&nbsp;3.4). A later
 definition must match its declaration exactly. Free functions, unlike methods,
 may not be overloaded: each free function name is meant to be unique, and a
 definition matching an earlier <code>declare function</code> must agree with it
-in full. (The current implementation does not enforce this uniqueness; see the
-note on enforcement gaps in Section&nbsp;4.9.)</p>
+in full. Both rules are enforced: a repeated definition, and a definition whose
+signature disagrees with its declaration, are each rejected, naming the
+function.</p>
 
 <h2><span class="secno">4.9</span>Well-Formedness of Classes</h2>
 
@@ -421,19 +476,6 @@ class structure. These are checked once, over the whole static world.</p>
   <li><strong>Once discipline.</strong> A <code>once</code> field is assigned
   only in constructors of its class (the premise of (4.17)).</li>
 </ul>
-
-<div class="note">
-  <span class="note-label">Known enforcement gap</span>
-  One check this Definition states is, in the current implementation, not yet
-  performed where described: the uniqueness of free function names
-  (Section&nbsp;4.8) is not enforced &mdash; a second definition of a name
-  silently supersedes the first rather than being rejected. Because the
-  interpreter is the authoritative account of the language (Section&nbsp;1.3),
-  this is recorded as a gap between the intended static semantics and the
-  implementation, to be closed in one or the other. (The conformance of an
-  overriding routine&rsquo;s parameters and return type, once a separate gap, is
-  now checked at the override.)
-</div>
 
 <p>A program all of whose phrases elaborate, and all of whose classes are
 well-formed, is <em>statically valid</em>. The dynamic semantics of the next

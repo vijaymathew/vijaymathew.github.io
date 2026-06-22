@@ -65,15 +65,15 @@ store is threaded strictly left to right through every rule.</p>
 <h2><span class="secno">5.3</span>Evaluation of Expressions</h2>
 
 <h4>Constants, variables, and the current object</h4>
+<p>A constant denotes its value and leaves the store untouched; <code>this</code>
+yields the current object (rules 5.1, 5.3 in Appendix&nbsp;D). A variable is
+looked up in the bindings:</p>
+
 <div class="rule-block">
-\[ s, E \vdash \mathit{scon} \Rightarrow \mathcal{V}(\mathit{scon}),\, s \tag{5.1} \]
 \[ \frac{E(x) = v}{s, E \vdash x \Rightarrow v,\, s} \tag{5.2} \]
-\[ s, E \vdash \texttt{this} \Rightarrow E(\texttt{this}),\, s \tag{5.3} \]
 </div>
 
-<p>Here \(\mathcal{V}\) maps a special constant to the value it denotes; a
-constant has no effect on the store. A variable is looked up in the bindings;
-the lookup walks the chain of enclosing scopes, so that a name resolves to its
+<p>The lookup walks the chain of enclosing scopes, so that a name resolves to its
 nearest binding (Section&nbsp;5.8 on shadowing).</p>
 
 <h4>Operators</h4>
@@ -83,26 +83,25 @@ kinds. <em>Value</em> equality \(=\) compares contents: two collections are
 equal when their elements are equal; two objects, by the <code>equals</code>
 routine of their class, which user classes may override. <em>Identity</em>
 equality \(==\) compares references: two object values are identical exactly when
-they are the same reference \(\ell\). On scalars the two kinds agree.</p>
+they are the same reference \(\ell\). On scalars the two kinds agree. An operator
+evaluates both operands, threading the store, and applies the operation their
+classes associate with \(\odot\) (rule 5.4 in Appendix&nbsp;D).</p>
 
-<div class="rule-block">
-\[ \frac{s, E \vdash e_1 \Rightarrow v_1, s_1 \quad s_1, E \vdash e_2 \Rightarrow v_2, s_2}{s, E \vdash e_1 \odot e_2 \Rightarrow v_1 \mathbin{\widehat\odot} v_2,\, s_2} \tag{5.4} \]
-</div>
+<pre><code>let a: Integer := 7
+let b: Real := 2.0
+print(a + b)</code></pre>
 
-<p>where \(\widehat\odot\) is the operation the environment associates with \(\odot\)
-on the classes of \(v_1\) and \(v_2\).</p>
+<p>The operands have different numeric classes; the <code>Integer</code> is
+admitted where a <code>Real</code> is wanted, the sum is taken as a
+<code>Real</code>, and the value printed is <code>9.0</code>. This widening is the
+one implicit numeric coercion of the language (Section&nbsp;4.3).</p>
 
-<p>On <code>Integer</code> operands the operation is <em>checked</em>, and on the
-two exceptional cases below it terminates exceptionally instead. Write
+<p>On <code>Integer</code> operands the operation is <em>checked</em>. Write
 \(\odot_{\mathbb{Z}}\) for the exact operation in \(\mathbb{Z}\); rule&nbsp;(5.4)
 applies precisely when its result lies in range. An arithmetic operation whose
-exact result overflows the 64-bit range, and integer division or remainder by a
-zero divisor, each raise a built-in exception (&sect;B.3).</p>
-
-<div class="rule-block">
-\[ \frac{s, E \vdash e_1 \Rightarrow v_1, s_1 \quad s_1, E \vdash e_2 \Rightarrow v_2, s_2 \quad v_1, v_2 : \texttt{Integer} \quad v_1 \mathbin{\odot_{\mathbb{Z}}} v_2 \notin [-2^{63},\, 2^{63}-1]}{s, E \vdash e_1 \odot e_2 \Rightarrow \mathbf{raise}\;\mathsf{Arithmetic\_Overflow},\, s_2} \tag{5.4a} \]
-\[ \frac{s, E \vdash e_1 \Rightarrow v_1, s_1 \quad s_1, E \vdash e_2 \Rightarrow 0, s_2 \quad v_1, v_2 : \texttt{Integer} \quad \odot \in \{\,/,\,\%\,\}}{s, E \vdash e_1 \odot e_2 \Rightarrow \mathbf{raise}\;\mathsf{Division\_by\_Zero},\, s_2} \tag{5.4b} \]
-</div>
+exact result overflows the 64-bit range raises <code>Arithmetic_Overflow</code>,
+and integer division or remainder by a zero divisor raises
+<code>Division_by_Zero</code> (rules 5.4a, 5.4b in Appendix&nbsp;D; &sect;B.3).</p>
 
 <p>On <code>Real</code> operands the operation is total: division by zero is
 <em>not</em> exceptional but yields the IEEE&nbsp;754 value \(\pm\infty\) or
@@ -114,12 +113,9 @@ division by zero does not&mdash;is deliberate and holds on every back end.</p>
 <p>The operators <code>and</code> and <code>or</code> are <em>not</em> evaluated
 by (5.4): their second operand is evaluated only conditionally. This holds in
 every back end of Nex and is part of the language&rsquo;s definition, not an
-optimisation.</p>
-
-<div class="rule-block">
-\[ \frac{s, E \vdash e_1 \Rightarrow \mathsf{false}, s_1}{s, E \vdash e_1 \;\texttt{and}\; e_2 \Rightarrow \mathsf{false},\, s_1} \tag{5.5} \]
-\[ \frac{s, E \vdash e_1 \Rightarrow \mathsf{true}, s_1 \quad s_1, E \vdash e_2 \Rightarrow v, s_2}{s, E \vdash e_1 \;\texttt{and}\; e_2 \Rightarrow v,\, s_2} \tag{5.6} \]
-</div>
+optimisation. When \(e_1\) is <code>false</code>, \(e_1\) <code>and</code> \(e_2\)
+is <code>false</code> and \(e_2\) is never evaluated; otherwise the result is
+\(e_2\) (rules 5.5, 5.6 in Appendix&nbsp;D).</p>
 
 <p>Disjunction is dual: in \(e_1\) <code>or</code> \(e_2\), the operand \(e_2\) is
 evaluated only when \(e_1\) is <code>false</code>. A consequence is that a guard
@@ -127,11 +123,10 @@ such as <code>x /= nil and x.f</code> never evaluates <code>x.f</code> when
 <code>x</code> is <code>nil</code>, and is therefore safe.</p>
 
 <h4>Member access and the safe access</h4>
-<div class="rule-block">
-\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad s_1(\ell) = o \quad o.f = v}{s, E \vdash e.f \Rightarrow v,\, s_1} \tag{5.7} \]
-\[ \frac{s, E \vdash e \Rightarrow \texttt{nil}, s_1}{s, E \vdash e\,?.f \Rightarrow \texttt{nil},\, s_1} \tag{5.8} \]
-\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad \ell \ne \texttt{nil}}{s, E \vdash e\,?.f \Rightarrow s_1(\ell).f,\, s_1} \tag{5.9} \]
-</div>
+<p>An ordinary access \(e.f\) reads the field \(f\) of the object at the reference
+\(e\) denotes. The safe access \(e\,?.f\) yields <code>nil</code> when \(e\) is
+<code>nil</code> and reads the field otherwise (rules 5.7&ndash;5.9 in
+Appendix&nbsp;D).</p>
 
 <p>An ordinary access \(e.f\) on a <code>nil</code> receiver has no rule: it
 raises an exception (Section&nbsp;5.7). The safe access \(e\,?.f\) instead yields
@@ -147,6 +142,28 @@ evaluates its body in fresh bindings for the parameters and
 <div class="rule-block">
 \[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
 </div>
+
+<pre><code>class Shape
+  create make() do end
+  feature
+    area(): Real do result := 0.0 end
+end
+
+class Square
+  inherit Shape
+  create make(s: Real) do side := s end
+  feature
+    side: Real
+    area(): Real do result := side * side end
+end
+
+let sh: Shape := create Square.make(3.0)
+print(sh.area())</code></pre>
+
+<p>Although <code>sh</code> has <em>static</em> type <code>Shape</code>, the object
+it denotes is a <code>Square</code>; \(\mathit{lookup}\) in (5.10) selects on
+\(\mathit{class}(o)\), so <code>Square</code>&rsquo;s <code>area</code> runs and the
+result is <code>9.0</code>, not <code>0.0</code>. This is dynamic dispatch.</p>
 
 <p>Three features of this rule deserve note. The routine is chosen by
 \(\mathit{class}(o)\), the class of the actual object, not by the static type of
@@ -188,6 +205,23 @@ fully attached when creation completes.</p>
 \[ \frac{\begin{array}{c} \ell \;\text{fresh} \quad o_0 = \mathit{initial}(A[\bar\tau]) \quad s_0 = s + \{\ell \mapsto o_0\} \\ s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(A) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \\ \mathit{check}(\mathit{post}) \quad \mathit{check}(\mathit{invariant}(A)\;\text{at}\;\ell) \end{array}}{s, E \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow \ell,\, s'} \tag{5.11} \]
 </div>
 
+<pre><code>class Account
+  create make(b: Real) do balance := b end
+  feature
+    balance: Real
+  invariant
+    non_negative: balance >= 0.0
+end
+
+let acct := create Account.make(100.0)
+print(acct.balance)</code></pre>
+
+<p>Creation allocates a fresh object, runs <code>make</code> to set
+<code>balance</code>, then checks the invariant <code>non_negative</code> at the
+new reference before yielding it; the value printed is <code>100.0</code>. Had the
+constructor left <code>balance</code> negative, (5.11) would raise a
+contract-violation at creation rather than return an inconsistent object.</p>
+
 <p>A constructor may assign the <code>once</code> fields of its class; once the
 constructor returns, those fields are fixed for the life of the object
 (Section&nbsp;4.5 enforces this statically, and the store offers no rule to
@@ -221,6 +255,28 @@ condition failed on <em>which</em> line.</p>
   is observable.</li>
 </ul>
 
+<pre><code>class Account
+  create make() do balance := 0.0 end
+  feature
+    balance: Real
+    withdraw(amount: Real)
+    require
+      enough: amount &lt;= balance
+    do
+      balance := balance - amount
+    end
+end
+
+let acct := create Account.make()
+acct.withdraw(50.0)</code></pre>
+
+<p>The precondition <code>enough</code> is checked on entry to
+<code>withdraw</code>, after <code>amount</code> is bound. Here the balance is
+<code>0.0</code>, so the assertion is false and \(\mathit{check}\) raises a
+contract-violation that names the failing condition &mdash; reported as
+<code>Precondition violation: enough</code>. A failed precondition is the
+caller&rsquo;s fault, and the label is what makes the report point to the cause.</p>
+
 <div class="note">
   <span class="note-label">What <code>old</code> captures</span>
   The snapshot of <code>old</code> \(f\) records the <em>value</em> the field
@@ -244,31 +300,48 @@ the exceptional outcome \(s, E \vdash e \Rightarrow \mathbf{raise}\;w,\, s'\).</
 <p>The statement <code>raise</code> \(e\) evaluates \(e\) to a value \(w\) and
 raises it. A <code>nil</code> dereference, a failed contract, a failed runtime
 argument check, and a failed <code>convert</code> in a context requiring success
-all raise built-in exception values by the same mechanism.</p>
-
-<div class="rule-block">
-\[ \frac{s, E \vdash e \Rightarrow w, s_1}{s, E \vdash \texttt{raise}\; e \Rightarrow \mathbf{raise}\;w,\, s_1} \tag{5.12} \]
-</div>
+all raise built-in exception values by the same mechanism (the <code>raise</code>
+statement is rule 5.12 in Appendix&nbsp;D).</p>
 
 <p>A scoped block <code>do</code> \(\mathit{block}_1\) <code>rescue</code>
 \(\mathit{block}_2\) <code>end</code> runs \(\mathit{block}_1\); if it completes
-normally, the <code>rescue</code> is ignored; if it raises \(w\), the handler
-\(\mathit{block}_2\) is run with <code>exception</code> bound to \(w\).</p>
+normally, the <code>rescue</code> is ignored (rule 5.13 in Appendix&nbsp;D); if it
+raises \(w\), the handler \(\mathit{block}_2\) is run with <code>exception</code>
+bound to \(w\):</p>
 
 <div class="rule-block">
-\[ \frac{s, E \vdash \mathit{block}_1 \Rightarrow E_1, s_1}{s, E \vdash \texttt{do}\;\mathit{block}_1\;\texttt{rescue}\;\mathit{block}_2\;\texttt{end} \Rightarrow E, s_1} \tag{5.13} \]
 \[ \frac{s, E \vdash \mathit{block}_1 \Rightarrow \mathbf{raise}\;w, s_1 \quad s_1, E[\texttt{exception} \mapsto w] \vdash \mathit{block}_2 \Rightarrow E_2, s_2}{s, E \vdash \texttt{do}\;\mathit{block}_1\;\texttt{rescue}\;\mathit{block}_2\;\texttt{end} \Rightarrow E, s_2} \tag{5.14} \]
 </div>
 
-<p>Within a handler, the statement <code>retry</code> abandons the handler and
-re-runs \(\mathit{block}_1\) from the top, against the current store. This is the
-idiom for bounded retry: a handler that counts attempts and either
-<code>retry</code>s or gives up. <code>retry</code> has meaning only inside a
-<code>rescue</code> block (Section&nbsp;2.9); elsewhere it is a static error.</p>
+<pre><code>class Worker
+  create make() do attempts := 0 end
+  feature
+    attempts: Integer
+    run()
+    do
+      do
+        attempts := attempts + 1
+        if attempts &lt; 3 then
+          raise "transient"
+        end
+        print(attempts)
+      rescue
+        if attempts &lt; 3 then
+          retry
+        end
+      end
+    end
+end
 
-<div class="rule-block">
-\[ \frac{s, E[\texttt{exception} \mapsto w] \vdash \texttt{do}\;\mathit{block}_1\;\texttt{rescue}\;\mathit{block}_2\;\texttt{end} \Rightarrow R, s'}{s, E[\texttt{exception} \mapsto w] \vdash \texttt{retry} \;\text{within}\; \mathit{block}_2 \Rightarrow R, s'} \tag{5.15} \]
-</div>
+let w := create Worker.make()
+w.run()</code></pre>
+
+<p>The first two attempts raise; each time (5.14) runs the handler, which
+<code>retry</code>s &mdash; abandoning the handler and re-running the block from the
+top against the current store (rule 5.15 in Appendix&nbsp;D). On the third attempt
+no exception is raised and <code>3</code> is printed. <code>retry</code> has meaning
+only inside a <code>rescue</code> block (Section&nbsp;2.9); elsewhere it is a static
+error.</p>
 
 <p>If a handler completes without <code>retry</code>, the scoped block completes
 normally and execution continues after it; an exception raised by the handler
@@ -277,10 +350,12 @@ itself propagates outward in the ordinary way.</p>
 <h2><span class="secno">5.8</span>Statements and Control Flow</h2>
 
 <h4>Local declaration, assignment, and scope</h4>
+<p>A <code>let</code> adds a fresh binding and a field update writes through a
+reference into the store (rules 5.16, 5.18 in Appendix&nbsp;D); assignment rebinds
+an existing variable to a new value:</p>
+
 <div class="rule-block">
-\[ \frac{s, E \vdash e \Rightarrow v, s_1}{s, E \vdash \texttt{let}\; x := e \Rightarrow E + \{x \mapsto v\},\, s_1} \tag{5.16} \]
 \[ \frac{s, E \vdash e \Rightarrow v, s_1}{s, E \vdash x := e \Rightarrow E\langle x \mapsto v\rangle,\, s_1} \tag{5.17} \]
-\[ \frac{s, E \vdash e_1 \Rightarrow \ell, s_1 \quad s_1, E \vdash e_2 \Rightarrow v, s_2}{s, E \vdash e_1.f := e_2 \Rightarrow E,\; s_2\langle \ell.f \mapsto v\rangle} \tag{5.18} \]
 </div>
 
 <p>A <code>let</code> introduces a new binding in a fresh scope; an assignment
@@ -295,12 +370,20 @@ inside a block do not escape it.</p>
 corresponding branch; the conditional expression <code>when</code>&hellip; is its
 value-producing analogue. The general loop runs its <code>from</code> block once,
 then repeatedly tests the <code>until</code> condition, running the body while the
-condition is false.</p>
+condition is false (rules 5.19, 5.20 in Appendix&nbsp;D).</p>
 
-<div class="rule-block">
-\[ \frac{s, E \vdash \mathit{init} \Rightarrow E_1, s_1 \quad s_1, E_1 \vdash \texttt{loop}_{u,b} \Rightarrow E', s'}{s, E \vdash \texttt{from}\;\mathit{init}\;\texttt{until}\;u\;\texttt{do}\;b\;\texttt{end} \Rightarrow E', s'} \tag{5.19} \]
-\[ \frac{s, E \vdash u \Rightarrow \mathsf{true}, s_1}{s, E \vdash \texttt{loop}_{u,b} \Rightarrow E, s_1} \qquad \frac{s, E \vdash u \Rightarrow \mathsf{false}, s_1 \quad s_1, E \vdash b \Rightarrow E_2, s_2 \quad s_2, E_2 \vdash \texttt{loop}_{u,b} \Rightarrow E', s'}{s, E \vdash \texttt{loop}_{u,b} \Rightarrow E', s'} \tag{5.20} \]
-</div>
+<pre><code>let sum: Integer := 0
+from let i := 1 until i > 5 do
+  sum := sum + i
+  i := i + 1
+end
+print(sum)</code></pre>
+
+<p>The <code>from</code> block runs once, binding <code>i</code>; then while
+<code>i &gt; 5</code> is false the body runs, each iteration rebinding
+<code>sum</code> and <code>i</code> in the threaded store (5.17). After
+<code>i</code> reaches <code>6</code> the loop stops and <code>15</code> is
+printed.</p>
 
 <p>A loop may carry an <code>invariant</code>, checked before the body on each
 iteration, and a <code>variant</code>&mdash;an integer expression that must
