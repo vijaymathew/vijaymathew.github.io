@@ -94,8 +94,17 @@ platform. Its arithmetic is <em>checked</em>: an operation
 <code>-</code>, or <code>^</code>) whose mathematical result lies outside that
 range does not wrap, widen, or lose precision&mdash;it
 <strong>raises</strong> an <code>Arithmetic_Overflow</code> exception. Integer
-division <code>/</code> and remainder <code>%</code> by zero have no integer
-result and <strong>raise</strong> a <code>Division_by_Zero</code> exception. This
+division <code>/</code> <em>truncates toward zero</em>, and the remainder
+<code>%</code> is the <em>truncated</em> remainder, taking the sign of the
+dividend, so that <code>a = (a / b) * b + (a % b)</code> holds whenever the
+quotient exists: <code>-7 / 2</code> is <code>-3</code>, <code>-7 % 3</code> is
+<code>-1</code>, and <code>7 % -3</code> is <code>1</code>. (This is the
+convention of C and Java, not the floored convention of Python.) Division and
+remainder by zero have no integer
+result and <strong>raise</strong> a <code>Division_by_Zero</code> exception; the
+one division whose mathematical result lies outside the range,
+\(-2^{63}\)&nbsp;<code>/ -1</code>, raises <code>Arithmetic_Overflow</code> like
+any other overflow. This
 is uniform across back ends: where a host&rsquo;s native integers are wider or
 narrower than 64 bits, the implementation carries <code>Integer</code> as a
 64-bit value and checks each operation, so that a program&rsquo;s integer
@@ -117,7 +126,13 @@ not be the decimal written, so that <code>0.1 + 0.2</code> evaluates to
 
 <p>Division follows IEEE&nbsp;754: <code>1.0 / 0.0</code> yields \(+\infty\),
 <code>-1.0 / 0.0</code> yields \(-\infty\), and <code>0.0 / 0.0</code> yields
-<code>NaN</code>; none of these raises. The special values \(\pm\infty\) and
+<code>NaN</code>; none of these raises. The remainder <code>%</code> on reals
+is likewise truncated (the <code>fmod</code> of C): the result has the sign of
+the dividend, so <code>-7.5 % 2.0</code> is <code>-1.5</code>, and a real
+remainder by zero is <code>NaN</code>, not an exception. Every ordering
+comparison (<code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>,
+<code>&gt;=</code>) against <code>NaN</code> is false, as IEEE&nbsp;754
+prescribes. The special values \(\pm\infty\) and
 <code>NaN</code> are ordinary <code>Real</code> values, produced by arithmetic
 and compared by the IEEE rules&mdash;<code>NaN</code> is unequal to every value
 including itself&mdash;and the standard environment provides
