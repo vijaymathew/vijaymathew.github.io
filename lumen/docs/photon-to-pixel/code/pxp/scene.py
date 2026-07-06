@@ -11,6 +11,8 @@ Positions are (x, y) in [0, 1] x [0, 1], top-left origin. Queries
 outside the frame are clamped: the world continues at its edge value.
 """
 
+import math
+
 from .reflectance import color_chart, patch
 from .spectrum import Spectrum
 
@@ -46,9 +48,12 @@ LINE_WHITE = patch(lambda w: 0.92)
 NEAR_BLACK = patch(lambda w: 0.02)
 
 
-def chart(light, columns=4, rows=3, margin=0.07, gap=0.02):
-    """The twelve-patch chart of 1.1, laid out in space."""
-    patches = [refl for _, refl in color_chart()]
+def chart(light, columns=4, rows=3, margin=0.07, gap=0.02,
+          patches=None):
+    """The twelve-patch chart of 1.1, laid out in space. A custom
+    patch list swaps in other surfaces on the same geometry."""
+    if patches is None:
+        patches = [refl for _, refl in color_chart()]
 
     def reflectance_at(x, y):
         cell_w = (1.0 - 2 * margin - (columns - 1) * gap) / columns
@@ -76,6 +81,22 @@ def grid_target(light, spacing=1 / 12, thickness=0.006):
 
     def reflectance_at(x, y):
         if near_line(x) or near_line(y):
+            return LINE_WHITE
+        return SURROUND
+
+    return Scene(reflectance_at, light)
+
+
+def starburst(light, spokes=36):
+    """Wedges of white and dark radiating from the center — every
+    orientation at once, and spatial frequency rising without limit
+    toward the middle. The classic stress target for anything that
+    reconstructs detail: if an algorithm is going to alias, fringe,
+    or zipper, it will do it here."""
+
+    def reflectance_at(x, y):
+        angle = math.atan2(y - 0.5, x - 0.5)
+        if math.sin(spokes * angle) > 0:
             return LINE_WHITE
         return SURROUND
 

@@ -1,4 +1,3 @@
-<!-- draft -->
 Chapter 1 built a machine that carefully ruins a perfect scene: spectra in, quantized mosaic out. From here the book climbs back. But before any climbing — before white balance, before demosaicing, before anything that deserves the name *processing* — we need to understand exactly what the numbers in the raw file are. This chapter is about those numbers: what they measure, how they wobble, and the two small repairs that must happen before anything else touches them.
 
 ## 2.1 A photosite is a bucket

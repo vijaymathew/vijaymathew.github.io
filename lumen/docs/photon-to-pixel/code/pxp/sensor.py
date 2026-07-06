@@ -90,16 +90,21 @@ class Sensor:
         return total / SAMPLE_COUNT
 
     def expose_for(self, scene, lens, highlight=0.85):
-        """A crude light meter: scan a coarse grid, find the brightest
-        green-filtered signal, and choose the exposure that places it
-        at `highlight` of the full well."""
+        """A crude raw-aware light meter: scan a coarse grid, find
+        the brightest signal any photosite type would record, and
+        choose the exposure that places it at `highlight` of the
+        full well. All three channels are checked because the
+        brightest one depends on the light — under a warm source
+        the red sites saturate long before the green ones."""
         brightest = 0.0
         for gy in range(12):
             for gx in range(16):
                 x, y = (gx + 0.5) / 16, (gy + 0.5) / 12
                 spectrum = lens.look(scene, x, y)
-                brightest = max(brightest,
-                                self.photosite_signal(spectrum, 1))
+                for channel in range(3):
+                    brightest = max(brightest,
+                                    self.photosite_signal(spectrum,
+                                                          channel))
         return highlight * self.full_well / brightest
 
     def capture(self, scene, lens, exposure, iso_gain=1.0):
