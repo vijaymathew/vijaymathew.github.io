@@ -23,6 +23,7 @@ import ast
 import html
 import os
 import re
+import subprocess
 import sys
 
 import markdown
@@ -146,6 +147,29 @@ MD_CONFIG = {"codehilite": {"css_class": "highlight", "guess_lang": False}}
 
 def fail(msg):
     sys.exit(f"build.py: error: {msg}")
+
+
+DRAFT_MARK = "<!-- draft -->"
+
+
+def run_tests():
+    """The book does not build on broken code.
+
+    Part 0 tells the reader the two-tier tests run on every build of
+    the book; this is where that sentence is made true.
+    """
+    result = subprocess.run(
+        [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+        cwd=CODE, capture_output=True, text=True)
+    status = result.stderr.strip().splitlines()[-1] if result.stderr else ""
+    if result.returncode != 0:
+        sys.stderr.write(result.stderr)
+        fail("code tests failed — fix code/ before building the book")
+    if "skipped" in status:
+        print(f"tests: {status} — WARNING: skipped tests mean the "
+              f"two-tier contract is not fully enforced (NumPy missing?)")
+    else:
+        print(f"tests: {status}")
 
 
 MATH = re.compile(r"\\\(.+?\\\)|\\\[.+?\\\]", re.S)
@@ -321,6 +345,14 @@ def render_chapter(i, figures, built):
     with open(os.path.join(SRC, pid + ".md")) as f:
         text = f.read()
 
+    draft = text.lstrip().startswith(DRAFT_MARK)
+    if draft:
+        text = text.lstrip()[len(DRAFT_MARK):]
+        eyebrow_html = (f'{html.escape(eyebrow)}'
+                        f'<span class="draft-chip">Draft</span>')
+    else:
+        eyebrow_html = html.escape(eyebrow)
+
     text, math = stash_math(text)
     text = expand_directives(text, href, figures)
     md = markdown.Markdown(extensions=MD_EXTENSIONS,
@@ -328,7 +360,7 @@ def render_chapter(i, figures, built):
     body = restore_math(number_headings(md.convert(text)), math)
 
     opener = (f'<div class="opener">\n'
-              f'<span class="opener-label">{html.escape(eyebrow)}</span>\n'
+              f'<span class="opener-label">{eyebrow_html}</span>\n'
               f'<h1 class="opener-title">{html.escape(title)}</h1>\n'
               f'<p class="opener-lede">{html.escape(desc)}</p>\n'
               f'</div>\n')
@@ -347,7 +379,9 @@ def render_cover(built):
     entries = []
     for pid, _, numlabel, title, desc in PAGES:
         if pid in built:
-            body = (f'<a href="{pid}.html">{html.escape(title)}'
+            chip = ('<span class="soon">draft</span>'
+                    if built[pid] else "")
+            body = (f'<a href="{pid}.html">{html.escape(title)}{chip}'
                     f'<span class="desc">{html.escape(desc)}</span></a>')
         else:
             body = (f'<span class="pending">{html.escape(title)}'
@@ -374,8 +408,13 @@ def render_cover(built):
 
 
 def main():
-    built = {p[0] for p in PAGES
-             if os.path.exists(os.path.join(SRC, p[0] + ".md"))}
+    run_tests()
+    built = {}
+    for pid, *_ in PAGES:
+        frag = os.path.join(SRC, pid + ".md")
+        if os.path.exists(frag):
+            with open(frag) as f:
+                built[pid] = f.read().lstrip().startswith(DRAFT_MARK)
     figures = scan_figures()
     out = [render_cover(built)]
     for i, page in enumerate(PAGES):

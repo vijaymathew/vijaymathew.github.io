@@ -26,10 +26,13 @@ cd ..
 python3 build.py                        # regenerate *.html
 ```
 
-`build.py` renders every `_src/<id>.md` that exists; pages listed in
+`build.py` runs the test suite first and refuses to build if it
+fails. It renders every `_src/<id>.md` that exists; pages listed in
 `PAGES` without a source file appear on the cover as "in preparation".
-The build fails if a referenced figure PNG is missing — figures are
-computed only by `code/make_figures.py`, never by the build.
+A source whose first line is `<!-- draft -->` is published with a
+Draft chip on its opener and cover entry. The build fails if a
+referenced figure PNG is missing — figures are computed only by
+`code/make_figures.py`, never by the build.
 
 ## Directives available in chapter Markdown
 
