@@ -48,7 +48,7 @@ The third estimator is the photographer. The Kelvin slider in every raw editor i
 
 {{include pxp/whitebalance.py::gains_for_temperature}}
 
-It is only as right as its assumption too: daylight and fluorescents are not filaments, which is why real tools pair the slider with a green–magenta *tint* axis, mopping up the direction of error a blackbody assumption can't express. (Our fluorescent's true gains sit visibly off the temperature slider's reachable line — the simulator will demonstrate the tint axis properly in Chapter 5.)
+It is only as right as its assumption too: daylight and fluorescents are not filaments, which is why real tools pair the slider with a green–magenta *tint* axis, mopping up the direction of error a blackbody assumption can't express. (Our fluorescent's true gains sit visibly off the temperature slider's reachable line.)
 
 ## 3.3 Three numbers, applied early
 

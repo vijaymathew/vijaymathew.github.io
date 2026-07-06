@@ -54,6 +54,31 @@ def srgb_encode(value):
     return 1.055 * value ** (1 / 2.4) - 0.055
 
 
+def xyz_to_lab(xyz_values, white_xyz):
+    """CIELAB: XYZ bent into a space where distance roughly matches
+    perceived difference. The cube root is doing the perceptual
+    work; the linear ramp below the knee keeps black well-behaved."""
+    def f(t):
+        if t > (6 / 29) ** 3:
+            return t ** (1 / 3)
+        return t / (3 * (6 / 29) ** 2) + 4 / 29
+
+    fx = f(xyz_values[0] / white_xyz[0])
+    fy = f(xyz_values[1] / white_xyz[1])
+    fz = f(xyz_values[2] / white_xyz[2])
+    return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)]
+
+
+def delta_e(lab1, lab2):
+    """Color difference as straight CIELAB distance — the original
+    1976 formula. Later refinements (CIEDE2000) weight the axes more
+    carefully; this book keeps the simple one and says so. Rule of
+    thumb: around 1 is a just-noticeable difference, 5 is plainly
+    visible, 20 is a different color."""
+    return ((lab1[0] - lab2[0]) ** 2 + (lab1[1] - lab2[1]) ** 2
+            + (lab1[2] - lab2[2]) ** 2) ** 0.5
+
+
 def display(radiance, white_luminance):
     """A light spectrum as a displayable sRGB triple, brightness
     normalized so that a spectrum of luminance `white_luminance`

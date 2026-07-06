@@ -26,21 +26,30 @@ class Scene:
     the whole spectrum when we want to look at ground truth.
     """
 
-    def __init__(self, reflectance_at, light):
+    def __init__(self, reflectance_at, light, brightness_at=None):
         self.reflectance_at = reflectance_at
         self.light = light
+        # optional spatial illumination: how much of the light falls
+        # here, as a multiplier — sun and shade in one frame
+        self.brightness_at = brightness_at
 
     def _clamped(self, x, y):
         return (min(1.0, max(0.0, x)), min(1.0, max(0.0, y)))
 
+    def _brightness(self, x, y):
+        if self.brightness_at is None:
+            return 1.0
+        return self.brightness_at(x, y)
+
     def sample(self, x, y, band):
         x, y = self._clamped(x, y)
         return (self.reflectance_at(x, y).samples[band]
-                * self.light.samples[band])
+                * self.light.samples[band] * self._brightness(x, y))
 
     def spectrum_at(self, x, y):
         x, y = self._clamped(x, y)
-        return self.reflectance_at(x, y).lit_by(self.light)
+        return self.reflectance_at(x, y).lit_by(self.light).scaled(
+            self._brightness(x, y))
 
 
 SURROUND = patch(lambda w: 0.13)
@@ -49,9 +58,10 @@ NEAR_BLACK = patch(lambda w: 0.02)
 
 
 def chart(light, columns=4, rows=3, margin=0.07, gap=0.02,
-          patches=None):
+          patches=None, brightness_at=None):
     """The twelve-patch chart of 1.1, laid out in space. A custom
-    patch list swaps in other surfaces on the same geometry."""
+    patch list swaps in other surfaces on the same geometry; a
+    brightness function lights it unevenly."""
     if patches is None:
         patches = [refl for _, refl in color_chart()]
 
@@ -67,7 +77,7 @@ def chart(light, columns=4, rows=3, margin=0.07, gap=0.02,
                 return patches[row * columns + col]
         return SURROUND
 
-    return Scene(reflectance_at, light)
+    return Scene(reflectance_at, light, brightness_at)
 
 
 def grid_target(light, spacing=1 / 12, thickness=0.006):

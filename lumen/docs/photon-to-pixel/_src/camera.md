@@ -16,7 +16,7 @@ A spectrum in this book is 36 numbers: samples every 10 nanometers from 380 to 7
 
 {{include pxp/spectrum.py::Spectrum}}
 
-Note the two roles in the docstring. A *light* is a spectrum of emitted power. A *surface* is a spectrum of reflection fractions — a number between 0 and 1 at each wavelength. And the single most load-bearing line of physics in the whole simulator is the method that combines them: the light leaving a surface is the illumination times the reflectance, wavelength by wavelength. That one multiplication, `lit_by`, is where every color cast, every white-balance problem, and every metameric surprise in this book will come from.
+Note the two roles in the docstring. A *light* is a spectrum of emitted power. A *surface* is a spectrum of reflection fractions — a number between 0 and 1 at each wavelength. And the single most important line of physics in the whole simulator is the method that combines them: the light leaving a surface is the illumination times the reflectance, wavelength by wavelength. That one multiplication, `lit_by`, is where every color cast, every white-balance problem, and every metameric surprise in this book will come from.
 
 ### The lights
 
