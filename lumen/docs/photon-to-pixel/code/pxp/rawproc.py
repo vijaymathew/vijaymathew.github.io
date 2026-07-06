@@ -1,4 +1,4 @@
-"""The first pipeline stages: from ADC integers to an honest mosaic.
+"""The first pipeline stages: from ADC integers to a linear, repaired mosaic.
 
 Everything Chapter 1 built runs downhill: scene to lens to sensor to
 file. This module is where the climb back starts. Its input is a
@@ -17,7 +17,7 @@ def linearize(raw):
     """Subtract the black level and scale so that 0.0 means no light
     and 1.0 means full scale.
 
-    Deliberately does NOT clip at zero: read noise puts honest
+    Deliberately does NOT clip at zero: read noise puts genuine
     negative values around true black, and cutting them off would
     bias every dark-region average upward. Negative samples are
     data. They stay until output encoding.

@@ -26,7 +26,7 @@ What the code operates on is one small type, and here it is in full — the enti
 
 {{include pxp/image.py::Image}}
 
-A picture is a grid; a pixel is a list of channel values; the values are floats. Notice what the docstring says about 0.0 and 1.0: they are conventions, not walls. A pipeline works in *linear light* for most of its length, and intermediate values are allowed to wander out of range — a highlight can hold 2.7 through half the pipeline. Clipping is a decision, and this book makes it exactly once, at the honest place: output.
+A picture is a grid; a pixel is a list of channel values; the values are floats. Notice what the docstring says about 0.0 and 1.0: they are conventions, not walls. A pipeline works in *linear light* for most of its length, and intermediate values are allowed to wander out of range — a highlight can hold 2.7 through half the pipeline. Clipping is a decision, and this book makes it exactly once, at output.
 
 Which brings us to output. To look at our images we write PNG files, and — in keeping with the house rules — we write them ourselves, from scratch. A minimal PNG is less mysterious than its reputation: a signature, a header, the pixel rows compressed with `zlib`, an end marker.
 
@@ -38,7 +38,7 @@ That function is the only place in the entire book where channel values are forc
 
 If the ramp looks like it brightens unevenly — too dark for too long, then rushing to white — you have just observed, with your own eyes, the difference between linear light and your display's expectations. That observation is Chapter 7's opening argument, and we made it with sixty lines of standard-library Python.
 
-One honest caveat: `matplotlib` is genuinely useful for *interactive* work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by the book's own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.
+One caveat: `matplotlib` is genuinely useful for *interactive* work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by the book's own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.
 
 ## 0.3 The two-tier contract
 
@@ -68,7 +68,7 @@ The test for exposure, in full:
 
 And here is the reference implementation earning its first figure — the test scene from {{fig first-light}} pushed a stop down and a stop up:
 
-{{figure exposure-stops | One stop down, as shot, one stop up: every channel value halved or doubled, nothing more. At +1, the upper ramp's brighter half has sailed past 1.0 and been clipped to white by `write_png` — our first clipped highlight, and an honest preview of why Chapter 7 spends a whole section on recovering them.}}
+{{figure exposure-stops | One stop down, as shot, one stop up: every channel value halved or doubled, nothing more. At +1, the upper ramp's brighter half has sailed past 1.0 and been clipped to white by `write_png` — our first clipped highlight, and a first look at why Chapter 7 spends a whole section on recovering them.}}
 
 Look closely at the −1 panel: the white patch has become the same middle gray as the clipped region's neighbors, and the saturated primaries have dimmed without changing hue. Exposure in linear light preserves color; it only scales energy. That one figure quietly carries three later chapters — and it cost us a multiplication.
 

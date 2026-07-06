@@ -1,6 +1,6 @@
 """The simulated camera behaves as Chapter 1 claims: the perfect lens
 is invisible, each flaw acts in its documented direction, and the
-sensor is deterministic, mosaiced, and honest about noise."""
+sensor is deterministic, mosaiced, and noisy in the documented ways."""
 
 import math
 import os

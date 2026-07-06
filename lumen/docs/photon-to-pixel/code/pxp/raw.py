@@ -4,7 +4,7 @@ A raw file, stripped of every vendor flourish, is a header saying how
 to read the numbers, then the numbers. Ours is exactly that: a magic
 string, six small header fields, the CFA arrangement, and the sensor
 values row by row as big-endian 16-bit integers. Section 1.5 compares
-this honestly against real DNG.
+it against real DNG.
 """
 
 import struct

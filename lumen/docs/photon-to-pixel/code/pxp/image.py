@@ -43,8 +43,9 @@ def write_png(image, path):
 
     No imaging library: a PNG is a signature, a header chunk, the
     pixel rows compressed with zlib, and an end marker. Channel
-    values are clipped to [0, 1] here — output encoding is exactly
-    the place where clipping is honest — and scaled to 0..255.
+    values are clipped to [0, 1] here — output encoding is the one
+    place where clipping is a decision, not an accident — and
+    scaled to 0..255.
     """
     grayscale = image.channels == 1
     rows = []

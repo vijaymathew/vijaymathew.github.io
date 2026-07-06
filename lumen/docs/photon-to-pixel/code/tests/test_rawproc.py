@@ -1,5 +1,5 @@
 """Chapter 2's stages do what the chapter claims: linearization keeps
-honest negatives, calibration frames recover the exact defect map,
+its negatives, calibration frames recover the exact defect map,
 repairs land near the truth — and the two tiers agree, identically."""
 
 import os

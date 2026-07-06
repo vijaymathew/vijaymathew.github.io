@@ -50,7 +50,7 @@ PAGES = [
     ("demosaicing", "Chapter 4", "4", "Demosaicing",
      "From one value per pixel to three: bilinear, edge-aware, and AHD, measured against truth."),
     ("color", "Chapter 5", "5", "Getting the Color Right",
-     "Camera RGB is not a color space; the matrix that maps it toward one, derived honestly."),
+     "Camera RGB is not a color space; the matrix that maps it toward one, derived from spectral ground truth."),
     ("lens", "Chapter 6", "6", "Undoing the Lens",
      "Vignetting, chromatic aberration, and distortion, inverted from known coefficients."),
     ("tone", "Chapter 7", "7", "Tone",

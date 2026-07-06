@@ -4,7 +4,7 @@ Chapter 3 pulled `interpolate_green` and `demosaic_preview` forward
 as instruments; Chapter 4 owns this module. Four algorithms, in
 rising order of care:
 
-  nearest    copy the closest photosite of each color. The honest
+  nearest    copy the closest photosite of each color. The
              floor: fast, terrible, and instructive about why.
   bilinear   average the neighboring photosites of each color. The
              classic baseline every paper measures against.

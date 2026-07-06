@@ -45,11 +45,11 @@ Real test charts have *measured* patches — someone pointed a spectrophotometer
 
 {{include pxp/reflectance.py::bump}}
 
-Chemistry is kind to us here: these are honestly the shapes real pigment reflectances take. A red surface is red because its reflectance steps up somewhere around 600 nm; a green one carries a bump near the middle of the range. Building patches from formulas instead of measurements keeps the chart fully original and — better — printable. Here is the entire chart, every patch a one-line formula:
+Chemistry is kind to us here: these really are the shapes real pigment reflectances take. A red surface is red because its reflectance steps up somewhere around 600 nm; a green one carries a bump near the middle of the range. Building patches from formulas instead of measurements keeps the chart fully original and — better — printable. Here is the entire chart, every patch a one-line formula:
 
 {{include pxp/reflectance.py::color_chart}}
 
-Twelve surfaces: four neutrals, seven strong colors, and one soft "skin" tone that will keep the later chapters honest (nobody notices when an algorithm ruins a magenta patch; everybody notices ruined skin). The `patch` helper refuses any formula that leaves the physical range — a surface cannot reflect less than nothing or more than everything.
+Twelve surfaces: four neutrals, seven strong colors, and one soft "skin" tone included as a tripwire for the later chapters (nobody notices when an algorithm ruins a magenta patch; everybody notices ruined skin). The `patch` helper refuses any formula that leaves the physical range — a surface cannot reflect less than nothing or more than everything.
 
 ### First look at ground truth
 
@@ -57,7 +57,7 @@ We now have lights and surfaces, and `lit_by` to combine them. To actually *see*
 
 {{figure chart-illuminants | The same twelve surfaces, no processing, no white balance: under D65 daylight (left) and under the 2856 K filament (right). Every difference between the two grids is ground truth — the light really is that orange. The white patch's rendered values under the filament are the exact "wrong" pixels that Chapter 3's white balance will be judged against.}}
 
-Look at what the filament does. The white patch is peach. The gray column has become a ladder of warm tans. Blue has collapsed toward violet-black — a tungsten bulb emits very little short-wavelength power, so a surface that reflects only short wavelengths has almost nothing to reflect. And the skin patch has gone from plausible to sunburnt. None of this is an artifact or an error: *this is what the scene actually looks like* under that light, computed wavelength by wavelength from formulas you have now read in full. Your visual system performs a version of white balance so relentlessly that you have likely never seen a white surface render this honestly before.
+Look at what the filament does. The white patch is peach. The gray column has become a ladder of warm tans. Blue has collapsed toward violet-black — a tungsten bulb emits very little short-wavelength power, so a surface that reflects only short wavelengths has almost nothing to reflect. And the skin patch has gone from plausible to sunburnt. None of this is an artifact or an error: *this is what the scene actually looks like* under that light, computed wavelength by wavelength from formulas you have now read in full. Your visual system performs a version of white balance so relentlessly that you have likely never seen a white surface render this faithfully before.
 
 That is the entire point of the simulated camera. A real photograph of a real chart under a real bulb would give us pixels *like* the right grid — but entangled with one particular sensor's spectral taste, one manufacturer's processing, and no way to separate the light from the camera. Here we have the scene itself, pristine, with the camera not yet built. Everything the rest of the pipeline does will be measured against this.
 

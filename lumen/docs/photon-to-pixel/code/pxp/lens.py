@@ -3,7 +3,7 @@
 A real lens bends light imperfectly in ways that cost real money to
 reduce. Ours commit the same three sins, each controlled by one
 number we choose — which means Chapter 6 can *invert* them exactly and
-then discuss, honestly, what changes when (as with real lenses) you
+then discuss what changes when (as with real lenses) you
 only have a fitted approximation.
 
 The model answers one question: for the sensor position (x, y), where

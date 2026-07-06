@@ -135,7 +135,7 @@ window.MathJax = {
     <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">wavelength</span> <span class="o">-</span> <span class="n">center</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
 </code></pre></div>
 
-<p>Chemistry is kind to us here: these are honestly the shapes real pigment reflectances take. A red surface is red because its reflectance steps up somewhere around 600 nm; a green one carries a bump near the middle of the range. Building patches from formulas instead of measurements keeps the chart fully original and — better — printable. Here is the entire chart, every patch a one-line formula:</p>
+<p>Chemistry is kind to us here: these really are the shapes real pigment reflectances take. A red surface is red because its reflectance steps up somewhere around 600 nm; a green one carries a bump near the middle of the range. Building patches from formulas instead of measurements keeps the chart fully original and — better — printable. Here is the entire chart, every patch a one-line formula:</p>
 <div class="listing-src">from <code>code/pxp/reflectance.py</code></div>
 
 <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">color_chart</span><span class="p">():</span>
@@ -161,7 +161,7 @@ window.MathJax = {
     <span class="p">]</span>
 </code></pre></div>
 
-<p>Twelve surfaces: four neutrals, seven strong colors, and one soft &ldquo;skin&rdquo; tone that will keep the later chapters honest (nobody notices when an algorithm ruins a magenta patch; everybody notices ruined skin). The <code>patch</code> helper refuses any formula that leaves the physical range — a surface cannot reflect less than nothing or more than everything.</p>
+<p>Twelve surfaces: four neutrals, seven strong colors, and one soft &ldquo;skin&rdquo; tone included as a tripwire for the later chapters (nobody notices when an algorithm ruins a magenta patch; everybody notices ruined skin). The <code>patch</code> helper refuses any formula that leaves the physical range — a surface cannot reflect less than nothing or more than everything.</p>
 <h3>First look at ground truth</h3>
 <p>We now have lights and surfaces, and <code>lit_by</code> to combine them. To actually <em>see</em> the result, this chapter borrows two tools that will not be properly explained until later — the integration of a spectrum against the CIE observer to get XYZ (Chapter 5) and the sRGB encoding for display (Chapter 7). They live in <code>pxp.color</code>, they are as explicit as everything else, and for now they are simply how the simulator shows us its world. <a href="#fig-chart-illuminants">Figure 1.1</a> is the payoff:</p>
 <figure id="fig-chart-illuminants">
@@ -169,7 +169,7 @@ window.MathJax = {
 <figcaption><span class="figno">Figure 1.1</span> The same twelve surfaces, no processing, no white balance: under D65 daylight (left) and under the 2856 K filament (right). Every difference between the two grids is ground truth — the light really is that orange. The white patch&rsquo;s rendered values under the filament are the exact &ldquo;wrong&rdquo; pixels that Chapter 3&rsquo;s white balance will be judged against.</figcaption>
 </figure>
 
-<p>Look at what the filament does. The white patch is peach. The gray column has become a ladder of warm tans. Blue has collapsed toward violet-black — a tungsten bulb emits very little short-wavelength power, so a surface that reflects only short wavelengths has almost nothing to reflect. And the skin patch has gone from plausible to sunburnt. None of this is an artifact or an error: <em>this is what the scene actually looks like</em> under that light, computed wavelength by wavelength from formulas you have now read in full. Your visual system performs a version of white balance so relentlessly that you have likely never seen a white surface render this honestly before.</p>
+<p>Look at what the filament does. The white patch is peach. The gray column has become a ladder of warm tans. Blue has collapsed toward violet-black — a tungsten bulb emits very little short-wavelength power, so a surface that reflects only short wavelengths has almost nothing to reflect. And the skin patch has gone from plausible to sunburnt. None of this is an artifact or an error: <em>this is what the scene actually looks like</em> under that light, computed wavelength by wavelength from formulas you have now read in full. Your visual system performs a version of white balance so relentlessly that you have likely never seen a white surface render this faithfully before.</p>
 <p>That is the entire point of the simulated camera. A real photograph of a real chart under a real bulb would give us pixels <em>like</em> the right grid — but entangled with one particular sensor&rsquo;s spectral taste, one manufacturer&rsquo;s processing, and no way to separate the light from the camera. Here we have the scene itself, pristine, with the camera not yet built. Everything the rest of the pipeline does will be measured against this.</p>
 <h2 id="sec-1-2"><span class="secno">1.2</span>A small lens with known sins</h2>
 <p>So far our scenes are mathematical abstractions: a rule that answers &ldquo;how much light leaves this point?&rdquo; for any position and wavelength. Before that light reaches a sensor it passes through glass, and glass is where the first distinctly <em>photographic</em> imperfections enter. To let a lens ask about exactly the point it bends toward, scenes become spatial through one small class — a <code>Scene</code> wraps a reflectance-at-position rule together with a light, and its <code>sample(x, y, band)</code> method is what everything downstream calls. Three procedural test targets (the chart laid out in space, a grid of straight lines, an array of point lights) are the only scenes the book will ever need.</p>
@@ -254,7 +254,7 @@ window.MathJax = {
 <div class="listing-src">from <code>code/pxp/sensor.py</code></div>
 
 <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Sensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A small, honest CMOS stand-in.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A small, plain CMOS stand-in.</span>
 
 <span class="sd">    full_well    electrons a pixel can hold before it clips</span>
 <span class="sd">    read_noise   electrons of Gaussian noise added by readout</span>
@@ -355,7 +355,7 @@ window.MathJax = {
 <span class="sd">to read the numbers, then the numbers. Ours is exactly that: a magic</span>
 <span class="sd">string, six small header fields, the CFA arrangement, and the sensor</span>
 <span class="sd">values row by row as big-endian 16-bit integers. Section 1.5 compares</span>
-<span class="sd">this honestly against real DNG.</span>
+<span class="sd">it against real DNG.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">struct</span>

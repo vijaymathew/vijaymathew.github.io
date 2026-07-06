@@ -6,7 +6,7 @@ there is at each visible wavelength. RGB appears only later, when a
 sensor with three filters looks at these spectra and collapses them.
 
 The book samples the visible range from 380 to 730 nanometers in
-10 nm steps — 36 numbers per spectrum. Fine enough for honest
+10 nm steps — 36 numbers per spectrum. Fine enough for serious
 colorimetry, small enough to print on a page and loop over by hand.
 """
 

@@ -38,7 +38,7 @@ def incandescent(temperature_k=2856.0):
 def fluorescent():
     """A deliberately awkward light: a dim continuum with three sharp
     emission lines, in the style of a cheap triphosphor tube. Kept
-    around to cause honest trouble in the color chapters — two
+    around to cause trouble in the color chapters — two
     surfaces that match under this light can disagree under daylight.
     """
     lines = [(436.0, 6.0, 0.9),       # (center nm, width nm, strength)

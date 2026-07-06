@@ -5,7 +5,7 @@ One note on what "better" can even mean. A mosaic sampled red at one site in fou
 
 ## 4.1 The floor and the baseline
 
-The simplest assumption: *pixels are like their neighbors.* Taken literally, it gives `nearest` — copy each missing value from the closest photosite of that color, no arithmetic at all. Each 2x2 cell then wears a single red and a single blue value whole, so the red image and the blue image are shifted copies of each other, and every edge becomes a small rainbow. The method exists in this book to be the honest floor, and to make a point: demosaicing artifacts are not exotic — they are what *not thinking* looks like, rendered visibly.
+The simplest assumption: *pixels are like their neighbors.* Taken literally, it gives `nearest` — copy each missing value from the closest photosite of that color, no arithmetic at all. Each 2x2 cell then wears a single red and a single blue value whole, so the red image and the blue image are shifted copies of each other, and every edge becomes a small rainbow. The method exists in this book to be the floor, and to make a point: demosaicing artifacts are not exotic — they are what *not thinking* looks like, rendered visibly.
 
 The same assumption, taken smoothly, gives the baseline every paper in the field measures against:
 

@@ -1,4 +1,4 @@
-The mosaic that came out of Chapter 2 is honest — linear, zero-based, every photosite truthful or repaired — but it is not yet a measurement of the *scene*. It is a measurement of the scene times the light, `lit_by`, exactly as Chapter 1 built it. A white shirt under tungsten produced orange numbers, and no later stage knows or cares that the shirt was white unless something undoes the light first.
+The mosaic that came out of Chapter 2 is linear, zero-based, every photosite truthful or repaired — but it is not yet a measurement of the *scene*. It is a measurement of the scene times the light, `lit_by`, exactly as Chapter 1 built it. A white shirt under tungsten produced orange numbers, and no later stage knows or cares that the shirt was white unless something undoes the light first.
 
 That something is white balance, and this chapter makes two claims about it. The familiar one: it can be done with three multiplications, and the entire difficulty is choosing the three numbers. The unfamiliar one, which most explanations skip and this book was partly written to make: it belongs *before* demosaicing, and the order is worth real, measurable image quality. Section 3.4 runs that experiment against ground truth.
 
@@ -24,7 +24,7 @@ For the book's three lights, the truth comes out as follows. Daylight: gains of 
 
 {{figure wb-casts | Swatch views measured directly off the tungsten mosaic — patch-region channel means, no demosaicing needed because the patches are flat. Left: raw camera RGB, displayed as if it were sRGB (a deliberate mislabel, disclosed: correct display is Chapter 5's job). Right: after the known-true gains. The neutral column becomes truly neutral — and the colored patches, note well, are corrected but not <em>right</em>: the blue is still dusky, the magenta still muted. Three multipliers can promise neutrality for neutrals, nothing more.}}
 
-The right panel is the chapter's honest boundary line. White balance makes gray things gray. It does not make color *correct* — the gap between these filters and human vision is untouched by any diagonal scaling, and closing it is Chapter 5's matrix. Keep the two jobs separate in your head; most "white balance looks right but skin looks wrong" complaints are the second job being blamed on the first.
+The right panel draws the chapter's boundary line. White balance makes gray things gray. It does not make color *correct* — the gap between these filters and human vision is untouched by any diagonal scaling, and closing it is Chapter 5's matrix. Keep the two jobs separate in your head; most "white balance looks right but skin looks wrong" complaints are the second job being blamed on the first.
 
 ## 3.2 Guessing the light
 
@@ -62,7 +62,7 @@ Why insist on the order? The armchair argument goes like this. The next stage, d
 
 ## 3.4 The experiment
 
-The instrument is a preview of Chapter 4: the smallest honest edge-directed demosaic, reconstructing green by choosing the smoother of the horizontal and vertical directions, with a correction term borrowed from the same-color neighbors two steps out (the classic Hamilton–Adams step — Chapter 4 rebuilds and measures it properly):
+The instrument is a preview of Chapter 4: the smallest workable edge-directed demosaic, reconstructing green by choosing the smoother of the horizontal and vertical directions, with a correction term borrowed from the same-color neighbors two steps out (the classic Hamilton–Adams step — Chapter 4 rebuilds and measures it properly):
 
 {{include pxp/demosaic.py::interpolate_green}}
 
@@ -80,4 +80,4 @@ Two honesty notes, because the book promised numbers rather than drama. The effe
 
 ---
 
-The mosaic is now balanced: gray things read gray, the light's thumb is off the scale, and every cross-channel comparison downstream means what it appears to mean. What the image still isn't is an *image* — two of every three values are missing, and guessing them well is the most storied problem in the whole pipeline. Chapter 4 is demosaicing, done properly: bilinear as the honest baseline, the gradient-directed step you just previewed, and AHD — each one measured, in the only currency this book accepts, against the scene as it truly was.
+The mosaic is now balanced: gray things read gray, the light's thumb is off the scale, and every cross-channel comparison downstream means what it appears to mean. What the image still isn't is an *image* — two of every three values are missing, and guessing them well is the most storied problem in the whole pipeline. Chapter 4 is demosaicing, done properly: bilinear as the baseline, the gradient-directed step you just previewed, and AHD — each one measured, in the only currency this book accepts, against the scene as it truly was.

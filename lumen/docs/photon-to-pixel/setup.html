@@ -74,7 +74,7 @@ window.MathJax = {
         <span class="bp">self</span><span class="o">.</span><span class="n">pixels</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
 </code></pre></div>
 
-<p>A picture is a grid; a pixel is a list of channel values; the values are floats. Notice what the docstring says about 0.0 and 1.0: they are conventions, not walls. A pipeline works in <em>linear light</em> for most of its length, and intermediate values are allowed to wander out of range — a highlight can hold 2.7 through half the pipeline. Clipping is a decision, and this book makes it exactly once, at the honest place: output.</p>
+<p>A picture is a grid; a pixel is a list of channel values; the values are floats. Notice what the docstring says about 0.0 and 1.0: they are conventions, not walls. A pipeline works in <em>linear light</em> for most of its length, and intermediate values are allowed to wander out of range — a highlight can hold 2.7 through half the pipeline. Clipping is a decision, and this book makes it exactly once, at output.</p>
 <p>Which brings us to output. To look at our images we write PNG files, and — in keeping with the house rules — we write them ourselves, from scratch. A minimal PNG is less mysterious than its reputation: a signature, a header, the pixel rows compressed with <code>zlib</code>, an end marker.</p>
 <div class="listing-src">from <code>code/pxp/image.py</code></div>
 
@@ -83,8 +83,9 @@ window.MathJax = {
 
 <span class="sd">    No imaging library: a PNG is a signature, a header chunk, the</span>
 <span class="sd">    pixel rows compressed with zlib, and an end marker. Channel</span>
-<span class="sd">    values are clipped to [0, 1] here — output encoding is exactly</span>
-<span class="sd">    the place where clipping is honest — and scaled to 0..255.</span>
+<span class="sd">    values are clipped to [0, 1] here — output encoding is the one</span>
+<span class="sd">    place where clipping is a decision, not an accident — and</span>
+<span class="sd">    scaled to 0..255.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">grayscale</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">channels</span> <span class="o">==</span> <span class="mi">1</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
@@ -119,7 +120,7 @@ window.MathJax = {
 </figure>
 
 <p>If the ramp looks like it brightens unevenly — too dark for too long, then rushing to white — you have just observed, with your own eyes, the difference between linear light and your display&rsquo;s expectations. That observation is Chapter 7&rsquo;s opening argument, and we made it with sixty lines of standard-library Python.</p>
-<p>One honest caveat: <code>matplotlib</code> is genuinely useful for <em>interactive</em> work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by the book&rsquo;s own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.</p>
+<p>One caveat: <code>matplotlib</code> is genuinely useful for <em>interactive</em> work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by the book&rsquo;s own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.</p>
 <h2 id="sec-0-3"><span class="secno">0.3</span>The two-tier contract</h2>
 <p>Now for the tension. A 24-megapixel photograph has roughly seventy-two million channel values. Plain Python, sweeping that with nested loops, runs the simplest operations in seconds — and the serious algorithms of Chapters 4 and 8 in <em>days</em>. A book that only ever processed 256-pixel-wide crops would keep its promise of clarity and quietly abandon its other promise: that you finish with a pipeline you can run on your own raw files.</p>
 <p>So every pipeline stage in this book exists in two forms:</p>
@@ -182,7 +183,7 @@ window.MathJax = {
 <p>And here is the reference implementation earning its first figure — the test scene from <a href="#fig-first-light">Figure 0.1</a> pushed a stop down and a stop up:</p>
 <figure id="fig-exposure-stops">
 <img src="assets/figures/exposure-stops.png" alt="Figure 0.2">
-<figcaption><span class="figno">Figure 0.2</span> One stop down, as shot, one stop up: every channel value halved or doubled, nothing more. At +1, the upper ramp&rsquo;s brighter half has sailed past 1.0 and been clipped to white by <code>write_png</code> — our first clipped highlight, and an honest preview of why Chapter 7 spends a whole section on recovering them.</figcaption>
+<figcaption><span class="figno">Figure 0.2</span> One stop down, as shot, one stop up: every channel value halved or doubled, nothing more. At +1, the upper ramp&rsquo;s brighter half has sailed past 1.0 and been clipped to white by <code>write_png</code> — our first clipped highlight, and a first look at why Chapter 7 spends a whole section on recovering them.</figcaption>
 </figure>
 
 <p>Look closely at the −1 panel: the white patch has become the same middle gray as the clipped region&rsquo;s neighbors, and the saturated primaries have dimmed without changing hue. Exposure in linear light preserves color; it only scales energy. That one figure quietly carries three later chapters — and it cost us a multiplication.</p>

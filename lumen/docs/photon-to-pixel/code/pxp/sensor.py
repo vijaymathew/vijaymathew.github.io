@@ -54,7 +54,7 @@ def cfa_channel(x, y):
 
 
 class Sensor:
-    """A small, honest CMOS stand-in.
+    """A small, plain CMOS stand-in.
 
     full_well    electrons a pixel can hold before it clips
     read_noise   electrons of Gaussian noise added by readout

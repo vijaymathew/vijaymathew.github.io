@@ -8,10 +8,10 @@ correctable: they can be found once, from calibration frames, and
 fixed in every subsequent shot.
 
 The simulator inflicts them the way age does — on the finished
-frame, at positions fixed by the sensor's seed. (A small honesty
-note: real hot pixels also carry their own shot noise and scale with
-exposure time; ours are a constant surplus. Chapter 2 needs their
-*fixedness*, not their thermodynamics.)
+frame, at positions fixed by the sensor's seed. (A disclosed
+simplification: real hot pixels also carry their own shot noise and
+scale with exposure time; ours are a constant surplus. Chapter 2
+needs their *fixedness*, not their thermodynamics.)
 """
 
 import random

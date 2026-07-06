@@ -68,4 +68,4 @@ The bet has consequences the rest of the book keeps meeting. Green's dense grid 
 
 ---
 
-The frame is now as honest as capture allows: linear floats on a sane scale, zero meaning darkness (on average), every photosite either truthful or repaired, and a mosaic whose logic we understand. What the image is *not*, yet, is the right color — every value still wears the orange of whatever light lit the scene, exactly as Figure 1.1 warned. Chapter 3 fixes that, and it will insist on doing so *before* the mosaic is unwoven — an ordering argument the book has been saving since the introduction.
+The frame is now everything capture can make it: linear floats on a sane scale, zero meaning darkness (on average), every photosite either truthful or repaired, and a mosaic whose logic we understand. What the image is *not*, yet, is the right color — every value still wears the orange of whatever light lit the scene, exactly as Figure 1.1 warned. Chapter 3 fixes that, and it will insist on doing so *before* the mosaic is unwoven — an ordering argument the book has been saving since the introduction.
