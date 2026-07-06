@@ -54,18 +54,20 @@ def srgb_encode(value):
     return 1.055 * value ** (1 / 2.4) - 0.055
 
 
-def swatch(reflectance, light):
-    """Display color of a surface under a light — the ground-truth
-    answer to 'what color is this patch, really?'.
-
-    Brightness is normalized so the light itself has luminance 1:
-    a perfect white surface renders as display white. Values outside
-    sRGB's gamut are clipped, plainly and without apology; gamut
-    mapping gets its own treatment in Part 5.
-    """
-    leaving = reflectance.lit_by(light)
-    white_y = xyz(light)[1]
-    x, y, z = [v / white_y for v in xyz(leaving)]
+def display(radiance, white_luminance):
+    """A light spectrum as a displayable sRGB triple, brightness
+    normalized so that a spectrum of luminance `white_luminance`
+    renders as display white. Values outside sRGB's gamut are
+    clipped, plainly and without apology; gamut mapping gets its own
+    treatment in Part 5."""
+    x, y, z = [v / white_luminance for v in xyz(radiance)]
     linear = xyz_to_linear_srgb([x, y, z])
     return [srgb_encode(min(1.0, max(0.0, channel)))
             for channel in linear]
+
+
+def swatch(reflectance, light):
+    """Display color of a surface under a light — the ground-truth
+    answer to 'what color is this patch, really?'. A perfect white
+    surface renders as display white."""
+    return display(reflectance.lit_by(light), xyz(light)[1])

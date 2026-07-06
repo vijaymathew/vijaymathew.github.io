@@ -62,6 +62,65 @@ Look at what the filament does. The white patch is peach. The gray column has be
 
 That is the entire point of the simulated camera. A real photograph of a real chart under a real bulb would give us pixels *like* the right grid — but entangled with one particular sensor's spectral taste, one manufacturer's processing, and no way to separate the light from the camera. Here we have the scene itself, pristine, with the camera not yet built. Everything the rest of the pipeline does will be measured against this.
 
+## 1.2 A small lens with known sins
+
+So far our scenes are mathematical abstractions: a rule that answers "how much light leaves this point?" for any position and wavelength. Before that light reaches a sensor it passes through glass, and glass is where the first distinctly *photographic* imperfections enter. To let a lens ask about exactly the point it bends toward, scenes become spatial through one small class — a `Scene` wraps a reflectance-at-position rule together with a light, and its `sample(x, y, band)` method is what everything downstream calls. Three procedural test targets (the chart laid out in space, a grid of straight lines, an array of point lights) are the only scenes the book will ever need.
+
+A real lens design fights a catalog of aberrations; correcting each one further costs exponentially more money and glass. Our fictional lens commits just the three sins that matter to the pipeline, each governed by a single coefficient:
+
+{{include pxp/lens.py::Lens}}
+
+Read `source_position` closely, because the entire model is that method. A lens, for our purposes, is a rule about *where to look*: the sensor position asks for light, and the lens fetches it from a slightly wrong place. Radial **distortion** scales the fetch position by \(1 + k\,r^2\) — the classic single-coefficient model, and the same form (with more terms) used by real correction software. Lateral **chromatic aberration** makes that magnification drift with wavelength, so the corner of the frame fetches its blue from one place and its red from another; the loop in `look` is the moment where "the color channels don't line up" stops being folklore and becomes seven lines of code. **Vignetting** doesn't move light, it loses it — a smooth radial falloff applied to whatever arrives.
+
+{{figure lens-flaws | The straight-line grid through the perfect lens (left) and the book's kit lens (right). Barrel distortion bows the lines — the middle of each edge line sits farther out than its ends; vignetting takes the corners down by nearly a stop; and lateral CA fringes every line with color, weakly near the center and boldly at the edges. All three flaws in one photograph of graph paper.}}
+
+The book keeps two lenses. The `perfect` lens — identity geometry, no falloff — is the control group in every later experiment. The `kit_lens` has all three coefficients set to values chosen to be *obvious in figures* rather than realistic; a real prime lens is far better behaved, and the text will say so whenever it matters. For chromatic aberration especially, honesty requires exaggeration:
+
+{{figure lens-ca | The point-light array through a lens with deliberately strong lateral CA. Left: the full frame. Middle: a 4x enlargement at the center, where CA vanishes by symmetry — the dots stay white. Right: the same enlargement in the top-right corner, where each dot is drawn out into a small spectrum, blue toward the frame center and red away from it. Part 6 will put these dots back together.}}
+
+The dots tell the whole CA story in one image: at the center, all wavelengths agree about where the dot is; toward the corner they disagree in proportion to radius, and a white point becomes a tiny rainbow. Note that this is *lateral* CA — a geometric error, correctable by warping the channels back into register, which is exactly what Part 6 will do with these coefficients. (Axial CA, where wavelengths focus at different *depths*, blurs rather than shifts; it needs the defocus machinery this simulator deliberately doesn't have, and the book discusses it without simulating it.)
+
+## 1.3 The sensor — where spectra die
+
+Everything so far is a continuum: power at every wavelength, radiance at every position. The sensor ends that, in three brutal steps. It samples space on a pixel grid. It collapses each pixel's spectrum to a *single number* through a colored filter. And it adds noise, because physics leaves it no choice.
+
+The filters come first. Our sensor has three, fictional but shaped like real CMOS filter dyes: broad, heavily overlapping bumps, with the red filter leaking slightly in the blue (real red dyes do). Two properties matter enormously later. These curves are *not* the human eye's — the gap between what the sensor measures and what a person sees is precisely what Part 5's color matrix exists to bridge. And they overlap, so no surface excites only one channel — which is why "camera RGB" will turn out not to be a color space at all.
+
+But a sensor does not get three measurements per pixel. Each photosite sits under exactly *one* filter, arranged in the Bayer mosaic — the pattern that Part 4 will spend an entire chapter undoing:
+
+{{include pxp/sensor.py::cfa_channel}}
+
+Two greens per 2x2 cell, one red, one blue: half the sensor measures green, because human vision takes most of its sharpness from the middle of the spectrum and the pattern's designer, Bryce Bayer, spent his budget accordingly. Here is the sensor in full — the last stop before every photograph in this book:
+
+{{include pxp/sensor.py::Sensor}}
+
+The noise lines deserve a slow read, because they are the truest physics in the simulator. Light arrives in photons, and a photosite expecting \(N\) electrons in an exposure actually collects \(N\) give or take \(\sqrt{N}\) — **shot noise**, a property of light itself, not of the sensor, and the reason no camera at any price takes a noiseless photograph. The readout electronics add a few electrons of Gaussian **read noise** on top. And each column's amplifier has its own slightly-off gain — **fixed-pattern noise**, the same stripes in every frame, which is what will make it correctable in Part 2 while the random noise is merely *reducible*. Note also what the ADC does at the bottom of `capture`: it adds a `black_level` offset before quantizing, so that the noise dancing around zero survives digitization intact instead of having its negative half chopped off. That little offset is why Part 2 begins with black-level subtraction.
+
+{{figure sensor-mosaic | The chart, captured. Left: the raw frame's values as plain brightness — one number per pixel, and visibly textured, because neighboring pixels sit under different filters. Right: a 16x16-pixel crop straddling the white and red patches, enlarged, each value shown in its filter's color. On the white patch all three photosite types respond; on the red patch the red sites respond alone and the green and blue sites go dark. No pixel knows more than its own single number.}}
+
+Look at the left panel's *neutral* patches: even they are textured, and the texture is not noise — green photosites simply catch more of D65 than red or blue ones do through these filters. A raw file straight off any sensor is dim, mosaiced, and green-tinted; every "why does my raw look like that" forum thread traces back to this figure. The right panel is the pipeline's to-do list in miniature: Parts 2 through 5 exist to turn that checkerboard back into a photograph.
+
+## 1.4 The raw file
+
+One step remains: writing the frame to disk. Real raw formats are sprawling — thumbnails, EXIF blocks, maker notes, encrypted focus data — but beneath the flourishes every one of them is the same thing: *a header saying how to read the numbers, then the numbers.* Our container is exactly that and nothing else:
+
+{{listing pxp/raw.py}}
+
+Seventeen bytes of header, then two bytes per pixel. A file you can read with your eyes:
+
+```text
+00000000  50 58 52 41 57 01 00 30 00 20 0c 00 40 52 47 47  |PXRAW..0. ..@RGG|
+00000010  42 01 d0 02 16 01 cc 02 22 01 d0 02 29 01 ba 02  |B......."...)...|
+00000020  1c 01 ce 02 37 01 db 02 2d 01 c7 02 17 01 e4 02  |....7...-.......|
+```
+
+That is a real capture of the chart (48x32, for a file small enough to dump). The magic spells `PXRAW`; then version `01`; `0030` and `0020` are 48 and 32; `0c` is 12 bits; `0040` is the black level of 64; then `RGGB`. And the pixel values that follow are already telling the truth about the sensor: they alternate `01xx`, `02xx`, `01xx`, `02xx` — red site, green site, red site, green site across the top row of a gray surround, the green ones half again brighter. You can see the color filter array *in the hex dump*.
+
+## 1.5 Sidebar: what real raw files add
+
+!!! note "This container vs. DNG"
+    Adobe's DNG — the closest thing to a published, non-proprietary raw format — is a TIFF: a tag tree rather than a fixed header, which is most of the difference. Where our seventeen bytes say *width, height, bits, black level, CFA*, DNG says the same things in tags (`ImageWidth`, `BitsPerSample`, `BlackLevel`, `CFAPattern`) plus the things our simulator doesn't need yet: `ColorMatrix1/2` (the camera-to-XYZ matrices Part 5 derives from scratch), `AsShotNeutral` (the camera's own white-balance guess, Part 3's competitor), lens-correction opcodes (Part 6's job, shipped as data), and compression. Nothing in a DNG is conceptually missing from this chapter — it is this chapter, industrialized. The book never parses DNG; when Part 10 needs real files, it lets `rawpy` do the reading and keeps its attention on the pixels.
+
 ---
 
-*This part is a draft in progress. Next: **1.2**, a small fictional lens — parametric distortion, vignetting, and chromatic aberration; **1.3**, the sensor — spectral sensitivities, noise, and the Bayer mosaic; **1.4**, assembling the raw file.*
+The camera is complete: spectra in, integers out — `scene → lens → sensor → file`, every stage a page of code, every flaw a number we chose. From here the direction of travel reverses. The simulator spent this part carefully ruining a perfect scene; the rest of the book is the long climb back. Part 2 starts at the bottom, with the numbers themselves: black level, noise, and what "exposure" really means to a photosite.
