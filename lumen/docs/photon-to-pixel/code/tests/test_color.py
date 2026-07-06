@@ -64,7 +64,7 @@ class TestChart(unittest.TestCase):
 
     def test_neutrals_stay_neutral_under_incandescent_after_scaling(self):
         # Without white balance, a gray patch under warm light is
-        # simply orange — r > g > b. The pipeline's whole Part 3 in
+        # simply orange — r > g > b. The pipeline's whole Chapter 3 in
         # one assertion.
         chart = dict(reflectance.color_chart())
         r, g, b = color.swatch(chart["gray-60"], illuminant.incandescent())

@@ -1,4 +1,4 @@
-"""Figures for Part 1 — The Simulated Camera System.
+"""Figures for Chapter 1 — The Simulated Camera System.
 
 Generates:
   chart-illuminants.png  the twelve-patch chart rendered under D65
@@ -61,7 +61,7 @@ def main():
     charts = side_by_side(render_chart(illuminant.daylight()),
                           render_chart(illuminant.incandescent()))
     write_png(charts, os.path.join(OUT, "chart-illuminants.png"))
-    print("part1_scenes: chart-illuminants.png")
+    print("chapter1_scenes: chart-illuminants.png")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """From spectra to numbers a display understands.
 
-This module is used by Part 1 to *show* ground-truth scenes, and
-explained properly in Part 5. The path is always the same: a light
+This module is used by Chapter 1 to *show* ground-truth scenes, and
+explained properly in Chapter 5. The path is always the same: a light
 spectrum is integrated against the CIE observer curves to get XYZ,
 and XYZ is mapped to sRGB for display.
 """
@@ -28,7 +28,7 @@ def chromaticity(xyz_values):
     return (x / total, y / total)
 
 
-# sRGB primaries, D65 white point (IEC 61966-2-1). Derived in Part 5;
+# sRGB primaries, D65 white point (IEC 61966-2-1). Derived in Chapter 5;
 # used on faith until then.
 XYZ_TO_LINEAR_SRGB = [
     [3.2406, -1.5372, -0.4986],
@@ -48,7 +48,7 @@ def xyz_to_linear_srgb(xyz_values):
 
 def srgb_encode(value):
     """The sRGB transfer curve: linear light in, display value out.
-    Explained (at length) in Part 7."""
+    Explained (at length) in Chapter 7."""
     if value <= 0.0031308:
         return 12.92 * value
     return 1.055 * value ** (1 / 2.4) - 0.055
@@ -59,7 +59,7 @@ def display(radiance, white_luminance):
     normalized so that a spectrum of luminance `white_luminance`
     renders as display white. Values outside sRGB's gamut are
     clipped, plainly and without apology; gamut mapping gets its own
-    treatment in Part 5."""
+    treatment in Chapter 5."""
     x, y, z = [v / white_luminance for v in xyz(radiance)]
     linear = xyz_to_linear_srgb([x, y, z])
     return [srgb_encode(min(1.0, max(0.0, channel)))

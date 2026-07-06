@@ -1,4 +1,4 @@
-"""The Image type and PNG output — the whole toolkit of Part 0.
+"""The Image type and PNG output — the whole toolkit of Chapter 0.
 
 An Image is nothing more than a grid of pixels, and a pixel is nothing
 more than a short list of numbers. Every algorithm in the book reads

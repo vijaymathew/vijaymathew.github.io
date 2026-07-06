@@ -1,4 +1,4 @@
-"""The simulated camera behaves as Part 1 claims: the perfect lens
+"""The simulated camera behaves as Chapter 1 claims: the perfect lens
 is invisible, each flaw acts in its documented direction, and the
 sensor is deterministic, mosaiced, and honest about noise."""
 

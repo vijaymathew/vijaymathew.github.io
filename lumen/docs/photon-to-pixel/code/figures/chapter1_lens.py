@@ -1,4 +1,4 @@
-"""Figures for Part 1, section 1.2 — the lens.
+"""Figures for Chapter 1, section 1.2 — the lens.
 
 Generates:
   lens-flaws.png  the grid target through the perfect lens and
@@ -73,7 +73,7 @@ def main():
     ca = side_by_side([dots, center, corner])
     write_png(ca, os.path.join(OUT, "lens-ca.png"))
 
-    print("part1_lens: lens-flaws.png, lens-ca.png")
+    print("chapter1_lens: lens-flaws.png, lens-ca.png")
 
 
 if __name__ == "__main__":

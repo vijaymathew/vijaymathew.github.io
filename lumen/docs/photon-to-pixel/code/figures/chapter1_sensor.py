@@ -1,4 +1,4 @@
-"""Figures for Part 1, section 1.3 — the sensor.
+"""Figures for Chapter 1, section 1.3 — the sensor.
 
 Generates:
   sensor-mosaic.png  the chart as the sensor records it: the full
@@ -81,7 +81,7 @@ def main():
     panel = side_by_side([gray_frame(frame),
                           tinted_crop(frame, x0=26, y0=32)])
     write_png(panel, os.path.join(OUT, "sensor-mosaic.png"))
-    print("part1_sensor: sensor-mosaic.png")
+    print("chapter1_sensor: sensor-mosaic.png")
 
 
 if __name__ == "__main__":

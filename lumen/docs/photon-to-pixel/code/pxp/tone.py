@@ -1,7 +1,7 @@
 """Tone operations — reference tier.
 
-Part 7 fills this module out. For now it holds the book's very first
-pipeline operation, used in Part 0 to demonstrate the two-tier code
+Chapter 7 fills this module out. For now it holds the book's very first
+pipeline operation, used in Chapter 0 to demonstrate the two-tier code
 contract.
 """
 

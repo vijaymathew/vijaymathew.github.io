@@ -6,10 +6,10 @@ in this directory; everything is self-contained here.
 ## Layout
 
 ```
-_src/            chapter sources, Markdown, one file per Part
+_src/            chapter sources, Markdown, one file per chapter
 code/pxp/        the companion package — reference tier (plain Python)
 code/pxp/fast/   pipeline tier (NumPy twins of the reference code)
-code/figures/    figure scripts, one per Part, deterministic
+code/figures/    figure scripts, one per chapter, deterministic
 code/tests/      unit tests, incl. the two-tier equality tests
 assets/figures/  generated PNGs (committed; regenerable byte-for-byte)
 build.py         static generator (needs: markdown, pygments)
@@ -43,7 +43,7 @@ referenced figure PNG is missing — figures are computed only by
 | `{{figure <id> \| <caption>}}` | numbered figure from `assets/figures/<id>.png` |
 | `{{fig <id>}}` | cross-reference: "Figure P.N", linked |
 
-Figures are numbered `P.N` from the Part number and order of
+Figures are numbered `P.N` from the chapter number and order of
 appearance. Inline math uses MathJax delimiters `\( … \)` / `\[ … \]`.
 Callouts use the Markdown admonition syntax; the `patent` flavor
 (`!!! patent "Patent note"`) renders in muted style.

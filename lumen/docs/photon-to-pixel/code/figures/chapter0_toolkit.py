@@ -1,4 +1,4 @@
-"""Figures for Part 0 — Setup.
+"""Figures for Chapter 0 — Setup.
 
 Generates:
   first-light.png     the first image made entirely with our own toolkit
@@ -64,7 +64,7 @@ def main():
     stops = triptych([exposure(small, -1), small, exposure(small, +1)])
     write_png(stops, os.path.join(OUT, "exposure-stops.png"))
 
-    print("part0_toolkit: first-light.png, exposure-stops.png")
+    print("chapter0_toolkit: first-light.png, exposure-stops.png")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ a Bayer mosaic, adds the noise physics insists on, and quantizes the
 result to integers. What comes out is a raw frame: the starting
 point of every chapter after this one.
 
-The noise model is introduced here and dissected in Part 2:
+The noise model is introduced here and dissected in Chapter 2:
 photon shot noise (the light itself arrives in grains), read noise
 (the electronics whisper), and fixed-pattern noise (each column's
 amplifier is a slightly different individual).
@@ -30,7 +30,7 @@ def _response(center, width, peak):
 # The pxp sensor's three color filters. Fictional, but shaped like
 # real CMOS dyes: broad, overlapping, and deliberately NOT the human
 # observer curves — the gap between these and the eye is exactly what
-# Part 5's color matrix exists to bridge. The red filter leaks a
+# Chapter 5's color matrix exists to bridge. The red filter leaks a
 # little blue, as real red dyes do; that leak is why the matrix will
 # have off-diagonal terms worth talking about.
 _RED_LEAK = _response(425.0, 20.0, 0.06)
@@ -119,9 +119,12 @@ class Sensor:
                 electrons = min(electrons, self.full_well)
                 if electrons > 0.0:                    # shot noise
                     electrons += rng.gauss(0.0, math.sqrt(electrons))
-                electrons += rng.gauss(0.0, self.read_noise)
-                electrons = min(max(electrons, 0.0), self.full_well)
-                value = self.black_level + electrons * gain * iso_gain
+                    electrons = min(max(electrons, 0.0), self.full_well)
+                # read noise happens in the readout wiring, after the
+                # well: it can and does swing below true black, which
+                # is the whole reason the black_level offset exists
+                signal = electrons + rng.gauss(0.0, self.read_noise)
+                value = self.black_level + signal * gain * iso_gain
                 row.append(min(self.white_level, max(0, round(value))))
             values.append(row)
         return RawImage(self.width, self.height, values,
