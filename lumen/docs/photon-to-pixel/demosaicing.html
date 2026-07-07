@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demosaicing — The Long Way from Light to JPEG</title>
+<meta name="description" content="From one value per pixel to three: bilinear, edge-aware, and AHD, measured against truth.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html" class="active">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 4</span>
+<h1 class="opener-title">Demosaicing</h1>
+<p class="opener-lede">From one value per pixel to three: bilinear, edge-aware, and AHD, measured against truth.</p>
+</div>
+<article class="prose">
+<p>Every pixel in the balanced mosaic knows one third of its own color. Demosaicing invents the other two thirds — sixteen million educated guesses per photograph, made so routinely that most photographers don&rsquo;t know a guess is happening at all. It is the most studied problem in the whole pipeline, the place where camera reviews are quietly won and lost, and the first stage where this book&rsquo;s ground truth pays off in full: we will not argue about which algorithm is better, we will <em>measure</em> it.</p>
+<p>One note on what &ldquo;better&rdquo; can even mean. A mosaic sampled red at one site in four; scene detail finer than that grid is not recorded ambiguously, it is not recorded at all, and no algorithm can conjure it back. Demosaicing is therefore not reconstruction in the strict sense — it is <em>prediction from assumptions about images</em>, and every method in this chapter is exactly one such assumption made mechanical. Better assumptions, better guesses; and near the center of the starburst, where the scene outruns the grid, everyone fails and the only question is how gracefully.</p>
+<h2 id="sec-4-1"><span class="secno">4.1</span>The floor and the baseline</h2>
+<p>The simplest assumption: <em>pixels are like their neighbors.</em> Taken literally, it gives <code>nearest</code> — copy each missing value from the closest photosite of that color, no arithmetic at all. Each 2x2 cell then wears a single red and a single blue value whole, so the red image and the blue image are shifted copies of each other, and every edge becomes a small rainbow. The method exists in this book to be the floor, and to make a point: demosaicing artifacts are not exotic — they are what <em>not thinking</em> looks like, rendered visibly.</p>
+<p>The same assumption, taken smoothly, gives the baseline every paper in the field measures against:</p>
+<div class="listing-src">from <code>code/pxp/demosaic.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">bilinear</span><span class="p">(</span><span class="n">mosaic</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Average the neighboring photosites of each color — the</span>
+<span class="sd">    baseline against which every demosaicing paper measures itself.</span>
+<span class="sd">    Smooth regions come out perfect; edges, which are the entire</span>
+<span class="sd">    problem, get averaged straight across.&quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">mosaic</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+            <span class="n">site</span> <span class="o">=</span> <span class="n">cfa_channel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">site</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">green</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">green</span> <span class="o">=</span> <span class="p">(</span><span class="n">_at</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">x</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">_at</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                         <span class="o">+</span> <span class="n">_at</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                         <span class="o">+</span> <span class="n">_at</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="mi">4</span>
+            <span class="n">red</span> <span class="o">=</span> <span class="n">value</span> <span class="k">if</span> <span class="n">site</span> <span class="o">==</span> <span class="mi">0</span> \
+                <span class="k">else</span> <span class="n">_cross_average</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">blue</span> <span class="o">=</span> <span class="n">value</span> <span class="k">if</span> <span class="n">site</span> <span class="o">==</span> <span class="mi">2</span> \
+                <span class="k">else</span> <span class="n">_cross_average</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="p">[</span><span class="n">red</span><span class="p">,</span> <span class="n">green</span><span class="p">,</span> <span class="n">blue</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>Averaging is kind to smooth regions — flat patches come out exact, as the test suite confirms — and unkind exactly where the image lives: at edges. Averaging across an edge invents values that belong to neither side, and it does so <em>independently per channel</em>, on grids that don&rsquo;t even sample the same places. The signature artifacts follow directly:</p>
+<figure id="fig-demosaic-zipper">
+<img src="assets/figures/demosaic-zipper.png" alt="Figure 4.1">
+<figcaption><span class="figno">Figure 4.1</span> A color edge from the chart, 8x: ground truth (left), bilinear (middle), AHD (right — where this chapter is headed). Bilinear&rsquo;s middle panel shows the classic <em>zipper</em>: the edge lands between photosites, alternate rows interpolate it differently, and a straight boundary becomes sawteeth of false color. AHD keeps the edges straight — and pays a different, subtler price: the three-pixel-wide surround stripe comes out tinted, because features that thin fall below the mosaic&rsquo;s color sampling and <em>something</em> must give.</figcaption>
+</figure>
+
+<p>Zippering — alternate-row disagreement along edges — and false color fringes are the two artifacts every demosaicing method since 1980 has been an attempt to suppress. Both are visible in the middle panel; both have the same root cause; and the cure for each begins with the same observation about real images.</p>
+<h2 id="sec-4-2"><span class="secno">4.2</span>Interpolate differences, and defer decisions</h2>
+<p>The observation: in natural images, <em>color changes far more slowly than brightness</em>. Most edges are luminance edges — the red and green values both drop at the shadow line, together. So while red itself is jagged, red <em>minus green</em> is smooth almost everywhere, and smooth signals are what interpolation is actually good at. This suggests reconstructing the dense green channel first (Chapter 3&rsquo;s gradient-directed <code>interpolate_green</code>, built on the same insight), then interpolating not red, but the red-minus-green <em>difference</em>, and letting it ride on the reconstructed green:</p>
+<div class="listing-src">from <code>code/pxp/demosaic.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">_rb_as_differences</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">green</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Red and blue planes, interpolated as color differences.</span>
+
+<span class="sd">    The trick that separates good demosaics from bilinear: don&#39;t</span>
+<span class="sd">    interpolate red itself, interpolate red *minus green* — the</span>
+<span class="sd">    difference varies far more slowly than either channel alone,</span>
+<span class="sd">    because most edges are luminance edges that red and green cross</span>
+<span class="sd">    together. Ride the interpolated difference on the already-</span>
+<span class="sd">    reconstructed green plane and sharp edges survive in all three</span>
+<span class="sd">    channels.&quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">diff_at</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">width</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">mosaic</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">-</span> <span class="n">green</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+
+    <span class="n">planes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="n">plane</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+                <span class="n">site</span> <span class="o">=</span> <span class="n">cfa_channel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">site</span> <span class="o">==</span> <span class="n">channel</span><span class="p">:</span>
+                    <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">])</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">site</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">y</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+                        <span class="n">estimate</span> <span class="o">=</span> <span class="p">(</span><span class="n">diff_at</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                                    <span class="o">+</span> <span class="n">diff_at</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">estimate</span> <span class="o">=</span> <span class="p">(</span><span class="n">diff_at</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                                    <span class="o">+</span> <span class="n">diff_at</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">estimate</span> <span class="o">=</span> <span class="p">(</span><span class="n">diff_at</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                                <span class="o">+</span> <span class="n">diff_at</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                                <span class="o">+</span> <span class="n">diff_at</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                                <span class="o">+</span> <span class="n">diff_at</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="mi">4</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">green</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">+</span> <span class="n">estimate</span><span class="p">)</span>
+            <span class="n">plane</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="n">planes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plane</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">planes</span>
+</code></pre></div>
+
+<p>Green plus color differences is the <code>gradient</code> method, and to say how much it buys, the book needs its measuring stick for images: <strong>PSNR</strong>, peak signal-to-noise ratio — mean squared error against ground truth, flipped onto a logarithmic decibel scale so that higher is better and every three decibels means the error halved. On the torture target, <code>gradient</code> buys nearly five decibels over bilinear — the single largest step anywhere on this chapter&rsquo;s ladder. Almost every serious demosaic since the mid-1990s, however elaborate, has this exact structure at its core: dense channel first, differences after.</p>
+<p>What remains is the direction problem. <code>interpolate_green</code> decides horizontal-or-vertical from a local gradient — two subtractions — and near busy texture that decision is noisy; every wrong call plants a zipper tooth. <strong>AHD</strong> — Adaptive Homogeneity-Directed, Hirakawa and Parks, 2005 — reframes the problem with one elegant move: <em>stop deciding early</em>. Interpolate the entire image twice, once committed everywhere to horizontal and once to vertical, and then judge the finished candidates: at each pixel, keep the one whose neighborhood is more <em>homogeneous</em> — more neighbors within a tight luminance and chrominance tolerance. A wrong direction produces local color churn; homogeneity detects the churn without ever knowing the truth:</p>
+<div class="listing-src">from <code>code/pxp/demosaic.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">ahd</span><span class="p">(</span><span class="n">mosaic</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adaptive Homogeneity-Directed demosaicing, from scratch.</span>
+
+<span class="sd">    Hirakawa &amp; Parks (2005): interpolate the whole image twice —</span>
+<span class="sd">    once committed to horizontal, once to vertical — and at every</span>
+<span class="sd">    pixel keep the candidate whose neighborhood is more</span>
+<span class="sd">    *homogeneous*: more neighbors within an adaptive luminance and</span>
+<span class="sd">    chrominance tolerance. Direction mistakes show up as local</span>
+<span class="sd">    color/brightness churn, so homogeneity is a proxy for &quot;which</span>
+<span class="sd">    guess was right&quot; that needs no ground truth.</span>
+
+<span class="sd">    One disclosed deviation: the paper measures homogeneity in</span>
+<span class="sd">    CIELAB, but our pipeline has no colorimetric transform until</span>
+<span class="sd">    Chapter 5, so luminance and chrominance are proxied as</span>
+<span class="sd">    (R + 2G + B)/4 and the (R-G, B-G) difference pair. The mechanism</span>
+<span class="sd">    is unchanged. The paper&#39;s optional median-filter cleanup pass is</span>
+<span class="sd">    discussed, not implemented.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>                     <span class="c1"># [(red, green, blue), ...]</span>
+    <span class="n">lum</span><span class="p">,</span> <span class="n">chrom_a</span><span class="p">,</span> <span class="n">chrom_b</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">horizontal</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">_directional_green</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">horizontal</span><span class="p">)</span>
+        <span class="n">red</span><span class="p">,</span> <span class="n">blue</span> <span class="o">=</span> <span class="n">_rb_as_differences</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">green</span><span class="p">)</span>
+        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">red</span><span class="p">,</span> <span class="n">green</span><span class="p">,</span> <span class="n">blue</span><span class="p">))</span>
+        <span class="n">lum</span><span class="o">.</span><span class="n">append</span><span class="p">([[(</span><span class="n">red</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">green</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">+</span> <span class="n">blue</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">])</span> <span class="o">/</span> <span class="mi">4</span>
+                     <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">)]</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)])</span>
+        <span class="n">chrom_a</span><span class="o">.</span><span class="n">append</span><span class="p">([[</span><span class="n">red</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">-</span> <span class="n">green</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+                         <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">)]</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)])</span>
+        <span class="n">chrom_b</span><span class="o">.</span><span class="n">append</span><span class="p">([[</span><span class="n">blue</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">-</span> <span class="n">green</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+                         <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">)]</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)])</span>
+
+    <span class="k">def</span> <span class="nf">clamped</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">plane</span><span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="n">height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="p">))][</span><span class="nb">min</span><span class="p">(</span><span class="n">width</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">x</span><span class="p">))]</span>
+
+    <span class="c1"># left, right, up, down — the order matters to the epsilons below</span>
+    <span class="n">directions</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">homogeneity</span> <span class="o">=</span> <span class="p">[[[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">width</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)],</span>
+                   <span class="p">[[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">width</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)]]</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">lum_diff</span> <span class="o">=</span> <span class="p">[[],</span> <span class="p">[]]</span>
+            <span class="n">chrom_diff</span> <span class="o">=</span> <span class="p">[[],</span> <span class="p">[]]</span>
+            <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="ow">in</span> <span class="n">directions</span><span class="p">:</span>
+                    <span class="n">lum_diff</span><span class="p">[</span><span class="n">cand</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="nb">abs</span><span class="p">(</span><span class="n">lum</span><span class="p">[</span><span class="n">cand</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+                            <span class="o">-</span> <span class="n">clamped</span><span class="p">(</span><span class="n">lum</span><span class="p">[</span><span class="n">cand</span><span class="p">],</span> <span class="n">x</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)))</span>
+                    <span class="n">da</span> <span class="o">=</span> <span class="n">chrom_a</span><span class="p">[</span><span class="n">cand</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> \
+                        <span class="o">-</span> <span class="n">clamped</span><span class="p">(</span><span class="n">chrom_a</span><span class="p">[</span><span class="n">cand</span><span class="p">],</span> <span class="n">x</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)</span>
+                    <span class="n">db</span> <span class="o">=</span> <span class="n">chrom_b</span><span class="p">[</span><span class="n">cand</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> \
+                        <span class="o">-</span> <span class="n">clamped</span><span class="p">(</span><span class="n">chrom_b</span><span class="p">[</span><span class="n">cand</span><span class="p">],</span> <span class="n">x</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)</span>
+                    <span class="n">chrom_diff</span><span class="p">[</span><span class="n">cand</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">da</span> <span class="o">*</span> <span class="n">da</span> <span class="o">+</span> <span class="n">db</span> <span class="o">*</span> <span class="n">db</span><span class="p">)</span>
+            <span class="c1"># adaptive tolerances: as tight as the *easy* axis of</span>
+            <span class="c1"># each candidate — horizontal differences for the H</span>
+            <span class="c1"># image, vertical for the V — so flat regions demand</span>
+            <span class="c1"># near-agreement and busy regions get slack</span>
+            <span class="n">eps_lum</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">lum_diff</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">lum_diff</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]),</span>
+                          <span class="nb">max</span><span class="p">(</span><span class="n">lum_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="n">lum_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">3</span><span class="p">]))</span>
+            <span class="n">eps_chrom</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">chrom_diff</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">chrom_diff</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]),</span>
+                            <span class="nb">max</span><span class="p">(</span><span class="n">chrom_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="n">chrom_diff</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">3</span><span class="p">]))</span>
+            <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">score</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">lum_diff</span><span class="p">[</span><span class="n">cand</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">eps_lum</span>
+                            <span class="ow">and</span> <span class="n">chrom_diff</span><span class="p">[</span><span class="n">cand</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">eps_chrom</span><span class="p">):</span>
+                        <span class="n">score</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">homogeneity</span><span class="p">[</span><span class="n">cand</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">score</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">votes</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>        <span class="c1"># 3x3 smoothing of the maps</span>
+                <span class="k">for</span> <span class="n">dy</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">dx</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                        <span class="n">votes</span><span class="p">[</span><span class="n">cand</span><span class="p">]</span> <span class="o">+=</span> <span class="n">clamped</span><span class="p">(</span><span class="n">homogeneity</span><span class="p">[</span><span class="n">cand</span><span class="p">],</span>
+                                               <span class="n">x</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">votes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">votes</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">chosen</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">c</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+            <span class="k">elif</span> <span class="n">votes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">votes</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">chosen</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">c</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">chosen</span> <span class="o">=</span> <span class="p">[(</span><span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">c</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+                           <span class="o">+</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">c</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+                          <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chosen</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<div class="admonition patent">
+<p class="admonition-title">Patent note</p>
+<p>AHD is published academic work, implemented for two decades in open-source raw processors (dcraw, RawTherapee, LibRaw). It is safe to implement, explain, and build on. What is <em>not</em> being reimplemented here — in this chapter or anywhere in this book — is any camera manufacturer&rsquo;s actual in-camera demosaicing, which is proprietary and in some cases patented. This book&rsquo;s results will visibly differ from any specific manufacturer&rsquo;s rendering, and that is by design.</p>
+</div>
+<p>The ladder, measured over the full starburst frame against ground truth:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>PSNR</th>
+<th>What the number hides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nearest</td>
+<td>12.55 dB</td>
+<td>rainbows on every edge</td>
+</tr>
+<tr>
+<td>bilinear</td>
+<td>15.56 dB</td>
+<td>zipper and fringe, softness</td>
+</tr>
+<tr>
+<td>gradient</td>
+<td>20.25 dB</td>
+<td>occasional wrong directions</td>
+</tr>
+<tr>
+<td>AHD</td>
+<td>21.44 dB</td>
+<td>thin-feature tinting</td>
+</tr>
+</tbody>
+</table>
+<figure id="fig-demosaic-ladder">
+<img src="assets/figures/demosaic-ladder.png" alt="Figure 4.2">
+<figcaption><span class="figno">Figure 4.2</span> The same starburst crop, five ways: ground truth, then the ladder — nearest, bilinear, gradient, AHD. Confetti becomes blur becomes zipper becomes something close to the truth; and near the frame&rsquo;s center (up-left of these crops), where wedge spacing outruns the mosaic&rsquo;s sampling, every method aliases — prediction has nothing left to predict from.</figcaption>
+</figure>
+
+<p>Read the table with the three-decibel exchange rate and <code>gradient</code> over <code>bilinear</code> is an error cut of two-thirds, bought with one insight and a page of code. AHD&rsquo;s further 1.2 dB is the polish: fewer wrong directions, straighter edges, at triple the arithmetic. (The paper&rsquo;s final step — a few passes of median filtering on the color differences — buys a little more and is omitted here, disclosed and discussed rather than implemented; dcraw ships it if you want to see it work.) All four methods exist in <code>pxp.fast</code> as bit-identical twins, and AHD is the reason the fast tier exists at all: the reference implementation builds two complete candidate images and judges every pixel of both, which at 24 megapixels is a coffee break per frame in pure Python.</p>
+<h2 id="sec-4-3"><span class="secno">4.3</span>The wider field, on paper</h2>
+<p>Everything above interpolates in the spatial domain — reasoning pixel by pixel, neighbor by neighbor. There is a second way to see the whole problem, worth knowing even if you never implement it, and it arrives by analogy with radio. One antenna can carry many stations at once because each is assigned its own <em>frequency</em> band, and the tuner pulls them apart by frequency after the fact. A Bayer mosaic, it turns out, does the same thing almost by accident. Picture any image as a blend of coarse, slowly-varying content and fine, rapidly-varying detail — its low and high <strong>frequencies</strong>. Sampling a full-color scene through the Bayer checkerboard leaves the brightness (luminance) sitting in the low frequencies — the <strong>baseband</strong>, radio&rsquo;s term for the band that was never shifted — while copying the color (chrominance) up into the highest frequencies, the corners of the frequency picture, the way a station&rsquo;s signal rides up onto a high-frequency <strong>carrier</strong>. The regularity of the CFA is what does the carrying. Seen this way, demosaicing is not interpolation at all but <strong>filter design</strong>: building frequency filters that cleanly separate the luminance band from the chrominance bands, exactly the job a radio tuner does (Alleysson, Süsstrunk &amp; Hérault 2005; Dubois 2005). And <strong>false color</strong> stops being a mystery — it is <em>crosstalk</em>, two stations bleeding into one another where their bands overlap and no filter can fully tell them apart. The view explains artifacts that spatial reasoning can only name, and it produced a family of fast, principled linear methods. If none of that clicked, nothing downstream depends on it: the spatial story above stands on its own.</p>
+<p>The modern frontier treats demosaicing as learning rather than design: train a network on mosaiced/truth pairs, often jointly with denoising, since Chapter 2&rsquo;s noise and this chapter&rsquo;s interpolation interact badly when handled separately (Gharbi et al. 2016 is the standard reference; every phone in your pocket now runs a descendant). The trade is the usual one — better averages, opaque failures, and a training-set prior in place of an explicit assumption. This book stays with explicit assumptions; the survey is here so you know what the production world does, and where to read further.</p>
+<h2 id="sec-4-4"><span class="secno">4.4</span>X-Trans, briefly</h2>
+<p>Fuji&rsquo;s X-Trans sensors replace Bayer&rsquo;s 2x2 with a 6x6 arrangement — still half green, but pseudo-irregular, every row and column containing all three colors. The rationale runs straight through this chapter&rsquo;s figures: a <em>regular</em> sampling grid turns fine regular detail into clean, confident, wrong patterns (moiré — our starburst centers are full of it), and irregularity trades that structured failure for unstructured, noise-like failure that eyes forgive and that lets the camera drop its optical low-pass filter. The cost lands on this chapter&rsquo;s algorithms: neighborhoods vary cell by cell, &ldquo;the same-color neighbor two steps away&rdquo; stops being a constant, and everything from the bilinear stencils to AHD&rsquo;s candidate machinery must be rebuilt per-position. Open implementations exist and are excellent reading (Markesteijn&rsquo;s algorithm in RawTherapee is the reference point); Fuji&rsquo;s own in-camera processing is proprietary, and neither is reimplemented here — the concepts transfer, the stencils don&rsquo;t.</p>
+<hr />
+<p>The mosaic is an image now: three channels everywhere, edges straight where care was taken, and a measured account of what the guessing cost. But it is an image in <em>camera RGB</em> — the sensor&rsquo;s private, non-colorimetric idea of color, displayed so far only under deliberate mislabeling. Chapter 5 ends the mislabeling: what a color space actually is, why camera RGB isn&rsquo;t one, and the matrix — derived from our own spectral ground truth — that carries the image into a space where &ldquo;red&rdquo; finally means red.</p>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="white-balance.html"><span class="label">&larr; Chapter 3</span><span class="ttl">White Balance Comes First</span></a></div><div class="next"><a href="color.html"><span class="label">Chapter 5 &rarr;</span><span class="ttl">Getting the Color Right</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

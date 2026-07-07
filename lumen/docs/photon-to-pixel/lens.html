@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Undoing the Lens — The Long Way from Light to JPEG</title>
+<meta name="description" content="Vignetting, chromatic aberration, and distortion, inverted from known coefficients.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 6</span>
+<h1 class="opener-title">Undoing the Lens</h1>
+<p class="opener-lede">Vignetting, chromatic aberration, and distortion, inverted from known coefficients.</p>
+</div>
+<article class="prose">
+<p>Chapter 1 built a lens with three flaws, each governed by one coefficient we chose. Every capture since has carried those flaws along politely — the corners a stop dark, the corner dots wearing rainbows, the straight lines bowed. Now the pipeline pays the debt. This chapter inverts all three, and because we wrote the forward model, the inversions can be checked against it: each correction is measured, and each leaves a residual with a reason.</p>
+<p>Placement is half the chapter. The three corrections do not go in one place; they interleave with the stages already built, and each position has an argument behind it. The pipeline, as of this chapter:</p>
+<div class="highlight"><pre><span></span><code>linearize → defects → vignetting ⁶·¹ → white balance → demosaic
+          → CA ⁶·² → distortion ⁶·³ → color matrix → ...
+</code></pre></div>
+
+<h2 id="sec-6-1"><span class="secno">6.1</span>Vignetting: division, early</h2>
+<p>The falloff was multiplicative on the way in, so it is a division on the way out — one gain per photosite, computed from the model:</p>
+<div class="listing-src">from <code>code/pxp/lenscorrect.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">unvignette</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">lens</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divide the falloff back out, photosite by photosite.</span>
+
+<span class="sd">    Exact by construction — we know the model. The cost is not</span>
+<span class="sd">    accuracy but noise: the corners get their brightness back and</span>
+<span class="sd">    their noise amplified by the same factor, which for the kit lens</span>
+<span class="sd">    is 1.8x (almost a stop) at the extreme corner. Vignetting</span>
+<span class="sd">    correction is always a trade against corner noise; some</span>
+<span class="sd">    processors deliberately correct only partway.&quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">gain</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">lens</span><span class="o">.</span><span class="n">falloff</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">,</span>
+                                      <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">height</span><span class="p">)</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">*</span> <span class="n">gain</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>It runs on the mosaic, ahead of white balance, for a reason worth spelling out. Chapter 3&rsquo;s estimators read the whole frame as evidence about the light; hand gray-world a frame whose corners are a stop dark and the corners vote for a darker, subtly different illuminant than the center. On our simulator the falloff is the same for all three channels, so the vote is only dimmer, not tinted — but real sensors are worse off: their microlenses and filters shade <em>color-dependently</em> toward the edges, which is why production pipelines apply per-channel lens-shading maps at this same early position. A disclosed simplification, then: our vignetting is achromatic, and the one-multiplier-per-site structure below is what survives contact with the real, per-channel version.</p>
+<figure id="fig-vignette-correction">
+<img src="assets/figures/vignette-correction.png" alt="Figure 6.1">
+<figcaption><span class="figno">Figure 6.1</span> A flat gray field through the kit lens, before and after the division. The correction is exact by construction — we typed the model in — but not free: the extreme corner is multiplied by 1.82, brightness and noise alike, an amplification of nearly a stop. Real processors often correct vignetting only partway for this reason; the slider marked &ldquo;vignetting&rdquo; in a raw editor is choosing a point on this trade.</figcaption>
+</figure>
+
+<h2 id="sec-6-2"><span class="secno">6.2</span>Chromatic aberration: registration, not resurrection</h2>
+<p>The corner dots of Chapter 1 smeared into rainbows because the lens magnifies each wavelength differently. Undoing that after capture faces a limit set at the sensor, and this section&rsquo;s job is to locate it precisely.</p>
+<p>The sensor folded each channel&rsquo;s band of wavelengths into one number per photosite. A correction can therefore move each channel <em>as a whole</em> — but within red&rsquo;s band, the lens placed 560 nm light and 660 nm light at different radii, and those are now the same number. Per-channel warping can re-register the three channels; nothing can unsmear a single channel from the inside. To move a channel as a whole we need its representative wavelength:</p>
+<div class="listing-src">from <code>code/pxp/lenscorrect.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">effective_wavelength</span><span class="p">(</span><span class="n">channel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One wavelength standing in for a whole filter band: the</span>
+<span class="sd">    response-weighted mean. The lens smeared each channel across its</span>
+<span class="sd">    band; a single-wavelength correction is therefore an</span>
+<span class="sd">    approximation of our own forward model, and the residual it</span>
+<span class="sd">    leaves is measured in the chapter.&quot;&quot;&quot;</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">SENSITIVITIES</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="o">.</span><span class="n">samples</span>
+    <span class="n">weighted</span><span class="p">,</span> <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">SAMPLE_COUNT</span><span class="p">):</span>
+        <span class="n">weighted</span> <span class="o">+=</span> <span class="n">WAVELENGTHS</span><span class="p">[</span><span class="n">band</span><span class="p">]</span> <span class="o">*</span> <span class="n">response</span><span class="p">[</span><span class="n">band</span><span class="p">]</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="n">response</span><span class="p">[</span><span class="n">band</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">weighted</span> <span class="o">/</span> <span class="n">total</span>
+</code></pre></div>
+
+<p>and the warp aligning red and blue onto green:</p>
+<div class="listing-src">from <code>code/pxp/lenscorrect.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">correct_ca</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">lens</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Align red and blue to green.</span>
+
+<span class="sd">    For an output pixel at radius r, green&#39;s content came from</span>
+<span class="sd">    r times m_green; we want the red plane&#39;s value for that same</span>
+<span class="sd">    scene point, which red recorded at r times m_red of its own</span>
+<span class="sd">    source radius. The scale solving that is a fixed point;</span>
+<span class="sd">    eight iterations pin it far below quantization for any sane</span>
+<span class="sd">    lens.</span>
+<span class="sd">    Green is untouched: CA correction moves two channels to meet</span>
+<span class="sd">    the third, not three channels to meet the truth — that is</span>
+<span class="sd">    distortion correction&#39;s job, next.&quot;&quot;&quot;</span>
+    <span class="n">green_wl</span> <span class="o">=</span> <span class="n">effective_wavelength</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">planes</span> <span class="o">=</span> <span class="p">[[[</span><span class="n">image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)[</span><span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">)]</span>
+               <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">)]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="n">wavelength</span> <span class="o">=</span> <span class="n">effective_wavelength</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">source_scale</span><span class="p">(</span><span class="n">r2</span><span class="p">,</span> <span class="n">wavelength</span><span class="o">=</span><span class="n">wavelength</span><span class="p">):</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+                <span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">_magnification</span><span class="p">(</span><span class="n">lens</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="n">green_wl</span><span class="p">)</span>
+                         <span class="o">/</span> <span class="n">_magnification</span><span class="p">(</span><span class="n">lens</span><span class="p">,</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">r2</span><span class="p">,</span>
+                                          <span class="n">wavelength</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">scale</span>
+
+        <span class="n">planes</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span> <span class="o">=</span> <span class="n">_resample_radial</span><span class="p">(</span><span class="n">planes</span><span class="p">[</span><span class="n">channel</span><span class="p">],</span>
+                                           <span class="n">source_scale</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="p">[</span><span class="n">planes</span><span class="p">[</span><span class="n">c</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>Two placements are load-bearing here. CA correction runs <em>after</em> demosaicing, because it moves channels independently and there are no independent channels until the mosaic is unwoven. And it runs <em>before</em> the color matrix, because the matrix mixes R, G and B at each pixel — mix misaligned channels and the fringes stop being a red-plane problem the warp can reach and become part of every output channel permanently.</p>
+<p>Measured on a corner point light, the registration does its job emphatically: the red centroid sits 0.45 px from green&rsquo;s before correction and 0.04 px after; blue goes from 0.43 px to 0.08 px, the small remainder being the price of a single wavelength standing in for a band. But look at what the corrected dot still is:</p>
+<figure id="fig-ca-registration">
+<img src="assets/figures/ca-registration.png" alt="Figure 6.2">
+<figcaption><span class="figno">Figure 6.2</span> A corner point light at 8x through a CA-only lens (left), after registration (middle), through the perfect lens (right). The raw dot wears its rainbow asymmetrically — blue displaced toward the frame center, red away from it. The corrected dot is <em>centered</em>: centroids aligned fifty-fold. It is not <em>clean</em>: a symmetric colored halo remains, the smear within each filter band, which no warp can touch. Registration is what &ldquo;CA correction&rdquo; in every raw tool actually delivers; the halo is what your lens&rsquo;s marketing calls &ldquo;longitudinal color&rdquo; and your sharpening slider quietly fights.</figcaption>
+</figure>
+
+<p>That middle panel is the section&rsquo;s finding. Lateral CA correction — ours, Lightroom&rsquo;s, anyone&rsquo;s — is registration, and registration alone. The residual halo is dispersion inside each channel&rsquo;s band, geometrically identical in kind to defocus blur, and reachable only by deconvolution-style sharpening (Chapter 8 will pick this thread up). If you have ever corrected CA on a real photograph and wondered why a faint glow stayed behind at the edges, you have seen the middle panel before.</p>
+<h2 id="sec-6-3"><span class="secno">6.3</span>Distortion: the first resampling</h2>
+<p>The geometry itself comes last. The lens delivered to each pixel the scene content from a radially scaled position; correction fetches it back. There is one wrinkle. Forward distortion scaled each position by an amount that depends on its radius, and to undo it we need the radius of the <em>original</em> point — but that is exactly what we are solving for, so the equation chases its own tail and cannot be rearranged into a direct formula (it has <em>no closed form</em>, in the jargon). The escape is iteration: guess the answer, run it through the equation to get a better guess, and repeat until the guess stops moving. That settling value — the one the equation hands back unchanged — is a <strong>fixed point</strong>, and here it converges in a handful of steps:</p>
+<div class="listing-src">from <code>code/pxp/lenscorrect.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">correct_distortion</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">lens</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Straighten the geometry: every channel warped by the inverse</span>
+<span class="sd">    of green&#39;s magnification. The inverse has no closed form — the</span>
+<span class="sd">    magnification depends on the radius we are solving for — but the</span>
+<span class="sd">    same eight-iteration fixed point settles it.&quot;&quot;&quot;</span>
+    <span class="n">green_wl</span> <span class="o">=</span> <span class="n">effective_wavelength</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">source_scale</span><span class="p">(</span><span class="n">r2</span><span class="p">):</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">_magnification</span><span class="p">(</span><span class="n">lens</span><span class="p">,</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">r2</span><span class="p">,</span>
+                                         <span class="n">green_wl</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">scale</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">planes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">plane</span> <span class="o">=</span> <span class="p">[[</span><span class="n">image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)[</span><span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">)]</span>
+                 <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">)]</span>
+        <span class="n">planes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_resample_radial</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="n">source_scale</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="p">[</span><span class="n">planes</span><span class="p">[</span><span class="n">c</span><span class="p">][</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>Both this warp and CA&rsquo;s share an engine, and the engine contains a decision this book has not had to make until now: the source position is almost never a pixel center, so the value must be read <em>between</em> pixels:</p>
+<div class="listing-src">from <code>code/pxp/lenscorrect.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">_sample_bilinear</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a plane between its pixels: mix the four neighbors by</span>
+<span class="sd">    coverage. Soft but stable — the workhorse kernel of every</span>
+<span class="sd">    geometry correction shipped, and the reason corrected images</span>
+<span class="sd">    are very slightly blurrier than uncorrected ones.&quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">plane</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">plane</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span> <span class="o">//</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">y0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span> <span class="o">//</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">x0</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="n">y0</span>
+    <span class="n">xa</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">width</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">x0</span><span class="p">))</span>
+    <span class="n">xb</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">width</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">x0</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">ya</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">y0</span><span class="p">))</span>
+    <span class="n">yb</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">y0</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="n">plane</span><span class="p">[</span><span class="n">ya</span><span class="p">][</span><span class="n">xa</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fx</span><span class="p">)</span> <span class="o">+</span> <span class="n">plane</span><span class="p">[</span><span class="n">ya</span><span class="p">][</span><span class="n">xb</span><span class="p">]</span> <span class="o">*</span> <span class="n">fx</span>
+    <span class="n">bottom</span> <span class="o">=</span> <span class="n">plane</span><span class="p">[</span><span class="n">yb</span><span class="p">][</span><span class="n">xa</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fx</span><span class="p">)</span> <span class="o">+</span> <span class="n">plane</span><span class="p">[</span><span class="n">yb</span><span class="p">][</span><span class="n">xb</span><span class="p">]</span> <span class="o">*</span> <span class="n">fx</span>
+    <span class="k">return</span> <span class="n">top</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fy</span><span class="p">)</span> <span class="o">+</span> <span class="n">bottom</span> <span class="o">*</span> <span class="n">fy</span>
+</code></pre></div>
+
+<p>Bilinear interpolation is the pipeline&rsquo;s first resampling, and resampling is a genuine subject — the kernel chosen here decides how much softness every geometric operation costs, and fancier kernels (bicubic, Lanczos) buy sharpness at the price of ringing. Chapter 9 gives the topic its own section when the image is scaled for output; for now, note the structure of the cost: the corrected image below is measurably straighter <em>and</em> very slightly softer than what came out of the lens, because every one of its pixels is now a weighted average of four. Geometry corrections are never free.</p>
+<figure id="fig-lens-payoff">
+<img src="assets/figures/lens-payoff.png" alt="Figure 6.3">
+<figcaption><span class="figno">Figure 6.3</span> The grid through the kit lens, full pipeline: uncorrected (left), all three corrections applied (middle), and the perfect-lens reference (right), all at one exposure. Lines straighten, corners lighten, fringes tighten to their in-band residue; against the reference, the correction is worth 3.6 dB (12.2 to 15.8) — and the middle panel is fractionally softer than the right one, the bilinear kernel&rsquo;s fee, collected twice for the two warps in a row. A production pipeline would compose CA and distortion into a single warp to pay it once; ours keeps them separate because the chapters teach them separately.</figcaption>
+</figure>
+
+<p>One practical note real tools surface as a checkbox: correcting barrel distortion fetches content from <em>inside</em> the frame, so the result keeps its full field of view with mild stretching at the edges; correcting pincushion reaches <em>outside</em> it, and the missing content forces a crop. Our kit lens barrels, so nothing was lost — the choice between &ldquo;distortion correction&rdquo; and &ldquo;keep full frame&rdquo; in a raw editor is this geometry speaking.</p>
+<h2 id="sec-6-4"><span class="secno">6.4</span>Sidebar: corrections without the source code</h2>
+<div class="admonition note">
+<p class="admonition-title">Lensfun, and knowing versus fitting</p>
+<p>Everything above ran on coefficients we wrote ourselves — simulator privilege in its purest form. A real processor gets them by <em>fitting</em>: someone photographs test charts through a specific lens at specific settings, fits parametric models — polynomial radial distortion of the same shape as ours, per-channel CA polynomials, a radial vignetting falloff — and publishes the numbers. The open-source world pools this in the <strong>Lensfun</strong> database, which is how darktable and RawTherapee straighten thousands of lenses they have never seen; manufacturers ship the same idea as correction metadata embedded in the raw file (DNG stores it as opcode lists), which is why some lenses look impossibly clean in software: the &ldquo;lens&rdquo; you judge is lens plus mandatory correction profile. The structure of this chapter survives the translation intact — same models, same placements, same residuals — with one addition: a fitted model is itself approximate, so real corrections carry both this chapter&rsquo;s residuals <em>and</em> the fit&rsquo;s. When Chapter 10 runs real raw files, Lensfun is the analogue of everything <code>pxp.lenscorrect</code> got for free.</p>
+</div>
+<hr />
+<p>The lens is undone: field flat, channels registered, lines straight, and the costs of each written down — corner noise, an incompressible halo, a bilinear kernel&rsquo;s softness. The image is geometrically trustworthy and colorimetrically labeled, and it is still, stubbornly, <em>linear</em>: proportional to photon counts from a world whose brightness range no display can hold. Chapter 7 is tone — gamma, curves, and the art of losing information where nobody will miss it.</p>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="color.html"><span class="label">&larr; Chapter 5</span><span class="ttl">Getting the Color Right</span></a></div><div class="next"><a href="tone.html"><span class="label">Chapter 7 &rarr;</span><span class="ttl">Tone</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

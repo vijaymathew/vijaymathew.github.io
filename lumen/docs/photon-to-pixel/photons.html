@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>From Photons to a Bayer Array — The Long Way from Light to JPEG</title>
+<meta name="description" content="Exposure, noise, black level, and why the sensor sees a mosaic instead of a picture.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 2</span>
+<h1 class="opener-title">From Photons to a Bayer Array</h1>
+<p class="opener-lede">Exposure, noise, black level, and why the sensor sees a mosaic instead of a picture.</p>
+</div>
+<article class="prose">
+<p>Chapter 1 built a machine that carefully ruins a perfect scene: spectra in, quantized mosaic out. From here the book climbs back. But before any climbing — before white balance, before demosaicing, before anything that deserves the name <em>processing</em> — we need to understand exactly what the numbers in the raw file are. This chapter is about those numbers: what they measure, how they wobble, and the two small repairs that must happen before anything else touches them.</p>
+<h2 id="sec-2-1"><span class="secno">2.1</span>A photosite is a bucket</h2>
+<p>Strip away the optics and the electronics and a photosite is a bucket in the rain. Photons arrive; some fraction convert to electrons; the electrons accumulate until the exposure ends or the bucket fills. That&rsquo;s the entire sensor response story, and it has one glorious property: it is <strong>linear</strong>. Twice the light, twice the electrons, twice the number in the file — with none of the shoulder and toe curvature that film had, no gentle roll-off near the top, nothing. Linear, then full:</p>
+<figure id="fig-response-curve">
+<img src="assets/figures/response-curve.png" alt="Figure 2.1">
+<figcaption><span class="figno">Figure 2.1</span> Mean green-photosite value against exposure, measured on the simulated sensor with a flat gray scene. Violet: the measurement. Gray: the same straight line continued past the ceiling. The response is linear to five digits until the well fills — and then it is a wall, not a shoulder.</figcaption>
+</figure>
+
+<p>The wall matters as much as the line. When a photosite&rsquo;s well fills, it stops counting — it doesn&rsquo;t compress, it doesn&rsquo;t taper, it <em>saturates</em>, and everything above the ceiling reads as exactly full scale. A real highlight clipped this way is information destroyed at the moment of capture, which is why Chapter 7&rsquo;s highlight reconstruction is necessarily a guessing game, and why photographers meter to protect highlights rather than shadows.</p>
+<p>Photographers count light in <strong>stops</strong> — factors of two. In linear terms one stop up is a multiplication by 2, which is why <code>exposure</code> in Chapter 0 was one line of arithmetic. The mismatch between this linear world and human vision (which is roughly logarithmic — each <em>stop</em>, not each electron, feels like an equal step) is the engine behind Chapter 7. For now, one consequence is worth pocketing: of a 12-bit sensor&rsquo;s 4096 levels, the brightest stop owns 2048 of them and the deepest shadow stop owns a handful. Linear encodings spend their precision on highlights whether you like it or not.</p>
+<h2 id="sec-2-2"><span class="secno">2.2</span>The three noises</h2>
+<p>Capture the same scene twice and the files differ. Not by much, and not anywhere in particular — every value wobbles a little. That wobble has exactly three sources in our sensor (and, to good approximation, in yours), and they are worth keeping separate because <em>each one is defeated differently</em>.</p>
+<p><strong>Shot noise</strong> is the big one, and it is not the sensor&rsquo;s fault. Light arrives in discrete photons, and the arrivals are random; a photosite expecting \(N\) electrons over an exposure collects \(N \pm \sqrt{N}\). That square root is the whole story of photographic noise. It means the <em>absolute</em> wobble grows with signal, but the <em>relative</em> wobble — noise as a fraction of signal, the thing your eye judges — shrinks as \(\sqrt{N}/N = 1/\sqrt{N}\). Concretely: a photosite that collects 100 photons wobbles by about 10 — ten percent of its signal — while one that collects 10,000 wobbles by about 100, ten times the absolute wobble but only one percent of its signal. Ten times the light, ten times cleaner. Bright image regions look clean not because they&rsquo;re less noisy but because they&rsquo;re more signaled. There is exactly one cure: collect more photons. Bigger sensors, longer exposures, wider apertures — all of photography&rsquo;s expensive habits are \(\sqrt{N}\) written as hardware.</p>
+<p><strong>Read noise</strong> is the electronics: a few electrons of Gaussian fuzz added by the readout wiring whether light arrived or not. It happens <em>after</em> the well, which means it can push a true-black pixel below zero — remember that for the next section. On our sensor it&rsquo;s 4 electrons; against a full well of 12,000 it only matters in the deepest shadows, which is exactly where you&rsquo;ve seen it in every long-exposure night shot.</p>
+<p><strong>Fixed-pattern noise</strong> is the impostor. Each column amplifier has a slightly different gain, so it produces the <em>same</em> stripes in every frame — which makes it, strictly, not noise at all but an error, and errors can be measured once and subtracted forever. The random noises can only ever be averaged down; the fixed pattern can be <em>removed</em>. That distinction — reducible versus correctable — organizes everything the pipeline does about noise.</p>
+<p>The classic way to see the first two on a real sensor is the <strong>photon transfer curve</strong>: photograph a featureless gray at many exposures, and for each frame plot the <em>variance</em> of the values against their mean. Variance is simply the wobble reduced to a single number: take how far each photosite&rsquo;s value falls from the frame&rsquo;s average, square it so that too-high and too-low both count as error, and average those squares across the frame. Double the spread of the values and the variance quadruples — it is noise measured on a squared scale, which turns out to be the scale on which it behaves most simply.</p>
+<figure id="fig-noise-transfer">
+<img src="assets/figures/noise-transfer.png" alt="Figure 2.2">
+<figcaption><span class="figno">Figure 2.2</span> The photon transfer curve of the simulated sensor: variance of green photosites against mean signal, one point per exposure, gray line fitted. Shot noise makes variance proportional to signal, so the points fall on a line; the line&rsquo;s slope measures the sensor&rsquo;s gain, and its intercept at zero signal is the read noise — for our clean little sensor, barely above the origin.</figcaption>
+</figure>
+
+<p>That straight line is \(\sigma^2 = \text{gain} \cdot \text{signal} + \sigma_{\text{read}}^2\) wearing experimental clothes — \(\sigma^2\) is that variance, and \(\sigma\), its square root, is the spread itself — and it&rsquo;s how sensor reviewers characterize cameras they&rsquo;ve never seen the schematics for. We get it from twelve captures and thirty lines of figure code — with the difference that we can check the answer against the constants we typed into the sensor ourselves.</p>
+<p>And ISO? ISO is a <em>gain knob</em>, applied at readout. It multiplies the signal — and the noise that rode in with it — after the photons have already been counted. Turning ISO up does not add light:</p>
+<figure id="fig-iso-comparison">
+<img src="assets/figures/iso-comparison.png" alt="Figure 2.3">
+<figcaption><span class="figno">Figure 2.3</span> The same scene, same sensor. Left: properly exposed. Right: given one eighth of the light, then amplified 8x at readout. The brightness matches; the photon count does not, and the starved capture wears its <em>√N</em> on its sleeve. &ldquo;High ISO looks noisy&rdquo; is backwards — little light looks noisy, and high ISO is the label on the bottle.</figcaption>
+</figure>
+
+<p>Why does a <em>processing</em> book care this much about capture physics? Because noise is the pipeline&rsquo;s constant passenger. Every stage from here on either respects it or amplifies it: white balance multiplies whole channels (and their noise) by 2 or 3; demosaicing can smear one noisy sample across three output values; sharpening is a noise amplifier by design. And Chapter 8&rsquo;s noise reduction leans directly on what we just established — that noise strength varies with signal in a <em>known</em> way, which is what lets an algorithm judge whether a small difference is detail or chance.</p>
+<h2 id="sec-2-3"><span class="secno">2.3</span>First blood: black level and dead pixels</h2>
+<p>Now the pipeline begins. The raw file&rsquo;s values are not yet measurements of light — they&rsquo;re measurements plus an offset, stored as integers, with a few liars among them. Two repairs, in order.</p>
+<p>First, the offset. Chapter 1&rsquo;s sensor added a <code>black_level</code> before quantizing, so that read noise dancing around true black would survive the trip through an unsigned integer. Undoing it is the pipeline&rsquo;s opening move, folded into converting everything to floats on a sane scale:</p>
+<div class="listing-src">from <code>code/pxp/rawproc.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">linearize</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Subtract the black level and scale so that 0.0 means no light</span>
+<span class="sd">    and 1.0 means full scale.</span>
+
+<span class="sd">    Deliberately does NOT clip at zero: read noise puts genuine</span>
+<span class="sd">    negative values around true black, and cutting them off would</span>
+<span class="sd">    bias every dark-region average upward. Negative samples are</span>
+<span class="sd">    data. They stay until output encoding.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">white_level</span> <span class="o">-</span> <span class="n">raw</span><span class="o">.</span><span class="n">black_level</span>
+    <span class="k">return</span> <span class="p">[[(</span><span class="n">value</span> <span class="o">-</span> <span class="n">raw</span><span class="o">.</span><span class="n">black_level</span><span class="p">)</span> <span class="o">/</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">row</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw</span><span class="o">.</span><span class="n">values</span><span class="p">]</span>
+</code></pre></div>
+
+<p>The docstring&rsquo;s warning is the section&rsquo;s one real lesson. After subtraction, a pixel that saw no light averages zero <em>only because</em> its negative samples survive to pull down its positive ones. Clip those negatives — round them up to zero because &ldquo;negative light is silly&rdquo; — and every dark region in the image acquires a subtle upward bias that no later stage can detect, let alone undo. It is the pipeline&rsquo;s first opportunity to destroy information politely, which is why the clipping happens exactly once in this book, at output. From here on, the image is floats, and some of them are less than zero, and that is correct.</p>
+<p>Second, the liars. An aging sensor accumulates <strong>hot</strong> photosites (dark current so high they glow in every frame) and <strong>dead</strong> ones (no response at all). Their positions are fixed per physical sensor — a defect is a place, not an event — and that fixedness is what makes them correctable. Two calibration frames reveal them: a <strong>dark frame</strong> (lens cap on), where healthy sites read near zero and hot ones stand out like stars, and a <strong>flat frame</strong> (featureless gray), where healthy sites read normally and dead ones fall conspicuously short:</p>
+<div class="listing-src">from <code>code/pxp/rawproc.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">find_defects</span><span class="p">(</span><span class="n">dark</span><span class="p">,</span> <span class="n">flat</span><span class="p">,</span> <span class="n">hot_threshold</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span> <span class="n">dead_fraction</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Locate defective photosites from two calibration frames,</span>
+<span class="sd">    both already linearized.</span>
+
+<span class="sd">    dark: a frame exposed to no light. Healthy sites read near 0;</span>
+<span class="sd">    hot sites glow above the threshold.</span>
+<span class="sd">    flat: a frame of a featureless mid-gray. Healthy sites read near</span>
+<span class="sd">    their channel&#39;s typical level; dead sites fall far below it.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dark</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">dark</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">channel_mean</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+    <span class="n">channel_count</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="n">cfa_channel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">channel_mean</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span> <span class="o">+=</span> <span class="n">flat</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+            <span class="n">channel_count</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">channel_mean</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span> <span class="o">/=</span> <span class="n">channel_count</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span>
+
+    <span class="n">defects</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">dark</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">hot_threshold</span><span class="p">:</span>
+                <span class="n">defects</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">flat</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">dead_fraction</span> <span class="o">*</span> <span class="n">channel_mean</span><span class="p">[</span><span class="n">cfa_channel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)]:</span>
+                <span class="n">defects</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">defects</span>
+</code></pre></div>
+
+<p>The repair is deliberately humble — each defective site takes the average of its nearest <em>same-filter</em> neighbors. On a Bayer mosaic that means stepping two pixels, not one, in each direction; a hot green site must be rebuilt from green witnesses, never from the red and blue sites adjacent to it:</p>
+<div class="listing-src">from <code>code/pxp/rawproc.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">fix_defects</span><span class="p">(</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">defects</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Replace each defective photosite with the mean of its nearest</span>
+<span class="sd">    same-filter neighbors.</span>
+
+<span class="sd">    On a Bayer mosaic the neighbor two steps away in x or y is</span>
+<span class="sd">    guaranteed to sit under the same color filter — so the repair</span>
+<span class="sd">    never mixes channels. Interpolation proper starts in Chapter 4;</span>
+<span class="sd">    this is triage.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">fixed</span> <span class="o">=</span> <span class="p">[</span><span class="n">row</span><span class="p">[:]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">mosaic</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">defects</span><span class="p">:</span>
+        <span class="n">neighbors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="ow">in</span> <span class="p">((</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)):</span>
+            <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">dy</span>
+            <span class="k">if</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">nx</span> <span class="o">&lt;</span> <span class="n">width</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">ny</span> <span class="o">&lt;</span> <span class="n">height</span>
+                    <span class="ow">and</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">defects</span><span class="p">):</span>
+                <span class="n">neighbors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mosaic</span><span class="p">[</span><span class="n">ny</span><span class="p">][</span><span class="n">nx</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">neighbors</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">neighbors</span><span class="p">:</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="n">value</span>
+            <span class="n">fixed</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">total</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighbors</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fixed</span>
+</code></pre></div>
+
+<figure id="fig-defect-repair">
+<img src="assets/figures/defect-repair.png" alt="Figure 2.4">
+<figcaption><span class="figno">Figure 2.4</span> An aging sensor, three ways. Left: the dark frame — everything healthy reads black, and the hot pixels give themselves away. Middle: a flat gray frame from the same sensor, hot sites white, dead sites dark. Right: the same flat frame after <code>find_defects</code> and <code>fix_defects</code>. On our simulator the calibration recovers the defect map exactly — every planted defect found, no healthy pixel accused — and the test suite holds it to that.</figcaption>
+</figure>
+
+<p>These two functions are the book&rsquo;s first true pipeline stages, so the two-tier contract from Chapter 0 now comes due: both exist in <code>pxp.fast</code> as NumPy twins — <code>linearize</code> collapses to one array expression — and the tests assert both tiers produce <em>identical</em> output, to the last bit. (Writing that test caught a real discrepancy while this chapter was being built: Python&rsquo;s built-in <code>sum()</code> quietly uses compensated summation that NumPy&rsquo;s arithmetic doesn&rsquo;t, and the two tiers disagreed in the fifteenth decimal place. The reference code now accumulates with an explicit loop — which is what this book claimed its code did anyway. Contracts work.)</p>
+<h2 id="sec-2-4"><span class="secno">2.4</span>Why a mosaic, anyway</h2>
+<p>The strangest thing about the raw file isn&rsquo;t the noise or the offset — it&rsquo;s that a &ldquo;color camera&rdquo; measured only one color per pixel. That was a choice, made by Bryce Bayer at Kodak in 1975 under constraints that still hold, and the pipeline inherits it as its central puzzle. So before Chapter 4 spends a chapter undoing the mosaic, it&rsquo;s worth one section on why it&rsquo;s there.</p>
+<p>The straightforward alternatives all cost too much. Three sensors behind a beam-splitting prism deliver full color at every pixel — broadcast cameras did exactly this — at triple the sensor bill plus an optical alignment problem, in a package no lens mount wants. Stacked photodiodes that separate color by penetration depth (Foveon&rsquo;s design) pay in cross-contamination between the layers and noise in the separation arithmetic. A filter mosaic costs one sensor, zero moving parts, and a software problem. The industry took the software problem.</p>
+<p>Given a mosaic, the pattern itself is an argument about <em>what to sample most</em>. Human vision takes nearly all of its spatial acuity from luminance — from brightness structure, not color. The middle of the spectrum, where the green filter sits, contributes most of what the eye reads as luminance. So Bayer&rsquo;s arrangement spends half of all photosites on green and splits the remainder between red and blue:</p>
+<figure id="fig-bayer-sites">
+<img src="assets/figures/bayer-sites.png" alt="Figure 2.5">
+<figcaption><span class="figno">Figure 2.5</span> One capture, two censuses: the green photosites alone (left) and the red alone (right), same enlarged crop. Green tiles the frame in a dense checkerboard — half of everything, never more than one step away. Red is a sparse one-in-four lattice. The pattern is a bet that your eye wants sharpness in luminance and will forgive softness in color; Chapter 9&rsquo;s chroma subsampling makes the same bet a second time, on purpose.</figcaption>
+</figure>
+
+<p>The bet has consequences the rest of the book keeps meeting. Green&rsquo;s dense grid is why demosaicing algorithms reconstruct green first and lean on it to guide red and blue. Red and blue&rsquo;s sparse grids are where demosaicing artifacts are born — a one-in-four lattice simply cannot see fine detail that a one-in-two checkerboard can, and Chapter 4&rsquo;s zippering and color fringes are that arithmetic coming home. Other patterns place the same bet with different chips: Fuji&rsquo;s X-Trans spreads a 6x6 arrangement to trade regular aliasing for irregular (Chapter 4 discusses it without reimplementing Fuji&rsquo;s processing), and phone sensors&rsquo; quad-Bayer groups gang four tiny sites under one filter to trade back resolution for light. Nobody has escaped the trade; they&rsquo;ve only chosen different corners of it.</p>
+<hr />
+<p>The frame is now everything capture can make it: linear floats on a sane scale, zero meaning darkness (on average), every photosite either truthful or repaired, and a mosaic whose logic we understand. What the image is <em>not</em>, yet, is the right color — every value still wears the orange of whatever light lit the scene, exactly as Figure 1.1 warned. Chapter 3 fixes that, and it will insist on doing so <em>before</em> the mosaic is unwoven — an ordering argument the book has been saving since the introduction.</p>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="camera.html"><span class="label">&larr; Chapter 1</span><span class="ttl">The Simulated Camera System</span></a></div><div class="next"><a href="white-balance.html"><span class="label">Chapter 3 &rarr;</span><span class="ttl">White Balance Comes First</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

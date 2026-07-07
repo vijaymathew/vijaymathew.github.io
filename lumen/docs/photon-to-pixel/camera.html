@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Simulated Camera System — The Long Way from Light to JPEG</title>
+<meta name="description" content="Scenes as spectra, fictional lenses, a noisy sensor — ground truth for the whole book.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html" class="active">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 1</span>
+<h1 class="opener-title">The Simulated Camera System</h1>
+<p class="opener-lede">Scenes as spectra, fictional lenses, a noisy sensor — ground truth for the whole book.</p>
+</div>
+<article class="prose">
+<p>Every chapter after this one processes photographs. This chapter builds the camera that takes them — a camera made entirely of code.</p>
+<p>The idea deserves a moment of justification, because it is the book&rsquo;s single most important design decision. A real photograph gives you the <em>output</em> of a pipeline and no way to know what the right answer was. Was that demosaicing artifact caused by the algorithm, or was the scene really like that? Is the white balance correct, or merely plausible? With a real camera you can never quite know, because you never have access to the scene itself — only to one camera&rsquo;s imperfect record of it.</p>
+<p>So we build the scene ourselves, from physics up. A synthetic world, a fictional lens, a simulated sensor — a <em>forward model</em> that produces raw files the same way a real camera does, except that at every stage we can pause it and look at the truth. When Chapter 4 measures a demosaicing algorithm, it will measure it against the actual full-color scene, because we rendered it. When Chapter 3 estimates the color of the light, we will know exactly how wrong the estimate is, because we chose the light. Every claim in this book of the form &ldquo;this algorithm is better&rdquo; comes with a number for that reason, and every reader gets identical results, whatever hardware they own.</p>
+<p>One scope fence, stated before any code: <strong>this is a measurement instrument, not a renderer.</strong> Its scenes are flat patches, ramps, and analytic test targets — no geometry, no shadows, no illumination transport, nothing pretty. Every part of it is meant to be read in a sitting. The moment a feature would make it a graphics project, the feature is out.</p>
+<h2 id="sec-1-1"><span class="secno">1.1</span>Scenes as spectra</h2>
+<p>Here is the trap this section exists to avoid. If we described our synthetic scenes as RGB values — &ldquo;this patch is (0.8, 0.2, 0.1)&rdquo; — the whole simulation would quietly become circular. A camera&rsquo;s job is to <em>produce</em> RGB from light; a scene that is already RGB has done the camera&rsquo;s job in advance, and everything downstream (white balance, the color matrix of Chapter 5, the whole question of what color <em>is</em>) would degenerate into pushing our own numbers around. The simulation would still run. It would just have nothing left to teach.</p>
+<p>Light doesn&rsquo;t come in three numbers. Light is a continuum: at every wavelength across the visible range — roughly 380 to 730 nanometers, violet to deep red — a light source emits some amount of power, and a surface reflects some fraction of what arrives. Color, the three-number kind, happens only at the very end, when an eye or a sensor with a small set of differently-tuned detectors collapses that continuum. Our scenes therefore speak in <strong>spectra</strong>, and the collapse to three numbers is performed — explicitly, in code we write — by the sensor in Section 1.3 and by the mathematics of human vision in Chapter 5.</p>
+<p>A spectrum in this book is 36 numbers: samples every 10 nanometers from 380 to 730. That grid is a compromise, chosen deliberately. Fine enough that our colorimetry lands within a fraction of a percent of published reference values (the tests below hold us to that); coarse enough that a spectrum fits on one line of a page and a <code>for</code> loop over it is something you can read.</p>
+<div class="listing-src">from <code>code/pxp/spectrum.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Spectrum</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;36 samples across the visible range, one per grid wavelength.</span>
+
+<span class="sd">    The same type serves two roles. As a *light*, samples are relative</span>
+<span class="sd">    power. As a *reflectance*, samples are the fraction of light a</span>
+<span class="sd">    surface returns at that wavelength, between 0 and 1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">samples</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">!=</span> <span class="n">SAMPLE_COUNT</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;a Spectrum has </span><span class="si">{</span><span class="n">SAMPLE_COUNT</span><span class="si">}</span><span class="s2"> samples, &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">samples</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_function</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample fn(wavelength_nm) across the grid.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">([</span><span class="n">fn</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">WAVELENGTHS</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">lit_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">light</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The light leaving a surface: reflectance times illumination,</span>
+<span class="sd">        wavelength by wavelength. self is the reflectance.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Spectrum</span><span class="p">([</span><span class="n">r</span> <span class="o">*</span> <span class="n">l</span> <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">l</span>
+                         <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">samples</span><span class="p">,</span> <span class="n">light</span><span class="o">.</span><span class="n">samples</span><span class="p">)])</span>
+
+    <span class="k">def</span> <span class="nf">scaled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Spectrum</span><span class="p">([</span><span class="n">s</span> <span class="o">*</span> <span class="n">factor</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">samples</span><span class="p">])</span>
+</code></pre></div>
+
+<p>Note the two roles in the docstring. A <em>light</em> is a spectrum of emitted power. A <em>surface</em> is a spectrum of reflection fractions — a number between 0 and 1 at each wavelength. And the single most important line of physics in the whole simulator is the method that combines them: the light leaving a surface is the illumination times the reflectance, wavelength by wavelength. That one multiplication, <code>lit_by</code>, is where every color cast, every white-balance problem, and every metameric surprise in this book will come from.</p>
+<h3>The lights</h3>
+<p>The book keeps three lights, plus a reference. The first is tabulated: <strong>D65</strong>, the CIE&rsquo;s standard &ldquo;average daylight,&rdquo; the reference white of sRGB and the closest thing color science has to a default sun. Its 36 samples come from the CIE&rsquo;s own published table, resampled onto our grid — one of exactly two pieces of external data in the entire simulator (the other is the CIE observer, which arrives in Chapter 5).</p>
+<p>The second light needs no table at all, and it is the one this chapter is proudest of. An incandescent bulb is a glowing filament, and the emission of a glowing body is given by Planck&rsquo;s law:</p>
+<p>\[ B(\lambda, T) \;\propto\; \frac{1}{\lambda^5}\,\frac{1}{e^{c_2/\lambda T} - 1} \]</p>
+<p>power at each wavelength \(\lambda\) for a body at temperature \(T\), with \(c_2\) a physical constant. Run at 2856 kelvin, this formula <em>is</em> CIE standard illuminant A — the warm, orange archetype of every tungsten photograph ever taken. We get a standards-grade light source from four lines of arithmetic:</p>
+<div class="listing-src">from <code>code/pxp/illuminant.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">incandescent</span><span class="p">(</span><span class="n">temperature_k</span><span class="o">=</span><span class="mf">2856.0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A glowing filament, from physics rather than a table: Planck&#39;s</span>
+<span class="sd">    law gives the emission of a hot body at each wavelength. At 2856 K</span>
+<span class="sd">    this is CIE standard illuminant A — warm, orange, and entirely</span>
+<span class="sd">    computable from one formula.&quot;&quot;&quot;</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="mf">1.4388e-2</span>                    <span class="c1"># second radiation constant, m*K</span>
+
+    <span class="k">def</span> <span class="nf">planck</span><span class="p">(</span><span class="n">wavelength_nm</span><span class="p">):</span>
+        <span class="n">wl</span> <span class="o">=</span> <span class="n">wavelength_nm</span> <span class="o">*</span> <span class="mf">1e-9</span>     <span class="c1"># to meters</span>
+        <span class="k">return</span> <span class="n">wl</span> <span class="o">**</span> <span class="o">-</span><span class="mi">5</span> <span class="o">/</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">c2</span> <span class="o">/</span> <span class="p">(</span><span class="n">wl</span> <span class="o">*</span> <span class="n">temperature_k</span><span class="p">))</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="n">anchor</span> <span class="o">=</span> <span class="n">planck</span><span class="p">(</span><span class="mf">560.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Spectrum</span><span class="o">.</span><span class="n">from_function</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="n">planck</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">/</span> <span class="n">anchor</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The third light is a deliberate troublemaker: a fluorescent tube, modeled as a dim continuum with three sharp emission lines. Nothing about it is exotic — cheap tubes really do look like this — but a light that delivers its power in spikes breaks the comfortable intuition that &ldquo;white light is white light,&rdquo; and in Chapter 5 it will let us demonstrate metamerism: two surfaces that match perfectly under one light and visibly disagree under another. We build it now and keep it in a drawer.</p>
+<div class="admonition note">
+<p class="admonition-title">Where the numbers come from</p>
+<p>The D65 table and (in Chapter 5) the CIE 1931 observer curves are point-sampled from the CIE&rsquo;s open data files — 1-nanometer tables published under ISO/CIE 11664, sampled at our grid wavelengths with no interpolation. Everything else spectral in this book — every surface, the filament, the fluorescent — is computed from formulas printed on these pages. The tests pin our sampled arithmetic to the published white points, stated in chromaticity — color coordinates with the brightness divided out, so only the hue and saturation of the light remain: D65 must land at (0.3127, 0.3290) and illuminant A at (0.4476, 0.4074), within two parts in a thousand.</p>
+</div>
+<div class="listing-src">from <code>code/tests/test_color.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">TestWhitePoints</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">assert_chromaticity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">light</span><span class="p">,</span> <span class="n">expected_x</span><span class="p">,</span> <span class="n">expected_y</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">color</span><span class="o">.</span><span class="n">chromaticity</span><span class="p">(</span><span class="n">color</span><span class="o">.</span><span class="n">xyz</span><span class="p">(</span><span class="n">light</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">expected_x</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">expected_y</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_daylight_is_d65</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_chromaticity</span><span class="p">(</span><span class="n">illuminant</span><span class="o">.</span><span class="n">daylight</span><span class="p">(),</span>
+                                 <span class="mf">0.3127</span><span class="p">,</span> <span class="mf">0.3290</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.002</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_incandescent_is_illuminant_a</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_chromaticity</span><span class="p">(</span><span class="n">illuminant</span><span class="o">.</span><span class="n">incandescent</span><span class="p">(),</span>
+                                 <span class="mf">0.4476</span><span class="p">,</span> <span class="mf">0.4074</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.002</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_equal_energy_is_centered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_chromaticity</span><span class="p">(</span><span class="n">illuminant</span><span class="o">.</span><span class="n">equal_energy</span><span class="p">(),</span>
+                                 <span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.002</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>The surfaces</h3>
+<p>Real test charts have <em>measured</em> patches — someone pointed a spectrophotometer at painted squares. Ours are <em>designed</em>, and from just two shapes: a smooth <strong>step</strong> that switches on above a chosen wavelength, and a smooth <strong>bump</strong> centered on one.</p>
+<div class="listing-src">from <code>code/pxp/reflectance.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="n">wavelength</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rises smoothly from 0 to 1 as wavelength passes center.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">wavelength</span> <span class="o">-</span> <span class="n">center</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="listing-src">from <code>code/pxp/reflectance.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">bump</span><span class="p">(</span><span class="n">wavelength</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A smooth peak of height 1 at center, falling off on both sides.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">wavelength</span> <span class="o">-</span> <span class="n">center</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Chemistry is kind to us here: these really are the shapes real pigment reflectances take. A red surface is red because its reflectance steps up somewhere around 600 nm; a green one carries a bump near the middle of the range. Building patches from formulas instead of measurements keeps the chart fully original and — better — printable. Here is the entire chart, every patch a one-line formula:</p>
+<div class="listing-src">from <code>code/pxp/reflectance.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">color_chart</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The book&#39;s twelve-patch chart: name -&gt; reflectance.</span>
+
+<span class="sd">    Neutrals down the first column, then the strong colors, then two</span>
+<span class="sd">    softer &#39;real world&#39; surfaces. Every worked example about color in</span>
+<span class="sd">    this book photographs these patches.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">,</span>      <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.92</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;gray-60&quot;</span><span class="p">,</span>    <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.60</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;gray-30&quot;</span><span class="p">,</span>    <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.30</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>      <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.04</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">,</span>        <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.03</span> <span class="o">+</span> <span class="mf">0.82</span> <span class="o">*</span> <span class="n">step</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">600</span><span class="p">,</span> <span class="mi">12</span><span class="p">))),</span>
+        <span class="p">(</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span>     <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.04</span> <span class="o">+</span> <span class="mf">0.80</span> <span class="o">*</span> <span class="n">step</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">575</span><span class="p">,</span> <span class="mi">15</span><span class="p">))),</span>
+        <span class="p">(</span><span class="s2">&quot;yellow&quot;</span><span class="p">,</span>     <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.05</span> <span class="o">+</span> <span class="mf">0.83</span> <span class="o">*</span> <span class="n">step</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">540</span><span class="p">,</span> <span class="mi">15</span><span class="p">))),</span>
+        <span class="p">(</span><span class="s2">&quot;leaf-green&quot;</span><span class="p">,</span> <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.04</span> <span class="o">+</span> <span class="mf">0.48</span> <span class="o">*</span> <span class="n">bump</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">540</span><span class="p">,</span> <span class="mi">45</span><span class="p">))),</span>
+        <span class="p">(</span><span class="s2">&quot;cyan&quot;</span><span class="p">,</span>       <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.05</span> <span class="o">+</span> <span class="mf">0.72</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">step</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">555</span><span class="p">,</span> <span class="mi">15</span><span class="p">)))),</span>
+        <span class="p">(</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span>       <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.04</span> <span class="o">+</span> <span class="mf">0.60</span> <span class="o">*</span> <span class="n">bump</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">455</span><span class="p">,</span> <span class="mi">35</span><span class="p">))),</span>
+        <span class="p">(</span><span class="s2">&quot;magenta&quot;</span><span class="p">,</span>    <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.80</span> <span class="o">-</span> <span class="mf">0.68</span> <span class="o">*</span> <span class="n">bump</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">540</span><span class="p">,</span> <span class="mi">50</span><span class="p">))),</span>
+        <span class="p">(</span><span class="s2">&quot;skin&quot;</span><span class="p">,</span>       <span class="n">patch</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="mf">0.22</span> <span class="o">+</span> <span class="mf">0.33</span> <span class="o">*</span> <span class="n">step</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">570</span><span class="p">,</span> <span class="mi">25</span><span class="p">))),</span>
+    <span class="p">]</span>
+</code></pre></div>
+
+<p>Twelve surfaces: four neutrals, seven strong colors, and one soft &ldquo;skin&rdquo; tone included as a tripwire for the later chapters (nobody notices when an algorithm ruins a magenta patch; everybody notices ruined skin). The <code>patch</code> helper refuses any formula that leaves the physical range — a surface cannot reflect less than nothing or more than everything.</p>
+<h3>First look at ground truth</h3>
+<p>We now have lights and surfaces, and <code>lit_by</code> to combine them. To actually <em>see</em> the result, this chapter borrows two tools that will not be properly explained until later — the integration of a spectrum against the CIE observer to get XYZ (Chapter 5) and the sRGB encoding for display (Chapter 7). They live in <code>pxp.color</code>, they are as explicit as everything else, and for now they are simply how the simulator shows us its world. <a href="#fig-chart-illuminants">Figure 1.1</a> is the payoff:</p>
+<figure id="fig-chart-illuminants">
+<img src="assets/figures/chart-illuminants.png" alt="Figure 1.1">
+<figcaption><span class="figno">Figure 1.1</span> The same twelve surfaces, no processing, no white balance: under D65 daylight (left) and under the 2856 K filament (right). Every difference between the two grids is ground truth — the light really is that orange. The white patch&rsquo;s rendered values under the filament are the exact &ldquo;wrong&rdquo; pixels that Chapter 3&rsquo;s white balance will be judged against.</figcaption>
+</figure>
+
+<p>Look at what the filament does. The white patch is peach. The gray column has become a ladder of warm tans. Blue has collapsed toward violet-black — a tungsten bulb emits very little short-wavelength power, so a surface that reflects only short wavelengths has almost nothing to reflect. And the skin patch has gone from plausible to sunburnt. None of this is an artifact or an error: <em>this is what the scene actually looks like</em> under that light, computed wavelength by wavelength from formulas you have now read in full. Your visual system performs a version of white balance so relentlessly that you have likely never seen a white surface render this faithfully before.</p>
+<p>That is the entire point of the simulated camera. A real photograph of a real chart under a real bulb would give us pixels <em>like</em> the right grid — but entangled with one particular sensor&rsquo;s spectral taste, one manufacturer&rsquo;s processing, and no way to separate the light from the camera. Here we have the scene itself, pristine, with the camera not yet built. Everything the rest of the pipeline does will be measured against this.</p>
+<h2 id="sec-1-2"><span class="secno">1.2</span>A small lens with known sins</h2>
+<p>So far our scenes are mathematical abstractions: a rule that answers &ldquo;how much light leaves this point?&rdquo; for any position and wavelength. Before that light reaches a sensor it passes through glass, and glass is where the first distinctly <em>photographic</em> imperfections enter. To let a lens ask about exactly the point it bends toward, scenes become spatial through one small class — a <code>Scene</code> wraps a reflectance-at-position rule together with a light, and its <code>sample(x, y, band)</code> method is what everything downstream calls. Three procedural test targets (the chart laid out in space, a grid of straight lines, an array of point lights) are the only scenes the book will ever need.</p>
+<p>A real lens design fights a catalog of aberrations; correcting each one further costs exponentially more money and glass. Our fictional lens commits just the three sins that matter to the pipeline, each governed by a single coefficient:</p>
+<div class="listing-src">from <code>code/pxp/lens.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Lens</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Three flaws, three coefficients.</span>
+
+<span class="sd">    distortion   radial: positive bows straight lines outward at the</span>
+<span class="sd">                 edges (barrel), negative pinches them in (pincushion).</span>
+<span class="sd">    vignetting   light falloff toward the corners.</span>
+<span class="sd">    ca           lateral chromatic aberration: magnification that</span>
+<span class="sd">                 drifts with wavelength, so the color channels of an</span>
+<span class="sd">                 off-center point land at slightly different radii.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">distortion</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">vignetting</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">ca</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distortion</span> <span class="o">=</span> <span class="n">distortion</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vignetting</span> <span class="o">=</span> <span class="n">vignetting</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ca</span> <span class="o">=</span> <span class="n">ca</span>
+
+    <span class="k">def</span> <span class="nf">source_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Where in the scene the lens looks, for sensor position</span>
+<span class="sd">        (x, y), at one wavelength.&quot;&quot;&quot;</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">y</span> <span class="o">-</span> <span class="mf">1.0</span>        <span class="c1"># centered coords</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span> <span class="o">*</span> <span class="n">u</span> <span class="o">+</span> <span class="n">v</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>                  <span class="c1"># 1.0 at corners</span>
+        <span class="n">magnification</span> <span class="o">=</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">distortion</span> <span class="o">*</span> <span class="n">r2</span><span class="p">)</span>
+                         <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca</span> <span class="o">*</span> <span class="p">(</span><span class="n">wavelength</span> <span class="o">-</span> <span class="mf">560.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">560.0</span><span class="p">))</span>
+        <span class="n">su</span><span class="p">,</span> <span class="n">sv</span> <span class="o">=</span> <span class="n">u</span> <span class="o">*</span> <span class="n">magnification</span><span class="p">,</span> <span class="n">v</span> <span class="o">*</span> <span class="n">magnification</span>
+        <span class="k">return</span> <span class="p">((</span><span class="n">su</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">,</span> <span class="p">(</span><span class="n">sv</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">falloff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The fraction of light that survives to (x, y): 1 at the</span>
+<span class="sd">        center, less toward the corners.&quot;&quot;&quot;</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">y</span> <span class="o">-</span> <span class="mf">1.0</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span> <span class="o">*</span> <span class="n">u</span> <span class="o">+</span> <span class="n">v</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+        <span class="k">return</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">vignetting</span> <span class="o">*</span> <span class="n">r2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="k">def</span> <span class="nf">look</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The spectrum this lens delivers to sensor position (x, y):</span>
+<span class="sd">        each wavelength fetched from its own (slightly different)</span>
+<span class="sd">        scene position, all dimmed by the falloff.&quot;&quot;&quot;</span>
+        <span class="n">dimming</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">falloff</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">band</span><span class="p">,</span> <span class="n">wavelength</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">WAVELENGTHS</span><span class="p">):</span>
+            <span class="n">sx</span><span class="p">,</span> <span class="n">sy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_position</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
+            <span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">sx</span><span class="p">,</span> <span class="n">sy</span><span class="p">,</span> <span class="n">band</span><span class="p">)</span> <span class="o">*</span> <span class="n">dimming</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Spectrum</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Read <code>source_position</code> closely, because the entire model is that method. A lens, for our purposes, is a rule about <em>where to look</em>: the sensor position asks for light, and the lens fetches it from a slightly wrong place. Radial <strong>distortion</strong> scales the fetch position by \(1 + k\,r^2\) — the classic single-coefficient model, and the same form (with more terms) used by real correction software. Lateral <strong>chromatic aberration</strong> makes that magnification drift with wavelength, so the corner of the frame fetches its blue from one place and its red from another; the loop in <code>look</code> is the moment where &ldquo;the color channels don&rsquo;t line up&rdquo; stops being folklore and becomes seven lines of code. <strong>Vignetting</strong> doesn&rsquo;t move light, it loses it — a smooth radial falloff applied to whatever arrives.</p>
+<figure id="fig-lens-flaws">
+<img src="assets/figures/lens-flaws.png" alt="Figure 1.2">
+<figcaption><span class="figno">Figure 1.2</span> The straight-line grid through the perfect lens (left) and the book&rsquo;s kit lens (right). Barrel distortion bows the lines — the middle of each edge line sits farther out than its ends; vignetting takes the corners down by nearly a stop; and lateral CA fringes every line with color, weakly near the center and boldly at the edges. All three flaws in one photograph of graph paper.</figcaption>
+</figure>
+
+<p>The book keeps two lenses. The <code>perfect</code> lens — identity geometry, no falloff — is the control group in every later experiment. The <code>kit_lens</code> has all three coefficients set to values chosen to be <em>obvious in figures</em> rather than realistic; a real prime lens is far better behaved, and the text will say so whenever it matters. For chromatic aberration especially, honesty requires exaggeration:</p>
+<figure id="fig-lens-ca">
+<img src="assets/figures/lens-ca.png" alt="Figure 1.3">
+<figcaption><span class="figno">Figure 1.3</span> The point-light array through a lens with deliberately strong lateral CA. Left: the full frame. Middle: a 4x enlargement at the center, where CA vanishes by symmetry — the dots stay white. Right: the same enlargement in the top-right corner, where each dot is drawn out into a small spectrum, blue toward the frame center and red away from it. Chapter 6 will put these dots back together.</figcaption>
+</figure>
+
+<p>The dots tell the whole CA story in one image: at the center, all wavelengths agree about where the dot is; toward the corner they disagree in proportion to radius, and a white point becomes a tiny rainbow. Note that this is <em>lateral</em> CA — a geometric error, correctable by warping the channels back into register, which is exactly what Chapter 6 will do with these coefficients. (Axial CA, where wavelengths focus at different <em>depths</em>, blurs rather than shifts; it needs the defocus machinery this simulator deliberately doesn&rsquo;t have, and the book discusses it without simulating it.)</p>
+<h2 id="sec-1-3"><span class="secno">1.3</span>The sensor — where spectra die</h2>
+<p>Everything so far is a continuum: power at every wavelength, radiance at every position. The sensor ends that, in three brutal steps. It samples space on a pixel grid. It collapses each pixel&rsquo;s spectrum to a <em>single number</em> through a colored filter. And it adds noise, because physics leaves it no choice.</p>
+<p>The filters come first. Our sensor has three, fictional but shaped like real CMOS filter dyes: broad, heavily overlapping bumps, with the red filter leaking slightly in the blue (real red dyes do). Two properties matter enormously later. These curves are <em>not</em> the human eye&rsquo;s — the gap between what the sensor measures and what a person sees is precisely what Chapter 5&rsquo;s color matrix exists to bridge. And they overlap, so no surface excites only one channel — which is why &ldquo;camera RGB&rdquo; will turn out not to be a color space at all.</p>
+<p>But a sensor does not get three measurements per pixel. Each photosite sits under exactly <em>one</em> filter, arranged in the Bayer mosaic — the pattern that Chapter 4 will spend an entire chapter undoing:</p>
+<div class="listing-src">from <code>code/pxp/sensor.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">cfa_channel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Which filter sits over pixel (x, y): 0=R, 1=G, 2=B, in the</span>
+<span class="sd">    RGGB arrangement — red on even/even, blue on odd/odd, green on</span>
+<span class="sd">    the other two corners of every 2x2 cell.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">y</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">2</span>
+</code></pre></div>
+
+<p>Two greens per 2x2 cell, one red, one blue: half the sensor measures green, because human vision takes most of its sharpness from the middle of the spectrum and the pattern&rsquo;s designer, Bryce Bayer, spent his budget accordingly. Here is the sensor in full — the last stop before every photograph in this book:</p>
+<div class="listing-src">from <code>code/pxp/sensor.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Sensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A small, plain CMOS stand-in.</span>
+
+<span class="sd">    full_well    electrons a pixel can hold before it clips</span>
+<span class="sd">    read_noise   electrons of Gaussian noise added by readout</span>
+<span class="sd">    fpn          fixed-pattern noise: per-column gain spread (fraction)</span>
+<span class="sd">    bit_depth    ADC resolution; black_level is the offset the ADC</span>
+<span class="sd">                 adds so that noise around zero is not cut in half</span>
+<span class="sd">    seed         every sensor is deterministic: same sensor, same</span>
+<span class="sd">                 scene, same frame — bit for bit</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">bit_depth</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+                 <span class="n">black_level</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">full_well</span><span class="o">=</span><span class="mf">12000.0</span><span class="p">,</span> <span class="n">read_noise</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>
+                 <span class="n">fpn</span><span class="o">=</span><span class="mf">0.004</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="n">width</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">height</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bit_depth</span> <span class="o">=</span> <span class="n">bit_depth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">black_level</span> <span class="o">=</span> <span class="n">black_level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">white_level</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">bit_depth</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_well</span> <span class="o">=</span> <span class="n">full_well</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_noise</span> <span class="o">=</span> <span class="n">read_noise</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="n">seed</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">Random</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">column_gain</span> <span class="o">=</span> <span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">gauss</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">fpn</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">photosite_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spectrum</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;One pixel&#39;s catch, before noise: the incoming spectrum</span>
+<span class="sd">        weighed by that pixel&#39;s filter, summed. A fraction of the</span>
+<span class="sd">        full well, in [0, ~1].&quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">SENSITIVITIES</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="o">.</span><span class="n">samples</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">SAMPLE_COUNT</span><span class="p">):</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="n">spectrum</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">band</span><span class="p">]</span> <span class="o">*</span> <span class="n">response</span><span class="p">[</span><span class="n">band</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">total</span> <span class="o">/</span> <span class="n">SAMPLE_COUNT</span>
+
+    <span class="k">def</span> <span class="nf">expose_for</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene</span><span class="p">,</span> <span class="n">lens</span><span class="p">,</span> <span class="n">highlight</span><span class="o">=</span><span class="mf">0.85</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A crude raw-aware light meter: scan a coarse grid, find</span>
+<span class="sd">        the brightest signal any photosite type would record, and</span>
+<span class="sd">        choose the exposure that places it at `highlight` of the</span>
+<span class="sd">        full well. All three channels are checked because the</span>
+<span class="sd">        brightest one depends on the light — under a warm source</span>
+<span class="sd">        the red sites saturate long before the green ones.&quot;&quot;&quot;</span>
+        <span class="n">brightest</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">gy</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">12</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">gx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">16</span><span class="p">):</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">gx</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="mi">16</span><span class="p">,</span> <span class="p">(</span><span class="n">gy</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="mi">12</span>
+                <span class="n">spectrum</span> <span class="o">=</span> <span class="n">lens</span><span class="o">.</span><span class="n">look</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                    <span class="n">brightest</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">brightest</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">photosite_signal</span><span class="p">(</span><span class="n">spectrum</span><span class="p">,</span>
+                                                          <span class="n">channel</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">highlight</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_well</span> <span class="o">/</span> <span class="n">brightest</span>
+
+    <span class="k">def</span> <span class="nf">capture</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene</span><span class="p">,</span> <span class="n">lens</span><span class="p">,</span> <span class="n">exposure</span><span class="p">,</span> <span class="n">iso_gain</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Take the picture. Returns a RawImage of quantized values,</span>
+<span class="sd">        one per pixel, each seen through its own CFA filter.&quot;&quot;&quot;</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">Random</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span> <span class="n">exposure</span><span class="p">,</span> <span class="n">iso_gain</span><span class="p">)</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">())</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">white_level</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">black_level</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_well</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">):</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">):</span>
+                <span class="n">spectrum</span> <span class="o">=</span> <span class="n">lens</span><span class="o">.</span><span class="n">look</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">,</span>
+                                     <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">)</span>
+                <span class="n">channel</span> <span class="o">=</span> <span class="n">cfa_channel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                <span class="n">electrons</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">photosite_signal</span><span class="p">(</span><span class="n">spectrum</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+                             <span class="o">*</span> <span class="n">exposure</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">column_gain</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
+                <span class="n">electrons</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">electrons</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_well</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">electrons</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>                    <span class="c1"># shot noise</span>
+                    <span class="n">electrons</span> <span class="o">+=</span> <span class="n">rng</span><span class="o">.</span><span class="n">gauss</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">electrons</span><span class="p">))</span>
+                    <span class="n">electrons</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">electrons</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_well</span><span class="p">)</span>
+                <span class="c1"># read noise happens in the readout wiring, after the</span>
+                <span class="c1"># well: it can and does swing below true black, which</span>
+                <span class="c1"># is the whole reason the black_level offset exists</span>
+                <span class="n">signal</span> <span class="o">=</span> <span class="n">electrons</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">gauss</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_noise</span><span class="p">)</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">black_level</span> <span class="o">+</span> <span class="n">signal</span> <span class="o">*</span> <span class="n">gain</span> <span class="o">*</span> <span class="n">iso_gain</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">white_level</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">value</span><span class="p">))))</span>
+            <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">RawImage</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span>
+                        <span class="n">bit_depth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bit_depth</span><span class="p">,</span>
+                        <span class="n">black_level</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">black_level</span><span class="p">,</span>
+                        <span class="n">cfa</span><span class="o">=</span><span class="n">CFA_PATTERN</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The noise lines deserve a slow read, because they are the truest physics in the simulator. Light arrives in photons, and a photosite expecting \(N\) electrons in an exposure actually collects \(N\) give or take \(\sqrt{N}\) — <strong>shot noise</strong>, a property of light itself, not of the sensor, and the reason no camera at any price takes a noiseless photograph. The readout electronics add a few electrons of Gaussian <strong>read noise</strong> on top. And each column&rsquo;s amplifier has its own slightly-off gain — <strong>fixed-pattern noise</strong>, the same stripes in every frame, which is what will make it correctable in Chapter 2 while the random noise is merely <em>reducible</em>. Note also what the ADC — the analog-to-digital converter, the last electronic step before numbers — does at the bottom of <code>capture</code>: it adds a <code>black_level</code> offset before quantizing, so that the noise dancing around zero survives digitization intact instead of having its negative half chopped off. That little offset is why Chapter 2 begins with black-level subtraction.</p>
+<figure id="fig-sensor-mosaic">
+<img src="assets/figures/sensor-mosaic.png" alt="Figure 1.4">
+<figcaption><span class="figno">Figure 1.4</span> The chart, captured. Left: the raw frame&rsquo;s values as plain brightness — one number per pixel, and visibly textured, because neighboring pixels sit under different filters. Right: a 16x16-pixel crop straddling the white and red patches, enlarged, each value shown in its filter&rsquo;s color. On the white patch all three photosite types respond; on the red patch the red sites respond alone and the green and blue sites go dark. No pixel knows more than its own single number.</figcaption>
+</figure>
+
+<p>Look at the left panel&rsquo;s <em>neutral</em> patches: even they are textured, and the texture is not noise — green photosites simply catch more of D65 than red or blue ones do through these filters. A raw file straight off any sensor is dim, mosaiced, and green-tinted; every &ldquo;why does my raw look like that&rdquo; forum thread traces back to this figure. The right panel is the pipeline&rsquo;s to-do list in miniature: Chapters 2 through 5 exist to turn that checkerboard back into a photograph.</p>
+<h2 id="sec-1-4"><span class="secno">1.4</span>The raw file</h2>
+<p>One step remains: writing the frame to disk. Real raw formats are sprawling — thumbnails, EXIF blocks, maker notes, encrypted focus data — but beneath the flourishes every one of them is the same thing: <em>a header saying how to read the numbers, then the numbers.</em> Our container is exactly that and nothing else:</p>
+<div class="listing-src">from <code>code/pxp/raw.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="sd">&quot;&quot;&quot;The book&#39;s raw container: the least file format that could work.</span>
+
+<span class="sd">A raw file, stripped of every vendor flourish, is a header saying how</span>
+<span class="sd">to read the numbers, then the numbers. Ours is exactly that: a magic</span>
+<span class="sd">string, six small header fields, the CFA arrangement, and the sensor</span>
+<span class="sd">values row by row as big-endian 16-bit integers. Section 1.5 compares</span>
+<span class="sd">it against real DNG.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">struct</span>
+
+<span class="n">MAGIC</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;PXRAW&quot;</span>
+<span class="n">VERSION</span> <span class="o">=</span> <span class="mi">1</span>
+
+
+<span class="k">class</span> <span class="nc">RawImage</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One frame off the sensor: integer values, one per pixel, plus</span>
+<span class="sd">    the facts needed to interpret them.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">bit_depth</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+                 <span class="n">black_level</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">cfa</span><span class="o">=</span><span class="s2">&quot;RGGB&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="n">width</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">height</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="n">values</span>                 <span class="c1"># values[y][x], ints</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bit_depth</span> <span class="o">=</span> <span class="n">bit_depth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">black_level</span> <span class="o">=</span> <span class="n">black_level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">white_level</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">bit_depth</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfa</span> <span class="o">=</span> <span class="n">cfa</span>
+
+
+<span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&gt;5sBHHBH4s&quot;</span><span class="p">,</span> <span class="n">MAGIC</span><span class="p">,</span> <span class="n">VERSION</span><span class="p">,</span>
+                         <span class="n">raw</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">raw</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
+                         <span class="n">raw</span><span class="o">.</span><span class="n">bit_depth</span><span class="p">,</span> <span class="n">raw</span><span class="o">.</span><span class="n">black_level</span><span class="p">,</span>
+                         <span class="n">raw</span><span class="o">.</span><span class="n">cfa</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&gt;</span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">width</span><span class="si">}</span><span class="s2">H&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">row</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">magic</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">bit_depth</span><span class="p">,</span> <span class="n">black</span><span class="p">,</span> <span class="n">cfa</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;&gt;5sBHHBH4s&quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">17</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">magic</span> <span class="o">!=</span> <span class="n">MAGIC</span> <span class="ow">or</span> <span class="n">version</span> <span class="o">!=</span> <span class="n">VERSION</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;not a PXRAW version-1 file&quot;</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&gt;</span><span class="si">{</span><span class="n">width</span><span class="si">}</span><span class="s2">H&quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)))</span>
+                  <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">RawImage</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">bit_depth</span><span class="o">=</span><span class="n">bit_depth</span><span class="p">,</span>
+                    <span class="n">black_level</span><span class="o">=</span><span class="n">black</span><span class="p">,</span> <span class="n">cfa</span><span class="o">=</span><span class="n">cfa</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">))</span>
+</code></pre></div>
+
+<p>Seventeen bytes of header, then two bytes per pixel. A file you can read with your eyes:</p>
+<div class="highlight"><pre><span></span><code>00000000  50 58 52 41 57 01 00 30 00 20 0c 00 40 52 47 47  |PXRAW..0. ..@RGG|
+00000010  42 01 d0 02 16 01 cc 02 22 01 d0 02 29 01 ba 02  |B.......&quot;...)...|
+00000020  1c 01 ce 02 37 01 db 02 2d 01 c7 02 17 01 e4 02  |....7...-.......|
+</code></pre></div>
+
+<p>That is a real capture of the chart (48x32, for a file small enough to dump). The magic spells <code>PXRAW</code>; then version <code>01</code>; <code>0030</code> and <code>0020</code> are 48 and 32; <code>0c</code> is 12 bits; <code>0040</code> is the black level of 64; then <code>RGGB</code>. And the pixel values that follow are already telling the truth about the sensor: they alternate <code>01xx</code>, <code>02xx</code>, <code>01xx</code>, <code>02xx</code> — red site, green site, red site, green site across the top row of a gray surround, the green ones half again brighter. You can see the color filter array <em>in the hex dump</em>.</p>
+<h2 id="sec-1-5"><span class="secno">1.5</span>Sidebar: what real raw files add</h2>
+<div class="admonition note">
+<p class="admonition-title">This container vs. DNG</p>
+<p>Adobe&rsquo;s DNG — the closest thing to a published, non-proprietary raw format — is a TIFF: a tag tree rather than a fixed header, which is most of the difference. Where our seventeen bytes say <em>width, height, bits, black level, CFA</em>, DNG says the same things in tags (<code>ImageWidth</code>, <code>BitsPerSample</code>, <code>BlackLevel</code>, <code>CFAPattern</code>) plus the things our simulator doesn&rsquo;t need yet: <code>ColorMatrix1/2</code> (the camera-to-XYZ matrices Chapter 5 derives from scratch), <code>AsShotNeutral</code> (the camera&rsquo;s own white-balance guess, Chapter 3&rsquo;s competitor), lens-correction opcodes (Chapter 6&rsquo;s job, shipped as data), and compression. Nothing in a DNG is conceptually missing from this chapter — it is this chapter, industrialized. The book never parses DNG; when Chapter 10 needs real files, it lets <code>rawpy</code> do the reading and keeps its attention on the pixels.</p>
+</div>
+<hr />
+<p>The camera is complete: spectra in, integers out — <code>scene → lens → sensor → file</code>, every stage a page of code, every flaw a number we chose. From here the direction of travel reverses. The simulator spent this chapter carefully ruining a perfect scene; the rest of the book is the long climb back. Chapter 2 starts at the bottom, with the numbers themselves: black level, noise, and what &ldquo;exposure&rdquo; really means to a photosite.</p>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="setup.html"><span class="label">&larr; Chapter 0</span><span class="ttl">Setup</span></a></div><div class="next"><a href="photons.html"><span class="label">Chapter 2 &rarr;</span><span class="ttl">From Photons to a Bayer Array</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

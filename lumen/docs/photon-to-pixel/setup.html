@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup — The Long Way from Light to JPEG</title>
+<meta name="description" content="Why this book, the toolkit, and the contract every line of code in it obeys.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html" class="active">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 0</span>
+<h1 class="opener-title">Setup</h1>
+<p class="opener-lede">Why this book, the toolkit, and the contract every line of code in it obeys.</p>
+</div>
+<article class="prose">
+<p>Between the moment light strikes a camera sensor and the moment a JPEG lands on your disk, a photograph passes through a dozen distinct transformations. Each one is comprehensible. Most are, at heart, a few lines of arithmetic applied to every pixel. And yet the pipeline as a whole — what happens, in what order, and why — is understood end to end by almost nobody outside camera engineering teams and computer vision labs.</p>
+<p>This book walks the whole way: from photons to JPEG bytes, one stage at a time, with working code at every step.</p>
+<h2 id="sec-0-1"><span class="secno">0.1</span>Why this book exists</h2>
+<p>The material that explains this territory splits into two camps that don&rsquo;t talk to each other. Academic textbooks treat demosaicing, color science, and tone mapping as scattered topics inside a much broader survey of vision research — you get the math, but rarely the pipeline <em>as a pipeline</em>: the order of operations, the reason each stage exists, the way a choice made early compounds into an artifact three stages later. Practical sources — patents, raw-processor source code, photography forums — are written to document or to argue, not to teach.</p>
+<p>This book is for the reader in between: someone who can code but isn&rsquo;t a computer vision researcher. A hobbyist photographer who wants to know what a raw file actually contains. A developer building photo tools. An ML engineer who needs intuition for what an image signal processor does to training data. A darktable or RawTherapee user who wants to know what the sliders actually move.</p>
+<p>The core promise is simple: <strong>every algorithm in this book is implemented in plain, explicit code with no hidden operations.</strong> If something happens to a pixel, you can watch it happen, line by line. No library call stands in for a concept; no vectorized one-liner asks you to take the arithmetic on faith.</p>
+<p>Two commitments follow from that promise, and they shape everything about how the book is built.</p>
+<p>The first is that the book runs on a <strong>simulated camera</strong>. Chapter 1 builds a small synthetic forward model — scenes described as reflectance spectra, a fictional lens with known flaws, a sensor with known noise — and every worked example in the book photographs <em>that</em>. The payoff is something real photography can never give you: ground truth. When we demosaic, we can measure the error against the true full-color scene, because we rendered it. When we white-balance, we know the true illuminant, because we chose it. Every reader gets identical inputs and identical results, whatever camera they own or don&rsquo;t.</p>
+<p>The second commitment is a rule about code, and it deserves its own section — because it resolves a tension that would otherwise quietly undermine the whole project.</p>
+<h2 id="sec-0-2"><span class="secno">0.2</span>The toolkit</h2>
+<p>Everything in this book is written in ordinary Python. Not because Python is fast — it is spectacularly not — but because it reads almost like the pseudocode it is standing in for, and because you certainly have it.</p>
+<p>The main explanatory code uses <strong>no libraries at all</strong> beyond the standard library. There is no NumPy in the teaching tier of this book. That is a deliberate, slightly extreme choice, and it exists because array programming — for all its power — lets an author hide a concept inside a broadcast. <code>image * gain</code> is a fine line of production code and a terrible explanation; it works equally well whether or not you understand what it does. A <code>for</code> loop over rows and columns cannot pull that trick.</p>
+<p>What the code operates on is one small type, and here it is in full — the entire data model of the book:</p>
+<div class="listing-src">from <code>code/pxp/image.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Image</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A picture: a grid of pixels, each a list of channel values.</span>
+
+<span class="sd">    Values are floats. In a linear-light image, 0.0 is no light and</span>
+<span class="sd">    1.0 is the brightest value we intend to represent; nothing stops</span>
+<span class="sd">    a value from going above 1.0 or below 0.0 mid-pipeline, and that</span>
+<span class="sd">    freedom is deliberate — clipping is a decision, made explicitly,</span>
+<span class="sd">    at the moment we encode for output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="n">width</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">height</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="n">channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pixels</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[[</span><span class="n">fill</span><span class="p">]</span> <span class="o">*</span> <span class="n">channels</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">width</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">height</span><span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The pixel at column x, row y: a list of channel values.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixels</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Replace the pixel at column x, row y.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pixels</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+</code></pre></div>
+
+<p>A picture is a grid; a pixel is a list of channel values; the values are floats. Notice what the docstring says about 0.0 and 1.0: they are conventions, not walls. A pipeline works in <em>linear light</em> for most of its length, and intermediate values are allowed to wander out of range — a highlight can hold 2.7 through half the pipeline. Clipping is a decision, and this book makes it exactly once, at output.</p>
+<p>Which brings us to output. To look at our images we write PNG files, and — in keeping with the house rules — we write them ourselves, from scratch. A minimal PNG is less mysterious than its reputation: a signature, a header, the pixel rows compressed with <code>zlib</code>, an end marker.</p>
+<div class="listing-src">from <code>code/pxp/image.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">write_png</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save an Image as an 8-bit PNG, from scratch.</span>
+
+<span class="sd">    No imaging library: a PNG is a signature, a header chunk, the</span>
+<span class="sd">    pixel rows compressed with zlib, and an end marker. Channel</span>
+<span class="sd">    values are clipped to [0, 1] here — output encoding is the one</span>
+<span class="sd">    place where clipping is a decision, not an accident — and</span>
+<span class="sd">    scaled to 0..255.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">grayscale</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">channels</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>          <span class="c1"># 0 = &quot;no filter&quot; for this row</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+                <span class="n">clipped</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">clipped</span> <span class="o">*</span> <span class="mi">255</span><span class="p">))</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">bytes</span><span class="p">(</span><span class="n">row</span><span class="p">))</span>
+    <span class="n">raw</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">chunk</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&gt;I&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span> <span class="o">+</span> <span class="n">tag</span> <span class="o">+</span> <span class="n">data</span>
+                <span class="o">+</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&gt;I&quot;</span><span class="p">,</span> <span class="n">zlib</span><span class="o">.</span><span class="n">crc32</span><span class="p">(</span><span class="n">tag</span> <span class="o">+</span> <span class="n">data</span><span class="p">)))</span>
+
+    <span class="n">header</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&gt;IIBBBBB&quot;</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
+                         <span class="mi">8</span><span class="p">,</span>                       <span class="c1"># bits per channel</span>
+                         <span class="mi">0</span> <span class="k">if</span> <span class="n">grayscale</span> <span class="k">else</span> <span class="mi">2</span><span class="p">,</span>   <span class="c1"># color type</span>
+                         <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;</span><span class="se">\x89</span><span class="s2">PNG</span><span class="se">\r\n\x1a\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;IHDR&quot;</span><span class="p">,</span> <span class="n">header</span><span class="p">))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;IDAT&quot;</span><span class="p">,</span> <span class="n">zlib</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="mi">9</span><span class="p">)))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;IEND&quot;</span><span class="p">,</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">))</span>
+</code></pre></div>
+
+<p>That function is the only place in the entire book where channel values are forced into range, and the only place they are quantized to 8 bits. (It is also a quiet preview of Chapter 9, where its bigger sibling — a from-scratch JPEG encoder — becomes the book&rsquo;s final act.) With these two pieces, the toolkit can produce its first image:</p>
+<figure id="fig-first-light">
+<img src="assets/figures/first-light.png" alt="Figure 0.1">
+<figcaption><span class="figno">Figure 0.1</span> First light: a linear grayscale ramp over the eight corners of the RGB cube — drawn pixel by pixel with the <code>Image</code> class and written by our own <code>write_png</code>. This unglamorous test card, grown into full spectral color charts and detail targets, is the seed of the simulated camera in Chapter 1.</figcaption>
+</figure>
+
+<p>If the ramp looks like it brightens unevenly — too dark for too long, then rushing to white — you have just observed, with your own eyes, the difference between linear light and your display&rsquo;s expectations. That observation is Chapter 7&rsquo;s opening argument, and we made it with sixty lines of standard-library Python.</p>
+<p>One caveat: <code>matplotlib</code> is genuinely useful for <em>interactive</em> work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by the book&rsquo;s own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.</p>
+<h2 id="sec-0-3"><span class="secno">0.3</span>The two-tier contract</h2>
+<p>Now for the tension. A 24-megapixel photograph has roughly seventy-two million channel values. Plain Python, sweeping that with nested loops, runs the simplest operations in seconds — and the serious algorithms of Chapters 4 and 8 in <em>days</em>. A book that only ever processed 256-pixel-wide crops would keep its promise of clarity and quietly abandon its other promise: that you finish with a pipeline you can run on your own raw files.</p>
+<p>So every pipeline stage in this book exists in two forms:</p>
+<ol>
+<li><strong>The reference implementation</strong> — plain loops, explicit arithmetic, the form the chapter explains. It lives in the <code>pxp</code> package and runs on small crops, which is exactly the scale where you can also print pixel values and check the math by hand.</li>
+<li><strong>The pipeline implementation</strong> — the same arithmetic restated for the machine, using NumPy (and, where it earns its keep, numba). It lives in <code>pxp.fast</code> and is what the full-resolution pipeline actually runs.</li>
+</ol>
+<p>Both tiers, the tests, and every figure script live under <a href="https://github.com/vijaymathew/vijaymathew.github.io/tree/master/lumen/docs/photon-to-pixel/code"><code>code/</code> in the book&rsquo;s source tree</a>, and Appendix A maps the package name by name.</p>
+<p>The second tier never introduces a concept. It is always presented after the idea is understood, always as <em>the same arithmetic, faster</em>. Here is the smallest possible example — exposure adjustment, which in linear light is nothing but a multiplication by \(2^{\text{stops}}\). The reference form:</p>
+<div class="listing-src">from <code>code/pxp/tone.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">exposure</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">stops</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Brighten or darken an image by whole photographic stops.</span>
+
+<span class="sd">    One stop is a doubling: +1 doubles every channel value, -1</span>
+<span class="sd">    halves it. In linear light that is the entire story — exposure</span>
+<span class="sd">    is a single multiplication applied uniformly to every value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">gain</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">**</span> <span class="n">stops</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">channels</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">):</span>
+            <span class="n">pixel</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="p">[</span><span class="n">value</span> <span class="o">*</span> <span class="n">gain</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">pixel</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>And its pipeline twin:</p>
+<div class="listing-src">from <code>code/pxp/fast/tone.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">exposure</span><span class="p">(</span><span class="n">pixels</span><span class="p">,</span> <span class="n">stops</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Exposure as one array multiplication.</span>
+
+<span class="sd">    Identical arithmetic to the reference tier&#39;s three nested loops:</span>
+<span class="sd">    every value, times two-to-the-stops. NumPy applies the multiply</span>
+<span class="sd">    to the whole (H, W, C) array in one sweep.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pixels</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">**</span> <span class="n">stops</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Three nested loops became one multiplication sign, and <em>nothing else changed</em> — not the numbers, not the order of operations on each value, nothing. But you do not have to trust that sentence, and this is the point of the section:</p>
+<div class="admonition note">
+<p class="admonition-title">The contract</p>
+<p>For every stage, a test constructs an image, runs both tiers, and asserts the outputs are <strong>identical</strong> — not approximately equal, identical. The tests ship with the book&rsquo;s code and run on every build of the book. When a chapter says &ldquo;the same eleven lines of arithmetic, sped up,&rdquo; that claim has been checked mechanically, not editorially.</p>
+</div>
+<p>The test for exposure, in full:</p>
+<div class="listing-src">from <code>code/tests/test_two_tier.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="nd">@unittest</span><span class="o">.</span><span class="n">skipUnless</span><span class="p">(</span><span class="n">HAVE_NUMPY</span><span class="p">,</span> <span class="s2">&quot;pipeline tier requires NumPy&quot;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">TestTwoTierExposure</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_exposure_tiers_identical</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">checker_image</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">stops</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.7</span><span class="p">):</span>
+            <span class="n">reference</span> <span class="o">=</span> <span class="n">pxp</span><span class="o">.</span><span class="n">tone</span><span class="o">.</span><span class="n">exposure</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">stops</span><span class="p">)</span>
+            <span class="n">pipeline</span> <span class="o">=</span> <span class="n">pxp</span><span class="o">.</span><span class="n">fast</span><span class="o">.</span><span class="n">from_array</span><span class="p">(</span>
+                <span class="n">pxp</span><span class="o">.</span><span class="n">fast</span><span class="o">.</span><span class="n">exposure</span><span class="p">(</span><span class="n">pxp</span><span class="o">.</span><span class="n">fast</span><span class="o">.</span><span class="n">to_array</span><span class="p">(</span><span class="n">img</span><span class="p">),</span> <span class="n">stops</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">reference</span><span class="o">.</span><span class="n">pixels</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">pixels</span><span class="p">,</span>
+                             <span class="sa">f</span><span class="s2">&quot;tiers diverge at stops=</span><span class="si">{</span><span class="n">stops</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>And here is the reference implementation earning its first figure — the test scene from <a href="#fig-first-light">Figure 0.1</a> pushed a stop down and a stop up:</p>
+<figure id="fig-exposure-stops">
+<img src="assets/figures/exposure-stops.png" alt="Figure 0.2">
+<figcaption><span class="figno">Figure 0.2</span> One stop down, as shot, one stop up: every channel value halved or doubled, nothing more. At +1, the upper ramp&rsquo;s brighter half has sailed past 1.0 and been clipped to white by <code>write_png</code> — our first clipped highlight, and a first look at why Chapter 7 spends a whole section on recovering them.</figcaption>
+</figure>
+
+<p>Look closely at the −1 panel: the white patch has become the same middle gray as the clipped region&rsquo;s neighbors, and the saturated primaries have dimmed without changing hue. Exposure in linear light preserves color; it only scales energy. That one figure quietly carries three later chapters — and it cost us a multiplication.</p>
+<h2 id="sec-0-4"><span class="secno">0.4</span>The simulated camera, previewed</h2>
+<p>The test card above was built by hand, patch by patch. Chapter 1 replaces it with something better: a small synthetic <em>camera</em> — a forward model that starts from physical descriptions and produces raw files.</p>
+<p>Its scenes are not grids of RGB values but <strong>reflectance spectra</strong> under a chosen illuminant — daylight, tungsten, or one deliberately awkward spiky fluorescent kept around to cause trouble in Chapter 5. Its lens is fictional but flawed in precisely known ways: a little distortion, a little vignetting, a touch of chromatic aberration, each set by coefficients we choose. Its sensor has per-channel spectral sensitivities, photon shot noise, read noise, a black level, and — crucially — a Bayer color filter array (the CFA of everything that follows), so that like every real camera it records only one color value per pixel and leaves the rest for us to reconstruct.</p>
+<p>None of it is pretty, and none of it is meant to be. The simulator is a measurement instrument, not a renderer: flat patches, ramps, and analytic targets, built so that at every stage of the pipeline there is a <em>right answer</em> to compare against. When the book claims an algorithm is better, the claim will come with a number.</p>
+<p>From here the path is fixed, and it is the same path your camera walks a thousand times a day: photons to a noisy mosaic (Chapter 2), white balance <em>before</em> the mosaic is unwoven — an ordering that matters more than almost anyone tells you (Chapter 3) — demosaicing (Chapter 4), color (Chapter 5), the lens&rsquo;s sins undone (Chapter 6), tone (Chapter 7), detail and noise (Chapter 8), and finally the JPEG encoder (Chapter 9), at which point every byte in the output file is a byte you understand. Chapter 10 then loads a real raw file from a real camera and runs <em>your</em> pipeline on it.</p>
+<p>It is a long way from light to JPEG. Let&rsquo;s take the first step.</p>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="index.html"><span class="label">&larr; Contents</span><span class="ttl">The Long Way from Light to JPEG</span></a></div><div class="next"><a href="camera.html"><span class="label">Chapter 1 &rarr;</span><span class="ttl">The Simulated Camera System</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

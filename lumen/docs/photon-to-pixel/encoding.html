@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Output Encoding — The Long Way from Light to JPEG</title>
+<meta name="description" content="Resampling, chroma subsampling, and a from-scratch JPEG encoder.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html" class="active">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 9</span>
+<h1 class="opener-title">Output Encoding</h1>
+<p class="opener-lede">Resampling, chroma subsampling, and a from-scratch JPEG encoder.</p>
+</div>
+<article class="prose">
+<p>The photograph is finished; what remains is the leaving. Every step in this chapter throws information away on purpose — pixels, color resolution, frequency precision — and every step hides the theft behind some measured limit of human vision. That is not a compromise of the pipeline; it is the pipeline&rsquo;s final skill. By the last section the image will be a stream of bytes any device on earth can open, at a twentieth of its uncompressed size, and a viewer will struggle to say what was taken.</p>
+<h2 id="sec-9-1"><span class="secno">9.1</span>Resampling: deciding what lies between the samples</h2>
+<p>Almost no photograph is delivered at sensor resolution. Between the samples of the smaller (or larger) grid and the samples we have, there is no image — only a claim about what the samples imply. Every resampling kernel is such a claim. Nearest-neighbor claims nothing changes until the next sample. The tent (bilinear&rsquo;s kernel) claims values ramp linearly. At the top of the family sits the windowed <strong>sinc</strong>: a central bell flanked by decaying ripples, and the shape that <em>sampling theory</em> — the same mathematics that governs aliasing and the Nyquist limit — singles out as the theoretically perfect reconstructor. The ideal sinc is infinitely wide, so in practice it is <em>windowed</em>: truncated to a few ripples. Lanczos is one such truncation:</p>
+<div class="listing-src">from <code>code/pxp/resample.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">lanczos</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">lobes</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The windowed sinc: the ideal reconstruction filter of</span>
+<span class="sd">    sampling theory, cut off after three lobes so it fits in a</span>
+<span class="sd">    program. The strongest negative lobes of the family — the most</span>
+<span class="sd">    detail preserved, the most ringing risked.&quot;&quot;&quot;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="n">lobes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">1.0</span>
+    <span class="n">px</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="k">return</span> <span class="n">lobes</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">px</span><span class="p">)</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">px</span> <span class="o">/</span> <span class="n">lobes</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">px</span> <span class="o">*</span> <span class="n">px</span><span class="p">)</span>
+</code></pre></div>
+
+<figure id="fig-resample-up">
+<img src="assets/figures/resample-up.png" alt="Figure 9.1">
+<figcaption><span class="figno">Figure 9.1</span> One 24-pixel crop of the starburst, upscaled 8x by three claims about what lies between samples: nearest (left), bilinear (middle), Lanczos (right). Nearest shows the samples themselves, as squares. Bilinear is smooth and soft. Lanczos keeps the spokes&rsquo; snap — and pays in the faint bright and dark outlines along every edge, its negative lobes made visible. Blocks, blur, or ringing: pick one, because there is nothing else on the menu.</figcaption>
+</figure>
+
+<p>Enlarging is the easy direction — any kernel, drawn across the gaps. Shrinking is where resampling is silently gotten wrong, because a kernel used at its natural width simply <em>skips</em> most of the source pixels: shrink four-fold and each output pixel is answerable for a 4x4 patch of input, not for the one point under its center. The fix is one line — stretch the kernel by the shrink factor — and it lives here, in the function both code tiers share:</p>
+<div class="listing-src">from <code>code/pxp/resample.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">axis_weights</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">support</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tap start and normalized weights for every output position</span>
+<span class="sd">    along one axis.</span>
+
+<span class="sd">    The one subtlety of resampling lives here: when shrinking, the</span>
+<span class="sd">    kernel is stretched by the shrink factor, so each output pixel</span>
+<span class="sd">    drinks from the whole span of source pixels it replaces. Skip</span>
+<span class="sd">    that and every kernel aliases like nearest. The pipeline tier</span>
+<span class="sd">    imports this function as-is — the weights are the algorithm.&quot;&quot;&quot;</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">src</span> <span class="o">/</span> <span class="n">dst</span>
+    <span class="n">stretch</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+    <span class="n">taps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">support</span> <span class="o">*</span> <span class="n">stretch</span><span class="p">))</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dst</span><span class="p">):</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">o</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">-</span> <span class="mf">0.5</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">center</span><span class="p">))</span> <span class="o">-</span> <span class="n">taps</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">kernel</span><span class="p">((</span><span class="n">center</span> <span class="o">-</span> <span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">k</span><span class="p">))</span> <span class="o">/</span> <span class="n">stretch</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">taps</span><span class="p">)]</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="n">weight</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="p">[</span><span class="n">weight</span> <span class="o">/</span> <span class="n">total</span> <span class="k">for</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">table</span>
+</code></pre></div>
+
+<figure id="fig-downscale-alias">
+<img src="assets/figures/downscale-alias.png" alt="Figure 9.2">
+<figcaption><span class="figno">Figure 9.2</span> The 320-pixel starburst shrunk 4x, pixels shown at 4x: nearest (left) against the stretched Lanczos (right). Nearest samples one point per output pixel and the spokes shatter into moire — frequencies the small grid cannot carry, aliased into frequencies it can, the same phenomenon the demosaic chapters met as false color on the sensor mosaic. The stretched kernel averages each pixel&rsquo;s whole territory: fine spokes fade smoothly into the gray their average deserves.</figcaption>
+</figure>
+
+<p>One craft note with a measurement attached. Chapter 8&rsquo;s unsharp mask builds halos a pixel or two wide — creatures of the pixel grid, not of the scene. Shrink the image afterward and the halos shrink with it, mostly below visibility: sharpening our starburst at 320 and then downscaling to 80 raises mean edge contrast only from 0.165 to 0.183, while the same sharpening applied <em>after</em> the shrink raises it to 0.270. Sharpen last, at delivery size — the &ldquo;output sharpening&rdquo; step every workflow guide insists on, here reduced to a measurement.</p>
+<h2 id="sec-9-2"><span class="secno">9.2</span>Eight bits, on purpose</h2>
+<p>Chapter 7 built the border crossing — the transfer function that spends display range in perceptual steps — and every figure in this book has quietly finished the trip: <code>write_png</code> clips to [0, 1], multiplies by 255, and rounds. That rounding is the book&rsquo;s oldest continuous loss, and it is time to say why it is safe. Eight bits give 256 levels; <em>after</em> the sRGB curve those levels are spaced in roughly equal perceptual steps, each near the threshold where adjacent patches become distinguishable. Spend the same 256 levels on linear light and the shadows band visibly — Chapter 2 made that argument in reverse when it explained why sensors need 12 bits or more for scenes displays describe in 8. The exception proves the design: push a heavy edit on 8-bit material (lift a dark sky three stops) and the levels spread apart until banding surfaces, which is why editing pipelines stay in floats or 16 bits until the very end, and why HDR delivery formats pair their taller brightness range with 10 bits and a steeper curve. Quantization is fine where perception is flat and treacherous where it is steep; the rest of this chapter is that sentence, applied twice more.</p>
+<h2 id="sec-9-3"><span class="secno">9.3</span>Chroma subsampling: half the numbers nobody counts</h2>
+<p>Human vision resolves brightness finely and color coarsely — the retina pools its color-opponent signals over larger areas than its luminance signal. Television engineering has banked on this since before computers: transmit brightness at full resolution and color differences at a fraction. JPEG inherited the scheme wholesale, so the first thing our encoder does is change basis — luma, plus two color-difference planes, <code>Y = 0.299 R + 0.587 G + 0.114 B</code>, with Cb and Cr as scaled &ldquo;blue minus luma&rdquo; and &ldquo;red minus luma&rdquo; centered on 128. Nothing is lost in the rotation; it merely gathers what the eye tracks sharply into one plane, so the next function can be rough with the other two. Video&rsquo;s name for that roughness is <strong>4:2:0</strong> — legacy ratio notation that decodes, unhelpfully, to &ldquo;chroma at half resolution in both directions&rdquo; — and its entire mechanism is an average:</p>
+<div class="listing-src">from <code>code/pxp/jpeg.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">subsample</span><span class="p">(</span><span class="n">plane</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;4:2:0&#39;s whole mechanism: average each 2x2 quad to one value.</span>
+<span class="sd">    Run on the chroma planes it discards three quarters of the</span>
+<span class="sd">    color numbers, and Chapter 9&#39;s figure shows how little that</span>
+<span class="sd">    matters — the eye&#39;s own chroma resolution is the lossy step</span>
+<span class="sd">    this one hides behind.&quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">plane</span><span class="p">),</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">plane</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">plane</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span><span class="p">]</span> <span class="o">+</span> <span class="n">plane</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                        <span class="o">+</span> <span class="n">plane</span><span class="p">[</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+                        <span class="o">+</span> <span class="n">plane</span><span class="p">[</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">0.25</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>Y at full resolution plus two chroma planes at a quarter each: the image is now described in half as many numbers, before any compression proper has begun. The figure is the argument for why this is allowed — and it carries a lesson about meters:</p>
+<figure id="fig-chroma-subsample">
+<img src="assets/figures/chroma-subsample.png" alt="Figure 9.3">
+<figcaption><span class="figno">Figure 9.3</span> The chart: intact (left), chroma at quarter resolution (middle), luma at quarter resolution (right). The middle panel survives — patch colors are untouched, the gray grid keeps every edge, and only a close look at colored borders finds the bleed. The right panel is soft everywhere at a glance. Now the metric: PSNR scores them 27.79 and 27.69 dB — <em>equal</em>. The meter weighs every numeric error the same; the eye does not, and 4:2:0 lives in that gap. Chapter 8 warned that one number can hide a mechanism; here one number hides the entire reason the technique works.</figcaption>
+</figure>
+
+<h2 id="sec-9-4"><span class="secno">9.4</span>The JPEG: frequencies, rounded</h2>
+<p>What remains after subsampling is three planes of numbers, and the remaining task is the one this book has deferred since its title page: make them small. JPEG&rsquo;s insight — thirty years old and not yet dislodged from cameras — is that the place to be inaccurate is neither pixels nor colors but <em>frequencies</em>. Carve each plane into 8x8 blocks and measure each block against 64 cosine patterns:</p>
+<div class="listing-src">from <code>code/pxp/jpeg.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">dct8</span><span class="p">(</span><span class="n">vector</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One row of the DCT-II: eight samples in, eight frequency</span>
+<span class="sd">    amounts out. Each output asks &#39;how much of this cosine is in</span>
+<span class="sd">    the signal?&#39; — the zeroth cosine is flat, so the first answer</span>
+<span class="sd">    is the block&#39;s average, and every later one is a finer</span>
+<span class="sd">    ripple.&quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="n">vector</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">*</span> <span class="n">COSINES</span><span class="p">[</span><span class="n">u</span><span class="p">][</span><span class="n">x</span><span class="p">]</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">HALF_C</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="o">*</span> <span class="n">total</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+
+<p>Applied to rows and then columns, this is the discrete cosine transform. It rearranges the block&rsquo;s 64 numbers without gaining or losing any — a <em>rotation</em> in the sense that it re-describes the very same data along new axes (the 64 cosine patterns) instead of the original pixel positions, the way turning a map re-labels every town&rsquo;s coordinates without moving a single town. Nothing is discarded yet: the total <em>energy</em> — the sum of the squared values, one honest measure of how much is in the block — is identical before and after, and a test in this chapter checks exactly that. The 64 patterns it measures against are worth one long look:</p>
+<figure id="fig-dct-basis">
+<img src="assets/figures/dct-basis.png" alt="Figure 9.4">
+<figcaption><span class="figno">Figure 9.4</span> The 64 basis patterns of the 8x8 DCT: constant at top-left, finest checkerboard at bottom-right, every block in every JPEG ever made is a weighted sum of these. The transform itself loses nothing — it is a rotation, and a test in this chapter checks that the energy in is the energy out. Its gift is concentration: photographic blocks are mostly smooth, so most of the weight lands in the top-left few patterns and the rest sit near zero, waiting to be rounded away.</figcaption>
+</figure>
+
+<p>The loss happens in one line: divide each coefficient by an entry from an 8x8 table and round to an integer. The tables — one for luma, a harsher one for chroma — encode measured visibility: low frequencies, which the eye tracks closely, get small divisors, and the finest checkerboards get divisors so large that middling amounts round away to nothing. The famous 1–100 quality dial is just a scale factor on those tables:</p>
+<div class="listing-src">from <code>code/pxp/jpeg.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">quality_tables</span><span class="p">(</span><span class="n">quality</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The standard&#39;s example tables — measured from how visible</span>
+<span class="sd">    each frequency&#39;s error is — scaled by the famous 1..100 quality</span>
+<span class="sd">    knob (the Independent JPEG Group&#39;s formula, inherited by every</span>
+<span class="sd">    tool since). The numbers are</span>
+<span class="sd">    divisors: at quality 50, a luma block&#39;s highest frequency is</span>
+<span class="sd">    divided by 121 and rounded, and that rounding is the entire</span>
+<span class="sd">    loss in a JPEG.&quot;&quot;&quot;</span>
+    <span class="n">quality</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">quality</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">quality</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mi">5000</span> <span class="o">//</span> <span class="n">quality</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mi">200</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">quality</span>
+    <span class="n">tables</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="p">(</span><span class="n">QUANT_LUMA</span><span class="p">,</span> <span class="n">QUANT_CHROMA</span><span class="p">):</span>
+        <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="n">value</span> <span class="o">*</span> <span class="n">scale</span> <span class="o">+</span> <span class="mi">50</span><span class="p">)</span> <span class="o">//</span> <span class="mi">100</span><span class="p">))</span>
+                       <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">base</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">tables</span>
+</code></pre></div>
+
+<p>After rounding, a typical block is a handful of small integers in its low corner and zeros everywhere else, and the rest of the format is devoted to spending as few bits as possible on that shape. First the coefficients are read out in an order that pools the zeros:</p>
+<div class="listing-src">from <code>code/pxp/jpeg.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">zigzag_order</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Walk the 8x8 grid by anti-diagonals, alternating direction:</span>
+<span class="sd">    lowest frequencies first, so a typical block&#39;s many rounded-to-</span>
+<span class="sd">    zero high frequencies pool into one long run at the end — which</span>
+<span class="sd">    the entropy coder will spend a single symbol on.&quot;&quot;&quot;</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">diagonal</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">15</span><span class="p">):</span>
+        <span class="n">ys</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">diagonal</span> <span class="o">-</span> <span class="mi">7</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="n">diagonal</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">diagonal</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">ys</span> <span class="o">=</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">ys</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">ys</span><span class="p">:</span>
+            <span class="n">order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="mi">8</span> <span class="o">+</span> <span class="p">(</span><span class="n">diagonal</span> <span class="o">-</span> <span class="n">y</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">order</span>
+</code></pre></div>
+
+<p>Then Huffman coding: frequent symbols get short bit strings, rare ones long. The codes themselves are never listed in the file — each table ships as a two-hundred-byte recipe, a count of codes per length followed by the symbols in order, from which encoder and decoder rebuild identical code books. What the codes are spent on is the shape quantization left behind:</p>
+<div class="listing-src">from <code>code/pxp/jpeg.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">encode_block</span><span class="p">(</span><span class="n">zigzagged</span><span class="p">,</span> <span class="n">predicted_dc</span><span class="p">,</span> <span class="n">dc_codes</span><span class="p">,</span> <span class="n">ac_codes</span><span class="p">,</span>
+                 <span class="n">writer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One block into the bitstream. The DC coefficient is coded as</span>
+<span class="sd">    a difference from the previous block&#39;s (neighboring averages</span>
+<span class="sd">    are alike — one last exploitation of image structure); each AC</span>
+<span class="sd">    symbol is (zeros skipped, size of what follows); a special</span>
+<span class="sd">    symbol ends the block early, and on most blocks it arrives</span>
+<span class="sd">    early indeed. Negative values are sent as their bit pattern</span>
+<span class="sd">    minus one, so the size field alone tells the decoder the</span>
+<span class="sd">    sign.&quot;&quot;&quot;</span>
+    <span class="n">difference</span> <span class="o">=</span> <span class="n">zigzagged</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">predicted_dc</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">_bit_length</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span>
+    <span class="n">code</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">dc_codes</span><span class="p">[</span><span class="n">size</span><span class="p">]</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">size</span><span class="p">:</span>
+        <span class="n">amplitude</span> <span class="o">=</span> <span class="n">difference</span> <span class="k">if</span> <span class="n">difference</span> <span class="o">&gt;</span> <span class="mi">0</span> \
+            <span class="k">else</span> <span class="n">difference</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">size</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">amplitude</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+
+    <span class="n">run</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">zigzagged</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">run</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="k">while</span> <span class="n">run</span> <span class="o">&gt;</span> <span class="mi">15</span><span class="p">:</span>
+            <span class="n">code</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">ac_codes</span><span class="p">[</span><span class="mh">0xF0</span><span class="p">]</span>     <span class="c1"># sixteen zeros</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+            <span class="n">run</span> <span class="o">-=</span> <span class="mi">16</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">_bit_length</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">code</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">ac_codes</span><span class="p">[</span><span class="n">run</span> <span class="o">*</span> <span class="mi">16</span> <span class="o">+</span> <span class="n">size</span><span class="p">]</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+        <span class="n">amplitude</span> <span class="o">=</span> <span class="n">value</span> <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">value</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">size</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">amplitude</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="n">run</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">run</span><span class="p">:</span>
+        <span class="n">code</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">ac_codes</span><span class="p">[</span><span class="mh">0x00</span><span class="p">]</span>         <span class="c1"># end of block</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">zigzagged</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div>
+
+<p>Wrap the scan in its markers — dimensions, the quantization tables, the Huffman recipes, a JFIF signature (the JPEG File Interchange Format tag that promises a decoder the plain conventions used here) — stuff a zero byte after any 0xFF the bitstream produces so data can never impersonate a marker, and the pipeline&rsquo;s last function is nine lines:</p>
+<div class="listing-src">from <code>code/pxp/jpeg.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">90</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Display-referred RGB in, .jpg bytes out — the last function</span>
+<span class="sd">    of the pipeline.&quot;&quot;&quot;</span>
+    <span class="n">luma</span><span class="p">,</span> <span class="n">cb</span><span class="p">,</span> <span class="n">cr</span> <span class="o">=</span> <span class="n">rgb_to_ycbcr</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">luma</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">luma</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
+    <span class="n">cb</span> <span class="o">=</span> <span class="n">subsample</span><span class="p">(</span><span class="n">pad</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+    <span class="n">cr</span> <span class="o">=</span> <span class="n">subsample</span><span class="p">(</span><span class="n">pad</span><span class="p">(</span><span class="n">cr</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+    <span class="n">luma_table</span><span class="p">,</span> <span class="n">chroma_table</span> <span class="o">=</span> <span class="n">quality_tables</span><span class="p">(</span><span class="n">quality</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">serialize</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">quality</span><span class="p">,</span>
+                     <span class="n">component_blocks</span><span class="p">(</span><span class="n">luma</span><span class="p">,</span> <span class="n">luma_table</span><span class="p">),</span>
+                     <span class="n">component_blocks</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="n">chroma_table</span><span class="p">),</span>
+                     <span class="n">component_blocks</span><span class="p">(</span><span class="n">cr</span><span class="p">,</span> <span class="n">chroma_table</span><span class="p">))</span>
+</code></pre></div>
+
+<p>Three verifications close the loop, in ascending order of satisfaction. The tables our encoder writes — quantization and Huffman both — are byte-identical to the ones libjpeg, the reference library behind nearly every program that opens a JPEG, has shipped since 1991; they are the standard&rsquo;s own example tables, reproduced from its text. The two code tiers, one looping over Python lists and one running whole-array arithmetic, emit byte-identical <em>files</em>. And Pillow — an independent decoder that owes our code nothing — opens those files and reads back the image, measured at 29 dB against what went in:</p>
+<figure id="fig-jpeg-ladder">
+<img src="assets/figures/jpeg-ladder.png" alt="Figure 9.5">
+<figcaption><span class="figno">Figure 9.5</span> The chart through our encoder and back through an independent decoder: source (left), then quality 90, 50, and 10. The uncompressed crop is 51,360 bytes; the encoded files are 4,139 (12.4:1, 29.24 dB), 2,460 (20.9:1, 26.68 dB), and 1,408 (36.5:1, 22.63 dB). At 90 the loss hides. At 50 the chroma tables bite first — look at the patch borders — which is Section 9.3&rsquo;s priority order carried into quantization. At 10 the 8x8 machinery itself surfaces: block edges, smeared color, ghost ripples around the grid lines, every artifact traceable to a specific line of this chapter&rsquo;s code.</figcaption>
+</figure>
+
+<div class="admonition patent">
+<p class="admonition-title">Patent note</p>
+<p>Baseline JPEG is the safest major format there is to reimplement: the standard is from 1992, its underlying patents have long expired, and the reference tables ship in the standard&rsquo;s own annex. The one corner to avoid historically was the optional arithmetic-coding mode, patent-encumbered for years and shunned by decoders for that very reason — every camera and browser speaks Huffman baseline, which is what we built. Some newer formats are a different story — HEIC sits on the actively licensed HEVC patent pool — and are, not coincidentally, formats nobody reimplements for fun.</p>
+</div>
+<hr />
+<p>Count what happened to one photograph on its way through this book. Photons became electrons in proportion no eye would accept; electrons became one number per site behind colored glass; the numbers were rebalanced, tripled by interpolation, rotated into meaningful color, unwarped, curved, sharpened, quieted — and finally described as rounded frequencies and dealt out as bits. From light to JPEG, the long way, with every step written down. One chapter remains: point the whole apparatus away from the simulator and at a real camera&rsquo;s raw file, and see how our pipeline&rsquo;s picture compares with the one the camera itself would have made.</p>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="detail.html"><span class="label">&larr; Chapter 8</span><span class="ttl">Detail and Noise</span></a></div><div class="next"><a href="closing.html"><span class="label">Chapter 10 &rarr;</span><span class="ttl">Closing the Loop</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>
