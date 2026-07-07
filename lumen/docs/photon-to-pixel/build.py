@@ -397,8 +397,8 @@ def render_cover(built):
                        nav=nav_html("index.html", built))
     page = (f'<main class="cover">\n'
             f'<div class="cover-eyebrow">From Photon to Pixel</div>\n'
-            f'<h1 class="cover-title">The Long Way from Light '
-            f'to JPEG</h1>\n'
+            f'<h1 class="cover-title">The Long Way from Light '
+            f'to JPEG</h1>\n'
             f'<p class="cover-sub">{html.escape(BOOK_SUB)}</p>\n'
             f'<div class="cover-rule"></div>\n'
             f'<div class="cover-meta">{COVER_META}</div>\n'
