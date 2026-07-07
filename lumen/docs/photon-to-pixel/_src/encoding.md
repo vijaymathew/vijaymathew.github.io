@@ -2,7 +2,7 @@ The photograph is finished; what remains is the leaving. Every step in this chap
 
 ## 9.1 Resampling: deciding what lies between the samples
 
-Almost no photograph is delivered at sensor resolution. Between the samples of the smaller (or larger) grid and the samples we have, there is no image — only a claim about what the samples imply. Every resampling kernel is such a claim. Nearest-neighbor claims nothing changes until the next sample. The tent (bilinear's kernel) claims values ramp linearly. At the top of the family sits the windowed sinc, the reconstruction filter sampling theory itself would choose:
+Almost no photograph is delivered at sensor resolution. Between the samples of the smaller (or larger) grid and the samples we have, there is no image — only a claim about what the samples imply. Every resampling kernel is such a claim. Nearest-neighbor claims nothing changes until the next sample. The tent (bilinear's kernel) claims values ramp linearly. At the top of the family sits the windowed **sinc**: a central bell flanked by decaying ripples, and the shape that *sampling theory* — the same mathematics that governs aliasing and the Nyquist limit — singles out as the theoretically perfect reconstructor. The ideal sinc is infinitely wide, so in practice it is *windowed*: truncated to a few ripples. Lanczos is one such truncation:
 
 {{include pxp/resample.py::lanczos}}
 
@@ -36,7 +36,7 @@ What remains after subsampling is three planes of numbers, and the remaining tas
 
 {{include pxp/jpeg.py::dct8}}
 
-Applied to rows and then columns, this is the discrete cosine transform, and the 64 patterns it measures against are worth one long look:
+Applied to rows and then columns, this is the discrete cosine transform. It rearranges the block's 64 numbers without gaining or losing any — a *rotation* in the sense that it re-describes the very same data along new axes (the 64 cosine patterns) instead of the original pixel positions, the way turning a map re-labels every town's coordinates without moving a single town. Nothing is discarded yet: the total *energy* — the sum of the squared values, one honest measure of how much is in the block — is identical before and after, and a test in this chapter checks exactly that. The 64 patterns it measures against are worth one long look:
 
 {{figure dct-basis | The 64 basis patterns of the 8x8 DCT: constant at top-left, finest checkerboard at bottom-right, every block in every JPEG ever made is a weighted sum of these. The transform itself loses nothing — it is a rotation, and a test in this chapter checks that the energy in is the energy out. Its gift is concentration: photographic blocks are mostly smooth, so most of the weight lands in the top-left few patterns and the rest sit near zero, waiting to be rounded away.}}
 

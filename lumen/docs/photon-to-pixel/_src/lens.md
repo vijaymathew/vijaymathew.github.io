@@ -39,7 +39,7 @@ That middle panel is the section's finding. Lateral CA correction — ours, Ligh
 
 ## 6.3 Distortion: the first resampling
 
-The geometry itself comes last. The lens delivered to each pixel the scene content from a radially scaled position; correction fetches it back. There is one wrinkle — the magnification depends on the radius of the point being solved for, so the inverse has no closed form — and one fixed point settles it:
+The geometry itself comes last. The lens delivered to each pixel the scene content from a radially scaled position; correction fetches it back. There is one wrinkle. Forward distortion scaled each position by an amount that depends on its radius, and to undo it we need the radius of the *original* point — but that is exactly what we are solving for, so the equation chases its own tail and cannot be rearranged into a direct formula (it has *no closed form*, in the jargon). The escape is iteration: guess the answer, run it through the equation to get a better guess, and repeat until the guess stops moving. That settling value — the one the equation hands back unchanged — is a **fixed point**, and here it converges in a handful of steps:
 
 {{include pxp/lenscorrect.py::correct_distortion}}
 
