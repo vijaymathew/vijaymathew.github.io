@@ -2,8 +2,8 @@
 
 NLM is the second reason (with AHD) that this tier exists: the
 reference implementation compares a patch against every patch in an
-11x11 search window for every pixel, which at 24 megapixels is not
-an overnight job but close. Here the search-offset loop stays in
+11x11 search window for every pixel, which at 24 megapixels is more
+than a day of waiting. Here the search-offset loop stays in
 Python and everything inside it is whole-array arithmetic, in the
 reference tier's exact accumulation order.
 """

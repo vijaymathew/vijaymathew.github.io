@@ -10,7 +10,9 @@ If the sensor's curves were exact linear combinations of the observer's — a re
 
 {{figure camera-metamers | Camera metamerism, made to order. Top row: two surfaces as a human observer sees them under D65 — different greens, ΔE 8.2, an unmistakable difference side by side. Bottom row: the same two surfaces through the full pipeline. Their camera responses agree to machine precision — the difference spectrum was solved to be invisible to these filters — so no processing, matrix or otherwise, can ever separate them again. The distinction died in the dyes.}}
 
-That figure is the chapter's boundary stone. Whatever we build next can *reduce* the disagreement between camera and observer; it cannot eliminate a difference the sensor never recorded. Keep the ΔE scale in mind for everything that follows: roughly 1 is a just-noticeable difference, 5 is plainly visible, 20 is a different color.
+That figure is the chapter's boundary stone. Whatever we build next can *reduce* the disagreement between camera and observer; it cannot eliminate a difference the sensor never recorded. The caption's measuring stick also deserves an introduction, because every verdict in this chapter is denominated in it. **ΔE** is distance in CIELAB — the space that bends XYZ (a cube root does most of the work: `xyz_to_lab`, now in `pxp.color`) until equal distances read as roughly equal perceived differences — and the bend is the whole trick, because once inside, measuring a color difference is nothing but geometry:
+
+{{include pxp/color.py::delta_e}}
 
 ## 5.2 The matrix, fitted like a lab would
 

@@ -6,7 +6,7 @@ Chapter 0's very first figure contained this chapter in miniature: a linear ramp
 
 {{figure linear-looks-wrong | The pipeline's linear output, shown two ways: values sent to the display raw (left) and through the sRGB transfer function (right). Same numbers, five-stop scene. The left panel is not underexposed — its highlights are fine — it is <em>mis-spent</em>: linear allocation gives the shadows almost none of the display's range, and most of the image lives in the shadows.}}
 
-The fix is the **transfer function**: a concave curve applied at output that hands the display's range out in roughly perceptual steps. sRGB's is the one this book has been using — a power curve of exponent 1/2.4 with a short linear segment at the very bottom, engineered so the toe doesn't demand impossible precision near zero:
+The fix is the **transfer function**: a concave curve applied at output that hands the display's range out in roughly perceptual steps. sRGB's is the one this book has been using — a power curve of exponent 1/2.4 (that exponent is the *gamma* a half-century of folklore is named after) with a short linear segment at the very bottom, engineered so the toe doesn't demand impossible precision near zero:
 
 {{figure transfer-curves | The sRGB transfer function (violet) against a plain 1/2.2 power law (gray). For most of the range they are the same idea; the difference is the engineered toe. HDR displays extend the same thought further — the PQ curve used by HDR10 is a transfer function designed for a 10,000-nit range — but the reasoning never changes: spend the code values where perception can cash them.}}
 

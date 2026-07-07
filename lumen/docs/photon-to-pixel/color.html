@@ -22,7 +22,7 @@ window.MathJax = {
 <body>
 <header class="site-header"><div class="site-header-inner">
 <a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
-<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html" class="active">Color</a><a href="tone.html">Tone</a></nav>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html" class="active">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
 </div></header>
 <main class="page">
 <div class="opener">
@@ -45,7 +45,19 @@ window.MathJax = {
 <figcaption><span class="figno">Figure 5.2</span> Camera metamerism, made to order. Top row: two surfaces as a human observer sees them under D65 — different greens, ΔE 8.2, an unmistakable difference side by side. Bottom row: the same two surfaces through the full pipeline. Their camera responses agree to machine precision — the difference spectrum was solved to be invisible to these filters — so no processing, matrix or otherwise, can ever separate them again. The distinction died in the dyes.</figcaption>
 </figure>
 
-<p>That figure is the chapter&rsquo;s boundary stone. Whatever we build next can <em>reduce</em> the disagreement between camera and observer; it cannot eliminate a difference the sensor never recorded. Keep the ΔE scale in mind for everything that follows: roughly 1 is a just-noticeable difference, 5 is plainly visible, 20 is a different color.</p>
+<p>That figure is the chapter&rsquo;s boundary stone. Whatever we build next can <em>reduce</em> the disagreement between camera and observer; it cannot eliminate a difference the sensor never recorded. The caption&rsquo;s measuring stick also deserves an introduction, because every verdict in this chapter is denominated in it. <strong>ΔE</strong> is distance in CIELAB — the space that bends XYZ (a cube root does most of the work: <code>xyz_to_lab</code>, now in <code>pxp.color</code>) until equal distances read as roughly equal perceived differences — and the bend is the whole trick, because once inside, measuring a color difference is nothing but geometry:</p>
+<div class="listing-src">from <code>code/pxp/color.py</code></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">delta_e</span><span class="p">(</span><span class="n">lab1</span><span class="p">,</span> <span class="n">lab2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Color difference as straight CIELAB distance — the original</span>
+<span class="sd">    1976 formula. Later refinements (CIEDE2000) weight the axes more</span>
+<span class="sd">    carefully; this book keeps the simple one and says so. Rule of</span>
+<span class="sd">    thumb: around 1 is a just-noticeable difference, 5 is plainly</span>
+<span class="sd">    visible, 20 is a different color.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">((</span><span class="n">lab1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">lab2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">lab1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">lab2</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">lab1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">lab2</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
+</code></pre></div>
+
 <h2 id="sec-5-2"><span class="secno">5.2</span>The matrix, fitted like a lab would</h2>
 <p>The industry&rsquo;s answer to the gap is modest and effective: find the 3x3 matrix that maps camera RGB onto XYZ <em>as well as possible</em>, accepting the residual. &ldquo;As well as possible&rdquo; is decided the way a profiling lab decides it — photograph a chart whose true colors are known, and fit:</p>
 <div class="listing-src">from <code>code/pxp/colormatrix.py</code></div>

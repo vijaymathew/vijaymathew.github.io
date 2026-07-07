@@ -4,10 +4,12 @@ Generates:
   sharpen-usm.png     a genuinely soft crop (kit lens, both warps):
                       as-is, sharpened sanely, sharpened absurdly
   deconvolve-halo.png Chapter 6's corrected CA dot, then per-channel
-                      Richardson-Lucy, then the perfect-lens dot
+                      Richardson-Lucy at 4, 12 and 40 iterations,
+                      then the perfect-lens dot: the iteration dial
   denoise-ladder.png  a starved, gain-boosted capture: noisy, plain
-                      blur, median, bilateral, NLM — with PSNR
-                      against the noiseless truth printed
+                      blur, median, bilateral, NLM — with global and
+                      flat-region PSNR against the noiseless truth
+                      printed
 """
 
 import math
@@ -107,9 +109,6 @@ def halo_figure(size=128):
 
     registered = lenscorrect.correct_ca(analytic(fringing), fringing)
     perfect = analytic(lens.perfect())
-    deconvolved = detail.per_channel(
-        registered, lambda plane: detail.richardson_lucy(
-            plane, radius=3, sigma=1.1, iterations=25))
 
     peak = max(perfect.get(x, y)[1] for y in range(size)
                for x in range(size))
@@ -124,9 +123,14 @@ def halo_figure(size=128):
                     0.0, v / peak))) for v in pixel])
         return out
 
-    write_png(side_by_side([dot_crop(registered),
-                            dot_crop(deconvolved),
-                            dot_crop(perfect)]),
+    panels = [dot_crop(registered)]
+    for iterations in (4, 12, 40):
+        panels.append(dot_crop(detail.per_channel(
+            registered, lambda plane: detail.richardson_lucy(
+                plane, radius=3, sigma=0.9,
+                iterations=iterations))))
+    panels.append(dot_crop(perfect))
+    write_png(side_by_side(panels),
               os.path.join(OUT, "deconvolve-halo.png"))
 
 
@@ -164,21 +168,38 @@ def denoise_figure(width=160, height=107):
         noisy, lambda p: tone.bilateral(p, radius=3,
                                         range_sigma=0.12))))
     ladder.append(("nlm", detail.per_channel(
-        noisy, lambda p: detail.nlm(p, strength=0.14))))
+        noisy, lambda p: detail.nlm(p, strength=0.08))))
 
-    def psnr(image):
+    def is_flat(x, y):
+        # away from the chart's edges: the truth barely changes
+        # between the pixel's neighbors in every channel
+        for c in range(3):
+            left = truth.get(max(0, x - 1), y)[c]
+            right = truth.get(min(width - 1, x + 1), y)[c]
+            up = truth.get(x, max(0, y - 1))[c]
+            down = truth.get(x, min(height - 1, y + 1))[c]
+            if abs(down - up) + abs(right - left) >= 0.02:
+                return False
+        return True
+
+    flat = [(x, y) for y in range(height) for x in range(width)
+            if is_flat(x, y)]
+
+    def psnr(image, pixels):
         total, count = 0.0, 0
-        for y in range(height):
-            for x in range(width):
-                for c in range(3):
-                    total += (min(1.0, max(0.0, image.get(x, y)[c]))
-                              - truth.get(x, y)[c]) ** 2
-                    count += 1
+        for x, y in pixels:
+            for c in range(3):
+                total += (min(1.0, max(0.0, image.get(x, y)[c]))
+                          - truth.get(x, y)[c]) ** 2
+                count += 1
         return 10 * math.log10(1.0 / (total / count))
 
+    everywhere = [(x, y) for y in range(height)
+                  for x in range(width)]
     panels = []
     for name, image in ladder:
-        print(f"  {name:9s} PSNR {psnr(image):.2f} dB")
+        print(f"  {name:9s} PSNR {psnr(image, everywhere):.2f} dB"
+              f"   flat regions {psnr(image, flat):.2f} dB")
         panels.append(crop(image, 8, 32, 56, 3))
     write_png(side_by_side(panels),
               os.path.join(OUT, "denoise-ladder.png"))
