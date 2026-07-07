@@ -301,6 +301,10 @@ class BitWriter:
             self.data.append(byte)
             if byte == 0xFF:
                 self.data.append(0x00)
+        # drop the emitted bits, or the accumulator grows without
+        # bound and every shift above slows with the whole stream's
+        # length — invisible on small frames, quadratic on real ones
+        self.accumulator &= (1 << self.count) - 1
 
     def flush(self):
         if self.count:

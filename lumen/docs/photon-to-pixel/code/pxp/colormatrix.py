@@ -106,3 +106,34 @@ def derive_srgb_matrix():
                        for c in range(3)]
     return [[inverse_columns[c][r] for c in range(3)]
             for r in range(3)]
+
+
+def _inverse(matrix):
+    columns = [linalg.solve(matrix, [1.0 if r == c else 0.0
+                                     for r in range(3)])
+               for c in range(3)]
+    return [[columns[c][r] for c in range(3)] for r in range(3)]
+
+
+def _compose(left, right):
+    return [[sum(left[i][k] * right[k][j] for k in range(3))
+             for j in range(3)] for i in range(3)]
+
+
+def matrix_from_profile(xyz_to_camera):
+    """A real file's color matrix, adapted to this pipeline.
+
+    Chapter 5 fitted camera-to-XYZ against spectral truth. A real
+    raw file cannot offer that; what it carries instead (the
+    maker's profile, surfaced by libraw) is the lab's fit run the
+    other way — a matrix from XYZ *to* camera RGB, the ColorMatrix
+    of Chapter 5's DNG sidebar. Recovering the matrix the pipeline
+    wants is dcraw's thirty-year-old recipe: compose with the sRGB
+    primaries, force each row to sum to one so that a white-
+    balanced neutral stays neutral through the trip, and invert.
+    """
+    xyz_from_srgb = _inverse(derive_srgb_matrix())
+    camera_from_srgb = _compose(xyz_to_camera, xyz_from_srgb)
+    normalized = [[value / (row[0] + row[1] + row[2])
+                   for value in row] for row in camera_from_srgb]
+    return _compose(xyz_from_srgb, _inverse(normalized))

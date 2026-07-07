@@ -1,4 +1,3 @@
-<!-- draft -->
 The photograph is finished; what remains is the leaving. Every step in this chapter throws information away on purpose — pixels, color resolution, frequency precision — and every step hides the theft behind some measured limit of human vision. That is not a compromise of the pipeline; it is the pipeline's final skill. By the last section the image will be a stream of bytes any device on earth can open, at a twentieth of its uncompressed size, and a viewer will struggle to say what was taken.
 
 ## 9.1 Resampling: deciding what lies between the samples

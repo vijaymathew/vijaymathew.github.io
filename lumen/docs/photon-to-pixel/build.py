@@ -60,7 +60,7 @@ PAGES = [
     ("encoding", "Chapter 9", "9", "Output Encoding",
      "Resampling, chroma subsampling, and a from-scratch JPEG encoder."),
     ("closing", "Chapter 10", "10", "Closing the Loop",
-     "A real raw file through the reader's own pipeline, against the camera's JPEG."),
+     "A real raw file through the reader's own pipeline — and why no two renderings agree."),
     ("appendix-api", "Appendix A", "A", "The pxp Package",
      "The simulated camera and pipeline as a standalone package — API reference."),
     ("appendix-glossary", "Appendix B", "B", "Glossary",
