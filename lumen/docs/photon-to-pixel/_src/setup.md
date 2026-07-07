@@ -49,6 +49,8 @@ So every pipeline stage in this book exists in two forms:
 1. **The reference implementation** — plain loops, explicit arithmetic, the form the chapter explains. It lives in the `pxp` package and runs on small crops, which is exactly the scale where you can also print pixel values and check the math by hand.
 2. **The pipeline implementation** — the same arithmetic restated for the machine, using NumPy (and, where it earns its keep, numba). It lives in `pxp.fast` and is what the full-resolution pipeline actually runs.
 
+Both tiers, the tests, and every figure script live under [`code/` in the book's source tree](https://github.com/vijaymathew/vijaymathew.github.io/tree/master/lumen/docs/photon-to-pixel/code), and Appendix A maps the package name by name.
+
 The second tier never introduces a concept. It is always presented after the idea is understood, always as *the same arithmetic, faster*. Here is the smallest possible example — exposure adjustment, which in linear light is nothing but a multiplication by \(2^{\text{stops}}\). The reference form:
 
 {{include pxp/tone.py::exposure}}

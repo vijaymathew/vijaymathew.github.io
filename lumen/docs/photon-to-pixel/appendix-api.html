@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The pxp Package — The Long Way from Light to JPEG</title>
+<meta name="description" content="The simulated camera and pipeline as a standalone package — API reference.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="index.html">The Long Way from Light to JPEG</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="setup.html">Setup</a><a href="camera.html">Camera</a><a href="demosaicing.html">Demosaic</a><a href="color.html">Color</a><a href="tone.html">Tone</a><a href="encoding.html">JPEG</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix A</span>
+<h1 class="opener-title">The pxp Package</h1>
+<p class="opener-lede">The simulated camera and pipeline as a standalone package — API reference.</p>
+</div>
+<article class="prose">
+<p>Everything the book built lives in one package, <code>pxp</code>, under <a href="https://github.com/vijaymathew/vijaymathew.github.io/tree/master/lumen/docs/photon-to-pixel/code"><code>code/</code></a> in the book&rsquo;s source tree — that link is the browsable original of every listing in these pages, tests and figure scripts included. It installs nothing and depends on nothing: the reference tier is standard-library Python, and only the <code>pxp.fast</code> tier asks for NumPy (and <code>pxp.fast.develop</code>, for rawpy). This appendix is the map — every public name, one line each, with the chapter that built it. Private helpers (leading underscore) are deliberately omitted; they are explained where they are used.</p>
+<p>The package&rsquo;s one structural rule is Chapter 0&rsquo;s contract: every pipeline stage exists twice, as readable loops in <code>pxp</code> and as NumPy arithmetic in <code>pxp.fast</code>, and the test suite in <code>code/tests/</code> asserts the two tiers produce identical output, bit for bit, on every build of this book.</p>
+<h2>The toolkit — <code>pxp.image</code> (Chapter 0)</h2>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Image(width, height, channels=3, fill=0.0)</code></td>
+<td>the book&rsquo;s only data type: a grid of pixels, each a list of float channel values; <code>get(x, y)</code> and <code>set(x, y, values)</code> are the whole interface</td>
+</tr>
+<tr>
+<td><code>write_png(image, path)</code></td>
+<td>save as 8-bit PNG, from scratch; the one place values are clipped and quantized</td>
+</tr>
+</tbody>
+</table>
+<h2>The simulated camera (Chapter 1)</h2>
+<p><strong><code>pxp.spectrum</code></strong> — light as 36 samples, 380–730 nm.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Spectrum(samples)</code></td>
+<td>a light (emitted power) or a surface (reflection fractions)</td>
+</tr>
+<tr>
+<td><code>Spectrum.from_function(fn)</code></td>
+<td>build from a formula of wavelength</td>
+</tr>
+<tr>
+<td><code>spectrum.lit_by(light)</code></td>
+<td>reflectance times illumination, wavelength by wavelength — the simulator&rsquo;s one law</td>
+</tr>
+<tr>
+<td><code>spectrum.scaled(factor)</code></td>
+<td>the same spectrum, brighter or dimmer</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.illuminant</code></strong> — the book&rsquo;s lights.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>daylight()</code></td>
+<td>CIE D65, resampled from the CIE&rsquo;s published table</td>
+</tr>
+<tr>
+<td><code>incandescent(temperature_k=2856)</code></td>
+<td>Planck&rsquo;s law; at the default temperature it is CIE illuminant A</td>
+</tr>
+<tr>
+<td><code>fluorescent()</code></td>
+<td>a dim continuum with three emission spikes, kept to cause trouble</td>
+</tr>
+<tr>
+<td><code>equal_energy()</code></td>
+<td>flat power at every wavelength — the reference nobody sells</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.reflectance</code></strong> — designed surfaces.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>step(wavelength, center, width)</code></td>
+<td>a smooth switch-on above a wavelength (how red pigments behave)</td>
+</tr>
+<tr>
+<td><code>bump(wavelength, center, width)</code></td>
+<td>a smooth peak around a wavelength (how green ones do)</td>
+</tr>
+<tr>
+<td><code>patch(fn)</code></td>
+<td>wrap a formula as a surface, refusing physically impossible values</td>
+</tr>
+<tr>
+<td><code>color_chart()</code></td>
+<td>the twelve-patch chart: four neutrals, seven colors, one skin tone</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.scene</code></strong> — spatial test targets. A <code>Scene</code> pairs a reflectance-at-position rule with a light; <code>sample(x, y, band)</code> and <code>spectrum_at(x, y)</code> are what lenses call.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chart(light, ..., patches=None, brightness_at=None)</code></td>
+<td>the chart laid out in space, optionally with a lighting-variation multiplier</td>
+</tr>
+<tr>
+<td><code>grid_target(light, spacing, thickness)</code></td>
+<td>straight lines, for distortion to bend</td>
+</tr>
+<tr>
+<td><code>starburst(light, spokes=36)</code></td>
+<td>every orientation and frequency in one target — the book&rsquo;s torture test</td>
+</tr>
+<tr>
+<td><code>point_lights(light, columns, rows, radius)</code></td>
+<td>an array of dots, for chromatic aberration and centroids</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.lens</code></strong> — glass as a rule about where to look.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Lens(name, distortion=0, vignetting=0, ca=0)</code></td>
+<td>three sins, one coefficient each; <code>source_position</code>, <code>falloff</code>, <code>look</code> implement them</td>
+</tr>
+<tr>
+<td><code>perfect()</code></td>
+<td>the control group: identity geometry, no falloff</td>
+</tr>
+<tr>
+<td><code>kit_lens()</code></td>
+<td>all three flaws at figure-legible strength</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.sensor</code></strong> — where spectra die.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cfa_channel(x, y)</code></td>
+<td>which filter sits at a photosite: the RGGB rule in four lines</td>
+</tr>
+<tr>
+<td><code>Sensor(width, height, seed, ...)</code></td>
+<td>filters, full well, shot/read/fixed-pattern noise, black level; deterministic per seed</td>
+</tr>
+<tr>
+<td><code>sensor.photosite_signal(spectrum, channel)</code></td>
+<td>one filtered number from one spectrum — the collapse itself</td>
+</tr>
+<tr>
+<td><code>sensor.expose_for(scene, lens, highlight=0.85)</code></td>
+<td>meter: the exposure that lands the brightest channel at 85% of full well</td>
+</tr>
+<tr>
+<td><code>sensor.capture(scene, lens, exposure, iso_gain=1.0)</code></td>
+<td>a full frame: sample, filter, count, add noise, quantize</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.raw</code></strong> — the container.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RawImage</code>, <code>save(raw, path)</code>, <code>load(path)</code></td>
+<td>the PXRAW format: seventeen bytes of header, then the numbers</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.defects</code></strong> (Chapter 2) — <code>afflict(raw, seed, hot=14, dead=5)</code> ages a sensor for the repair experiments.</p>
+<p><strong><code>pxp.linalg</code></strong> (Chapter 5) — <code>solve(matrix, rhs)</code>, the small Gaussian-elimination solver behind every fit and inversion in the book.</p>
+<p><strong><code>pxp.color</code></strong> (Chapters 1, 5) — the observer&rsquo;s side of color.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>xyz(light)</code></td>
+<td>integrate a spectrum against the CIE 1931 observer</td>
+</tr>
+<tr>
+<td><code>chromaticity(xyz_values)</code></td>
+<td>divide brightness out, keep the hue-and-saturation coordinates</td>
+</tr>
+<tr>
+<td><code>xyz_to_linear_srgb(xyz_values)</code> / <code>XYZ_TO_LINEAR_SRGB</code></td>
+<td>into display primaries (the matrix Chapter 5 derives from first principles)</td>
+</tr>
+<tr>
+<td><code>srgb_encode(value)</code></td>
+<td>the sRGB transfer function, one channel value at a time</td>
+</tr>
+<tr>
+<td><code>xyz_to_lab(xyz_values, white_xyz)</code></td>
+<td>into CIELAB, where distance approximates perceived difference</td>
+</tr>
+<tr>
+<td><code>delta_e(lab1, lab2)</code></td>
+<td>that distance: the 1976 ΔE</td>
+</tr>
+<tr>
+<td><code>display(radiance, white_luminance)</code>, <code>swatch(reflectance, light)</code></td>
+<td>Chapter 1&rsquo;s viewing conveniences</td>
+</tr>
+</tbody>
+</table>
+<h2>The pipeline (Chapters 2–9)</h2>
+<p><strong><code>pxp.rawproc</code></strong> (Chapter 2)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>linearize(raw)</code></td>
+<td>black level off, floats on a 0..1 scale, negatives preserved</td>
+</tr>
+<tr>
+<td><code>find_defects(dark, flat, ...)</code></td>
+<td>hot and dead photosites, from two calibration frames</td>
+</tr>
+<tr>
+<td><code>fix_defects(mosaic, defects)</code></td>
+<td>each liar replaced by the mean of its same-filter neighbors</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.whitebalance</code></strong> (Chapter 3)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>neutral_response(light)</code></td>
+<td>what the sensor reads on a perfect white — the illuminant, as this camera sees it</td>
+</tr>
+<tr>
+<td><code>gains_from_neutral(neutral)</code></td>
+<td>the von Kries move: scale red and blue to meet green</td>
+</tr>
+<tr>
+<td><code>reference_gains(light)</code></td>
+<td>the true gains, by simulator privilege — every estimator&rsquo;s yardstick</td>
+</tr>
+<tr>
+<td><code>gray_world(mosaic)</code> / <code>white_patch(mosaic, keep=0.999)</code></td>
+<td>the two classic estimators, each faithful to its own assumption</td>
+</tr>
+<tr>
+<td><code>gains_for_temperature(kelvin)</code></td>
+<td>the Kelvin slider: Planck&rsquo;s law run backwards</td>
+</tr>
+<tr>
+<td><code>apply_gains(mosaic, gains)</code></td>
+<td>three multiplications, on the mosaic, before demosaicing — the chapter&rsquo;s thesis</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.demosaic</code></strong> (Chapters 3–4)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nearest(mosaic)</code></td>
+<td>copy the closest same-color value: the floor</td>
+</tr>
+<tr>
+<td><code>bilinear(mosaic)</code></td>
+<td>average the neighbors: the baseline</td>
+</tr>
+<tr>
+<td><code>interpolate_green(mosaic)</code></td>
+<td>gradient-directed green (Hamilton–Adams), Chapter 3&rsquo;s instrument</td>
+</tr>
+<tr>
+<td><code>gradient(mosaic)</code></td>
+<td>green first, then red/blue as color differences</td>
+</tr>
+<tr>
+<td><code>ahd(mosaic)</code></td>
+<td>Adaptive Homogeneity-Directed: interpolate twice, keep the calmer candidate</td>
+</tr>
+<tr>
+<td><code>demosaic_preview(mosaic)</code></td>
+<td>the quick look Chapter 3 used before demosaicing was built properly</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.colormatrix</code></strong> (Chapters 5, 10)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>training_pairs(light)</code></td>
+<td>(camera RGB, true XYZ) per chart patch, both anchored to white</td>
+</tr>
+<tr>
+<td><code>derive_matrix(light)</code></td>
+<td>the least-squares camera-to-XYZ fit, as a profiling lab would</td>
+</tr>
+<tr>
+<td><code>apply_matrix(image, matrix)</code></td>
+<td>nine multiplications per pixel</td>
+</tr>
+<tr>
+<td><code>derive_srgb_matrix()</code></td>
+<td>the XYZ-to-sRGB constant, derived rather than pasted</td>
+</tr>
+<tr>
+<td><code>matrix_from_profile(xyz_to_camera)</code></td>
+<td>adapt a real camera&rsquo;s shipped profile (dcraw&rsquo;s recipe)</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.lenscorrect</code></strong> (Chapter 6)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unvignette(mosaic, lens)</code></td>
+<td>the falloff divided back out, on the mosaic, before white balance</td>
+</tr>
+<tr>
+<td><code>effective_wavelength(channel)</code></td>
+<td>one wavelength to stand for a filter&rsquo;s band</td>
+</tr>
+<tr>
+<td><code>correct_ca(image, lens)</code></td>
+<td>re-register red and blue onto green (after demosaic, before the matrix)</td>
+</tr>
+<tr>
+<td><code>correct_distortion(image, lens)</code></td>
+<td>the geometry unbent, by fixed-point inversion of the radial model</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.tone</code></strong> (Chapter 7)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>luminance(pixel)</code></td>
+<td>the brightness the eye reads from an RGB triple</td>
+</tr>
+<tr>
+<td><code>exposure(image, stops)</code></td>
+<td>multiplication by 2^stops — the book&rsquo;s first pipeline stage</td>
+</tr>
+<tr>
+<td><code>bake_curve(curve, size=4096)</code> / <code>apply_lut(image, table)</code> / <code>apply_lut_luminance(image, table)</code></td>
+<td>curves designed as formulas, shipped as lookup tables</td>
+</tr>
+<tr>
+<td><code>display_curve()</code></td>
+<td>the plain sRGB transfer, as a bakeable curve</td>
+</tr>
+<tr>
+<td><code>filmic_curve(contrast=2.0, black_stops=8.0)</code></td>
+<td>the S: toe, shoulder, and middle gray pinned in place</td>
+</tr>
+<tr>
+<td><code>reconstruct_highlights(image, clip_levels, margin=0.97)</code></td>
+<td>borrow surviving channels where others clipped; force neutral where none did</td>
+</tr>
+<tr>
+<td><code>bilateral(plane, radius=4, range_sigma=0.15)</code></td>
+<td>the edge-respecting average (rational range weight, disclosed)</td>
+</tr>
+<tr>
+<td><code>local_contrast(image, table, base_gain, detail_gain, ...)</code></td>
+<td>base/detail split: compress the lighting or push the texture</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.detail</code></strong> (Chapter 8)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gaussian_kernel(radius, sigma)</code> / <code>gaussian_blur(plane, ...)</code></td>
+<td>the tabulated bell, shared by both tiers</td>
+</tr>
+<tr>
+<td><code>median_filter(plane, radius=1)</code></td>
+<td>rank order instead of arithmetic: impulses die, steps survive</td>
+</tr>
+<tr>
+<td><code>unsharp_mask(image, amount=0.8, ...)</code></td>
+<td>the darkroom sharpener, applied to luminance</td>
+</tr>
+<tr>
+<td><code>richardson_lucy(plane, ..., iterations=10)</code></td>
+<td>deconvolution: undo a blur you can name, ringing included</td>
+</tr>
+<tr>
+<td><code>nlm(plane, patch_radius=1, search_radius=5, strength=0.1)</code></td>
+<td>Non-Local Means: patches vote (rational falloff, disclosed)</td>
+</tr>
+<tr>
+<td><code>per_channel(image, filter_fn)</code></td>
+<td>run a plane filter on each channel</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.resample</code></strong> (Chapter 9)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tent(x)</code> / <code>catmull_rom(x)</code> / <code>lanczos(x, lobes=3)</code></td>
+<td>the kernels: three claims about what lies between samples</td>
+</tr>
+<tr>
+<td><code>axis_weights(src, dst, kernel, support)</code></td>
+<td>tap positions and weights, stretched when shrinking; both tiers share it</td>
+</tr>
+<tr>
+<td><code>resample(plane, width, height, method="lanczos")</code></td>
+<td>separable resize; <code>"nearest"</code> is the disclosed aliasing demo</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>pxp.jpeg</code></strong> (Chapter 9)</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rgb_to_ycbcr(image)</code> / <code>ycbcr_to_rgb(luma, cb, cr)</code></td>
+<td>JFIF&rsquo;s change of basis and the way back</td>
+</tr>
+<tr>
+<td><code>subsample(plane)</code> / <code>pad(plane, multiple)</code></td>
+<td>4:2:0&rsquo;s average; edge-replication to whole blocks</td>
+</tr>
+<tr>
+<td><code>dct8(vector)</code> / <code>dct_block(block)</code></td>
+<td>the transform, one row and then two dimensions</td>
+</tr>
+<tr>
+<td><code>quality_tables(quality)</code></td>
+<td>the standard&rsquo;s tables under the 1–100 knob</td>
+</tr>
+<tr>
+<td><code>zigzag_order()</code> / <code>quantized_block(plane, bx, by, table)</code></td>
+<td>low frequencies first; one tile to 64 small integers</td>
+</tr>
+<tr>
+<td><code>huffman_codes(bits, values)</code> / <code>BitWriter</code> / <code>encode_block(...)</code></td>
+<td>canonical codes, bit packing with stuffing, one block into the stream</td>
+</tr>
+<tr>
+<td><code>component_blocks(plane, table)</code> / <code>serialize(...)</code> / <code>encode(image, quality=90)</code></td>
+<td>the file, assembled; <code>encode</code> is display-referred RGB in, <code>.jpg</code> bytes out</td>
+</tr>
+</tbody>
+</table>
+<h2>The fast tier — <code>pxp.fast</code></h2>
+<p>Twins, in NumPy, of every module above from <code>rawproc</code> through <code>jpeg</code>, plus <code>demosaic</code>, <code>whitebalance</code>, <code>colormatrix</code>, <code>lenscorrect</code>, <code>tone</code>, <code>detail</code>, <code>resample</code> — same names, same signatures with arrays in place of nested lists, same bits out. Functions that run once per image and return three or nine numbers (the white-balance estimators, the matrix derivations) are deliberately not twinned; the reference versions are the only versions.</p>
+<p>Two members exist only here:</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pxp.fast.convert</code></td>
+<td><code>to_array(image)</code> / <code>from_array(array)</code> — the bridge between tiers</td>
+</tr>
+<tr>
+<td><code>pxp.fast.develop</code> (Chapter 10)</td>
+<td><code>load(path, crop=None)</code> reads a real raw file via rawpy; <code>develop(path, stops=0, sharpen=0.6, quality=90, method="ahd", out_width=None, crop=None)</code> is the book in one function</td>
+</tr>
+</tbody>
+</table>
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="closing.html"><span class="label">&larr; Chapter 10</span><span class="ttl">Closing the Loop</span></a></div><div class="next"><a href="appendix-glossary.html"><span class="label">Appendix B &rarr;</span><span class="ttl">Glossary</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose .highlight').forEach(function (block) {
+  block.classList.add('codeblock');
+  var pre = block.querySelector('pre');
+  if (!pre) return;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  block.appendChild(btn);
+});
+</script>
+
+</body>
+</html>
