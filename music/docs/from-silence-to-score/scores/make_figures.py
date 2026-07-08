@@ -204,6 +204,22 @@ NOTATION = {
         "$G G5:q F5:q D5:q B4:q", "$C C5:w"]),
 }
 
+# Piano grand-staff figures (melody + accompaniment) -> notation.build_grand
+RH = ["G5:q E5:q C5:q E5:q", "A5:q F5:q A5:q F5:q",
+      "G5:q F5:q D5:q F5:q", "E5:q C5:q C5:h"]
+GRAND = {
+    # Ch. 21 — the same melody over three accompaniment patterns
+    "accomp-block": dict(treble=RH, bass=[
+        "C3+E3+G3:w", "F3+A3+C4:w", "G2+B2+D3:w", "C3+E3+G3:w"]),
+    "accomp-arpeggio": dict(treble=RH, bass=[
+        "C3:q G3:q E3:q G3:q", "F3:q C4:q A3:q C4:q",
+        "G2:q D3:q B2:q D3:q", "C3+E3+G3:w"]),
+    "accomp-alberti": dict(treble=RH, bass=[
+        "C3:e G3:e E3:e G3:e C3:e G3:e E3:e G3:e",
+        "F3:e C4:e A3:e C4:e F3:e C4:e A3:e C4:e",
+        "G2:e D3:e B2:e D3:e G2:e D3:e B2:e D3:e", "C3+E3+G3:w"]),
+}
+
 # Four-voice chorale figures -> notation.build_satb
 SATB = {
     # Ch. 14 — a clean I–IV–V–I in C major, good voice leading
@@ -237,7 +253,8 @@ SATB = {
 
 def render_notation(select):
     ids = [i for i in NOTATION if i.startswith(select)] \
-        + [i for i in SATB if i.startswith(select)]
+        + [i for i in SATB if i.startswith(select)] \
+        + [i for i in GRAND if i.startswith(select)]
     if not ids:
         return []
     tmp = tempfile.mkdtemp(prefix="fss-fig-")
@@ -245,6 +262,8 @@ def render_notation(select):
     for fid in ids:
         if fid in SATB:
             xml = notation.build_satb(**SATB[fid])
+        elif fid in GRAND:
+            xml = notation.build_grand(**GRAND[fid])
         else:
             xml = notation.build_musicxml(**NOTATION[fid])
         src = os.path.join(tmp, fid + ".musicxml")

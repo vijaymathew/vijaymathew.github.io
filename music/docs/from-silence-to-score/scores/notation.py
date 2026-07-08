@@ -299,22 +299,31 @@ def _document(body):
 
 
 def _voice_measure(tokens, voice, staff, stem, key_alters, tie_state):
-    """One monophonic voice's notes for a measure, tagged with voice/staff/stem.
+    """One voice's notes for a measure, tagged with voice/staff/(stem).
 
-    Returns (xml, total_divisions)."""
+    Handles chords (via '+'), rests, ties, and @/$ tokens. `stem` may be
+    "up"/"down" to force a direction (needed when two voices share a staff)
+    or None to let the engraver decide. Returns (xml, total_divisions)."""
+    stem_xml = f"<stem>{stem}</stem>" if stem else ""
     out, total = [], 0
     for tok in tokens.split():
         head, divs, typ, dot, tie_snd, notations = _parse_note(tok, tie_state)
+        if head is None:            # a @direction or $harmony token
+            out.append(notations)
+            continue
         if head == "r":
             out.append(f"<note><rest/><duration>{divs}</duration>"
                        f"<voice>{voice}</voice><type>{typ}</type>{dot}"
                        f"<staff>{staff}</staff>{notations}</note>")
         else:
-            pitch_xml, accidental = _pitch_xml(head, key_alters)
-            out.append(f"<note>{pitch_xml}<duration>{divs}</duration>"
-                       f"{tie_snd}<voice>{voice}</voice><type>{typ}</type>{dot}"
-                       f"{accidental}<stem>{stem}</stem><staff>{staff}</staff>"
-                       f"{notations}</note>")
+            for j, p in enumerate(head.split("+")):
+                pitch_xml, accidental = _pitch_xml(p, key_alters)
+                chord = "<chord/>" if j > 0 else ""
+                nn = notations if j == 0 else ""
+                out.append(f"<note>{chord}{pitch_xml}<duration>{divs}</duration>"
+                           f"{tie_snd}<voice>{voice}</voice><type>{typ}</type>"
+                           f"{dot}{accidental}{stem_xml}<staff>{staff}</staff>"
+                           f"{nn}</note>")
         total += divs
     return "".join(out), total
 
@@ -337,8 +346,15 @@ def build_satb(soprano, alto, tenor, bass, fifths=0, beats=4, beat_type=4,
               (tenor, 3, 2, "up", {"pending": False}),
               (bass, 4, 2, "down", {"pending": False})]
 
+    return _document(_grand_body(layout, fifths, time_xml, key_alters))
+
+
+def _grand_body(layout, fifths, time_xml, key_alters):
+    """Assemble two-staff measures from a layout of (lines, voice, staff,
+    stem, tie_state) tuples, backing up between voices."""
+    n_measures = len(layout[0][0])
     body = []
-    for mi in range(len(soprano)):
+    for mi in range(n_measures):
         if mi == 0:
             parts = [f"<attributes><divisions>4</divisions>"
                      f"<key><fifths>{fifths}</fifths></key>{time_xml}"
@@ -353,8 +369,24 @@ def build_satb(soprano, alto, tenor, bass, fifths=0, beats=4, beat_type=4,
             if i > 0:
                 parts.append(f"<backup><duration>{prev_total}</duration></backup>")
             notes, prev_total = _voice_measure(lines[mi], voice, staff, stem,
-                                                key_alters, tie_state)
+                                               key_alters, tie_state)
             parts.append(notes)
         body.append(f'<measure number="{mi + 1}">{"".join(parts)}</measure>')
+    return body
 
-    return _document(body)
+
+def build_grand(treble, bass, fifths=0, beats=4, beat_type=4, show_time=True):
+    """Piano grand staff: one voice per staff, each of which may be chordal.
+
+    `treble` and `bass` are lists of measure token-strings; use '+' chords
+    for block harmony and single notes for arpeggios/Alberti figures. Stems
+    are left to the engraver (one voice per staff)."""
+    key_alters = _key_alters(fifths)
+    time_xml = (f"<time><beats>{beats}</beats>"
+                f"<beat-type>{beat_type}</beat-type></time>"
+                if show_time else "<time print-object='no'>"
+                f"<beats>{beats}</beats><beat-type>{beat_type}</beat-type>"
+                "</time>")
+    layout = [(treble, 1, 1, None, {"pending": False}),
+              (bass, 2, 2, None, {"pending": False})]
+    return _document(_grand_body(layout, fifths, time_xml, key_alters))
