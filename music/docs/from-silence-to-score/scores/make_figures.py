@@ -103,6 +103,15 @@ NOTATION = {
     "thirds": dict(measures=["C4+E4:w", "C4+Eb4:w"], show_time=False),
     "tritone": dict(measures=["F4+B4:w", "B4+F5:w"], show_time=False),
     "inversion": dict(measures=["C4+E4:w", "E4+C5:w"], show_time=False),
+
+    # Ch. 10 — Dynamics, Articulation, Tempo
+    "dynamics": dict(measures=[
+        "@q=96 @p C5:q E5:q @< G5:q B5:q",
+        "@f @| C6:h A5:h"], show_time=False),
+    "articulations": dict(measures=[
+        "G5:q! G5:q> G5:q_ G5:q^"], beats=4, show_time=False),
+    "slur-phrase": dict(measures=[
+        "C5:q( D5:q E5:q G5:q", "A5:q G5:q E5:h)"], show_time=False),
 }
 
 

@@ -10,11 +10,21 @@ the MusicXML it eats.
 The spec is a list of *measures*, each a string of whitespace-separated
 tokens:
 
-    token   := pitch-or-rest duration
+    token   := note | direction
+    note    := (pitch | chord | rest) duration flags*
     pitch   := STEP [ '#' | 'b' | 'n' ] OCTAVE          e.g. C4, F#4, Bb3
     chord   := pitch ('+' pitch)*                        e.g. C4+E4+G4
     rest    := 'r'
     duration:= ':' ('w'|'h'|'q'|'e'|'s') '.'?            (':q', ':h.', ':e')
+    flags   := articulation/slur chars after the duration:
+                 !  staccato   >  accent   ^  marcato   _  tenuto
+                 ;  fermata    (  slur start   )  slur stop
+    direction := '@' marking, standing between notes (no duration):
+                 @p @pp @mp @mf @f @ff @sf @sfz @fp   dynamics
+                 @<  crescendo hairpin start   @>  diminuendo start
+                 @|  hairpin stop
+                 @q=NN  metronome mark (quarter = NN)
+                 @rit @accel @atempo   tempo words
 
 Example — a C-major scale over two 4/4 bars:
 
@@ -22,9 +32,13 @@ Example — a C-major scale over two 4/4 bars:
         ["C4:q D4:q E4:q F4:q", "G4:q A4:q B4:q C5:q"],
         clef="treble", fifths=0, beats=4, beat_type=4)
 
-Supported: single staff, one voice, chords, ties are not modeled (keep
-figures inside a bar). This is deliberately just enough for the
-notation this book prints.
+Example — a slurred phrase that grows from p to f:
+
+    build_musicxml(["@p C5:q( D5:q @< E5:q G5:q", "@f @| C6:h A5:h)"])
+
+Supported: single staff, one voice, chords, articulations, slurs, and
+directions. Ties are not modeled (keep figures inside a bar). This is
+deliberately just enough for the notation this book prints.
 """
 
 # quarter == 4 divisions; everything else follows.
@@ -91,24 +105,83 @@ def _pitch_xml(pitch, key_alters):
     return "<pitch>" + "".join(out) + "</pitch>", accidental
 
 
+_ARTICULATIONS = {"!": "staccato", ">": "accent",
+                  "^": "strong-accent", "_": "tenuto"}
+_DYNAMICS = {"pp", "ppp", "p", "mp", "mf", "f", "ff", "fff",
+             "sf", "sfz", "fp", "fz"}
+_TEMPO_WORDS = {"rit": "rit.", "accel": "accel.", "atempo": "a tempo"}
+
+
+def _direction_xml(token):
+    """A '@' token -> a MusicXML <direction> (dynamic, hairpin, or tempo)."""
+    body = token[1:]
+    if body in _DYNAMICS:
+        return ('<direction placement="below"><direction-type><dynamics>'
+                f"<{body}/></dynamics></direction-type></direction>")
+    wedge = {"<": "crescendo", ">": "diminuendo", "|": "stop"}.get(body)
+    if wedge:
+        return ('<direction placement="below"><direction-type>'
+                f'<wedge type="{wedge}"/></direction-type></direction>')
+    if body.startswith("q="):
+        bpm = body[2:]
+        return ('<direction placement="above"><direction-type><metronome>'
+                f"<beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute>"
+                f'</metronome></direction-type><sound tempo="{bpm}"/></direction>')
+    if body in _TEMPO_WORDS:
+        return ('<direction placement="above"><direction-type><words>'
+                f"{_TEMPO_WORDS[body]}</words></direction-type></direction>")
+    raise ValueError(f"unknown direction {token!r}")
+
+
+def _notations_xml(flags, token):
+    """Turn articulation/slur flag chars into a <notations> element."""
+    arts, extra = [], []
+    for c in flags:
+        if c in _ARTICULATIONS:
+            arts.append(_ARTICULATIONS[c])
+        elif c == ";":
+            extra.append("<fermata/>")
+        elif c == "(":
+            extra.append('<slur type="start" number="1"/>')
+        elif c == ")":
+            extra.append('<slur type="stop" number="1"/>')
+        else:
+            raise ValueError(f"unknown articulation flag {c!r} in {token!r}")
+    inner = ""
+    if arts:
+        inner += "<articulations>" + "".join(f"<{a}/>" for a in arts) \
+                 + "</articulations>"
+    inner += "".join(extra)
+    return f"<notations>{inner}</notations>" if inner else ""
+
+
 def _note_xml(token, key_alters):
+    if token.startswith("@"):
+        return _direction_xml(token)
+
     head, _, dur = token.partition(":")
     if not dur:
         raise ValueError(f"token {token!r} has no :duration")
-    divs, typ, dotted = _duration(dur)
+    # duration code is the first char (+ optional dot); the rest are flags.
+    split = 2 if len(dur) >= 2 and dur[1] == "." else 1
+    durcode, flags = dur[:split], dur[split:]
+    divs, typ, dotted = _duration(durcode)
     dot = "<dot/>" if dotted else ""
+    notations = _notations_xml(flags, token)
 
     if head == "r":
         return (f"<note><rest/><duration>{divs}</duration>"
-                f"<type>{typ}</type>{dot}</note>")
+                f"<type>{typ}</type>{dot}{notations}</note>")
 
     notes = head.split("+")
     out = []
     for i, p in enumerate(notes):
         pitch_xml, accidental = _pitch_xml(p, key_alters)
         chord = "<chord/>" if i > 0 else ""
+        # notations attach to the first note of a chord only.
+        note_notations = notations if i == 0 else ""
         out.append(f"<note>{chord}{pitch_xml}<duration>{divs}</duration>"
-                   f"<type>{typ}</type>{dot}{accidental}</note>")
+                   f"<type>{typ}</type>{dot}{accidental}{note_notations}</note>")
     return "".join(out)
 
 
