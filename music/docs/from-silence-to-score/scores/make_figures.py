@@ -218,6 +218,13 @@ GRAND = {
         "C3:e G3:e E3:e G3:e C3:e G3:e E3:e G3:e",
         "F3:e C4:e A3:e C4:e F3:e C4:e A3:e C4:e",
         "G2:e D3:e B2:e D3:e G2:e D3:e B2:e D3:e", "C3+E3+G3:w"]),
+
+    # Project 3 — the running "little tune" as a finished piano piece
+    "little-tune-piano": dict(
+        treble=["@q=100 @mp C5:q E5:q G5:q A5:q", "G5:h E5:h",
+                "F5:q E5:q D5:q B4:q", "C5:w"],
+        bass=["C3:q G3:q E3:q G3:q", "G2:q D3:q C3:q E3:q",
+              "F3:q C4:q G2:q D3:q", "C3+E3+G3:w"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
