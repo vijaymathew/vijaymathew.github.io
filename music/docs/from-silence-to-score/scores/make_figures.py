@@ -129,6 +129,17 @@ NOTATION = {
     "triad-qualities": dict(measures=[
         "C4+E4+G4:w", "C4+Eb4+G4:w",
         "C4+Eb4+Gb4:w", "C4+E4+G#4:w"], show_time=False),
+
+    # Ch. 12 — Diatonic Chords
+    "diatonic-triads": dict(measures=[
+        "C4+E4+G4:w", "D4+F4+A4:w", "E4+G4+B4:w", "F4+A4+C5:w",
+        "G4+B4+D5:w", "A4+C5+E5:w", "B4+D5+F5:w"], show_time=False),
+    "progression-1451": dict(measures=[
+        "C4+E4+G4:w", "F4+A4+C5:w", "G4+B4+D5:w", "C4+E4+G4:w"],
+        show_time=False),
+    "minor-primary": dict(measures=[
+        "A4+C5+E5:w", "D5+F5+A5:w", "E5+G#5+B5:w", "A4+C5+E5:w"],
+        show_time=False),
 }
 
 
