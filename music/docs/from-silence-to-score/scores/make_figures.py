@@ -248,6 +248,13 @@ GRAND = {
                 "F5:q E5:q D5:q B4:q", "C5:w"],
         bass=["C3:q G3:q E3:q G3:q", "G2:q D3:q C3:q E3:q",
               "F3:q C4:q G2:q D3:q", "C3+E3+G3:w"]),
+
+    # Project 4 — a contrasting B section (A minor) for the ternary form
+    "little-tune-b": dict(
+        treble=["@mf E5:q A5:q C6:q A5:q", "F5:q A5:q D6:q A5:q",
+                "E5:q C5:q A4:q C5:q", "D5:q F5:q G5:q B4:q"],
+        bass=["A2:q E3:q C3:q E3:q", "D3:q A3:q F3:q A3:q",
+              "A2:q E3:q C3:q E3:q", "G2:q B2:q D3:q F3:q"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
@@ -457,6 +464,11 @@ FORMS = {
         {"label": "A", "key": "tonic", "tonic": True},
         {"label": "B", "key": "contrasting key"},
         {"label": "A", "key": "tonic", "tonic": True},
+    ]),
+    "form-little-ternary": ("The worked piece  ·  ternary (A B A)", [
+        {"label": "A", "key": "the little tune · C major", "tonic": True},
+        {"label": "B", "key": "new material · A minor"},
+        {"label": "A", "key": "the tune returns · C major", "tonic": True},
     ]),
     "form-rondo": ("Rondo  ·  A B A C A", [
         {"label": "A", "key": "refrain", "tonic": True},
