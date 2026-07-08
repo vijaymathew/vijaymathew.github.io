@@ -140,6 +140,14 @@ NOTATION = {
     "minor-primary": dict(measures=[
         "A4+C5+E5:w", "D5+F5+A5:w", "E5+G#5+B5:w", "A4+C5+E5:w"],
         show_time=False),
+
+    # Ch. 13 — Inversions and Chord Symbols
+    "inversions-triad": dict(measures=[
+        "C4+E4+G4:w", "E4+G4+C5:w", "G4+C5+E5:w"], show_time=False),
+    "inversion-bassline": dict(measures=[
+        "C4+E4+G4:w", "B3+D4+G4:w", "A3+C4+E4:w"], show_time=False),
+    "leadsheet": dict(measures=[
+        "$C C5:q E5:q G5:q E5:q", "$G/B D5:q B4:q $C C5:h"]),
 }
 
 

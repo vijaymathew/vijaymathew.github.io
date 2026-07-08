@@ -25,6 +25,10 @@ tokens:
                  @|  hairpin stop
                  @q=NN  metronome mark (quarter = NN)
                  @rit @accel @atempo   tempo words
+    harmony   := '$' chord symbol, attached to the note that follows:
+                 $C  $Cm  $C7  $Cmaj7  $Cm7  $Cdim  $Caug   (root+quality)
+                 $Bb  $F#m   (root may carry # or b)
+                 $C/E  $G/B   (slash bass for inversions)
 
 Example — a C-major scale over two 4/4 bars:
 
@@ -133,6 +137,40 @@ def _direction_xml(token):
     raise ValueError(f"unknown direction {token!r}")
 
 
+_KIND = {
+    "": "major", "m": "minor", "7": "dominant",
+    "maj7": "major-seventh", "m7": "minor-seventh",
+    "dim": "diminished", "aug": "augmented", "m7b5": "half-diminished",
+}
+
+
+def _root_xml(text, tag):
+    """Parse a chord root/bass letter (+optional #/b) into MusicXML."""
+    step = text[0].upper()
+    rest = text[1:]
+    out = f"<{tag}-step>{step}</{tag}-step>"
+    if rest[:1] in _STEP_ALTER and rest[:1] != "n":
+        out += f"<{tag}-alter>{_STEP_ALTER[rest[0]]}</{tag}-alter>"
+        rest = rest[1:]
+    return out, rest
+
+
+def _harmony_xml(token):
+    """A '$' token -> a MusicXML <harmony> chord symbol."""
+    body = token[1:]
+    chord, _, bass = body.partition("/")
+    root_xml, quality = _root_xml(chord, "root")
+    if quality not in _KIND:
+        raise ValueError(f"unknown chord quality {quality!r} in {token!r}")
+    parts = [f"<root>{root_xml}</root>", f"<kind>{_KIND[quality]}</kind>"]
+    if bass:
+        bass_xml, extra = _root_xml(bass, "bass")
+        if extra:
+            raise ValueError(f"bad bass note in {token!r}")
+        parts.append(f"<bass>{bass_xml}</bass>")
+    return "<harmony>" + "".join(parts) + "</harmony>"
+
+
 def _notations_xml(flags, token):
     """Turn articulation/slur flag chars into a <notations> element."""
     arts, extra = [], []
@@ -158,6 +196,8 @@ def _notations_xml(flags, token):
 def _note_xml(token, key_alters):
     if token.startswith("@"):
         return _direction_xml(token)
+    if token.startswith("$"):
+        return _harmony_xml(token)
 
     head, _, dur = token.partition(":")
     if not dur:
