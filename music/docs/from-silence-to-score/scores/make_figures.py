@@ -293,6 +293,26 @@ ENSEMBLE = {
             "r:w", "E4:q F4:q G4:q C5:q"]},
     ]),
 
+    # Ch. 36 — orchestral textures
+    "texture-melody-accomp": dict(parts=[     # melody over pulsing accompaniment
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "G5:q E5:q C5:q E5:q", "D5:q B4:q D5:q G5:q"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "E4:q E4:q E4:q E4:q", "D4:q D4:q D4:q D4:q"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "C4:q C4:q C4:q C4:q", "B3:q B3:q B3:q B3:q"]},
+        {"name": "Vc", "clef": "bass", "measures": ["C3:h C3:h", "G2:h G2:h"]},
+    ]),
+    "texture-layered": dict(parts=[           # melody + countermelody + accomp + bass
+        {"name": "Flute", "clef": "treble", "measures": [
+            "G5:q E5:q C6:q G5:q", "D6:q B5:q G5:q D5:q"]},
+        {"name": "Violin", "clef": "treble", "measures": [
+            "E5:q C5:q G4:q C5:q", "B4:q G4:q D5:q B4:q"]},
+        {"name": "Viola", "clef": "alto", "measures": [
+            "E4:q E4:q E4:q E4:q", "D4:q D4:q D4:q D4:q"]},
+        {"name": "Cello", "clef": "bass", "measures": ["C3:w", "G2:w"]},
+    ]),
+
     # Ch. 35 — the SAME passage scored two ways (only the timbre differs)
     "orch-winds": dict(parts=[
         {"name": "Flute", "clef": "treble", "measures": [
