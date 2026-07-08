@@ -172,6 +172,16 @@ NOTATION = {
         "E5:q D5:q C5:h"]),
     "melodic-sequence": dict(measures=[
         "C6:q A5:q B5:q G5:q", "A5:q F5:q G5:q E5:q"]),
+
+    # Ch. 18 — Phrases, Periods, Sentences
+    "period": dict(measures=[
+        "$C E5:q G5:q E5:q C5:q", "D5:q F5:q A5:q F5:q",
+        "E5:q D5:q C5:q D5:q", "$G D5:h r:h",
+        "$C E5:q G5:q E5:q C5:q", "D5:q F5:q A5:q F5:q",
+        "$G F5:q E5:q D5:q B4:q", "$C C5:w"]),
+    "sentence": dict(measures=[
+        "$C C5:q E5:q D5:q E5:q", "$G D5:q F5:q E5:q F5:q",
+        "E5:q F5:q G5:q A5:q", "$G D5:q B4:q $C C5:h"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
