@@ -68,6 +68,23 @@ NOTATION = {
         "C5:e D5:e E5:e F5:e G5:e A5:e",
         "G5:e E5:e C5:e G4:q. "],
         beats=6, beat_type=8),
+
+    # Ch. 7 — Scales
+    "steps": dict(measures=["C4:h D4:h", "E4:h F4:h"],
+                  beats=2, beat_type=4, show_time=False),
+    "c-major-scale": dict(measures=[
+        "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q"],
+        beats=8, show_time=False),
+    "a-minor-scale": dict(measures=[
+        "A4:q B4:q C5:q D5:q E5:q F5:q G5:q A5:q"],
+        beats=8, show_time=False),
+    "harmonic-minor": dict(measures=[
+        "A4:q B4:q C5:q D5:q E5:q F5:q G#5:q A5:q"],
+        beats=8, show_time=False),
+    "melodic-minor": dict(measures=[
+        "A4:q B4:q C5:q D5:q E5:q F#5:q G#5:q A5:q",
+        "A5:q G5:q F5:q E5:q D5:q C5:q B4:q A4:q"],
+        beats=8, show_time=False),
 }
 
 

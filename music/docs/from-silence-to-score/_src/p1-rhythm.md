@@ -57,14 +57,14 @@ The distinction between simple and compound is not pedantry: it tells a performe
 
     | Key | Duration |
     |---|---|
-    | <kbd>1</kbd> | sixteenth note |
-    | <kbd>2</kbd> | eighth note |
-    | <kbd>3</kbd> | quarter note |
-    | <kbd>4</kbd> | half note |
-    | <kbd>5</kbd> | whole note |
+    | <kbd>3</kbd> | sixteenth note |
+    | <kbd>4</kbd> | eighth note |
+    | <kbd>5</kbd> | quarter note |
+    | <kbd>6</kbd> | half note |
+    | <kbd>7</kbd> | whole note |
     | <kbd>.</kbd> | dots the current duration |
 
-    So to enter a dotted half note, press <kbd>4</kbd> then <kbd>.</kbd>, then type a letter. To enter a **rest** of the current duration, press <kbd>0</kbd> instead of a pitch. To **tie** the note you just entered to a new one of the same pitch, press <kbd>T</kbd>.
+    (The keys run short-to-long from <kbd>1</kbd>, a 64th note, up to <kbd>7</kbd> — see Chapter 2. The five above are the ones you will reach for constantly.) So to enter a dotted half note, press <kbd>6</kbd> then <kbd>.</kbd>, then type a letter. To enter a **rest** of the current duration, press <kbd>0</kbd> instead of a pitch. To **tie** the note you just entered to a new one of the same pitch, press <kbd>T</kbd>.
 
     Set the meter from the **Time Signatures** palette: double-click 3/4 or 6/8 onto the score, and MuseScore re-bars everything for you and beams the notes according to the meter — watch the eighth notes in 6/8 snap into groups of three. Change the tempo from the **Tempo** palette, or just type a metronome mark. Press <kbd>Space</kbd> to hear it, and toggle the metronome (the click) from the playback toolbar so you can hear your rhythm against the beat it is written against.
 
