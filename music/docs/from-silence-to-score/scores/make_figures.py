@@ -112,6 +112,16 @@ NOTATION = {
         "G5:q! G5:q> G5:q_ G5:q^"], beats=4, show_time=False),
     "slur-phrase": dict(measures=[
         "C5:q( D5:q E5:q G5:q", "A5:q G5:q E5:h)"], show_time=False),
+
+    # Project 1 — Notate a Melody (the worked example: Ode to Joy, D major)
+    "ode-plain": dict(measures=[
+        "F4:q F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
+        "D4:q D4:q E4:q F4:q", "F4:q. E4:e E4:h"], fifths=2),
+    "ode-to-joy": dict(measures=[
+        "@q=112 @mf F4:q( F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
+        "D4:q D4:q E4:q F4:q", "F4:q. E4:e E4:h)",
+        "F4:q( F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
+        "D4:q D4:q E4:q F4:q", "E4:q. D4:e D4:h)"], fifths=2),
 }
 
 
