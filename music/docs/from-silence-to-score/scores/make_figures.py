@@ -182,6 +182,18 @@ NOTATION = {
     "sentence": dict(measures=[
         "$C C5:q E5:q D5:q E5:q", "$G D5:q F5:q E5:q F5:q",
         "E5:q F5:q G5:q A5:q", "$G D5:q B4:q $C C5:h"]),
+
+    # Ch. 19 — Motivic Development
+    "motive-transforms": dict(measures=[
+        "C5:e D5:e E5:e G5:e r:h",     # original motive
+        "C5:e B4:e A4:e F4:e r:h",     # inversion (contour flipped)
+        "G5:e E5:e D5:e C5:e r:h",     # retrograde (backwards)
+        "C5:q D5:q E5:q G5:q"]),       # augmentation (doubled values)
+    "motive-grows": dict(measures=[
+        "C5:e D5:e E5:e G5:e D5:e E5:e F5:e A5:e",
+        "E5:e F5:e G5:e B5:e C6:h",
+        "B5:e G5:e A5:e F5:e G5:e E5:e F5:e D5:e",
+        "D5:q B4:q C5:h"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
