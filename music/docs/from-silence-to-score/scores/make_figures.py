@@ -211,6 +211,15 @@ NOTATION = {
         "$G G5:q D5:q B4:q G4:q",         # arrival: I of G, the new tonic
         "$G7 G4:q B4:q D5:q F5:q",        # F natural turns G into V7 of C
         "$C E5:q C5:q C5:h"]),            # home again: C major
+
+    # Ch. 24 — Theme and Variations (C major theme: C E G E | D F E C)
+    "variation-theme": dict(measures=[
+        "$C C5:q E5:q G5:q E5:q", "$G D5:q F5:q $C E5:q C5:q"]),
+    "variation-figured": dict(measures=[  # theme notes on the beat, decorated
+        "$C C5:e D5:e E5:e F5:e G5:e F5:e E5:e D5:e",
+        "$G D5:e E5:e F5:e E5:e $C E5:e D5:e C5:q"]),
+    "variation-minor": dict(measures=[    # same contour, C minor
+        "$Cm C5:q Eb5:q G5:q Eb5:q", "$G D5:q F5:q $Cm Eb5:q C5:q"]),
 }
 
 # Piano grand-staff figures (melody + accompaniment) -> notation.build_grand
