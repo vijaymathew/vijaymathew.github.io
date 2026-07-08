@@ -194,6 +194,14 @@ NOTATION = {
         "E5:e F5:e G5:e B5:e C6:h",
         "B5:e G5:e A5:e F5:e G5:e E5:e F5:e D5:e",
         "D5:q B4:q C5:h"]),
+
+    # Ch. 20 — Melody from Harmony
+    "melody-skeleton": dict(measures=[
+        "$C C5:h E5:h", "$F A5:h F5:h",
+        "$G G5:h D5:h", "$C C5:w"]),
+    "melody-elaborated": dict(measures=[
+        "$C C5:q D5:q E5:q G5:q", "$F A5:q G5:q F5:q A5:q",
+        "$G G5:q F5:q D5:q B4:q", "$C C5:w"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
