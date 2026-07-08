@@ -94,6 +94,15 @@ NOTATION = {
     "f-major-keysig": dict(measures=[
         "F4:q G4:q A4:q B4:q C5:q D5:q E5:q F5:q"],
         fifths=-1, beats=8, show_time=False),
+
+    # Ch. 9 — Intervals
+    "intervals-catalog": dict(measures=[
+        "C4+C4:w", "C4+D4:w", "C4+E4:w", "C4+F4:w",
+        "C4+G4:w", "C4+A4:w", "C4+B4:w", "C4+C5:w"],
+        show_time=False),
+    "thirds": dict(measures=["C4+E4:w", "C4+Eb4:w"], show_time=False),
+    "tritone": dict(measures=["F4+B4:w", "B4+F5:w"], show_time=False),
+    "inversion": dict(measures=["C4+E4:w", "E4+C5:w"], show_time=False),
 }
 
 
