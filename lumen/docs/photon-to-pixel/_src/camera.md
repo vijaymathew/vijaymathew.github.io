@@ -85,7 +85,7 @@ Everything so far is a continuum: power at every wavelength, radiance at every p
 
 The filters come first. Our sensor has three, fictional but shaped like real CMOS filter dyes: broad, heavily overlapping bumps, with the red filter leaking slightly in the blue (real red dyes do). Two properties matter enormously later. These curves are *not* the human eye's — the gap between what the sensor measures and what a person sees is precisely what Chapter 5's color matrix exists to bridge. And they overlap, so no surface excites only one channel — which is why "camera RGB" will turn out not to be a color space at all.
 
-But a sensor does not get three measurements per pixel. Each photosite sits under exactly *one* filter, arranged in the Bayer mosaic — the pattern that Chapter 4 will spend an entire chapter undoing:
+But a sensor does not get three measurements per pixel. Each photosite sits under exactly *one* filter, arranged in the Bayer mosaic — the pattern that will be undone in Chapter 4:
 
 {{include pxp/sensor.py::cfa_channel}}
 
