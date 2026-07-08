@@ -293,6 +293,21 @@ ENSEMBLE = {
             "r:w", "E4:q F4:q G4:q C5:q"]},
     ]),
 
+    # Ch. 34 — octave doubling of a melody in two instruments
+    "doubling-octaves": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "C5:q E5:q G5:q E5:q", "F5:q E5:q D5:q C5:q"]},
+        {"name": "Clarinet", "clef": "treble", "measures": [
+            "C4:q E4:q G4:q E4:q", "F4:q E4:q D4:q C4:q"]},
+    ]),
+    # Ch. 34 — the same chord voiced muddy (crowded low) then clear (spread)
+    "ensemble-voicing": dict(parts=[
+        {"name": "Fl", "clef": "treble", "measures": ["C4:w", "C5:w"]},
+        {"name": "Cl", "clef": "treble", "measures": ["G3:w", "E4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": ["E3:w", "G3:w"]},
+        {"name": "Vc", "clef": "bass", "measures": ["C3:w", "C3:w"]},
+    ]),
+
     # Ch. 32 — a B-flat clarinet part vs its concert-pitch sound
     "transposition": dict(parts=[
         {"name": "B♭ clarinet (written)", "clef": "treble", "fifths": 2,
@@ -710,11 +725,71 @@ def draw_range_chart(select):
     return ["range-chart"]
 
 
+def draw_register_map(select):
+    """One instrument's range split into its characteristic registers."""
+    if not "register-map".startswith(select):
+        return []
+    from PIL import Image, ImageDraw
+    scale = 3
+    ink, faint = (38, 28, 20), (140, 128, 122)
+    base = (52, 108, 92)                   # woodwind green
+    # (name, character, lo-midi, hi-midi, lighten-factor)
+    regions = [
+        ("Chalumeau", "rich, dark", 52, 67, 1.0),
+        ("Throat", "weak", 67, 71, 0.4),
+        ("Clarion", "clear, bright", 71, 84, 0.72),
+        ("Altissimo", "shrill", 84, 94, 0.52),
+    ]
+    LO, HI = 48, 96
+    W, H = 1400 * scale, 340 * scale
+    px0, px1 = 44 * scale, W - 44 * scale
+    bar_top, bar_bot = 150 * scale, 236 * scale
+
+    def x_of(m):
+        return px0 + (m - LO) / (HI - LO) * (px1 - px0)
+
+    def lighten(c, f):
+        return tuple(int(255 - (255 - v) * f) for v in c)
+
+    img = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    f_axis = _form_font("DejaVuSans", 20 * scale)
+    f_name = _form_font("DejaVuSerif-Bold", 24 * scale)
+    f_char = _form_font("DejaVuSerif", 20 * scale)
+    f_title = _form_font("DejaVuSerif-Italic", 26 * scale)
+
+    d.text((46 * scale, 26 * scale), "The registers of the clarinet",
+           font=f_title, fill=faint)
+    for m in range(48, 97, 12):
+        x = x_of(m)
+        d.line([x, bar_top - 74 * scale, x, bar_bot + 66 * scale],
+               fill=(228, 218, 215), width=scale)
+        lbl = "C%d" % (m // 12 - 1)
+        tb = d.textbbox((0, 0), lbl, font=f_axis)
+        d.text((x - (tb[2] - tb[0]) / 2, bar_bot + 74 * scale), lbl,
+               font=f_axis, fill=faint)
+    for name, char, lo, hi, fac in regions:
+        x0, x1, cx = x_of(lo), x_of(hi), (x_of(lo) + x_of(hi)) / 2
+        d.rectangle([x0, bar_top, x1, bar_bot], fill=lighten(base, fac),
+                    outline=(255, 255, 255), width=2 * scale)
+        tb = d.textbbox((0, 0), name, font=f_name)
+        d.text((cx - (tb[2] - tb[0]) / 2, bar_top - 44 * scale), name,
+               font=f_name, fill=ink)
+        tb2 = d.textbbox((0, 0), char, font=f_char)
+        d.text((cx - (tb2[2] - tb2[0]) / 2, bar_bot + 10 * scale), char,
+               font=f_char, fill=faint)
+
+    img = img.resize((W // scale, H // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "register-map.png"))
+    return ["register-map"]
+
+
 def main():
     select = sys.argv[1] if len(sys.argv) > 1 else ""
     written = (render_notation(select) + draw_keyboard(select)
                + draw_circle_of_fifths(select) + draw_forms(select)
-               + draw_range_chart(select))
+               + draw_range_chart(select) + draw_register_map(select))
     if written:
         print(f"Rendered {len(written)} figure(s): {', '.join(sorted(written))}")
     else:
