@@ -292,6 +292,32 @@ ENSEMBLE = {
             "r:w", "C4:q D4:q E4:q G4:q",
             "r:w", "E4:q F4:q G4:q C5:q"]},
     ]),
+
+    # Project 5 — the running "little tune" arranged for string quartet
+    "little-tune-quartet": dict(parts=[
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@mp C5:q E5:q G5:q A5:q", "G5:h E5:h",
+            "F5:q E5:q D5:q B4:q", "C5:w"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "G4:w", "B4:h G4:h", "C5:h B4:h", "G4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "E4:w", "D4:h E4:h", "A4:h G4:h", "E4:w"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "C3:w", "G2:h C3:h", "F2:h G2:h", "C3:w"]},
+    ]),
+
+    # Ch. 30 — string quartet: melody (Vln I) over sustained inner harmony
+    "quartet-texture": dict(parts=[
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "G5:q E5:q C5:q E5:q", "A5:q F5:q A5:q F5:q",
+            "G5:q F5:q D5:q B4:q", "C5:w"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "G4:w", "A4:w", "B4:w", "G4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "E4:w", "C4:w", "D4:w", "E4:w"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "C3:w", "F3:w", "G3:w", "C3:w"]},
+    ]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
