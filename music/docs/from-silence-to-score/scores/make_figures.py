@@ -163,6 +163,20 @@ SATB = {
         tenor=["E4:w", "F4:w", "D4:w", "E4:w"],
         bass=["C3:w", "F3:w", "G3:w", "C3:w"],
         show_time=False),
+
+    # Ch. 15 — the four cadences (C major, two chords each)
+    "cadence-authentic": dict(              # V–I, perfect authentic
+        soprano=["B4:w", "C5:w"], alto=["G4:w", "G4:w"],
+        tenor=["D4:w", "E4:w"], bass=["G3:w", "C3:w"], show_time=False),
+    "cadence-half": dict(                   # IV–V, ends on the dominant
+        soprano=["A4:w", "G4:w"], alto=["F4:w", "D4:w"],
+        tenor=["C4:w", "B3:w"], bass=["F3:w", "G3:w"], show_time=False),
+    "cadence-plagal": dict(                 # IV–I, the "Amen"
+        soprano=["C5:w", "C5:w"], alto=["A4:w", "G4:w"],
+        tenor=["F4:w", "E4:w"], bass=["F3:w", "C3:w"], show_time=False),
+    "cadence-deceptive": dict(              # V–vi, third doubled in vi
+        soprano=["B4:w", "C5:w"], alto=["G4:w", "E4:w"],
+        tenor=["D4:w", "C4:w"], bass=["G3:w", "A3:w"], show_time=False),
 }
 
 
