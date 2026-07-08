@@ -165,6 +165,13 @@ NOTATION = {
     "harm-melody": dict(measures=[
         "$C C5:q E5:q G5:q $F A5:q", "$G G5:h $C E5:h",
         "$F F5:q $C E5:q $G D5:q B4:q", "$C C5:w"]),
+
+    # Ch. 17 — What Makes a Melody Work
+    "contour-arch": dict(measures=[
+        "C5:q D5:q E5:q F5:q", "G5:q A5:q G5:q F5:q",
+        "E5:q D5:q C5:h"]),
+    "melodic-sequence": dict(measures=[
+        "C6:q A5:q B5:q G5:q", "A5:q F5:q G5:q E5:q"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
