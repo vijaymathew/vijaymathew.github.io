@@ -265,6 +265,14 @@ GRAND = {
                 "G5:q F5:q D5:q B4:q", "C5:w"],
         bass=["C2:q E3:q G3:q E3:q", "F2:q A3:q C4:q A3:q",
               "G2:q B3:q D4:q B3:q", "C2:q E3:q G3:q C4:q"]),
+
+    # Ch. 28 — Counterpoint Primer (CF in bass, counterpoint above)
+    "species-first": dict(                 # 1:1 — intervals 8-6-3-6-8, contrary
+        treble=["C5:w", "B4:w", "G4:w", "B4:w", "C5:w"],
+        bass=["C3:w", "D3:w", "E3:w", "D3:w", "C3:w"]),
+    "species-second": dict(                # 2:1 — weak beats are passing tones
+        treble=["C5:h B4:h", "A4:h B4:h", "C5:h B4:h", "A4:h B4:h", "C5:w"],
+        bass=["C3:w", "D3:w", "E3:w", "D3:w", "C3:w"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
