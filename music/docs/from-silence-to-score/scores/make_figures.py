@@ -160,6 +160,11 @@ NOTATION = {
         "$C G5:q A5:q G5:q E5:q", "$C E5:q D5:q E5:q C5:q"]),
     "suspension": dict(measures=[
         "$C E5:q G5:q C5:h~", "$G C5:h B4:h"]),
+
+    # Project 2 — Harmonize a Melody (the running "little tune", C major)
+    "harm-melody": dict(measures=[
+        "$C C5:q E5:q G5:q $F A5:q", "$G G5:h $C E5:h",
+        "$F F5:q $C E5:q $G D5:q B4:q", "$C C5:w"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
@@ -185,6 +190,11 @@ SATB = {
     "cadence-deceptive": dict(              # V–vi, third doubled in vi
         soprano=["B4:w", "C5:w"], alto=["G4:w", "E4:w"],
         tenor=["D4:w", "C4:w"], bass=["G3:w", "A3:w"], show_time=False),
+
+    # Project 2 — the melody's closing cadence realized in four parts (V–I)
+    "harm-cadence": dict(
+        soprano=["B4:w", "C5:w"], alto=["G4:w", "G4:w"],
+        tenor=["D4:w", "E4:w"], bass=["G3:w", "C3:w"], show_time=False),
 }
 
 
