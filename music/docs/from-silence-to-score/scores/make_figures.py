@@ -466,9 +466,10 @@ FORMS = {
         {"label": "A", "key": "refrain", "tonic": True},
     ]),
     "form-sonata": ("Sonata form  ·  Exposition · Development · Recapitulation", [
-        {"label": "Exposition", "key": "I → V", "w": 1.1},
-        {"label": "Development", "key": "wandering", "w": 1.1},
-        {"label": "Recapitulation", "key": "I → I", "w": 1.1, "tonic": True},
+        {"label": "Exposition", "key": "themes in I and V", "w": 1.1},
+        {"label": "Development", "key": "themes developed, many keys", "w": 1.25},
+        {"label": "Recapitulation", "key": "themes all in I", "w": 1.1,
+         "tonic": True},
     ]),
 }
 
