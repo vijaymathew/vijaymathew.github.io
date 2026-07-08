@@ -85,6 +85,15 @@ NOTATION = {
         "A4:q B4:q C5:q D5:q E5:q F#5:q G#5:q A5:q",
         "A5:q G5:q F5:q E5:q D5:q C5:q B4:q A4:q"],
         beats=8, show_time=False),
+
+    # Ch. 8 — Key Signatures and the Circle of Fifths
+    # Plain letters; the key signature supplies the accidentals.
+    "g-major-keysig": dict(measures=[
+        "G4:q A4:q B4:q C5:q D5:q E5:q F5:q G5:q"],
+        fifths=1, beats=8, show_time=False),
+    "f-major-keysig": dict(measures=[
+        "F4:q G4:q A4:q B4:q C5:q D5:q E5:q F5:q"],
+        fifths=-1, beats=8, show_time=False),
 }
 
 
@@ -171,9 +180,84 @@ def draw_keyboard(select):
     return ["keyboard-octave"]
 
 
+def draw_circle_of_fifths(select):
+    """The circle of fifths: majors outer, relative minors inner, with
+    the accidental count at each of the twelve positions."""
+    if not "circle-of-fifths".startswith(select):
+        return []
+    import math
+    from PIL import Image, ImageDraw, ImageFont
+
+    scale = 3
+    S = 900 * scale
+    cx = cy = S // 2
+    ink = (36, 28, 16)
+    faint = (168, 158, 146)
+    accent = (138, 47, 62)  # the book's burgundy
+
+    majors = ["C", "G", "D", "A", "E", "B",
+              "F♯/G♭", "D♭", "A♭", "E♭",
+              "B♭", "F"]
+    minors = ["Am", "Em", "Bm", "F♯m", "C♯m", "G♯m",
+              "E♭m", "B♭m", "Fm", "Cm", "Gm", "Dm"]
+    counts = ["—", "1♯", "2♯", "3♯", "4♯", "5♯",
+              "6♯/6♭", "5♭", "4♭", "3♭", "2♭",
+              "1♭"]
+
+    def font(sz, bold=False):
+        path = ("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"
+                % ("-Bold" if bold else ""))
+        try:
+            return ImageFont.truetype(path, sz)
+        except OSError:
+            return ImageFont.load_default()
+
+    f_major = font(50 * scale, bold=True)
+    f_minor = font(32 * scale)
+    f_count = font(26 * scale)
+
+    R_count = S * 0.455
+    R_major = S * 0.365
+    R_minor = S * 0.235
+    ring_out = S * 0.425
+    ring_in = S * 0.300
+
+    img = Image.new("RGB", (S, S), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+
+    for r in (ring_out, ring_in):
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=faint, width=scale)
+    # spokes at segment boundaries
+    for i in range(12):
+        a = math.radians(-90 + (i + 0.5) * 30)
+        d.line([cx + ring_in * math.cos(a), cy + ring_in * math.sin(a),
+                cx + ring_out * math.cos(a), cy + ring_out * math.sin(a)],
+               fill=faint, width=scale)
+
+    def place(text, radius, angle_deg, fnt, fill):
+        a = math.radians(angle_deg)
+        x = cx + radius * math.cos(a)
+        y = cy + radius * math.sin(a)
+        tb = d.textbbox((0, 0), text, font=fnt)
+        d.text((x - (tb[2] - tb[0]) / 2 - tb[0],
+                y - (tb[3] - tb[1]) / 2 - tb[1]), text, font=fnt, fill=fill)
+
+    for i in range(12):
+        angle = -90 + i * 30  # clockwise (screen y grows downward)
+        place(majors[i], R_major, angle, f_major, accent if i == 0 else ink)
+        place(minors[i], R_minor, angle, f_minor, ink)
+        place(counts[i], R_count, angle, f_count, faint)
+
+    img = img.resize((S // scale, S // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "circle-of-fifths.png"))
+    return ["circle-of-fifths"]
+
+
 def main():
     select = sys.argv[1] if len(sys.argv) > 1 else ""
-    written = render_notation(select) + draw_keyboard(select)
+    written = (render_notation(select) + draw_keyboard(select)
+               + draw_circle_of_fifths(select))
     if written:
         print(f"Rendered {len(written)} figure(s): {', '.join(sorted(written))}")
     else:

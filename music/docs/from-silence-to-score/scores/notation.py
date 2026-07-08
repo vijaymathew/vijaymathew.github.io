@@ -37,6 +37,9 @@ _DUR = {
 }
 _STEP_ALTER = {"#": 1, "b": -1, "n": 0}
 _ALTER_ACCIDENTAL = {1: "sharp", -1: "flat", 0: "natural"}
+# The order sharps and flats are added by a key signature.
+_SHARP_ORDER = ["F", "C", "G", "D", "A", "E", "B"]
+_FLAT_ORDER = ["B", "E", "A", "D", "G", "C", "F"]
 _CLEF = {
     "treble": ("G", 2, 0),
     "bass": ("F", 4, 0),
@@ -57,25 +60,38 @@ def _duration(code):
     return divs, typ, dotted
 
 
-def _pitch_xml(pitch):
+def _key_alters(fifths):
+    """The step -> alter map a key signature applies, e.g. {'F': 1} for G major."""
+    if fifths > 0:
+        return {s: 1 for s in _SHARP_ORDER[:fifths]}
+    if fifths < 0:
+        return {s: -1 for s in _FLAT_ORDER[:-fifths]}
+    return {}
+
+
+def _pitch_xml(pitch, key_alters):
+    """MusicXML pitch is absolute: the sounding alteration must be stated
+    explicitly. An unmarked letter inherits the key signature's alteration
+    and prints no accidental; a #/b/n marker overrides the key and prints."""
     step = pitch[0].upper()
     rest = pitch[1:]
-    alter = None
+    explicit = None
     if rest and rest[0] in _STEP_ALTER:
-        alter = _STEP_ALTER[rest[0]]
+        explicit = _STEP_ALTER[rest[0]]
         rest = rest[1:]
     octave = int(rest)
+
+    alter = explicit if explicit is not None else key_alters.get(step, 0)
     out = [f"<step>{step}</step>"]
-    if alter is not None and alter != 0:
+    if alter != 0:
         out.append(f"<alter>{alter}</alter>")
     out.append(f"<octave>{octave}</octave>")
-    accidental = ""
-    if alter is not None:
-        accidental = f"<accidental>{_ALTER_ACCIDENTAL[alter]}</accidental>"
+    accidental = (f"<accidental>{_ALTER_ACCIDENTAL[explicit]}</accidental>"
+                  if explicit is not None else "")
     return "<pitch>" + "".join(out) + "</pitch>", accidental
 
 
-def _note_xml(token):
+def _note_xml(token, key_alters):
     head, _, dur = token.partition(":")
     if not dur:
         raise ValueError(f"token {token!r} has no :duration")
@@ -89,7 +105,7 @@ def _note_xml(token):
     notes = head.split("+")
     out = []
     for i, p in enumerate(notes):
-        pitch_xml, accidental = _pitch_xml(p)
+        pitch_xml, accidental = _pitch_xml(p, key_alters)
         chord = "<chord/>" if i > 0 else ""
         out.append(f"<note>{chord}{pitch_xml}<duration>{divs}</duration>"
                    f"<type>{typ}</type>{dot}{accidental}</note>")
@@ -99,6 +115,7 @@ def _note_xml(token):
 def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
                    show_time=True):
     """Return a complete MusicXML document string for one staff part."""
+    key_alters = _key_alters(fifths)
     sign, line, octave_change = _CLEF[clef]
     clef_xml = f"<sign>{sign}</sign><line>{line}</line>"
     if octave_change:
@@ -118,7 +135,7 @@ def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
                      f"<clef>{clef_xml}</clef></attributes>")
         else:
             attrs = ""
-        notes = "".join(_note_xml(tok) for tok in measure.split())
+        notes = "".join(_note_xml(tok, key_alters) for tok in measure.split())
         body.append(f'<measure number="{n}">{attrs}{notes}</measure>')
 
     return (
