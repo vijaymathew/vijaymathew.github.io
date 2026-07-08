@@ -122,6 +122,13 @@ NOTATION = {
         "D4:q D4:q E4:q F4:q", "F4:q. E4:e E4:h)",
         "F4:q( F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
         "D4:q D4:q E4:q F4:q", "E4:q. D4:e D4:h)"], fifths=2),
+
+    # Ch. 11 — Triads
+    "triad-build": dict(measures=[
+        "C4:w", "C4+E4:w", "C4+E4+G4:w"], show_time=False),
+    "triad-qualities": dict(measures=[
+        "C4+E4+G4:w", "C4+Eb4+G4:w",
+        "C4+Eb4+Gb4:w", "C4+E4+G#4:w"], show_time=False),
 }
 
 

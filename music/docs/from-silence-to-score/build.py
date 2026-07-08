@@ -82,22 +82,22 @@ PARTS = [
          "notation. The first piece of your portfolio.", True),
     ]),
     ("Part 2", "Harmony Basics", [
-        ("p2-triads", "Chapter 12", "12", "Triads",
+        ("p2-triads", "Chapter 11", "11", "Triads",
          "Major, minor, diminished, augmented — the four three-note chords "
          "that everything else is built from.", False),
-        ("p2-diatonic", "Chapter 13", "13", "Diatonic Chords",
+        ("p2-diatonic", "Chapter 12", "12", "Diatonic Chords",
          "The seven chords native to a key, their Roman numerals, and the "
          "gravity between them.", False),
-        ("p2-inversions", "Chapter 14", "14", "Inversions and Chord Symbols",
+        ("p2-inversions", "Chapter 13", "13", "Inversions and Chord Symbols",
          "Turning a chord over, and the lead-sheet shorthand that names it "
          "in a single line.", False),
-        ("p2-satb", "Chapter 15", "15", "Four-Part Writing",
+        ("p2-satb", "Chapter 14", "14", "Four-Part Writing",
          "SATB chorale texture and the voice-leading rules that keep four "
          "independent lines sounding like one.", False),
-        ("p2-cadences", "Chapter 16", "16", "Cadences",
+        ("p2-cadences", "Chapter 15", "15", "Cadences",
          "Authentic, plagal, half, deceptive — the punctuation marks of "
          "harmony.", False),
-        ("p2-nct", "Chapter 17", "17", "Non-Chord Tones",
+        ("p2-nct", "Chapter 16", "16", "Non-Chord Tones",
          "Passing tones, neighbors, suspensions — the notes that don't "
          "belong to the chord and make the music breathe.", False),
         ("p2-project", "Project 2", "P2", "Harmonize a Melody",
@@ -105,19 +105,19 @@ PARTS = [
          "and breaking them only on purpose.", True),
     ]),
     ("Part 3", "Melody and Phrase Structure", [
-        ("p3-melody", "Chapter 19", "19", "What Makes a Melody Work",
+        ("p3-melody", "Chapter 17", "17", "What Makes a Melody Work",
          "Contour, motive, and sequence — the difference between a line and "
          "a tune.", False),
-        ("p3-phrase", "Chapter 20", "20", "Phrases, Periods, Sentences",
+        ("p3-phrase", "Chapter 18", "18", "Phrases, Periods, Sentences",
          "How small musical units join into the sentences and paragraphs of "
          "a piece.", False),
-        ("p3-motive", "Chapter 21", "21", "Motivic Development",
+        ("p3-motive", "Chapter 19", "19", "Motivic Development",
          "Repetition, sequence, fragmentation, inversion — squeezing a "
          "whole movement out of a three-note idea.", False),
-        ("p3-melody-harmony", "Chapter 22", "22", "Melody from Harmony",
+        ("p3-melody-harmony", "Chapter 20", "20", "Melody from Harmony",
          "Writing a tune over a progression, and a progression under a tune "
          "— the two directions of the same craft.", False),
-        ("p3-accompaniment", "Chapter 23", "23", "Accompaniment Patterns",
+        ("p3-accompaniment", "Chapter 21", "21", "Accompaniment Patterns",
          "Block chords, arpeggiation, and the Alberti bass — turning a chord "
          "grid into texture.", False),
         ("p3-project", "Project 3", "P3", "Compose a Melody with Accompaniment",
@@ -125,19 +125,19 @@ PARTS = [
          "accompaniment — the seed of everything in Parts 5 and 7.", True),
     ]),
     ("Part 4", "Form", [
-        ("p4-modulation", "Chapter 25", "25", "Simple Modulation",
+        ("p4-modulation", "Chapter 22", "22", "Simple Modulation",
          "Moving to the dominant or relative major and finding your way "
          "home again.", False),
-        ("p4-binary-ternary", "Chapter 26", "26", "Binary and Ternary Form",
+        ("p4-binary-ternary", "Chapter 23", "23", "Binary and Ternary Form",
          "The two-part and three-part shapes underneath most short pieces "
          "ever written.", False),
-        ("p4-variations", "Chapter 27", "27", "Theme and Variations",
+        ("p4-variations", "Chapter 24", "24", "Theme and Variations",
          "Keeping a theme recognizable while changing everything around "
          "it.", False),
-        ("p4-rondo", "Chapter 28", "28", "Rondo",
+        ("p4-rondo", "Chapter 25", "25", "Rondo",
          "A recurring refrain and the episodes between it — form as return.",
          False),
-        ("p4-sonata", "Chapter 29", "29", "Toward Sonata Form",
+        ("p4-sonata", "Chapter 26", "26", "Toward Sonata Form",
          "A light-touch look at the most important form in the repertoire, "
          "kept to an intermediate ceiling.", False),
         ("p4-project", "Project 4", "P4", "Compose in Binary or Ternary Form",
@@ -145,16 +145,16 @@ PARTS = [
          "return.", True),
     ]),
     ("Part 5", "Small Ensemble Writing", [
-        ("p5-piano", "Chapter 31", "31", "Writing for Piano",
+        ("p5-piano", "Chapter 27", "27", "Writing for Piano",
          "Two-hand texture, voicing, and what the pedal implies — the "
          "instrument every composer thinks at.", False),
-        ("p5-counterpoint", "Chapter 32", "32", "A Counterpoint Primer",
+        ("p5-counterpoint", "Chapter 28", "28", "A Counterpoint Primer",
          "First and second species, used as a practical tool rather than an "
          "academic discipline.", False),
-        ("p5-duet", "Chapter 33", "33", "Writing for Two Instruments",
+        ("p5-duet", "Chapter 29", "29", "Writing for Two Instruments",
          "Duet texture, imitation, and call-and-response — two independent "
          "voices in conversation.", False),
-        ("p5-quartet", "Chapter 34", "34", "Writing for a Small Ensemble",
+        ("p5-quartet", "Chapter 30", "30", "Writing for a Small Ensemble",
          "Balance and register across a string quartet or similar group.",
          False),
         ("p5-project", "Project 5", "P5", "Arrange a Melody for an Ensemble",
@@ -162,32 +162,32 @@ PARTS = [
          "step before the orchestra.", True),
     ]),
     ("Part 6", "Instrumentation Primer", [
-        ("p6-families", "Chapter 36", "36", "The Instrument Families",
+        ("p6-families", "Chapter 31", "31", "The Instrument Families",
          "Strings, woodwinds, brass, and percussion — how each makes its "
          "sound and where it lives.", False),
-        ("p6-transposition", "Chapter 37", "37", "Ranges and Transposition",
+        ("p6-transposition", "Chapter 32", "32", "Ranges and Transposition",
          "Written pitch versus concert pitch, and how MuseScore keeps the "
          "two straight for you.", False),
-        ("p6-ranges", "Chapter 38", "38", "Idiomatic Ranges",
+        ("p6-ranges", "Chapter 33", "33", "Idiomatic Ranges",
          "Where each instrument sounds its best, and the beginner mistakes "
          "that make players wince.", False),
-        ("p6-doubling", "Chapter 39", "39", "Doubling and Voicing",
+        ("p6-doubling", "Chapter 34", "34", "Doubling and Voicing",
          "Combining instruments across a small group without mud or "
          "collision.", False),
     ]),
     ("Part 7", "Introduction to Orchestration", [
-        ("p7-what", "Chapter 40", "40", "What Orchestration Is",
+        ("p7-what", "Chapter 35", "35", "What Orchestration Is",
          "Composing with timbre, not merely assigning notes to players.",
          False),
-        ("p7-textures", "Chapter 41", "41", "Orchestral Textures",
+        ("p7-textures", "Chapter 36", "36", "Orchestral Textures",
          "Melody and accompaniment, homophonic blocks, simple counterpoint "
          "— the basic ways an orchestra can be arranged.", False),
-        ("p7-balance", "Chapter 42", "42", "Balance",
+        ("p7-balance", "Chapter 37", "37", "Balance",
          "Who carries the melody, who supports, and how to keep the middle "
          "register from turning to mud.", False),
-        ("p7-chamber", "Chapter 43", "43", "Scoring for Chamber Orchestra",
+        ("p7-chamber", "Chapter 38", "38", "Scoring for Chamber Orchestra",
          "Bringing it together on a real MuseScore template.", False),
-        ("p7-reading", "Chapter 44", "44", "Reading Real Scores",
+        ("p7-reading", "Chapter 39", "39", "Reading Real Scores",
          "A few annotated public-domain excerpts, and how to steal from "
          "them well.", False),
         ("p7-capstone", "Capstone", "C", "Re-Score for Small Orchestra",
@@ -227,9 +227,9 @@ COVER_META = """
 <p><strong>Vijay Mathew</strong></p>
 <p>Every notated example in this book is real engraving, rendered from
 its own source by MuseScore — the same program you will be learning to
-use. Forty-five chapters and a capstone: by the end you will have
-composed, harmonized, arranged, and finally orchestrated a piece of
-your own, and read the score you wrote.</p>
+use. Thirty-nine chapters, five hands-on projects, and a capstone: by
+the end you will have composed, harmonized, arranged, and finally
+orchestrated a piece of your own, and read the score you wrote.</p>
 """
 
 MATHJAX = """
