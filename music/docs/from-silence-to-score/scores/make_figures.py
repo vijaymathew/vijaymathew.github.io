@@ -255,6 +255,16 @@ GRAND = {
                 "E5:q C5:q A4:q C5:q", "D5:q F5:q G5:q B4:q"],
         bass=["A2:q E3:q C3:q E3:q", "D3:q A3:q F3:q A3:q",
               "A2:q E3:q C3:q E3:q", "G2:q B2:q D3:q F3:q"]),
+
+    # Ch. 27 — Writing for Piano
+    "piano-spacing": dict(                 # muddy low triad vs clear voicing
+        treble=["r:w", "E4+G4+C5:w"],
+        bass=["C2+E2+G2:w", "C2:w"]),
+    "piano-texture": dict(                 # melody + low-root broken accompaniment
+        treble=["G5:q E5:q C5:q E5:q", "A5:q F5:q A5:q F5:q",
+                "G5:q F5:q D5:q B4:q", "C5:w"],
+        bass=["C2:q E3:q G3:q E3:q", "F2:q A3:q C4:q A3:q",
+              "G2:q B3:q D4:q B3:q", "C2:q E3:q G3:q C4:q"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb
