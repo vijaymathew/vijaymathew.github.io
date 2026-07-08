@@ -293,6 +293,14 @@ ENSEMBLE = {
             "r:w", "E4:q F4:q G4:q C5:q"]},
     ]),
 
+    # Ch. 32 — a B-flat clarinet part vs its concert-pitch sound
+    "transposition": dict(parts=[
+        {"name": "B♭ clarinet (written)", "clef": "treble", "fifths": 2,
+         "measures": ["D5:q E5:q F5:q A5:q", "G5:q F5:q E5:q D5:q"]},
+        {"name": "Concert pitch (sounds)", "clef": "treble", "fifths": 0,
+         "measures": ["C5:q D5:q E5:q G5:q", "F5:q E5:q D5:q C5:q"]},
+    ]),
+
     # Project 5 — the running "little tune" arranged for string quartet
     "little-tune-quartet": dict(parts=[
         {"name": "Vln I", "clef": "treble", "measures": [
@@ -623,10 +631,90 @@ def draw_forms(select):
     return written
 
 
+# --- instrument range chart (Pillow) ----------------------------------
+# family -> colour, [(instrument, low-midi, high-midi)]; C4 (middle C) = 60.
+_FAMILIES = [
+    ("Strings", (138, 47, 62), [
+        ("Violin", 55, 100), ("Viola", 48, 88),
+        ("Cello", 36, 81), ("Double bass", 28, 55)]),
+    ("Woodwinds", (52, 108, 92), [
+        ("Flute", 60, 96), ("Oboe", 58, 91),
+        ("Clarinet", 50, 94), ("Bassoon", 34, 75)]),
+    ("Brass", (176, 132, 58), [
+        ("Trumpet", 52, 84), ("Horn", 35, 77),
+        ("Trombone", 40, 70), ("Tuba", 26, 65)]),
+    ("Percussion", (120, 110, 104), [
+        ("Timpani", 38, 57), ("Glockenspiel", 79, 108)]),
+]
+
+
+def draw_range_chart(select):
+    if not "range-chart".startswith(select):
+        return []
+    from PIL import Image, ImageDraw
+    scale = 3
+    ink = (38, 28, 20)
+    faint = (140, 128, 122)
+    accent = (138, 47, 62)
+    LO, HI = 24, 108                       # C1 .. C8
+
+    label_w = 250 * scale
+    top, right_pad = 96 * scale, 44 * scale
+    row_h, fam_gap = 34 * scale, 30 * scale
+    n_rows = sum(len(f[2]) for f in _FAMILIES)
+    n_fam = len(_FAMILIES)
+    W = 1400 * scale
+    H = (top + n_rows * row_h + n_fam * fam_gap + n_fam * (fam_gap // 2)
+         + 30 * scale)
+    px0, px1 = label_w, W - right_pad
+
+    def x_of(m):
+        return px0 + (m - LO) / (HI - LO) * (px1 - px0)
+
+    img = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    f_axis = _form_font("DejaVuSans", 20 * scale)
+    f_fam = _form_font("DejaVuSans-Bold", 25 * scale)
+    f_name = _form_font("DejaVuSerif", 22 * scale)
+
+    # octave gridlines + labels
+    for m in range(24, 109, 12):
+        x = x_of(m)
+        emph = (m == 60)
+        d.line([x, top - 12 * scale, x, H - 16 * scale],
+               fill=(accent if emph else (226, 216, 213)),
+               width=(2 * scale if emph else scale))
+        lbl = "C%d" % (m // 12 - 1)
+        tb = d.textbbox((0, 0), lbl, font=f_axis)
+        d.text((x - (tb[2] - tb[0]) / 2, top - 44 * scale), lbl, font=f_axis,
+               fill=(accent if emph else faint))
+
+    y = top
+    for fam_name, color, instruments in _FAMILIES:
+        d.text((18 * scale, y + 2 * scale), fam_name, font=f_fam, fill=color)
+        y += fam_gap
+        for name, lo, hi in instruments:
+            tb = d.textbbox((0, 0), name, font=f_name)
+            d.text((label_w - 22 * scale - (tb[2] - tb[0]),
+                    y + (row_h - (tb[3] - tb[1])) / 2 - tb[1]),
+                   name, font=f_name, fill=ink)
+            d.rounded_rectangle([x_of(lo), y + 7 * scale,
+                                 x_of(hi), y + row_h - 7 * scale],
+                                radius=6 * scale, fill=color)
+            y += row_h
+        y += fam_gap // 2
+
+    img = img.resize((W // scale, H // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "range-chart.png"))
+    return ["range-chart"]
+
+
 def main():
     select = sys.argv[1] if len(sys.argv) > 1 else ""
     written = (render_notation(select) + draw_keyboard(select)
-               + draw_circle_of_fifths(select) + draw_forms(select))
+               + draw_circle_of_fifths(select) + draw_forms(select)
+               + draw_range_chart(select))
     if written:
         print(f"Rendered {len(written)} figure(s): {', '.join(sorted(written))}")
     else:

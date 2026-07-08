@@ -323,13 +323,16 @@ def build_parts(parts, fifths=0, beats=4, beat_type=4, show_time=True):
         clef_xml = f"<sign>{sign}</sign><line>{line}</line>"
         if octc:
             clef_xml += f"<clef-octave-change>{octc}</clef-octave-change>"
+        # a part may carry its own key signature (transposing instruments)
+        p_fifths = p.get("fifths", fifths)
+        p_key_alters = _key_alters(p_fifths)
         tie_state = {"pending": False}
         measures = []
         for n, measure in enumerate(p["measures"], start=1):
             attrs = (f"<attributes><divisions>4</divisions>"
-                     f"<key><fifths>{fifths}</fifths></key>{time_xml}"
+                     f"<key><fifths>{p_fifths}</fifths></key>{time_xml}"
                      f"<clef>{clef_xml}</clef></attributes>") if n == 1 else ""
-            notes = "".join(_note_xml(tok, key_alters, tie_state)
+            notes = "".join(_note_xml(tok, p_key_alters, tie_state)
                             for tok in measure.split())
             measures.append(f'<measure number="{n}">{attrs}{notes}</measure>')
         part_bodies.append(f'<part id="{pid}">\n' + "\n".join(measures)
