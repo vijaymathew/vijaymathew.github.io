@@ -152,6 +152,14 @@ NOTATION = {
     # Ch. 14 — Four-Part Writing (single-staff illustration)
     "parallel-fifths": dict(measures=[
         "C4+G4:h D4+A4:h", "E4+B4:h F4+C5:h"], show_time=False),
+
+    # Ch. 16 — Non-Chord Tones (melody + chord symbols; NCTs clash w/ chord)
+    "passing-tone": dict(measures=[
+        "$C C5:q D5:q E5:q F5:q", "$C G5:h E5:h"]),
+    "neighbor-tone": dict(measures=[
+        "$C G5:q A5:q G5:q E5:q", "$C E5:q D5:q E5:q C5:q"]),
+    "suspension": dict(measures=[
+        "$C E5:q G5:q C5:h~", "$G C5:h B4:h"]),
 }
 
 # Four-voice chorale figures -> notation.build_satb

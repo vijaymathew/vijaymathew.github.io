@@ -16,9 +16,10 @@ tokens:
     chord   := pitch ('+' pitch)*                        e.g. C4+E4+G4
     rest    := 'r'
     duration:= ':' ('w'|'h'|'q'|'e'|'s') '.'?            (':q', ':h.', ':e')
-    flags   := articulation/slur chars after the duration:
+    flags   := articulation/slur/tie chars after the duration:
                  !  staccato   >  accent   ^  marcato   _  tenuto
                  ;  fermata    (  slur start   )  slur stop
+                 ~  tie into the next (same-pitch) note
     direction := '@' marking, standing between notes (no duration):
                  @p @pp @mp @mf @f @ff @sf @sfz @fp   dynamics
                  @<  crescendo hairpin start   @>  diminuendo start
@@ -171,8 +172,8 @@ def _harmony_xml(token):
     return "<harmony>" + "".join(parts) + "</harmony>"
 
 
-def _notations_xml(flags, token):
-    """Turn articulation/slur flag chars into a <notations> element."""
+def _notations_inner(flags, token):
+    """Turn articulation/slur flag chars into the inside of <notations>."""
     arts, extra = [], []
     for c in flags:
         if c in _ARTICULATIONS:
@@ -189,25 +190,52 @@ def _notations_xml(flags, token):
     if arts:
         inner += "<articulations>" + "".join(f"<{a}/>" for a in arts) \
                  + "</articulations>"
-    inner += "".join(extra)
-    return f"<notations>{inner}</notations>" if inner else ""
+    return inner + "".join(extra)
 
 
-def _note_xml(token, key_alters):
+def _tie_xml(start, stop):
+    """Return (sound elements, notation elements) for a note's ties."""
+    snd = ('<tie type="stop"/>' if stop else "") \
+        + ('<tie type="start"/>' if start else "")
+    tied = ('<tied type="stop"/>' if stop else "") \
+        + ('<tied type="start"/>' if start else "")
+    return snd, tied
+
+
+def _parse_note(token, tie_state):
+    """Split a note token into its rendered pieces (shared by both builders).
+
+    Returns (head, divs, typ, dot, tie_snd, notations) where head is the
+    pitch/chord/'r', or None for a @direction / $harmony token whose XML is
+    returned as notations with the other fields None."""
     if token.startswith("@"):
-        return _direction_xml(token)
+        return None, None, None, None, None, _direction_xml(token)
     if token.startswith("$"):
-        return _harmony_xml(token)
+        return None, None, None, None, None, _harmony_xml(token)
 
     head, _, dur = token.partition(":")
     if not dur:
         raise ValueError(f"token {token!r} has no :duration")
-    # duration code is the first char (+ optional dot); the rest are flags.
     split = 2 if len(dur) >= 2 and dur[1] == "." else 1
     durcode, flags = dur[:split], dur[split:]
+    tie_start = "~" in flags
+    flags = flags.replace("~", "")
     divs, typ, dotted = _duration(durcode)
     dot = "<dot/>" if dotted else ""
-    notations = _notations_xml(flags, token)
+
+    tie_stop = bool(tie_state and tie_state.get("pending"))
+    if tie_state is not None:
+        tie_state["pending"] = tie_start
+    tie_snd, tied = _tie_xml(tie_start, tie_stop)
+    inner = tied + _notations_inner(flags, token)
+    notations = f"<notations>{inner}</notations>" if inner else ""
+    return head, divs, typ, dot, tie_snd, notations
+
+
+def _note_xml(token, key_alters, tie_state=None):
+    head, divs, typ, dot, tie_snd, notations = _parse_note(token, tie_state)
+    if head is None:            # a @direction or $harmony token
+        return notations
 
     if head == "r":
         return (f"<note><rest/><duration>{divs}</duration>"
@@ -218,10 +246,10 @@ def _note_xml(token, key_alters):
     for i, p in enumerate(notes):
         pitch_xml, accidental = _pitch_xml(p, key_alters)
         chord = "<chord/>" if i > 0 else ""
-        # notations attach to the first note of a chord only.
         note_notations = notations if i == 0 else ""
         out.append(f"<note>{chord}{pitch_xml}<duration>{divs}</duration>"
-                   f"<type>{typ}</type>{dot}{accidental}{note_notations}</note>")
+                   f"{tie_snd}<type>{typ}</type>{dot}{accidental}"
+                   f"{note_notations}</note>")
     return "".join(out)
 
 
@@ -240,6 +268,7 @@ def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
                 "</time>")
 
     body = []
+    tie_state = {"pending": False}
     for n, measure in enumerate(measures, start=1):
         if n == 1:
             attrs = (f"<attributes><divisions>4</divisions>"
@@ -248,7 +277,8 @@ def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
                      f"<clef>{clef_xml}</clef></attributes>")
         else:
             attrs = ""
-        notes = "".join(_note_xml(tok, key_alters) for tok in measure.split())
+        notes = "".join(_note_xml(tok, key_alters, tie_state)
+                        for tok in measure.split())
         body.append(f'<measure number="{n}">{attrs}{notes}</measure>')
 
     return _document(body)
@@ -268,27 +298,21 @@ def _document(body):
         '</score-partwise>\n')
 
 
-def _voice_measure(tokens, voice, staff, stem, key_alters):
+def _voice_measure(tokens, voice, staff, stem, key_alters, tie_state):
     """One monophonic voice's notes for a measure, tagged with voice/staff/stem.
 
     Returns (xml, total_divisions)."""
     out, total = [], 0
     for tok in tokens.split():
-        head, _, dur = tok.partition(":")
-        if not dur:
-            raise ValueError(f"token {tok!r} has no :duration")
-        split = 2 if len(dur) >= 2 and dur[1] == "." else 1
-        divs, typ, dotted = _duration(dur[:split])
-        dot = "<dot/>" if dotted else ""
-        notations = _notations_xml(dur[split:], tok)
+        head, divs, typ, dot, tie_snd, notations = _parse_note(tok, tie_state)
         if head == "r":
             out.append(f"<note><rest/><duration>{divs}</duration>"
                        f"<voice>{voice}</voice><type>{typ}</type>{dot}"
-                       f"<staff>{staff}</staff></note>")
+                       f"<staff>{staff}</staff>{notations}</note>")
         else:
             pitch_xml, accidental = _pitch_xml(head, key_alters)
             out.append(f"<note>{pitch_xml}<duration>{divs}</duration>"
-                       f"<voice>{voice}</voice><type>{typ}</type>{dot}"
+                       f"{tie_snd}<voice>{voice}</voice><type>{typ}</type>{dot}"
                        f"{accidental}<stem>{stem}</stem><staff>{staff}</staff>"
                        f"{notations}</note>")
         total += divs
@@ -307,9 +331,11 @@ def build_satb(soprano, alto, tenor, bass, fifths=0, beats=4, beat_type=4,
                 if show_time else "<time print-object='no'>"
                 f"<beats>{beats}</beats><beat-type>{beat_type}</beat-type>"
                 "</time>")
-    # (voice-lines, voice#, staff#, stem) — SA up/down on staff 1, TB on 2.
-    layout = [(soprano, 1, 1, "up"), (alto, 2, 1, "down"),
-              (tenor, 3, 2, "up"), (bass, 4, 2, "down")]
+    # (voice-lines, voice#, staff#, stem, tie_state) — SA on staff 1, TB on 2.
+    layout = [(soprano, 1, 1, "up", {"pending": False}),
+              (alto, 2, 1, "down", {"pending": False}),
+              (tenor, 3, 2, "up", {"pending": False}),
+              (bass, 4, 2, "down", {"pending": False})]
 
     body = []
     for mi in range(len(soprano)):
@@ -323,11 +349,11 @@ def build_satb(soprano, alto, tenor, bass, fifths=0, beats=4, beat_type=4,
         else:
             parts = []
         prev_total = 0
-        for i, (lines, voice, staff, stem) in enumerate(layout):
+        for i, (lines, voice, staff, stem, tie_state) in enumerate(layout):
             if i > 0:
                 parts.append(f"<backup><duration>{prev_total}</duration></backup>")
             notes, prev_total = _voice_measure(lines[mi], voice, staff, stem,
-                                                key_alters)
+                                                key_alters, tie_state)
             parts.append(notes)
         body.append(f'<measure number="{mi + 1}">{"".join(parts)}</measure>')
 
