@@ -275,6 +275,25 @@ GRAND = {
         bass=["C3:w", "D3:w", "E3:w", "D3:w", "C3:w"]),
 }
 
+# Multi-instrument figures (one staff per player) -> notation.build_parts
+ENSEMBLE = {
+    # Ch. 29 — two instruments, two treble parts
+    "duet-thirds": dict(parts=[                 # harmonized in parallel thirds
+        {"clef": "treble", "measures": [
+            "G5:q F5:q E5:q D5:q", "E5:q F5:q G5:h"]},
+        {"clef": "treble", "measures": [
+            "E5:q D5:q C5:q B4:q", "C5:q D5:q E5:h"]},
+    ]),
+    "duet-dialogue": dict(parts=[               # call and echo (imitation)
+        {"clef": "treble", "measures": [
+            "C5:q D5:q E5:q G5:q", "r:w",
+            "E5:q F5:q G5:q C6:q", "r:w"]},
+        {"clef": "treble", "measures": [
+            "r:w", "C4:q D4:q E4:q G4:q",
+            "r:w", "E4:q F4:q G4:q C5:q"]},
+    ]),
+}
+
 # Four-voice chorale figures -> notation.build_satb
 SATB = {
     # Ch. 14 — a clean I–IV–V–I in C major, good voice leading
@@ -309,7 +328,8 @@ SATB = {
 def render_notation(select):
     ids = [i for i in NOTATION if i.startswith(select)] \
         + [i for i in SATB if i.startswith(select)] \
-        + [i for i in GRAND if i.startswith(select)]
+        + [i for i in GRAND if i.startswith(select)] \
+        + [i for i in ENSEMBLE if i.startswith(select)]
     if not ids:
         return []
     tmp = tempfile.mkdtemp(prefix="fss-fig-")
@@ -319,6 +339,8 @@ def render_notation(select):
             xml = notation.build_satb(**SATB[fid])
         elif fid in GRAND:
             xml = notation.build_grand(**GRAND[fid])
+        elif fid in ENSEMBLE:
+            xml = notation.build_parts(**ENSEMBLE[fid])
         else:
             xml = notation.build_musicxml(**NOTATION[fid])
         src = os.path.join(tmp, fid + ".musicxml")

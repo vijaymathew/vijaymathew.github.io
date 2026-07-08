@@ -284,7 +284,8 @@ def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
     return _document(body)
 
 
-def _document(body):
+def _document(body, part_list='<part-list><score-part id="P1">'
+              '<part-name/></score-part></part-list>', part_id="P1"):
     """Wrap a list of <measure> strings into a one-part MusicXML document."""
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -292,10 +293,56 @@ def _document(body):
         '"-//Recordare//DTD MusicXML 4.0 Partwise//EN" '
         '"http://www.musicxml.org/dtds/partwise.dtd">\n'
         '<score-partwise version="4.0">\n'
-        '<part-list><score-part id="P1"><part-name/></score-part>'
-        '</part-list>\n'
-        '<part id="P1">\n' + "\n".join(body) + "\n</part>\n"
+        + part_list + '\n'
+        f'<part id="{part_id}">\n' + "\n".join(body) + "\n</part>\n"
         '</score-partwise>\n')
+
+
+def build_parts(parts, fifths=0, beats=4, beat_type=4, show_time=True):
+    """A multi-instrument score: each part is its own single-staff instrument.
+
+    `parts` is a list of dicts, one per instrument, each with:
+      "measures" — list of measure token-strings (mono or chordal)
+      "clef"     — clef name (default "treble")
+      "name"     — instrument label (default none)
+    Use for duets, quartets, and small ensembles (one staff per player)."""
+    key_alters = _key_alters(fifths)
+    time_xml = (f"<time><beats>{beats}</beats>"
+                f"<beat-type>{beat_type}</beat-type></time>"
+                if show_time else "<time print-object='no'>"
+                f"<beats>{beats}</beats><beat-type>{beat_type}</beat-type>"
+                "</time>")
+
+    score_parts, part_bodies = [], []
+    for i, p in enumerate(parts, start=1):
+        pid = f"P{i}"
+        name = p.get("name", "")
+        name_xml = f"<part-name>{name}</part-name>" if name else "<part-name/>"
+        score_parts.append(f'<score-part id="{pid}">{name_xml}</score-part>')
+        sign, line, octc = _CLEF[p.get("clef", "treble")]
+        clef_xml = f"<sign>{sign}</sign><line>{line}</line>"
+        if octc:
+            clef_xml += f"<clef-octave-change>{octc}</clef-octave-change>"
+        tie_state = {"pending": False}
+        measures = []
+        for n, measure in enumerate(p["measures"], start=1):
+            attrs = (f"<attributes><divisions>4</divisions>"
+                     f"<key><fifths>{fifths}</fifths></key>{time_xml}"
+                     f"<clef>{clef_xml}</clef></attributes>") if n == 1 else ""
+            notes = "".join(_note_xml(tok, key_alters, tie_state)
+                            for tok in measure.split())
+            measures.append(f'<measure number="{n}">{attrs}{notes}</measure>')
+        part_bodies.append(f'<part id="{pid}">\n' + "\n".join(measures)
+                           + "\n</part>")
+
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE score-partwise PUBLIC '
+        '"-//Recordare//DTD MusicXML 4.0 Partwise//EN" '
+        '"http://www.musicxml.org/dtds/partwise.dtd">\n'
+        '<score-partwise version="4.0">\n'
+        '<part-list>' + "".join(score_parts) + '</part-list>\n'
+        + "\n".join(part_bodies) + "\n</score-partwise>\n")
 
 
 def _voice_measure(tokens, voice, staff, stem, key_alters, tie_state):
