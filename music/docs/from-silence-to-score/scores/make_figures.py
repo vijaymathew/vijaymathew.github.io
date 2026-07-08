@@ -220,6 +220,11 @@ NOTATION = {
         "$G D5:e E5:e F5:e E5:e $C E5:e D5:e C5:q"]),
     "variation-minor": dict(measures=[    # same contour, C minor
         "$Cm C5:q Eb5:q G5:q Eb5:q", "$G D5:q F5:q $Cm Eb5:q C5:q"]),
+
+    # Ch. 25 — Rondo (a catchy, complete refrain in the tonic)
+    "rondo-refrain": dict(measures=[
+        "$C C5:q. E5:e G5:q E5:q", "$G D5:q. F5:e D5:q B4:q",
+        "$C E5:q. G5:e C6:q G5:q", "$G7 D5:q B4:q $C C5:h"]),
 }
 
 # Piano grand-staff figures (melody + accompaniment) -> notation.build_grand
