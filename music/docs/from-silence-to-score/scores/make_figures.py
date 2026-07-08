@@ -202,6 +202,15 @@ NOTATION = {
     "melody-elaborated": dict(measures=[
         "$C C5:q D5:q E5:q G5:q", "$F A5:q G5:q F5:q A5:q",
         "$G G5:q F5:q D5:q B4:q", "$C C5:w"]),
+
+    # Ch. 22 — Simple Modulation (C major -> G major -> home to C)
+    "modulation": dict(measures=[
+        "$C C5:q E5:q G5:q E5:q",         # home key: C major
+        "$Am A4:q C5:q E5:q C5:q",        # pivot: vi of C = ii of G
+        "$D F#5:q A5:q D5:q F#5:q",       # V of G — F# is G's new leading tone
+        "$G G5:q D5:q B4:q G4:q",         # arrival: I of G, the new tonic
+        "$G7 G4:q B4:q D5:q F5:q",        # F natural turns G into V7 of C
+        "$C E5:q C5:q C5:h"]),            # home again: C major
 }
 
 # Piano grand-staff figures (melody + accompaniment) -> notation.build_grand
@@ -422,10 +431,109 @@ def draw_circle_of_fifths(select):
     return ["circle-of-fifths"]
 
 
+# --- form diagrams (Pillow) -------------------------------------------
+# id -> (subtitle, [block, ...]) where a block is
+#   {"label", "key", "w"=1, "rep"=False, "tonic"=False}
+FORMS = {
+    "form-binary": ("Binary form  ·  A B", [
+        {"label": "A", "key": "I → V", "rep": True},
+        {"label": "B", "key": "V → I", "rep": True},
+    ]),
+    "form-ternary": ("Ternary form  ·  A B A", [
+        {"label": "A", "key": "tonic", "tonic": True},
+        {"label": "B", "key": "contrasting key"},
+        {"label": "A", "key": "tonic", "tonic": True},
+    ]),
+    "form-rondo": ("Rondo  ·  A B A C A", [
+        {"label": "A", "key": "refrain", "tonic": True},
+        {"label": "B", "key": "episode"},
+        {"label": "A", "key": "refrain", "tonic": True},
+        {"label": "C", "key": "episode"},
+        {"label": "A", "key": "refrain", "tonic": True},
+    ]),
+    "form-sonata": ("Sonata form  ·  Exposition · Development · Recapitulation", [
+        {"label": "Exposition", "key": "I → V", "w": 1.1},
+        {"label": "Development", "key": "wandering", "w": 1.1},
+        {"label": "Recapitulation", "key": "I → I", "w": 1.1, "tonic": True},
+    ]),
+}
+
+
+def _form_font(name, sz):
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype(
+            f"/usr/share/fonts/truetype/dejavu/{name}.ttf", sz)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def draw_forms(select):
+    from PIL import Image, ImageDraw
+    written = []
+    scale = 3
+    ink = (38, 28, 20)
+    accent = (138, 47, 62)
+    faint = (122, 108, 102)
+    fill = (247, 240, 238)
+    fill_t = (243, 224, 227)
+
+    for fid, (subtitle, blocks) in FORMS.items():
+        if not fid.startswith(select):
+            continue
+        W, H = 1240 * scale, 300 * scale
+        img = Image.new("RGB", (W, H), (255, 255, 255))
+        d = ImageDraw.Draw(img)
+        f_label = _form_font("DejaVuSerif-Bold", 46 * scale)
+        f_small = _form_font("DejaVuSerif-Bold", 30 * scale)
+        f_key = _form_font("DejaVuSerif", 24 * scale)
+        f_sub = _form_font("DejaVuSerif-Italic", 27 * scale)
+
+        margin, gap = 44 * scale, 18 * scale
+        top, bot = 96 * scale, 214 * scale
+        total = W - 2 * margin - gap * (len(blocks) - 1)
+        unit = total / sum(b.get("w", 1) for b in blocks)
+        x = margin
+        for b in blocks:
+            w = b.get("w", 1) * unit
+            x0, x1 = x, x + w
+            d.rectangle([x0, top, x1, bot],
+                        fill=fill_t if b.get("tonic") else fill,
+                        outline=ink, width=2 * scale)
+            lbl = b["label"]
+            fnt = f_label if len(lbl) <= 2 else f_small
+            tb = d.textbbox((0, 0), lbl, font=fnt)
+            d.text((x0 + (w - (tb[2] - tb[0])) / 2 - tb[0],
+                    (top + bot) / 2 - (tb[3] - tb[1]) / 2 - tb[1]),
+                   lbl, font=fnt, fill=accent if b.get("tonic") else ink)
+            if b.get("rep"):
+                ymid = (top + bot) / 2
+                for edge in (x0 + 20 * scale, x1 - 20 * scale):
+                    for off in (-26 * scale, 26 * scale):
+                        r = 5 * scale
+                        d.ellipse([edge - r, ymid + off - r,
+                                   edge + r, ymid + off + r], fill=ink)
+            key = b.get("key", "")
+            if key:
+                kb = d.textbbox((0, 0), key, font=f_key)
+                d.text((x0 + (w - (kb[2] - kb[0])) / 2 - kb[0],
+                        bot + 20 * scale), key, font=f_key, fill=faint)
+            x += w + gap
+
+        sb = d.textbbox((0, 0), subtitle, font=f_sub)
+        d.text(((W - (sb[2] - sb[0])) / 2 - sb[0], 30 * scale),
+               subtitle, font=f_sub, fill=faint)
+        img = img.resize((W // scale, H // scale), Image.LANCZOS)
+        os.makedirs(FIGS, exist_ok=True)
+        img.save(os.path.join(FIGS, fid + ".png"))
+        written.append(fid)
+    return written
+
+
 def main():
     select = sys.argv[1] if len(sys.argv) > 1 else ""
     written = (render_notation(select) + draw_keyboard(select)
-               + draw_circle_of_fifths(select))
+               + draw_circle_of_fifths(select) + draw_forms(select))
     if written:
         print(f"Rendered {len(written)} figure(s): {', '.join(sorted(written))}")
     else:
