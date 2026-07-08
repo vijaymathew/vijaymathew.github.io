@@ -251,6 +251,11 @@ def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
         notes = "".join(_note_xml(tok, key_alters) for tok in measure.split())
         body.append(f'<measure number="{n}">{attrs}{notes}</measure>')
 
+    return _document(body)
+
+
+def _document(body):
+    """Wrap a list of <measure> strings into a one-part MusicXML document."""
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<!DOCTYPE score-partwise PUBLIC '
@@ -261,3 +266,69 @@ def build_musicxml(measures, clef="treble", fifths=0, beats=4, beat_type=4,
         '</part-list>\n'
         '<part id="P1">\n' + "\n".join(body) + "\n</part>\n"
         '</score-partwise>\n')
+
+
+def _voice_measure(tokens, voice, staff, stem, key_alters):
+    """One monophonic voice's notes for a measure, tagged with voice/staff/stem.
+
+    Returns (xml, total_divisions)."""
+    out, total = [], 0
+    for tok in tokens.split():
+        head, _, dur = tok.partition(":")
+        if not dur:
+            raise ValueError(f"token {tok!r} has no :duration")
+        split = 2 if len(dur) >= 2 and dur[1] == "." else 1
+        divs, typ, dotted = _duration(dur[:split])
+        dot = "<dot/>" if dotted else ""
+        notations = _notations_xml(dur[split:], tok)
+        if head == "r":
+            out.append(f"<note><rest/><duration>{divs}</duration>"
+                       f"<voice>{voice}</voice><type>{typ}</type>{dot}"
+                       f"<staff>{staff}</staff></note>")
+        else:
+            pitch_xml, accidental = _pitch_xml(head, key_alters)
+            out.append(f"<note>{pitch_xml}<duration>{divs}</duration>"
+                       f"<voice>{voice}</voice><type>{typ}</type>{dot}"
+                       f"{accidental}<stem>{stem}</stem><staff>{staff}</staff>"
+                       f"{notations}</note>")
+        total += divs
+    return "".join(out), total
+
+
+def build_satb(soprano, alto, tenor, bass, fifths=0, beats=4, beat_type=4,
+               show_time=True):
+    """Four-voice chorale on a grand staff: S & A (treble), T & B (bass).
+
+    Each of the four arguments is a list of measure token-strings, one
+    monophonic voice. All four must have the same number of measures."""
+    key_alters = _key_alters(fifths)
+    time_xml = (f"<time><beats>{beats}</beats>"
+                f"<beat-type>{beat_type}</beat-type></time>"
+                if show_time else "<time print-object='no'>"
+                f"<beats>{beats}</beats><beat-type>{beat_type}</beat-type>"
+                "</time>")
+    # (voice-lines, voice#, staff#, stem) — SA up/down on staff 1, TB on 2.
+    layout = [(soprano, 1, 1, "up"), (alto, 2, 1, "down"),
+              (tenor, 3, 2, "up"), (bass, 4, 2, "down")]
+
+    body = []
+    for mi in range(len(soprano)):
+        if mi == 0:
+            parts = [f"<attributes><divisions>4</divisions>"
+                     f"<key><fifths>{fifths}</fifths></key>{time_xml}"
+                     f"<staves>2</staves>"
+                     f'<clef number="1"><sign>G</sign><line>2</line></clef>'
+                     f'<clef number="2"><sign>F</sign><line>4</line></clef>'
+                     f"</attributes>"]
+        else:
+            parts = []
+        prev_total = 0
+        for i, (lines, voice, staff, stem) in enumerate(layout):
+            if i > 0:
+                parts.append(f"<backup><duration>{prev_total}</duration></backup>")
+            notes, prev_total = _voice_measure(lines[mi], voice, staff, stem,
+                                                key_alters)
+            parts.append(notes)
+        body.append(f'<measure number="{mi + 1}">{"".join(parts)}</measure>')
+
+    return _document(body)

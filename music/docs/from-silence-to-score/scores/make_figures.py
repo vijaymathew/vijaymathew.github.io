@@ -148,17 +148,36 @@ NOTATION = {
         "C4+E4+G4:w", "B3+D4+G4:w", "A3+C4+E4:w"], show_time=False),
     "leadsheet": dict(measures=[
         "$C C5:q E5:q G5:q E5:q", "$G/B D5:q B4:q $C C5:h"]),
+
+    # Ch. 14 — Four-Part Writing (single-staff illustration)
+    "parallel-fifths": dict(measures=[
+        "C4+G4:h D4+A4:h", "E4+B4:h F4+C5:h"], show_time=False),
+}
+
+# Four-voice chorale figures -> notation.build_satb
+SATB = {
+    # Ch. 14 — a clean I–IV–V–I in C major, good voice leading
+    "satb-progression": dict(
+        soprano=["C5:w", "C5:w", "B4:w", "C5:w"],
+        alto=["G4:w", "A4:w", "G4:w", "G4:w"],
+        tenor=["E4:w", "F4:w", "D4:w", "E4:w"],
+        bass=["C3:w", "F3:w", "G3:w", "C3:w"],
+        show_time=False),
 }
 
 
 def render_notation(select):
-    ids = [i for i in NOTATION if i.startswith(select)]
+    ids = [i for i in NOTATION if i.startswith(select)] \
+        + [i for i in SATB if i.startswith(select)]
     if not ids:
         return []
     tmp = tempfile.mkdtemp(prefix="fss-fig-")
     job = []
     for fid in ids:
-        xml = notation.build_musicxml(**NOTATION[fid])
+        if fid in SATB:
+            xml = notation.build_satb(**SATB[fid])
+        else:
+            xml = notation.build_musicxml(**NOTATION[fid])
         src = os.path.join(tmp, fid + ".musicxml")
         with open(src, "w") as f:
             f.write(xml)
