@@ -313,6 +313,18 @@ ENSEMBLE = {
         {"name": "Cello", "clef": "bass", "measures": ["C3:w", "G2:w"]},
     ]),
 
+    # Ch. 37 — balance by dynamics: melody f, accompaniment p
+    "balance-dynamics": dict(parts=[
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@f G5:q E5:q C5:q E5:q", "D5:q B4:q D5:q G5:q"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "@p E4:q E4:q E4:q E4:q", "D4:q D4:q D4:q D4:q"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "@p C4:q C4:q C4:q C4:q", "B3:q B3:q B3:q B3:q"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "@p C3:h C3:h", "G2:h G2:h"]},
+    ]),
+
     # Ch. 35 — the SAME passage scored two ways (only the timbre differs)
     "orch-winds": dict(parts=[
         {"name": "Flute", "clef": "treble", "measures": [
