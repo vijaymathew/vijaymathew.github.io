@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>From Silence to Score — Cover</title>
+  <meta name="description" content="Learning to compose — from a blank staff to a piece for small orchestra — with MuseScore 4 at your side the whole way.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; height: 100%; }
+
+    body {
+      background: #171012;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 3rem 1.5rem;
+      font-family: 'EB Garamond', Georgia, serif;
+    }
+
+    .cover-page { width: min(100%, 64rem); display: flex; flex-direction: column; align-items: center; }
+    .cover-wrap { width: min(100%, 580px); overflow: hidden; }
+
+    .cover {
+      position: relative;
+      width: 580px;
+      height: 900px;
+      background: #fbf8f6;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.18),
+        0 40px 120px rgba(0,0,0,0.6),
+        0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    /* Paper grain */
+    .cover::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+      opacity: 0.45;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .spine-bar { position: absolute; left: 0; top: 0; width: 8px; height: 100%; background: #8a2f3e; }
+
+    /* Ghost staff-and-notes — the book's mark: a melody rising from silence */
+    .ghost-staff {
+      position: absolute;
+      width: 430px; height: 358px;
+      right: -46px; bottom: 92px;
+      opacity: 0.06;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .rule-top    { position: absolute; top: 60px;  left: 40px; right: 40px; height: 1px; background: #8a2f3e; opacity: 0.4; }
+    .rule-mid    { position: absolute; top: 384px; left: 40px; right: 40px; height: 1px; background: #ece0e0; }
+    .rule-bottom { position: absolute; bottom: 60px; left: 40px; right: 40px; height: 1px; background: #8a2f3e; opacity: 0.4; }
+
+    .series-label {
+      position: absolute; top: 36px; left: 48px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: #8a2f3e;
+    }
+
+    .title-block { position: absolute; top: 96px; left: 48px; right: 48px; z-index: 1; }
+    .title-main, .title-sub {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 58px; font-weight: 500;
+      line-height: 1.02; letter-spacing: -0.015em;
+      color: #1e1416;
+    }
+    .title-sub { color: #6b2230; font-style: italic; }
+
+    .subtitle { position: absolute; top: 258px; left: 48px; right: 96px; z-index: 1; }
+    .subtitle p {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 16.5px; font-style: italic; font-weight: 400;
+      color: #8a2f3e; line-height: 1.55; letter-spacing: 0.01em;
+    }
+
+    /* ── the eight parts as a navigable stack ── */
+    .cutaway-label {
+      position: absolute; top: 356px; left: 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5px; font-weight: 500;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: #7c6367; z-index: 1;
+    }
+
+    .cutaway {
+      position: absolute; top: 398px; left: 48px; right: 48px;
+      border: 1px solid rgba(138, 47, 62, 0.30);
+      z-index: 1;
+      background: rgba(251, 248, 246, 0.6);
+    }
+    .layer {
+      display: flex; align-items: center; gap: 0.85rem;
+      height: 41px; padding: 0 0.85rem 0 0;
+      border-bottom: 1px solid #ece0e0;
+      text-decoration: none;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .layer:last-child { border-bottom: none; }
+    .layer:hover { background: rgba(138, 47, 62, 0.05); }
+    .layer-tab {
+      width: 34px; align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      border-right: 1px solid #ece0e0;
+      background: rgba(138, 47, 62, 0.05);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+      color: #8a2f3e;
+    }
+    .layer-name {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 15.5px; font-weight: 400; color: #1e1416;
+    }
+    .layer-meta {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #9a8386;
+    }
+
+    .cutaway-foot {
+      position: absolute; top: 742px; left: 48px; right: 48px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; letter-spacing: 0.08em;
+      color: #9a8386; z-index: 1;
+    }
+
+    .author-block {
+      position: absolute; bottom: 28px; left: 48px; right: 48px;
+      display: flex; justify-content: space-between; align-items: flex-end; z-index: 1;
+    }
+    .author-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.14em; text-transform: uppercase; color: #453035;
+    }
+    .contents-link {
+      font-family: 'Outfit', sans-serif;
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.9rem 0.55rem;
+      border: 1px solid rgba(138, 47, 62, 0.28);
+      border-radius: 999px;
+      background: rgba(251, 248, 246, 0.78);
+      font-size: 8.5px; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: #8a2f3e; text-decoration: none;
+      transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    .contents-link::after { content: '→'; font-size: 10px; line-height: 1; }
+    .contents-link:hover {
+      color: #1e1416;
+      border-color: rgba(138, 47, 62, 0.52);
+      background: rgba(251, 248, 246, 0.96);
+      transform: translateY(-1px);
+    }
+
+    .backdrop-label {
+      margin-top: 2rem; text-align: center;
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #cdb6ba;
+    }
+
+    /* Dark browse-from-cover index (house style) */
+    .cover-index {
+      width: min(100%, 58rem);
+      margin-top: 1.2rem;
+      padding: 1.5rem 1.5rem 1.7rem;
+      border: 1px solid rgba(239, 226, 226, 0.12);
+      background: linear-gradient(180deg, rgba(69, 48, 53, 0.26), rgba(23, 16, 18, 0.4));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 48px rgba(0,0,0,0.25);
+    }
+    .cover-index-header {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+      padding-bottom: 0.9rem; margin-bottom: 1rem;
+      border-bottom: 1px solid rgba(239, 226, 226, 0.1);
+    }
+    .cover-index-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #cdb6ba;
+    }
+    .cover-index-header a {
+      font-family: 'Outfit', sans-serif;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: #9a8386; text-decoration: none;
+    }
+    .cover-index-header a:hover { color: #efe2e2; }
+    .cover-index-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.2rem; }
+    .index-part { padding-top: 0.6rem; border-top: 1px solid rgba(239, 226, 226, 0.08); }
+    .index-part-label {
+      display: block; margin-bottom: 0.25rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #9a8386;
+    }
+    .index-part-link {
+      display: inline-block; margin-bottom: 0.7rem;
+      font-size: 1.05rem; font-style: italic; color: #efe2e2; text-decoration: none;
+    }
+    .index-part-link:hover { color: #efd4d8; }
+    .index-chapters { list-style: none; display: flex; flex-direction: column; gap: 0.32rem; }
+    .index-chapters a {
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px; font-weight: 400; letter-spacing: 0.03em; color: #cdb6ba; text-decoration: none;
+    }
+    .index-chapters a:hover { color: #efe2e2; }
+    .index-chapters a.project { color: #d97a86; }
+    .index-chapters a.project:hover { color: #e6959f; }
+
+    @media (max-width: 640px) {
+      body { padding: 2rem 1rem; }
+      .cover-index { padding: 1.2rem 1rem 1.3rem; }
+      .cover-index-header { flex-direction: column; align-items: flex-start; }
+      .cover-index-grid { grid-template-columns: 1fr; }
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="cover-page">
+  <div class="cover-wrap">
+  <div class="cover" role="img" aria-label="Book cover: From Silence to Score">
+
+    <div class="spine-bar"></div>
+
+    <!-- Ghost staff — a melody rising from silence to score -->
+    <svg class="ghost-staff" viewBox="0 0 120 100" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+      <g stroke="#1e1416" stroke-width="0.6" opacity="0.85">
+        <line x1="2" y1="30" x2="118" y2="30"/>
+        <line x1="2" y1="40" x2="118" y2="40"/>
+        <line x1="2" y1="50" x2="118" y2="50"/>
+        <line x1="2" y1="60" x2="118" y2="60"/>
+        <line x1="2" y1="70" x2="118" y2="70"/>
+      </g>
+      <g fill="#8a2f3e">
+        <g transform="translate(24 70)"><ellipse cx="0" cy="0" rx="5.4" ry="4" transform="rotate(-20)"/><rect x="4.4" y="-22" width="1.4" height="22"/></g>
+        <g transform="translate(46 60)"><ellipse cx="0" cy="0" rx="5.4" ry="4" transform="rotate(-20)"/><rect x="4.4" y="-22" width="1.4" height="22"/></g>
+        <g transform="translate(68 50)"><ellipse cx="0" cy="0" rx="5.4" ry="4" transform="rotate(-20)"/><rect x="4.4" y="-22" width="1.4" height="22"/></g>
+        <g transform="translate(90 40)"><ellipse cx="0" cy="0" rx="5.4" ry="4" transform="rotate(-20)"/><rect x="4.4" y="-22" width="1.4" height="22"/></g>
+        <g transform="translate(108 30)"><ellipse cx="0" cy="0" rx="5.4" ry="4" transform="rotate(-20)"/><rect x="4.4" y="-22" width="1.4" height="22"/></g>
+      </g>
+    </svg>
+
+    <div class="rule-top"></div>
+    <div class="rule-mid"></div>
+    <div class="rule-bottom"></div>
+
+    <div class="series-label">A Composition Course in MuseScore 4</div>
+
+    <div class="title-block">
+      <div class="title-main">From Silence</div>
+      <div class="title-sub">to Score</div>
+    </div>
+
+    <div class="subtitle">
+      <p>From a blank staff to a piece for&nbsp;small orchestra</p>
+    </div>
+
+    <div class="cutaway-label">The course in eight parts</div>
+
+    <nav class="cutaway" aria-label="Parts of the book">
+      <a class="layer" href="p0-install.html"><span class="layer-tab">0</span><span class="layer-name">Setting Up</span><span class="layer-meta">4 chapters</span></a>
+      <a class="layer" href="p1-staff.html"><span class="layer-tab">1</span><span class="layer-name">Notation Fundamentals</span><span class="layer-meta">6 + project</span></a>
+      <a class="layer" href="p2-triads.html"><span class="layer-tab">2</span><span class="layer-name">Harmony Basics</span><span class="layer-meta">6 + project</span></a>
+      <a class="layer" href="p3-melody.html"><span class="layer-tab">3</span><span class="layer-name">Melody and Phrase</span><span class="layer-meta">5 + project</span></a>
+      <a class="layer" href="p4-binary-ternary.html"><span class="layer-tab">4</span><span class="layer-name">Form</span><span class="layer-meta">5 + project</span></a>
+      <a class="layer" href="p5-piano.html"><span class="layer-tab">5</span><span class="layer-name">Small Ensemble Writing</span><span class="layer-meta">4 + project</span></a>
+      <a class="layer" href="p6-families.html"><span class="layer-tab">6</span><span class="layer-name">Instrumentation Primer</span><span class="layer-meta">4 chapters</span></a>
+      <a class="layer" href="p7-what.html"><span class="layer-tab">7</span><span class="layer-name">Orchestration</span><span class="layer-meta">5 + capstone</span></a>
+    </nav>
+
+    <div class="cutaway-foot">39 chapters · 5 projects · a capstone · 4 appendices</div>
+
+    <div class="author-block">
+      <span class="author-name">Vijay Mathew</span>
+      <a class="contents-link" href="index.html">Open Contents</a>
+    </div>
+
+  </div>
+  </div><!-- /.cover-wrap -->
+
+  <p class="backdrop-label">From Silence to Score — front cover</p>
+
+  <section class="cover-index" aria-label="Cover navigation">
+    <div class="cover-index-header">
+      <span class="cover-index-title">Browse From the Cover</span>
+      <a href="index.html">Full contents</a>
+    </div>
+    <div class="cover-index-grid">
+
+      <div class="index-part">
+        <span class="index-part-label">Front Matter</span>
+        <a class="index-part-link" href="preface.html">Before the First Note</a>
+        <ul class="index-chapters">
+          <li><a href="preface.html">Before the First Note</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 0 · Setting Up</span>
+        <a class="index-part-link" href="p0-install.html">Setting Up</a>
+        <ul class="index-chapters">
+          <li><a href="p0-install.html">Installing MuseScore 4</a></li>
+          <li><a href="p0-input.html">Getting Notes In</a></li>
+          <li><a href="p0-navigating.html">Navigating the Score</a></li>
+          <li><a href="p0-files.html">Saving and Exporting</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 1 · Notation Fundamentals</span>
+        <a class="index-part-link" href="p1-staff.html">Notation Fundamentals</a>
+        <ul class="index-chapters">
+          <li><a href="p1-staff.html">Staff, Clef, and Pitch</a></li>
+          <li><a href="p1-rhythm.html">Rhythm and Meter</a></li>
+          <li><a href="p1-scales.html">Scales</a></li>
+          <li><a href="p1-keys.html">Key Signatures and the Circle of Fifths</a></li>
+          <li><a href="p1-intervals.html">Intervals</a></li>
+          <li><a href="p1-expression.html">Dynamics, Articulation, Tempo</a></li>
+          <li><a class="project" href="p1-project.html">Project · Notate a Melody</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 2 · Harmony Basics</span>
+        <a class="index-part-link" href="p2-triads.html">Harmony Basics</a>
+        <ul class="index-chapters">
+          <li><a href="p2-triads.html">Triads</a></li>
+          <li><a href="p2-diatonic.html">Diatonic Chords</a></li>
+          <li><a href="p2-inversions.html">Inversions and Chord Symbols</a></li>
+          <li><a href="p2-satb.html">Four-Part Writing</a></li>
+          <li><a href="p2-cadences.html">Cadences</a></li>
+          <li><a href="p2-nct.html">Non-Chord Tones</a></li>
+          <li><a class="project" href="p2-project.html">Project · Harmonize a Melody</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 3 · Melody and Phrase Structure</span>
+        <a class="index-part-link" href="p3-melody.html">Melody and Phrase Structure</a>
+        <ul class="index-chapters">
+          <li><a href="p3-melody.html">What Makes a Melody Work</a></li>
+          <li><a href="p3-phrase.html">Phrases, Periods, Sentences</a></li>
+          <li><a href="p3-motive.html">Motivic Development</a></li>
+          <li><a href="p3-melody-harmony.html">Melody from Harmony</a></li>
+          <li><a href="p3-accompaniment.html">Accompaniment Patterns</a></li>
+          <li><a class="project" href="p3-project.html">Project · Compose a Melody with Accompaniment</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 4 · Form</span>
+        <a class="index-part-link" href="p4-binary-ternary.html">Form</a>
+        <ul class="index-chapters">
+          <li><a href="p4-modulation.html">Simple Modulation</a></li>
+          <li><a href="p4-binary-ternary.html">Binary and Ternary Form</a></li>
+          <li><a href="p4-variations.html">Theme and Variations</a></li>
+          <li><a href="p4-rondo.html">Rondo</a></li>
+          <li><a href="p4-sonata.html">Toward Sonata Form</a></li>
+          <li><a class="project" href="p4-project.html">Project · Compose in Binary or Ternary Form</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 5 · Small Ensemble Writing</span>
+        <a class="index-part-link" href="p5-piano.html">Small Ensemble Writing</a>
+        <ul class="index-chapters">
+          <li><a href="p5-piano.html">Writing for Piano</a></li>
+          <li><a href="p5-counterpoint.html">A Counterpoint Primer</a></li>
+          <li><a href="p5-duet.html">Writing for Two Instruments</a></li>
+          <li><a href="p5-quartet.html">Writing for a Small Ensemble</a></li>
+          <li><a class="project" href="p5-project.html">Project · Arrange a Melody for an Ensemble</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 6 · Instrumentation Primer</span>
+        <a class="index-part-link" href="p6-families.html">Instrumentation Primer</a>
+        <ul class="index-chapters">
+          <li><a href="p6-families.html">The Instrument Families</a></li>
+          <li><a href="p6-transposition.html">Ranges and Transposition</a></li>
+          <li><a href="p6-ranges.html">Idiomatic Ranges</a></li>
+          <li><a href="p6-doubling.html">Doubling and Voicing</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Part 7 · Introduction to Orchestration</span>
+        <a class="index-part-link" href="p7-what.html">Introduction to Orchestration</a>
+        <ul class="index-chapters">
+          <li><a href="p7-what.html">What Orchestration Is</a></li>
+          <li><a href="p7-textures.html">Orchestral Textures</a></li>
+          <li><a href="p7-balance.html">Balance</a></li>
+          <li><a href="p7-chamber.html">Scoring for Chamber Orchestra</a></li>
+          <li><a href="p7-reading.html">Reading Real Scores</a></li>
+          <li><a class="project" href="p7-capstone.html">Capstone · Re-Score for Small Orchestra</a></li>
+        </ul>
+      </div>
+
+      <div class="index-part">
+        <span class="index-part-label">Appendices</span>
+        <a class="index-part-link" href="app-shortcuts.html">Reference</a>
+        <ul class="index-chapters">
+          <li><a href="app-shortcuts.html">A · Keyboard Shortcuts</a></li>
+          <li><a href="app-ranges.html">B · Instrument Range Chart</a></li>
+          <li><a href="app-glossary.html">C · Glossary</a></li>
+          <li><a href="app-next.html">D · Where to Go Next</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var wrap = document.querySelector('.cover-wrap');
+  var cover = document.querySelector('.cover');
+  function scaleCover() {
+    var s = Math.min(1, wrap.offsetWidth / 580);
+    cover.style.transform = s < 1 ? 'scale(' + s + ')' : '';
+    cover.style.transformOrigin = 'top left';
+    wrap.style.height = Math.round(900 * s) + 'px';
+  }
+  window.addEventListener('resize', scaleCover);
+  scaleCover();
+}());
+</script>
+</body>
+</html>
