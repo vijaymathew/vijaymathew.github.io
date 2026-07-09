@@ -313,6 +313,36 @@ ENSEMBLE = {
         {"name": "Cello", "clef": "bass", "measures": ["C3:w", "G2:w"]},
     ]),
 
+    # Ch. 39 — antiphony: the wind choir "calls" (bars 1-2), the string
+    # choir "answers" (bars 3-4) — a device to spot in scores and steal
+    "antiphony": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "@f G5:q A5:q G5:q E5:q", "F5:q E5:q D5:h", "r:w", "r:w"]},
+        {"name": "Oboe", "clef": "treble", "measures": [
+            "@f E5:q F5:q E5:q C5:q", "D5:q C5:q B4:h", "r:w", "r:w"]},
+        {"name": "Violin", "clef": "treble", "measures": [
+            "r:w", "r:w", "@f G5:q F5:q E5:q D5:q", "E5:q D5:q C5:h"]},
+        {"name": "Cello", "clef": "bass", "measures": [
+            "r:w", "r:w", "@f G2:w", "G2:h C3:h"]},
+    ]),
+
+    # Ch. 38 — a small chamber-orchestra tutti: winds carry the tune (in
+    # thirds, f) over a balanced string accompaniment (p); bass in the cello
+    "chamber-score": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "@f G5:q E5:q C5:q E5:q", "D5:q B4:q D5:q G5:q"]},
+        {"name": "Oboe", "clef": "treble", "measures": [
+            "@f E5:q C5:q A4:q C5:q", "B4:q G4:q B4:q E5:q"]},
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@p E4:h E4:h", "D4:h D4:h"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "@p C4:h C4:h", "B3:h B3:h"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "@p G3:h G3:h", "G3:h G3:h"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "@p C3:h C3:h", "G2:h G2:h"]},
+    ]),
+
     # Ch. 37 — balance by dynamics: melody f, accompaniment p
     "balance-dynamics": dict(parts=[
         {"name": "Vln I", "clef": "treble", "measures": [
@@ -373,6 +403,28 @@ ENSEMBLE = {
             "E4:w", "D4:h E4:h", "A4:h G4:h", "E4:w"]},
         {"name": "Vc", "clef": "bass", "measures": [
             "C3:w", "G2:h C3:h", "F2:h G2:h", "C3:w"]},
+    ]),
+
+    # Capstone — the running Little Tune orchestrated for a small orchestra
+    # (concert pitch). Melody doubled Flute (8va) + Vln I, f; winds & strings
+    # fill the C | G-C | F-G | C harmony; bass in Vc doubled by Bassoon.
+    "little-tune-orchestra": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "@f C6:q E6:q G6:q A6:q", "G6:h E6:h",
+            "F6:q E6:q D6:q B5:q", "C6:w"]},
+        {"name": "Oboe", "clef": "treble", "measures": [
+            "@mp E5:w", "D5:h E5:h", "A4:h D5:h", "E5:w"]},
+        {"name": "Bassoon", "clef": "bass", "measures": [
+            "@mp C4:w", "G3:h C4:h", "F3:h G3:h", "C4:w"]},
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@f C5:q E5:q G5:q A5:q", "G5:h E5:h",
+            "F5:q E5:q D5:q B4:q", "C5:w"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "@p G4:w", "B4:h G4:h", "C5:h B4:h", "G4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "@p E4:w", "D4:h E4:h", "A4:h G4:h", "E4:w"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "@p C3:w", "G2:h C3:h", "F2:h G2:h", "C3:w"]},
     ]),
 
     # Ch. 30 — string quartet: melody (Vln I) over sustained inner harmony
@@ -768,7 +820,9 @@ def draw_range_chart(select):
     img = img.resize((W // scale, H // scale), Image.LANCZOS)
     os.makedirs(FIGS, exist_ok=True)
     img.save(os.path.join(FIGS, "range-chart.png"))
-    return ["range-chart"]
+    # same chart, aliased for Appendix B (figure ids must be unique per book)
+    img.save(os.path.join(FIGS, "range-chart-appendix.png"))
+    return ["range-chart", "range-chart-appendix"]
 
 
 def draw_register_map(select):
