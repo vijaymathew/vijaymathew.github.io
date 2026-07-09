@@ -1,0 +1,900 @@
+#!/usr/bin/env python3
+"""Render every engraved figure in the book, deterministically.
+
+Notation figures are described compactly (see notation.py), turned into
+MusicXML, and engraved by MuseScore 4 in a single batch job. A few
+diagram figures (the piano keyboard) are drawn directly with Pillow.
+Output lands in ../assets/figures/<id>.png and is committed.
+
+    python3 make_figures.py            # render everything
+    python3 make_figures.py p1-staff   # only figures whose id starts so
+
+Requires: MuseScore4.AppImage on PATH, Pillow.
+"""
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+import notation
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+FIGS = os.path.normpath(os.path.join(HERE, "..", "assets", "figures"))
+MUSESCORE = "MuseScore4.AppImage"
+DPI = 300
+TRIM = 12  # px margin MuseScore leaves around trimmed content
+
+
+# --- notation figures -------------------------------------------------
+# id -> kwargs for notation.build_musicxml
+NOTATION = {
+    # Preface — the book's running example, referenced again in Parts 2-7.
+    "hero-phrase": dict(measures=[
+        "C4:q E4:q G4:q A4:q", "G4:h E4:h",
+        "F4:q E4:q D4:q B3:q", "C4:w"]),
+
+    # Ch. 5 — Staff, Clef, and Pitch
+    "treble-lines": dict(measures=["E4:q G4:q B4:q D5:q F5:q"],
+                         beats=5, show_time=False),
+    "treble-spaces": dict(measures=["F4:q A4:q C5:q E5:q"],
+                          beats=4, show_time=False),
+    "bass-lines": dict(measures=["G2:q B2:q D3:q F3:q A3:q"],
+                       clef="bass", beats=5, show_time=False),
+    "bass-spaces": dict(measures=["A2:q C3:q E3:q G3:q"],
+                        clef="bass", beats=4, show_time=False),
+    "mc-treble": dict(measures=["C4:w"], show_time=False),
+    "mc-bass": dict(measures=["C4:w"], clef="bass", show_time=False),
+    "ledger-below": dict(measures=["D4:q C4:q B3:q A3:q"],
+                         beats=4, show_time=False),
+    "ledger-above": dict(measures=["G5:q A5:q B5:q C6:q"],
+                         beats=4, show_time=False),
+    "octave-cs": dict(measures=["C4:q C5:q C6:q"], beats=3, show_time=False),
+
+    # Ch. 6 — Rhythm and Meter
+    "note-values": dict(measures=[
+        "C5:w",
+        "C5:h C5:h",
+        "C5:q C5:q C5:q C5:q",
+        "C5:e C5:e C5:e C5:e C5:e C5:e C5:e C5:e",
+        "C5:s C5:s C5:s C5:s C5:s C5:s C5:s C5:s "
+        "C5:s C5:s C5:s C5:s C5:s C5:s C5:s C5:s"]),
+    "rests": dict(measures=["r:w", "r:h r:q r:e r:e"]),
+    "dotted-notes": dict(measures=["C5:h. C5:q", "C5:q. C5:e C5:h"]),
+    "meter-34": dict(measures=["G4:q C5:q C5:q", "A4:q G4:h"],
+                     beats=3, beat_type=4),
+    "meter-68": dict(measures=[
+        "C5:e D5:e E5:e F5:e G5:e A5:e",
+        "G5:e E5:e C5:e G4:q. "],
+        beats=6, beat_type=8),
+
+    # Ch. 7 — Scales
+    "steps": dict(measures=["C4:h D4:h", "E4:h F4:h"],
+                  beats=2, beat_type=4, show_time=False),
+    "c-major-scale": dict(measures=[
+        "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q"],
+        beats=8, show_time=False),
+    "a-minor-scale": dict(measures=[
+        "A4:q B4:q C5:q D5:q E5:q F5:q G5:q A5:q"],
+        beats=8, show_time=False),
+    "harmonic-minor": dict(measures=[
+        "A4:q B4:q C5:q D5:q E5:q F5:q G#5:q A5:q"],
+        beats=8, show_time=False),
+    "melodic-minor": dict(measures=[
+        "A4:q B4:q C5:q D5:q E5:q F#5:q G#5:q A5:q",
+        "A5:q G5:q F5:q E5:q D5:q C5:q B4:q A4:q"],
+        beats=8, show_time=False),
+
+    # Ch. 8 — Key Signatures and the Circle of Fifths
+    # Plain letters; the key signature supplies the accidentals.
+    "g-major-keysig": dict(measures=[
+        "G4:q A4:q B4:q C5:q D5:q E5:q F5:q G5:q"],
+        fifths=1, beats=8, show_time=False),
+    "f-major-keysig": dict(measures=[
+        "F4:q G4:q A4:q B4:q C5:q D5:q E5:q F5:q"],
+        fifths=-1, beats=8, show_time=False),
+
+    # Ch. 9 — Intervals
+    "intervals-catalog": dict(measures=[
+        "C4+C4:w", "C4+D4:w", "C4+E4:w", "C4+F4:w",
+        "C4+G4:w", "C4+A4:w", "C4+B4:w", "C4+C5:w"],
+        show_time=False),
+    "thirds": dict(measures=["C4+E4:w", "C4+Eb4:w"], show_time=False),
+    "tritone": dict(measures=["F4+B4:w", "B4+F5:w"], show_time=False),
+    "inversion": dict(measures=["C4+E4:w", "E4+C5:w"], show_time=False),
+
+    # Ch. 10 — Dynamics, Articulation, Tempo
+    "dynamics": dict(measures=[
+        "@q=96 @p C5:q E5:q @< G5:q B5:q",
+        "@f @| C6:h A5:h"], show_time=False),
+    "articulations": dict(measures=[
+        "G5:q! G5:q> G5:q_ G5:q^"], beats=4, show_time=False),
+    "slur-phrase": dict(measures=[
+        "C5:q( D5:q E5:q G5:q", "A5:q G5:q E5:h)"], show_time=False),
+
+    # Project 1 — Notate a Melody (the worked example: Ode to Joy, D major)
+    "ode-plain": dict(measures=[
+        "F4:q F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
+        "D4:q D4:q E4:q F4:q", "F4:q. E4:e E4:h"], fifths=2),
+    "ode-to-joy": dict(measures=[
+        "@q=112 @mf F4:q( F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
+        "D4:q D4:q E4:q F4:q", "F4:q. E4:e E4:h)",
+        "F4:q( F4:q G4:q A4:q", "A4:q G4:q F4:q E4:q",
+        "D4:q D4:q E4:q F4:q", "E4:q. D4:e D4:h)"], fifths=2),
+
+    # Ch. 11 — Triads
+    "triad-build": dict(measures=[
+        "C4:w", "C4+E4:w", "C4+E4+G4:w"], show_time=False),
+    "triad-qualities": dict(measures=[
+        "C4+E4+G4:w", "C4+Eb4+G4:w",
+        "C4+Eb4+Gb4:w", "C4+E4+G#4:w"], show_time=False),
+
+    # Ch. 12 — Diatonic Chords
+    "diatonic-triads": dict(measures=[
+        "C4+E4+G4:w", "D4+F4+A4:w", "E4+G4+B4:w", "F4+A4+C5:w",
+        "G4+B4+D5:w", "A4+C5+E5:w", "B4+D5+F5:w"], show_time=False),
+    "progression-1451": dict(measures=[
+        "C4+E4+G4:w", "F4+A4+C5:w", "G4+B4+D5:w", "C4+E4+G4:w"],
+        show_time=False),
+    "minor-primary": dict(measures=[
+        "A4+C5+E5:w", "D5+F5+A5:w", "E5+G#5+B5:w", "A4+C5+E5:w"],
+        show_time=False),
+
+    # Ch. 13 — Inversions and Chord Symbols
+    "inversions-triad": dict(measures=[
+        "C4+E4+G4:w", "E4+G4+C5:w", "G4+C5+E5:w"], show_time=False),
+    "inversion-bassline": dict(measures=[
+        "C4+E4+G4:w", "B3+D4+G4:w", "A3+C4+E4:w"], show_time=False),
+    "leadsheet": dict(measures=[
+        "$C C5:q E5:q G5:q E5:q", "$G/B D5:q B4:q $C C5:h"]),
+
+    # Ch. 14 — Four-Part Writing (single-staff illustration)
+    "parallel-fifths": dict(measures=[
+        "C4+G4:h D4+A4:h", "E4+B4:h F4+C5:h"], show_time=False),
+
+    # Ch. 16 — Non-Chord Tones (melody + chord symbols; NCTs clash w/ chord)
+    "passing-tone": dict(measures=[
+        "$C C5:q D5:q E5:q F5:q", "$C G5:h E5:h"]),
+    "neighbor-tone": dict(measures=[
+        "$C G5:q A5:q G5:q E5:q", "$C E5:q D5:q E5:q C5:q"]),
+    "suspension": dict(measures=[
+        "$C E5:q G5:q C5:h~", "$G C5:h B4:h"]),
+
+    # Project 2 — Harmonize a Melody (the running "little tune", C major)
+    "harm-melody": dict(measures=[
+        "$C C5:q E5:q G5:q $F A5:q", "$G G5:h $C E5:h",
+        "$F F5:q $C E5:q $G D5:q B4:q", "$C C5:w"]),
+
+    # Ch. 17 — What Makes a Melody Work
+    "contour-arch": dict(measures=[
+        "C5:q D5:q E5:q F5:q", "G5:q A5:q G5:q F5:q",
+        "E5:q D5:q C5:h"]),
+    "melodic-sequence": dict(measures=[
+        "C6:q A5:q B5:q G5:q", "A5:q F5:q G5:q E5:q"]),
+
+    # Ch. 18 — Phrases, Periods, Sentences
+    "period": dict(measures=[
+        "$C E5:q G5:q E5:q C5:q", "D5:q F5:q A5:q F5:q",
+        "E5:q D5:q C5:q D5:q", "$G D5:h r:h",
+        "$C E5:q G5:q E5:q C5:q", "D5:q F5:q A5:q F5:q",
+        "$G F5:q E5:q D5:q B4:q", "$C C5:w"]),
+    "sentence": dict(measures=[
+        "$C C5:q E5:q D5:q E5:q", "$G D5:q F5:q E5:q F5:q",
+        "E5:q F5:q G5:q A5:q", "$G D5:q B4:q $C C5:h"]),
+
+    # Ch. 19 — Motivic Development
+    "motive-transforms": dict(measures=[
+        "C5:e D5:e E5:e G5:e r:h",     # original motive
+        "C5:e B4:e A4:e F4:e r:h",     # inversion (contour flipped)
+        "G5:e E5:e D5:e C5:e r:h",     # retrograde (backwards)
+        "C5:q D5:q E5:q G5:q"]),       # augmentation (doubled values)
+    "motive-grows": dict(measures=[
+        "C5:e D5:e E5:e G5:e D5:e E5:e F5:e A5:e",
+        "E5:e F5:e G5:e B5:e C6:h",
+        "B5:e G5:e A5:e F5:e G5:e E5:e F5:e D5:e",
+        "D5:q B4:q C5:h"]),
+
+    # Ch. 20 — Melody from Harmony
+    "melody-skeleton": dict(measures=[
+        "$C C5:h E5:h", "$F A5:h F5:h",
+        "$G G5:h D5:h", "$C C5:w"]),
+    "melody-elaborated": dict(measures=[
+        "$C C5:q D5:q E5:q G5:q", "$F A5:q G5:q F5:q A5:q",
+        "$G G5:q F5:q D5:q B4:q", "$C C5:w"]),
+
+    # Ch. 22 — Simple Modulation (C major -> G major -> home to C)
+    "modulation": dict(measures=[
+        "$C C5:q E5:q G5:q E5:q",         # home key: C major
+        "$Am A4:q C5:q E5:q C5:q",        # pivot: vi of C = ii of G
+        "$D F#5:q A5:q D5:q F#5:q",       # V of G — F# is G's new leading tone
+        "$G G5:q D5:q B4:q G4:q",         # arrival: I of G, the new tonic
+        "$G7 G4:q B4:q D5:q F5:q",        # F natural turns G into V7 of C
+        "$C E5:q C5:q C5:h"]),            # home again: C major
+
+    # Ch. 24 — Theme and Variations (C major theme: C E G E | D F E C)
+    "variation-theme": dict(measures=[
+        "$C C5:q E5:q G5:q E5:q", "$G D5:q F5:q $C E5:q C5:q"]),
+    "variation-figured": dict(measures=[  # theme notes on the beat, decorated
+        "$C C5:e D5:e E5:e F5:e G5:e F5:e E5:e D5:e",
+        "$G D5:e E5:e F5:e E5:e $C E5:e D5:e C5:q"]),
+    "variation-minor": dict(measures=[    # same contour, C minor
+        "$Cm C5:q Eb5:q G5:q Eb5:q", "$G D5:q F5:q $Cm Eb5:q C5:q"]),
+
+    # Ch. 25 — Rondo (a catchy, complete refrain in the tonic)
+    "rondo-refrain": dict(measures=[
+        "$C C5:q. E5:e G5:q E5:q", "$G D5:q. F5:e D5:q B4:q",
+        "$C E5:q. G5:e C6:q G5:q", "$G7 D5:q B4:q $C C5:h"]),
+}
+
+# Piano grand-staff figures (melody + accompaniment) -> notation.build_grand
+RH = ["G5:q E5:q C5:q E5:q", "A5:q F5:q A5:q F5:q",
+      "G5:q F5:q D5:q F5:q", "E5:q C5:q C5:h"]
+GRAND = {
+    # Ch. 21 — the same melody over three accompaniment patterns
+    "accomp-block": dict(treble=RH, bass=[
+        "C3+E3+G3:w", "F3+A3+C4:w", "G2+B2+D3:w", "C3+E3+G3:w"]),
+    "accomp-arpeggio": dict(treble=RH, bass=[
+        "C3:q G3:q E3:q G3:q", "F3:q C4:q A3:q C4:q",
+        "G2:q D3:q B2:q D3:q", "C3+E3+G3:w"]),
+    "accomp-alberti": dict(treble=RH, bass=[
+        "C3:e G3:e E3:e G3:e C3:e G3:e E3:e G3:e",
+        "F3:e C4:e A3:e C4:e F3:e C4:e A3:e C4:e",
+        "G2:e D3:e B2:e D3:e G2:e D3:e B2:e D3:e", "C3+E3+G3:w"]),
+
+    # Project 3 — the running "little tune" as a finished piano piece
+    "little-tune-piano": dict(
+        treble=["@q=100 @mp C5:q E5:q G5:q A5:q", "G5:h E5:h",
+                "F5:q E5:q D5:q B4:q", "C5:w"],
+        bass=["C3:q G3:q E3:q G3:q", "G2:q D3:q C3:q E3:q",
+              "F3:q C4:q G2:q D3:q", "C3+E3+G3:w"]),
+
+    # Project 4 — a contrasting B section (A minor) for the ternary form
+    "little-tune-b": dict(
+        treble=["@mf E5:q A5:q C6:q A5:q", "F5:q A5:q D6:q A5:q",
+                "E5:q C5:q A4:q C5:q", "D5:q F5:q G5:q B4:q"],
+        bass=["A2:q E3:q C3:q E3:q", "D3:q A3:q F3:q A3:q",
+              "A2:q E3:q C3:q E3:q", "G2:q B2:q D3:q F3:q"]),
+
+    # Ch. 27 — Writing for Piano
+    "piano-spacing": dict(                 # muddy low triad vs clear voicing
+        treble=["r:w", "E4+G4+C5:w"],
+        bass=["C2+E2+G2:w", "C2:w"]),
+    "piano-texture": dict(                 # melody + low-root broken accompaniment
+        treble=["G5:q E5:q C5:q E5:q", "A5:q F5:q A5:q F5:q",
+                "G5:q F5:q D5:q B4:q", "C5:w"],
+        bass=["C2:q E3:q G3:q E3:q", "F2:q A3:q C4:q A3:q",
+              "G2:q B3:q D4:q B3:q", "C2:q E3:q G3:q C4:q"]),
+
+    # Ch. 28 — Counterpoint Primer (CF in bass, counterpoint above)
+    "species-first": dict(                 # 1:1 — intervals 8-6-3-6-8, contrary
+        treble=["C5:w", "B4:w", "G4:w", "B4:w", "C5:w"],
+        bass=["C3:w", "D3:w", "E3:w", "D3:w", "C3:w"]),
+    "species-second": dict(                # 2:1 — weak beats are passing tones
+        treble=["C5:h B4:h", "A4:h B4:h", "C5:h B4:h", "A4:h B4:h", "C5:w"],
+        bass=["C3:w", "D3:w", "E3:w", "D3:w", "C3:w"]),
+}
+
+# Multi-instrument figures (one staff per player) -> notation.build_parts
+ENSEMBLE = {
+    # Ch. 29 — two instruments, two treble parts
+    "duet-thirds": dict(parts=[                 # harmonized in parallel thirds
+        {"clef": "treble", "measures": [
+            "G5:q F5:q E5:q D5:q", "E5:q F5:q G5:h"]},
+        {"clef": "treble", "measures": [
+            "E5:q D5:q C5:q B4:q", "C5:q D5:q E5:h"]},
+    ]),
+    "duet-dialogue": dict(parts=[               # call and echo (imitation)
+        {"clef": "treble", "measures": [
+            "C5:q D5:q E5:q G5:q", "r:w",
+            "E5:q F5:q G5:q C6:q", "r:w"]},
+        {"clef": "treble", "measures": [
+            "r:w", "C4:q D4:q E4:q G4:q",
+            "r:w", "E4:q F4:q G4:q C5:q"]},
+    ]),
+
+    # Ch. 36 — orchestral textures
+    "texture-melody-accomp": dict(parts=[     # melody over pulsing accompaniment
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "G5:q E5:q C5:q E5:q", "D5:q B4:q D5:q G5:q"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "E4:q E4:q E4:q E4:q", "D4:q D4:q D4:q D4:q"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "C4:q C4:q C4:q C4:q", "B3:q B3:q B3:q B3:q"]},
+        {"name": "Vc", "clef": "bass", "measures": ["C3:h C3:h", "G2:h G2:h"]},
+    ]),
+    "texture-layered": dict(parts=[           # melody + countermelody + accomp + bass
+        {"name": "Flute", "clef": "treble", "measures": [
+            "G5:q E5:q C6:q G5:q", "D6:q B5:q G5:q D5:q"]},
+        {"name": "Violin", "clef": "treble", "measures": [
+            "E5:q C5:q G4:q C5:q", "B4:q G4:q D5:q B4:q"]},
+        {"name": "Viola", "clef": "alto", "measures": [
+            "E4:q E4:q E4:q E4:q", "D4:q D4:q D4:q D4:q"]},
+        {"name": "Cello", "clef": "bass", "measures": ["C3:w", "G2:w"]},
+    ]),
+
+    # Ch. 39 — antiphony: the wind choir "calls" (bars 1-2), the string
+    # choir "answers" (bars 3-4) — a device to spot in scores and steal
+    "antiphony": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "@f G5:q A5:q G5:q E5:q", "F5:q E5:q D5:h", "r:w", "r:w"]},
+        {"name": "Oboe", "clef": "treble", "measures": [
+            "@f E5:q F5:q E5:q C5:q", "D5:q C5:q B4:h", "r:w", "r:w"]},
+        {"name": "Violin", "clef": "treble", "measures": [
+            "r:w", "r:w", "@f G5:q F5:q E5:q D5:q", "E5:q D5:q C5:h"]},
+        {"name": "Cello", "clef": "bass", "measures": [
+            "r:w", "r:w", "@f G2:w", "G2:h C3:h"]},
+    ]),
+
+    # Ch. 38 — a small chamber-orchestra tutti: winds carry the tune (in
+    # thirds, f) over a balanced string accompaniment (p); bass in the cello
+    "chamber-score": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "@f G5:q E5:q C5:q E5:q", "D5:q B4:q D5:q G5:q"]},
+        {"name": "Oboe", "clef": "treble", "measures": [
+            "@f E5:q C5:q A4:q C5:q", "B4:q G4:q B4:q E5:q"]},
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@p E4:h E4:h", "D4:h D4:h"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "@p C4:h C4:h", "B3:h B3:h"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "@p G3:h G3:h", "G3:h G3:h"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "@p C3:h C3:h", "G2:h G2:h"]},
+    ]),
+
+    # Ch. 37 — balance by dynamics: melody f, accompaniment p
+    "balance-dynamics": dict(parts=[
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@f G5:q E5:q C5:q E5:q", "D5:q B4:q D5:q G5:q"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "@p E4:q E4:q E4:q E4:q", "D4:q D4:q D4:q D4:q"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "@p C4:q C4:q C4:q C4:q", "B3:q B3:q B3:q B3:q"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "@p C3:h C3:h", "G2:h G2:h"]},
+    ]),
+
+    # Ch. 35 — the SAME passage scored two ways (only the timbre differs)
+    "orch-winds": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "G5:q E5:q C5:q E5:q", "F5:q E5:q D5:q C5:q"]},
+        {"name": "Oboe", "clef": "treble", "measures": ["E4:w", "D4:w"]},
+        {"name": "Bassoon", "clef": "bass", "measures": ["C3:w", "G2:w"]},
+    ]),
+    "orch-strings": dict(parts=[
+        {"name": "Violin", "clef": "treble", "measures": [
+            "G5:q E5:q C5:q E5:q", "F5:q E5:q D5:q C5:q"]},
+        {"name": "Viola", "clef": "alto", "measures": ["E4:w", "D4:w"]},
+        {"name": "Cello", "clef": "bass", "measures": ["C3:w", "G2:w"]},
+    ]),
+
+    # Ch. 34 — octave doubling of a melody in two instruments
+    "doubling-octaves": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "C5:q E5:q G5:q E5:q", "F5:q E5:q D5:q C5:q"]},
+        {"name": "Clarinet", "clef": "treble", "measures": [
+            "C4:q E4:q G4:q E4:q", "F4:q E4:q D4:q C4:q"]},
+    ]),
+    # Ch. 34 — the same chord voiced muddy (crowded low) then clear (spread)
+    "ensemble-voicing": dict(parts=[
+        {"name": "Fl", "clef": "treble", "measures": ["C4:w", "C5:w"]},
+        {"name": "Cl", "clef": "treble", "measures": ["G3:w", "E4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": ["E3:w", "G3:w"]},
+        {"name": "Vc", "clef": "bass", "measures": ["C3:w", "C3:w"]},
+    ]),
+
+    # Ch. 32 — a B-flat clarinet part vs its concert-pitch sound
+    "transposition": dict(parts=[
+        {"name": "B♭ clarinet (written)", "clef": "treble", "fifths": 2,
+         "measures": ["D5:q E5:q F5:q A5:q", "G5:q F5:q E5:q D5:q"]},
+        {"name": "Concert pitch (sounds)", "clef": "treble", "fifths": 0,
+         "measures": ["C5:q D5:q E5:q G5:q", "F5:q E5:q D5:q C5:q"]},
+    ]),
+
+    # Project 5 — the running "little tune" arranged for string quartet
+    "little-tune-quartet": dict(parts=[
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@mp C5:q E5:q G5:q A5:q", "G5:h E5:h",
+            "F5:q E5:q D5:q B4:q", "C5:w"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "G4:w", "B4:h G4:h", "C5:h B4:h", "G4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "E4:w", "D4:h E4:h", "A4:h G4:h", "E4:w"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "C3:w", "G2:h C3:h", "F2:h G2:h", "C3:w"]},
+    ]),
+
+    # Capstone — the running Little Tune orchestrated for a small orchestra
+    # (concert pitch). Melody doubled Flute (8va) + Vln I, f; winds & strings
+    # fill the C | G-C | F-G | C harmony; bass in Vc doubled by Bassoon.
+    "little-tune-orchestra": dict(parts=[
+        {"name": "Flute", "clef": "treble", "measures": [
+            "@f C6:q E6:q G6:q A6:q", "G6:h E6:h",
+            "F6:q E6:q D6:q B5:q", "C6:w"]},
+        {"name": "Oboe", "clef": "treble", "measures": [
+            "@mp E5:w", "D5:h E5:h", "A4:h D5:h", "E5:w"]},
+        {"name": "Bassoon", "clef": "bass", "measures": [
+            "@mp C4:w", "G3:h C4:h", "F3:h G3:h", "C4:w"]},
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "@f C5:q E5:q G5:q A5:q", "G5:h E5:h",
+            "F5:q E5:q D5:q B4:q", "C5:w"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "@p G4:w", "B4:h G4:h", "C5:h B4:h", "G4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "@p E4:w", "D4:h E4:h", "A4:h G4:h", "E4:w"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "@p C3:w", "G2:h C3:h", "F2:h G2:h", "C3:w"]},
+    ]),
+
+    # Ch. 30 — string quartet: melody (Vln I) over sustained inner harmony
+    "quartet-texture": dict(parts=[
+        {"name": "Vln I", "clef": "treble", "measures": [
+            "G5:q E5:q C5:q E5:q", "A5:q F5:q A5:q F5:q",
+            "G5:q F5:q D5:q B4:q", "C5:w"]},
+        {"name": "Vln II", "clef": "treble", "measures": [
+            "G4:w", "A4:w", "B4:w", "G4:w"]},
+        {"name": "Vla", "clef": "alto", "measures": [
+            "E4:w", "C4:w", "D4:w", "E4:w"]},
+        {"name": "Vc", "clef": "bass", "measures": [
+            "C3:w", "F3:w", "G3:w", "C3:w"]},
+    ]),
+}
+
+# Four-voice chorale figures -> notation.build_satb
+SATB = {
+    # Ch. 14 — a clean I–IV–V–I in C major, good voice leading
+    "satb-progression": dict(
+        soprano=["C5:w", "C5:w", "B4:w", "C5:w"],
+        alto=["G4:w", "A4:w", "G4:w", "G4:w"],
+        tenor=["E4:w", "F4:w", "D4:w", "E4:w"],
+        bass=["C3:w", "F3:w", "G3:w", "C3:w"],
+        show_time=False),
+
+    # Ch. 15 — the four cadences (C major, two chords each)
+    "cadence-authentic": dict(              # V–I, perfect authentic
+        soprano=["B4:w", "C5:w"], alto=["G4:w", "G4:w"],
+        tenor=["D4:w", "E4:w"], bass=["G3:w", "C3:w"], show_time=False),
+    "cadence-half": dict(                   # IV–V, ends on the dominant
+        soprano=["A4:w", "G4:w"], alto=["F4:w", "D4:w"],
+        tenor=["C4:w", "B3:w"], bass=["F3:w", "G3:w"], show_time=False),
+    "cadence-plagal": dict(                 # IV–I, the "Amen"
+        soprano=["C5:w", "C5:w"], alto=["A4:w", "G4:w"],
+        tenor=["F4:w", "E4:w"], bass=["F3:w", "C3:w"], show_time=False),
+    "cadence-deceptive": dict(              # V–vi, third doubled in vi
+        soprano=["B4:w", "C5:w"], alto=["G4:w", "E4:w"],
+        tenor=["D4:w", "C4:w"], bass=["G3:w", "A3:w"], show_time=False),
+
+    # Project 2 — the melody's closing cadence realized in four parts (V–I)
+    "harm-cadence": dict(
+        soprano=["B4:w", "C5:w"], alto=["G4:w", "G4:w"],
+        tenor=["D4:w", "E4:w"], bass=["G3:w", "C3:w"], show_time=False),
+}
+
+
+def render_notation(select):
+    ids = [i for i in NOTATION if i.startswith(select)] \
+        + [i for i in SATB if i.startswith(select)] \
+        + [i for i in GRAND if i.startswith(select)] \
+        + [i for i in ENSEMBLE if i.startswith(select)]
+    if not ids:
+        return []
+    tmp = tempfile.mkdtemp(prefix="fss-fig-")
+    job = []
+    for fid in ids:
+        if fid in SATB:
+            xml = notation.build_satb(**SATB[fid])
+        elif fid in GRAND:
+            xml = notation.build_grand(**GRAND[fid])
+        elif fid in ENSEMBLE:
+            xml = notation.build_parts(**ENSEMBLE[fid])
+        else:
+            xml = notation.build_musicxml(**NOTATION[fid])
+        src = os.path.join(tmp, fid + ".musicxml")
+        with open(src, "w") as f:
+            f.write(xml)
+        job.append({"in": src, "out": os.path.join(tmp, fid + ".png")})
+    job_path = os.path.join(tmp, "job.json")
+    with open(job_path, "w") as f:
+        json.dump(job, f)
+
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    subprocess.run([MUSESCORE, "-r", str(DPI), "-T", str(TRIM),
+                    "-j", job_path], env=env,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                   check=True)
+
+    written = []
+    os.makedirs(FIGS, exist_ok=True)
+    for fid in ids:
+        # MuseScore appends the page number before the extension.
+        page1 = os.path.join(tmp, fid + "-1.png")
+        if not os.path.exists(page1):
+            sys.exit(f"make_figures: MuseScore produced no output for {fid!r}")
+        dest = os.path.join(FIGS, fid + ".png")
+        os.replace(page1, dest)
+        written.append(fid)
+    return written
+
+
+# --- diagram figures (Pillow) -----------------------------------------
+
+def draw_keyboard(select):
+    """One octave of a piano keyboard, C4 to C5, with the C's labelled."""
+    if not "keyboard-octave".startswith(select):
+        return []
+    from PIL import Image, ImageDraw, ImageFont
+
+    scale = 3  # supersample, then downscale for crisp edges
+    W, H = 720 * scale, 200 * scale
+    white_w = W // 8            # 8 white keys: C D E F G A B C
+    black_w = int(white_w * 0.58)
+    black_h = int(H * 0.62)
+    ink = (36, 28, 16)
+
+    img = Image.new("RGB", (W, H), (250, 246, 236))
+    d = ImageDraw.Draw(img)
+
+    # white keys
+    for i in range(8):
+        x0 = i * white_w
+        d.rectangle([x0, 0, x0 + white_w, H - 1], fill=(255, 255, 255),
+                    outline=ink, width=scale)
+    # black keys sit after white indices 0,1,3,4,5 (C# D# F# G# A#)
+    for i in (0, 1, 3, 4, 5):
+        cx = (i + 1) * white_w
+        d.rectangle([cx - black_w // 2, 0, cx + black_w // 2, black_h],
+                    fill=(26, 22, 16), outline=ink, width=scale)
+
+    # label the two C's
+    try:
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 26 * scale)
+    except OSError:
+        font = ImageFont.load_default()
+    for i, label in ((0, "C4"), (7, "C5")):
+        x0 = i * white_w
+        tb = d.textbbox((0, 0), label, font=font)
+        tw = tb[2] - tb[0]
+        d.text((x0 + (white_w - tw) / 2, H - 40 * scale), label,
+               fill=ink, font=font)
+
+    img = img.resize((W // scale, H // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "keyboard-octave.png"))
+    return ["keyboard-octave"]
+
+
+def draw_circle_of_fifths(select):
+    """The circle of fifths: majors outer, relative minors inner, with
+    the accidental count at each of the twelve positions."""
+    if not "circle-of-fifths".startswith(select):
+        return []
+    import math
+    from PIL import Image, ImageDraw, ImageFont
+
+    scale = 3
+    S = 900 * scale
+    cx = cy = S // 2
+    ink = (36, 28, 16)
+    faint = (168, 158, 146)
+    accent = (138, 47, 62)  # the book's burgundy
+
+    majors = ["C", "G", "D", "A", "E", "B",
+              "F♯/G♭", "D♭", "A♭", "E♭",
+              "B♭", "F"]
+    minors = ["Am", "Em", "Bm", "F♯m", "C♯m", "G♯m",
+              "E♭m", "B♭m", "Fm", "Cm", "Gm", "Dm"]
+    counts = ["—", "1♯", "2♯", "3♯", "4♯", "5♯",
+              "6♯/6♭", "5♭", "4♭", "3♭", "2♭",
+              "1♭"]
+
+    def font(sz, bold=False):
+        path = ("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"
+                % ("-Bold" if bold else ""))
+        try:
+            return ImageFont.truetype(path, sz)
+        except OSError:
+            return ImageFont.load_default()
+
+    f_major = font(50 * scale, bold=True)
+    f_minor = font(32 * scale)
+    f_count = font(26 * scale)
+
+    R_count = S * 0.455
+    R_major = S * 0.365
+    R_minor = S * 0.235
+    ring_out = S * 0.425
+    ring_in = S * 0.300
+
+    img = Image.new("RGB", (S, S), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+
+    for r in (ring_out, ring_in):
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=faint, width=scale)
+    # spokes at segment boundaries
+    for i in range(12):
+        a = math.radians(-90 + (i + 0.5) * 30)
+        d.line([cx + ring_in * math.cos(a), cy + ring_in * math.sin(a),
+                cx + ring_out * math.cos(a), cy + ring_out * math.sin(a)],
+               fill=faint, width=scale)
+
+    def place(text, radius, angle_deg, fnt, fill):
+        a = math.radians(angle_deg)
+        x = cx + radius * math.cos(a)
+        y = cy + radius * math.sin(a)
+        tb = d.textbbox((0, 0), text, font=fnt)
+        d.text((x - (tb[2] - tb[0]) / 2 - tb[0],
+                y - (tb[3] - tb[1]) / 2 - tb[1]), text, font=fnt, fill=fill)
+
+    for i in range(12):
+        angle = -90 + i * 30  # clockwise (screen y grows downward)
+        place(majors[i], R_major, angle, f_major, accent if i == 0 else ink)
+        place(minors[i], R_minor, angle, f_minor, ink)
+        place(counts[i], R_count, angle, f_count, faint)
+
+    img = img.resize((S // scale, S // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "circle-of-fifths.png"))
+    return ["circle-of-fifths"]
+
+
+# --- form diagrams (Pillow) -------------------------------------------
+# id -> (subtitle, [block, ...]) where a block is
+#   {"label", "key", "w"=1, "rep"=False, "tonic"=False}
+FORMS = {
+    "form-binary": ("Binary form  ·  A B", [
+        {"label": "A", "key": "I → V", "rep": True},
+        {"label": "B", "key": "V → I", "rep": True},
+    ]),
+    "form-ternary": ("Ternary form  ·  A B A", [
+        {"label": "A", "key": "tonic", "tonic": True},
+        {"label": "B", "key": "contrasting key"},
+        {"label": "A", "key": "tonic", "tonic": True},
+    ]),
+    "form-little-ternary": ("The worked piece  ·  ternary (A B A)", [
+        {"label": "A", "key": "the little tune · C major", "tonic": True},
+        {"label": "B", "key": "new material · A minor"},
+        {"label": "A", "key": "the tune returns · C major", "tonic": True},
+    ]),
+    "form-rondo": ("Rondo  ·  A B A C A", [
+        {"label": "A", "key": "refrain", "tonic": True},
+        {"label": "B", "key": "episode"},
+        {"label": "A", "key": "refrain", "tonic": True},
+        {"label": "C", "key": "episode"},
+        {"label": "A", "key": "refrain", "tonic": True},
+    ]),
+    "form-sonata": ("Sonata form  ·  Exposition · Development · Recapitulation", [
+        {"label": "Exposition", "key": "themes in I and V", "w": 1.1},
+        {"label": "Development", "key": "themes developed, many keys", "w": 1.25},
+        {"label": "Recapitulation", "key": "themes all in I", "w": 1.1,
+         "tonic": True},
+    ]),
+}
+
+
+def _form_font(name, sz):
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype(
+            f"/usr/share/fonts/truetype/dejavu/{name}.ttf", sz)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def draw_forms(select):
+    from PIL import Image, ImageDraw
+    written = []
+    scale = 3
+    ink = (38, 28, 20)
+    accent = (138, 47, 62)
+    faint = (122, 108, 102)
+    fill = (247, 240, 238)
+    fill_t = (243, 224, 227)
+
+    for fid, (subtitle, blocks) in FORMS.items():
+        if not fid.startswith(select):
+            continue
+        W, H = 1240 * scale, 300 * scale
+        img = Image.new("RGB", (W, H), (255, 255, 255))
+        d = ImageDraw.Draw(img)
+        f_label = _form_font("DejaVuSerif-Bold", 46 * scale)
+        f_small = _form_font("DejaVuSerif-Bold", 30 * scale)
+        f_key = _form_font("DejaVuSerif", 24 * scale)
+        f_sub = _form_font("DejaVuSerif-Italic", 27 * scale)
+
+        margin, gap = 44 * scale, 18 * scale
+        top, bot = 96 * scale, 214 * scale
+        total = W - 2 * margin - gap * (len(blocks) - 1)
+        unit = total / sum(b.get("w", 1) for b in blocks)
+        x = margin
+        for b in blocks:
+            w = b.get("w", 1) * unit
+            x0, x1 = x, x + w
+            d.rectangle([x0, top, x1, bot],
+                        fill=fill_t if b.get("tonic") else fill,
+                        outline=ink, width=2 * scale)
+            lbl = b["label"]
+            fnt = f_label if len(lbl) <= 2 else f_small
+            tb = d.textbbox((0, 0), lbl, font=fnt)
+            d.text((x0 + (w - (tb[2] - tb[0])) / 2 - tb[0],
+                    (top + bot) / 2 - (tb[3] - tb[1]) / 2 - tb[1]),
+                   lbl, font=fnt, fill=accent if b.get("tonic") else ink)
+            if b.get("rep"):
+                ymid = (top + bot) / 2
+                for edge in (x0 + 20 * scale, x1 - 20 * scale):
+                    for off in (-26 * scale, 26 * scale):
+                        r = 5 * scale
+                        d.ellipse([edge - r, ymid + off - r,
+                                   edge + r, ymid + off + r], fill=ink)
+            key = b.get("key", "")
+            if key:
+                kb = d.textbbox((0, 0), key, font=f_key)
+                d.text((x0 + (w - (kb[2] - kb[0])) / 2 - kb[0],
+                        bot + 20 * scale), key, font=f_key, fill=faint)
+            x += w + gap
+
+        sb = d.textbbox((0, 0), subtitle, font=f_sub)
+        d.text(((W - (sb[2] - sb[0])) / 2 - sb[0], 30 * scale),
+               subtitle, font=f_sub, fill=faint)
+        img = img.resize((W // scale, H // scale), Image.LANCZOS)
+        os.makedirs(FIGS, exist_ok=True)
+        img.save(os.path.join(FIGS, fid + ".png"))
+        written.append(fid)
+    return written
+
+
+# --- instrument range chart (Pillow) ----------------------------------
+# family -> colour, [(instrument, low-midi, high-midi)]; C4 (middle C) = 60.
+_FAMILIES = [
+    ("Strings", (138, 47, 62), [
+        ("Violin", 55, 100), ("Viola", 48, 88),
+        ("Cello", 36, 81), ("Double bass", 28, 55)]),
+    ("Woodwinds", (52, 108, 92), [
+        ("Flute", 60, 96), ("Oboe", 58, 91),
+        ("Clarinet", 50, 94), ("Bassoon", 34, 75)]),
+    ("Brass", (176, 132, 58), [
+        ("Trumpet", 52, 84), ("Horn", 35, 77),
+        ("Trombone", 40, 70), ("Tuba", 26, 65)]),
+    ("Percussion", (120, 110, 104), [
+        ("Timpani", 38, 57), ("Glockenspiel", 79, 108)]),
+]
+
+
+def draw_range_chart(select):
+    if not "range-chart".startswith(select):
+        return []
+    from PIL import Image, ImageDraw
+    scale = 3
+    ink = (38, 28, 20)
+    faint = (140, 128, 122)
+    accent = (138, 47, 62)
+    LO, HI = 24, 108                       # C1 .. C8
+
+    label_w = 250 * scale
+    top, right_pad = 96 * scale, 44 * scale
+    row_h, fam_gap = 34 * scale, 30 * scale
+    n_rows = sum(len(f[2]) for f in _FAMILIES)
+    n_fam = len(_FAMILIES)
+    W = 1400 * scale
+    H = (top + n_rows * row_h + n_fam * fam_gap + n_fam * (fam_gap // 2)
+         + 30 * scale)
+    px0, px1 = label_w, W - right_pad
+
+    def x_of(m):
+        return px0 + (m - LO) / (HI - LO) * (px1 - px0)
+
+    img = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    f_axis = _form_font("DejaVuSans", 20 * scale)
+    f_fam = _form_font("DejaVuSans-Bold", 25 * scale)
+    f_name = _form_font("DejaVuSerif", 22 * scale)
+
+    # octave gridlines + labels
+    for m in range(24, 109, 12):
+        x = x_of(m)
+        emph = (m == 60)
+        d.line([x, top - 12 * scale, x, H - 16 * scale],
+               fill=(accent if emph else (226, 216, 213)),
+               width=(2 * scale if emph else scale))
+        lbl = "C%d" % (m // 12 - 1)
+        tb = d.textbbox((0, 0), lbl, font=f_axis)
+        d.text((x - (tb[2] - tb[0]) / 2, top - 44 * scale), lbl, font=f_axis,
+               fill=(accent if emph else faint))
+
+    y = top
+    for fam_name, color, instruments in _FAMILIES:
+        d.text((18 * scale, y + 2 * scale), fam_name, font=f_fam, fill=color)
+        y += fam_gap
+        for name, lo, hi in instruments:
+            tb = d.textbbox((0, 0), name, font=f_name)
+            d.text((label_w - 22 * scale - (tb[2] - tb[0]),
+                    y + (row_h - (tb[3] - tb[1])) / 2 - tb[1]),
+                   name, font=f_name, fill=ink)
+            d.rounded_rectangle([x_of(lo), y + 7 * scale,
+                                 x_of(hi), y + row_h - 7 * scale],
+                                radius=6 * scale, fill=color)
+            y += row_h
+        y += fam_gap // 2
+
+    img = img.resize((W // scale, H // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "range-chart.png"))
+    # same chart, aliased for Appendix B (figure ids must be unique per book)
+    img.save(os.path.join(FIGS, "range-chart-appendix.png"))
+    return ["range-chart", "range-chart-appendix"]
+
+
+def draw_register_map(select):
+    """One instrument's range split into its characteristic registers."""
+    if not "register-map".startswith(select):
+        return []
+    from PIL import Image, ImageDraw
+    scale = 3
+    ink, faint = (38, 28, 20), (140, 128, 122)
+    base = (52, 108, 92)                   # woodwind green
+    # (name, character, lo-midi, hi-midi, lighten-factor)
+    regions = [
+        ("Chalumeau", "rich, dark", 52, 67, 1.0),
+        ("Throat", "weak", 67, 71, 0.4),
+        ("Clarion", "clear, bright", 71, 84, 0.72),
+        ("Altissimo", "shrill", 84, 94, 0.52),
+    ]
+    LO, HI = 48, 96
+    W, H = 1400 * scale, 340 * scale
+    px0, px1 = 44 * scale, W - 44 * scale
+    bar_top, bar_bot = 150 * scale, 236 * scale
+
+    def x_of(m):
+        return px0 + (m - LO) / (HI - LO) * (px1 - px0)
+
+    def lighten(c, f):
+        return tuple(int(255 - (255 - v) * f) for v in c)
+
+    img = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    f_axis = _form_font("DejaVuSans", 20 * scale)
+    f_name = _form_font("DejaVuSerif-Bold", 24 * scale)
+    f_char = _form_font("DejaVuSerif", 20 * scale)
+    f_title = _form_font("DejaVuSerif-Italic", 26 * scale)
+
+    d.text((46 * scale, 26 * scale), "The registers of the clarinet",
+           font=f_title, fill=faint)
+    for m in range(48, 97, 12):
+        x = x_of(m)
+        d.line([x, bar_top - 74 * scale, x, bar_bot + 66 * scale],
+               fill=(228, 218, 215), width=scale)
+        lbl = "C%d" % (m // 12 - 1)
+        tb = d.textbbox((0, 0), lbl, font=f_axis)
+        d.text((x - (tb[2] - tb[0]) / 2, bar_bot + 74 * scale), lbl,
+               font=f_axis, fill=faint)
+    for name, char, lo, hi, fac in regions:
+        x0, x1, cx = x_of(lo), x_of(hi), (x_of(lo) + x_of(hi)) / 2
+        d.rectangle([x0, bar_top, x1, bar_bot], fill=lighten(base, fac),
+                    outline=(255, 255, 255), width=2 * scale)
+        tb = d.textbbox((0, 0), name, font=f_name)
+        d.text((cx - (tb[2] - tb[0]) / 2, bar_top - 44 * scale), name,
+               font=f_name, fill=ink)
+        tb2 = d.textbbox((0, 0), char, font=f_char)
+        d.text((cx - (tb2[2] - tb2[0]) / 2, bar_bot + 10 * scale), char,
+               font=f_char, fill=faint)
+
+    img = img.resize((W // scale, H // scale), Image.LANCZOS)
+    os.makedirs(FIGS, exist_ok=True)
+    img.save(os.path.join(FIGS, "register-map.png"))
+    return ["register-map"]
+
+
+def main():
+    select = sys.argv[1] if len(sys.argv) > 1 else ""
+    written = (render_notation(select) + draw_keyboard(select)
+               + draw_circle_of_fifths(select) + draw_forms(select)
+               + draw_range_chart(select) + draw_register_map(select))
+    if written:
+        print(f"Rendered {len(written)} figure(s): {', '.join(sorted(written))}")
+    else:
+        print(f"No figures matched {select!r}.")
+
+
+if __name__ == "__main__":
+    main()
