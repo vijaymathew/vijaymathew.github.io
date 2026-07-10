@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where to Draw the Line — Tight Core, Open Edge</title>
+<meta name="description" content="The decision framework: signs a domain wants tightening, signs it wants opening, and how to place the contract membrane between them — a retrospective across every technique.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_13.html">Ch. 13</a><a href="chapter_14.html" class="active">Ch. 14</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 14 · Part VI</span>
+<h1 class="opener-title">Where to Draw the Line</h1>
+<p class="opener-lede">Every technique in this book answers one of two questions — how to constrain, or how to open. This chapter answers the question underneath them: for the decision actually in front of you, which one does it need?</p>
+</div>
+<article class="prose">
+
+<p>Thirteen chapters have laid out two disciplines and a way to join them. But a catalog of techniques is not the same as knowing when to reach for each, and that knowing is the whole point — the reason the book is arranged as a tension to be resolved rather than a toolbox to be browsed. This chapter is the resolution: not a slogan, but a way to decide.</p>
+
+<p>Start by rejecting the two slogans that pretend to settle it. "Make illegal states unrepresentable" is excellent advice that becomes a straitjacket when applied to the parts of a system that must grow in ways you cannot foresee. "Build for flexibility" is excellent advice that becomes a swamp when applied to the parts that must simply be correct. Each is right about its own half and silent about the other. The mistake is treating either as a global policy. Constrain-or-open is not a decision you make once for a system; it is a decision you make many times, locally, per seam — and the same well-built system will resolve it one way in its core and the opposite way at its edge.</p>
+
+<section id="the-local-question" class="level2" data-number="14.1">
+<h2 class="anchored" data-anchor-id="the-local-question"><span class="header-section-number">14.1</span> A Local Question, Asked Often</h2>
+
+<p>The unit of the decision is a <em>seam</em>: a place where one part of the system meets another, or where the system meets the world. For each seam, you are choosing how much the types get to say. Tighten it, and the compiler carries more of the argument — fewer states, checked earlier, proven exhaustive. Open it, and the compiler steps back so that growth can happen by extension rather than edit. The art is that a single system has many seams, and they do not all want the same answer. The order state machine wants to be shut tight; the pricing catalog wants to be thrown open; the routine between them wants a contract. Judgment is knowing, seam by seam, which of the three you are looking at.</p>
+</section>
+
+<section id="signs" class="level2" data-number="14.2">
+<h2 class="anchored" data-anchor-id="signs"><span class="header-section-number">14.2</span> Reading the Signs</h2>
+
+<p>Most seams announce which way they want to go, if you know what to listen for. The signals cluster into two lists, and a real seam usually shows several from one side.</p>
+
+<table>
+<thead>
+<tr><th>This seam wants tightening when&hellip;</th><th>This seam wants opening when&hellip;</th></tr>
+</thead>
+<tbody>
+<tr><td>The set of cases is closed and knowable <em>now</em> (order states, payment status).</td><td>The set of cases is genuinely open and unpredictable (pricing rules, integrations, formats).</td></tr>
+<tr><td>Being wrong is expensive or irreversible — money, safety, corrupted data.</td><td>Being wrong is cheap and recoverable — a rule mis-fires, you fix the rule.</td></tr>
+<tr><td>It lives in the core, and many things depend on it.</td><td>It lives at the edge, and depends on the core rather than the reverse.</td></tr>
+<tr><td>The relationships can be expressed as types or contracts.</td><td>New cases arrive from outside your team, at runtime, or from non-programmers.</td></tr>
+<tr><td>Change is rare; correctness dominates.</td><td>Change is constant; adaptability dominates.</td></tr>
+<tr><td>You want a change to surface as compile errors you can chase.</td><td>You keep reopening the same file to add the next variant, and it hurts.</td></tr>
+</tbody>
+</table>
+
+<p>The signals are not a scorecard to tally so much as a way to make the seam declare itself. When a seam shows tightening signs, the tools of Parts II and III apply: sum types, constrained types, parsing at the boundary, total transitions, closed combinator interfaces. When it shows opening signs, the tools of Parts IV and V apply: generic operations, domain languages, extensible evaluators, propagator networks, unification. The signs tell you which chapter you are living in.</p>
+</section>
+
+<section id="default-to-constraint" class="level2" data-number="14.3">
+<h2 class="anchored" data-anchor-id="default-to-constraint"><span class="header-section-number">14.3</span> When Unsure, Constrain</h2>
+
+<p>Some seams are ambiguous, and for those there is a tie-breaker worth holding as a default: <strong>constrain until you are forced to open.</strong> The reason is asymmetry. Opening a constrained design later is a backward-compatible move — you can add a table, an interface, a plug-in point to a sealed type without breaking anyone who used it while it was closed. Closing an open design later is a breaking change — every caller who relied on the freedom you are now revoking must be found and fixed. Constraint is the reversible choice; openness is the one that costs to undo.</p>
+
+<p>This turns "how flexible should this be?" from a guess about the future into a much easier question about the present: <em>is the openness needed now?</em> If not, seal it, and open it the day a real requirement demands it — at which point you will also know exactly what shape the opening should take, instead of having guessed. Premature flexibility is as real a cost as premature optimization: an <code>Any</code>-typed plug-in system built for extensions that never arrive is pure liability, all guarantees surrendered for a benefit no one collected. Openness is earned by demonstrated need, not granted on speculation.</p>
+
+<div class="thesis">Constrain until forced to open. A closed design can be opened without breaking its callers; an open design cannot be closed without breaking them. When the signs are mixed, take the reversible choice.</div>
+</section>
+
+<section id="placing-the-membrane" class="level2" data-number="14.4">
+<h2 class="anchored" data-anchor-id="placing-the-membrane"><span class="header-section-number">14.4</span> Placing the Membrane</h2>
+
+<p>Once you have decided which regions constrain and which open, the interesting seams are the ones <em>between</em> them — where a constrained core meets an open edge. That seam is where a contract goes, and placing it well has a few rules that every membrane in this book obeyed.</p>
+
+<p><strong>It states the core's terms, not the edge's.</strong> The membrane is written from the constrained side: the core declares, as a precondition, exactly what any value must satisfy to be admitted, and the open edge — whatever produced the value, however unforeseen — must meet those terms. The engine's postcondition in Chapter 9 promised precisely what the core's <code>apply_quote</code> required. The core never asks how the price was computed; it asks only that the price be non-negative, in the right currency, above the floor.</p>
+
+<p><strong>It is narrow.</strong> A good membrane is one gate, not a perimeter of scattered checks. Untrusted input crosses at a single parser (Chapter 4); an open price enters the core through a single boundary routine. Concentrating the guarantee at one seam is what lets everything behind it stop checking — the payoff that a diffuse membrane forfeits.</p>
+
+<p><strong>Trust flows one way through it.</strong> The direction of the membrane is inward: distrust on the open side, trust on the closed side, and the contract is the one-way valve. Nothing crosses into the core without meeting its terms, and once across, it is believed. That asymmetry is the entire reason the arrangement holds.</p>
+</section>
+
+<section id="the-whole-book-on-a-page" class="level2" data-number="14.5">
+<h2 class="anchored" data-anchor-id="the-whole-book-on-a-page"><span class="header-section-number">14.5</span> The Whole Book on a Page</h2>
+
+<p>With the framework in hand, the techniques stop being a list and become a map. Every one of them draws the line somewhere and guards it with something; laid side by side, they trace the full arc from sealed core to open search — and show that a single idea, constraint held against flexibility across a contract, runs through all of them.</p>
+
+<table>
+<thead>
+<tr><th>Technique</th><th>Stance</th><th>What draws the line</th><th>What guards it</th></tr>
+</thead>
+<tbody>
+<tr><td>Sum &amp; constrained types (Ch 3)</td><td>Constrain</td><td>Types enumerate the kinds; illegal states unrepresentable</td><td>Invariants on relationships</td></tr>
+<tr><td>Parse, don't validate (Ch 4)</td><td>Constrain the boundary</td><td>One parser converts input to precise types, once</td><td><code>Result</code> plus the parser's checks</td></tr>
+<tr><td>Workflows as transformations (Ch 5)</td><td>Constrain</td><td>Transitions are total functions; illegal transitions don't typecheck</td><td>Types plus <code>ensure</code> on each step</td></tr>
+<tr><td>Effects at the edges (Ch 6)</td><td>Constrain the core</td><td>Pure core; effects returned as data</td><td>The thin imperative shell</td></tr>
+<tr><td>Combinators (Ch 7)</td><td>Additive, closed</td><td>A closed interface; results compose</td><td>Contracts on the interface</td></tr>
+<tr><td>Layering (Ch 8)</td><td>Additive, closed</td><td>Every stratum shares one interface</td><td>Substitutability as a postcondition</td></tr>
+<tr><td>Generic operations (Ch 9)</td><td>Open vocabulary</td><td>Behavior looked up in a runtime table</td><td><code>require</code> a handler exists; membrane on the result</td></tr>
+<tr><td>Domain languages (Ch 10)</td><td>Open vocabulary</td><td>Rules become inspectable data</td><td>Per-term contracts behind the membrane</td></tr>
+<tr><td>Extensible evaluators (Ch 11)</td><td>Open primitives</td><td>Closed syntax, open operator table</td><td>Exhaustive syntax; <code>known_op</code>, arity</td></tr>
+<tr><td>Propagators (Ch 12)</td><td>Open topology</td><td>Cells of partial info; monotone merge</td><td>The ordering invariant on the merge</td></tr>
+<tr><td>Unification &amp; search (Ch 13)</td><td>Open structure</td><td>Bindings discovered by matching and search</td><td>A termination variant; a solution postcondition</td></tr>
+</tbody>
+</table>
+
+<p>Read the columns and the thesis reads itself. The stance slides from <em>constrain</em> at the top to <em>open</em> at the bottom. "What draws the line" moves from types toward tables, data, and discovery. And "what guards it" moves, just as steadily, from types toward contracts — until, at the open end, contracts are nearly the whole of the guarantee. That final column is the through-line: the more a seam opens, the more the guarding shifts from the compiler to the contract, and the membrane is where the two hand off.</p>
+</section>
+
+<section id="failure-modes" class="level2" data-number="14.6">
+<h2 class="anchored" data-anchor-id="failure-modes"><span class="header-section-number">14.6</span> The Two Ways to Get It Wrong</h2>
+
+<p>Judgment is also knowing the failure on each side, because both are common and each feels like virtue while you commit it.</p>
+
+<p><strong>Over-constraining</strong> looks like discipline and produces rigidity. Its symptoms: a sealed type you keep reopening to add cases; domain models so elaborate that the types are harder to understand than the bugs they prevent; a plug-in point that should exist but doesn't, so every extension is a fork of the core. The corrective is to find the seam that is actually changing and open <em>it</em> — introduce a table, a language, an interface — while leaving the genuinely stable core sealed. You do not open the system; you open the one part that asked to be opened.</p>
+
+<p><strong>Over-opening</strong> looks like flexibility and produces a swamp. Its symptoms: <code>Any</code> where a precise type belonged; runtime failures that a sum type would have made compile errors; a configuration language reinvented badly because someone opened a seam that only ever had four values. The corrective is the default of §14.3 run in reverse — find the open seam whose set of cases turned out to be closed after all, and seal it, converting a class of runtime surprises back into compile-time certainty.</p>
+
+<p>And one last piece of judgment, easy to forget: <em>the line moves.</em> A seam that was rightly sealed when the business was young may need to open as the business grows, and a seam opened in speculation may deserve to be closed once its real shape is known. Drawing the line is not a decision you make once and enshrine; it is one you revisit as the system teaches you where it actually flexes. The framework is not a verdict but a lens — you look through it again each time a seam starts to ache.</p>
+
+<p>That is the judgment the whole book was built to support. One chapter remains, and it is not an argument but a demonstration: a single system, built end to end, with a constrained order core and an open pricing edge living in one codebase without contradiction — every technique in its place, and the line drawn where each part of the domain asked for it.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_13.html"><span class="label">&larr; Chapter 13</span><span class="ttl">Unification and Search</span></a></div><div class="next"><a href="chapter_15.html"><span class="label">Chapter 15 &rarr;</span><span class="ttl">Capstone: One System, Both Disciplines</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

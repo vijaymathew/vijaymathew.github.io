@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capstone: One System, Both Disciplines — Tight Core, Open Edge</title>
+<meta name="description" content="The running order-and-fulfillment system built end to end — a constrained core and an open pricing edge in one codebase, joined by a contract membrane.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_14.html">Ch. 14</a><a href="chapter_15.html" class="active">Ch. 15</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 15 · Part VI</span>
+<h1 class="opener-title">Capstone: One System, Both Disciplines</h1>
+<p class="opener-lede">Not an argument this time, but a demonstration. The running system, built end to end — a constrained order core and an open pricing edge in one codebase, joined by a contract, contradicting nothing.</p>
+</div>
+<article class="prose">
+
+<p>Every chapter has taken one slice of the running system and gone deep. This one steps back and assembles the whole, because the book's central claim is not that constraint is good, or that flexibility is good, but that the two can live in a single codebase <em>at once</em> — and a claim like that is proven by building the thing, not by describing it. So here is the thing: an order placement, from an untrusted request at one end to a charged card and a reserved shipment at the other, with each technique standing exactly where the domain asked for it.</p>
+
+<section id="the-shape" class="level2" data-number="15.1">
+<h2 class="anchored" data-anchor-id="the-shape"><span class="header-section-number">15.1</span> The Shape of the System</h2>
+
+<p>The system has five regions, and the whole architecture is the order in which a request passes through them. Read the diagram top to bottom; it is the life of one order.</p>
+
+<pre>   untrusted request
+         │
+   ┌─────▼─────┐   BOUNDARY — parse, don't validate            (Ch 4)
+   │  parser   │   request ──► Result[Draft]
+   └─────┬─────┘
+         │  a trustworthy Draft
+   ┌─────▼───────────────  OPEN EDGE  ───────────────────  (Ch 9–13) ┐
+   │  pricing DSL / engine ──► quote        fulfillment search        │
+   └─────┬────────────────────────────────────────────────────────────┘
+         │  quote  (the core has not vouched for this)
+   ┌─────▼─────┐   THE MEMBRANE — admit_quote            (Ch 2, Ch 9)
+   │  contract │   require currency · non-negative · above floor
+   └─────┬─────┘
+         │  an admitted quote
+   ┌─────▼───────────────  CONSTRAINED CORE  ─────────────  (Ch 3–6) ┐
+   │  Draft ──► Placed ──► Shipped   ·   total functions, invariants  │
+   │  returns  Placed + [Effect]     ·   decisions as data            │
+   └─────┬────────────────────────────────────────────────────────────┘
+         │  effects to perform
+   ┌─────▼─────┐   IMPERATIVE SHELL + layers            (Ch 6, Ch 8)
+   │   shell   │   charge · reserve · confirm · record
+   └───────────┘</pre>
+
+<p>The two disciplines are visible as regions. The core is a sealed world of precise types and total functions where the compiler carries the argument. The edge is an open world of tables, languages, networks, and search where new rules and routes arrive without editing anything. They never touch directly. Between them sits a single narrow band — the membrane — and everything the open edge produces enters the closed core only by passing through it. That band is one routine, and it is where the book's whole thesis is load-bearing.</p>
+</section>
+
+<section id="core-and-edge" class="level2" data-number="15.2">
+<h2 class="anchored" data-anchor-id="core-and-edge"><span class="header-section-number">15.2</span> Two Worlds, Recalled</h2>
+
+<p>The core we built in Part II. An <code>Order</code> is a sealed sum of <code>Draft</code>, <code>Placed</code>, and <code>Shipped</code> (Chapter 3); its transitions are total functions whose argument types forbid the illegal ones (Chapter 5); a <code>Quantity</code> cannot be non-positive and a placed order cannot be malformed, because their invariants forbid it. Nothing untrusted reaches this world, because the boundary parses it away first (Chapter 4), and nothing effectful happens inside it, because effects are returned as data for the shell to perform (Chapter 6). It is the part of the system we are least afraid of.</p>
+
+<p>The edge we built in Parts IV and V. Pricing is a table of handlers and a small language of rules-as-data, open to any new promotion (Chapters 9–10); a quote can converge from many partial sources through a propagator network (Chapter 12); fulfillment finds a warehouse and carrier by unifying the order against an open set of route patterns and searching (Chapter 13). No part of this is sealed, and none of it can be, because the whole point of the edge is to grow in directions no one has enumerated.</p>
+
+<p>One honest reconciliation belongs here. In Chapter 3, a placed order's invariant was the simplest true thing — its total equalled the sum of its lines — because pricing did not yet exist. Now that the open edge computes discounted quotes, that invariant becomes the membrane's: a placed order's total is a quote the core <em>admitted</em> — in the right currency, non-negative, above the floor. The simplification was a scaffold; the capstone replaces it with the real thing. The core is still sealed; its invariant now names what a legitimate price is, rather than assuming there is only one.</p>
+</section>
+
+<section id="the-membrane-concrete" class="level2" data-number="15.3">
+<h2 class="anchored" data-anchor-id="the-membrane-concrete"><span class="header-section-number">15.3</span> The Membrane, Made Concrete</h2>
+
+<p>Here is the seam the entire book has pointed at — the one routine through which every price, from every rule that will ever exist, must pass to become part of an order. It is written from the core's side. It does not know or ask how the quote was computed; it states the terms and admits only what meets them.</p>
+
+<pre><code>-- The membrane: the open edge proposes a quote; the closed core admits it, or not.
+function admit_quote(draft: Draft, quote: Money): Result[Placed]
+  require
+    same_currency: quote.currency = draft.currency
+  do
+    if quote &lt; Money.zero then
+      result := create Err[Placed].make("quote is negative")
+    elsif quote &lt; draft.floor_price then
+      result := create Err[Placed].make("quote below floor")
+    else
+      result := create Ok[Placed].make(create Placed.make(draft.items, quote))
+    end
+  ensure
+    admitted_is_valid: is_ok(result) implies result_order_is_consistent(result)
+  end</code></pre>
+
+<p>Read what this one function does for the whole system. On its <em>open</em> side, anything at all may have produced <code>quote</code> — a percentage rule, a loyalty tier, a propagator network settling three services' worth of partial knowledge, a promotion invented next quarter by someone who never saw this code. On its <em>closed</em> side, a <code>Placed</code> emerges that the core's invariants fully trust. The transformation from "some number the edge computed" to "a price the core believes" happens here and nowhere else. Delete every pricing rule and write new ones; this routine does not change. That is what a membrane is: the fixed contract that lets both sides vary independently.</p>
+</section>
+
+<section id="one-order" class="level2" data-number="15.4">
+<h2 class="anchored" data-anchor-id="one-order"><span class="header-section-number">15.4</span> One Order, End to End</h2>
+
+<p>Now the whole placement, as one pure function that threads the request through every region. Each line is a chapter; the comments name them.</p>
+
+<pre><code>function place_order(request: Order_Request, rule: Price_Expr,
+                     routes: Array[Term], now: Instant): Result[Placement]
+  do
+    match parse_order(request) of                       -- 1. boundary: parse (Ch 4)
+      when Err as bad then
+        result := create Err[Placement].make(bad.message)
+      when Ok as parsed then
+        let draft: Draft := parsed.value
+        let quote: Money := rule.eval_for(draft)        -- 2. open edge: price it (Ch 10)
+        match admit_quote(draft, quote) of              -- 3. membrane: admit it (Ch 2, 9)
+          when Err as rejected then
+            result := create Err[Placement].make(rejected.message)
+          when Ok as ok then
+            result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides (Ch 5,6,13)
+        end
+    end
+  end
+
+function plan_fulfillment(placed: Placed, routes: Array[Term],
+                          now: Instant): Result[Placement]
+  do
+    match route(order_term(placed), routes) of          -- 4a. routing by search (Ch 13)
+      when Err as e then
+        result := create Err[Placement].make("unfulfillable: " + e.message)
+      when Ok as sol then
+        let fx: Array[Effect] := []                     -- 4b. effects as data (Ch 6)
+        fx.add(create Charge_Payment.make(placed.total))
+        fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
+        fx.add(create Send_Confirmation.make(placed.customer_email))
+        fx.add(create Record_Order.make(placed))
+        result := create Ok[Placement].make(create Placement.make(placed, fx))
+    end
+  end</code></pre>
+
+<p>Trace one order through it. An untrusted request enters and is <em>parsed</em> into a <code>Draft</code> or rejected — the last place distrust is allowed. The <code>Draft</code> is <em>priced</em> by an open-ended rule, producing a number the core has not vouched for. That number meets the <em>membrane</em>, which admits it as a <code>Placed</code> only on the core's terms. The <code>Placed</code> is <em>routed</em> by search to a warehouse and carrier, and the core decides what must happen — charge, reserve, confirm, record — and returns those as <em>data</em>. Not one effect has fired; <code>place_order</code> is pure, testable by inspecting its result, deterministic given <code>now</code>. The whole span from constraint to flexibility and back is one readable function, and every technique in the book appears in it exactly once, exactly where it belongs.</p>
+
+<p>The shell finishes the story. It calls <code>place_order</code>, takes the returned effects, and performs them against the real world — wrapped in the layers of Chapter 8, so logging, metrics, and idempotency surround the placement without touching it. The impure part stays thin, mechanical, and outermost; the interesting part stays pure and within.</p>
+</section>
+
+<section id="both-disciplines" class="level2" data-number="15.5">
+<h2 class="anchored" data-anchor-id="both-disciplines"><span class="header-section-number">15.5</span> Both Disciplines, One Codebase</h2>
+
+<p>Look at what did not happen. The open pricing edge did not force a single compromise on the core's types — no field went nullable, no state went unsealed, no invariant weakened to accommodate a rule the core could not foresee. And the sealed core did not cost the edge any of its openness — a new promotion is still a new rule in a table, a new route still a new pattern, added without reopening anything. The two disciplines that Chapter 1 said pull in opposite directions are both here, each fully itself, and they do not fight — because they never meet except through the membrane, and the membrane is a contract that asks nothing of either side but that it keep its promise.</p>
+
+<p>That is the resolution the book set out to earn. Constraint and flexibility are not a spectrum you pick a point on, nor rivals you choose between. They are two tools for two different jobs, and a real system needs both at once: a core that must be correct, an edge that must be free to grow, and — this is the whole of it — a contract on the seam between them, so that the correctness of the one and the freedom of the other are held apart and held together at the same time.</p>
+
+<div class="thesis">Constrain the core. Open the edges. Let contracts be the membrane between them. The core stays correct because nothing untrusted crosses the contract; the edge stays free because the core asks only that the contract be kept. Both disciplines, one codebase, no contradiction.</div>
+</section>
+
+<section id="last-word" class="level2" data-number="15.6">
+<h2 class="anchored" data-anchor-id="last-word"><span class="header-section-number">15.6</span> The Last Word</h2>
+
+<p>Software gets hard two ways: you model it wrong, or you build it so you cannot change it. The whole of this book has been a single answer to both at once. Fight the first with constraint, where the domain is knowable — make the illegal unrepresentable, parse at the boundary, keep the core pure, let the compiler carry the argument. Fight the second with flexibility, where the domain must grow — open the vocabulary, make rules into data, let the network settle and the search run. And wherever the two regions meet, put a contract, so the tightened core can accept work from the opened edge without either becoming the other.</p>
+
+<p>You will not always draw the line in the same place; the signs shift, the business changes, and a seam that wanted sealing last year may want opening now. But you will always be drawing the same <em>kind</em> of line — deciding, for the decision in front of you, how much the types should say and where the contract takes over. Do that well, seam by seam, and you get the thing this book was named for and built toward: software that is correct where it must be and flexible where it must be, in one codebase, without contradiction. A tight core. An open edge. And a contract holding the two in a single, honest whole.</p>
+
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_14.html"><span class="label">&larr; Chapter 14</span><span class="ttl">Where to Draw the Line</span></a></div><div class="next"><a href="index.html"><span class="label">Contents &rarr;</span><span class="ttl">Table of Contents</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  if (pre.querySelector('code') === null) return;   // skip the plain-text diagram
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>
